@@ -91,3 +91,23 @@ export async function requireApiToken(request: NextRequest, requiredScope: ApiSc
     apiTokenId: apiToken.id
   };
 }
+
+export async function recordApiTokenSuccess(apiTokenId: string) {
+  await prisma.apiToken.update({
+    where: { id: apiTokenId },
+    data: {
+      lastSuccessAt: new Date(),
+      lastError: null
+    }
+  });
+}
+
+export async function recordApiTokenError(apiTokenId: string, error: string) {
+  await prisma.apiToken.update({
+    where: { id: apiTokenId },
+    data: {
+      lastErrorAt: new Date(),
+      lastError: error.slice(0, 240)
+    }
+  });
+}

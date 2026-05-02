@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { requireApiToken } from "@/lib/api-auth";
+import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { normalizeCustomMessage } from "@/lib/normalizers/custom-api";
 import { customMessageSchema } from "@/lib/validation/custom-api";
@@ -16,13 +16,13 @@ function errorResponse(message: string, status: number) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
+  const auth = await requireApiToken(request, "conversations:write");
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
-    const auth = await requireApiToken(request, "conversations:write");
-
-    if (!auth.ok) {
-      return auth.response;
-    }
-
     const { id } = await context.params;
     const conversation = await prisma.conversation.findFirst({
       where: {
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!conversation) {
+      await recordApiTokenError(auth.apiTokenId, "Conversation not found.");
       return errorResponse("Conversation not found.", 404);
     }
 
@@ -53,12 +54,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       update: messageData
     });
 
+    await recordApiTokenSuccess(auth.apiTokenId);
+
     return NextResponse.json({ id: message.id }, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError || error instanceof SyntaxError) {
+      await recordApiTokenError(auth.apiTokenId, "Invalid custom message payload.");
       return errorResponse("Invalid custom message payload.", 400);
     }
 
+    await recordApiTokenError(auth.apiTokenId, "Internal server error.");
     return errorResponse("Internal server error.", 500);
   }
 }

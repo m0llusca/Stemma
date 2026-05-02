@@ -1,8 +1,22 @@
+import {
+  buildCurlExample,
+  customApiEndpoints,
+  customConversationExample,
+  customConversationSchemaRows,
+  customMessageExample,
+  customMessageSchemaRows,
+  demoApiToken,
+  formatJsonExample
+} from "@/lib/custom-api-docs";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
+
+const conversationImportCurl = buildCurlExample("/api/conversations", "POST", customConversationExample);
+const messageImportCurl = buildCurlExample("/api/conversations/{id}/messages", "POST", customMessageExample);
+const reviewExportCurl = buildCurlExample("/api/reviews/export", "GET");
 
 const roadmap = [
   {
@@ -38,12 +52,28 @@ function formatLastUsed(value: Date | null) {
   return value.toLocaleString("ru-RU");
 }
 
+function formatOptionalDate(value: Date | null) {
+  if (!value) {
+    return "Нет";
+  }
+
+  return value.toLocaleString("ru-RU");
+}
+
 function formatScopes(scopes: string) {
   return scopes
     .split(",")
     .map((scope) => scope.trim())
     .filter(Boolean)
     .join(", ");
+}
+
+function CodeBlock({ children }: { children: string }) {
+  return (
+    <pre className="overflow-x-auto rounded-md bg-[#17202a] p-4 text-xs leading-5 text-white">
+      <code>{children}</code>
+    </pre>
+  );
 }
 
 export default async function AdminIntegrationsPage() {
@@ -86,46 +116,112 @@ export default async function AdminIntegrationsPage() {
                   <th className="px-4 py-3 font-semibold">Метод</th>
                   <th className="px-4 py-3 font-semibold">Endpoint</th>
                   <th className="px-4 py-3 font-semibold">Scope</th>
+                  <th className="px-4 py-3 font-semibold">Назначение</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#d7dce5]">
-                <tr>
-                  <td className="px-4 py-3 font-medium">POST</td>
-                  <td className="px-4 py-3 font-mono text-xs">/api/conversations</td>
-                  <td className="px-4 py-3 font-mono text-xs">conversations:write</td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 font-medium">POST</td>
-                  <td className="px-4 py-3 font-mono text-xs">/api/conversations/{"{id}"}/messages</td>
-                  <td className="px-4 py-3 font-mono text-xs">conversations:write</td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 font-medium">GET</td>
-                  <td className="px-4 py-3 font-mono text-xs">/api/reviews/export</td>
-                  <td className="px-4 py-3 font-mono text-xs">reviews:read</td>
-                </tr>
+                {customApiEndpoints.map((endpoint) => (
+                  <tr key={`${endpoint.method}:${endpoint.path}`}>
+                    <td className="px-4 py-3 font-medium">{endpoint.method}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{endpoint.path}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{endpoint.scope}</td>
+                    <td className="px-4 py-3 text-[#344054]">{endpoint.purpose}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
           <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
             <p className="text-sm font-semibold text-[#17202a]">Dev-токен</p>
-            <code className="mt-2 block rounded bg-white px-3 py-2 text-xs text-[#344054]">qa_demo_dev_token</code>
+            <code className="mt-2 block rounded bg-white px-3 py-2 text-xs text-[#344054]">{demoApiToken}</code>
             <p className="mt-3 text-sm font-semibold text-[#17202a]">Заголовок</p>
             <code className="mt-2 block rounded bg-white px-3 py-2 text-xs text-[#344054]">
-              Authorization: Bearer qa_demo_dev_token
+              Authorization: Bearer {demoApiToken}
             </code>
           </div>
         </div>
 
+        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-3">
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-[#17202a]">Импорт диалога</h3>
+            <CodeBlock>{conversationImportCurl}</CodeBlock>
+          </div>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-[#17202a]">Добавление сообщения</h3>
+            <CodeBlock>{messageImportCurl}</CodeBlock>
+          </div>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-[#17202a]">Экспорт проверок</h3>
+            <CodeBlock>{reviewExportCurl}</CodeBlock>
+          </div>
+        </div>
+
+        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-[minmax(0,1fr)_520px]">
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-[#17202a]">Пример JSON для импорта</h3>
+            <CodeBlock>{formatJsonExample(customConversationExample)}</CodeBlock>
+          </div>
+          <div className="grid gap-5">
+            <div className="overflow-x-auto">
+              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Поля диалога</h3>
+              <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">Поле</th>
+                    <th className="px-3 py-2 font-semibold">Обяз.</th>
+                    <th className="px-3 py-2 font-semibold">Тип</th>
+                    <th className="px-3 py-2 font-semibold">Примечание</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5]">
+                  {customConversationSchemaRows.map((row) => (
+                    <tr key={row.field}>
+                      <td className="px-3 py-2 font-mono text-xs">{row.field}</td>
+                      <td className="px-3 py-2">{row.required}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{row.type}</td>
+                      <td className="px-3 py-2 text-[#344054]">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="overflow-x-auto">
+              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Поля сообщения</h3>
+              <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">Поле</th>
+                    <th className="px-3 py-2 font-semibold">Обяз.</th>
+                    <th className="px-3 py-2 font-semibold">Тип</th>
+                    <th className="px-3 py-2 font-semibold">Примечание</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5]">
+                  {customMessageSchemaRows.map((row) => (
+                    <tr key={row.field}>
+                      <td className="px-3 py-2 font-mono text-xs">{row.field}</td>
+                      <td className="px-3 py-2">{row.required}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{row.type}</td>
+                      <td className="px-3 py-2 text-[#344054]">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div className="border-t border-[#d7dce5]">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
                 <th className="px-5 py-3 font-semibold">Название</th>
                 <th className="px-5 py-3 font-semibold">Префикс</th>
                 <th className="px-5 py-3 font-semibold">Scopes</th>
                 <th className="px-5 py-3 font-semibold">Последнее использование</th>
+                <th className="px-5 py-3 font-semibold">Последний успех</th>
+                <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#d7dce5]">
@@ -135,6 +231,10 @@ export default async function AdminIntegrationsPage() {
                   <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
                   <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
                   <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
+                  <td className="px-5 py-4 text-[#344054]">{formatOptionalDate(apiToken.lastSuccessAt)}</td>
+                  <td className="px-5 py-4 text-[#344054]">
+                    {apiToken.lastError ? `${formatOptionalDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
+                  </td>
                 </tr>
               ))}
             </tbody>

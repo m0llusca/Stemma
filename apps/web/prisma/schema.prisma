@@ -109,6 +109,9 @@ model ApiToken {
   tokenHash    String    @unique
   scopes       String
   lastUsedAt   DateTime?
+  lastSuccessAt DateTime?
+  lastErrorAt   DateTime?
+  lastError     String?
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

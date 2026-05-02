@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { requireApiToken } from "@/lib/api-auth";
+import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
 import { customConversationSchema } from "@/lib/validation/custom-api";
@@ -12,13 +12,13 @@ function errorResponse(message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiToken(request, "conversations:write");
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
-    const auth = await requireApiToken(request, "conversations:write");
-
-    if (!auth.ok) {
-      return auth.response;
-    }
-
     const body = await request.json();
     const payload = customConversationSchema.parse(body);
     const conversationData = normalizeCustomConversation(payload);
@@ -56,12 +56,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await recordApiTokenSuccess(auth.apiTokenId);
+
     return NextResponse.json({ id: conversation.id }, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError || error instanceof SyntaxError) {
+      await recordApiTokenError(auth.apiTokenId, "Invalid custom conversation payload.");
       return errorResponse("Invalid custom conversation payload.", 400);
     }
 
+    await recordApiTokenError(auth.apiTokenId, "Internal server error.");
     return errorResponse("Internal server error.", 500);
   }
 }

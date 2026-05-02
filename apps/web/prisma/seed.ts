@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { demoApiToken } from "../src/lib/custom-api-docs";
 
 const prisma = new PrismaClient();
-const demoApiToken = "qa_demo_dev_token";
 
 function hashApiToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");

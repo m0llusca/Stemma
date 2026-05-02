@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiToken } from "@/lib/api-auth";
+import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -9,13 +9,13 @@ function isoDate(value: Date | null) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireApiToken(request, "reviews:read");
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
-    const auth = await requireApiToken(request, "reviews:read");
-
-    if (!auth.ok) {
-      return auth.response;
-    }
-
     const reviews = await prisma.review.findMany({
       where: { workspaceId: auth.workspaceId },
       include: {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" }
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       reviews: reviews.map((review) => ({
         id: review.id,
         status: review.status,
@@ -87,7 +87,12 @@ export async function GET(request: NextRequest) {
         }))
       }))
     });
+
+    await recordApiTokenSuccess(auth.apiTokenId);
+
+    return response;
   } catch {
+    await recordApiTokenError(auth.apiTokenId, "Internal server error.");
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

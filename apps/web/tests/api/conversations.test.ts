@@ -133,6 +133,13 @@ describe("custom conversation API", () => {
         lastUsedAt: expect.any(Date)
       }
     });
+    expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
+      where: { id: "api-token-1" },
+      data: {
+        lastSuccessAt: expect.any(Date),
+        lastError: null
+      }
+    });
     expect(mocks.prisma.conversation.upsert).toHaveBeenCalledWith({
       where: {
         workspaceId_externalSource_externalId: {
@@ -179,6 +186,13 @@ describe("custom conversation API", () => {
 
     await expect(response.json()).resolves.toEqual({ error: "Invalid custom conversation payload." });
     expect(response.status).toBe(400);
+    expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
+      where: { id: "api-token-1" },
+      data: {
+        lastErrorAt: expect.any(Date),
+        lastError: "Invalid custom conversation payload."
+      }
+    });
     expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
   });
 
@@ -234,6 +248,13 @@ describe("custom conversation API", () => {
 
     await expect(response.json()).resolves.toEqual({ error: "Conversation not found." });
     expect(response.status).toBe(404);
+    expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
+      where: { id: "api-token-1" },
+      data: {
+        lastErrorAt: expect.any(Date),
+        lastError: "Conversation not found."
+      }
+    });
     expect(mocks.prisma.message.upsert).not.toHaveBeenCalled();
   });
 
@@ -367,6 +388,13 @@ describe("custom conversation API", () => {
       ]
     });
     expect(response.status).toBe(200);
+    expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
+      where: { id: "api-token-1" },
+      data: {
+        lastSuccessAt: expect.any(Date),
+        lastError: null
+      }
+    });
     expect(mocks.prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { workspaceId: "workspace-1" }
