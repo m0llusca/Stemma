@@ -139,15 +139,39 @@ async function main() {
     data: [
       {
         workspaceId: workspace.id,
-        source: "zendesk",
-        displayName: "Zendesk",
-        status: "planned"
+        source: "custom_api",
+        displayName: "Кастомный API",
+        status: "active"
       },
       {
         workspaceId: workspace.id,
         source: "otrs_family",
         displayName: "Znuny / OTRS / OTOBO",
-        status: "planned"
+        status: "ready"
+      },
+      {
+        workspaceId: workspace.id,
+        source: "zendesk",
+        displayName: "Zendesk",
+        status: "ready"
+      },
+      {
+        workspaceId: workspace.id,
+        source: "intercom",
+        displayName: "Intercom",
+        status: "ready"
+      },
+      {
+        workspaceId: workspace.id,
+        source: "freshdesk",
+        displayName: "Freshdesk",
+        status: "ready"
+      },
+      {
+        workspaceId: workspace.id,
+        source: "hubspot",
+        displayName: "HubSpot Service Hub",
+        status: "ready"
       }
     ]
   });

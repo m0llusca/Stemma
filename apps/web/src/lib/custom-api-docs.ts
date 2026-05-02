@@ -1,3 +1,4 @@
+import { nativeHelpdeskImportExamples } from "@/lib/normalizers/native-helpdesk";
 import { otrsFamilyTicketGetExample } from "@/lib/normalizers/otrs-family";
 import type { CustomConversationInput } from "@/lib/validation/custom-api";
 
@@ -22,6 +23,12 @@ export const customApiEndpoints = [
     path: "/api/integrations/otrs-family/tickets",
     scope: "conversations:write",
     purpose: "Импортировать TicketGet-ответы OTRS CE 6, Znuny или OTOBO."
+  },
+  {
+    method: "POST",
+    path: "/api/integrations/native-helpdesks/conversations",
+    scope: "conversations:write",
+    purpose: "Импортировать native payload Zendesk, Intercom, Freshdesk или HubSpot."
   },
   {
     method: "GET",
@@ -81,8 +88,15 @@ export const otrsFamilyImportExample = {
   ticketGet: otrsFamilyTicketGetExample
 } as const;
 
+export const nativeHelpdeskImportExample = {
+  source: "zendesk",
+  baseUrl: "https://support.example.com",
+  samplingReason: "Native Zendesk импорт: тикет и комментарии.",
+  payload: nativeHelpdeskImportExamples.zendesk
+} as const;
+
 export const customConversationSchemaRows = [
-  { field: "externalSource", required: "Да", type: "string", note: "Код источника: custom_api, otrs, znuny, zendesk." },
+  { field: "externalSource", required: "Да", type: "string", note: "Код источника: custom_api, otrs, znuny, zendesk, intercom, freshdesk, hubspot." },
   { field: "externalId", required: "Да", type: "string", note: "Стабильный ID диалога во внешней системе." },
   { field: "externalUrl", required: "Нет", type: "url", note: "Ссылка на тикет или диалог в источнике." },
   { field: "channel", required: "Да", type: "chat | email | ticket | messenger", note: "Канал общения." },

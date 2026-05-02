@@ -85,6 +85,7 @@ export function formatMessageCount(count: number) {
 export function integrationStatusLabel(status: string) {
   const labels: Record<string, string> = {
     planned: "Запланировано",
+    ready: "Готова к подключению",
     active: "Активна",
     paused: "На паузе",
     error: "Ошибка"

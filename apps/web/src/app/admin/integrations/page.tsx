@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
 import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
 import { OtrsSetupWizard } from "@/components/integrations/otrs-setup-wizard";
 import { ChevronDown } from "lucide-react";
@@ -13,11 +14,13 @@ import {
   customMessageSchemaRows,
   apiTokenPlaceholder,
   formatJsonExample,
+  nativeHelpdeskImportExample,
   otrsFamilyImportExample
 } from "@/lib/custom-api-docs";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
+import { nativeHelpdeskMappingRows, nativeHelpdeskSources } from "@/lib/normalizers/native-helpdesk";
 import { otrsFamilyMappingRows } from "@/lib/normalizers/otrs-family";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +29,11 @@ const conversationImportCurl = buildCurlExample("/api/conversations", "POST", cu
 const messageImportCurl = buildCurlExample("/api/conversations/{id}/messages", "POST", customMessageExample);
 const reviewExportCurl = buildCurlExample("/api/reviews/export", "GET");
 const otrsImportCurl = buildCurlExample("/api/integrations/otrs-family/tickets", "POST", otrsFamilyImportExample);
+const nativeHelpdeskImportCurl = buildCurlExample(
+  "/api/integrations/native-helpdesks/conversations",
+  "POST",
+  nativeHelpdeskImportExample
+);
 const otrsTicketGetRequest = formatJsonExample({
   TicketGet: {
     UserLogin: "agent_login",
@@ -39,22 +47,17 @@ const otrsTicketGetRequest = formatJsonExample({
   }
 });
 
-const roadmap = [
+const connectorCoverage = [
   {
     name: "Znuny / OTRS / OTOBO",
-    phase: "Этап 2 · первый native track",
+    phase: "Готово",
     summary: "GenericInterface TicketGet с AllArticles=1, нормализация ticket/article и идемпотентный импорт."
   },
-  {
-    name: "Zendesk",
-    phase: "Этап 2",
-    summary: "Импорт тикетов, синхронизация диалогов и подготовка выборки для проверок."
-  },
-  {
-    name: "Intercom / Freshdesk / HubSpot",
-    phase: "Этап 3",
-    summary: "Дополнительные SaaS-каналы после базового слоя коннекторов."
-  }
+  ...nativeHelpdeskSources.map((source) => ({
+    name: source.label,
+    phase: "Готово",
+    summary: `${source.objectName}: ${source.endpointHint}.`
+  }))
 ];
 
 function formatDate(value: Date | null) {
@@ -230,7 +233,9 @@ export default async function AdminIntegrationsPage() {
     prisma.auditLog.findMany({
       where: {
         workspaceId: user.workspaceId,
-        action: "integration.otrs_family_imported",
+        action: {
+          in: ["integration.otrs_family_imported", "integration.native_helpdesk_imported"]
+        },
         targetType: "integration"
       },
       include: {
@@ -242,9 +247,11 @@ export default async function AdminIntegrationsPage() {
       take: 5
     })
   ]);
-  const hasRecentOtrsImport = recentImportLogs.length > 0;
+  const hasRecentOtrsImport = recentImportLogs.some((log) => log.action === "integration.otrs_family_imported");
+  const hasRecentNativeImport = recentImportLogs.some((log) => log.action === "integration.native_helpdesk_imported");
   const apiHealth = customApiHealth(apiTokens);
   const otrsHealth = plannedHealth(hasRecentOtrsImport);
+  const nativeHealth = plannedHealth(hasRecentNativeImport);
 
   return (
     <section className="page-shell">
@@ -452,8 +459,75 @@ export default async function AdminIntegrationsPage() {
       </IntegrationDisclosure>
 
       <IntegrationDisclosure
+        title="Native SaaS импорт"
+        description="Готовые mapping-адаптеры для Zendesk, Intercom, Freshdesk и HubSpot Service Hub: native payload превращается в QA-диалог."
+        meta={`${nativeHelpdeskSources.length} коннектора`}
+        health={nativeHealth}
+      >
+        <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="grid gap-5">
+            <div className="overflow-x-auto">
+              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Поддерживаемые источники</h3>
+              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Источник</th>
+                    <th className="px-4 py-3 font-semibold">Объект</th>
+                    <th className="px-4 py-3 font-semibold">API/export shape</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5]">
+                  {nativeHelpdeskSources.map((source) => (
+                    <tr key={source.value}>
+                      <td className="px-4 py-3 font-medium text-[#17202a]">{source.label}</td>
+                      <td className="px-4 py-3 text-[#344054]">{source.objectName}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-[#344054]">{source.endpointHint}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="overflow-x-auto">
+              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Mapping в custom API</h3>
+              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Native поле</th>
+                    <th className="px-4 py-3 font-semibold">Поле QC</th>
+                    <th className="px-4 py-3 font-semibold">Правило</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5]">
+                  {nativeHelpdeskMappingRows.map((row) => (
+                    <tr key={`${row.source}:${row.target}`}>
+                      <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
+                      <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-[#17202a]">Endpoint native-импорта</h3>
+            <CodeBlock>{nativeHelpdeskImportCurl}</CodeBlock>
+          </div>
+        </div>
+
+        <div className="border-t border-[#d7dce5] p-5">
+          <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
+            <h3 className="mb-3 text-sm font-semibold text-[#17202a]">Тестовый импорт native helpdesk</h3>
+            <NativeHelpdeskImportTester />
+          </div>
+        </div>
+      </IntegrationDisclosure>
+
+      <IntegrationDisclosure
         title="Последние импорты"
-        description="Успешные OTRS-family импорты с количеством тикетов, ошибками и быстрым переходом в очередь."
+        description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
         meta={`${recentImportLogs.length} событий`}
         health={hasRecentOtrsImport ? { label: "Есть данные", className: badgeClass("ok") } : { label: "Пока пусто", className: badgeClass("neutral") }}
       >
@@ -493,7 +567,7 @@ export default async function AdminIntegrationsPage() {
             </table>
           </div>
         ) : (
-          <div className="p-5 text-sm text-[#667085]">Импорты появятся здесь после тестового или API-импорта OTRS-family.</div>
+          <div className="p-5 text-sm text-[#667085]">Импорты появятся здесь после тестового или API-импорта native-коннекторов.</div>
         )}
       </IntegrationDisclosure>
 
@@ -530,18 +604,18 @@ export default async function AdminIntegrationsPage() {
         </IntegrationDisclosure>
 
         <IntegrationDisclosure
-          title="План интеграций"
-          description="Очередность native-коннекторов после универсального API и OTRS-family трека."
-          meta="Этапы 2-3"
-          health={{ label: "Roadmap", className: badgeClass("neutral") }}
+          title="Покрытие интеграций"
+          description="Список native-адаптеров, доступных для ручного QA MVP через API или тестовый импорт."
+          meta={`${connectorCoverage.length} типов`}
+          health={{ label: "Готово", className: badgeClass("ok") }}
           className="mb-0"
         >
           <div className="grid gap-3 p-5">
-            {roadmap.map((item) => (
+            {connectorCoverage.map((item) => (
               <article key={item.name} className="rounded-md border border-[#d7dce5] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-semibold text-[#17202a]">{item.name}</h3>
-                  <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+                  <span className="shrink-0 rounded-md bg-[#e8f3ef] px-2 py-1 text-xs font-semibold text-[#116466]">
                     {item.phase}
                   </span>
                 </div>

@@ -276,6 +276,86 @@ describe("custom conversation API", () => {
     });
   });
 
+  it("imports native helpdesk payloads through the SaaS endpoint", async () => {
+    const { POST } = await import("@/app/api/integrations/native-helpdesks/conversations/route");
+    mocks.prisma.conversation.upsert.mockResolvedValue({ id: "conv-db-zendesk" });
+    mocks.prisma.message.upsert.mockResolvedValueOnce({ id: "msg-db-501" }).mockResolvedValueOnce({ id: "msg-db-502" });
+
+    const response = await POST(
+      jsonRequest({
+        source: "zendesk",
+        baseUrl: "https://support.example.com",
+        ticket: {
+          id: 35436,
+          subject: "Refund request from Zendesk",
+          status: "solved",
+          priority: "high",
+          tags: ["refund", "delivery"],
+          requester_id: 20978392,
+          assignee_id: 235323,
+          created_at: "2026-04-25T10:00:00Z",
+          updated_at: "2026-04-25T10:18:00Z",
+          via: { channel: "email" }
+        },
+        users: [
+          { id: 20978392, name: "Ava Customer", is_staff: false },
+          { id: 235323, name: "Sam Agent", is_staff: true }
+        ],
+        comments: [
+          {
+            id: 501,
+            author_id: 20978392,
+            plain_body: "Where is my refund?",
+            public: true,
+            created_at: "2026-04-25T10:00:00Z"
+          },
+          {
+            id: 502,
+            author_id: 235323,
+            plain_body: "I can help.",
+            public: true,
+            created_at: "2026-04-25T10:08:00Z"
+          }
+        ]
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      count: 1,
+      imported: [
+        {
+          id: "conv-db-zendesk",
+          externalSource: "zendesk",
+          externalId: "35436",
+          subject: "Refund request from Zendesk",
+          messageCount: 2
+        }
+      ]
+    });
+    expect(response.status).toBe(201);
+    expect(mocks.prisma.conversation.upsert).toHaveBeenCalledWith({
+      where: {
+        workspaceId_externalSource_externalId: {
+          workspaceId: "workspace-1",
+          externalSource: "zendesk",
+          externalId: "35436"
+        }
+      },
+      create: expect.objectContaining({
+        workspaceId: "workspace-1",
+        channel: "EMAIL",
+        customerName: "Ava Customer",
+        assigneeName: "Sam Agent"
+      }),
+      update: expect.objectContaining({
+        channel: "EMAIL",
+        customerName: "Ava Customer",
+        assigneeName: "Sam Agent"
+      })
+    });
+    expect(mocks.prisma.message.upsert).toHaveBeenCalledTimes(2);
+  });
+
   it("returns 400 for invalid conversation payloads", async () => {
     const { POST } = await import("@/app/api/conversations/route");
 

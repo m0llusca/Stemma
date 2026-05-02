@@ -22,9 +22,11 @@ describe("custom API onboarding docs", () => {
       "conversations:write",
       "conversations:write",
       "conversations:write",
+      "conversations:write",
       "reviews:read"
     ]);
     expect(customApiEndpoints.map((endpoint) => endpoint.path)).toContain("/api/integrations/otrs-family/tickets");
+    expect(customApiEndpoints.map((endpoint) => endpoint.path)).toContain("/api/integrations/native-helpdesks/conversations");
   });
 
   it("generates curl examples with bearer authentication", () => {
