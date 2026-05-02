@@ -100,9 +100,9 @@ git commit -m "add custom api onboarding kit"
 - Modify: `apps/web/src/components/review/queue-table.tsx`
 - Test: `apps/web/tests/e2e/review-workflow.spec.ts`
 
-- [ ] Add query-param driven filters for status, channel, source, assignee, and free-text search.
-- [ ] Add queue summary counts for total, unchecked, finalized, and high-risk conversations.
-- [ ] Add e2e coverage for filtering by status and searching by customer or subject.
+- [x] Add query-param driven filters for status, channel, source, assignee, and free-text search.
+- [x] Add queue summary counts for total, unchecked, finalized, and high-risk conversations.
+- [x] Add e2e coverage for filtering by status and searching by customer or subject.
 
 ## Task 3: Scorecard Editor
 

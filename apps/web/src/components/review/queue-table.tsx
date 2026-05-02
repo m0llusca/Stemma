@@ -23,11 +23,12 @@ export function QueueTable({ conversations }: QueueTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-lg border border-[#d7dce5] bg-white">
-      <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[980px] border-collapse text-left text-sm">
         <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
           <tr>
             <th className="px-4 py-3 font-semibold">Диалог</th>
             <th className="px-4 py-3 font-semibold">Канал</th>
+            <th className="px-4 py-3 font-semibold">Источник</th>
             <th className="px-4 py-3 font-semibold">Ответственный</th>
             <th className="px-4 py-3 font-semibold">Причина</th>
             <th className="px-4 py-3 font-semibold">Статус</th>
@@ -49,6 +50,7 @@ export function QueueTable({ conversations }: QueueTableProps) {
                   </div>
                 </td>
                 <td className="px-4 py-4 text-[#344054]">{channelLabels[conversation.channel]}</td>
+                <td className="px-4 py-4 font-mono text-xs text-[#344054]">{conversation.externalSource}</td>
                 <td className="px-4 py-4 text-[#344054]">{conversation.assigneeName ?? "Не назначен"}</td>
                 <td className="px-4 py-4 text-[#344054]">{conversation.samplingReason}</td>
                 <td className="px-4 py-4">

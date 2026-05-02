@@ -86,3 +86,9 @@ export function conversationStatusLabel(status: string) {
 
   return labels[status] ?? status;
 }
+
+export const reviewQueueStatusLabels = {
+  all: "Все",
+  unreviewed: "В очереди",
+  reviewed: "Завершена"
+} as const;

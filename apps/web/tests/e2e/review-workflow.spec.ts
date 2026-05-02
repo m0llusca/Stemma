@@ -19,7 +19,21 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/reviews");
 
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
-  await expect(page.getByText("В очереди", { exact: true })).toBeVisible();
+  await expect(page.getByText("Найдено")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "В очереди" })).toBeVisible();
+
+  await page.getByLabel("Поиск").fill("Мила");
+  await page.getByRole("button", { name: "Применить" }).click();
+  await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
+
+  await page.getByLabel("Поиск").fill("несуществующий клиент");
+  await page.getByRole("button", { name: "Применить" }).click();
+  await expect(page.getByText("Очередь пуста")).toBeVisible();
+
+  await page.goto("/reviews");
+  await page.getByLabel("Статус проверки").selectOption("unreviewed");
+  await page.getByRole("button", { name: "Применить" }).click();
+  await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
 
   await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
 
@@ -41,4 +55,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByText("Последняя оценка")).toBeVisible();
   await expect(page.getByText("Завершена")).toBeVisible();
   await expect(page.getByText("100%")).toBeVisible();
+
+  await page.goto("/reviews?status=reviewed");
+  await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Завершена" })).toBeVisible();
 });
