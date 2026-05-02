@@ -131,7 +131,7 @@ Create `apps/web/package.json`:
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -450,6 +450,7 @@ Expected: commit succeeds.
 - Create: `apps/web/prisma/seed.ts`
 - Create: `apps/web/src/lib/db.ts`
 - Create: `apps/web/src/generated/prisma/.gitkeep`
+- Modify: `apps/web/package.json`
 
 - [ ] **Step 1: Write the Prisma schema**
 
@@ -726,7 +727,21 @@ if (process.env.NODE_ENV !== "production") {
 }
 ```
 
-- [ ] **Step 3: Add seed data**
+- [ ] **Step 3: Enable Prisma generation during production builds**
+
+Update `apps/web/package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "prisma generate && next build"
+  }
+}
+```
+
+Expected: production builds generate the Prisma client now that `apps/web/prisma/schema.prisma` exists.
+
+- [ ] **Step 4: Add seed data**
 
 Create `apps/web/prisma/seed.ts`:
 
@@ -879,7 +894,7 @@ main()
   });
 ```
 
-- [ ] **Step 4: Migrate and seed**
+- [ ] **Step 5: Migrate and seed**
 
 Run:
 
@@ -892,7 +907,7 @@ npm run db:seed
 
 Expected: migration succeeds, seed completes without throwing.
 
-- [ ] **Step 5: Verify generated client and data**
+- [ ] **Step 6: Verify generated client and data**
 
 Run:
 
@@ -902,7 +917,7 @@ cd apps/web && npx prisma studio --browser none
 
 Expected: Prisma Studio starts and shows seeded tables. Stop it with `Ctrl+C`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 Run:
 
