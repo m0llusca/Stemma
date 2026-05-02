@@ -130,16 +130,16 @@ Create `apps/web/package.json`:
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "DATABASE_URL=file:./dev.db prisma generate && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "db:generate": "prisma generate",
-    "db:migrate": "RUST_LOG=info prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force"
+    "db:generate": "DATABASE_URL=file:./dev.db prisma generate",
+    "db:migrate": "DATABASE_URL=file:./dev.db RUST_LOG=info prisma migrate dev",
+    "db:seed": "DATABASE_URL=file:./dev.db tsx prisma/seed.ts",
+    "db:reset": "DATABASE_URL=file:./dev.db prisma migrate reset --force"
   },
   "dependencies": {
     "@prisma/client": "6.19.2",
@@ -724,7 +724,7 @@ Update `apps/web/package.json`:
 ```json
 {
   "scripts": {
-    "build": "prisma generate && next build"
+    "build": "DATABASE_URL=file:./dev.db prisma generate && next build"
   }
 }
 ```
@@ -890,12 +890,11 @@ Run:
 
 ```bash
 cd apps/web
-cp .env.example .env
 npm run db:migrate -- --name init
 npm run db:seed
 ```
 
-Expected: migration succeeds, seed completes without throwing.
+Expected: migration succeeds and seed completes without requiring a local `.env`; `.env.example` remains documentation for the default SQLite URL.
 
 - [ ] **Step 6: Verify generated client and data**
 
