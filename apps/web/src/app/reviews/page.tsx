@@ -2,6 +2,8 @@ import { QueueTable } from "@/components/review/queue-table";
 import { getCurrentUser } from "@/lib/current-user";
 import { getReviewQueue } from "@/lib/review-repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function ReviewsPage() {
   const user = await getCurrentUser();
   const conversations = await getReviewQueue(user.workspaceId);
