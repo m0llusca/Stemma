@@ -7,6 +7,8 @@ import type {
   Scorecard,
   ScorecardCriterion
 } from "@prisma/client";
+import { ChevronDown } from "lucide-react";
+import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
 import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
 import { finalizeReview, saveReviewDraft } from "@/lib/review-actions";
 
@@ -32,206 +34,300 @@ const coachingTemplates = [
   "Добавить чек перед отправкой ответа клиенту."
 ];
 
+const fieldClassName = "rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm";
+const textareaClassName = `${fieldClassName} min-h-[88px] resize-y`;
+
+function criterionStateLabel(criterion: ScorecardCriterion, score?: CriterionScore) {
+  if (score?.isNotApplicable) {
+    return "Не применимо";
+  }
+
+  if (criterion.kind === "SCALE_1_3") {
+    return `Оценка ${score?.value ?? 3}/3`;
+  }
+
+  return score?.passed === false ? "Незачет" : "Зачет";
+}
+
+function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionScore) {
+  if (criterion.order === 1) {
+    return true;
+  }
+
+  return Boolean(
+    score?.comment ||
+      score?.evidenceMessageId ||
+      score?.isNotApplicable ||
+      score?.passed === false ||
+      (criterion.kind === "SCALE_1_3" && score?.value != null && score.value < 3)
+  );
+}
+
 export function ReviewPanel({ conversationId, messages, scorecard, draftReview }: ReviewPanelProps) {
   const draftScores = new Map(draftReview?.scores.map((score) => [score.criterionId, score]) ?? []);
   const draftFinding = draftReview?.findings[0];
+  const hasCoachingDraft = Boolean(draftFinding?.coachingAction);
 
   return (
-    <form action={saveReviewDraft} className="panel p-5">
+    <form action={saveReviewDraft} className="panel overflow-hidden">
+      <EvidencePickerListener />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
 
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold">Панель проверки</h2>
-        <p className="mt-1 text-sm text-[#667085]">
-          {scorecard.name} v{scorecard.version}
-        </p>
+      <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Панель проверки</h2>
+            <p className="mt-1 text-sm text-[#667085]">
+              {scorecard.name} v{scorecard.version}
+            </p>
+          </div>
+          <span className="rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+            {scorecard.criteria.length} критериев
+          </span>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        <h3 className="text-sm font-semibold uppercase text-[#667085]">Оценка по критериям</h3>
-        {scorecard.criteria.map((criterion) => {
-          const draftScore = draftScores.get(criterion.id);
-          const passedValue = draftScore?.passed ?? true;
+      <section className="border-b border-[#d7dce5] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold uppercase text-[#667085]">Оценка по критериям</h3>
+          <span className="text-sm text-[#667085]">{draftReview ? "Черновик сохранен" : "Новая проверка"}</span>
+        </div>
 
-          return (
-            <fieldset key={criterion.id} className="rounded-lg border border-[#d7dce5] p-4">
-              <legend className="px-1 text-sm font-semibold text-[#17202a]">
-                {criterion.order}. {criterion.label}
-              </legend>
-              <div className="mt-3 grid gap-3">
-                {criterion.kind === "SCALE_1_3" ? (
-                  <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                    Оценка
-                    <select
-                      name={`criterion.${criterion.id}.score`}
-                      defaultValue={String(draftScore?.value ?? 3)}
-                      className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-                    >
-                      <option value="3">3 - соответствует стандарту</option>
-                      <option value="2">2 - нужна доработка</option>
-                      <option value="1">1 - не соответствует стандарту</option>
-                    </select>
-                  </label>
-                ) : (
-                  <div className="grid gap-2 text-sm font-medium text-[#344054]">
-                    Результат
-                    <label className="flex items-center gap-2 font-normal">
-                      <input
-                        type="radio"
-                        name={`criterion.${criterion.id}.passed`}
-                        value="true"
-                        defaultChecked={passedValue}
-                      />
-                      Зачет
+        <div className="mt-4 space-y-3">
+          {scorecard.criteria.map((criterion) => {
+            const draftScore = draftScores.get(criterion.id);
+            const passedValue = draftScore?.passed ?? true;
+
+            return (
+              <details
+                key={criterion.id}
+                className="disclosure-panel overflow-hidden rounded-lg border border-[#d7dce5] bg-[#fbfcfd]"
+                open={shouldOpenCriterion(criterion, draftScore)}
+              >
+                <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 bg-white px-4 py-3">
+                  <div className="min-w-0">
+                    <h4 className="truncate text-sm font-semibold text-[#17202a]">
+                      {criterion.order}. {criterion.label}
+                    </h4>
+                    <p className="mt-1 text-xs text-[#667085]">
+                      Вес {criterion.weight}% · {criterionStateLabel(criterion, draftScore)}
+                    </p>
+                  </div>
+                  <span
+                    className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+                    aria-hidden="true"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
+                </summary>
+
+                <div className="grid gap-3 border-t border-[#d7dce5] p-4">
+                  {criterion.kind === "SCALE_1_3" ? (
+                    <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                      Оценка
+                      <select
+                        name={`criterion.${criterion.id}.score`}
+                        defaultValue={String(draftScore?.value ?? 3)}
+                        className={fieldClassName}
+                      >
+                        <option value="3">3 - соответствует стандарту</option>
+                        <option value="2">2 - нужна доработка</option>
+                        <option value="1">1 - не соответствует стандарту</option>
+                      </select>
                     </label>
-                    <label className="flex items-center gap-2 font-normal">
-                      <input
-                        type="radio"
-                        name={`criterion.${criterion.id}.passed`}
-                        value="false"
-                        defaultChecked={!passedValue}
+                  ) : (
+                    <fieldset className="grid gap-2 text-sm font-medium text-[#344054]">
+                      <legend>Результат</legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 rounded-md border border-[#d7dce5] bg-white px-3 py-2 font-normal">
+                          <input
+                            type="radio"
+                            name={`criterion.${criterion.id}.passed`}
+                            value="true"
+                            defaultChecked={passedValue}
+                          />
+                          Зачет
+                        </label>
+                        <label className="flex items-center gap-2 rounded-md border border-[#d7dce5] bg-white px-3 py-2 font-normal">
+                          <input
+                            type="radio"
+                            name={`criterion.${criterion.id}.passed`}
+                            value="false"
+                            defaultChecked={!passedValue}
+                          />
+                          Незачет
+                        </label>
+                      </div>
+                    </fieldset>
+                  )}
+
+                  <label className="flex items-center gap-2 text-sm text-[#344054]">
+                    <input
+                      type="checkbox"
+                      name={`criterion.${criterion.id}.notApplicable`}
+                      defaultChecked={draftScore?.isNotApplicable ?? false}
+                    />
+                    Не применимо
+                  </label>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                      Сообщение-доказательство
+                      <select
+                        name={`criterion.${criterion.id}.evidenceMessageId`}
+                        defaultValue={draftScore?.evidenceMessageId ?? ""}
+                        className={fieldClassName}
+                      >
+                        <option value="">Без привязки к сообщению</option>
+                        {messages.map((message) => (
+                          <option key={message.id} value={message.id}>
+                            {message.authorName}: {message.body.slice(0, 70)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
+                      Комментарий по критерию
+                      <textarea
+                        name={`criterion.${criterion.id}.comment`}
+                        rows={2}
+                        defaultValue={draftScore?.comment ?? ""}
+                        className={textareaClassName}
                       />
-                      Незачет
                     </label>
                   </div>
-                )}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      </section>
 
-                <label className="flex items-center gap-2 text-sm text-[#344054]">
-                  <input
-                    type="checkbox"
-                    name={`criterion.${criterion.id}.notApplicable`}
-                    defaultChecked={draftScore?.isNotApplicable ?? false}
-                  />
-                  Не применимо
-                </label>
+      <details className="disclosure-panel border-b border-[#d7dce5]" open>
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold uppercase text-[#667085]">Итог и находка</h3>
+            <p className="mt-1 text-sm text-[#667085]">Результат, ответственность и доказательство</p>
+          </div>
+          <span
+            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </summary>
 
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                  Сообщение-доказательство
-                  <select
-                    name={`criterion.${criterion.id}.evidenceMessageId`}
-                    defaultValue={draftScore?.evidenceMessageId ?? ""}
-                    className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-                  >
-                    <option value="">Без привязки к сообщению</option>
-                    {messages.map((message) => (
-                      <option key={message.id} value={message.id}>
-                        {message.authorName}: {message.body.slice(0, 70)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                  Комментарий по критерию
-                  <textarea
-                    name={`criterion.${criterion.id}.comment`}
-                    rows={2}
-                    defaultValue={draftScore?.comment ?? ""}
-                    className="resize-y rounded border border-[#d7dce5] bg-white px-3 py-2"
-                  />
-                </label>
-              </div>
-            </fieldset>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 grid gap-4">
-        <h3 className="text-sm font-semibold uppercase text-[#667085]">Находка и причина</h3>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Итог проверки
-          <textarea
-            name="summary"
-            rows={3}
-            required
-            defaultValue={draftReview?.summary ?? ""}
-            className="resize-y rounded border border-[#d7dce5] px-3 py-2"
-          />
-        </label>
-
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 border-t border-[#d7dce5] p-5">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Ответственность
-            <select
-              name="ownerType"
+            Итог проверки
+            <textarea
+              name="summary"
+              rows={3}
               required
-              defaultValue={draftFinding?.ownerType ?? "AGENT"}
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            >
-              <option value="AGENT">{ownerTypeLabels.AGENT}</option>
-              <option value="PROCESS">{ownerTypeLabels.PROCESS}</option>
-              <option value="PRODUCT">{ownerTypeLabels.PRODUCT}</option>
-              <option value="POLICY">{ownerTypeLabels.POLICY}</option>
-              <option value="AI_SYSTEM">{ownerTypeLabels.AI_SYSTEM}</option>
-            </select>
+              defaultValue={draftReview?.summary ?? ""}
+              className={textareaClassName}
+            />
+          </label>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Ответственность
+              <select
+                name="ownerType"
+                required
+                defaultValue={draftFinding?.ownerType ?? "AGENT"}
+                className={fieldClassName}
+              >
+                <option value="AGENT">{ownerTypeLabels.AGENT}</option>
+                <option value="PROCESS">{ownerTypeLabels.PROCESS}</option>
+                <option value="PRODUCT">{ownerTypeLabels.PRODUCT}</option>
+                <option value="POLICY">{ownerTypeLabels.POLICY}</option>
+                <option value="AI_SYSTEM">{ownerTypeLabels.AI_SYSTEM}</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Риск
+              <select
+                name="riskLevel"
+                required
+                defaultValue={draftFinding?.riskLevel ?? "LOW"}
+                className={fieldClassName}
+              >
+                <option value="LOW">{riskLevelLabels.LOW}</option>
+                <option value="MEDIUM">{riskLevelLabels.MEDIUM}</option>
+                <option value="HIGH">{riskLevelLabels.HIGH}</option>
+                <option value="CRITICAL">{riskLevelLabels.CRITICAL}</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Категория
+              <input
+                name="category"
+                list="category-templates"
+                required
+                defaultValue={draftFinding?.category ?? ""}
+                className={fieldClassName}
+              />
+            </label>
+          </div>
+          <datalist id="category-templates">
+            {categoryTemplates.map((template) => (
+              <option key={template} value={template} />
+            ))}
+          </datalist>
+
+          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            Корневая причина
+            <textarea
+              name="rootCause"
+              rows={3}
+              required
+              placeholder="Например: оператор не сверил ответ с актуальной политикой перед финальным сообщением."
+              defaultValue={draftFinding?.rootCause ?? ""}
+              className={textareaClassName}
+            />
           </label>
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Риск
-            <select
-              name="riskLevel"
+            Краткое доказательство
+            <textarea
+              name="evidenceSummary"
+              rows={3}
               required
-              defaultValue={draftFinding?.riskLevel ?? "LOW"}
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            >
-              <option value="LOW">{riskLevelLabels.LOW}</option>
-              <option value="MEDIUM">{riskLevelLabels.MEDIUM}</option>
-              <option value="HIGH">{riskLevelLabels.HIGH}</option>
-              <option value="CRITICAL">{riskLevelLabels.CRITICAL}</option>
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Категория
-            <input
-              name="category"
-              list="category-templates"
-              required
-              defaultValue={draftFinding?.category ?? ""}
-              className="rounded border border-[#d7dce5] px-3 py-2"
+              placeholder="Например: в сообщении-доказательстве клиенту обещан срок, которого нет в политике."
+              defaultValue={draftFinding?.evidenceSummary ?? ""}
+              className={textareaClassName}
             />
           </label>
         </div>
-        <datalist id="category-templates">
-          {categoryTemplates.map((template) => (
-            <option key={template} value={template} />
-          ))}
-        </datalist>
+      </details>
 
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Корневая причина
-          <textarea
-            name="rootCause"
-            rows={3}
-            required
-            placeholder="Например: оператор не сверил ответ с актуальной политикой перед финальным сообщением."
-            defaultValue={draftFinding?.rootCause ?? ""}
-            className="resize-y rounded border border-[#d7dce5] px-3 py-2"
-          />
-        </label>
+      <details className="disclosure-panel border-b border-[#d7dce5]" open={hasCoachingDraft}>
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold uppercase text-[#667085]">Коучинг</h3>
+            <p className="mt-1 text-sm text-[#667085]">Действие, ответственный и срок</p>
+          </div>
+          <span
+            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </summary>
 
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Краткое доказательство
-          <textarea
-            name="evidenceSummary"
-            rows={3}
-            required
-            placeholder="Например: в сообщении-доказательстве клиенту обещан срок, которого нет в политике."
-            defaultValue={draftFinding?.evidenceSummary ?? ""}
-            className="resize-y rounded border border-[#d7dce5] px-3 py-2"
-          />
-        </label>
-
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
-          <h3 className="text-sm font-semibold uppercase text-[#667085] md:col-span-3">Коучинг</h3>
+        <div className="grid gap-4 border-t border-[#d7dce5] p-5 md:grid-cols-[1fr_1fr_160px]">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Действие по коучингу
             <input
               name="coachingAction"
               list="coaching-templates"
               defaultValue={draftFinding?.coachingAction?.action ?? ""}
-              className="rounded border border-[#d7dce5] px-3 py-2"
+              className={fieldClassName}
             />
           </label>
           <datalist id="coaching-templates">
@@ -244,7 +340,7 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
             <input
               name="coachingAssignee"
               defaultValue={draftFinding?.coachingAction?.assignee ?? ""}
-              className="rounded border border-[#d7dce5] px-3 py-2"
+              className={fieldClassName}
             />
           </label>
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
@@ -253,27 +349,27 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
               name="coachingDueAt"
               type="date"
               defaultValue={draftFinding?.coachingAction?.dueAt?.toISOString().slice(0, 10) ?? ""}
-              className="rounded border border-[#d7dce5] px-3 py-2"
+              className={fieldClassName}
             />
           </label>
         </div>
+      </details>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            formNoValidate
-            className="rounded border border-[#116466] px-4 py-3 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
-          >
-            Сохранить черновик
-          </button>
-          <button
-            type="submit"
-            formAction={finalizeReview}
-            className="rounded bg-[#116466] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b4f52]"
-          >
-            Завершить проверку
-          </button>
-        </div>
+      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t border-[#d7dce5] bg-white p-5 shadow-[0_-8px_24px_rgba(23,32,42,0.06)]">
+        <button
+          type="submit"
+          formNoValidate
+          className="rounded border border-[#116466] px-4 py-3 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+        >
+          Сохранить черновик
+        </button>
+        <button
+          type="submit"
+          formAction={finalizeReview}
+          className="rounded bg-[#116466] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b4f52]"
+        >
+          Завершить проверку
+        </button>
       </div>
     </form>
   );

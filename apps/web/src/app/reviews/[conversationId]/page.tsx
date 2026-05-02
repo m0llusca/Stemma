@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { ChevronDown } from "lucide-react";
+import type { ReactNode } from "react";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewWorkflow } from "@/components/review/review-workflow";
@@ -10,17 +12,26 @@ import {
   conversationStatusLabel,
   formatMessageCount,
   ownerTypeLabels,
-  qaStatusLabels,
   reviewStatusLabels,
   riskLevelLabels
 } from "@/lib/labels";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
+import { resolveReviewState, reviewStateBadgeClass, reviewStateLabels } from "@/lib/review-state";
 
 export const dynamic = "force-dynamic";
 
 type ReviewDetailPageProps = {
   params: Promise<{ conversationId: string }>;
 };
+
+function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
+      <div className="mt-1 min-w-0 break-words text-sm font-medium text-[#17202a]">{children}</div>
+    </div>
+  );
+}
 
 export default async function ReviewDetailPage({ params }: ReviewDetailPageProps) {
   const [{ conversationId }, user] = await Promise.all([params, getCurrentUser()]);
@@ -55,6 +66,11 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
   );
   const scorePreviewReview = latestFinalizedReview ?? currentDraftReview;
   const latestFinding = latestFinalizedReview?.findings[0];
+  const reviewState = resolveReviewState({
+    qaStatus: conversation.qaStatus,
+    hasDraftReview: Boolean(currentDraftReview),
+    hasFinalizedReview: Boolean(latestFinalizedReview)
+  });
   const evidenceMessageIds = Array.from(
     new Set(
       scorePreviewReview?.scores
@@ -73,7 +89,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#667085]">
             <span>{conversation.customerName}</span>
             <span>{channelLabels[conversation.channel]}</span>
-            <span>{conversationStatusLabel(conversation.status)}</span>
+            <span>Статус тикета: {conversationStatusLabel(conversation.status)}</span>
             <span>{formatMessageCount(conversation.messages.length)}</span>
           </div>
         </div>
@@ -84,8 +100,8 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
             {scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено"}
           </p>
           {scorePreviewReview ? (
-            <p className="mt-1 text-sm text-[#667085]">
-              {reviewStatusLabels[scorePreviewReview.status]}: {scorePreviewReview.reviewer.name}
+            <p className="mt-1 text-sm leading-5 text-[#667085]">
+              {reviewStateLabels[reviewState]} · {scorePreviewReview.reviewer.name}
             </p>
           ) : null}
         </div>
@@ -98,66 +114,66 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         hasCoachingAction={Boolean(latestFinding?.coachingAction)}
       />
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Оператор</p>
-          <p className="mt-2 text-sm font-medium">{conversation.assigneeName ?? "Не назначен"}</p>
+      <section className="panel mb-6 overflow-hidden">
+        <div className="border-b border-[#d7dce5] bg-white px-5 py-4">
+          <h2 className="text-lg font-semibold">Контекст проверки</h2>
+          <p className="mt-1 text-sm text-[#667085]">Состояние QA-задачи, участники, сроки и причина выборки.</p>
         </div>
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">QA</p>
-          <p className="mt-2 text-sm font-medium">{conversation.qaAssigneeName ?? "Не назначен"}</p>
-        </div>
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Workflow</p>
-          <p className="mt-2 text-sm font-medium">{qaStatusLabels[conversation.qaStatus]}</p>
-        </div>
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Дедлайн</p>
-          <p className="mt-2 text-sm font-medium">
+        <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
+          <DetailItem label="Состояние проверки">
+            <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${reviewStateBadgeClass(reviewState)}`}>
+              {reviewStateLabels[reviewState]}
+            </span>
+          </DetailItem>
+          <DetailItem label="QA">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
+          <DetailItem label="Оператор">{conversation.assigneeName ?? "Не назначен"}</DetailItem>
+          <DetailItem label="Дедлайн">
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-          </p>
+          </DetailItem>
+          <DetailItem label="Причина выборки">{conversation.samplingReason}</DetailItem>
+          <DetailItem label="Риск">{conversation.riskHint ?? "Без отдельной подсказки"}</DetailItem>
+          <DetailItem label="Статус тикета">{conversationStatusLabel(conversation.status)}</DetailItem>
+          <DetailItem label="Открыто">{conversation.openedAt.toLocaleString("ru-RU")}</DetailItem>
         </div>
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Причина выборки</p>
-          <p className="mt-2 text-sm font-medium">{conversation.samplingReason}</p>
-        </div>
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Открыто</p>
-          <p className="mt-2 text-sm font-medium">{conversation.openedAt.toLocaleString("ru-RU")}</p>
-        </div>
-      </div>
-
-      {conversation.riskHint ? (
-        <section className="panel mb-6 p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Подсказка риска</p>
-          <p className="mt-2 text-sm font-medium">{conversation.riskHint}</p>
-        </section>
-      ) : null}
+      </section>
 
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
       {latestFinalizedReview ? (
-        <section className="panel mb-6 p-5">
-          <h2 className="text-lg font-semibold">Последняя находка</h2>
-          <p className="mt-2 text-sm leading-6 text-[#344054]">{latestFinalizedReview.summary}</p>
-          {latestFinding ? (
-            <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-              <div>
-                <p className="font-semibold text-[#667085]">Ответственность</p>
-                <p className="mt-1">{ownerTypeLabels[latestFinding.ownerType]}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-[#667085]">Риск</p>
-                <p className="mt-1">{riskLevelLabels[latestFinding.riskLevel]}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-[#667085]">Категория</p>
-                <p className="mt-1">{latestFinding.category}</p>
-              </div>
+        <details className="panel disclosure-panel mb-6 overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold">Последняя находка</h2>
+              <p className="mt-1 truncate text-sm text-[#667085]">{latestFinalizedReview.summary}</p>
             </div>
-          ) : null}
+            <span
+              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+              aria-hidden="true"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </span>
+          </summary>
+          <div className="border-t border-[#d7dce5] p-5">
+            <p className="text-sm leading-6 text-[#344054]">{latestFinalizedReview.summary}</p>
+            {latestFinding ? (
+              <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                <div>
+                  <p className="font-semibold text-[#667085]">Ответственность</p>
+                  <p className="mt-1">{ownerTypeLabels[latestFinding.ownerType]}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-[#667085]">Риск</p>
+                  <p className="mt-1">{riskLevelLabels[latestFinding.riskLevel]}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-[#667085]">Категория</p>
+                  <p className="mt-1">{latestFinding.category}</p>
+                </div>
+              </div>
+            ) : null}
+          </div>
           {latestFinding?.coachingAction ? (
-            <div className="mt-4 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm">
+            <div className="mx-5 mb-5 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm">
               <p className="font-semibold text-[#667085]">Коучинг</p>
               <p className="mt-1 text-[#17202a]">{latestFinding.coachingAction.action}</p>
               <p className="mt-2 text-[#667085]">
@@ -168,49 +184,62 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
               </p>
             </div>
           ) : null}
-        </section>
+        </details>
       ) : null}
 
       {conversation.reviews.length > 0 ? (
-        <section className="panel mb-6 overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">История проверок</h2>
-          </div>
-          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Дата</th>
-                <th className="px-5 py-3 font-semibold">Проверяющий</th>
-                <th className="px-5 py-3 font-semibold">Статус</th>
-                <th className="px-5 py-3 font-semibold">Оценка</th>
-                <th className="px-5 py-3 font-semibold">Категория</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#d7dce5]">
-              {conversation.reviews.map((review) => (
-                <tr key={review.id}>
-                  <td className="px-5 py-4 text-[#344054]">
-                    {(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}
-                  </td>
-                  <td className="px-5 py-4 text-[#344054]">{review.reviewer.name}</td>
-                  <td className="px-5 py-4 text-[#344054]">{reviewStatusLabels[review.status]}</td>
-                  <td className="px-5 py-4 font-semibold text-[#17202a]">{Math.round(review.totalScore)}%</td>
-                  <td className="px-5 py-4 text-[#344054]">{review.findings[0]?.category ?? "Без находки"}</td>
+        <details className="panel disclosure-panel mb-6 overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">История проверок</h2>
+              <p className="mt-1 text-sm text-[#667085]">{conversation.reviews.length} записей</p>
+            </div>
+            <span
+              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+              aria-hidden="true"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </span>
+          </summary>
+          <div className="scroll-area border-t border-[#d7dce5]">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Дата</th>
+                  <th className="px-5 py-3 font-semibold">Проверяющий</th>
+                  <th className="px-5 py-3 font-semibold">Статус записи</th>
+                  <th className="px-5 py-3 font-semibold">Оценка</th>
+                  <th className="px-5 py-3 font-semibold">Категория</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5]">
+                {conversation.reviews.map((review) => (
+                  <tr key={review.id}>
+                    <td className="px-5 py-4 text-[#344054]">
+                      {(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}
+                    </td>
+                    <td className="px-5 py-4 text-[#344054]">{review.reviewer.name}</td>
+                    <td className="px-5 py-4 text-[#344054]">{reviewStatusLabels[review.status]}</td>
+                    <td className="px-5 py-4 font-semibold text-[#17202a]">{Math.round(review.totalScore)}%</td>
+                    <td className="px-5 py-4 text-[#344054]">{review.findings[0]?.category ?? "Без находки"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_520px]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
-        <ReviewPanel
-          conversationId={conversation.id}
-          messages={conversation.messages}
-          scorecard={scorecard}
-          draftReview={currentDraftReview}
-        />
+        <div className="xl:sticky xl:top-6 xl:max-h-[calc(100vh-48px)] xl:overflow-auto">
+          <ReviewPanel
+            conversationId={conversation.id}
+            messages={conversation.messages}
+            scorecard={scorecard}
+            draftReview={currentDraftReview}
+          />
+        </div>
       </div>
     </section>
   );

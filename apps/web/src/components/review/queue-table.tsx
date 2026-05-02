@@ -1,6 +1,7 @@
 import type { Conversation, Message, Review } from "@prisma/client";
 import Link from "next/link";
-import { channelLabels, formatMessageCount, qaStatusLabels } from "@/lib/labels";
+import { channelLabels, formatMessageCount } from "@/lib/labels";
+import { resolveReviewState, reviewStateBadgeClass, reviewStateLabels } from "@/lib/review-state";
 
 type QueueConversation = Conversation & {
   messages: Message[];
@@ -23,18 +24,17 @@ export function QueueTable({ conversations }: QueueTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-lg border border-[#d7dce5] bg-white">
-      <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[900px] border-collapse text-left text-sm">
         <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
           <tr>
             <th className="px-4 py-3 font-semibold">Диалог</th>
-            <th className="px-4 py-3 font-semibold">Workflow</th>
+            <th className="px-4 py-3 font-semibold">Состояние проверки</th>
             <th className="px-4 py-3 font-semibold">Канал</th>
             <th className="px-4 py-3 font-semibold">Источник</th>
             <th className="px-4 py-3 font-semibold">Оператор</th>
             <th className="px-4 py-3 font-semibold">QA</th>
             <th className="px-4 py-3 font-semibold">Дедлайн</th>
             <th className="px-4 py-3 font-semibold">Причина</th>
-            <th className="px-4 py-3 font-semibold">Статус</th>
             <th className="px-4 py-3 font-semibold">Оценка</th>
           </tr>
         </thead>
@@ -46,6 +46,11 @@ export function QueueTable({ conversations }: QueueTableProps) {
               conversation.reviewDueAt !== null &&
               conversation.reviewDueAt < new Date() &&
               conversation.qaStatus !== "FINALIZED";
+            const reviewState = resolveReviewState({
+              qaStatus: conversation.qaStatus,
+              hasDraftReview: Boolean(draftReview),
+              hasFinalizedReview: Boolean(latestFinalizedReview)
+            });
 
             return (
               <tr key={conversation.id} className="hover:bg-[#f7f8fb]">
@@ -60,14 +65,10 @@ export function QueueTable({ conversations }: QueueTableProps) {
                 <td className="px-4 py-4">
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                      conversation.qaStatus === "FINALIZED"
-                        ? "bg-[#e8f3ef] text-[#116466]"
-                        : isOverdue
-                          ? "bg-[#fff4ed] text-[#b54708]"
-                          : "bg-[#eef4f4] text-[#0b4f52]"
+                      isOverdue && reviewState !== "finalized" ? "bg-[#fff4ed] text-[#b54708]" : reviewStateBadgeClass(reviewState)
                     }`}
                   >
-                    {qaStatusLabels[conversation.qaStatus]}
+                    {reviewStateLabels[reviewState]}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-[#344054]">{channelLabels[conversation.channel]}</td>
@@ -78,19 +79,6 @@ export function QueueTable({ conversations }: QueueTableProps) {
                   {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
                 </td>
                 <td className="px-4 py-4 text-[#344054]">{conversation.samplingReason}</td>
-                <td className="px-4 py-4">
-                  <span
-                    className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                      latestFinalizedReview
-                        ? "bg-[#e8f3ef] text-[#116466]"
-                        : draftReview
-                          ? "bg-[#eef4f4] text-[#0b4f52]"
-                          : "bg-[#fff4ed] text-[#b54708]"
-                    }`}
-                  >
-                    {latestFinalizedReview ? "Завершена" : draftReview ? "Черновик" : "Не начато"}
-                  </span>
-                </td>
                 <td className="px-4 py-4 font-medium text-[#17202a]">
                   {latestFinalizedReview ? `${latestFinalizedReview.totalScore}%` : draftReview ? "Черновик" : "Не проверено"}
                 </td>
