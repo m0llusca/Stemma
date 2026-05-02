@@ -136,7 +136,7 @@ git commit -m "add custom api onboarding kit"
 - Create: `apps/web/tests/unit/otrs-family-normalizer.test.ts`
 - Modify: `apps/web/src/app/admin/integrations/page.tsx`
 
-- [ ] Add fixture-compatible normalizer for ticket plus article payloads.
-- [ ] Map OTRS article sender types into customer, human agent, AI agent, and system participants.
-- [ ] Preserve external ticket/article IDs for idempotent import.
-- [ ] Add roadmap UI that marks Znuny / OTRS / OTOBO as the first native connector track.
+- [x] Add fixture-compatible normalizer for ticket plus article payloads.
+- [x] Map OTRS article sender types into customer, human agent, AI agent, and system participants.
+- [x] Preserve external ticket/article IDs for idempotent import.
+- [x] Add roadmap UI that marks Znuny / OTRS / OTOBO as the first native connector track.

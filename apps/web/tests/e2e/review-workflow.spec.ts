@@ -53,8 +53,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("button", { name: "Завершить проверку" }).click();
 
   await expect(page.getByText("Последняя оценка")).toBeVisible();
-  await expect(page.getByText("Завершена")).toBeVisible();
   await expect(page.getByText("100%")).toBeVisible();
+  await expect(page.getByText(/Завершена:/)).toBeVisible();
 
   await page.goto("/reviews?status=reviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
@@ -69,4 +69,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Аудит" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "review.finalized" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "API-активность" })).toBeVisible();
+
+  await page.goto("/admin/integrations");
+  await expect(page.getByRole("heading", { name: "OTRS-family adapter readiness" })).toBeVisible();
+  await expect(page.getByText("Этап 2 · первый native track")).toBeVisible();
 });

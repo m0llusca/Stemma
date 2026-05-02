@@ -1,0 +1,119 @@
+import {
+  normalizeOtrsFamilyTicket,
+  normalizeOtrsFamilyTicketGetResponse,
+  type OtrsFamilyTicketGetResponse
+} from "@/lib/normalizers/otrs-family";
+import { customConversationSchema } from "@/lib/validation/custom-api";
+import { describe, expect, it } from "vitest";
+
+const ticketGetPayload = {
+  Success: 1,
+  Ticket: [
+    {
+      TicketID: 42,
+      TicketNumber: "202604250001",
+      Title: "Возврат после задержки доставки",
+      State: "closed successful",
+      Queue: "Raw",
+      Priority: "3 high",
+      Type: "Incident",
+      CustomerUserID: "mila@example.com",
+      Owner: "agent.ivan",
+      Created: "2026-04-25 10:00:00",
+      Closed: "2026-04-25 10:30:00",
+      Article: [
+        {
+          ArticleID: 1002,
+          SenderType: "agent",
+          From: "agent.ivan",
+          Body: "Внутренняя заметка по политике возврата.",
+          Created: "2026-04-25 10:03:00",
+          IsVisibleForCustomer: 0,
+          CommunicationChannel: "Email"
+        },
+        {
+          ArticleID: 1001,
+          SenderType: "customer",
+          From: "Мила Петрова <mila@example.com>",
+          Body: "Доставка задержана, хочу возврат.",
+          Created: "2026-04-25 10:01:00",
+          IsVisibleForCustomer: 1,
+          CommunicationChannel: "Email"
+        },
+        {
+          ArticleID: 1003,
+          SenderType: "system",
+          From: "OTRS",
+          Subject: "Auto response",
+          Created: "2026-04-25 10:04:00",
+          IsVisibleForCustomer: 1,
+          CommunicationChannel: "Email"
+        }
+      ]
+    }
+  ]
+} satisfies OtrsFamilyTicketGetResponse;
+
+describe("OTRS-family normalizer", () => {
+  it("normalizes TicketGet payloads into custom conversation input", () => {
+    const [conversation] = normalizeOtrsFamilyTicketGetResponse(ticketGetPayload, {
+      source: "znuny",
+      baseUrl: "https://support.example.com/otrs",
+      samplingReason: "Импорт из Znuny"
+    });
+
+    expect(() => customConversationSchema.parse(conversation)).not.toThrow();
+    expect(conversation).toMatchObject({
+      externalSource: "znuny",
+      externalId: "42",
+      externalUrl: "https://support.example.com/otrs/index.pl?Action=AgentTicketZoom;TicketID=42",
+      channel: "email",
+      subject: "Возврат после задержки доставки",
+      status: "closed successful",
+      tags: ["Raw", "3 high", "Incident"],
+      customerName: "mila@example.com",
+      assigneeName: "agent.ivan",
+      samplingReason: "Импорт из Znuny",
+      riskHint: "Приоритет: 3 high",
+      openedAt: "2026-04-25T10:00:00.000Z",
+      closedAt: "2026-04-25T10:30:00.000Z"
+    });
+    expect(conversation.messages.map((message) => message.externalId)).toEqual(["1001", "1002", "1003"]);
+    expect(conversation.messages[0]).toMatchObject({
+      participantType: "customer",
+      isPrivate: false
+    });
+    expect(conversation.messages[1]).toMatchObject({
+      participantType: "human_agent",
+      isPrivate: true
+    });
+    expect(conversation.messages[2]).toMatchObject({
+      participantType: "system",
+      body: "Auto response"
+    });
+  });
+
+  it("supports direct ticket objects and preserves article ids for idempotency", () => {
+    const conversation = normalizeOtrsFamilyTicket({
+      TicketNumber: "202604250002",
+      Title: "Чат с клиентом",
+      State: "open",
+      CustomerID: "customer-1",
+      CreateTime: "2026-04-25 11:00:00",
+      Article: {
+        ArticleID: "chat-article-1",
+        SenderType: "external",
+        From: "Клиент",
+        Text: "Нужна помощь.",
+        IncomingTime: 1777114800,
+        CommunicationChannel: "Chat"
+      }
+    });
+
+    expect(conversation.channel).toBe("chat");
+    expect(conversation.externalId).toBe("202604250002");
+    expect(conversation.messages[0].externalId).toBe("chat-article-1");
+    expect(conversation.messages[0].participantType).toBe("customer");
+    expect(() => customConversationSchema.parse(conversation)).not.toThrow();
+  });
+});
