@@ -68,7 +68,12 @@ export async function finalizeReview(formData: FormData) {
         id: conversationId,
         workspaceId: user.workspaceId
       },
-      select: { id: true }
+      select: {
+        id: true,
+        messages: {
+          select: { id: true }
+        }
+      }
     }),
     prisma.scorecard.findFirst({
       where: {
@@ -113,68 +118,80 @@ export async function finalizeReview(formData: FormData) {
   const coachingDueAt = optionalString(formData, "coachingDueAt");
   const ownerType = requiredOwnerType(formData);
   const riskLevel = requiredRiskLevel(formData);
+  const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
+  const criterionScores = scorecard.criteria.map((criterion) => {
+    const isNotApplicable = formData.get(`criterion.${criterion.id}.notApplicable`) === "on";
+    const scoreValue = optionalString(formData, `criterion.${criterion.id}.score`);
+    const passedValue = optionalString(formData, `criterion.${criterion.id}.passed`);
+    const evidenceMessageId = optionalString(formData, `criterion.${criterion.id}.evidenceMessageId`);
 
-  const review = await prisma.review.create({
-    data: {
-      workspaceId: user.workspaceId,
-      conversationId,
-      reviewerId: user.id,
-      scorecardId: scorecard.id,
-      reviewSource: "HUMAN",
-      rubricVersion: scorecard.version,
-      status: "FINALIZED",
-      totalScore,
-      summary: requiredString(formData, "summary"),
-      finalizedAt: new Date(),
-      scores: {
-        create: scorecard.criteria.map((criterion) => {
-          const isNotApplicable = formData.get(`criterion.${criterion.id}.notApplicable`) === "on";
-          const scoreValue = optionalString(formData, `criterion.${criterion.id}.score`);
-          const passedValue = optionalString(formData, `criterion.${criterion.id}.passed`);
-
-          return {
-            criterionId: criterion.id,
-            value: criterion.kind === "SCALE_1_3" && !isNotApplicable ? Number(scoreValue) : null,
-            passed: criterion.kind === "PASS_FAIL" && !isNotApplicable ? passedValue === "true" : null,
-            isNotApplicable,
-            comment: optionalString(formData, `criterion.${criterion.id}.comment`) ?? "",
-            evidenceMessageId: optionalString(formData, `criterion.${criterion.id}.evidenceMessageId`)
-          };
-        })
-      },
-      findings: {
-        create: {
-          ownerType,
-          category: requiredString(formData, "category"),
-          rootCause: requiredString(formData, "rootCause"),
-          riskLevel,
-          evidenceSummary: requiredString(formData, "evidenceSummary"),
-          coachingAction:
-            coachingAction && coachingAssignee
-              ? {
-                  create: {
-                    assignee: coachingAssignee,
-                    action: coachingAction,
-                    dueAt: coachingDueAt ? new Date(`${coachingDueAt}T00:00:00.000Z`) : undefined
-                  }
-                }
-              : undefined
-        }
-      }
+    if (evidenceMessageId && !validEvidenceMessageIds.has(evidenceMessageId)) {
+      throw new Error(`Invalid evidence message for criterion ${criterion.id}.`);
     }
+
+    return {
+      criterionId: criterion.id,
+      value: criterion.kind === "SCALE_1_3" && !isNotApplicable ? Number(scoreValue) : null,
+      passed: criterion.kind === "PASS_FAIL" && !isNotApplicable ? passedValue === "true" : null,
+      isNotApplicable,
+      comment: optionalString(formData, `criterion.${criterion.id}.comment`) ?? "",
+      evidenceMessageId
+    };
   });
 
-  await auditLog({
-    workspaceId: user.workspaceId,
-    actorId: user.id,
-    action: "review.finalized",
-    targetType: "review",
-    targetId: review.id,
-    metadata: {
-      conversationId,
-      scorecardId: scorecard.id,
-      totalScore
-    }
+  await prisma.$transaction(async (tx) => {
+    const review = await tx.review.create({
+      data: {
+        workspaceId: user.workspaceId,
+        conversationId,
+        reviewerId: user.id,
+        scorecardId: scorecard.id,
+        reviewSource: "HUMAN",
+        rubricVersion: scorecard.version,
+        status: "FINALIZED",
+        totalScore,
+        summary: requiredString(formData, "summary"),
+        finalizedAt: new Date(),
+        scores: {
+          create: criterionScores
+        },
+        findings: {
+          create: {
+            ownerType,
+            category: requiredString(formData, "category"),
+            rootCause: requiredString(formData, "rootCause"),
+            riskLevel,
+            evidenceSummary: requiredString(formData, "evidenceSummary"),
+            coachingAction:
+              coachingAction && coachingAssignee
+                ? {
+                    create: {
+                      assignee: coachingAssignee,
+                      action: coachingAction,
+                      dueAt: coachingDueAt ? new Date(`${coachingDueAt}T00:00:00.000Z`) : undefined
+                    }
+                  }
+                : undefined
+          }
+        }
+      }
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "review.finalized",
+        targetType: "review",
+        targetId: review.id,
+        metadata: {
+          conversationId,
+          scorecardId: scorecard.id,
+          totalScore
+        }
+      },
+      tx
+    );
   });
 
   revalidatePath("/reviews");

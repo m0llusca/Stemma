@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 
+type AuditLogClient = Pick<typeof prisma, "auditLog">;
+
 type AuditLogInput = {
   workspaceId: string;
   actorId: string;
@@ -9,8 +11,8 @@ type AuditLogInput = {
   metadata: unknown;
 };
 
-export async function auditLog(input: AuditLogInput) {
-  return prisma.auditLog.create({
+export async function auditLog(input: AuditLogInput, client: AuditLogClient = prisma) {
+  return client.auditLog.create({
     data: {
       workspaceId: input.workspaceId,
       actorId: input.actorId,
