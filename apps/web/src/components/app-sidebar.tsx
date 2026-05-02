@@ -11,12 +11,12 @@ const navItems = [
 
 export function AppSidebar() {
   return (
-    <aside className="border-r border-[#d7dce5] bg-white px-4 py-5">
-      <div className="mb-7">
+    <aside className="app-sidebar border-r border-[#d7dce5] bg-white px-4 py-5">
+      <div className="app-sidebar__header mb-7">
         <div className="text-lg font-semibold">Контроль качества</div>
         <div className="text-sm text-[#667085]">Ручная проверка поддержки</div>
       </div>
-      <nav className="grid gap-1">
+      <nav className="app-sidebar__nav grid gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (

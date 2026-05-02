@@ -16,6 +16,10 @@
 
 * { box-sizing: border-box; }
 
+html {
+  max-width: 100%;
+}
+
 body {
   margin: 0;
   background: var(--background);
@@ -25,16 +29,82 @@ body {
 
 a { color: inherit; text-decoration: none; }
 
-button, input, select, textarea { font: inherit; }
+button, input, select, textarea {
+  font: inherit;
+  max-width: 100%;
+}
 
 .page {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
+  max-width: 100%;
+}
+
+.page > main {
+  min-width: 0;
+}
+
+.page-shell {
+  min-width: 0;
+  max-width: 100%;
+  padding: 28px 32px;
+}
+
+.app-sidebar {
+  min-width: 0;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
+  min-width: 0;
+}
+
+.grid > *,
+.flex > * {
+  min-width: 0;
+}
+
+.scroll-area {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-area > table {
+  width: 100%;
+}
+
+.compact-text {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .page {
+    display: block;
+  }
+
+  .app-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+
+  .app-sidebar__header {
+    margin-bottom: 12px;
+  }
+
+  .app-sidebar__nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    padding: 18px 16px;
+  }
 }

@@ -26,7 +26,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
   ]);
 
   return (
-    <section className="px-8 py-7">
+    <section className="page-shell">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Очередь проверок</h1>
         <p className="mt-1 text-sm text-[#667085]">Рабочая очередь QA с фильтрами по статусу, каналу и источнику.</p>

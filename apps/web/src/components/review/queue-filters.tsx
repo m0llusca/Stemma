@@ -11,7 +11,7 @@ type QueueFiltersProps = {
 
 export function QueueFilters({ filters, sources, assignees }: QueueFiltersProps) {
   return (
-    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 xl:grid-cols-[minmax(220px,1fr)_160px_160px_180px_180px_auto]">
+    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(140px,160px)_minmax(140px,160px)_minmax(150px,180px)_minmax(150px,180px)_auto]">
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
         Поиск
         <input
@@ -69,7 +69,7 @@ export function QueueFilters({ filters, sources, assignees }: QueueFiltersProps)
         </select>
       </label>
 
-      <div className="flex items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-1">
         <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
           Применить
         </button>

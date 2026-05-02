@@ -42,7 +42,7 @@ export default async function AdminScorecardsPage() {
   });
 
   return (
-    <section className="px-8 py-7">
+    <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Администрирование</p>
         <h1 className="mt-1 text-2xl font-semibold">Скоркарты</h1>

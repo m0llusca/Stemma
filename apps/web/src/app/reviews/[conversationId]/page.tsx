@@ -41,7 +41,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
   );
 
   return (
-    <section className="px-8 py-7">
+    <section className="page-shell">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-[#667085]">Доска проверки</p>

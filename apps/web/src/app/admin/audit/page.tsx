@@ -113,13 +113,13 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
   ]);
 
   return (
-    <section className="px-8 py-7">
+    <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Администрирование</p>
         <h1 className="mt-1 text-2xl font-semibold">Аудит</h1>
       </div>
 
-      <form action="/admin/audit" className="panel mb-6 grid gap-4 p-4 md:grid-cols-[220px_220px_auto]">
+      <form action="/admin/audit" className="panel mb-6 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(180px,220px)_minmax(180px,220px)_auto]">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Action
           <select name="action" defaultValue={action ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
@@ -142,7 +142,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             ))}
           </select>
         </label>
-        <div className="flex items-end">
+        <div className="flex items-end md:col-span-2 lg:col-span-1">
           <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
             Применить
           </button>

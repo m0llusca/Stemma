@@ -182,7 +182,7 @@ export default async function ReportsPage() {
   const riskRows = countGroupRows(riskGroups);
 
   return (
-    <section className="px-8 py-7">
+    <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Отчетность по качеству</p>
         <h1 className="mt-1 text-2xl font-semibold">Отчеты</h1>

@@ -114,7 +114,7 @@ export default async function AdminIntegrationsPage() {
   ]);
 
   return (
-    <section className="px-8 py-7">
+    <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Администрирование</p>
         <h1 className="mt-1 text-2xl font-semibold">Интеграции</h1>
@@ -228,7 +228,7 @@ export default async function AdminIntegrationsPage() {
           </div>
         </div>
 
-        <div className="border-t border-[#d7dce5]">
+        <div className="scroll-area border-t border-[#d7dce5]">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
