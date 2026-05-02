@@ -254,17 +254,15 @@ function WizardFrame({
 
 function SourceChoiceStep({
   sourceValue,
-  mode,
   onSourceChange
 }: {
   sourceValue: SourceOptionValue;
-  mode: SourceMode;
   onSourceChange: (value: SourceOptionValue) => void;
 }) {
   const selectedOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,420px)_minmax(0,220px)_minmax(0,1fr)]">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       <FormField label="Источник">
         <select
           value={sourceValue}
@@ -300,8 +298,6 @@ function SourceChoiceStep({
           </optgroup>
         </select>
       </FormField>
-
-      <SummaryItem label="Тип">{sourceModeLabels[mode]}</SummaryItem>
 
       <SummaryItem label="Что будет настроено">{selectedOption.description}</SummaryItem>
     </div>
@@ -986,7 +982,6 @@ export function IntegrationSetupWorkspace({
           {step === "source" ? (
             <SourceChoiceStep
               sourceValue={sourceValue}
-              mode={mode}
               onSourceChange={changeSourceOption}
             />
           ) : null}
