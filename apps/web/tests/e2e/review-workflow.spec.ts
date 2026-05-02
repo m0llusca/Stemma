@@ -103,31 +103,45 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Шаг 1. Выберите источник" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Шаг 1. Источник" })).toBeVisible();
   await expect(page.getByLabel("Тип источника")).toHaveValue("otrs_family");
-  await expect(page.getByRole("heading", { name: "Мастер подключения OTRS/Znuny" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
-  await page.getByLabel("Тип источника").selectOption("custom_api");
-  await expect(page.getByRole("heading", { name: "Своя система через custom API" })).toBeVisible();
-  await expect(page.getByText("Authorization: Bearer <API_TOKEN>").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Управлять токенами" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).not.toBeVisible();
-  await page.getByLabel("Тип источника").selectOption("native_helpdesk");
-  await page.getByLabel("Сервис").selectOption("zendesk");
-  await expect(page.getByRole("heading", { name: "Zendesk: payload и preview" })).toBeVisible();
-  await page.getByText("Mapping и endpoint native-адаптера").click();
-  await expect(page.getByText("/api/integrations/native-helpdesks/conversations")).toBeVisible();
-  await page.getByRole("button", { name: "Импортировать в очередь" }).click();
-  await expect(page.getByRole("link", { name: "Refund request from Zendesk" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).not.toBeVisible();
+
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
+  await expect(page.getByLabel("Платформа")).toHaveValue("znuny");
+  await expect(page.getByLabel("TicketID для preview")).toHaveValue("42");
+
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 3. Лимиты" })).toBeVisible();
+  await expect(page.getByLabel("Максимум тикетов")).toHaveValue("100");
+  await expect(page.getByLabel("Размер батча")).toHaveValue("25");
+
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 4. Preview" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Сохранить настройку" })).toBeDisabled();
+  await page.getByRole("button", { name: "Проверить подключение и preview" }).click();
+  await expect(page.getByText("Preview готов")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Сохранить настройку" })).toBeEnabled();
+
+  await page.getByText("Технические детали OTRS-family").click();
+  await expect(page.getByText("Fallback JSON body")).toBeVisible();
 
   await page.goto("/admin/integrations");
-  await page.getByLabel("Тип источника").selectOption("otrs_family");
-  await expect(page.getByRole("heading", { name: "Мастер подключения OTRS/Znuny" })).toBeVisible();
-  await expect(page.getByText("GET по умолчанию", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("API-профили OTRS-family")).not.toBeVisible();
-  await expect(page.getByText("Готовые вызовы по каждому профилю")).not.toBeVisible();
-  await expect(page.getByText("Технические детали OTRS-family")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
-  await page.getByRole("button", { name: "Импортировать в очередь" }).click();
-  await expect(page.getByRole("link", { name: "Клиент просит возврат после задержки доставки" })).toBeVisible();
+  await page.getByLabel("Тип источника").selectOption("custom_api");
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
+  await expect(page.getByLabel("Название системы")).toHaveValue("Внутренний helpdesk");
+  await expect(page.getByRole("main").getByRole("link", { name: "Токены" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).not.toBeVisible();
+
+  await page.goto("/admin/integrations");
+  await page.getByLabel("Тип источника").selectOption("native_helpdesk");
+  await page.getByLabel("Сервис").selectOption("zendesk");
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
+  await expect(page.getByText("Zendesk", { exact: true }).first()).toBeVisible();
+  await page.getByText("Mapping и endpoint native-адаптера").click();
+  await expect(page.getByText("/api/integrations/native-helpdesks/conversations")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Импортировать в очередь" })).not.toBeVisible();
 });

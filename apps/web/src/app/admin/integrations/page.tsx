@@ -140,6 +140,7 @@ export default async function AdminIntegrationsPage() {
     })
   ]);
   const apiHealth = customApiHealth(apiTokens);
+  const connectedIntegrations = integrations.filter((integration) => integration.status === "active");
 
   return (
     <section className="page-shell">
@@ -197,35 +198,39 @@ export default async function AdminIntegrationsPage() {
             description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
           >
             <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
-              Импорты появятся здесь после тестового или API-импорта native-коннекторов.
+              Импорты появятся здесь после успешного запуска native-коннектора или custom API.
             </div>
           </Surface>
         )}
 
-        <DataTable
+        <Surface
           title="Подключенные источники"
-          description="Подключенные и запланированные источники в текущем рабочем пространстве."
-          minWidth="min-w-[640px]"
+          description="Показываем только активные подключения. Остальные варианты выбираются в мастере выше."
         >
-          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Название</th>
-              <th className="px-5 py-3 font-semibold">Источник</th>
-              <th className="px-5 py-3 font-semibold">Статус</th>
-              <th className="px-5 py-3 font-semibold">Последняя синхронизация</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#d7dce5]">
-            {integrations.map((integration) => (
-              <tr key={integration.id}>
-                <td className="px-5 py-4 font-medium text-[#17202a]">{integration.displayName}</td>
-                <td className="px-5 py-4 text-[#344054]">{integration.source}</td>
-                <td className="px-5 py-4 text-[#344054]">{integrationStatusLabel(integration.status)}</td>
-                <td className="px-5 py-4 text-[#344054]">{formatDate(integration.lastSyncedAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
+          {connectedIntegrations.length > 0 ? (
+            <div className="grid gap-2">
+              {connectedIntegrations.map((integration) => (
+                <div
+                  key={integration.id}
+                  className="grid gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm md:grid-cols-[minmax(0,1fr)_140px_minmax(0,220px)] md:items-center"
+                >
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold text-[#17202a]">{integration.displayName}</p>
+                    <p className="mt-1 break-words font-mono text-xs text-[#667085]">{integration.source}</p>
+                  </div>
+                  <span className="w-fit rounded-md bg-[#e8f3ef] px-2 py-1 text-xs font-semibold text-[#116466]">
+                    {integrationStatusLabel(integration.status)}
+                  </span>
+                  <p className="break-words text-[#667085]">{formatDate(integration.lastSyncedAt)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
+              Активных подключений пока нет.
+            </div>
+          )}
+        </Surface>
 
         <DataTable
           title="API-токены"
