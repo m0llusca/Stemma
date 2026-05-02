@@ -2,6 +2,7 @@ import { otrsFamilyTicketGetExample } from "@/lib/normalizers/otrs-family";
 import type { CustomConversationInput } from "@/lib/validation/custom-api";
 
 export const demoApiToken = "qa_demo_dev_token";
+export const apiTokenPlaceholder = "<API_TOKEN>";
 
 export const customApiEndpoints = [
   {
@@ -110,10 +111,10 @@ export function formatJsonExample(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
-export function buildCurlExample(path: string, method: string, body?: unknown) {
+export function buildCurlExample(path: string, method: string, body?: unknown, token = apiTokenPlaceholder) {
   const lines = [
     `curl -X ${method} "http://localhost:3000${path}"`,
-    `  -H "Authorization: Bearer ${demoApiToken}"`,
+    `  -H "Authorization: Bearer ${token}"`,
     `  -H "Content-Type: application/json"`
   ];
 

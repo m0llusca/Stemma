@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { BarChart3, ClipboardCheck, Gauge, History, Settings } from "lucide-react";
+import { BarChart3, ClipboardCheck, Gauge, History, KeyRound, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/reviews", label: "Проверки", icon: ClipboardCheck },
   { href: "/reports", label: "Отчеты", icon: BarChart3 },
   { href: "/admin/scorecards", label: "Скоркарты", icon: Gauge },
   { href: "/admin/integrations", label: "Интеграции", icon: Settings },
+  { href: "/admin/tokens", label: "Токены", icon: KeyRound },
   { href: "/admin/audit", label: "Аудит", icon: History }
 ];
 

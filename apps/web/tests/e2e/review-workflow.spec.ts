@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
+test.setTimeout(60_000);
+
 test.beforeAll(() => {
   closeSync(openSync("prisma/dev.db", "a"));
   execFileSync("npx", ["prisma", "migrate", "deploy"], {
@@ -84,12 +86,21 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "По уровню риска" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "По категориям находок" })).toBeVisible();
 
+  await page.goto("/admin/tokens");
+  await expect(page.getByRole("heading", { name: "API-токены" })).toBeVisible();
+  await expect(page.getByText("Authorization header")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Скопировать header" })).toBeVisible();
+
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "OTRS-family импорт" })).toBeVisible();
+  await page.getByRole("heading", { name: "Кастомный API" }).click();
+  await expect(page.getByText("Authorization: Bearer <API_TOKEN>").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Управлять токенами" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).not.toBeVisible();
   await page.getByRole("heading", { name: "План интеграций" }).click();
   await expect(page.getByText("Этап 2 · первый native track")).toBeVisible();
   await page.getByRole("heading", { name: "OTRS-family импорт" }).click();
+  await expect(page.getByRole("heading", { name: "Wizard подключения OTRS/Znuny" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
   await page.getByRole("button", { name: "Импортировать в очередь" }).click();
   await expect(page.getByRole("link", { name: "Клиент просит возврат после задержки доставки" })).toBeVisible();
