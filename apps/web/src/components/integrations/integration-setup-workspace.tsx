@@ -37,10 +37,9 @@ import {
 
 type SourceMode = "otrs_family" | "native_helpdesk" | "custom_api";
 type WizardStep = "source" | "access" | "limits" | "preview" | "done";
+type SourceOptionValue = `otrs:${OtrsFamilySource}` | `native:${NativeHelpdeskSource}` | "custom_api";
 
 const fieldClass = "h-10 w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm text-[#17202a]";
-const readonlyFieldClass =
-  "flex min-h-10 w-full min-w-0 items-center rounded border border-[#d7dce5] bg-[#fbfcfd] px-3 py-2 text-sm text-[#344054]";
 const primaryButtonClass = "rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]";
 const secondaryButtonClass =
   "rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]";
@@ -58,6 +57,35 @@ const sourceModeDescriptions: Record<SourceMode, string> = {
   native_helpdesk: "Импорт тикетов и сообщений из популярных SaaS helpdesk через native-адаптеры.",
   custom_api: "Единый контракт для внутренних систем и нестандартных helpdesk."
 };
+
+const sourceOptions = [
+  ...otrsFamilySourceOptions.map((source) => ({
+    value: `otrs:${source.value}` as const,
+    label: source.label,
+    mode: "otrs_family" as const,
+    description:
+      source.value === "otrs_family"
+        ? sourceModeDescriptions.otrs_family
+        : otrsFamilyProfileForSource(source.value).note
+  })),
+  ...nativeHelpdeskSources.map((source) => ({
+    value: `native:${source.value}` as const,
+    label: source.label,
+    mode: "native_helpdesk" as const,
+    description: `${source.objectName}. ${source.endpointHint}`
+  })),
+  {
+    value: "custom_api" as const,
+    label: "Своя система через Custom API",
+    mode: "custom_api" as const,
+    description: sourceModeDescriptions.custom_api
+  }
+] satisfies Array<{
+  value: SourceOptionValue;
+  label: string;
+  mode: SourceMode;
+  description: string;
+}>;
 
 const wizardSteps: Array<{ value: WizardStep; label: string; title: string }> = [
   { value: "source", label: "Источник", title: "Шаг 1. Источник" },
@@ -130,23 +158,6 @@ function FormField({
   );
 }
 
-function ReadonlyField({
-  label,
-  children,
-  className = ""
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`grid min-w-0 content-start gap-1.5 text-sm font-medium text-[#344054] ${className}`}>
-      <span className="min-w-0 break-words">{label}</span>
-      <div className={readonlyFieldClass}>{children}</div>
-    </div>
-  );
-}
-
 function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid min-h-[76px] min-w-0 content-start gap-1 rounded-md border border-[#d7dce5] bg-white p-3">
@@ -198,15 +209,20 @@ function WizardFrame({
   return (
     <Surface>
       <div className="grid gap-4">
-        <div className="grid gap-3 border-b border-[#d7dce5] pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+        <div className="grid gap-3 border-b border-[#d7dce5] pb-4">
           <div className="min-w-0">
+            {currentStepIndex > 0 ? (
+              <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase text-[#667085]">
+                <span>Источник</span>
+                <span className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-2 py-1 normal-case text-[#0b4f52]">
+                  {sourceLabel}
+                </span>
+              </div>
+            ) : null}
             <StepProgress currentStepIndex={currentStepIndex} />
             <h3 className="mt-2 text-base font-semibold text-[#17202a]">{title}</h3>
             <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p>
           </div>
-          <span className="w-fit rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
-            {sourceLabel}
-          </span>
         </div>
 
         {children}
@@ -237,63 +253,63 @@ function WizardFrame({
 }
 
 function SourceChoiceStep({
+  sourceValue,
   mode,
-  nativeSource,
-  onModeChange,
-  onNativeSourceChange
+  onSourceChange
 }: {
+  sourceValue: SourceOptionValue;
   mode: SourceMode;
-  nativeSource: NativeHelpdeskSource;
-  onModeChange: (mode: SourceMode) => void;
-  onNativeSourceChange: (source: NativeHelpdeskSource) => void;
+  onSourceChange: (value: SourceOptionValue) => void;
 }) {
-  const nativeInfo = nativeSourceInfo(nativeSource);
-  const summary =
-    mode === "native_helpdesk"
-      ? `${nativeInfo.label}: ${nativeInfo.objectName}.`
-      : sourceModeDescriptions[mode];
+  const selectedOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,280px)_minmax(0,280px)_minmax(0,1fr)]">
-      <FormField label="Тип источника">
-        <select value={mode} onChange={(event) => onModeChange(event.target.value as SourceMode)} className={fieldClass}>
-          <option value="otrs_family">{sourceModeLabels.otrs_family}</option>
-          <option value="native_helpdesk">{sourceModeLabels.native_helpdesk}</option>
-          <option value="custom_api">{sourceModeLabels.custom_api}</option>
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,420px)_minmax(0,220px)_minmax(0,1fr)]">
+      <FormField label="Источник">
+        <select
+          value={sourceValue}
+          onChange={(event) => onSourceChange(event.target.value as SourceOptionValue)}
+          className={fieldClass}
+        >
+          <optgroup label="OTRS / Znuny / OTOBO">
+            {sourceOptions
+              .filter((option) => option.mode === "otrs_family")
+              .map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="SaaS helpdesk">
+            {sourceOptions
+              .filter((option) => option.mode === "native_helpdesk")
+              .map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="Другое">
+            {sourceOptions
+              .filter((option) => option.mode === "custom_api")
+              .map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+          </optgroup>
         </select>
       </FormField>
 
-      {mode === "native_helpdesk" ? (
-        <FormField label="Сервис">
-          <select
-            value={nativeSource}
-            onChange={(event) => onNativeSourceChange(event.target.value as NativeHelpdeskSource)}
-            className={fieldClass}
-          >
-            {nativeHelpdeskSources.map((source) => (
-              <option key={source.value} value={source.value}>
-                {source.label}
-              </option>
-            ))}
-          </select>
-        </FormField>
-      ) : (
-        <ReadonlyField label="Вариант">
-          <span className="min-w-0 break-words">
-            {mode === "otrs_family" ? "Платформа выбирается на следующем шаге" : "Custom API"}
-          </span>
-        </ReadonlyField>
-      )}
+      <SummaryItem label="Тип">{sourceModeLabels[mode]}</SummaryItem>
 
-      <SummaryItem label="Что будет настроено">{summary}</SummaryItem>
+      <SummaryItem label="Что будет настроено">{selectedOption.description}</SummaryItem>
     </div>
   );
 }
 
 function AccessStep({
   mode,
-  nativeSource,
-  otrsSource,
   otrsBaseUrl,
   userLogin,
   password,
@@ -304,7 +320,6 @@ function AccessStep({
   customBaseUrl,
   apiTokenCount,
   apiHealth,
-  onOtrsSourceChange,
   onOtrsBaseUrlChange,
   onUserLoginChange,
   onPasswordChange,
@@ -315,8 +330,6 @@ function AccessStep({
   onCustomBaseUrlChange
 }: {
   mode: SourceMode;
-  nativeSource: NativeHelpdeskSource;
-  otrsSource: OtrsFamilySource;
   otrsBaseUrl: string;
   userLogin: string;
   password: string;
@@ -330,7 +343,6 @@ function AccessStep({
     label: string;
     className: string;
   };
-  onOtrsSourceChange: (source: OtrsFamilySource) => void;
   onOtrsBaseUrlChange: (value: string) => void;
   onUserLoginChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
@@ -343,19 +355,6 @@ function AccessStep({
   if (mode === "otrs_family") {
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField label="Платформа">
-          <select
-            value={otrsSource}
-            onChange={(event) => onOtrsSourceChange(event.target.value as OtrsFamilySource)}
-            className={fieldClass}
-          >
-            {otrsFamilySourceOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </FormField>
         <FormField label="Base URL">
           <input value={otrsBaseUrl} onChange={(event) => onOtrsBaseUrlChange(event.target.value)} className={fieldClass} />
         </FormField>
@@ -370,7 +369,7 @@ function AccessStep({
             className={fieldClass}
           />
         </FormField>
-        <FormField label="TicketID для preview" className="md:col-span-2">
+        <FormField label="TicketID для preview">
           <input value={ticketId} onChange={(event) => onTicketIdChange(event.target.value)} className={fieldClass} />
         </FormField>
       </div>
@@ -378,17 +377,12 @@ function AccessStep({
   }
 
   if (mode === "native_helpdesk") {
-    const info = nativeSourceInfo(nativeSource);
-
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <ReadonlyField label="Выбранный сервис">
-          <span className="min-w-0 break-words">{info.label}</span>
-        </ReadonlyField>
         <FormField label="Base URL">
           <input value={nativeBaseUrl} onChange={(event) => onNativeBaseUrlChange(event.target.value)} className={fieldClass} />
         </FormField>
-        <FormField label="API token или app secret" className="md:col-span-2">
+        <FormField label="API token или app secret">
           <input
             value={nativeToken}
             onChange={(event) => onNativeTokenChange(event.target.value)}
@@ -911,17 +905,12 @@ export function IntegrationSetupWorkspace({
   const currentStepIndex = wizardSteps.findIndex((item) => item.value === step);
   const safeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
   const currentStep = wizardSteps[safeStepIndex];
+  const sourceValue: SourceOptionValue =
+    mode === "otrs_family" ? `otrs:${otrsSource}` : mode === "native_helpdesk" ? `native:${nativeSource}` : "custom_api";
+  const selectedSourceOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
   const selectedSourceLabel = useMemo(() => {
-    if (mode === "native_helpdesk") {
-      return nativeSourceInfo(nativeSource).label;
-    }
-
-    if (mode === "otrs_family") {
-      return otrsFamilyProfileForSource(otrsSource).shortLabel;
-    }
-
-    return customSystemName.trim() || sourceModeLabels.custom_api;
-  }, [customSystemName, mode, nativeSource, otrsSource]);
+    return mode === "custom_api" ? customSystemName.trim() || selectedSourceOption.label : selectedSourceOption.label;
+  }, [customSystemName, mode, selectedSourceOption.label]);
   const activeBaseUrl =
     mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" ? nativeBaseUrl : customBaseUrl;
 
@@ -939,19 +928,27 @@ export function IntegrationSetupWorkspace({
     setStep(wizardSteps[previousIndex].value);
   }
 
-  function changeMode(nextMode: SourceMode) {
-    setMode(nextMode);
-    resetCheck();
-  }
+  function changeSourceOption(nextValue: SourceOptionValue) {
+    if (nextValue === "custom_api") {
+      setMode("custom_api");
+      resetCheck();
+      return;
+    }
 
-  function changeNativeSource(nextSource: NativeHelpdeskSource) {
+    if (nextValue.startsWith("otrs:")) {
+      const nextSource = nextValue.replace("otrs:", "") as OtrsFamilySource;
+
+      setMode("otrs_family");
+      setOtrsSource(nextSource);
+      setOtrsBaseUrl(otrsFamilyProfileForSource(nextSource).exampleBaseUrl);
+      resetCheck();
+      return;
+    }
+
+    const nextSource = nextValue.replace("native:", "") as NativeHelpdeskSource;
+
+    setMode("native_helpdesk");
     setNativeSource(nextSource);
-    resetCheck();
-  }
-
-  function changeOtrsSource(nextSource: OtrsFamilySource) {
-    setOtrsSource(nextSource);
-    setOtrsBaseUrl(otrsFamilyProfileForSource(nextSource).exampleBaseUrl);
     resetCheck();
   }
 
@@ -971,7 +968,7 @@ export function IntegrationSetupWorkspace({
           title={currentStep.title}
           description={
             step === "source"
-              ? "Сначала выберите тип источника. Следующие шаги появятся после перехода дальше."
+              ? "Сначала выберите конкретный источник. Следующие шаги появятся после перехода дальше."
               : step === "access"
                 ? "Введите только данные, нужные для проверки доступа. Технические примеры скрыты ниже."
                 : step === "limits"
@@ -988,18 +985,15 @@ export function IntegrationSetupWorkspace({
         >
           {step === "source" ? (
             <SourceChoiceStep
+              sourceValue={sourceValue}
               mode={mode}
-              nativeSource={nativeSource}
-              onModeChange={changeMode}
-              onNativeSourceChange={changeNativeSource}
+              onSourceChange={changeSourceOption}
             />
           ) : null}
 
           {step === "access" ? (
             <AccessStep
               mode={mode}
-              nativeSource={nativeSource}
-              otrsSource={otrsSource}
               otrsBaseUrl={otrsBaseUrl}
               userLogin={userLogin}
               password={password}
@@ -1010,7 +1004,6 @@ export function IntegrationSetupWorkspace({
               customBaseUrl={customBaseUrl}
               apiTokenCount={apiTokenCount}
               apiHealth={apiHealth}
-              onOtrsSourceChange={changeOtrsSource}
               onOtrsBaseUrlChange={(value) => {
                 setOtrsBaseUrl(value);
                 resetCheck();
