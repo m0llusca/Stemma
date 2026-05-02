@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum RoleName {
+  ADMIN
+  QA_ANALYST
+  VIEWER
+}
+
+enum ConversationChannel {
+  CHAT
+  EMAIL
+  TICKET
+  MESSENGER
+}
+
+enum ParticipantType {
+  CUSTOMER
+  HUMAN_AGENT
+  AI_AGENT
+  SYSTEM
+}
+
+enum ReviewSource {
+  HUMAN
+  AI
+  CALIBRATION
+}
+
+enum ReviewStatus {
+  DRAFT
+  FINALIZED
+}
+
+enum CriterionKind {
+  SCALE_1_3
+  PASS_FAIL
+}
+
+enum FindingOwnerType {
+  AGENT
+  PROCESS
+  PRODUCT
+  POLICY
+  AI_SYSTEM
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Workspace {
+  id            String         @id @default(cuid())
+  name          String
+  users         User[]
+  integrations  Integration[]
+  conversations Conversation[]
+  scorecards    Scorecard[]
+  reviews       Review[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model User {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  email       String
+  name        String
+  role        RoleName
+  reviews     Review[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, email])
+}
+
+model Integration {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  source       String
+  displayName  String
+  status       String
+  syncCursor   String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Conversation {
+  id             String              @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id])
+  externalSource String
+  externalId     String
+  externalUrl    String?
+  channel        ConversationChannel
+  subject        String
+  status         String
+  tags           String
+  customerName   String
+  assigneeName   String?
+  samplingReason String
+  riskHint       String?
+  openedAt       DateTime
+  closedAt       DateTime?
+  messages       Message[]
+  reviews        Review[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([workspaceId, externalSource, externalId])
+}
+
+model Message {
+  id              String          @id @default(cuid())
+  conversationId  String
+  conversation    Conversation    @relation(fields: [conversationId], references: [id])
+  externalId      String
+  participantType ParticipantType
+  authorName      String
+  body            String
+  sentAt          DateTime
+  isPrivate       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+
+  @@unique([conversationId, externalId])
+}
+
+model Scorecard {
+  id          String               @id @default(cuid())
+  workspaceId String
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id])
+  name        String
+  version     Int
+  isActive    Boolean              @default(true)
+  criteria    ScorecardCriterion[]
+  reviews     Review[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model ScorecardCriterion {
+  id          String           @id @default(cuid())
+  scorecardId String
+  scorecard   Scorecard        @relation(fields: [scorecardId], references: [id])
+  key         String
+  label       String
+  kind        CriterionKind
+  weight      Int
+  required    Boolean          @default(true)
+  order       Int
+  scores      CriterionScore[]
+}
+
+model Review {
+  id             String           @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id])
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id])
+  reviewerId     String
+  reviewer       User             @relation(fields: [reviewerId], references: [id])
+  scorecardId    String
+  scorecard      Scorecard        @relation(fields: [scorecardId], references: [id])
+  reviewSource   ReviewSource
+  rubricVersion  Int
+  status         ReviewStatus
+  totalScore     Float
+  confidence     Float?
+  summary        String
+  finalizedAt    DateTime?
+  scores         CriterionScore[]
+  findings       Finding[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model CriterionScore {
+  id                String             @id @default(cuid())
+  reviewId          String
+  review            Review             @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  criterionId       String
+  criterion         ScorecardCriterion @relation(fields: [criterionId], references: [id])
+  value             Int?
+  passed            Boolean?
+  isNotApplicable   Boolean            @default(false)
+  comment           String
+  evidenceMessageId String?
+}
+
+model Finding {
+  id              String           @id @default(cuid())
+  reviewId        String
+  review          Review           @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  ownerType       FindingOwnerType
+  category        String
+  rootCause       String
+  riskLevel       RiskLevel
+  evidenceSummary String
+  coachingAction  CoachingAction?
+  createdAt       DateTime         @default(now())
+}
+
+model CoachingAction {
+  id        String   @id @default(cuid())
+  findingId String   @unique
+  finding   Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  assignee  String
+  action    String
+  dueAt     DateTime?
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  actorId     String
+  actor       User      @relation(fields: [actorId], references: [id])
+  action      String
+  targetType  String
+  targetId    String
+  metadata    String
+  createdAt   DateTime  @default(now())
+}
