@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const demoApiToken = "qa_demo_dev_token";
+
+function hashApiToken(token: string) {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
 
 async function main() {
   await prisma.auditLog.deleteMany();
@@ -13,6 +19,7 @@ async function main() {
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.integration.deleteMany();
+  await prisma.apiToken.deleteMany();
   await prisma.user.deleteMany();
   await prisma.workspace.deleteMany();
 
@@ -123,6 +130,16 @@ async function main() {
     ]
   });
 
+  const apiToken = await prisma.apiToken.create({
+    data: {
+      workspaceId: workspace.id,
+      name: "Локальный dev API",
+      tokenPrefix: `${demoApiToken.slice(0, 7)}...`,
+      tokenHash: hashApiToken(demoApiToken),
+      scopes: "conversations:write,reviews:read"
+    }
+  });
+
   await prisma.auditLog.create({
     data: {
       workspaceId: workspace.id,
@@ -130,7 +147,12 @@ async function main() {
       action: "seed.created",
       targetType: "workspace",
       targetId: workspace.id,
-      metadata: JSON.stringify({ analystId: analyst.id, scorecardId: scorecard.id, conversationId: conversation.id })
+      metadata: JSON.stringify({
+        analystId: analyst.id,
+        scorecardId: scorecard.id,
+        conversationId: conversation.id,
+        apiTokenId: apiToken.id
+      })
     }
   });
 }

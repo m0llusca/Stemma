@@ -63,6 +63,7 @@ model Workspace {
   name          String
   users         User[]
   integrations  Integration[]
+  apiTokens     ApiToken[]
   conversations Conversation[]
   scorecards    Scorecard[]
   reviews       Review[]
@@ -97,6 +98,22 @@ model Integration {
   lastSyncedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model ApiToken {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  name         String
+  tokenPrefix  String
+  tokenHash    String    @unique
+  scopes       String
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([workspaceId])
 }
 
 model Conversation {

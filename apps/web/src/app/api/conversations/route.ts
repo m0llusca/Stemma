@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
 import { customConversationSchema } from "@/lib/validation/custom-api";
@@ -13,7 +13,12 @@ function errorResponse(message: string, status: number) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
+    const auth = await requireApiToken(request, "conversations:write");
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
     const payload = customConversationSchema.parse(body);
     const conversationData = normalizeCustomConversation(payload);
@@ -21,14 +26,14 @@ export async function POST(request: NextRequest) {
     const conversation = await prisma.conversation.upsert({
       where: {
         workspaceId_externalSource_externalId: {
-          workspaceId: user.workspaceId,
+          workspaceId: auth.workspaceId,
           externalSource: payload.externalSource,
           externalId: payload.externalId
         }
       },
       create: {
         ...conversationData,
-        workspaceId: user.workspaceId
+        workspaceId: auth.workspaceId
       },
       update: conversationData
     });

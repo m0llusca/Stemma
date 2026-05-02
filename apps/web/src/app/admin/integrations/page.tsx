@@ -30,16 +30,42 @@ function formatDate(value: Date | null) {
   return value.toLocaleString("ru-RU");
 }
 
+function formatLastUsed(value: Date | null) {
+  if (!value) {
+    return "Еще не использовался";
+  }
+
+  return value.toLocaleString("ru-RU");
+}
+
+function formatScopes(scopes: string) {
+  return scopes
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
 export default async function AdminIntegrationsPage() {
   const user = await getCurrentUser();
-  const integrations = await prisma.integration.findMany({
-    where: {
-      workspaceId: user.workspaceId
-    },
-    orderBy: {
-      displayName: "asc"
-    }
-  });
+  const [integrations, apiTokens] = await Promise.all([
+    prisma.integration.findMany({
+      where: {
+        workspaceId: user.workspaceId
+      },
+      orderBy: {
+        displayName: "asc"
+      }
+    }),
+    prisma.apiToken.findMany({
+      where: {
+        workspaceId: user.workspaceId
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    })
+  ]);
 
   return (
     <section className="px-8 py-7">
@@ -47,6 +73,74 @@ export default async function AdminIntegrationsPage() {
         <p className="text-sm font-medium text-[#667085]">Администрирование</p>
         <h1 className="mt-1 text-2xl font-semibold">Интеграции</h1>
       </div>
+
+      <section className="panel mb-6 overflow-hidden">
+        <div className="border-b border-[#d7dce5] px-5 py-4">
+          <h2 className="text-lg font-semibold">Кастомный API</h2>
+        </div>
+        <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Метод</th>
+                  <th className="px-4 py-3 font-semibold">Endpoint</th>
+                  <th className="px-4 py-3 font-semibold">Scope</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5]">
+                <tr>
+                  <td className="px-4 py-3 font-medium">POST</td>
+                  <td className="px-4 py-3 font-mono text-xs">/api/conversations</td>
+                  <td className="px-4 py-3 font-mono text-xs">conversations:write</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 font-medium">POST</td>
+                  <td className="px-4 py-3 font-mono text-xs">/api/conversations/{"{id}"}/messages</td>
+                  <td className="px-4 py-3 font-mono text-xs">conversations:write</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 font-medium">GET</td>
+                  <td className="px-4 py-3 font-mono text-xs">/api/reviews/export</td>
+                  <td className="px-4 py-3 font-mono text-xs">reviews:read</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
+            <p className="text-sm font-semibold text-[#17202a]">Dev-токен</p>
+            <code className="mt-2 block rounded bg-white px-3 py-2 text-xs text-[#344054]">qa_demo_dev_token</code>
+            <p className="mt-3 text-sm font-semibold text-[#17202a]">Заголовок</p>
+            <code className="mt-2 block rounded bg-white px-3 py-2 text-xs text-[#344054]">
+              Authorization: Bearer qa_demo_dev_token
+            </code>
+          </div>
+        </div>
+
+        <div className="border-t border-[#d7dce5]">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+              <tr>
+                <th className="px-5 py-3 font-semibold">Название</th>
+                <th className="px-5 py-3 font-semibold">Префикс</th>
+                <th className="px-5 py-3 font-semibold">Scopes</th>
+                <th className="px-5 py-3 font-semibold">Последнее использование</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#d7dce5]">
+              {apiTokens.map((apiToken) => (
+                <tr key={apiToken.id}>
+                  <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
+                  <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
+                  <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
+                  <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="panel overflow-hidden">

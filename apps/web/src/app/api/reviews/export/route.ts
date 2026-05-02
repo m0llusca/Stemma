@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/current-user";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +8,16 @@ function isoDate(value: Date | null) {
   return value ? value.toISOString() : null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
+    const auth = await requireApiToken(request, "reviews:read");
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const reviews = await prisma.review.findMany({
-      where: { workspaceId: user.workspaceId },
+      where: { workspaceId: auth.workspaceId },
       include: {
         conversation: true,
         reviewer: true,

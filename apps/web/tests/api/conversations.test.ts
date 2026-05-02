@@ -4,6 +4,10 @@ import type { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   prisma: {
+    apiToken: {
+      findUnique: vi.fn(),
+      update: vi.fn()
+    },
     conversation: {
       findFirst: vi.fn(),
       upsert: vi.fn()
@@ -32,11 +36,29 @@ const currentUser = {
   workspace: { id: "workspace-1", name: "Demo Support QA" }
 };
 
-function jsonRequest(body: unknown) {
+function apiRequest(token: string | null = "qa_demo_dev_token") {
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("authorization", `Bearer ${token}`);
+  }
+
+  return new Request("http://localhost/api/reviews/export", {
+    headers
+  }) as NextRequest;
+}
+
+function jsonRequest(body: unknown, token: string | null = "qa_demo_dev_token") {
+  const headers = new Headers({ "content-type": "application/json" });
+
+  if (token) {
+    headers.set("authorization", `Bearer ${token}`);
+  }
+
   return new Request("http://localhost/api/conversations", {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" }
+    headers
   }) as NextRequest;
 }
 
@@ -44,6 +66,23 @@ describe("custom conversation API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue(currentUser);
+    mocks.prisma.apiToken.findUnique.mockResolvedValue({
+      id: "api-token-1",
+      workspaceId: "workspace-1",
+      scopes: "conversations:write,reviews:read",
+      expiresAt: null
+    });
+    mocks.prisma.apiToken.update.mockResolvedValue({});
+  });
+
+  it("requires a bearer token before ingesting conversations", async () => {
+    const { POST } = await import("@/app/api/conversations/route");
+
+    const response = await POST(jsonRequest({ externalId: "conv-123" }, null));
+
+    await expect(response.json()).resolves.toEqual({ error: "API token is required." });
+    expect(response.status).toBe(401);
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
   });
 
   it("upserts a conversation and its messages", async () => {
@@ -88,6 +127,12 @@ describe("custom conversation API", () => {
 
     await expect(response.json()).resolves.toEqual({ id: "conv-db-1" });
     expect(response.status).toBe(201);
+    expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
+      where: { id: "api-token-1" },
+      data: {
+        lastUsedAt: expect.any(Date)
+      }
+    });
     expect(mocks.prisma.conversation.upsert).toHaveBeenCalledWith({
       where: {
         workspaceId_externalSource_externalId: {
@@ -194,6 +239,12 @@ describe("custom conversation API", () => {
 
   it("exports reviews for the current workspace with the planned JSON shape", async () => {
     const { GET } = await import("@/app/api/reviews/export/route");
+    mocks.prisma.apiToken.findUnique.mockResolvedValue({
+      id: "api-token-1",
+      workspaceId: "workspace-1",
+      scopes: "reviews:read",
+      expiresAt: null
+    });
     mocks.prisma.review.findMany.mockResolvedValue([
       {
         id: "review-1",
@@ -263,7 +314,7 @@ describe("custom conversation API", () => {
       }
     ]);
 
-    const response = await GET();
+    const response = await GET(apiRequest());
 
     await expect(response.json()).resolves.toEqual({
       reviews: [
@@ -321,5 +372,21 @@ describe("custom conversation API", () => {
         where: { workspaceId: "workspace-1" }
       })
     );
+  });
+
+  it("returns 403 when a token is missing the required scope", async () => {
+    const { GET } = await import("@/app/api/reviews/export/route");
+    mocks.prisma.apiToken.findUnique.mockResolvedValue({
+      id: "api-token-1",
+      workspaceId: "workspace-1",
+      scopes: "conversations:write",
+      expiresAt: null
+    });
+
+    const response = await GET(apiRequest());
+
+    await expect(response.json()).resolves.toEqual({ error: "API token does not have the required scope." });
+    expect(response.status).toBe(403);
+    expect(mocks.prisma.review.findMany).not.toHaveBeenCalled();
   });
 });

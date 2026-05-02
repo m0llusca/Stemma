@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { normalizeCustomMessage } from "@/lib/normalizers/custom-api";
 import { customMessageSchema } from "@/lib/validation/custom-api";
@@ -17,11 +17,17 @@ function errorResponse(message: string, status: number) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const [{ id }, user] = await Promise.all([context.params, getCurrentUser()]);
+    const auth = await requireApiToken(request, "conversations:write");
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const { id } = await context.params;
     const conversation = await prisma.conversation.findFirst({
       where: {
         id,
-        workspaceId: user.workspaceId
+        workspaceId: auth.workspaceId
       },
       select: { id: true }
     });
