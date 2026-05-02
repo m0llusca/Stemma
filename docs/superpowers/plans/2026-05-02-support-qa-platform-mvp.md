@@ -129,10 +129,10 @@ Create `apps/web/package.json`:
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env DATABASE_URL=file:./dev.db next dev",
     "build": "cross-env DATABASE_URL=file:./dev.db prisma generate && cross-env DATABASE_URL=file:./dev.db next build",
-    "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "start": "cross-env DATABASE_URL=file:./dev.db next start",
+    "typecheck": "cross-env DATABASE_URL=file:./dev.db next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
