@@ -42,6 +42,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByText("Оценка по критериям")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
 
+  await page.locator('select[name^="criterion."][name$=".evidenceMessageId"]').first().selectOption({ index: 1 });
   await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
   await page.getByLabel("Корневая причина").fill("Задержка перевозчика создала неоднозначность по политике возврата.");
   await page
@@ -53,8 +54,10 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("button", { name: "Завершить проверку" }).click();
 
   await expect(page.getByText("Последняя оценка")).toBeVisible();
-  await expect(page.getByText("100%")).toBeVisible();
+  await expect(page.getByText("100%").first()).toBeVisible();
   await expect(page.getByText(/Завершена:/)).toBeVisible();
+  await expect(page.getByText("Доказательство", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 
   await page.goto("/reviews?status=reviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
@@ -64,13 +67,27 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Скоркарты", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Новая версия скоркарты" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeVisible();
+  await expect(page.getByText("Сумма весов: 100%")).toBeVisible();
+  await page.getByRole("button", { name: "Добавить критерий" }).click();
+  await expect(page.getByText("Сумма весов: 101%")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeDisabled();
 
   await page.goto("/admin/audit");
   await expect(page.getByRole("heading", { name: "Аудит" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "review.finalized" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "API-активность" })).toBeVisible();
 
+  await page.goto("/reports");
+  await expect(page.getByRole("heading", { name: "Отчеты" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "По источникам" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "По операторам" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "По уровню риска" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "По категориям находок" })).toBeVisible();
+
   await page.goto("/admin/integrations");
-  await expect(page.getByRole("heading", { name: "OTRS-family adapter readiness" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "OTRS-family импорт" })).toBeVisible();
   await expect(page.getByText("Этап 2 · первый native track")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
+  await page.getByRole("button", { name: "Импортировать в очередь" }).click();
+  await expect(page.getByRole("link", { name: "Клиент просит возврат после задержки доставки" })).toBeVisible();
 });

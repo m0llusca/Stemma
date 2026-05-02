@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
-import { prisma } from "@/lib/db";
-import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
+import { upsertCustomConversation } from "@/lib/conversation-import";
 import { customConversationSchema } from "@/lib/validation/custom-api";
 
 export const dynamic = "force-dynamic";
@@ -21,40 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const payload = customConversationSchema.parse(body);
-    const conversationData = normalizeCustomConversation(payload);
-
-    const conversation = await prisma.conversation.upsert({
-      where: {
-        workspaceId_externalSource_externalId: {
-          workspaceId: auth.workspaceId,
-          externalSource: payload.externalSource,
-          externalId: payload.externalId
-        }
-      },
-      create: {
-        ...conversationData,
-        workspaceId: auth.workspaceId
-      },
-      update: conversationData
-    });
-
-    for (const message of payload.messages) {
-      const messageData = normalizeCustomMessage(message);
-
-      await prisma.message.upsert({
-        where: {
-          conversationId_externalId: {
-            conversationId: conversation.id,
-            externalId: message.externalId
-          }
-        },
-        create: {
-          ...messageData,
-          conversationId: conversation.id
-        },
-        update: messageData
-      });
-    }
+    const conversation = await upsertCustomConversation(auth.workspaceId, payload);
 
     await recordApiTokenSuccess(auth.apiTokenId);
 

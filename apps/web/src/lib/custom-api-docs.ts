@@ -1,3 +1,4 @@
+import { otrsFamilyTicketGetExample } from "@/lib/normalizers/otrs-family";
 import type { CustomConversationInput } from "@/lib/validation/custom-api";
 
 export const demoApiToken = "qa_demo_dev_token";
@@ -14,6 +15,12 @@ export const customApiEndpoints = [
     path: "/api/conversations/{id}/messages",
     scope: "conversations:write",
     purpose: "Добавить или обновить сообщение в уже импортированном диалоге."
+  },
+  {
+    method: "POST",
+    path: "/api/integrations/otrs-family/tickets",
+    scope: "conversations:write",
+    purpose: "Импортировать TicketGet-ответы OTRS CE 6, Znuny или OTOBO."
   },
   {
     method: "GET",
@@ -64,6 +71,13 @@ export const customMessageExample = {
   body: "Обновление: перевозчик подтвердил задержку, возврат можно оформить сегодня.",
   sentAt: "2026-04-25T10:20:00.000Z",
   isPrivate: false
+} as const;
+
+export const otrsFamilyImportExample = {
+  source: "znuny",
+  baseUrl: "https://support.example.com/otrs",
+  samplingReason: "Native OTRS-family импорт: очередь Refunds и статьи тикета.",
+  ticketGet: otrsFamilyTicketGetExample
 } as const;
 
 export const customConversationSchemaRows = [

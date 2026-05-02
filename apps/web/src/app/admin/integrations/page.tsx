@@ -1,3 +1,4 @@
+import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
 import {
   buildCurlExample,
   customApiEndpoints,
@@ -6,7 +7,8 @@ import {
   customMessageExample,
   customMessageSchemaRows,
   demoApiToken,
-  formatJsonExample
+  formatJsonExample,
+  otrsFamilyImportExample
 } from "@/lib/custom-api-docs";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -18,6 +20,7 @@ export const dynamic = "force-dynamic";
 const conversationImportCurl = buildCurlExample("/api/conversations", "POST", customConversationExample);
 const messageImportCurl = buildCurlExample("/api/conversations/{id}/messages", "POST", customMessageExample);
 const reviewExportCurl = buildCurlExample("/api/reviews/export", "GET");
+const otrsImportCurl = buildCurlExample("/api/integrations/otrs-family/tickets", "POST", otrsFamilyImportExample);
 const otrsTicketGetRequest = formatJsonExample({
   TicketGet: {
     UserLogin: "agent_login",
@@ -257,37 +260,49 @@ export default async function AdminIntegrationsPage() {
 
       <section className="panel mb-6 overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
-          <h2 className="text-lg font-semibold">OTRS-family adapter readiness</h2>
+          <h2 className="text-lg font-semibold">OTRS-family импорт</h2>
           <p className="mt-1 text-sm text-[#667085]">
             Подготовлен mapping-слой для OTRS Community Edition 6, Znuny и OTOBO: тикет становится диалогом, статьи
             становятся сообщениями.
           </p>
         </div>
         <div className="grid gap-5 p-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Рекомендуемый TicketGet</h3>
-            <CodeBlock>{otrsTicketGetRequest}</CodeBlock>
+          <div className="grid gap-5">
+            <div className="grid gap-2">
+              <h3 className="text-sm font-semibold text-[#17202a]">Рекомендуемый TicketGet</h3>
+              <CodeBlock>{otrsTicketGetRequest}</CodeBlock>
+            </div>
+            <div className="grid gap-2">
+              <h3 className="text-sm font-semibold text-[#17202a]">Endpoint native-импорта</h3>
+              <CodeBlock>{otrsImportCurl}</CodeBlock>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Mapping в custom API</h3>
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">OTRS/Znuny/OTOBO</th>
-                  <th className="px-4 py-3 font-semibold">Поле QC</th>
-                  <th className="px-4 py-3 font-semibold">Правило</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
-                {otrsFamilyMappingRows.map((row) => (
-                  <tr key={`${row.source}:${row.target}`}>
-                    <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
-                    <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+          <div className="grid gap-5">
+            <div className="overflow-x-auto">
+              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Mapping в custom API</h3>
+              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">OTRS/Znuny/OTOBO</th>
+                    <th className="px-4 py-3 font-semibold">Поле QC</th>
+                    <th className="px-4 py-3 font-semibold">Правило</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5]">
+                  {otrsFamilyMappingRows.map((row) => (
+                    <tr key={`${row.source}:${row.target}`}>
+                      <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
+                      <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
+              <h3 className="mb-3 text-sm font-semibold text-[#17202a]">Тестовый импорт TicketGet</h3>
+              <OtrsImportTester />
+            </div>
           </div>
         </div>
       </section>

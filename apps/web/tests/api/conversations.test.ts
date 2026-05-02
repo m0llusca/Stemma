@@ -179,6 +179,103 @@ describe("custom conversation API", () => {
     });
   });
 
+  it("imports OTRS-family TicketGet payloads through the native endpoint", async () => {
+    const { POST } = await import("@/app/api/integrations/otrs-family/tickets/route");
+    mocks.prisma.conversation.upsert.mockResolvedValue({ id: "conv-db-otrs" });
+    mocks.prisma.message.upsert.mockResolvedValueOnce({ id: "msg-db-101" }).mockResolvedValueOnce({ id: "msg-db-102" });
+
+    const response = await POST(
+      jsonRequest({
+        source: "znuny",
+        baseUrl: "https://support.example.com/otrs",
+        ticketGet: {
+          Success: 1,
+          Ticket: {
+            TicketID: "42",
+            TicketNumber: "20260502000042",
+            Title: "Refund request from Znuny",
+            State: "closed successful",
+            Queue: "Support::Refunds",
+            Priority: "3 normal",
+            CustomerUserID: "ava@example.com",
+            Owner: "Sam Agent",
+            Created: "2026-04-25 10:00:00",
+            Article: [
+              {
+                ArticleID: "101",
+                SenderType: "customer",
+                From: "Ava Customer",
+                Body: "Where is my refund?",
+                Created: "2026-04-25 10:00:00",
+                IsVisibleForCustomer: 1,
+                CommunicationChannel: "Email"
+              },
+              {
+                ArticleID: "102",
+                SenderType: "agent",
+                From: "Sam Agent",
+                Body: "I can help.",
+                Created: "2026-04-25 10:04:00",
+                IsVisibleForCustomer: 1,
+                CommunicationChannel: "Email"
+              }
+            ]
+          }
+        }
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      count: 1,
+      imported: [
+        {
+          id: "conv-db-otrs",
+          externalSource: "znuny",
+          externalId: "42",
+          subject: "Refund request from Znuny",
+          messageCount: 2
+        }
+      ]
+    });
+    expect(response.status).toBe(201);
+    expect(mocks.prisma.conversation.upsert).toHaveBeenCalledWith({
+      where: {
+        workspaceId_externalSource_externalId: {
+          workspaceId: "workspace-1",
+          externalSource: "znuny",
+          externalId: "42"
+        }
+      },
+      create: expect.objectContaining({
+        workspaceId: "workspace-1",
+        channel: "EMAIL",
+        customerName: "ava@example.com"
+      }),
+      update: expect.objectContaining({
+        channel: "EMAIL",
+        customerName: "ava@example.com"
+      })
+    });
+    expect(mocks.prisma.message.upsert).toHaveBeenCalledTimes(2);
+    expect(mocks.prisma.message.upsert).toHaveBeenCalledWith({
+      where: {
+        conversationId_externalId: {
+          conversationId: "conv-db-otrs",
+          externalId: "102"
+        }
+      },
+      create: expect.objectContaining({
+        conversationId: "conv-db-otrs",
+        participantType: "HUMAN_AGENT",
+        isPrivate: false
+      }),
+      update: expect.objectContaining({
+        participantType: "HUMAN_AGENT",
+        isPrivate: false
+      })
+    });
+  });
+
   it("returns 400 for invalid conversation payloads", async () => {
     const { POST } = await import("@/app/api/conversations/route");
 

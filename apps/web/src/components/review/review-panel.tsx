@@ -8,6 +8,21 @@ type ReviewPanelProps = {
   scorecard: Scorecard & { criteria: ScorecardCriterion[] };
 };
 
+const categoryTemplates = [
+  "Политика возврата",
+  "Точность ответа",
+  "Эмпатия и тон",
+  "Скорость эскалации",
+  "Работа с AI-подсказкой"
+];
+
+const coachingTemplates = [
+  "Разобрать пример на 1:1 и закрепить корректную формулировку.",
+  "Обновить макрос и показать команде эталонный ответ.",
+  "Провести короткую калибровку по политике возврата.",
+  "Добавить чек перед отправкой ответа клиенту."
+];
+
 export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanelProps) {
   return (
     <form action={finalizeReview} className="panel p-5">
@@ -121,13 +136,24 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Категория
-            <input name="category" required className="rounded border border-[#d7dce5] px-3 py-2" />
+            <input name="category" list="category-templates" required className="rounded border border-[#d7dce5] px-3 py-2" />
           </label>
         </div>
+        <datalist id="category-templates">
+          {categoryTemplates.map((template) => (
+            <option key={template} value={template} />
+          ))}
+        </datalist>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Корневая причина
-          <textarea name="rootCause" rows={3} required className="resize-y rounded border border-[#d7dce5] px-3 py-2" />
+          <textarea
+            name="rootCause"
+            rows={3}
+            required
+            placeholder="Например: оператор не сверил ответ с актуальной политикой перед финальным сообщением."
+            className="resize-y rounded border border-[#d7dce5] px-3 py-2"
+          />
         </label>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
@@ -136,6 +162,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
             name="evidenceSummary"
             rows={3}
             required
+            placeholder="Например: в сообщении-доказательстве клиенту обещан срок, которого нет в политике."
             className="resize-y rounded border border-[#d7dce5] px-3 py-2"
           />
         </label>
@@ -144,8 +171,13 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
           <h3 className="text-sm font-semibold uppercase text-[#667085] md:col-span-3">Коучинг</h3>
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Действие по коучингу
-            <input name="coachingAction" className="rounded border border-[#d7dce5] px-3 py-2" />
+            <input name="coachingAction" list="coaching-templates" className="rounded border border-[#d7dce5] px-3 py-2" />
           </label>
+          <datalist id="coaching-templates">
+            {coachingTemplates.map((template) => (
+              <option key={template} value={template} />
+            ))}
+          </datalist>
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Ответственный за коучинг
             <input name="coachingAssignee" className="rounded border border-[#d7dce5] px-3 py-2" />

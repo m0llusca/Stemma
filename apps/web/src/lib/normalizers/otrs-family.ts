@@ -179,6 +179,17 @@ export function extractOtrsFamilyTickets(payload: OtrsFamilyTicketGetResponse | 
   return [payload as OtrsFamilyTicket];
 }
 
+export function isOtrsFamilyTicketLike(ticket: OtrsFamilyTicket) {
+  return Boolean(
+    stringValue(ticket.TicketID) ??
+      stringValue(ticket.TicketNumber) ??
+      stringValue(ticket.Title) ??
+      stringValue(ticket.CustomerID) ??
+      stringValue(ticket.CustomerUserID) ??
+      ticket.Article
+  );
+}
+
 export function normalizeOtrsFamilyArticle(article: OtrsFamilyArticle, index = 0): CustomMessageInput {
   const externalId =
     stringValue(article.ArticleID) ?? stringValue(article.ArticleNumber) ?? `article-${String(index + 1).padStart(3, "0")}`;
@@ -259,3 +270,43 @@ export const otrsFamilyMappingRows = [
   { source: "Article[].SenderType", target: "messages[].participantType", note: "customer, agent, system -> участники диалога." },
   { source: "Article[].IsVisibleForCustomer", target: "messages[].isPrivate", note: "Невидимые клиенту статьи становятся приватными." }
 ] as const;
+
+export const otrsFamilyTicketGetExample = {
+  Success: 1,
+  Ticket: {
+    TicketID: "42",
+    TicketNumber: "20260502000042",
+    Title: "Клиент просит возврат после задержки доставки",
+    State: "closed successful",
+    Queue: "Support::Refunds",
+    Priority: "3 normal",
+    Type: "Incident",
+    Service: "Delivery",
+    CustomerID: "customer-1001",
+    CustomerUserID: "mila@example.com",
+    Owner: "Иван Петров",
+    Created: "2026-04-25 10:00:00",
+    Closed: "2026-04-25 10:18:00",
+    Article: [
+      {
+        ArticleID: "101",
+        SenderType: "customer",
+        From: "Мила Петрова <mila@example.com>",
+        Subject: "Доставка задерживается",
+        Body: "Доставка задерживается, я хочу возврат.",
+        Created: "2026-04-25 10:00:00",
+        IsVisibleForCustomer: 1,
+        CommunicationChannel: "Email"
+      },
+      {
+        ArticleID: "102",
+        SenderType: "agent",
+        From: "Иван Петров",
+        Body: "Помогу разобраться. Можем предложить бонусный кредит или оформить возврат после подтверждения перевозчика.",
+        Created: "2026-04-25 10:04:00",
+        IsVisibleForCustomer: 1,
+        CommunicationChannel: "Email"
+      }
+    ]
+  }
+} satisfies OtrsFamilyTicketGetResponse;

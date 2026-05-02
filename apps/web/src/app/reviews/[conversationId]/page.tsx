@@ -32,6 +32,13 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
 
   const latestReview = conversation.reviews[0];
   const latestFinding = latestReview?.findings[0];
+  const evidenceMessageIds = Array.from(
+    new Set(
+      latestReview?.scores
+        .map((score) => score.evidenceMessageId)
+        .filter((messageId): messageId is string => Boolean(messageId)) ?? []
+    )
+  );
 
   return (
     <section className="px-8 py-7">
@@ -121,8 +128,40 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         </section>
       ) : null}
 
+      {conversation.reviews.length > 0 ? (
+        <section className="panel mb-6 overflow-hidden">
+          <div className="border-b border-[#d7dce5] px-5 py-4">
+            <h2 className="text-lg font-semibold">История проверок</h2>
+          </div>
+          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+              <tr>
+                <th className="px-5 py-3 font-semibold">Дата</th>
+                <th className="px-5 py-3 font-semibold">Проверяющий</th>
+                <th className="px-5 py-3 font-semibold">Статус</th>
+                <th className="px-5 py-3 font-semibold">Оценка</th>
+                <th className="px-5 py-3 font-semibold">Категория</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#d7dce5]">
+              {conversation.reviews.map((review) => (
+                <tr key={review.id}>
+                  <td className="px-5 py-4 text-[#344054]">
+                    {(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}
+                  </td>
+                  <td className="px-5 py-4 text-[#344054]">{review.reviewer.name}</td>
+                  <td className="px-5 py-4 text-[#344054]">{reviewStatusLabels[review.status]}</td>
+                  <td className="px-5 py-4 font-semibold text-[#17202a]">{Math.round(review.totalScore)}%</td>
+                  <td className="px-5 py-4 text-[#344054]">{review.findings[0]?.category ?? "Без находки"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_520px]">
-        <ConversationTimeline messages={conversation.messages} />
+        <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
         <ReviewPanel conversationId={conversation.id} messages={conversation.messages} scorecard={scorecard} />
       </div>
     </section>
