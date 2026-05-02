@@ -115,6 +115,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         none: {
+          reviewSource: "HUMAN",
           status: "FINALIZED"
         }
       }
@@ -125,6 +126,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         some: {
+          reviewSource: "HUMAN",
           status: "FINALIZED"
         }
       }
@@ -174,6 +176,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         some: {
+          reviewSource: "HUMAN",
           status: "FINALIZED",
           criticalError: true
         }
@@ -185,6 +188,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         some: {
+          reviewSource: "HUMAN",
           status: "FINALIZED",
           needsReanswer: true
         }
@@ -196,6 +200,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         some: {
+          reviewSource: "HUMAN",
           status: "FINALIZED",
           appealStatus: {
             not: "none"
@@ -209,6 +214,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         some: {
+          reviewSource: "HUMAN",
           status: "FINALIZED",
           findings: {
             some: {
@@ -224,6 +230,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({
       reviews: {
         some: {
+          reviewSource: "HUMAN",
           status: "FINALIZED",
           finalizedAt: {
             ...(filters.finalizedFrom ? { gte: filters.finalizedFrom } : {}),
@@ -277,6 +284,7 @@ export async function getReviewQueueSummary(workspaceId: string) {
         workspaceId,
         reviews: {
           some: {
+            reviewSource: "HUMAN",
             status: "DRAFT"
           }
         }
@@ -288,6 +296,7 @@ export async function getReviewQueueSummary(workspaceId: string) {
         qaStatus: "FINALIZED",
         reviews: {
           some: {
+            reviewSource: "HUMAN",
             status: "FINALIZED"
           }
         }
@@ -411,6 +420,19 @@ export async function getConversationForReview(workspaceId: string, conversation
           findings: {
             include: {
               coachingAction: true
+            }
+          },
+          feedbackEvents: {
+            include: {
+              actor: true
+            },
+            orderBy: {
+              createdAt: "desc"
+            }
+          },
+          trainingAssignments: {
+            orderBy: {
+              createdAt: "desc"
             }
           }
         }

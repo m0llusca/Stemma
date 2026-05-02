@@ -129,8 +129,8 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           </thead>
           <tbody className="divide-y divide-[#d7dce5]">
             {conversations.map((conversation) => {
-              const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED");
-              const draftReview = conversation.reviews.find((review) => review.status === "DRAFT");
+              const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
+              const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
               const isOverdue =
                 conversation.reviewDueAt !== null &&
                 conversation.reviewDueAt < new Date() &&

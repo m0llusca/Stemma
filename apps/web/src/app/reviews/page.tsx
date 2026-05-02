@@ -40,9 +40,10 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
   const user = await getCurrentUser();
   const rawParams = await searchParams;
   const filters = parseReviewQueueFilters(rawParams);
+  const effectiveFilters = user.role === "SUPPORT_AGENT" ? { ...filters, assignee: user.name } : filters;
   const currentHref = reviewQueueHref(rawParams);
-  const [conversations, summary, filterOptions, qaAssignees] = await Promise.all([
-    getReviewQueue(user.workspaceId, filters),
+  const [conversations, summary, filterOptions, qaAssignees, savedViews] = await Promise.all([
+    getReviewQueue(user.workspaceId, effectiveFilters),
     getReviewQueueSummary(user.workspaceId),
     getReviewQueueFilterOptions(user.workspaceId),
     prisma.user.findMany({
@@ -59,6 +60,19 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         id: true,
         name: true
       }
+    }),
+    prisma.savedQueueView.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        OR: [{ userId: user.id }, { scope: "workspace" }]
+      },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        href: true,
+        scope: true
+      }
     })
   ]);
 
@@ -69,7 +83,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         <p className="mt-1 text-sm text-[#667085]">Рабочая очередь проверок с фильтрами по состоянию, каналу и источнику.</p>
       </div>
       <QueueSummary {...summary} filtered={conversations.length} />
-      <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} />
+      <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} savedViews={savedViews} />
       <QueueFilters
         filters={filters}
         sources={filterOptions.sources}

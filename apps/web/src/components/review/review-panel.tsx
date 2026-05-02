@@ -4,6 +4,7 @@ import type {
   Finding,
   Message,
   Review,
+  ReviewSource,
   Scorecard,
   ScorecardCriterion
 } from "@prisma/client";
@@ -20,6 +21,9 @@ type ReviewPanelProps = {
   messages: Message[];
   scorecard: Scorecard & { criteria: ScorecardCriterion[] };
   draftReview?: (Review & { scores: CriterionScore[]; findings: (Finding & { coachingAction: CoachingAction | null })[] }) | null;
+  reviewSource?: ReviewSource;
+  returnTo?: string;
+  title?: string;
 };
 
 const categoryTemplates = [
@@ -53,7 +57,7 @@ const criticalErrorTemplates = [
   "Грубое нарушение стиля"
 ];
 
-const feedbackStatuses = ["new", "feedback_sent", "appeal", "corrected"] as const;
+const feedbackStatuses = ["new", "feedback_sent", "acknowledged", "appeal", "corrected"] as const;
 const appealStatuses = ["none", "open", "confirmed", "corrected", "calibration"] as const;
 const reanswerStatuses = ["not_needed", "required", "requested", "completed"] as const;
 const fieldClassName = "rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm";
@@ -99,7 +103,15 @@ function StepHeader({ number, title, detail }: { number: number; title: string; 
   );
 }
 
-export function ReviewPanel({ conversationId, messages, scorecard, draftReview }: ReviewPanelProps) {
+export function ReviewPanel({
+  conversationId,
+  messages,
+  scorecard,
+  draftReview,
+  reviewSource = "HUMAN",
+  returnTo,
+  title = "Проверка"
+}: ReviewPanelProps) {
   const draftScores = new Map(draftReview?.scores.map((score) => [score.criterionId, score]) ?? []);
   const draftFinding = draftReview?.findings[0];
   const hasOptionalDetails = Boolean(
@@ -141,11 +153,13 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
       <EvidencePickerListener />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
+      <input type="hidden" name="reviewSource" value={reviewSource} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
       <div className="border-b border-[#d7dce5] px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Проверка</h2>
+            <h2 className="text-lg font-semibold">{title}</h2>
             <p className="mt-1 text-sm text-[#667085]">
               {scorecard.name} v{scorecard.version}
             </p>

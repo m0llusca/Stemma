@@ -14,6 +14,7 @@ import { ConversationTimeline } from "@/components/review/conversation-timeline"
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewWorkflow } from "@/components/review/review-workflow";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
+import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
@@ -21,6 +22,7 @@ import {
   conversationStatusLabel,
   csatBucketLabels,
   appealStatusLabels,
+  feedbackStatusLabels,
   formatMessageCount,
   ownerTypeLabels,
   reanswerStatusLabels,
@@ -35,6 +37,7 @@ export const dynamic = "force-dynamic";
 
 type ReviewDetailPageProps = {
   params: Promise<{ conversationId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function reviewStateTone(state: ReviewState) {
@@ -86,8 +89,16 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-export default async function ReviewDetailPage({ params }: ReviewDetailPageProps) {
-  const [{ conversationId }, user] = await Promise.all([params, getCurrentUser()]);
+function singleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ReviewDetailPage({ params, searchParams }: ReviewDetailPageProps) {
+  const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, getCurrentUser()]);
+  const requestedReviewSource = singleParam(rawSearchParams.reviewSource);
+  const reviewSource =
+    requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
+  const returnTo = singleParam(rawSearchParams.returnTo);
   const [conversation, scorecard, qaAssignees] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId),
     getActiveScorecard(user.workspaceId),
@@ -113,9 +124,9 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
     notFound();
   }
 
-  const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED");
+  const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
   const currentDraftReview = conversation.reviews.find(
-    (review) => review.status === "DRAFT" && review.reviewerId === user.id
+    (review) => review.status === "DRAFT" && review.reviewerId === user.id && review.reviewSource === reviewSource
   );
   const scorePreviewReview = latestFinalizedReview ?? currentDraftReview;
   const latestFinding = latestFinalizedReview?.findings[0];
@@ -265,6 +276,73 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
               <p>Нужен переответ клиенту: проверьте, что руководитель получил сигнал и обращение переоткрыто при необходимости.</p>
             </div>
           ) : null}
+          <div className="mx-5 mb-5 grid gap-4 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#17202a]">Обратная связь и апелляция</p>
+                <p className="mt-1 text-sm text-[#667085]">
+                  Статус: {feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus}
+                  {latestFinalizedReview.feedbackAckAt
+                    ? ` · ознакомлен ${latestFinalizedReview.feedbackAckAt.toLocaleString("ru-RU")}`
+                    : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <form action={updateReviewFeedback}>
+                  <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                  <input type="hidden" name="action" value="acknowledged" />
+                  <button type="submit" className="rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+                    Ознакомлен
+                  </button>
+                </form>
+                <form action={updateReviewFeedback}>
+                  <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                  <input type="hidden" name="action" value="appeal_opened" />
+                  <button type="submit" className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+                    Открыть апелляцию
+                  </button>
+                </form>
+                {latestFinalizedReview.needsReanswer ? (
+                  <form action={updateReviewFeedback}>
+                    <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                    <input type="hidden" name="action" value="reanswer_completed" />
+                    <button type="submit" className="rounded bg-[#116466] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+                      Переответ выполнен
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+            </div>
+            <form action={createTrainingAssignmentFromReview} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end">
+              <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+              <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Учебная задача
+                <input name="title" defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Описание
+                <input name="description" defaultValue={latestFinalizedReview.summary} className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Срок
+                <input name="dueAt" type="date" className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+              </label>
+              <button type="submit" className="rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+                Создать
+              </button>
+            </form>
+            {latestFinalizedReview.feedbackEvents.length > 0 ? (
+              <div className="grid gap-2 text-sm">
+                {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
+                  <div key={event.id} className="rounded-md bg-white px-3 py-2 text-[#344054]">
+                    {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {event.action}
+                    {event.comment ? ` · ${event.comment}` : ""}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </details>
       ) : null}
 
@@ -319,6 +397,9 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
             messages={conversation.messages}
             scorecard={scorecard}
             draftReview={currentDraftReview}
+            reviewSource={reviewSource}
+            returnTo={returnTo}
+            title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Самооценка" : "Проверка"}
           />
         </div>
       </div>

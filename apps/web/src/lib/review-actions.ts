@@ -1,18 +1,19 @@
 "use server";
 
-import type { FindingOwnerType, Prisma, RiskLevel, Scorecard, ScorecardCriterion } from "@prisma/client";
+import type { FindingOwnerType, Prisma, ReviewSource, RiskLevel, Scorecard, ScorecardCriterion } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
-import { canFinalizeReview, canSaveReviewDraft, getCurrentUser } from "@/lib/current-user";
+import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { calculateReviewScore } from "@/lib/score";
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
-const feedbackStatuses = ["new", "feedback_sent", "appeal", "corrected"] as const;
+const feedbackStatuses = ["new", "feedback_sent", "acknowledged", "appeal", "corrected"] as const;
 const appealStatuses = ["none", "open", "confirmed", "corrected", "calibration"] as const;
 const reanswerStatuses = ["not_needed", "required", "requested", "completed"] as const;
+const reviewSources = ["HUMAN", "AI", "CALIBRATION", "SELF_REVIEW"] as const satisfies readonly ReviewSource[];
 
 type ReviewScorecard = Scorecard & { criteria: ScorecardCriterion[] };
 
@@ -97,6 +98,16 @@ function optionalStatus<T extends readonly string[]>(formData: FormData, key: st
   }
 
   return value as T[number];
+}
+
+function reviewSourceField(formData: FormData): ReviewSource {
+  const value = optionalString(formData, "reviewSource") ?? "HUMAN";
+
+  if (!reviewSources.includes(value as ReviewSource)) {
+    throw new Error("Некорректный тип проверки.");
+  }
+
+  return value as ReviewSource;
 }
 
 function reviewProcessFields(formData: FormData, summary: string) {
@@ -206,13 +217,15 @@ async function findCurrentDraft(
   tx: Prisma.TransactionClient,
   workspaceId: string,
   conversationId: string,
-  reviewerId: string
+  reviewerId: string,
+  reviewSource: ReviewSource
 ) {
   return tx.review.findFirst({
     where: {
       workspaceId,
       conversationId,
       reviewerId,
+      reviewSource,
       status: "DRAFT"
     },
     select: {
@@ -224,12 +237,14 @@ async function findCurrentDraft(
 export async function saveReviewDraft(formData: FormData) {
   const user = await getCurrentUser();
 
-  if (!canSaveReviewDraft(user.role)) {
-    throw new Error("Нет прав на сохранение черновиков.");
-  }
-
   const conversationId = requiredString(formData, "conversationId");
   const scorecardId = requiredString(formData, "scorecardId");
+  const reviewSource = reviewSourceField(formData);
+  const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
+
+  if (reviewSource === "SELF_REVIEW" ? !canSelfReview(user.role) : !canSaveReviewDraft(user.role)) {
+    throw new Error("Нет прав на сохранение черновиков.");
+  }
   const { conversation, scorecard } = await loadReviewContext(user.workspaceId, conversationId, scorecardId);
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
@@ -267,7 +282,7 @@ export async function saveReviewDraft(formData: FormData) {
       : undefined;
 
   await prisma.$transaction(async (tx) => {
-    const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id);
+    const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id, reviewSource);
     let reviewId: string;
 
     if (existingDraft) {
@@ -278,7 +293,7 @@ export async function saveReviewDraft(formData: FormData) {
         where: { id: existingDraft.id },
         data: {
           scorecardId: scorecard.id,
-          reviewSource: "HUMAN",
+          reviewSource,
           rubricVersion: scorecard.version,
           totalScore: reviewTotalScore,
           summary,
@@ -298,7 +313,7 @@ export async function saveReviewDraft(formData: FormData) {
           conversationId,
           reviewerId: user.id,
           scorecardId: scorecard.id,
-          reviewSource: "HUMAN",
+          reviewSource,
           rubricVersion: scorecard.version,
           status: "DRAFT",
           totalScore: reviewTotalScore,
@@ -314,14 +329,16 @@ export async function saveReviewDraft(formData: FormData) {
       reviewId = review.id;
     }
 
-    await tx.conversation.update({
-      where: { id: conversationId },
-      data: {
-        qaStatus: "IN_PROGRESS",
-        qaAssigneeId: conversation.qaAssigneeId ?? user.id,
-        qaAssigneeName: conversation.qaAssigneeName ?? user.name
-      }
-    });
+    if (reviewSource === "HUMAN") {
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: {
+          qaStatus: "IN_PROGRESS",
+          qaAssigneeId: conversation.qaAssigneeId ?? user.id,
+          qaAssigneeName: conversation.qaAssigneeName ?? user.name
+        }
+      });
+    }
 
     await auditLog(
       {
@@ -342,18 +359,20 @@ export async function saveReviewDraft(formData: FormData) {
 
   revalidatePath("/reviews");
   revalidatePath(`/reviews/${conversationId}`);
-  redirect(`/reviews/${conversationId}`);
+  redirect(returnTo);
 }
 
 export async function finalizeReview(formData: FormData) {
   const user = await getCurrentUser();
 
-  if (!canFinalizeReview(user.role)) {
-    throw new Error("Нет прав на завершение проверок.");
-  }
-
   const conversationId = requiredString(formData, "conversationId");
   const scorecardId = requiredString(formData, "scorecardId");
+  const reviewSource = reviewSourceField(formData);
+  const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
+
+  if (reviewSource === "SELF_REVIEW" ? !canSelfReview(user.role) : !canFinalizeReview(user.role)) {
+    throw new Error("Нет прав на завершение проверок.");
+  }
   const { conversation, scorecard } = await loadReviewContext(user.workspaceId, conversationId, scorecardId);
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const coachingAction = optionalString(formData, "coachingAction");
@@ -369,7 +388,7 @@ export async function finalizeReview(formData: FormData) {
   const findingRiskLevel = processFields.criticalError ? "CRITICAL" : riskLevel;
 
   await prisma.$transaction(async (tx) => {
-    const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id);
+    const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id, reviewSource);
 
     if (existingDraft) {
       await tx.criterionScore.deleteMany({ where: { reviewId: existingDraft.id } });
@@ -378,7 +397,7 @@ export async function finalizeReview(formData: FormData) {
 
     const reviewData = {
       scorecardId: scorecard.id,
-      reviewSource: "HUMAN" as const,
+      reviewSource,
       rubricVersion: scorecard.version,
       status: "FINALIZED" as const,
       totalScore: reviewTotalScore,
@@ -423,14 +442,16 @@ export async function finalizeReview(formData: FormData) {
           }
         });
 
-    await tx.conversation.update({
-      where: { id: conversationId },
-      data: {
-        qaStatus: "FINALIZED",
-        qaAssigneeId: conversation.qaAssigneeId ?? user.id,
-        qaAssigneeName: conversation.qaAssigneeName ?? user.name
-      }
-    });
+    if (reviewSource === "HUMAN") {
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: {
+          qaStatus: "FINALIZED",
+          qaAssigneeId: conversation.qaAssigneeId ?? user.id,
+          qaAssigneeName: conversation.qaAssigneeName ?? user.name
+        }
+      });
+    }
 
     await auditLog(
       {
@@ -453,5 +474,5 @@ export async function finalizeReview(formData: FormData) {
 
   revalidatePath("/reviews");
   revalidatePath(`/reviews/${conversationId}`);
-  redirect(`/reviews/${conversationId}`);
+  redirect(returnTo);
 }

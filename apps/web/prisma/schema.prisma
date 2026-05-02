@@ -11,6 +11,7 @@ enum RoleName {
   ADMIN
   TEAM_LEAD
   QA_ANALYST
+  SUPPORT_AGENT
   VIEWER
 }
 
@@ -40,6 +41,7 @@ enum ReviewSource {
   HUMAN
   AI
   CALIBRATION
+  SELF_REVIEW
 }
 
 enum ReviewStatus {
@@ -72,11 +74,17 @@ model Workspace {
   name          String
   users         User[]
   integrations  Integration[]
+  integrationRuns IntegrationRun[]
   apiTokens     ApiToken[]
   conversations Conversation[]
   scorecards    Scorecard[]
   reviews       Review[]
   reviewQuotas  ReviewQuota[]
+  savedQueueViews SavedQueueView[]
+  calibrationSessions CalibrationSession[]
+  samplingRules SamplingRule[]
+  knowledgeEntries QualityKnowledgeEntry[]
+  trainingAssignments TrainingAssignment[]
   auditLogs     AuditLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -89,7 +97,16 @@ model User {
   email       String
   name        String
   role        RoleName
+  supportLine String?
+  teamName    String?
   reviews     Review[]
+  savedQueueViews SavedQueueView[]
+  ownedCalibrationSessions CalibrationSession[] @relation("CalibrationOwner")
+  calibrationParticipants CalibrationParticipant[]
+  feedbackEvents ReviewFeedbackEvent[]
+  assignedTrainingAssignments TrainingAssignment[] @relation("TrainingAssignee")
+  createdTrainingAssignments TrainingAssignment[] @relation("TrainingAssignedBy")
+  integrationRuns IntegrationRun[]
   auditLogs   AuditLog[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -103,11 +120,25 @@ model Integration {
   workspace    Workspace @relation(fields: [workspaceId], references: [id])
   source       String
   displayName  String
+  type         String    @default("custom_api")
   status       String
+  baseUrl      String?
+  configJson   String    @default("{}")
+  authMode     String    @default("token")
+  importLimit  Int       @default(100)
+  batchSize    Int       @default(25)
+  dateRangeDays Int      @default(30)
+  schedule     String?
   syncCursor   String?
   lastSyncedAt DateTime?
+  lastDryRunAt DateTime?
+  lastImportAt DateTime?
+  lastError    String?
+  runs         IntegrationRun[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@unique([workspaceId, source])
 }
 
 model ApiToken {
@@ -157,6 +188,7 @@ model Conversation {
   closedAt       DateTime?
   messages       Message[]
   reviews        Review[]
+  calibrationItems CalibrationSessionItem[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
@@ -188,6 +220,7 @@ model Scorecard {
   isActive    Boolean              @default(true)
   criteria    ScorecardCriterion[]
   reviews     Review[]
+  calibrationSessions CalibrationSession[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -229,6 +262,8 @@ model Review {
   positiveNotes   String       @default("")
   instructionLinks String      @default("")
   feedbackStatus  String      @default("new")
+  feedbackAckAt   DateTime?
+  feedbackAckBy   String?
   appealStatus    String      @default("none")
   appealDueAt     DateTime?
   appealResolvedAt DateTime?
@@ -238,9 +273,12 @@ model Review {
   reanswerStatus  String      @default("not_needed")
   calibrationStatus String    @default("none")
   calibrationNotes  String    @default("")
+  selfReviewNotes   String    @default("")
   finalizedAt    DateTime?
   scores         CriterionScore[]
   findings       Finding[]
+  feedbackEvents ReviewFeedbackEvent[]
+  trainingAssignments TrainingAssignment[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 }
@@ -301,6 +339,159 @@ model ReviewQuota {
   updatedAt         DateTime  @updatedAt
 
   @@index([workspaceId, periodStart, periodEnd])
+  @@index([workspaceId, assigneeName])
+}
+
+model SavedQueueView {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  name        String
+  href        String
+  scope       String    @default("private")
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, userId])
+}
+
+model CalibrationSession {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  ownerId     String
+  owner       User      @relation("CalibrationOwner", fields: [ownerId], references: [id])
+  scorecardId String
+  scorecard   Scorecard @relation(fields: [scorecardId], references: [id])
+  name        String
+  status      String    @default("draft")
+  dueAt       DateTime?
+  notes       String    @default("")
+  items       CalibrationSessionItem[]
+  participants CalibrationParticipant[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, status])
+}
+
+model CalibrationSessionItem {
+  id             String    @id @default(cuid())
+  sessionId      String
+  session        CalibrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  baselineReviewId String?
+  createdAt      DateTime  @default(now())
+
+  @@unique([sessionId, conversationId])
+}
+
+model CalibrationParticipant {
+  id          String    @id @default(cuid())
+  sessionId   String
+  session     CalibrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  status      String    @default("assigned")
+  completedAt DateTime?
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([sessionId, userId])
+}
+
+model ReviewFeedbackEvent {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  action    String
+  comment   String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([reviewId, createdAt])
+}
+
+model IntegrationRun {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  integrationId String?
+  integration   Integration? @relation(fields: [integrationId], references: [id])
+  actorId       String?
+  actor         User?     @relation(fields: [actorId], references: [id])
+  source        String
+  mode          String
+  status        String
+  dryRun        Boolean   @default(true)
+  requestedLimit Int      @default(100)
+  importedCount Int       @default(0)
+  errorCount    Int       @default(0)
+  errorMessage  String?
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  @@index([workspaceId, startedAt])
+  @@index([workspaceId, source])
+}
+
+model SamplingRule {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  name        String
+  type        String
+  conditionsJson String @default("{}")
+  targetPercent Int    @default(10)
+  priority    Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, isActive])
+}
+
+model QualityKnowledgeEntry {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  category    String
+  title       String
+  description String
+  recommendation String
+  riskLevel   RiskLevel
+  source      String    @default("manual")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, category])
+}
+
+model TrainingAssignment {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  reviewId    String?
+  review      Review?   @relation(fields: [reviewId], references: [id])
+  assigneeId  String?
+  assignee    User?     @relation("TrainingAssignee", fields: [assigneeId], references: [id])
+  assignedById String?
+  assignedBy  User?     @relation("TrainingAssignedBy", fields: [assignedById], references: [id])
+  assigneeName String
+  title       String
+  description String
+  dueAt       DateTime?
+  status      String    @default("open")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, status])
   @@index([workspaceId, assigneeName])
 }
 

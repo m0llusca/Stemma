@@ -10,6 +10,15 @@ function hashApiToken(token: string) {
 
 async function main() {
   await prisma.auditLog.deleteMany();
+  await prisma.integrationRun.deleteMany();
+  await prisma.savedQueueView.deleteMany();
+  await prisma.calibrationParticipant.deleteMany();
+  await prisma.calibrationSessionItem.deleteMany();
+  await prisma.calibrationSession.deleteMany();
+  await prisma.reviewFeedbackEvent.deleteMany();
+  await prisma.trainingAssignment.deleteMany();
+  await prisma.samplingRule.deleteMany();
+  await prisma.qualityKnowledgeEntry.deleteMany();
   await prisma.reviewQuota.deleteMany();
   await prisma.coachingAction.deleteMany();
   await prisma.finding.deleteMany();
@@ -42,7 +51,9 @@ async function main() {
       workspaceId: workspace.id,
       email: "qa@example.com",
       name: "Проверяющий",
-      role: "QA_ANALYST"
+      role: "QA_ANALYST",
+      supportLine: "1ЛП",
+      teamName: "Контроль качества"
     }
   });
 
@@ -51,7 +62,20 @@ async function main() {
       workspaceId: workspace.id,
       email: "lead@example.com",
       name: "Руководитель контроля качества",
-      role: "TEAM_LEAD"
+      role: "TEAM_LEAD",
+      supportLine: "2ЛП",
+      teamName: "Контроль качества"
+    }
+  });
+
+  const supportAgent = await prisma.user.create({
+    data: {
+      workspaceId: workspace.id,
+      email: "ivan@example.com",
+      name: "Иван Петров",
+      role: "SUPPORT_AGENT",
+      supportLine: "2ЛП",
+      teamName: "ФГИС"
     }
   });
 
@@ -368,7 +392,7 @@ async function main() {
     return review;
   }
 
-  await createFinalizedReview({
+  const accurateReview = await createFinalizedReview({
     conversationId: accurateConversation.id,
     totalScore: 94,
     summary: "Оператор дал точный ответ, приложил инструкцию и обозначил следующий шаг.",
@@ -377,7 +401,7 @@ async function main() {
     finalizedAt: new Date("2026-04-26T10:00:00.000Z")
   });
 
-  await createFinalizedReview({
+  const criticalReview = await createFinalizedReview({
     conversationId: criticalConversation.id,
     totalScore: 62,
     summary: "Обращение было передано без достаточного пояснения и вышло за ожидаемый срок реакции.",
@@ -393,13 +417,36 @@ async function main() {
     positiveNotes: "Оператор сохранил корректный тон, но процесс обработки требует разбора."
   });
 
-  await createFinalizedReview({
+  const previousReview = await createFinalizedReview({
     conversationId: previousConversation.id,
     totalScore: 88,
     summary: "Прошлый период: ответ корректный, но не хватило персонализации.",
     category: "Персонализация",
     riskLevel: "MEDIUM",
     finalizedAt: new Date("2026-04-12T09:00:00.000Z")
+  });
+
+  await prisma.reviewFeedbackEvent.createMany({
+    data: [
+      {
+        reviewId: accurateReview.id,
+        actorId: analyst.id,
+        action: "feedback_sent",
+        comment: "Итог проверки отправлен оператору."
+      },
+      {
+        reviewId: criticalReview.id,
+        actorId: teamLead.id,
+        action: "appeal_opened",
+        comment: "Нужен разбор критической маршрутизации."
+      },
+      {
+        reviewId: previousReview.id,
+        actorId: analyst.id,
+        action: "feedback_sent",
+        comment: "Проверка прошлого периода закрыта."
+      }
+    ]
   });
 
   await prisma.reviewQuota.createMany({
@@ -435,39 +482,226 @@ async function main() {
         workspaceId: workspace.id,
         source: "custom_api",
         displayName: "Кастомный API",
-        status: "active"
+        type: "custom_api",
+        status: "active",
+        baseUrl: "https://helpdesk.internal.example.com",
+        configJson: JSON.stringify({ contract: "custom_conversation_v1" })
       },
       {
         workspaceId: workspace.id,
         source: "otrs_family",
         displayName: "Znuny / OTRS / OTOBO",
-        status: "ready"
+        type: "otrs_family",
+        status: "ready",
+        baseUrl: "https://support.example.com/znuny",
+        configJson: JSON.stringify({ webService: "GenericTicketConnectorREST" })
       },
       {
         workspaceId: workspace.id,
         source: "zendesk",
         displayName: "Zendesk",
-        status: "ready"
+        type: "native_helpdesk",
+        status: "ready",
+        baseUrl: "https://company.zendesk.com",
+        configJson: JSON.stringify({ endpoint: "/api/v2/tickets" })
       },
       {
         workspaceId: workspace.id,
         source: "intercom",
         displayName: "Intercom",
-        status: "ready"
+        type: "native_helpdesk",
+        status: "ready",
+        baseUrl: "https://api.intercom.io",
+        configJson: JSON.stringify({ endpoint: "/conversations" })
       },
       {
         workspaceId: workspace.id,
         source: "freshdesk",
         displayName: "Freshdesk",
-        status: "ready"
+        type: "native_helpdesk",
+        status: "ready",
+        baseUrl: "https://company.freshdesk.com",
+        configJson: JSON.stringify({ endpoint: "/api/v2/tickets" })
       },
       {
         workspaceId: workspace.id,
         source: "hubspot",
         displayName: "HubSpot Service Hub",
-        status: "ready"
+        type: "native_helpdesk",
+        status: "ready",
+        baseUrl: "https://api.hubapi.com",
+        configJson: JSON.stringify({ endpoint: "/crm/v3/objects/tickets" })
       }
     ]
+  });
+
+  const integrations = await prisma.integration.findMany({ where: { workspaceId: workspace.id } });
+  const otrsIntegration = integrations.find((integration) => integration.source === "otrs_family");
+  const customIntegration = integrations.find((integration) => integration.source === "custom_api");
+
+  await prisma.integrationRun.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        integrationId: otrsIntegration?.id,
+        actorId: admin.id,
+        source: "otrs_family",
+        mode: "otrs_family",
+        status: "dry_run_ok",
+        dryRun: true,
+        requestedLimit: 100,
+        importedCount: 18,
+        errorCount: 0,
+        finishedAt: new Date("2026-05-02T12:00:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        integrationId: customIntegration?.id,
+        actorId: admin.id,
+        source: "custom_api",
+        mode: "custom_api",
+        status: "imported",
+        dryRun: false,
+        requestedLimit: 50,
+        importedCount: 4,
+        errorCount: 0,
+        finishedAt: new Date("2026-05-02T12:10:00.000Z")
+      }
+    ]
+  });
+
+  await prisma.savedQueueView.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        userId: analyst.id,
+        name: "Мои просроченные",
+        href: `/reviews?qaAssignee=${encodeURIComponent(analyst.name)}&due=overdue`,
+        scope: "private",
+        order: 1
+      },
+      {
+        workspaceId: workspace.id,
+        userId: null,
+        name: "Критические за период",
+        href: "/reviews?process=critical",
+        scope: "workspace",
+        order: 2
+      },
+      {
+        workspaceId: workspace.id,
+        userId: null,
+        name: "Негативный CSAT",
+        href: "/reviews?csatBucket=NEGATIVE",
+        scope: "workspace",
+        order: 3
+      }
+    ]
+  });
+
+  const calibrationSession = await prisma.calibrationSession.create({
+    data: {
+      workspaceId: workspace.id,
+      ownerId: teamLead.id,
+      scorecardId: scorecard.id,
+      name: "Калибровка по маршрутизации",
+      status: "active",
+      dueAt: new Date("2026-05-06T12:00:00.000Z"),
+      notes: "Сравнить оценку критической маршрутизации и полноты комментариев.",
+      participants: {
+        create: [
+          { userId: analyst.id, status: "assigned" },
+          { userId: teamLead.id, status: "assigned" }
+        ]
+      },
+      items: {
+        create: [
+          {
+            conversationId: criticalConversation.id,
+            baselineReviewId: criticalReview.id
+          },
+          {
+            conversationId: accurateConversation.id,
+            baselineReviewId: accurateReview.id
+          }
+        ]
+      }
+    }
+  });
+
+  await prisma.samplingRule.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        name: "Негативный CSAT",
+        type: "csat",
+        conditionsJson: JSON.stringify({ csatBucket: "NEGATIVE" }),
+        targetPercent: 100,
+        priority: 10
+      },
+      {
+        workspaceId: workspace.id,
+        name: "Новые сотрудники",
+        type: "new_hire",
+        conditionsJson: JSON.stringify({ tag: "new_hire", minPercent: 50 }),
+        targetPercent: 50,
+        priority: 20
+      },
+      {
+        workspaceId: workspace.id,
+        name: "Случайная базовая выборка",
+        type: "random",
+        conditionsJson: JSON.stringify({ channels: ["CHAT", "EMAIL", "TICKET"] }),
+        targetPercent: 10,
+        priority: 100
+      }
+    ]
+  });
+
+  await prisma.qualityKnowledgeEntry.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        category: "Неверная маршрутизация",
+        title: "Передача без объяснения клиенту",
+        description: "Оператор передал обращение, но не указал причину, срок и следующий шаг.",
+        recommendation: "Писать клиенту, куда передано обращение, почему это нужно и когда ждать обновление.",
+        riskLevel: "CRITICAL",
+        source: "Регламент КК"
+      },
+      {
+        workspaceId: workspace.id,
+        category: "Полнота решения",
+        title: "Не указан следующий шаг",
+        description: "Ответ формально корректный, но клиенту непонятно, что произойдет дальше.",
+        recommendation: "Закрывать ответ конкретным следующим шагом, сроком или условием возврата.",
+        riskLevel: "MEDIUM",
+        source: "Чек-лист проверки"
+      },
+      {
+        workspaceId: workspace.id,
+        category: "Стиль и ясность",
+        title: "Слишком общий шаблон",
+        description: "Шаблон не адаптирован под ситуацию клиента.",
+        recommendation: "Оставлять шаблонную структуру, но добавлять один персональный факт из обращения.",
+        riskLevel: "LOW",
+        source: "Калибровка"
+      }
+    ]
+  });
+
+  await prisma.trainingAssignment.create({
+    data: {
+      workspaceId: workspace.id,
+      reviewId: criticalReview.id,
+      assigneeId: supportAgent.id,
+      assignedById: teamLead.id,
+      assigneeName: supportAgent.name,
+      title: "Разбор критической маршрутизации",
+      description: "Разобрать пример OTRS-2452, закрепить правило передачи обращения и подготовить корректный переответ.",
+      dueAt: new Date("2026-05-07T12:00:00.000Z"),
+      status: "open"
+    }
   });
 
   const apiToken = await prisma.apiToken.create({
@@ -490,10 +724,12 @@ async function main() {
       metadata: JSON.stringify({
         analystId: analyst.id,
         teamLeadId: teamLead.id,
+        supportAgentId: supportAgent.id,
         viewerId: viewer.id,
         scorecardId: scorecard.id,
         conversationId: conversation.id,
-        apiTokenId: apiToken.id
+        apiTokenId: apiToken.id,
+        calibrationSessionId: calibrationSession.id
       })
     }
   });

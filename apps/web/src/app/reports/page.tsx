@@ -96,6 +96,16 @@ function reportExportHref(period: ReportPeriod) {
   return `/reports/export?${params.toString()}`;
 }
 
+function reportExportFormatHref(period: ReportPeriod, format: "xlsx" | "pdf") {
+  const params = new URLSearchParams({
+    period: period.preset,
+    start: reportDateInputValue(period.start),
+    end: reportDateInputValue(period.end)
+  });
+
+  return `/reports/export/${format}?${params.toString()}`;
+}
+
 function reportReviewHref(period: ReportPeriod, extras: Record<string, string> = {}) {
   const params = new URLSearchParams({
     status: "reviewed",
@@ -216,6 +226,11 @@ async function loadFinalizedReviews(workspaceId: string, period: ReportPeriod) {
       reanswerStatus: true,
       appealStatus: true,
       feedbackStatus: true,
+      reviewer: {
+        select: {
+          name: true
+        }
+      },
       conversation: {
         select: {
           externalSource: true,
@@ -597,6 +612,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   ]);
   const sourceGroups = new Map<string, number[]>();
   const assigneeGroups = new Map<string, number[]>();
+  const reviewerGroups = new Map<string, number[]>();
   const categoryGroups = new Map<string, number>();
   const riskGroups = new Map<string, number>();
   const samplingGroups = new Map<string, number>();
@@ -609,6 +625,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   for (const review of finalizedReviews) {
     addScoreGroup(sourceGroups, review.conversation.externalSource, review.totalScore);
     addScoreGroup(assigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
+    addScoreGroup(reviewerGroups, review.reviewer.name, review.totalScore);
     addCountGroup(samplingGroups, samplingTypeLabels[review.conversation.samplingType] ?? review.conversation.samplingType);
     addCountGroup(csatGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket);
     addCountGroup(feedbackGroups, feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus);
@@ -627,6 +644,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const sourceRows = scoreGroupRows(sourceGroups);
   const assigneeRows = scoreGroupRows(assigneeGroups);
+  const reviewerRows = scoreGroupRows(reviewerGroups);
   const categoryRows = countGroupRows(categoryGroups);
   const riskRows = countGroupRows(riskGroups);
   const samplingRows = countGroupRows(samplingGroups);
@@ -676,12 +694,26 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             {period.label}: {formatPeriod(period)}. Сравнение: {formatPeriod(previousPeriod)}.
           </p>
         </div>
-        <Link
-          href={reportExportHref(period)}
-          className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
-        >
-          Экспорт CSV
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={reportExportHref(period)}
+            className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+          >
+            CSV
+          </Link>
+          <Link
+            href={reportExportFormatHref(period, "xlsx")}
+            className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+          >
+            XLSX
+          </Link>
+          <Link
+            href={reportExportFormatHref(period, "pdf")}
+            className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]"
+          >
+            PDF
+          </Link>
+        </div>
       </div>
 
       <PeriodFilter period={period} />
@@ -766,6 +798,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <QuotaTable quotas={quotas} reviews={finalizedReviews} />
         <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
         <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
+        <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
       </div>
 
       <details className="disclosure-panel mt-6">

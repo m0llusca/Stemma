@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StatusChip } from "@/components/ui/status-chip";
+import { createSavedQueueView, deleteSavedQueueView } from "@/lib/queue-view-actions";
 
 type SavedView = {
   label: string;
@@ -9,10 +10,12 @@ type SavedView = {
 
 export function QueueSavedViews({
   currentAssigneeName,
-  currentHref
+  currentHref,
+  savedViews = []
 }: {
   currentAssigneeName: string;
   currentHref: string;
+  savedViews?: Array<{ id: string; name: string; href: string; scope: string }>;
 }) {
   const views: SavedView[] = [
     { label: "Все", href: "/reviews", tone: "neutral" },
@@ -24,19 +27,62 @@ export function QueueSavedViews({
     { label: "Негативный CSAT", href: "/reviews?csatBucket=NEGATIVE", tone: "warning" }
   ];
 
-  return (
-    <nav className="mb-4 flex flex-wrap gap-2" aria-label="Быстрые представления очереди">
-      {views.map((view) => {
-        const isActive = currentHref === view.href;
+  const allViews: Array<SavedView & { id?: string }> = [
+    ...views,
+    ...savedViews.map((view) => ({
+      label: view.name,
+      href: view.href,
+      tone: view.scope === "workspace" ? ("accent" as const) : ("info" as const),
+      id: view.id
+    }))
+  ];
 
-        return (
-          <Link key={view.href} href={view.href}>
-            <StatusChip tone={isActive ? "accent" : view.tone} size="sm">
-              {view.label}
-            </StatusChip>
-          </Link>
-        );
-      })}
-    </nav>
+  return (
+    <section className="panel mb-5 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#d7dce5] bg-white px-4 py-3" aria-label="Быстрые представления очереди">
+        {allViews.map((view, index) => {
+          const isActive = currentHref === view.href;
+
+          return (
+            <span key={view.id ?? `default-${index}-${view.href}`} className="inline-flex items-center gap-1">
+              <Link href={view.href}>
+                <StatusChip tone={isActive ? "accent" : view.tone} size="sm">
+                  {view.label}
+                </StatusChip>
+              </Link>
+              {view.id ? (
+                <form action={deleteSavedQueueView}>
+                  <input type="hidden" name="id" value={view.id} />
+                  <button
+                    type="submit"
+                    title="Удалить представление"
+                    className="rounded px-1 text-xs font-semibold text-[#98a2b3] hover:bg-[#fff4ed] hover:text-[#b54708]"
+                  >
+                    ×
+                  </button>
+                </form>
+              ) : null}
+            </span>
+          );
+        })}
+      </div>
+      <form action={createSavedQueueView} className="grid gap-2 bg-[#fbfcfd] p-4 md:grid-cols-[minmax(220px,1fr)_160px_auto] md:items-end">
+        <input type="hidden" name="href" value={currentHref} />
+        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          Сохранить текущий вид
+          <input name="name" placeholder="Например, 2ЛП критические" className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          Доступ
+          <select name="scope" defaultValue="private" className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <option value="private">Только мне</option>
+            <option value="workspace">Всем</option>
+          </select>
+        </label>
+        <button type="submit" className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+          Сохранить
+        </button>
+      </form>
+    </section>
   );
 }

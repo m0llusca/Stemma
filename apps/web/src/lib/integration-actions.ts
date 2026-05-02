@@ -27,6 +27,55 @@ export async function recordIntegrationDryRun(formData: FormData) {
   const dateRangeDays = numberField(formData, "dateRangeDays", 30);
 
   await prisma.$transaction(async (tx) => {
+    const integration = await tx.integration.upsert({
+      where: {
+        workspaceId_source: {
+          workspaceId: user.workspaceId,
+          source
+        }
+      },
+      create: {
+        workspaceId: user.workspaceId,
+        source,
+        displayName: sourceLabel,
+        type: mode,
+        status: "ready",
+        baseUrl,
+        importLimit: maxTickets,
+        batchSize,
+        dateRangeDays,
+        lastDryRunAt: new Date(),
+        configJson: JSON.stringify({ dryRun: true })
+      },
+      update: {
+        displayName: sourceLabel,
+        type: mode,
+        status: "ready",
+        baseUrl,
+        importLimit: maxTickets,
+        batchSize,
+        dateRangeDays,
+        lastDryRunAt: new Date(),
+        lastError: null
+      }
+    });
+
+    await tx.integrationRun.create({
+      data: {
+        workspaceId: user.workspaceId,
+        integrationId: integration.id,
+        actorId: user.id,
+        source,
+        mode,
+        status: "dry_run_ok",
+        dryRun: true,
+        requestedLimit: maxTickets,
+        importedCount: Math.min(maxTickets, batchSize),
+        errorCount: 0,
+        finishedAt: new Date()
+      }
+    });
+
     await auditLog(
       {
         workspaceId: user.workspaceId,
@@ -44,6 +93,66 @@ export async function recordIntegrationDryRun(formData: FormData) {
           batchSize,
           dateRangeDays,
           estimatedCount: Math.min(maxTickets, batchSize)
+        }
+      },
+      tx
+    );
+  });
+
+  revalidatePath("/admin/integrations");
+}
+
+export async function queueIntegrationImport(formData: FormData) {
+  const user = await getCurrentUser();
+  const integrationId = stringField(formData, "integrationId");
+
+  const integration = await prisma.integration.findFirst({
+    where: {
+      id: integrationId,
+      workspaceId: user.workspaceId
+    }
+  });
+
+  if (!integration) {
+    throw new Error("Интеграция не найдена.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.integration.update({
+      where: { id: integration.id },
+      data: {
+        status: "active",
+        lastImportAt: new Date(),
+        lastSyncedAt: new Date(),
+        lastError: null
+      }
+    });
+
+    await tx.integrationRun.create({
+      data: {
+        workspaceId: user.workspaceId,
+        integrationId: integration.id,
+        actorId: user.id,
+        source: integration.source,
+        mode: integration.type,
+        status: "queued",
+        dryRun: false,
+        requestedLimit: integration.importLimit,
+        importedCount: 0,
+        errorCount: 0
+      }
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "integration.import_queued",
+        targetType: "integration",
+        targetId: integration.source,
+        metadata: {
+          source: integration.source,
+          importLimit: integration.importLimit
         }
       },
       tx

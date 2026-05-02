@@ -40,6 +40,7 @@ export const roleLabels: Record<RoleName, string> = {
   ADMIN: "Администратор",
   TEAM_LEAD: "Руководитель контроля качества",
   QA_ANALYST: "Проверяющий",
+  SUPPORT_AGENT: "Оператор",
   VIEWER: "Наблюдатель"
 };
 
@@ -129,6 +130,7 @@ export const csatBucketLabels: Record<string, string> = {
 export const feedbackStatusLabels: Record<string, string> = {
   new: "Новая",
   feedback_sent: "Обратная связь отправлена",
+  acknowledged: "Ознакомлен",
   appeal: "Апелляция",
   corrected: "Скорректирована"
 };

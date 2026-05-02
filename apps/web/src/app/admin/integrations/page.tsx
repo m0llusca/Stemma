@@ -3,6 +3,7 @@ import { IntegrationSetupWorkspace } from "@/components/integrations/integration
 import { DataTable, Surface } from "@/components/integrations/integration-ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { queueIntegrationImport } from "@/lib/integration-actions";
 import { integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -119,7 +120,7 @@ function queueHref(source: string, externalIds: string[]) {
 
 export default async function AdminIntegrationsPage() {
   const user = await getCurrentUser();
-  const [integrations, apiTokens, recentImportLogs] = await Promise.all([
+  const [integrations, apiTokens, recentRuns] = await Promise.all([
     prisma.integration.findMany({
       where: {
         workspaceId: user.workspaceId
@@ -136,25 +137,22 @@ export default async function AdminIntegrationsPage() {
         createdAt: "desc"
       }
     }),
-    prisma.auditLog.findMany({
+    prisma.integrationRun.findMany({
       where: {
-        workspaceId: user.workspaceId,
-        action: {
-          in: ["integration.otrs_family_imported", "integration.native_helpdesk_imported", "integration.dry_run_checked"]
-        },
-        targetType: "integration"
+        workspaceId: user.workspaceId
       },
       include: {
-        actor: true
+        actor: true,
+        integration: true
       },
       orderBy: {
-        createdAt: "desc"
+        startedAt: "desc"
       },
-      take: 5
+      take: 8
     })
   ]);
   const apiHealth = customApiHealth(apiTokens);
-  const connectedIntegrations = integrations.filter((integration) => integration.status === "active");
+  const connectedIntegrations = integrations.filter((integration) => integration.status === "active" || integration.lastDryRunAt);
 
   return (
     <section className="page-shell">
@@ -166,7 +164,7 @@ export default async function AdminIntegrationsPage() {
       <IntegrationSetupWorkspace apiTokenCount={apiTokens.length} apiHealth={apiHealth} />
 
       <div className="mt-6 grid gap-6">
-        {recentImportLogs.length > 0 ? (
+        {recentRuns.length > 0 ? (
           <DataTable
             title="Последние запуски"
             description="Dry-run и успешные импорты: объем, источник и быстрый переход в очередь."
@@ -184,28 +182,21 @@ export default async function AdminIntegrationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#d7dce5] bg-white">
-              {recentImportLogs.map((log) => {
-                const metadata = parseImportMetadata(log.metadata);
-
-                return (
-                  <tr key={log.id}>
-                    <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{metadata.dryRun ? "Dry-run" : "Импорт"}</td>
-                    <td className="px-5 py-4 text-[#344054]">{metadata.sourceLabel ?? metadata.source}</td>
-                    <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
-                    <td className="px-5 py-4 text-[#344054]">0</td>
-                    <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
-                    <td className="px-5 py-4">
-                      <Link
-                        href={queueHref(metadata.source, metadata.externalIds)}
-                        className="font-semibold text-[#0b4f52] hover:underline"
-                      >
-                        {metadata.dryRun ? "Очередь" : "Открыть"}
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
+              {recentRuns.map((run) => (
+                <tr key={run.id}>
+                  <td className="px-5 py-4 text-[#344054]">{formatDate(run.startedAt)}</td>
+                  <td className="px-5 py-4 text-[#344054]">{run.dryRun ? "Dry-run" : "Импорт"}</td>
+                  <td className="px-5 py-4 text-[#344054]">{run.integration?.displayName ?? run.source}</td>
+                  <td className="px-5 py-4 font-semibold text-[#17202a]">{run.importedCount}</td>
+                  <td className="px-5 py-4 text-[#344054]">{run.errorCount}</td>
+                  <td className="px-5 py-4 text-[#344054]">{run.actor?.name ?? "Автоматика"}</td>
+                  <td className="px-5 py-4">
+                    <Link href={queueHref(run.source, [])} className="font-semibold text-[#0b4f52] hover:underline">
+                      Очередь
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </DataTable>
         ) : (
@@ -221,19 +212,21 @@ export default async function AdminIntegrationsPage() {
 
         <Surface
           title="Подключенные источники"
-          description="Показываем только активные подключения. Остальные варианты выбираются в мастере выше."
+          description="Компактный список источников, у которых был dry-run или включен импорт."
         >
           {connectedIntegrations.length > 0 ? (
             <div className="grid gap-2">
-              <div className="hidden grid-cols-[minmax(0,1fr)_120px_220px] gap-3 px-3 text-xs font-semibold uppercase text-[#667085] md:grid">
+              <div className="hidden grid-cols-[minmax(0,1fr)_110px_150px_170px_auto] gap-3 px-3 text-xs font-semibold uppercase text-[#667085] md:grid">
                 <span>Название</span>
                 <span>Статус</span>
-                <span>Последняя синхронизация</span>
+                <span>Лимит</span>
+                <span>Последний запуск</span>
+                <span>Импорт</span>
               </div>
               {connectedIntegrations.map((integration) => (
                 <div
                   key={integration.id}
-                  className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm md:grid-cols-[minmax(0,1fr)_120px_220px] md:items-center"
+                  className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm md:grid-cols-[minmax(0,1fr)_110px_150px_170px_auto] md:items-center"
                 >
                   <div className="min-w-0">
                     <p className="break-words font-semibold text-[#17202a]">{integration.displayName}</p>
@@ -242,7 +235,14 @@ export default async function AdminIntegrationsPage() {
                   <span className="w-fit rounded-md bg-[#e8f3ef] px-2 py-1 text-xs font-semibold text-[#116466]">
                     {integrationStatusLabel(integration.status)}
                   </span>
-                  <p className="break-words text-[#667085]">{formatDate(integration.lastSyncedAt)}</p>
+                  <p className="break-words text-[#667085]">{integration.importLimit} тикетов · батч {integration.batchSize}</p>
+                  <p className="break-words text-[#667085]">{formatDate(integration.lastImportAt ?? integration.lastDryRunAt)}</p>
+                  <form action={queueIntegrationImport}>
+                    <input type="hidden" name="integrationId" value={integration.id} />
+                    <button type="submit" className="rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+                      Запланировать
+                    </button>
+                  </form>
                 </div>
               ))}
             </div>
