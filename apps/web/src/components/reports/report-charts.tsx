@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ScoreBar } from "@/components/ui/score-bar";
 
 export type ChartDatum = {
@@ -45,17 +46,28 @@ function chartPath(points: ChartDatum[], width: number, height: number) {
 export function ChartPanel({
   title,
   description,
+  actionHref,
+  actionLabel = "Открыть",
   children
 }: {
   title: string;
   description?: string;
+  actionHref?: string;
+  actionLabel?: string;
   children: ReactNode;
 }) {
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d7dce5] px-5 py-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-[#667085]">{description}</p> : null}
+      <div className="flex items-start justify-between gap-3 border-b border-[#d7dce5] px-5 py-4">
+        <div>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {description ? <p className="mt-1 text-sm text-[#667085]">{description}</p> : null}
+        </div>
+        {actionHref ? (
+          <Link href={actionHref} className="shrink-0 text-xs font-semibold uppercase text-[#0b4f52] hover:underline">
+            {actionLabel}
+          </Link>
+        ) : null}
       </div>
       <div className="p-5">{children}</div>
     </section>

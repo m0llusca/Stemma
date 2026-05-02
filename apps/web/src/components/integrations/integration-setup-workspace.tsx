@@ -16,6 +16,7 @@ import {
   formatJsonExample,
   otrsFamilyImportExample
 } from "@/lib/custom-api-docs";
+import { recordIntegrationDryRun } from "@/lib/integration-actions";
 import {
   nativeHelpdeskImportExamples,
   nativeHelpdeskMappingRows,
@@ -528,6 +529,7 @@ function LimitsStep({
 
 function PreviewStep({
   mode,
+  sourceKey,
   sourceLabel,
   baseUrl,
   queueFilter,
@@ -541,6 +543,7 @@ function PreviewStep({
   onCheck
 }: {
   mode: SourceMode;
+  sourceKey: string;
   sourceLabel: string;
   baseUrl: string;
   queueFilter: string;
@@ -585,9 +588,23 @@ function PreviewStep({
       </div>
 
       <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
-        <button type="button" onClick={onCheck} className={primaryButtonClass}>
-          Проверить подключение
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onCheck} className={primaryButtonClass}>
+            Проверить подключение
+          </button>
+          <form action={recordIntegrationDryRun}>
+            <input type="hidden" name="source" value={sourceKey} />
+            <input type="hidden" name="sourceLabel" value={sourceLabel} />
+            <input type="hidden" name="mode" value={mode} />
+            <input type="hidden" name="baseUrl" value={normalizeBaseUrl(baseUrl)} />
+            <input type="hidden" name="maxTickets" value={maxTickets} />
+            <input type="hidden" name="batchSize" value={batchSize} />
+            <input type="hidden" name="dateRangeDays" value={dateRangeDays} />
+            <button type="submit" className={secondaryButtonClass}>
+              Записать dry-run
+            </button>
+          </form>
+        </div>
         <span className="text-sm leading-5 text-[#667085]">
           Проверка не создает тикеты; импорт будет подтверждаться автоматическим запуском с лимитами.
         </span>
@@ -908,6 +925,7 @@ export function IntegrationSetupWorkspace({
   const selectedSourceLabel = useMemo(() => {
     return mode === "custom_api" ? customSystemName.trim() || selectedSourceOption.label : selectedSourceOption.label;
   }, [customSystemName, mode, selectedSourceOption.label]);
+  const selectedSourceKey = mode === "otrs_family" ? otrsSource : mode === "native_helpdesk" ? nativeSource : "custom_api";
   const activeBaseUrl =
     mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" ? nativeBaseUrl : customBaseUrl;
 
@@ -1078,6 +1096,7 @@ export function IntegrationSetupWorkspace({
           {step === "preview" ? (
             <PreviewStep
               mode={mode}
+              sourceKey={selectedSourceKey}
               sourceLabel={selectedSourceLabel}
               baseUrl={activeBaseUrl}
               queueFilter={queueFilter}

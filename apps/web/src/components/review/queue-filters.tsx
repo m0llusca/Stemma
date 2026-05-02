@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { StatusChip } from "@/components/ui/status-chip";
-import { channelLabels, csatBucketLabels, qaStatusLabels, reviewQueueStatusLabels, samplingTypeLabels } from "@/lib/labels";
+import {
+  channelLabels,
+  csatBucketLabels,
+  qaStatusLabels,
+  reviewQueueStatusLabels,
+  riskLevelLabels,
+  samplingTypeLabels
+} from "@/lib/labels";
 import type { ReviewQueueFilters } from "@/lib/review-repository";
-import { queueCsatBuckets, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
+import { queueCsatBuckets, queueProcessFilters, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
 
 type QueueFiltersProps = {
   filters: ReviewQueueFilters;
@@ -20,8 +27,19 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       filters.qaAssignee ||
       filters.samplingType ||
       filters.csatBucket ||
-      filters.supportLine
+    filters.supportLine ||
+    filters.process ||
+    filters.due ||
+    filters.riskLevel ||
+    filters.finalizedFrom ||
+    filters.finalizedTo
   );
+  const processLabels = {
+    critical: "Критические ошибки",
+    reanswer: "Переответы",
+    appeal: "Апелляции"
+  } as const;
+  const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
   const activeFilters = [
     filters.q ? { label: "Поиск", value: filters.q } : null,
     filters.status !== "all" ? { label: "Статус", value: reviewQueueStatusLabels[filters.status] } : null,
@@ -32,7 +50,12 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
     filters.qaAssignee ? { label: "Проверяющий", value: filters.qaAssignee } : null,
     filters.samplingType ? { label: "Выборка", value: samplingTypeLabels[filters.samplingType] ?? filters.samplingType } : null,
     filters.csatBucket ? { label: "CSAT", value: csatBucketLabels[filters.csatBucket] ?? filters.csatBucket } : null,
-    filters.supportLine ? { label: "Линия", value: filters.supportLine } : null
+    filters.supportLine ? { label: "Линия", value: filters.supportLine } : null,
+    filters.process ? { label: "Процесс", value: processLabels[filters.process] } : null,
+    filters.due ? { label: "Срок", value: "Просрочено" } : null,
+    filters.riskLevel ? { label: "Риск", value: riskLevelLabels[filters.riskLevel] } : null,
+    filters.finalizedFrom ? { label: "Период с", value: filters.finalizedFrom.toLocaleDateString("ru-RU") } : null,
+    filters.finalizedTo ? { label: "Период по", value: filters.finalizedTo.toLocaleDateString("ru-RU") } : null
   ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
 
   return (
@@ -83,7 +106,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       <details className="disclosure-panel border-t border-[#d7dce5]" open={hasAdvancedFilters}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#344054]">
           <span>{hasAdvancedFilters ? "Дополнительные фильтры применены" : "Дополнительные фильтры"}</span>
-          <span className="text-xs font-semibold uppercase text-[#667085]">Канал, источник, оператор, выборка</span>
+          <span className="text-xs font-semibold uppercase text-[#667085]">Канал, источник, оператор, риск</span>
         </summary>
 
         <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-2 lg:grid-cols-4">
@@ -166,6 +189,38 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               {supportLines.map((supportLine) => (
                 <option key={supportLine} value={supportLine}>
                   {supportLine}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            Процесс
+            <select name="process" defaultValue={filters.process ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+              <option value="">Все</option>
+              {queueProcessFilters.map((process) => (
+                <option key={process} value={process}>
+                  {processLabels[process]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            Срок
+            <select name="due" defaultValue={filters.due ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+              <option value="">Все</option>
+              <option value="overdue">Просрочено</option>
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            Риск
+            <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+              <option value="">Все</option>
+              {riskLevels.map((riskLevel) => (
+                <option key={riskLevel} value={riskLevel}>
+                  {riskLevelLabels[riskLevel]}
                 </option>
               ))}
             </select>

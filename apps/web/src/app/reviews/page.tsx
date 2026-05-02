@@ -1,7 +1,9 @@
 import { QueueFilters } from "@/components/review/queue-filters";
+import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueSummary } from "@/components/review/queue-summary";
 import { QueueTable } from "@/components/review/queue-table";
 import { getCurrentUser } from "@/lib/current-user";
+import { prisma } from "@/lib/db";
 import {
   getReviewQueue,
   getReviewQueueFilterOptions,
@@ -16,13 +18,48 @@ type ReviewsPageProps = {
   searchParams: Promise<ReviewQueueSearchParams>;
 };
 
+function reviewQueueHref(params: ReviewQueueSearchParams) {
+  const urlSearchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    const values = Array.isArray(value) ? value : [value];
+
+    for (const item of values) {
+      if (item) {
+        urlSearchParams.append(key, item);
+      }
+    }
+  }
+
+  const query = urlSearchParams.toString();
+
+  return query ? `/reviews?${query}` : "/reviews";
+}
+
 export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
   const user = await getCurrentUser();
-  const filters = parseReviewQueueFilters(await searchParams);
-  const [conversations, summary, filterOptions] = await Promise.all([
+  const rawParams = await searchParams;
+  const filters = parseReviewQueueFilters(rawParams);
+  const currentHref = reviewQueueHref(rawParams);
+  const [conversations, summary, filterOptions, qaAssignees] = await Promise.all([
     getReviewQueue(user.workspaceId, filters),
     getReviewQueueSummary(user.workspaceId),
-    getReviewQueueFilterOptions(user.workspaceId)
+    getReviewQueueFilterOptions(user.workspaceId),
+    prisma.user.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        role: {
+          in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+        }
+      },
+      orderBy: {
+        name: "asc"
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    })
   ]);
 
   return (
@@ -32,6 +69,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         <p className="mt-1 text-sm text-[#667085]">Рабочая очередь проверок с фильтрами по состоянию, каналу и источнику.</p>
       </div>
       <QueueSummary {...summary} filtered={conversations.length} />
+      <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} />
       <QueueFilters
         filters={filters}
         sources={filterOptions.sources}
@@ -39,7 +77,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         qaAssignees={filterOptions.qaAssignees}
         supportLines={filterOptions.supportLines}
       />
-      <QueueTable conversations={conversations} />
+      <QueueTable conversations={conversations} qaAssignees={qaAssignees} returnTo={currentHref} />
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Database, RotateCcw, Scale } from "lucide-react";
 import { MetricCard } from "@/components/reports/metric-card";
 import {
@@ -83,6 +84,27 @@ function formatDelta(current: number | null, previous: number | null, suffix = "
 
 function formatPeriod(period: ReportPeriod) {
   return `${reportPeriodDateLabel(period.start)} - ${reportPeriodDateLabel(period.end)}`;
+}
+
+function reportExportHref(period: ReportPeriod) {
+  const params = new URLSearchParams({
+    period: period.preset,
+    start: reportDateInputValue(period.start),
+    end: reportDateInputValue(period.end)
+  });
+
+  return `/reports/export?${params.toString()}`;
+}
+
+function reportReviewHref(period: ReportPeriod, extras: Record<string, string> = {}) {
+  const params = new URLSearchParams({
+    status: "reviewed",
+    finalizedFrom: reportDateInputValue(period.start),
+    finalizedTo: reportDateInputValue(period.end),
+    ...extras
+  });
+
+  return `/reviews?${params.toString()}`;
 }
 
 function formatShortDate(value: Date) {
@@ -646,12 +668,20 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   return (
     <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Контроль качества</p>
-        <h1 className="mt-1 text-2xl font-semibold">Аналитика качества</h1>
-        <p className="mt-1 text-sm text-[#667085]">
-          {period.label}: {formatPeriod(period)}. Сравнение: {formatPeriod(previousPeriod)}.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-[#667085]">Контроль качества</p>
+          <h1 className="mt-1 text-2xl font-semibold">Аналитика качества</h1>
+          <p className="mt-1 text-sm text-[#667085]">
+            {period.label}: {formatPeriod(period)}. Сравнение: {formatPeriod(previousPeriod)}.
+          </p>
+        </div>
+        <Link
+          href={reportExportHref(period)}
+          className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+        >
+          Экспорт CSV
+        </Link>
       </div>
 
       <PeriodFilter period={period} />
@@ -684,25 +714,40 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </div>
 
       <div className="mt-6 grid items-stretch gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-        <ChartPanel title="Динамика оценки" description="Средняя итоговая оценка по дням завершения проверок.">
+        <ChartPanel
+          title="Динамика оценки"
+          description="Средняя итоговая оценка по дням завершения проверок."
+          actionHref={reportReviewHref(period)}
+          actionLabel="Проверки"
+        >
           <SparklineChart points={trendRows} />
         </ChartPanel>
-        <ChartPanel title="Распределение оценок" description="Сколько проверок попало в каждый диапазон.">
+        <ChartPanel
+          title="Распределение оценок"
+          description="Сколько проверок попало в каждый диапазон."
+          actionHref={reportReviewHref(period)}
+          actionLabel="Список"
+        >
           <ScoreDistribution rows={distributionRows} />
         </ChartPanel>
       </div>
 
       <div className="mt-5 grid items-stretch gap-5 xl:grid-cols-4">
-        <ChartPanel title="По операторам" description="Нижние средние оценки первыми.">
+        <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
           <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
         </ChartPanel>
-        <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам.">
+        <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
           <HorizontalBarChart rows={sourceScoreRows} valueSuffix="%" maxValue={100} />
         </ChartPanel>
-        <ChartPanel title="Профиль рисков" description="Доля замечаний по уровню риска.">
+        <ChartPanel
+          title="Профиль рисков"
+          description="Доля замечаний по уровню риска."
+          actionHref={reportReviewHref(period, { riskLevel: "CRITICAL" })}
+          actionLabel="Критические"
+        >
           <StackedBar segments={riskStackSegments} />
         </ChartPanel>
-        <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода.">
+        <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
           <QuotaProgressBars rows={quotaProgressRows} />
         </ChartPanel>
       </div>

@@ -113,3 +113,118 @@ export async function updateConversationWorkflow(formData: FormData) {
   revalidatePath(`/reviews/${conversationId}`);
   redirect(`/reviews/${conversationId}`);
 }
+
+export async function bulkUpdateReviewQueue(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageReviewWorkflow(user.role)) {
+    throw new Error("Нет прав на массовое изменение очереди.");
+  }
+
+  const conversationIds = formData
+    .getAll("conversationId")
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map((value) => value.trim());
+  const qaStatusValue = optionalStringField(formData, "qaStatus");
+  const qaAssigneeId = optionalStringField(formData, "qaAssigneeId");
+  const reviewDueAt = optionalStringField(formData, "reviewDueAt");
+  const returnTo = stringField(formData, "returnTo") || "/reviews";
+
+  if (conversationIds.length === 0) {
+    redirect(returnTo);
+  }
+
+  const qaStatus = qaStatusValue
+    ? (() => {
+        if (!qaStatuses.includes(qaStatusValue as QaStatus)) {
+          throw new Error("Некорректное состояние проверки.");
+        }
+
+        return qaStatusValue as QaStatus;
+      })()
+    : undefined;
+  const qaAssignee = qaAssigneeId
+    ? await prisma.user.findFirst({
+        where: {
+          id: qaAssigneeId,
+          workspaceId: user.workspaceId,
+          role: {
+            in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+          }
+        },
+        select: {
+          id: true,
+          name: true
+        }
+      })
+    : undefined;
+
+  if (qaAssigneeId && !qaAssignee) {
+    throw new Error("Проверяющий не найден.");
+  }
+
+  const conversations = await prisma.conversation.findMany({
+    where: {
+      id: {
+        in: conversationIds
+      },
+      workspaceId: user.workspaceId
+    },
+    select: {
+      id: true
+    }
+  });
+  const safeIds = conversations.map((conversation) => conversation.id);
+
+  if (safeIds.length === 0) {
+    redirect(returnTo);
+  }
+
+  const data = {
+    ...(qaStatus ? { qaStatus } : {}),
+    ...(qaAssignee !== undefined
+      ? {
+          qaAssigneeId: qaAssignee?.id ?? null,
+          qaAssigneeName: qaAssignee?.name ?? null
+        }
+      : {}),
+    ...(reviewDueAt !== undefined ? { reviewDueAt: reviewDueAt ? new Date(`${reviewDueAt}T00:00:00.000Z`) : null } : {})
+  };
+
+  if (Object.keys(data).length === 0) {
+    redirect(returnTo);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.conversation.updateMany({
+      where: {
+        id: {
+          in: safeIds
+        },
+        workspaceId: user.workspaceId
+      },
+      data
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "conversation.bulk_workflow_updated",
+        targetType: "conversation",
+        targetId: "bulk",
+        metadata: {
+          count: safeIds.length,
+          conversationIds: safeIds,
+          qaStatus,
+          qaAssigneeId: qaAssignee?.id,
+          reviewDueAt
+        }
+      },
+      tx
+    );
+  });
+
+  revalidatePath("/reviews");
+  redirect(returnTo);
+}

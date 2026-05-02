@@ -1,15 +1,20 @@
-import type { ConversationChannel, Prisma, QaStatus } from "@prisma/client";
+import type { ConversationChannel, Prisma, QaStatus, RiskLevel } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export const reviewQueueStatuses = ["all", "unreviewed", "reviewed"] as const;
 export const qaQueueStatuses = ["all", "QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const;
 export const queueSamplingTypes = ["RANDOM", "DSAT", "LEAD_SIGNAL", "NEW_HIRE", "LOW_SCORE", "MANUAL"] as const;
 export const queueCsatBuckets = ["NEGATIVE", "POSITIVE", "NO_SCORE"] as const;
+export const queueProcessFilters = ["critical", "reanswer", "appeal"] as const;
+export const queueDueFilters = ["overdue"] as const;
 
 const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
 const conversationQaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
+const findingRiskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const satisfies readonly RiskLevel[];
 
 export type ReviewQueueStatus = (typeof reviewQueueStatuses)[number];
+export type ReviewQueueProcessFilter = (typeof queueProcessFilters)[number];
+export type ReviewQueueDueFilter = (typeof queueDueFilters)[number];
 
 export type ReviewQueueFilters = {
   q?: string;
@@ -22,6 +27,11 @@ export type ReviewQueueFilters = {
   samplingType?: string;
   csatBucket?: string;
   supportLine?: string;
+  process?: ReviewQueueProcessFilter;
+  due?: ReviewQueueDueFilter;
+  riskLevel?: RiskLevel;
+  finalizedFrom?: Date;
+  finalizedTo?: Date;
 };
 
 export type ReviewQueueSearchParams = Record<string, string | string[] | undefined>;
@@ -35,12 +45,27 @@ function cleanParam(value: string | string[] | undefined) {
   return firstValue ? firstValue : undefined;
 }
 
+function parseDateParam(value: string | undefined, endOfDay = false) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return undefined;
+  }
+
+  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
+
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = {}): ReviewQueueFilters {
   const requestedStatus = cleanParam(searchParams.status);
   const requestedChannel = cleanParam(searchParams.channel);
   const requestedQaStatus = cleanParam(searchParams.qaStatus);
   const requestedSamplingType = cleanParam(searchParams.samplingType);
   const requestedCsatBucket = cleanParam(searchParams.csatBucket);
+  const requestedProcess = cleanParam(searchParams.process);
+  const requestedDue = cleanParam(searchParams.due);
+  const requestedRiskLevel = cleanParam(searchParams.riskLevel);
+  const requestedFinalizedFrom = cleanParam(searchParams.finalizedFrom);
+  const requestedFinalizedTo = cleanParam(searchParams.finalizedTo);
 
   return {
     q: cleanParam(searchParams.q),
@@ -60,7 +85,14 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
     csatBucket: queueCsatBuckets.includes(requestedCsatBucket as (typeof queueCsatBuckets)[number])
       ? requestedCsatBucket
       : undefined,
-    supportLine: cleanParam(searchParams.supportLine)
+    supportLine: cleanParam(searchParams.supportLine),
+    process: queueProcessFilters.includes(requestedProcess as ReviewQueueProcessFilter)
+      ? (requestedProcess as ReviewQueueProcessFilter)
+      : undefined,
+    due: queueDueFilters.includes(requestedDue as ReviewQueueDueFilter) ? (requestedDue as ReviewQueueDueFilter) : undefined,
+    riskLevel: findingRiskLevels.includes(requestedRiskLevel as RiskLevel) ? (requestedRiskLevel as RiskLevel) : undefined,
+    finalizedFrom: parseDateParam(requestedFinalizedFrom),
+    finalizedTo: parseDateParam(requestedFinalizedTo, true)
   };
 }
 
@@ -129,6 +161,77 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
 
   if (filters.supportLine) {
     and.push({ supportLine: filters.supportLine });
+  }
+
+  if (filters.due === "overdue") {
+    and.push({
+      reviewDueAt: { lt: new Date() },
+      qaStatus: { not: "FINALIZED" }
+    });
+  }
+
+  if (filters.process === "critical") {
+    and.push({
+      reviews: {
+        some: {
+          status: "FINALIZED",
+          criticalError: true
+        }
+      }
+    });
+  }
+
+  if (filters.process === "reanswer") {
+    and.push({
+      reviews: {
+        some: {
+          status: "FINALIZED",
+          needsReanswer: true
+        }
+      }
+    });
+  }
+
+  if (filters.process === "appeal") {
+    and.push({
+      reviews: {
+        some: {
+          status: "FINALIZED",
+          appealStatus: {
+            not: "none"
+          }
+        }
+      }
+    });
+  }
+
+  if (filters.riskLevel) {
+    and.push({
+      reviews: {
+        some: {
+          status: "FINALIZED",
+          findings: {
+            some: {
+              riskLevel: filters.riskLevel
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (filters.finalizedFrom || filters.finalizedTo) {
+    and.push({
+      reviews: {
+        some: {
+          status: "FINALIZED",
+          finalizedAt: {
+            ...(filters.finalizedFrom ? { gte: filters.finalizedFrom } : {}),
+            ...(filters.finalizedTo ? { lte: filters.finalizedTo } : {})
+          }
+        }
+      }
+    });
   }
 
   return { AND: and };

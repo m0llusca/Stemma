@@ -73,21 +73,33 @@ function parseImportMetadata(value: string) {
   try {
     const parsed = JSON.parse(value) as {
       source?: string;
+      sourceLabel?: string;
       count?: number;
+      estimatedCount?: number;
+      dryRun?: boolean;
       externalIds?: string[];
       baseUrl?: string;
     };
 
     return {
       source: parsed.source ?? "otrs_family",
-      count: typeof parsed.count === "number" ? parsed.count : 0,
+      sourceLabel: parsed.sourceLabel,
+      count:
+        typeof parsed.count === "number"
+          ? parsed.count
+          : typeof parsed.estimatedCount === "number"
+            ? parsed.estimatedCount
+            : 0,
+      dryRun: Boolean(parsed.dryRun),
       externalIds: Array.isArray(parsed.externalIds) ? parsed.externalIds : [],
       baseUrl: parsed.baseUrl
     };
   } catch {
     return {
       source: "otrs_family",
+      sourceLabel: undefined,
       count: 0,
+      dryRun: false,
       externalIds: [],
       baseUrl: undefined
     };
@@ -128,7 +140,7 @@ export default async function AdminIntegrationsPage() {
       where: {
         workspaceId: user.workspaceId,
         action: {
-          in: ["integration.otrs_family_imported", "integration.native_helpdesk_imported"]
+          in: ["integration.otrs_family_imported", "integration.native_helpdesk_imported", "integration.dry_run_checked"]
         },
         targetType: "integration"
       },
@@ -156,13 +168,14 @@ export default async function AdminIntegrationsPage() {
       <div className="mt-6 grid gap-6">
         {recentImportLogs.length > 0 ? (
           <DataTable
-            title="Последние импорты"
-            description="Успешные импорты через готовые адаптеры: количество диалогов, ошибки и быстрый переход в очередь."
+            title="Последние запуски"
+            description="Dry-run и успешные импорты: объем, источник и быстрый переход в очередь."
             minWidth="min-w-[820px]"
           >
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
                 <th className="px-5 py-3 font-semibold">Дата</th>
+                <th className="px-5 py-3 font-semibold">Режим</th>
                 <th className="px-5 py-3 font-semibold">Источник</th>
                 <th className="px-5 py-3 font-semibold">Тикеты</th>
                 <th className="px-5 py-3 font-semibold">Ошибки</th>
@@ -177,7 +190,8 @@ export default async function AdminIntegrationsPage() {
                 return (
                   <tr key={log.id}>
                     <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
+                    <td className="px-5 py-4 text-[#344054]">{metadata.dryRun ? "Dry-run" : "Импорт"}</td>
+                    <td className="px-5 py-4 text-[#344054]">{metadata.sourceLabel ?? metadata.source}</td>
                     <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
                     <td className="px-5 py-4 text-[#344054]">0</td>
                     <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
@@ -186,7 +200,7 @@ export default async function AdminIntegrationsPage() {
                         href={queueHref(metadata.source, metadata.externalIds)}
                         className="font-semibold text-[#0b4f52] hover:underline"
                       >
-                        Открыть
+                        {metadata.dryRun ? "Очередь" : "Открыть"}
                       </Link>
                     </td>
                   </tr>
@@ -196,11 +210,11 @@ export default async function AdminIntegrationsPage() {
           </DataTable>
         ) : (
           <Surface
-            title="Последние импорты"
-            description="Успешные импорты через готовые адаптеры: количество диалогов, ошибки и быстрый переход в очередь."
+            title="Последние запуски"
+            description="Dry-run и успешные импорты через готовые адаптеры появятся здесь после запуска."
           >
             <div className={emptyStateClass}>
-              Импорты появятся здесь после успешного запуска готового адаптера или своего API.
+              Запуски появятся здесь после dry-run, готового адаптера или своего API.
             </div>
           </Surface>
         )}
