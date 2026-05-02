@@ -239,36 +239,47 @@ export default async function AdminIntegrationsPage() {
           )}
         </Surface>
 
-        <DataTable
-          title="Ключи API"
-          description="Состояние ключей помогает понять, был ли успешный импорт или свежая ошибка."
-          minWidth="min-w-[980px]"
-        >
-          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Название</th>
-              <th className="px-5 py-3 font-semibold">Префикс</th>
-              <th className="px-5 py-3 font-semibold">Права доступа</th>
-              <th className="px-5 py-3 font-semibold">Последнее использование</th>
-              <th className="px-5 py-3 font-semibold">Последний успех</th>
-              <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#d7dce5]">
-            {apiTokens.map((apiToken) => (
-              <tr key={apiToken.id}>
-                <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
-                <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
-                <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
-                <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
-                <td className="px-5 py-4 text-[#344054]">{formatOptionalDate(apiToken.lastSuccessAt)}</td>
-                <td className="px-5 py-4 text-[#344054]">
-                  {apiToken.lastError ? `${formatOptionalDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
+        <details className="disclosure-panel">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Ключи API</h2>
+              <p className="mt-1 text-sm text-[#667085]">Состояние ключей и последняя ошибка по своему API.</p>
+            </div>
+            <span className="text-xs font-semibold uppercase text-[#667085]">Показать</span>
+          </summary>
+          <div className="mt-4">
+            <DataTable
+              title="Ключи API"
+              description="Состояние ключей помогает понять, был ли успешный импорт или свежая ошибка."
+              minWidth="min-w-[980px]"
+            >
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Название</th>
+                  <th className="px-5 py-3 font-semibold">Префикс</th>
+                  <th className="px-5 py-3 font-semibold">Права доступа</th>
+                  <th className="px-5 py-3 font-semibold">Последнее использование</th>
+                  <th className="px-5 py-3 font-semibold">Последний успех</th>
+                  <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5]">
+                {apiTokens.map((apiToken) => (
+                  <tr key={apiToken.id}>
+                    <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
+                    <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
+                    <td className="px-5 py-4 text-[#344054]">{formatOptionalDate(apiToken.lastSuccessAt)}</td>
+                    <td className="px-5 py-4 text-[#344054]">
+                      {apiToken.lastError ? `${formatOptionalDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          </div>
+        </details>
       </div>
     </section>
   );

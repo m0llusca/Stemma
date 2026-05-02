@@ -34,24 +34,26 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
   ];
 
   return (
-    <section className="panel mb-5 overflow-hidden">
-      <div className="grid gap-0 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <div className="border-b border-[#d7dce5] bg-[#eef4f4] p-4 lg:border-b-0 lg:border-r">
+    <section className="panel mb-5 p-4">
+      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[#667085]">Текущий шаг</p>
-          <h2 className="mt-1 text-lg font-semibold text-[#17202a]">{steps[activeIndex].title}</h2>
-          <p className="mt-1 text-sm text-[#475467]">{steps[activeIndex].detail}</p>
+          <h2 className="mt-1 text-base font-semibold text-[#17202a]">
+            Шаг {activeIndex + 1}. {steps[activeIndex].title}
+          </h2>
+          <p className="mt-1 text-sm leading-5 text-[#475467]">{steps[activeIndex].detail}</p>
         </div>
 
-        <ol className="grid divide-y divide-[#d7dce5] md:grid-cols-4 md:divide-x md:divide-y-0">
+        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === activeIndex;
             const isDone = index < activeIndex || isReviewed;
             const toneClassName = isActive
-              ? "border-[#116466] bg-white shadow-[inset_0_0_0_1px_#116466]"
+              ? "border-[#116466] bg-[#f7fbfa]"
               : isDone
-                ? "border-transparent bg-white"
-                : "border-transparent bg-[#fbfcfd]";
+                ? "border-[#b9ddd2] bg-white"
+                : "border-[#d7dce5] bg-[#fbfcfd]";
             const badgeClassName = isActive
               ? "bg-[#116466] text-white"
               : isDone
@@ -59,10 +61,10 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
                 : "bg-[#eef4f4] text-[#667085]";
 
             return (
-              <li key={step.title} className={`min-h-[88px] border p-4 ${toneClassName}`}>
-                <div className="flex items-start gap-3">
+              <li key={step.title} className={`min-h-[68px] rounded-md border px-3 py-2.5 ${toneClassName}`}>
+                <div className="flex min-w-0 items-start gap-3">
                   <span
-                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${badgeClassName}`}
+                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${badgeClassName}`}
                     aria-hidden="true"
                   >
                     <Icon className={iconClassName} />
@@ -70,7 +72,7 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[#667085]">Шаг {index + 1}</p>
                     <h3 className="mt-1 text-sm font-semibold text-[#17202a]">{step.title}</h3>
-                    <p className="mt-1 truncate text-sm text-[#667085]">{step.detail}</p>
+                    <p className="mt-1 text-xs leading-4 text-[#667085]">{step.detail}</p>
                   </div>
                 </div>
               </li>

@@ -16,7 +16,7 @@
   --danger: #b42318;
   --warning: #b54708;
   --warning-soft: #fff4ed;
-  --shadow-panel: 0 1px 2px rgba(23, 32, 42, 0.04), 0 14px 36px rgba(23, 32, 42, 0.05);
+  --shadow-panel: 0 1px 2px rgba(23, 32, 42, 0.05);
 }
 
 * { box-sizing: border-box; }
@@ -95,7 +95,7 @@ pre code {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: var(--shadow-panel);
   min-width: 0;
 }
@@ -171,21 +171,20 @@ pre code {
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
-  min-height: 34px;
+  min-height: 32px;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
-  padding: 6px 10px;
+  padding: 5px 9px;
   color: var(--foreground);
-  box-shadow: 0 1px 1px rgba(23, 32, 42, 0.03);
 }
 
 .meta-chip__icon {
   display: inline-flex;
-  height: 22px;
-  width: 22px;
+  height: 20px;
+  width: 20px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -250,7 +249,7 @@ pre code {
 
 .metric-card {
   display: flex;
-  min-height: 178px;
+  min-height: 154px;
   flex-direction: column;
   justify-content: space-between;
 }

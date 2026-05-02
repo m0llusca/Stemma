@@ -4,13 +4,8 @@ import {
   CalendarClock,
   ChevronDown,
   Gauge,
-  Headset,
-  MessageSquareText,
-  Radio,
   RotateCcw,
   ShieldAlert,
-  Scale,
-  TicketCheck,
   UserRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -82,6 +77,15 @@ function HeaderChip({
   );
 }
 
+function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[#17202a]">{children}</p>
+    </div>
+  );
+}
+
 export default async function ReviewDetailPage({ params }: ReviewDetailPageProps) {
   const [{ conversationId }, user] = await Promise.all([params, getCurrentUser()]);
   const [conversation, scorecard, qaAssignees] = await Promise.all([
@@ -141,14 +145,6 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
           </HeaderChip>
           <HeaderChip label="Оценка" icon={Gauge}>{scoreLabel}</HeaderChip>
           <HeaderChip label="Клиент" icon={UserRound}>{conversation.customerName}</HeaderChip>
-          <HeaderChip label="Канал" icon={Radio}>{channelLabels[conversation.channel]}</HeaderChip>
-          <HeaderChip label="Тикет" icon={TicketCheck}>{conversationStatusLabel(conversation.status)}</HeaderChip>
-          <HeaderChip label="Сообщения" icon={MessageSquareText}>{formatMessageCount(conversation.messages.length)}</HeaderChip>
-          <HeaderChip label="Проверяющий" icon={Headset}>{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
-          <HeaderChip label="Выборка" icon={Scale}>{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</HeaderChip>
-          <HeaderChip label="CSAT" icon={BadgeCheck}>
-            {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
-          </HeaderChip>
           <HeaderChip label="Срок" icon={CalendarClock}>
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
           </HeaderChip>
@@ -159,6 +155,26 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
           ) : null}
         </div>
       </div>
+
+      <details className="disclosure-panel mb-5">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+          <div>
+            <h2 className="text-base font-semibold">Детали обращения</h2>
+            <p className="mt-1 text-sm text-[#667085]">Источник, канал, выборка, CSAT и назначение проверки.</p>
+          </div>
+          <span className="text-xs font-semibold uppercase text-[#667085]">Показать</span>
+        </summary>
+        <div className="mt-3 grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-3 xl:grid-cols-6">
+          <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
+          <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
+          <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
+          <DetailItem label="Проверяющий">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
+          <DetailItem label="Выборка">{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</DetailItem>
+          <DetailItem label="CSAT">
+            {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
+          </DetailItem>
+        </div>
+      </details>
 
       <ReviewWorkflow
         isReviewed={Boolean(latestFinalizedReview)}

@@ -103,6 +103,18 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
       draftReview?.positiveNotes ||
       draftReview?.instructionLinks
   );
+  const hasCriticalDetails = Boolean(
+    draftReview?.criticalError || draftReview?.needsReanswer || draftReview?.criticalCategory
+  );
+  const hasFeedbackDetails = Boolean(
+    draftReview?.feedbackComment || draftReview?.positiveNotes || draftReview?.instructionLinks
+  );
+  const hasAnalysisDetails = Boolean(
+    draftFinding?.rootCause ||
+      draftFinding?.evidenceSummary ||
+      draftFinding?.coachingAction ||
+      draftReview?.calibrationNotes
+  );
   const criteriaByBlock = scorecard.criteria.reduce<Array<{ block: string; criteria: ScorecardCriterion[] }>>((groups, criterion) => {
     const lastGroup = groups[groups.length - 1];
 
@@ -336,159 +348,203 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
           </span>
         </summary>
 
-        <div className="grid gap-4 border-t border-[#d7dce5] p-5">
-          <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#344054]">
-              <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
-              Критическая ошибка: обнулить итоговую оценку
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Тип критической ошибки
-              <input
-                name="criticalCategory"
-                list="critical-error-templates"
-                defaultValue={draftReview?.criticalCategory ?? ""}
-                className={fieldClassName}
-              />
-            </label>
-            <datalist id="critical-error-templates">
-              {criticalErrorTemplates.map((template) => (
-                <option key={template} value={template} />
-              ))}
-            </datalist>
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#344054]">
-              <input name="needsReanswer" type="checkbox" defaultChecked={draftReview?.needsReanswer ?? false} />
-              Нужен переответ клиенту
-            </label>
-          </div>
+        <div className="grid gap-3 border-t border-[#d7dce5] p-5">
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5]" open={hasCriticalDetails}>
+            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-[#17202a]">Критическая ошибка и переответ</h4>
+                <p className="mt-1 text-xs text-[#667085]">Открывайте только для обнуления оценки или переответа клиенту.</p>
+              </div>
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]" aria-hidden="true">
+                <ChevronDown className="h-4 w-4" />
+              </span>
+            </summary>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Статус обратной связи
-              <select name="feedbackStatus" defaultValue={draftReview?.feedbackStatus ?? "new"} className={fieldClassName}>
-                {feedbackStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {feedbackStatusLabels[status]}
-                  </option>
+            <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-[#344054]">
+                <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
+                Критическая ошибка: обнулить итоговую оценку
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Тип критической ошибки
+                <input
+                  name="criticalCategory"
+                  list="critical-error-templates"
+                  defaultValue={draftReview?.criticalCategory ?? ""}
+                  className={fieldClassName}
+                />
+              </label>
+              <datalist id="critical-error-templates">
+                {criticalErrorTemplates.map((template) => (
+                  <option key={template} value={template} />
                 ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Апелляция
-              <select name="appealStatus" defaultValue={draftReview?.appealStatus ?? "none"} className={fieldClassName}>
-                {appealStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {appealStatusLabels[status]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Переответ
-              <select name="reanswerStatus" defaultValue={draftReview?.reanswerStatus ?? "not_needed"} className={fieldClassName}>
-                {reanswerStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {reanswerStatusLabels[status]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+              </datalist>
+              <label className="flex items-center gap-2 text-sm font-semibold text-[#344054]">
+                <input name="needsReanswer" type="checkbox" defaultChecked={draftReview?.needsReanswer ?? false} />
+                Нужен переответ клиенту
+              </label>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Комментарий для обратной связи
-            <textarea
-              name="feedbackComment"
-              rows={4}
-              defaultValue={draftReview?.feedbackComment ?? ""}
-              placeholder="Ошибки, критерии, ссылки на инструкции, корректный вариант решения."
-              className={textareaClassName}
-            />
-          </label>
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Статус обратной связи
+                  <select name="feedbackStatus" defaultValue={draftReview?.feedbackStatus ?? "new"} className={fieldClassName}>
+                    {feedbackStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {feedbackStatusLabels[status]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Апелляция
+                  <select name="appealStatus" defaultValue={draftReview?.appealStatus ?? "none"} className={fieldClassName}>
+                    {appealStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {appealStatusLabels[status]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Переответ
+                  <select name="reanswerStatus" defaultValue={draftReview?.reanswerStatus ?? "not_needed"} className={fieldClassName}>
+                    {reanswerStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {reanswerStatusLabels[status]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          </details>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Положительные моменты
-            <textarea
-              name="positiveNotes"
-              rows={2}
-              defaultValue={draftReview?.positiveNotes ?? ""}
-              className={textareaClassName}
-            />
-          </label>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5]" open={hasFeedbackDetails}>
+            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-[#17202a]">Обратная связь</h4>
+                <p className="mt-1 text-xs text-[#667085]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
+              </div>
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]" aria-hidden="true">
+                <ChevronDown className="h-4 w-4" />
+              </span>
+            </summary>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Ссылки на инструкции и материалы
-            <textarea
-              name="instructionLinks"
-              rows={2}
-              defaultValue={draftReview?.instructionLinks ?? ""}
-              className={textareaClassName}
-            />
-          </label>
+            <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Комментарий для обратной связи
+                <textarea
+                  name="feedbackComment"
+                  rows={4}
+                  defaultValue={draftReview?.feedbackComment ?? ""}
+                  placeholder="Ошибки, критерии, ссылки на инструкции, корректный вариант решения."
+                  className={textareaClassName}
+                />
+              </label>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Корневая причина
-            <textarea
-              name="rootCause"
-              rows={3}
-              defaultValue={draftFinding?.rootCause ?? ""}
-              className={textareaClassName}
-            />
-          </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Положительные моменты
+                  <textarea
+                    name="positiveNotes"
+                    rows={2}
+                    defaultValue={draftReview?.positiveNotes ?? ""}
+                    className={textareaClassName}
+                  />
+                </label>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Краткое доказательство
-            <textarea
-              name="evidenceSummary"
-              rows={3}
-              defaultValue={draftFinding?.evidenceSummary ?? ""}
-              className={textareaClassName}
-            />
-          </label>
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Ссылки на инструкции и материалы
+                  <textarea
+                    name="instructionLinks"
+                    rows={2}
+                    defaultValue={draftReview?.instructionLinks ?? ""}
+                    className={textareaClassName}
+                  />
+                </label>
+              </div>
+            </div>
+          </details>
 
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Действие для разбора
-              <input
-                name="coachingAction"
-                list="coaching-templates"
-                defaultValue={draftFinding?.coachingAction?.action ?? ""}
-                className={fieldClassName}
-              />
-            </label>
-            <datalist id="coaching-templates">
-              {coachingTemplates.map((template) => (
-                <option key={template} value={template} />
-              ))}
-            </datalist>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Ответственный за разбор
-              <input
-                name="coachingAssignee"
-                defaultValue={draftFinding?.coachingAction?.assignee ?? ""}
-                className={fieldClassName}
-              />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Срок
-              <input
-                name="coachingDueAt"
-                type="date"
-                defaultValue={draftFinding?.coachingAction?.dueAt?.toISOString().slice(0, 10) ?? ""}
-                className={fieldClassName}
-              />
-            </label>
-          </div>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5]" open={hasAnalysisDetails}>
+            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-[#17202a]">Разбор и калибровка</h4>
+                <p className="mt-1 text-xs text-[#667085]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
+              </div>
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]" aria-hidden="true">
+                <ChevronDown className="h-4 w-4" />
+              </span>
+            </summary>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Заметки для калибровки
-            <textarea
-              name="calibrationNotes"
-              rows={2}
-              defaultValue={draftReview?.calibrationNotes ?? ""}
-              className={textareaClassName}
-            />
-          </label>
+            <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Корневая причина
+                  <textarea
+                    name="rootCause"
+                    rows={3}
+                    defaultValue={draftFinding?.rootCause ?? ""}
+                    className={textareaClassName}
+                  />
+                </label>
+
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Краткое доказательство
+                  <textarea
+                    name="evidenceSummary"
+                    rows={3}
+                    defaultValue={draftFinding?.evidenceSummary ?? ""}
+                    className={textareaClassName}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Действие для разбора
+                  <input
+                    name="coachingAction"
+                    list="coaching-templates"
+                    defaultValue={draftFinding?.coachingAction?.action ?? ""}
+                    className={fieldClassName}
+                  />
+                </label>
+                <datalist id="coaching-templates">
+                  {coachingTemplates.map((template) => (
+                    <option key={template} value={template} />
+                  ))}
+                </datalist>
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Ответственный за разбор
+                  <input
+                    name="coachingAssignee"
+                    defaultValue={draftFinding?.coachingAction?.assignee ?? ""}
+                    className={fieldClassName}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Срок
+                  <input
+                    name="coachingDueAt"
+                    type="date"
+                    defaultValue={draftFinding?.coachingAction?.dueAt?.toISOString().slice(0, 10) ?? ""}
+                    className={fieldClassName}
+                  />
+                </label>
+              </div>
+
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Заметки для калибровки
+                <textarea
+                  name="calibrationNotes"
+                  rows={2}
+                  defaultValue={draftReview?.calibrationNotes ?? ""}
+                  className={textareaClassName}
+                />
+              </label>
+            </div>
+          </details>
         </div>
       </details>
 

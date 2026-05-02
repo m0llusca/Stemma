@@ -1,6 +1,6 @@
 import type { Conversation, Message, Review } from "@prisma/client";
 import Link from "next/link";
-import { channelLabels, csatBucketLabels, formatMessageCount, reanswerStatusLabels, samplingTypeLabels } from "@/lib/labels";
+import { channelLabels, formatMessageCount, reanswerStatusLabels, samplingTypeLabels } from "@/lib/labels";
 import { resolveReviewState, reviewStateBadgeClass, reviewStateLabels } from "@/lib/review-state";
 
 type QueueConversation = Conversation & {
@@ -23,21 +23,17 @@ export function QueueTable({ conversations }: QueueTableProps) {
   }
 
   return (
-    <div className="scroll-area rounded-lg border border-[#d7dce5] bg-white">
-      <table className="table-fixed-copy w-full min-w-[1320px] border-collapse text-left text-sm">
+    <div className="scroll-area rounded-md border border-[#d7dce5] bg-white">
+      <table className="table-fixed-copy w-full min-w-[980px] border-collapse text-left text-sm">
         <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
           <tr>
             <th className="px-4 py-3 font-semibold">Диалог</th>
             <th className="px-4 py-3 font-semibold">Состояние проверки</th>
-            <th className="px-4 py-3 font-semibold">Канал</th>
-            <th className="px-4 py-3 font-semibold">Источник</th>
             <th className="px-4 py-3 font-semibold">Оператор</th>
             <th className="px-4 py-3 font-semibold">Проверяющий</th>
             <th className="px-4 py-3 font-semibold">Выборка</th>
-            <th className="px-4 py-3 font-semibold">CSAT</th>
             <th className="px-4 py-3 font-semibold">Срок</th>
             <th className="px-4 py-3 font-semibold">Процесс</th>
-            <th className="px-4 py-3 font-semibold">Причина</th>
             <th className="px-4 py-3 font-semibold">Оценка</th>
           </tr>
         </thead>
@@ -62,7 +58,11 @@ export function QueueTable({ conversations }: QueueTableProps) {
                     {conversation.subject}
                   </Link>
                   <div className="mt-1 text-xs text-[#667085]">
-                    {conversation.customerName} · {formatMessageCount(conversation.messages.length)}
+                    {conversation.customerName} · {formatMessageCount(conversation.messages.length)} · {channelLabels[conversation.channel]} ·{" "}
+                    {conversation.externalSource}
+                  </div>
+                  <div className="mt-1 max-w-[360px] text-xs leading-4 text-[#667085]">
+                    {conversation.samplingReason}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 align-top">
@@ -74,16 +74,10 @@ export function QueueTable({ conversations }: QueueTableProps) {
                     {reviewStateLabels[reviewState]}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{channelLabels[conversation.channel]}</td>
-                <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-[#344054]">{conversation.externalSource}</td>
                 <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{conversation.assigneeName ?? "Не назначен"}</td>
                 <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{conversation.qaAssigneeName ?? "Не назначен"}</td>
                 <td className="px-4 py-4 text-[#344054]">
                   {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-[#344054]">
-                  {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
-                  {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-[#344054]">
                   {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
@@ -99,7 +93,6 @@ export function QueueTable({ conversations }: QueueTableProps) {
                     <span className="text-[#667085]">Без эскалации</span>
                   )}
                 </td>
-                <td className="px-4 py-4 text-[#344054]">{conversation.samplingReason}</td>
                 <td className="whitespace-nowrap px-4 py-4 font-medium text-[#17202a]">
                   {latestFinalizedReview ? `${latestFinalizedReview.totalScore}%` : draftReview ? "Черновик" : "Не проверено"}
                 </td>

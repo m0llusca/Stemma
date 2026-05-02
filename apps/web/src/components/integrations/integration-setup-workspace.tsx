@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CheckCircle2, ChevronDown, ShieldCheck } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { CodeExampleCard, DataTable, Surface } from "@/components/integrations/integration-ui";
+import { CodeExampleCard, DataTable } from "@/components/integrations/integration-ui";
 import {
   apiTokenPlaceholder,
   buildCurlExample,
@@ -160,7 +160,7 @@ function FormField({
 
 function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid min-h-[76px] min-w-0 content-start gap-1 rounded-md border border-[#d7dce5] bg-white p-3">
+    <div className="grid min-h-[58px] min-w-0 content-start gap-1 rounded-md bg-white px-3 py-2">
       <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
       <div className="min-w-0 break-words text-sm leading-5 text-[#344054]">{children}</div>
     </div>
@@ -207,48 +207,46 @@ function WizardFrame({
   onNext?: () => void;
 }) {
   return (
-    <Surface>
-      <div className="grid gap-4">
-        <div className="grid gap-3 border-b border-[#d7dce5] pb-4">
-          <div className="min-w-0">
-            {currentStepIndex > 0 ? (
-              <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase text-[#667085]">
-                <span>Источник</span>
-                <span className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-2 py-1 normal-case text-[#0b4f52]">
-                  {sourceLabel}
-                </span>
-              </div>
-            ) : null}
-            <StepProgress currentStepIndex={currentStepIndex} />
-            <h3 className="mt-2 text-base font-semibold text-[#17202a]">{title}</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p>
-          </div>
-        </div>
-
-        {children}
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#d7dce5] pt-4">
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={!onBack}
-            className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-40`}
-          >
-            Назад
-          </button>
-          {onNext ? (
-            <button
-              type="button"
-              onClick={onNext}
-              disabled={nextDisabled}
-              className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#98a2b3]`}
-            >
-              {nextLabel}
-            </button>
+    <div className="grid gap-4">
+      <div className="grid gap-3 border-b border-[#d7dce5] pb-4">
+        <div className="min-w-0">
+          {currentStepIndex > 0 ? (
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase text-[#667085]">
+              <span>Источник</span>
+              <span className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-2 py-1 normal-case text-[#0b4f52]">
+                {sourceLabel}
+              </span>
+            </div>
           ) : null}
+          <StepProgress currentStepIndex={currentStepIndex} />
+          <h3 className="mt-2 text-base font-semibold text-[#17202a]">{title}</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p>
         </div>
       </div>
-    </Surface>
+
+      {children}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#d7dce5] pt-4">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={!onBack}
+          className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          Назад
+        </button>
+        {onNext ? (
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={nextDisabled}
+            className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#98a2b3]`}
+          >
+            {nextLabel}
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -299,7 +297,10 @@ function SourceChoiceStep({
         </select>
       </FormField>
 
-      <SummaryItem label="Что будет настроено">{selectedOption.description}</SummaryItem>
+      <div className="min-w-0 rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-3 py-2">
+        <p className="text-xs font-semibold uppercase text-[#667085]">Что будет настроено</p>
+        <p className="mt-1 text-sm leading-5 text-[#344054]">{selectedOption.description}</p>
+      </div>
     </div>
   );
 }

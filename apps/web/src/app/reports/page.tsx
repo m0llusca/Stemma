@@ -360,29 +360,101 @@ function QuotaTable({
   );
 }
 
-function InsightCard({
-  label,
-  value,
-  helper,
-  tone = "neutral"
+function ProcessSummary({
+  criticalCount,
+  reanswerCount,
+  appealCount
 }: {
-  label: string;
-  value: string;
-  helper: string;
-  tone?: "neutral" | "warning" | "success";
+  criticalCount: number;
+  reanswerCount: number;
+  appealCount: number;
 }) {
-  const toneClassName = {
-    neutral: "border-[#d7dce5] bg-white",
-    warning: "border-[#fed7aa] bg-[#fffaf5]",
-    success: "border-[#b9ddd2] bg-[#f4faf7]"
-  }[tone];
+  const items = [
+    { label: "Критические ошибки", value: criticalCount, detail: "Обнуляют оценку", icon: Scale },
+    { label: "Переответы", value: reanswerCount, detail: "Нужен новый ответ", icon: RotateCcw },
+    { label: "Апелляции", value: appealCount, detail: "Споры по оценке", icon: CalendarDays }
+  ];
 
   return (
-    <article className={`grid min-h-[132px] content-start gap-2 rounded-lg border p-4 ${toneClassName}`}>
-      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
-      <p className="text-xl font-semibold text-[#17202a]">{value}</p>
-      <p className="text-sm leading-5 text-[#667085]">{helper}</p>
-    </article>
+    <section className="panel mt-4 overflow-hidden">
+      <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="border-b border-[#d7dce5] bg-[#fbfcfd] p-4 lg:border-b-0 lg:border-r">
+          <p className="text-xs font-semibold uppercase text-[#667085]">Контроль процесса</p>
+          <p className="mt-1 text-sm leading-5 text-[#667085]">Эскалации, которые требуют управленческого внимания.</p>
+        </div>
+        <dl className="grid divide-y divide-[#d7dce5] md:grid-cols-3 md:divide-x md:divide-y-0">
+          {items.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div key={item.label} className="flex items-center gap-3 p-4">
+                <span className="icon-box h-9 w-9 shrink-0">
+                  <Icon size={17} aria-hidden="true" />
+                </span>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-[#667085]">{item.label}</dt>
+                  <dd className="mt-1 text-xl font-semibold text-[#17202a]">{item.value}</dd>
+                  <p className="text-sm text-[#667085]">{item.detail}</p>
+                </div>
+              </div>
+            );
+          })}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function FocusPanel({
+  finalizedCount,
+  topRiskRow,
+  topCategoryRow,
+  weakestAssignee
+}: {
+  finalizedCount: number;
+  topRiskRow?: BreakdownRow;
+  topCategoryRow?: BreakdownRow;
+  weakestAssignee?: BreakdownRow;
+}) {
+  const rows = [
+    {
+      label: "Завершено проверок",
+      value: String(finalizedCount),
+      detail: "Объем данных за выбранный период."
+    },
+    {
+      label: "Главный риск",
+      value: topRiskRow ? `${topRiskRow.label}: ${topRiskRow.count}` : "Нет данных",
+      detail: "Самый частый уровень риска."
+    },
+    {
+      label: "Частая категория",
+      value: topCategoryRow ? `${topCategoryRow.label}: ${topCategoryRow.count}` : "Нет данных",
+      detail: "Что чаще всего встречается в замечаниях."
+    },
+    {
+      label: "Оператор для разбора",
+      value: weakestAssignee ? `${weakestAssignee.label}: ${formatAverageScore(weakestAssignee.averageScore)}` : "Нет данных",
+      detail: "Самая низкая средняя оценка."
+    }
+  ];
+
+  return (
+    <section className="panel mt-6 overflow-hidden">
+      <div className="border-b border-[#d7dce5] px-5 py-4">
+        <h2 className="text-lg font-semibold">Что требует внимания</h2>
+        <p className="mt-1 text-sm text-[#667085]">Короткая сводка для руководителя без лишних разрезов.</p>
+      </div>
+      <div className="grid divide-y divide-[#d7dce5] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
+        {rows.map((row) => (
+          <article key={row.label} className="p-4">
+            <p className="text-xs font-semibold uppercase text-[#667085]">{row.label}</p>
+            <p className="mt-2 text-base font-semibold text-[#17202a]">{row.value}</p>
+            <p className="mt-1 text-sm leading-5 text-[#667085]">{row.detail}</p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -516,77 +588,41 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         />
       </div>
 
-      <div className="mt-4 grid items-stretch gap-4 md:grid-cols-3">
-        <MetricCard
-          label="Критические ошибки"
-          value={String(criticalCount)}
-          helper="Ошибки, которые обнуляют оценку обращения."
-          icon={<Scale size={18} aria-hidden="true" />}
-        />
-        <MetricCard
-          label="Переответы"
-          value={String(reanswerCount)}
-          helper="Проверки, где нужно заново ответить клиенту."
-          icon={<RotateCcw size={18} aria-hidden="true" />}
-        />
-        <MetricCard
-          label="Апелляции"
-          value={String(appealCount)}
-          helper="Открытые или завершенные споры по оценке."
-          icon={<CalendarDays size={18} aria-hidden="true" />}
-        />
-      </div>
+      <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
 
-      <section className="mt-6">
-        <div className="mb-3">
-          <h2 className="text-lg font-semibold">Что требует внимания</h2>
-          <p className="mt-1 text-sm text-[#667085]">
-            Короткая сводка для руководителя: где чаще возникают риски и кого стоит разобрать первым.
-          </p>
-        </div>
-        <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InsightCard
-            label="Завершено проверок"
-            value={String(finalizedCount)}
-            helper="Количество проверок, на которых построена текущая аналитика."
-            tone={finalizedCount > 0 ? "success" : "neutral"}
-          />
-          <InsightCard
-            label="Главный риск"
-            value={topRiskRow ? `${topRiskRow.label}: ${topRiskRow.count}` : "Нет данных"}
-            helper="Самый частый уровень риска среди замечаний."
-            tone={topRiskRow ? "warning" : "neutral"}
-          />
-          <InsightCard
-            label="Частая категория"
-            value={topCategoryRow ? `${topCategoryRow.label}: ${topCategoryRow.count}` : "Нет данных"}
-            helper="Категория, которая чаще всего встречается в замечаниях."
-          />
-          <InsightCard
-            label="Оператор для разбора"
-            value={
-              weakestAssignee ? `${weakestAssignee.label}: ${formatAverageScore(weakestAssignee.averageScore)}` : "Нет данных"
-            }
-            helper="Самая низкая средняя оценка среди завершенных проверок."
-            tone={weakestAssignee ? "warning" : "neutral"}
-          />
-        </div>
-      </section>
+      <FocusPanel
+        finalizedCount={finalizedCount}
+        topRiskRow={topRiskRow}
+        topCategoryRow={topCategoryRow}
+        weakestAssignee={weakestAssignee}
+      />
 
       <div className="mt-6 grid items-start gap-5 xl:grid-cols-2">
         <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
         <QuotaTable quotas={quotas} reviews={finalizedReviews} />
         <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
         <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
-        <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
-        <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
-        <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
-        <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
-        <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
-        <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
-        <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
-        <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
       </div>
+
+      <details className="disclosure-panel mt-6">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold">Подробные разрезы</h2>
+            <p className="mt-1 text-sm text-[#667085]">Выборка, CSAT, обратная связь, апелляции, риски и категории.</p>
+          </div>
+          <span className="text-xs font-semibold uppercase text-[#667085]">Показать</span>
+        </summary>
+        <div className="mt-5 grid items-start gap-5 xl:grid-cols-2">
+          <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
+          <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
+          <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
+          <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
+          <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
+          <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
+          <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
+          <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
+        </div>
+      </details>
     </section>
   );
 }
