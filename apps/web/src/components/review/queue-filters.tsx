@@ -12,7 +12,7 @@ type QueueFiltersProps = {
 
 export function QueueFilters({ filters, sources, assignees, qaAssignees }: QueueFiltersProps) {
   return (
-    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(150px,170px)_minmax(130px,150px)_minmax(150px,170px)_minmax(150px,170px)_minmax(150px,170px)_auto]">
+    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(220px,1fr)_repeat(5,minmax(120px,150px))]">
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
         Поиск
         <input
@@ -82,11 +82,11 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees }: Queue
         </select>
       </label>
 
-      <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-1">
-        <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+      <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3 xl:col-span-6 xl:justify-end">
+        <button type="submit" className="min-h-[40px] rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
           Применить
         </button>
-        <Link href="/reviews" className="rounded border border-[#d7dce5] px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+        <Link href="/reviews" className="inline-flex min-h-[40px] items-center rounded border border-[#d7dce5] px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
           Сбросить
         </Link>
       </div>

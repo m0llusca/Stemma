@@ -23,8 +23,8 @@ export function QueueTable({ conversations }: QueueTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[#d7dce5] bg-white">
-      <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+    <div className="scroll-area rounded-lg border border-[#d7dce5] bg-white">
+      <table className="table-fixed-copy w-full min-w-[1040px] border-collapse text-left text-sm">
         <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
           <tr>
             <th className="px-4 py-3 font-semibold">Диалог</th>
@@ -54,7 +54,7 @@ export function QueueTable({ conversations }: QueueTableProps) {
 
             return (
               <tr key={conversation.id} className="hover:bg-[#f7f8fb]">
-                <td className="px-4 py-4">
+                <td className="px-4 py-4 align-top">
                   <Link href={`/reviews/${conversation.id}`} className="font-medium text-[#0b4f52] hover:underline">
                     {conversation.subject}
                   </Link>
@@ -62,7 +62,7 @@ export function QueueTable({ conversations }: QueueTableProps) {
                     {conversation.customerName} · {formatMessageCount(conversation.messages.length)}
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="whitespace-nowrap px-4 py-4 align-top">
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${
                       isOverdue && reviewState !== "finalized" ? "bg-[#fff4ed] text-[#b54708]" : reviewStateBadgeClass(reviewState)
@@ -71,15 +71,15 @@ export function QueueTable({ conversations }: QueueTableProps) {
                     {reviewStateLabels[reviewState]}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-[#344054]">{channelLabels[conversation.channel]}</td>
-                <td className="px-4 py-4 font-mono text-xs text-[#344054]">{conversation.externalSource}</td>
-                <td className="px-4 py-4 text-[#344054]">{conversation.assigneeName ?? "Не назначен"}</td>
-                <td className="px-4 py-4 text-[#344054]">{conversation.qaAssigneeName ?? "Не назначен"}</td>
-                <td className="px-4 py-4 text-[#344054]">
+                <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{channelLabels[conversation.channel]}</td>
+                <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-[#344054]">{conversation.externalSource}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{conversation.assigneeName ?? "Не назначен"}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{conversation.qaAssigneeName ?? "Не назначен"}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-[#344054]">
                   {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
                 </td>
                 <td className="px-4 py-4 text-[#344054]">{conversation.samplingReason}</td>
-                <td className="px-4 py-4 font-medium text-[#17202a]">
+                <td className="whitespace-nowrap px-4 py-4 font-medium text-[#17202a]">
                   {latestFinalizedReview ? `${latestFinalizedReview.totalScore}%` : draftReview ? "Черновик" : "Не проверено"}
                 </td>
               </tr>

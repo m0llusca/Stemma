@@ -73,34 +73,36 @@ function BreakdownTable({
       <div className="border-b border-[#d7dce5] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
       </div>
-      <table className="w-full border-collapse text-left text-sm">
-        <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-          <tr>
-            <th className="px-5 py-3 font-semibold">Разрез</th>
-            <th className="px-5 py-3 font-semibold">{countLabel}</th>
-            {showAverage ? <th className="px-5 py-3 font-semibold">Средняя оценка</th> : null}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#d7dce5]">
-          {rows.length > 0 ? (
-            rows.map((row) => (
-              <tr key={row.label}>
-                <td className="px-5 py-4 font-medium text-[#17202a]">{row.label}</td>
-                <td className="px-5 py-4 text-[#344054]">{row.count}</td>
-                {showAverage ? (
-                  <td className="px-5 py-4 text-[#344054]">{formatAverageScore(row.averageScore)}</td>
-                ) : null}
-              </tr>
-            ))
-          ) : (
+      <div className="scroll-area">
+        <table className="table-fixed-copy w-full min-w-[520px] border-collapse text-left text-sm">
+          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
             <tr>
-              <td className="px-5 py-4 text-[#667085]" colSpan={showAverage ? 3 : 2}>
-                Нет завершенных проверок.
-              </td>
+              <th className="px-5 py-3 font-semibold">Разрез</th>
+              <th className="px-5 py-3 font-semibold">{countLabel}</th>
+              {showAverage ? <th className="px-5 py-3 font-semibold">Средняя оценка</th> : null}
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-[#d7dce5]">
+            {rows.length > 0 ? (
+              rows.map((row) => (
+                <tr key={row.label}>
+                  <td className="px-5 py-4 font-medium text-[#17202a]">{row.label}</td>
+                  <td className="px-5 py-4 text-[#344054]">{row.count}</td>
+                  {showAverage ? (
+                    <td className="px-5 py-4 text-[#344054]">{formatAverageScore(row.averageScore)}</td>
+                  ) : null}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="px-5 py-4 text-[#667085]" colSpan={showAverage ? 3 : 2}>
+                  Нет завершенных проверок.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -188,7 +190,7 @@ export default async function ReportsPage() {
         <h1 className="mt-1 text-2xl font-semibold">Отчеты</h1>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Средняя оценка"
           value={formatAverageScore(scoreAggregate._avg.totalScore)}
@@ -215,7 +217,7 @@ export default async function ReportsPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-5 xl:grid-cols-2">
+      <div className="mt-6 grid items-start gap-5 xl:grid-cols-2">
         <BreakdownTable title="По источникам" rows={sourceRows} countLabel="Проверок" showAverage />
         <BreakdownTable title="По операторам" rows={assigneeRows} countLabel="Проверок" showAverage />
         <BreakdownTable title="По уровню риска" rows={riskRows} countLabel="Находок" />

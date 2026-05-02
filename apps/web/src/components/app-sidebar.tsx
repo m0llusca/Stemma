@@ -21,9 +21,13 @@ export function AppSidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[#344054] hover:bg-[#eef4f4]">
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex min-h-[40px] items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-[#344054] hover:bg-[#eef4f4] hover:text-[#0b4f52]"
+            >
               <Icon size={17} aria-hidden="true" />
-              <span>{item.label}</span>
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}

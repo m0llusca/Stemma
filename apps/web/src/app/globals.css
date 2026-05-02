@@ -3,15 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f8fb;
+  --background: #f5f7fa;
   --foreground: #17202a;
   --muted: #667085;
   --panel: #ffffff;
-  --border: #d7dce5;
+  --panel-muted: #fbfcfd;
+  --border: #d5dbe5;
+  --border-strong: #c6ceda;
   --accent: #116466;
   --accent-strong: #0b4f52;
+  --accent-soft: #e8f3ef;
   --danger: #b42318;
   --warning: #b54708;
+  --warning-soft: #fff4ed;
+  --shadow-panel: 0 1px 2px rgba(23, 32, 42, 0.04), 0 14px 36px rgba(23, 32, 42, 0.05);
 }
 
 * { box-sizing: border-box; }
@@ -24,13 +29,32 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.45;
+  text-rendering: geometricPrecision;
 }
 
 a { color: inherit; text-decoration: none; }
 
 button, input, select, textarea {
   font: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+
+button {
+  overflow-wrap: anywhere;
+}
+
+input, select, textarea {
+  color: var(--foreground);
+}
+
+h1, h2, h3, h4, p, td, th, dd, dt, span {
+  overflow-wrap: anywhere;
+}
+
+pre, code {
   max-width: 100%;
 }
 
@@ -48,7 +72,7 @@ button, input, select, textarea {
 .page-shell {
   min-width: 0;
   max-width: 100%;
-  padding: 28px 32px;
+  padding: 30px 34px;
 }
 
 .app-sidebar {
@@ -58,13 +82,23 @@ button, input, select, textarea {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-panel);
   min-width: 0;
+}
+
+.panel-subtle {
+  background: var(--panel-muted);
 }
 
 .grid > *,
 .flex > * {
   min-width: 0;
+}
+
+.table-fixed-copy th,
+.table-fixed-copy td {
+  vertical-align: top;
 }
 
 .scroll-area {
@@ -118,6 +152,106 @@ button, input, select, textarea {
   overflow-wrap: anywhere;
 }
 
+.meta-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 6px 10px;
+  color: var(--foreground);
+  box-shadow: 0 1px 1px rgba(23, 32, 42, 0.03);
+}
+
+.meta-chip__icon {
+  display: inline-flex;
+  height: 22px;
+  width: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef4f4;
+  color: var(--accent-strong);
+}
+
+.meta-chip__label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta-chip__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.meta-chip--success {
+  border-color: #b9ddd2;
+  background: #f4faf7;
+}
+
+.meta-chip--success .meta-chip__icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.meta-chip--warning {
+  border-color: #fed7aa;
+  background: #fffaf5;
+}
+
+.meta-chip--warning .meta-chip__icon {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.meta-chip--active {
+  border-color: #b9ddd2;
+  background: #f7fbfa;
+}
+
+.meta-chip--wide {
+  max-width: min(100%, 520px);
+}
+
+.stat-card {
+  display: grid;
+  min-height: 92px;
+  align-content: space-between;
+}
+
+.metric-card {
+  display: flex;
+  min-height: 178px;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.icon-box {
+  display: inline-flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #eef4f4;
+  color: var(--accent-strong);
+}
+
 @media (max-width: 900px) {
   .page {
     display: block;
@@ -126,7 +260,7 @@ button, input, select, textarea {
   .app-sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--border);
-    padding: 14px 16px;
+    padding: 16px;
   }
 
   .app-sidebar__header {
@@ -136,12 +270,24 @@ button, input, select, textarea {
   .app-sidebar__nav {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 6px;
+    gap: 8px;
   }
 }
 
 @media (max-width: 640px) {
   .page-shell {
     padding: 18px 16px;
+  }
+
+  .meta-chip {
+    min-height: 36px;
+  }
+
+  .meta-chip--wide {
+    width: 100%;
+  }
+
+  .meta-chip__value {
+    white-space: normal;
   }
 }

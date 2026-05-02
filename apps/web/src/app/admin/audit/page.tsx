@@ -215,15 +215,15 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                   <span className="rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">API</span>
                 </div>
                 <dl className="mt-4 grid gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <dt className="font-semibold text-[#667085]">Последнее использование</dt>
                     <dd className="mt-1 text-[#17202a]">{formatDate(token.lastUsedAt)}</dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="font-semibold text-[#667085]">Последний успех</dt>
                     <dd className="mt-1 text-[#17202a]">{formatDate(token.lastSuccessAt)}</dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="font-semibold text-[#667085]">Последняя ошибка</dt>
                     <dd className="mt-1 text-[#17202a]">
                       {token.lastError ? `${formatDate(token.lastErrorAt)} · ${token.lastError}` : "Нет"}

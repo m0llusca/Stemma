@@ -14,7 +14,7 @@ export function SectionHeader({
     <div className="min-w-0">
       {eyebrow ? <p className="text-xs font-semibold uppercase text-[#667085]">{eyebrow}</p> : null}
       <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[#17202a]`}>{title}</h3>
-      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p> : null}
+      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085] compact-text">{description}</p> : null}
     </div>
   );
 }
@@ -33,7 +33,7 @@ export function Surface({
   bodyClassName?: string;
 }) {
   return (
-    <div className={`min-w-0 overflow-hidden rounded-md border border-[#d7dce5] bg-white ${className}`}>
+    <div className={`panel min-w-0 overflow-hidden ${className}`}>
       {title ? (
         <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
           <SectionHeader title={title} description={description} />
@@ -60,7 +60,7 @@ export function DataTable({
   return (
     <Surface title={title} description={description} bodyClassName="p-0" className={className}>
       <div className="scroll-area">
-        <table className={`w-full ${minWidth} border-collapse text-left text-sm`}>{children}</table>
+        <table className={`table-fixed-copy w-full ${minWidth} border-collapse text-left text-sm`}>{children}</table>
       </div>
     </Surface>
   );

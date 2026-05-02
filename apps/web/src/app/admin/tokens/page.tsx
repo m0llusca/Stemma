@@ -74,14 +74,14 @@ export default async function AdminTokensPage() {
               <p className="text-sm font-semibold text-[#17202a]">Token</p>
               <CopyButton value={demoApiToken} label="Скопировать token" />
             </div>
-            <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054]">{demoApiToken}</code>
+            <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054] compact-text">{demoApiToken}</code>
           </div>
           <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[#17202a]">Authorization header</p>
               <CopyButton value={authorizationHeader} label="Скопировать header" />
             </div>
-            <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054]">{authorizationHeader}</code>
+            <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054] compact-text">{authorizationHeader}</code>
           </div>
         </div>
       </section>
@@ -91,7 +91,7 @@ export default async function AdminTokensPage() {
           <h2 className="text-lg font-semibold">Токены workspace</h2>
         </div>
         <div className="scroll-area">
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+          <table className="table-fixed-copy w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
                 <th className="px-5 py-3 font-semibold">Статус</th>

@@ -93,8 +93,8 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
         />
       </label>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1060px] border-collapse text-left text-sm">
+      <div className="scroll-area">
+        <table className="table-fixed-copy w-full min-w-[1060px] border-collapse text-left text-sm">
           <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
             <tr>
               <th className="w-24 px-4 py-3 font-semibold">Порядок</th>

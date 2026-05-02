@@ -1,5 +1,17 @@
 import { notFound } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarClock,
+  ChevronDown,
+  Gauge,
+  Headset,
+  MessageSquareText,
+  Radio,
+  ShieldAlert,
+  TicketCheck,
+  UserRound
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
@@ -16,7 +28,7 @@ import {
   riskLevelLabels
 } from "@/lib/labels";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
-import { resolveReviewState, reviewStateBadgeClass, reviewStateLabels } from "@/lib/review-state";
+import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +36,42 @@ type ReviewDetailPageProps = {
   params: Promise<{ conversationId: string }>;
 };
 
-function HeaderChip({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
+function reviewStateTone(state: ReviewState) {
+  if (state === "finalized") {
+    return "success";
+  }
+
+  if (state === "reopened") {
+    return "warning";
+  }
+
+  if (state === "assigned" || state === "in_progress") {
+    return "active";
+  }
+
+  return "neutral";
+}
+
+function HeaderChip({
+  label,
+  children,
+  icon: Icon,
+  tone = "neutral",
+  wide = false
+}: {
+  label: string;
+  children: ReactNode;
+  icon: LucideIcon;
+  tone?: "neutral" | "success" | "warning" | "active";
+  wide?: boolean;
+}) {
   return (
-    <span className={`inline-flex min-w-0 items-center gap-1 rounded-md border border-[#d7dce5] bg-white px-2.5 py-1.5 text-sm ${className}`}>
-      <span className="shrink-0 text-xs font-semibold uppercase text-[#667085]">{label}</span>
-      <span className="min-w-0 truncate font-semibold text-[#17202a]">{children}</span>
+    <span className={`meta-chip meta-chip--${tone} ${wide ? "meta-chip--wide" : ""}`}>
+      <span className="meta-chip__icon" aria-hidden="true">
+        <Icon size={13} />
+      </span>
+      <span className="meta-chip__label">{label}</span>
+      <span className="meta-chip__value">{children}</span>
     </span>
   );
 }
@@ -87,19 +130,23 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         <p className="text-sm font-medium text-[#667085]">Доска проверки</p>
         <h1 className="mt-1 text-2xl font-semibold">{conversation.subject}</h1>
         <div className="mt-3 flex flex-wrap gap-2">
-          <HeaderChip label="Состояние" className={reviewStateBadgeClass(reviewState)}>
+          <HeaderChip label="Состояние" icon={BadgeCheck} tone={reviewStateTone(reviewState)}>
             {reviewStateLabels[reviewState]}
           </HeaderChip>
-          <HeaderChip label="Оценка">{scoreLabel}</HeaderChip>
-          <HeaderChip label="Клиент">{conversation.customerName}</HeaderChip>
-          <HeaderChip label="Канал">{channelLabels[conversation.channel]}</HeaderChip>
-          <HeaderChip label="Тикет">{conversationStatusLabel(conversation.status)}</HeaderChip>
-          <HeaderChip label="Сообщения">{formatMessageCount(conversation.messages.length)}</HeaderChip>
-          <HeaderChip label="QA">{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
-          <HeaderChip label="Срок">
+          <HeaderChip label="Оценка" icon={Gauge}>{scoreLabel}</HeaderChip>
+          <HeaderChip label="Клиент" icon={UserRound}>{conversation.customerName}</HeaderChip>
+          <HeaderChip label="Канал" icon={Radio}>{channelLabels[conversation.channel]}</HeaderChip>
+          <HeaderChip label="Тикет" icon={TicketCheck}>{conversationStatusLabel(conversation.status)}</HeaderChip>
+          <HeaderChip label="Сообщения" icon={MessageSquareText}>{formatMessageCount(conversation.messages.length)}</HeaderChip>
+          <HeaderChip label="QA" icon={Headset}>{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
+          <HeaderChip label="Срок" icon={CalendarClock}>
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
           </HeaderChip>
-          {conversation.riskHint ? <HeaderChip label="Риск">{conversation.riskHint}</HeaderChip> : null}
+          {conversation.riskHint ? (
+            <HeaderChip label="Риск" icon={ShieldAlert} tone="warning" wide>
+              {conversation.riskHint}
+            </HeaderChip>
+          ) : null}
         </div>
       </div>
 
@@ -174,7 +221,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
             </span>
           </summary>
           <div className="scroll-area border-t border-[#d7dce5]">
-            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+            <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Дата</th>

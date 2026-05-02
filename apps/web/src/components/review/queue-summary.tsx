@@ -24,7 +24,7 @@ export function QueueSummary({ total, queued, inWork, drafts, reviewed, overdue,
   return (
     <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
       {summaryItems.map((item) => (
-        <div key={item.key} className="panel p-4">
+        <div key={item.key} className="panel stat-card p-4">
           <p className="text-xs font-semibold uppercase text-[#667085]">{item.label}</p>
           <p className="mt-2 text-2xl font-semibold text-[#17202a]">{values[item.key]}</p>
         </div>

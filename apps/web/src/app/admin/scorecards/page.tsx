@@ -82,31 +82,33 @@ export default async function AdminScorecardsPage() {
                 {scorecard.isActive ? "Активна" : "Неактивна"}
               </span>
             </div>
-            <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Порядок</th>
-                  <th className="px-5 py-3 font-semibold">Критерий</th>
-                  <th className="px-5 py-3 font-semibold">Тип</th>
-                  <th className="px-5 py-3 font-semibold">Вес</th>
-                  <th className="px-5 py-3 font-semibold">Обязателен</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
-                {scorecard.criteria.map((criterion) => (
-                  <tr key={criterion.id}>
-                    <td className="px-5 py-4 text-[#344054]">{criterion.order}</td>
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-[#17202a]">{criterion.label}</div>
-                      <div className="mt-1 text-xs text-[#667085]">{criterion.key}</div>
-                    </td>
-                    <td className="px-5 py-4 text-[#344054]">{criterionKindLabels[criterion.kind]}</td>
-                    <td className="px-5 py-4 text-[#344054]">{criterion.weight}%</td>
-                    <td className="px-5 py-4 text-[#344054]">{criterion.required ? "Да" : "Нет"}</td>
+            <div className="scroll-area">
+              <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Порядок</th>
+                    <th className="px-5 py-3 font-semibold">Критерий</th>
+                    <th className="px-5 py-3 font-semibold">Тип</th>
+                    <th className="px-5 py-3 font-semibold">Вес</th>
+                    <th className="px-5 py-3 font-semibold">Обязателен</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5]">
+                  {scorecard.criteria.map((criterion) => (
+                    <tr key={criterion.id}>
+                      <td className="px-5 py-4 text-[#344054]">{criterion.order}</td>
+                      <td className="px-5 py-4">
+                        <div className="font-medium text-[#17202a]">{criterion.label}</div>
+                        <div className="mt-1 text-xs text-[#667085]">{criterion.key}</div>
+                      </td>
+                      <td className="px-5 py-4 text-[#344054]">{criterionKindLabels[criterion.kind]}</td>
+                      <td className="px-5 py-4 text-[#344054]">{criterion.weight}%</td>
+                      <td className="px-5 py-4 text-[#344054]">{criterion.required ? "Да" : "Нет"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </article>
         ))}
       </div>
