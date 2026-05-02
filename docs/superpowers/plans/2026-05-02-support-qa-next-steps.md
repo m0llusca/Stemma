@@ -112,9 +112,9 @@ git commit -m "add custom api onboarding kit"
 - Modify: `apps/web/src/app/admin/scorecards/page.tsx`
 - Test: `apps/web/tests/api` or focused unit tests for scorecard validation.
 
-- [ ] Add create/edit forms for scorecard criteria.
-- [ ] Validate total active scorecard weight equals 100.
-- [ ] Add activate-new-version flow without mutating historical review scorecards.
+- [x] Add create/edit forms for scorecard criteria.
+- [x] Validate total active scorecard weight equals 100.
+- [x] Add activate-new-version flow without mutating historical review scorecards.
 
 ## Task 4: Audit And Activity History
 
@@ -124,9 +124,9 @@ git commit -m "add custom api onboarding kit"
 - Modify: `apps/web/src/components/app-sidebar.tsx`
 - Modify: `apps/web/src/lib/audit.ts`
 
-- [ ] Show review finalization, seed/import, API token usage, and export activity in a paginated timeline.
-- [ ] Add filters by action type and target type.
-- [ ] Keep sensitive token material out of audit details.
+- [x] Show review finalization, seed/import, API token usage, and export activity in a paginated timeline.
+- [x] Add filters by action type and target type.
+- [x] Keep sensitive token material out of audit details.
 
 ## Task 5: OTRS/Znuny/OTOBO Adapter Preparation
 

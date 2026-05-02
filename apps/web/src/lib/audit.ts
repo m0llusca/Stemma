@@ -11,6 +11,37 @@ type AuditLogInput = {
   metadata: unknown;
 };
 
+export function redactAuditMetadata(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactAuditMetadata(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => {
+        const normalizedKey = key.toLowerCase();
+
+        if (
+          normalizedKey.includes("token") ||
+          normalizedKey.includes("authorization") ||
+          normalizedKey.includes("password") ||
+          normalizedKey.includes("secret")
+        ) {
+          return [key, "[redacted]"];
+        }
+
+        return [key, redactAuditMetadata(item)];
+      })
+    );
+  }
+
+  return value;
+}
+
 export async function auditLog(input: AuditLogInput, client: AuditLogClient = prisma) {
   return client.auditLog.create({
     data: {
@@ -19,7 +50,7 @@ export async function auditLog(input: AuditLogInput, client: AuditLogClient = pr
       action: input.action,
       targetType: input.targetType,
       targetId: input.targetId,
-      metadata: JSON.stringify(input.metadata)
+      metadata: JSON.stringify(redactAuditMetadata(input.metadata))
     }
   });
 }

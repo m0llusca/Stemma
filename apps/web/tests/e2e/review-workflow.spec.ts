@@ -59,4 +59,14 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/reviews?status=reviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Завершена" })).toBeVisible();
+
+  await page.goto("/admin/scorecards");
+  await expect(page.getByRole("heading", { name: "Скоркарты", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Новая версия скоркарты" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeVisible();
+
+  await page.goto("/admin/audit");
+  await expect(page.getByRole("heading", { name: "Аудит" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "review.finalized" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "API-активность" })).toBeVisible();
 });
