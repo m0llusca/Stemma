@@ -12,15 +12,25 @@ type QueueTableProps = {
 };
 
 export function QueueTable({ conversations }: QueueTableProps) {
+  if (conversations.length === 0) {
+    return (
+      <div className="panel px-5 py-10 text-center">
+        <h2 className="text-base font-semibold text-[#17202a]">Очередь пуста</h2>
+        <p className="mt-2 text-sm text-[#667085]">Новые диалоги появятся после импорта или ручной загрузки через API.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-lg border border-[#d7dce5] bg-white">
-      <table className="w-full border-collapse text-left text-sm">
+    <div className="overflow-x-auto rounded-lg border border-[#d7dce5] bg-white">
+      <table className="w-full min-w-[900px] border-collapse text-left text-sm">
         <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
           <tr>
             <th className="px-4 py-3 font-semibold">Диалог</th>
             <th className="px-4 py-3 font-semibold">Канал</th>
             <th className="px-4 py-3 font-semibold">Ответственный</th>
             <th className="px-4 py-3 font-semibold">Причина</th>
+            <th className="px-4 py-3 font-semibold">Статус</th>
             <th className="px-4 py-3 font-semibold">Оценка</th>
           </tr>
         </thead>
@@ -41,6 +51,15 @@ export function QueueTable({ conversations }: QueueTableProps) {
                 <td className="px-4 py-4 text-[#344054]">{channelLabels[conversation.channel]}</td>
                 <td className="px-4 py-4 text-[#344054]">{conversation.assigneeName ?? "Не назначен"}</td>
                 <td className="px-4 py-4 text-[#344054]">{conversation.samplingReason}</td>
+                <td className="px-4 py-4">
+                  <span
+                    className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                      latestReview ? "bg-[#e8f3ef] text-[#116466]" : "bg-[#fff4ed] text-[#b54708]"
+                    }`}
+                  >
+                    {latestReview ? "Завершена" : "В очереди"}
+                  </span>
+                </td>
                 <td className="px-4 py-4 font-medium text-[#17202a]">
                   {latestReview ? `${latestReview.totalScore}%` : "Не проверено"}
                 </td>

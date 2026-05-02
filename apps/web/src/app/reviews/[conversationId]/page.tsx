@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
+import { ReviewWorkflow } from "@/components/review/review-workflow";
 import { getCurrentUser } from "@/lib/current-user";
 import {
   channelLabels,
@@ -30,6 +31,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
   }
 
   const latestReview = conversation.reviews[0];
+  const latestFinding = latestReview?.findings[0];
 
   return (
     <section className="px-8 py-7">
@@ -58,6 +60,13 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         </div>
       </div>
 
+      <ReviewWorkflow
+        isReviewed={Boolean(latestReview)}
+        scorecardName={`${scorecard.name} v${scorecard.version}`}
+        hasFinding={Boolean(latestFinding)}
+        hasCoachingAction={Boolean(latestFinding?.coachingAction)}
+      />
+
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <div className="panel p-4">
           <p className="text-xs font-semibold uppercase text-[#667085]">Ответственный</p>
@@ -81,20 +90,32 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         <section className="panel mb-6 p-5">
           <h2 className="text-lg font-semibold">Последняя находка</h2>
           <p className="mt-2 text-sm leading-6 text-[#344054]">{latestReview.summary}</p>
-          {latestReview.findings[0] ? (
+          {latestFinding ? (
             <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
               <div>
                 <p className="font-semibold text-[#667085]">Ответственность</p>
-                <p className="mt-1">{ownerTypeLabels[latestReview.findings[0].ownerType]}</p>
+                <p className="mt-1">{ownerTypeLabels[latestFinding.ownerType]}</p>
               </div>
               <div>
                 <p className="font-semibold text-[#667085]">Риск</p>
-                <p className="mt-1">{riskLevelLabels[latestReview.findings[0].riskLevel]}</p>
+                <p className="mt-1">{riskLevelLabels[latestFinding.riskLevel]}</p>
               </div>
               <div>
                 <p className="font-semibold text-[#667085]">Категория</p>
-                <p className="mt-1">{latestReview.findings[0].category}</p>
+                <p className="mt-1">{latestFinding.category}</p>
               </div>
+            </div>
+          ) : null}
+          {latestFinding?.coachingAction ? (
+            <div className="mt-4 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm">
+              <p className="font-semibold text-[#667085]">Коучинг</p>
+              <p className="mt-1 text-[#17202a]">{latestFinding.coachingAction.action}</p>
+              <p className="mt-2 text-[#667085]">
+                {latestFinding.coachingAction.assignee}
+                {latestFinding.coachingAction.dueAt
+                  ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
+                  : ""}
+              </p>
             </div>
           ) : null}
         </section>

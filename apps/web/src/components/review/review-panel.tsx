@@ -22,6 +22,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
       </div>
 
       <div className="space-y-4">
+        <h3 className="text-sm font-semibold uppercase text-[#667085]">Оценка по критериям</h3>
         {scorecard.criteria.map((criterion) => (
           <fieldset key={criterion.id} className="rounded-lg border border-[#d7dce5] p-4">
             <legend className="px-1 text-sm font-semibold text-[#17202a]">
@@ -90,6 +91,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
       </div>
 
       <div className="mt-6 grid gap-4">
+        <h3 className="text-sm font-semibold uppercase text-[#667085]">Находка и причина</h3>
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Итог проверки
           <textarea name="summary" rows={3} required className="resize-y rounded border border-[#d7dce5] px-3 py-2" />
@@ -139,6 +141,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
         </label>
 
         <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
+          <h3 className="text-sm font-semibold uppercase text-[#667085] md:col-span-3">Коучинг</h3>
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Действие по коучингу
             <input name="coachingAction" className="rounded border border-[#d7dce5] px-3 py-2" />
