@@ -7,6 +7,8 @@ import { integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
+const emptyStateClass = "rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm leading-5 text-[#667085]";
+
 function formatDate(value: Date | null) {
   if (!value) {
     return "Не синхронизировалось";
@@ -197,7 +199,7 @@ export default async function AdminIntegrationsPage() {
             title="Последние импорты"
             description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
           >
-            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
+            <div className={emptyStateClass}>
               Импорты появятся здесь после успешного запуска native-коннектора или custom API.
             </div>
           </Surface>
@@ -209,10 +211,15 @@ export default async function AdminIntegrationsPage() {
         >
           {connectedIntegrations.length > 0 ? (
             <div className="grid gap-2">
+              <div className="hidden grid-cols-[minmax(0,1fr)_120px_220px] gap-3 px-3 text-xs font-semibold uppercase text-[#667085] md:grid">
+                <span>Название</span>
+                <span>Статус</span>
+                <span>Последняя синхронизация</span>
+              </div>
               {connectedIntegrations.map((integration) => (
                 <div
                   key={integration.id}
-                  className="grid gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm md:grid-cols-[minmax(0,1fr)_140px_minmax(0,220px)] md:items-center"
+                  className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm md:grid-cols-[minmax(0,1fr)_120px_220px] md:items-center"
                 >
                   <div className="min-w-0">
                     <p className="break-words font-semibold text-[#17202a]">{integration.displayName}</p>
@@ -226,7 +233,7 @@ export default async function AdminIntegrationsPage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
+            <div className={emptyStateClass}>
               Активных подключений пока нет.
             </div>
           )}

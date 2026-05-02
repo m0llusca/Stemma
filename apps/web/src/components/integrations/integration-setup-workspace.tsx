@@ -38,7 +38,14 @@ import {
 type SourceMode = "otrs_family" | "native_helpdesk" | "custom_api";
 type WizardStep = "source" | "access" | "limits" | "preview" | "done";
 
-const fieldClass = "w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2";
+const fieldClass = "h-10 w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm text-[#17202a]";
+const readonlyFieldClass =
+  "flex min-h-10 w-full min-w-0 items-center rounded border border-[#d7dce5] bg-[#fbfcfd] px-3 py-2 text-sm text-[#344054]";
+const primaryButtonClass = "rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]";
+const secondaryButtonClass =
+  "rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]";
+const smallButtonClass =
+  "rounded border border-[#d7dce5] bg-white px-3 py-2 text-xs font-semibold text-[#344054] hover:bg-[#eef4f4]";
 
 const sourceModeLabels: Record<SourceMode, string> = {
   otrs_family: "OTRS / Znuny / OTOBO",
@@ -106,6 +113,49 @@ function TechnicalDetails({ title, children }: { title: string; children: ReactN
   );
 }
 
+function FormField({
+  label,
+  children,
+  className = ""
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`grid min-w-0 content-start gap-1.5 text-sm font-medium text-[#344054] ${className}`}>
+      <span className="min-w-0 break-words">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ReadonlyField({
+  label,
+  children,
+  className = ""
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`grid min-w-0 content-start gap-1.5 text-sm font-medium text-[#344054] ${className}`}>
+      <span className="min-w-0 break-words">{label}</span>
+      <div className={readonlyFieldClass}>{children}</div>
+    </div>
+  );
+}
+
+function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid min-h-[76px] min-w-0 content-start gap-1 rounded-md border border-[#d7dce5] bg-white p-3">
+      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
+      <div className="min-w-0 break-words text-sm leading-5 text-[#344054]">{children}</div>
+    </div>
+  );
+}
+
 function StepProgress({ currentStepIndex }: { currentStepIndex: number }) {
   return (
     <div className="grid min-w-0 gap-2">
@@ -166,7 +216,7 @@ function WizardFrame({
             type="button"
             onClick={onBack}
             disabled={!onBack}
-            className="rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:opacity-40"
+            className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-40`}
           >
             Назад
           </button>
@@ -175,7 +225,7 @@ function WizardFrame({
               type="button"
               onClick={onNext}
               disabled={nextDisabled}
-              className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52] disabled:cursor-not-allowed disabled:bg-[#98a2b3]"
+              className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#98a2b3]`}
             >
               {nextLabel}
             </button>
@@ -204,19 +254,17 @@ function SourceChoiceStep({
       : sourceModeDescriptions[mode];
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,260px)_minmax(0,1fr)]">
-      <label className="grid gap-1 text-sm font-medium text-[#344054]">
-        Тип источника
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,280px)_minmax(0,280px)_minmax(0,1fr)]">
+      <FormField label="Тип источника">
         <select value={mode} onChange={(event) => onModeChange(event.target.value as SourceMode)} className={fieldClass}>
           <option value="otrs_family">{sourceModeLabels.otrs_family}</option>
           <option value="native_helpdesk">{sourceModeLabels.native_helpdesk}</option>
           <option value="custom_api">{sourceModeLabels.custom_api}</option>
         </select>
-      </label>
+      </FormField>
 
       {mode === "native_helpdesk" ? (
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Сервис
+        <FormField label="Сервис">
           <select
             value={nativeSource}
             onChange={(event) => onNativeSourceChange(event.target.value as NativeHelpdeskSource)}
@@ -228,19 +276,16 @@ function SourceChoiceStep({
               </option>
             ))}
           </select>
-        </label>
+        </FormField>
       ) : (
-        <div className="grid gap-1 text-sm font-medium text-[#344054]">
-          Вариант
-          <div className="rounded border border-[#d7dce5] bg-[#fbfcfd] px-3 py-2 text-[#344054]">
+        <ReadonlyField label="Вариант">
+          <span className="min-w-0 break-words">
             {mode === "otrs_family" ? "Платформа выбирается на следующем шаге" : "Custom API"}
-          </div>
-        </div>
+          </span>
+        </ReadonlyField>
       )}
 
-      <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-4 py-3 text-sm leading-5 text-[#667085]">
-        {summary}
-      </div>
+      <SummaryItem label="Что будет настроено">{summary}</SummaryItem>
     </div>
   );
 }
@@ -298,8 +343,7 @@ function AccessStep({
   if (mode === "otrs_family") {
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Платформа
+        <FormField label="Платформа">
           <select
             value={otrsSource}
             onChange={(event) => onOtrsSourceChange(event.target.value as OtrsFamilySource)}
@@ -311,28 +355,24 @@ function AccessStep({
               </option>
             ))}
           </select>
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Base URL
+        </FormField>
+        <FormField label="Base URL">
           <input value={otrsBaseUrl} onChange={(event) => onOtrsBaseUrlChange(event.target.value)} className={fieldClass} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          UserLogin
+        </FormField>
+        <FormField label="UserLogin">
           <input value={userLogin} onChange={(event) => onUserLoginChange(event.target.value)} className={fieldClass} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Password
+        </FormField>
+        <FormField label="Password">
           <input
             value={password}
             onChange={(event) => onPasswordChange(event.target.value)}
             type="password"
             className={fieldClass}
           />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
-          TicketID для preview
+        </FormField>
+        <FormField label="TicketID для preview" className="md:col-span-2">
           <input value={ticketId} onChange={(event) => onTicketIdChange(event.target.value)} className={fieldClass} />
-        </label>
+        </FormField>
       </div>
     );
   }
@@ -342,16 +382,13 @@ function AccessStep({
 
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="grid gap-1 text-sm font-medium text-[#344054]">
-          Выбранный сервис
-          <div className="rounded border border-[#d7dce5] bg-[#fbfcfd] px-3 py-2 text-[#344054]">{info.label}</div>
-        </div>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Base URL
+        <ReadonlyField label="Выбранный сервис">
+          <span className="min-w-0 break-words">{info.label}</span>
+        </ReadonlyField>
+        <FormField label="Base URL">
           <input value={nativeBaseUrl} onChange={(event) => onNativeBaseUrlChange(event.target.value)} className={fieldClass} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
-          API token или app secret
+        </FormField>
+        <FormField label="API token или app secret" className="md:col-span-2">
           <input
             value={nativeToken}
             onChange={(event) => onNativeTokenChange(event.target.value)}
@@ -359,32 +396,30 @@ function AccessStep({
             placeholder="Будет храниться в секретах окружения"
             className={fieldClass}
           />
-        </label>
+        </FormField>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
-      <div className="grid gap-4">
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Название системы
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+        <FormField label="Название системы">
           <input value={customSystemName} onChange={(event) => onCustomSystemNameChange(event.target.value)} className={fieldClass} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Base URL источника
+        </FormField>
+        <FormField label="Base URL источника">
           <input value={customBaseUrl} onChange={(event) => onCustomBaseUrlChange(event.target.value)} className={fieldClass} />
-        </label>
+        </FormField>
       </div>
-      <div className="grid content-start gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
-        <span className={`w-fit rounded-md px-2 py-1 text-xs font-semibold ${apiHealth.className}`}>{apiHealth.label}</span>
-        <p>{apiTokenCount} API-токен(ов) в рабочем пространстве.</p>
+      <div className="grid min-h-full content-start gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className={`w-fit rounded-md px-2 py-1 text-xs font-semibold ${apiHealth.className}`}>{apiHealth.label}</span>
+          <span className="text-xs font-semibold uppercase text-[#667085]">Custom API</span>
+        </div>
+        <p className="break-words">{apiTokenCount} API-токен(ов) в рабочем пространстве.</p>
         <div className="flex flex-wrap gap-2">
           <CopyButton value={`Authorization: Bearer ${apiTokenPlaceholder}`} label="Скопировать header" />
-          <Link
-            href="/admin/tokens"
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-xs font-semibold text-[#344054] hover:bg-[#eef4f4]"
-          >
+          <Link href="/admin/tokens" className={smallButtonClass}>
             Токены
           </Link>
         </div>
@@ -427,8 +462,7 @@ function LimitsStep({
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 md:grid-cols-3">
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Период, дней
+        <FormField label="Период, дней">
           <input
             value={dateRangeDays}
             onChange={(event) => onDateRangeDaysChange(event.target.value)}
@@ -437,9 +471,8 @@ function LimitsStep({
             max="365"
             className={fieldClass}
           />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Максимум тикетов
+        </FormField>
+        <FormField label="Максимум тикетов">
           <input
             value={maxTickets}
             onChange={(event) => onMaxTicketsChange(event.target.value)}
@@ -448,9 +481,8 @@ function LimitsStep({
             max="1000"
             className={fieldClass}
           />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Размер батча
+        </FormField>
+        <FormField label="Размер батча">
           <input
             value={batchSize}
             onChange={(event) => onBatchSizeChange(event.target.value)}
@@ -459,30 +491,38 @@ function LimitsStep({
             max="100"
             className={fieldClass}
           />
-        </label>
+        </FormField>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Очередь, группа или inbox
+        <FormField label="Очередь, группа или inbox">
           <input value={queueFilter} onChange={(event) => onQueueFilterChange(event.target.value)} className={fieldClass} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Статусы или теги
+        </FormField>
+        <FormField label="Статусы или теги">
           <input value={statusFilter} onChange={(event) => onStatusFilterChange(event.target.value)} className={fieldClass} />
-        </label>
+        </FormField>
       </div>
 
       <div className="grid gap-3 text-sm text-[#344054] md:grid-cols-2">
-        <label className="flex min-w-0 items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-          <input type="checkbox" checked={dryRun} onChange={(event) => onDryRunChange(event.target.checked)} />
-          <span className="min-w-0">
+        <label className="grid min-h-[76px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
+          <input
+            type="checkbox"
+            checked={dryRun}
+            onChange={(event) => onDryRunChange(event.target.checked)}
+            className="mt-1"
+          />
+          <span className="min-w-0 leading-5">
             Сначала dry-run: проверить доступ и объем без создания записей в очереди.
           </span>
         </label>
-        <label className="flex min-w-0 items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-          <input type="checkbox" checked={deduplicate} onChange={(event) => onDeduplicateChange(event.target.checked)} />
-          <span className="min-w-0">
+        <label className="grid min-h-[76px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
+          <input
+            type="checkbox"
+            checked={deduplicate}
+            onChange={(event) => onDeduplicateChange(event.target.checked)}
+            className="mt-1"
+          />
+          <span className="min-w-0 leading-5">
             Не создавать дубликаты по паре externalSource + externalId.
           </span>
         </label>
@@ -528,43 +568,33 @@ function PreviewStep({
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm leading-5 text-[#344054] md:grid-cols-2">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Источник</p>
-          <p className="mt-1 font-semibold text-[#17202a]">{sourceLabel}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Base URL</p>
-          <p className="mt-1 break-words font-semibold text-[#17202a]">{normalizeBaseUrl(baseUrl) || "Не указан"}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Объем</p>
-          <p className="mt-1">
+      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 md:grid-cols-2">
+        <SummaryItem label="Источник">
+          <span className="font-semibold text-[#17202a]">{sourceLabel}</span>
+        </SummaryItem>
+        <SummaryItem label="Base URL">
+          <span className="font-semibold text-[#17202a]">{normalizeBaseUrl(baseUrl) || "Не указан"}</span>
+        </SummaryItem>
+        <SummaryItem label="Объем">
+          <span>
             до {maxTicketCount} тикетов за {periodDays} дн., батч {batchTicketCount}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Фильтры</p>
-          <p className="mt-1 break-words">
+          </span>
+        </SummaryItem>
+        <SummaryItem label="Фильтры">
+          <span>
             {[queueFilter, statusFilter].filter(Boolean).join(" · ") || "Без дополнительных фильтров"}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Режим запуска</p>
-          <p className="mt-1">{dryRun ? "Dry-run перед импортом" : "Сразу импортировать после успешной проверки"}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Дубликаты</p>
-          <p className="mt-1">{deduplicate ? "Пропускать повторы" : "Разрешить повторную загрузку"}</p>
-        </div>
+          </span>
+        </SummaryItem>
+        <SummaryItem label="Режим запуска">
+          <span>{dryRun ? "Dry-run перед импортом" : "Сразу импортировать после успешной проверки"}</span>
+        </SummaryItem>
+        <SummaryItem label="Дубликаты">
+          <span>{deduplicate ? "Пропускать повторы" : "Разрешить повторную загрузку"}</span>
+        </SummaryItem>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={onCheck}
-          className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]"
-        >
+      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+        <button type="button" onClick={onCheck} className={primaryButtonClass}>
           Проверить подключение и preview
         </button>
         <span className="text-sm leading-5 text-[#667085]">
@@ -586,7 +616,7 @@ function PreviewStep({
       ) : null}
 
       {mode === "custom_api" ? (
-        <div className="rounded-md border border-[#d7dce5] bg-white p-3 text-sm leading-5 text-[#667085]">
+        <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
           Для custom API preview считается успешным после валидного `Authorization` и первого ответа на импорт диалога.
         </div>
       ) : null}
@@ -609,16 +639,10 @@ function DoneStep({ checked }: { checked: boolean }) {
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Link
-          href="/reviews"
-          className="rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]"
-        >
+        <Link href="/reviews" className={secondaryButtonClass}>
           Открыть очередь
         </Link>
-        <Link
-          href="/admin/audit"
-          className="rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]"
-        >
+        <Link href="/admin/audit" className={secondaryButtonClass}>
           Проверить аудит
         </Link>
       </div>
@@ -673,16 +697,16 @@ function TechnicalDetailsForMode({
     return (
       <TechnicalDetails title="Технические детали OTRS-family">
         <div className="grid gap-5">
-          <div className="grid gap-4 xl:grid-cols-2">
-            <CodeExampleCard title="TicketGet URL и query" className="self-start">
+          <div className="grid items-stretch gap-4 xl:grid-cols-2">
+            <CodeExampleCard title="TicketGet URL и query">
               {ticketGetCurl}
             </CodeExampleCard>
-            <CodeExampleCard title="Fallback JSON body" className="self-start">
+            <CodeExampleCard title="Fallback JSON body">
               {ticketGetRequest}
             </CodeExampleCard>
           </div>
 
-          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
             <DataTable title="Mapping в custom API" minWidth="min-w-[640px]">
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
@@ -701,7 +725,7 @@ function TechnicalDetailsForMode({
                 ))}
               </tbody>
             </DataTable>
-            <CodeExampleCard title="Fallback endpoint native-импорта" className="self-start">
+            <CodeExampleCard title="Fallback endpoint native-импорта">
               {otrsImportCurl}
             </CodeExampleCard>
           </div>
@@ -736,7 +760,7 @@ function TechnicalDetailsForMode({
   if (mode === "native_helpdesk") {
     return (
       <TechnicalDetails title="Mapping и endpoint native-адаптера">
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <DataTable
             title="Mapping в custom API"
             description="Как native-поля превращаются в единый формат ручной проверки."
@@ -762,7 +786,6 @@ function TechnicalDetailsForMode({
           <CodeExampleCard
             title="Endpoint native-импорта"
             description="Один endpoint принимает разные native payload и применяет выбранный адаптер."
-            className="self-start"
           >
             {nativeImportCurl(nativeSource)}
           </CodeExampleCard>
@@ -795,14 +818,14 @@ function TechnicalDetailsForMode({
           </tbody>
         </DataTable>
 
-        <div className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="grid items-stretch gap-4 xl:grid-cols-3">
           <CodeExampleCard title="Импорт диалога">{customConversationImportCurl}</CodeExampleCard>
           <CodeExampleCard title="Добавление сообщения">{customMessageImportCurl}</CodeExampleCard>
           <CodeExampleCard title="Экспорт проверок">{customReviewExportCurl}</CodeExampleCard>
         </div>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_520px]">
-          <CodeExampleCard title="Пример JSON для импорта" className="self-start">
+        <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_520px]">
+          <CodeExampleCard title="Пример JSON для импорта">
             {formatJsonExample(customConversationExample)}
           </CodeExampleCard>
           <div className="grid gap-5">
