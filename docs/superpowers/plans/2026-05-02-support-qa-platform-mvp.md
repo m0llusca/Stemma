@@ -68,7 +68,6 @@ Create:
 - `apps/web/src/lib/score.ts` - pure score calculation.
 - `apps/web/src/lib/normalizers/custom-api.ts` - custom API payload normalization.
 - `apps/web/src/lib/validation/custom-api.ts` - Zod schemas.
-- `apps/web/src/generated/prisma/.gitkeep` - marker file for generated Prisma client directory.
 - `apps/web/prisma/schema.prisma` - database schema.
 - `apps/web/prisma/seed.ts` - seed data.
 - `apps/web/vitest.config.ts` - unit test config.
@@ -138,16 +137,16 @@ Create `apps/web/package.json`:
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "RUST_LOG=info prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
-    "@prisma/client": "^7.6.0",
+    "@prisma/client": "6.19.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "next": "^16.2.2",
-    "prisma": "^7.6.0",
+    "prisma": "6.19.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.24.1"
@@ -395,8 +394,6 @@ test-results/
 .env
 .env.local
 .superpowers/
-apps/web/src/generated/prisma/*
-!apps/web/src/generated/prisma/.gitkeep
 ```
 
 Append to `AGENTS.md`:
@@ -449,7 +446,6 @@ Expected: commit succeeds.
 - Create: `apps/web/prisma/schema.prisma`
 - Create: `apps/web/prisma/seed.ts`
 - Create: `apps/web/src/lib/db.ts`
-- Create: `apps/web/src/generated/prisma/.gitkeep`
 - Modify: `apps/web/package.json`
 
 - [ ] **Step 1: Write the Prisma schema**
@@ -458,8 +454,7 @@ Create `apps/web/prisma/schema.prisma`:
 
 ```prisma
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -702,15 +697,10 @@ model AuditLog {
 
 - [ ] **Step 2: Add Prisma client helper**
 
-Create `apps/web/src/generated/prisma/.gitkeep`:
-
-```text
-```
-
 Create `apps/web/src/lib/db.ts`:
 
 ```ts
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -746,7 +736,7 @@ Expected: production builds generate the Prisma client now that `apps/web/prisma
 Create `apps/web/prisma/seed.ts`:
 
 ```ts
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -922,7 +912,7 @@ Expected: Prisma Studio starts and shows seeded tables. Stop it with `Ctrl+C`.
 Run:
 
 ```bash
-git add apps/web/prisma apps/web/src/lib/db.ts apps/web/src/generated/prisma apps/web/.env.example apps/web/package.json apps/web/package-lock.json
+git add apps/web/prisma apps/web/src/lib/db.ts apps/web/.env.example apps/web/package.json apps/web/package-lock.json
 git commit -m "feat: add prisma data model and seed data"
 ```
 
@@ -1180,7 +1170,7 @@ Create `apps/web/src/components/review/queue-table.tsx`:
 
 ```tsx
 import Link from "next/link";
-import type { Conversation, Message, Review } from "@/generated/prisma/client";
+import type { Conversation, Message, Review } from "@prisma/client";
 
 type QueueConversation = Conversation & {
   messages: Message[];
@@ -1438,7 +1428,7 @@ export async function finalizeReview(formData: FormData) {
 Create `apps/web/src/components/review/conversation-timeline.tsx`:
 
 ```tsx
-import type { Message } from "@/generated/prisma/client";
+import type { Message } from "@prisma/client";
 
 export function ConversationTimeline({ messages }: { messages: Message[] }) {
   return (
@@ -1469,7 +1459,7 @@ export function ConversationTimeline({ messages }: { messages: Message[] }) {
 Create `apps/web/src/components/review/review-panel.tsx`:
 
 ```tsx
-import type { Scorecard, ScorecardCriterion } from "@/generated/prisma/client";
+import type { Scorecard, ScorecardCriterion } from "@prisma/client";
 import { finalizeReview } from "@/lib/review-actions";
 
 type ReviewPanelProps = {
