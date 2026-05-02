@@ -70,7 +70,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/reviews?status=reviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "Завершена" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Завершена" }).first()).toBeVisible();
 
   await page.goto("/admin/scorecards");
   await expect(page.getByRole("heading", { name: "Формы оценки", exact: true })).toBeVisible();

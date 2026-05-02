@@ -1,18 +1,19 @@
 import Link from "next/link";
-import { channelLabels, reviewQueueStatusLabels } from "@/lib/labels";
+import { channelLabels, csatBucketLabels, reviewQueueStatusLabels, samplingTypeLabels } from "@/lib/labels";
 import type { ReviewQueueFilters } from "@/lib/review-repository";
-import { reviewQueueStatuses } from "@/lib/review-repository";
+import { queueCsatBuckets, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
 
 type QueueFiltersProps = {
   filters: ReviewQueueFilters;
   sources: string[];
   assignees: string[];
   qaAssignees: string[];
+  supportLines: string[];
 };
 
-export function QueueFilters({ filters, sources, assignees, qaAssignees }: QueueFiltersProps) {
+export function QueueFilters({ filters, sources, assignees, qaAssignees, supportLines }: QueueFiltersProps) {
   return (
-    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(220px,1fr)_repeat(5,minmax(120px,150px))]">
+    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
         Поиск
         <input
@@ -82,7 +83,43 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees }: Queue
         </select>
       </label>
 
-      <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3 xl:col-span-6 xl:justify-end">
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        Выборка
+        <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <option value="">Все</option>
+          {queueSamplingTypes.map((samplingType) => (
+            <option key={samplingType} value={samplingType}>
+              {samplingTypeLabels[samplingType]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        CSAT
+        <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <option value="">Все</option>
+          {queueCsatBuckets.map((csatBucket) => (
+            <option key={csatBucket} value={csatBucket}>
+              {csatBucketLabels[csatBucket]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        Линия
+        <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <option value="">Все</option>
+          {supportLines.map((supportLine) => (
+            <option key={supportLine} value={supportLine}>
+              {supportLine}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3 xl:col-span-5 xl:justify-end">
         <button type="submit" className="min-h-[40px] rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
           Применить
         </button>

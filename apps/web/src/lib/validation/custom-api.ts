@@ -3,6 +3,7 @@ import { z } from "zod";
 export const customChannelSchema = z.enum(["chat", "email", "ticket", "messenger"]);
 
 export const customParticipantTypeSchema = z.enum(["customer", "human_agent", "ai_agent", "system"]);
+export const customSamplingTypeSchema = z.enum(["random", "dsat", "lead_signal", "new_hire", "low_score", "manual"]);
 
 const optionalStringSchema = z
   .string()
@@ -36,6 +37,10 @@ export const customConversationSchema = z.object({
   customerName: z.string().trim().min(1),
   assigneeName: optionalStringSchema,
   samplingReason: z.string().trim().min(1),
+  samplingType: customSamplingTypeSchema.optional(),
+  csatScore: z.number().int().min(1).max(5).optional().nullable(),
+  supportLine: optionalStringSchema,
+  teamName: optionalStringSchema,
   riskHint: optionalStringSchema,
   openedAt: z.string().datetime({ offset: true }),
   closedAt: z.string().datetime({ offset: true }).optional().nullable(),

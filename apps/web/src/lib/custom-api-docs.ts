@@ -49,6 +49,10 @@ export const customConversationExample = {
   customerName: "Анна Смирнова",
   assigneeName: "Иван Петров",
   samplingReason: "Высокий риск: политика возврата",
+  samplingType: "dsat",
+  csatScore: 2,
+  supportLine: "1ЛП",
+  teamName: "Возвраты",
   riskHint: "Проверить корректность обещанного срока возврата",
   openedAt: "2026-04-25T10:00:00.000Z",
   closedAt: "2026-04-25T10:30:00.000Z",
@@ -85,6 +89,10 @@ export const otrsFamilyImportExample = {
   source: "znuny",
   baseUrl: "https://support.example.com/otrs",
   samplingReason: "Импорт OTRS-family: очередь Refunds и статьи тикета.",
+  samplingType: "dsat",
+  csatScore: 2,
+  supportLine: "1ЛП",
+  teamName: "Возвраты",
   ticketGet: otrsFamilyTicketGetExample
 } as const;
 
@@ -92,6 +100,9 @@ export const nativeHelpdeskImportExample = {
   source: "zendesk",
   baseUrl: "https://support.example.com",
   samplingReason: "Импорт Zendesk: тикет и комментарии.",
+  samplingType: "random",
+  supportLine: "1ЛП",
+  teamName: "Возвраты",
   payload: nativeHelpdeskImportExamples.zendesk
 } as const;
 
@@ -106,6 +117,10 @@ export const customConversationSchemaRows = [
   { field: "customerName", required: "Да", type: "string", note: "Имя клиента." },
   { field: "assigneeName", required: "Нет", type: "string", note: "Оператор или группа поддержки." },
   { field: "samplingReason", required: "Да", type: "string", note: "Почему диалог попал в очередь проверок." },
+  { field: "samplingType", required: "Нет", type: "random | dsat | lead_signal | new_hire | low_score | manual", note: "Тип выборки. По умолчанию random." },
+  { field: "csatScore", required: "Нет", type: "1 | 2 | 3 | 4 | 5", note: "Оценка клиента. 1-2 попадает в негативный CSAT." },
+  { field: "supportLine", required: "Нет", type: "string", note: "Линия поддержки для квот и отчетности." },
+  { field: "teamName", required: "Нет", type: "string", note: "Команда оператора для будущей группировки отчетов." },
   { field: "riskHint", required: "Нет", type: "string", note: "Подсказка для проверяющего." },
   { field: "openedAt", required: "Да", type: "ISO datetime", note: "Дата открытия с timezone offset." },
   { field: "closedAt", required: "Нет", type: "ISO datetime | null", note: "Дата закрытия, если есть." },

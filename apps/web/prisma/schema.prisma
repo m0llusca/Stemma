@@ -76,6 +76,7 @@ model Workspace {
   conversations Conversation[]
   scorecards    Scorecard[]
   reviews       Review[]
+  reviewQuotas  ReviewQuota[]
   auditLogs     AuditLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -146,6 +147,11 @@ model Conversation {
   qaAssigneeName String?
   reviewDueAt    DateTime?
   samplingReason String
+  samplingType   String              @default("RANDOM")
+  csatScore      Int?
+  csatBucket     String              @default("NO_SCORE")
+  supportLine    String?
+  teamName       String?
   riskHint       String?
   openedAt       DateTime
   closedAt       DateTime?
@@ -192,6 +198,7 @@ model ScorecardCriterion {
   scorecard   Scorecard        @relation(fields: [scorecardId], references: [id])
   key         String
   label       String
+  block       String           @default("Общее")
   kind        CriterionKind
   weight      Int
   required    Boolean          @default(true)
@@ -218,6 +225,19 @@ model Review {
   totalScore     Float
   confidence     Float?
   summary        String
+  feedbackComment String       @default("")
+  positiveNotes   String       @default("")
+  instructionLinks String      @default("")
+  feedbackStatus  String      @default("new")
+  appealStatus    String      @default("none")
+  appealDueAt     DateTime?
+  appealResolvedAt DateTime?
+  criticalError   Boolean     @default(false)
+  criticalCategory String?
+  needsReanswer   Boolean     @default(false)
+  reanswerStatus  String      @default("not_needed")
+  calibrationStatus String    @default("none")
+  calibrationNotes  String    @default("")
   finalizedAt    DateTime?
   scores         CriterionScore[]
   findings       Finding[]
@@ -263,6 +283,25 @@ model CoachingAction {
   status    String   @default("open")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ReviewQuota {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id])
+  assigneeName      String
+  supportLine       String?
+  periodStart       DateTime
+  periodEnd         DateTime
+  plannedCount      Int
+  dsatTargetPercent Int       @default(30)
+  absenceDays       Int       @default(0)
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([workspaceId, periodStart, periodEnd])
+  @@index([workspaceId, assigneeName])
 }
 
 model AuditLog {

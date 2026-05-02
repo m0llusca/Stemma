@@ -102,6 +102,10 @@ describe("custom conversation API", () => {
         customerName: "Ava Customer",
         assigneeName: "Sam Agent",
         samplingReason: "High-value customer",
+        samplingType: "dsat",
+        csatScore: 2,
+        supportLine: "L1",
+        teamName: "Refunds",
         riskHint: "Policy risk",
         openedAt: "2026-04-25T10:00:00.000Z",
         closedAt: "2026-04-25T10:30:00.000Z",
@@ -151,11 +155,17 @@ describe("custom conversation API", () => {
       create: expect.objectContaining({
         workspaceId: "workspace-1",
         channel: "CHAT",
-        tags: "refund,delivery"
+        tags: "refund,delivery",
+        samplingType: "DSAT",
+        csatBucket: "NEGATIVE",
+        supportLine: "L1"
       }),
       update: expect.objectContaining({
         channel: "CHAT",
-        tags: "refund,delivery"
+        tags: "refund,delivery",
+        samplingType: "DSAT",
+        csatBucket: "NEGATIVE",
+        supportLine: "L1"
       })
     });
     expect(mocks.prisma.conversation.upsert.mock.calls[0][0].create.messages).toBeUndefined();
@@ -188,6 +198,10 @@ describe("custom conversation API", () => {
       jsonRequest({
         source: "znuny",
         baseUrl: "https://support.example.com/otrs",
+        samplingType: "dsat",
+        csatScore: 1,
+        supportLine: "2ЛП",
+        teamName: "ФГИС",
         ticketGet: {
           Success: 1,
           Ticket: {
@@ -249,11 +263,19 @@ describe("custom conversation API", () => {
       create: expect.objectContaining({
         workspaceId: "workspace-1",
         channel: "EMAIL",
-        customerName: "ava@example.com"
+        customerName: "ava@example.com",
+        samplingType: "DSAT",
+        csatScore: 1,
+        csatBucket: "NEGATIVE",
+        supportLine: "2ЛП"
       }),
       update: expect.objectContaining({
         channel: "EMAIL",
-        customerName: "ava@example.com"
+        customerName: "ava@example.com",
+        samplingType: "DSAT",
+        csatScore: 1,
+        csatBucket: "NEGATIVE",
+        supportLine: "2ЛП"
       })
     });
     expect(mocks.prisma.message.upsert).toHaveBeenCalledTimes(2);
@@ -285,6 +307,9 @@ describe("custom conversation API", () => {
       jsonRequest({
         source: "zendesk",
         baseUrl: "https://support.example.com",
+        samplingType: "random",
+        supportLine: "1ЛП",
+        teamName: "Refunds",
         ticket: {
           id: 35436,
           subject: "Refund request from Zendesk",
@@ -345,12 +370,20 @@ describe("custom conversation API", () => {
         workspaceId: "workspace-1",
         channel: "EMAIL",
         customerName: "Ava Customer",
-        assigneeName: "Sam Agent"
+        assigneeName: "Sam Agent",
+        samplingType: "RANDOM",
+        csatBucket: "NO_SCORE",
+        supportLine: "1ЛП",
+        teamName: "Refunds"
       }),
       update: expect.objectContaining({
         channel: "EMAIL",
         customerName: "Ava Customer",
-        assigneeName: "Sam Agent"
+        assigneeName: "Sam Agent",
+        samplingType: "RANDOM",
+        csatBucket: "NO_SCORE",
+        supportLine: "1ЛП",
+        teamName: "Refunds"
       })
     });
     expect(mocks.prisma.message.upsert).toHaveBeenCalledTimes(2);
@@ -452,6 +485,19 @@ describe("custom conversation API", () => {
         totalScore: 92,
         confidence: null,
         summary: "Strong resolution.",
+        feedbackComment: "Clear feedback.",
+        positiveNotes: "Good tone.",
+        instructionLinks: "https://kb.example.com/refunds",
+        feedbackStatus: "feedback_sent",
+        appealStatus: "none",
+        appealDueAt: null,
+        appealResolvedAt: null,
+        criticalError: false,
+        criticalCategory: null,
+        needsReanswer: false,
+        reanswerStatus: "not_needed",
+        calibrationStatus: "none",
+        calibrationNotes: "",
         finalizedAt: new Date("2026-04-26T12:00:00.000Z"),
         createdAt: new Date("2026-04-26T11:50:00.000Z"),
         conversation: {
@@ -466,6 +512,11 @@ describe("custom conversation API", () => {
           customerName: "Ava Customer",
           assigneeName: "Sam Agent",
           samplingReason: "High-value customer",
+          samplingType: "DSAT",
+          csatScore: 2,
+          csatBucket: "NEGATIVE",
+          supportLine: "L1",
+          teamName: "Refunds",
           riskHint: null,
           openedAt: new Date("2026-04-25T10:00:00.000Z"),
           closedAt: null
@@ -487,6 +538,7 @@ describe("custom conversation API", () => {
               id: "criterion-1",
               key: "accuracy",
               label: "Accuracy",
+              block: "Resolution",
               kind: "SCALE_1_3",
               weight: 30,
               order: 1
@@ -524,6 +576,19 @@ describe("custom conversation API", () => {
           totalScore: 92,
           confidence: null,
           summary: "Strong resolution.",
+          feedbackComment: "Clear feedback.",
+          positiveNotes: "Good tone.",
+          instructionLinks: "https://kb.example.com/refunds",
+          feedbackStatus: "feedback_sent",
+          appealStatus: "none",
+          appealDueAt: null,
+          appealResolvedAt: null,
+          criticalError: false,
+          criticalCategory: null,
+          needsReanswer: false,
+          reanswerStatus: "not_needed",
+          calibrationStatus: "none",
+          calibrationNotes: "",
           finalizedAt: "2026-04-26T12:00:00.000Z",
           createdAt: "2026-04-26T11:50:00.000Z",
           conversation: {
@@ -538,6 +603,11 @@ describe("custom conversation API", () => {
             customerName: "Ava Customer",
             assigneeName: "Sam Agent",
             samplingReason: "High-value customer",
+            samplingType: "DSAT",
+            csatScore: 2,
+            csatBucket: "NEGATIVE",
+            supportLine: "L1",
+            teamName: "Refunds",
             riskHint: null,
             openedAt: "2026-04-25T10:00:00.000Z",
             closedAt: null
@@ -546,6 +616,9 @@ describe("custom conversation API", () => {
           scores: [
             {
               criterion: "accuracy",
+              criterionLabel: "Accuracy",
+              criterionBlock: "Resolution",
+              weight: 30,
               value: 3,
               passed: null,
               isNotApplicable: false,

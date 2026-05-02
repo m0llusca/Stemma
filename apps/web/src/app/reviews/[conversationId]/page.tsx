@@ -7,7 +7,9 @@ import {
   Headset,
   MessageSquareText,
   Radio,
+  RotateCcw,
   ShieldAlert,
+  Scale,
   TicketCheck,
   UserRound
 } from "lucide-react";
@@ -22,10 +24,14 @@ import { prisma } from "@/lib/db";
 import {
   channelLabels,
   conversationStatusLabel,
+  csatBucketLabels,
+  appealStatusLabels,
   formatMessageCount,
   ownerTypeLabels,
+  reanswerStatusLabels,
   reviewStatusLabels,
-  riskLevelLabels
+  riskLevelLabels,
+  samplingTypeLabels
 } from "@/lib/labels";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
@@ -139,6 +145,10 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
           <HeaderChip label="Тикет" icon={TicketCheck}>{conversationStatusLabel(conversation.status)}</HeaderChip>
           <HeaderChip label="Сообщения" icon={MessageSquareText}>{formatMessageCount(conversation.messages.length)}</HeaderChip>
           <HeaderChip label="Проверяющий" icon={Headset}>{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
+          <HeaderChip label="Выборка" icon={Scale}>{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</HeaderChip>
+          <HeaderChip label="CSAT" icon={BadgeCheck}>
+            {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
+          </HeaderChip>
           <HeaderChip label="Срок" icon={CalendarClock}>
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
           </HeaderChip>
@@ -190,7 +200,37 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
                 </div>
               </div>
             ) : null}
+            <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+              <div>
+                <p className="font-semibold text-[#667085]">Критическая ошибка</p>
+                <p className="mt-1">{latestFinalizedReview.criticalError ? latestFinalizedReview.criticalCategory ?? "Да" : "Нет"}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#667085]">Апелляция</p>
+                <p className="mt-1">{appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#667085]">Переответ</p>
+                <p className="mt-1">{reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? latestFinalizedReview.reanswerStatus}</p>
+              </div>
+            </div>
           </div>
+          {latestFinalizedReview.feedbackComment || latestFinalizedReview.positiveNotes ? (
+            <div className="mx-5 mb-5 grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm">
+              {latestFinalizedReview.feedbackComment ? (
+                <div>
+                  <p className="font-semibold text-[#667085]">Обратная связь</p>
+                  <p className="mt-1 text-[#17202a]">{latestFinalizedReview.feedbackComment}</p>
+                </div>
+              ) : null}
+              {latestFinalizedReview.positiveNotes ? (
+                <div>
+                  <p className="font-semibold text-[#667085]">Положительные моменты</p>
+                  <p className="mt-1 text-[#17202a]">{latestFinalizedReview.positiveNotes}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {latestFinding?.coachingAction ? (
             <div className="mx-5 mb-5 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm">
               <p className="font-semibold text-[#667085]">Разбор с оператором</p>
@@ -201,6 +241,12 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
                   ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
                   : ""}
               </p>
+            </div>
+          ) : null}
+          {latestFinalizedReview.needsReanswer ? (
+            <div className="mx-5 mb-5 flex items-start gap-3 rounded-md border border-[#fed7aa] bg-[#fffaf5] p-4 text-sm text-[#b54708]">
+              <RotateCcw className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
+              <p>Нужен переответ клиенту: проверьте, что руководитель получил сигнал и обращение переоткрыто при необходимости.</p>
             </div>
           ) : null}
         </details>

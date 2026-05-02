@@ -19,6 +19,23 @@ function parsePage(value: string | string[] | undefined) {
   return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
+function parseDateFilter(value: string | string[] | undefined, endOfDay = false) {
+  const normalized = firstParam(value);
+
+  if (!normalized || !/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return undefined;
+  }
+
+  const time = endOfDay ? "23:59:59.999" : "00:00:00.000";
+  const date = new Date(`${normalized}T${time}Z`);
+
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function dateInputValue(value: Date | undefined) {
+  return value?.toISOString().slice(0, 10) ?? "";
+}
+
 function formatDate(value: Date | null) {
   if (!value) {
     return "Нет";
@@ -35,7 +52,7 @@ function parseMetadata(value: string) {
   }
 }
 
-function buildAuditHref(page: number, action?: string, targetType?: string) {
+function buildAuditHref(page: number, action?: string, targetType?: string, start?: Date, end?: Date) {
   const params = new URLSearchParams();
 
   if (action) {
@@ -44,6 +61,14 @@ function buildAuditHref(page: number, action?: string, targetType?: string) {
 
   if (targetType) {
     params.set("targetType", targetType);
+  }
+
+  if (start) {
+    params.set("start", dateInputValue(start));
+  }
+
+  if (end) {
+    params.set("end", dateInputValue(end));
   }
 
   params.set("page", String(page));
@@ -56,11 +81,21 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
   const user = await getCurrentUser();
   const action = firstParam(params.action);
   const targetType = firstParam(params.targetType);
+  const start = parseDateFilter(params.start);
+  const end = parseDateFilter(params.end, true);
   const page = parsePage(params.page);
   const where = {
     workspaceId: user.workspaceId,
     ...(action ? { action } : {}),
-    ...(targetType ? { targetType } : {})
+    ...(targetType ? { targetType } : {}),
+    ...(start || end
+      ? {
+          createdAt: {
+            ...(start ? { gte: start } : {}),
+            ...(end ? { lte: end } : {})
+          }
+        }
+      : {})
   };
 
   const [logs, totalLogs, actionRows, targetTypeRows, apiTokens] = await Promise.all([
@@ -119,7 +154,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
         <h1 className="mt-1 text-2xl font-semibold">Журнал действий</h1>
       </div>
 
-      <form action="/admin/audit" className="panel mb-6 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(180px,220px)_minmax(180px,220px)_auto]">
+      <form action="/admin/audit" className="panel mb-6 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(170px,220px)_minmax(170px,220px)_150px_150px_auto]">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Действие
           <select name="action" defaultValue={action ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
@@ -141,6 +176,24 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               </option>
             ))}
           </select>
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          С даты
+          <input
+            type="date"
+            name="start"
+            defaultValue={dateInputValue(start)}
+            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          По дату
+          <input
+            type="date"
+            name="end"
+            defaultValue={dateInputValue(end)}
+            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+          />
         </label>
         <div className="flex items-end md:col-span-2 lg:col-span-1">
           <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
@@ -184,14 +237,14 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#d7dce5] px-5 py-4 text-sm">
             {page > 1 ? (
-              <Link href={buildAuditHref(page - 1, action, targetType)} className="font-semibold text-[#0b4f52] hover:underline">
+              <Link href={buildAuditHref(page - 1, action, targetType, start, end)} className="font-semibold text-[#0b4f52] hover:underline">
                 Назад
               </Link>
             ) : (
               <span className="text-[#98a2b3]">Назад</span>
             )}
             {page * pageSize < totalLogs ? (
-              <Link href={buildAuditHref(page + 1, action, targetType)} className="font-semibold text-[#0b4f52] hover:underline">
+              <Link href={buildAuditHref(page + 1, action, targetType, start, end)} className="font-semibold text-[#0b4f52] hover:underline">
                 Вперед
               </Link>
             ) : (

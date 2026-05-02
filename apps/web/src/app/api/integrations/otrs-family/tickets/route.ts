@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { upsertCustomConversation } from "@/lib/conversation-import";
 import {
@@ -9,6 +10,7 @@ import {
   type OtrsFamilySource,
   type OtrsFamilyTicketGetResponse
 } from "@/lib/normalizers/otrs-family";
+import { customConversationSchema, customSamplingTypeSchema } from "@/lib/validation/custom-api";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,15 @@ function optionalString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function optionalCsatScore(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(numberValue) ? numberValue : value;
+}
+
 function parseSource(value: unknown): OtrsFamilySource | undefined {
   const source = optionalString(value);
 
@@ -40,6 +51,17 @@ function parseSource(value: unknown): OtrsFamilySource | undefined {
   }
 
   return source as OtrsFamilySource;
+}
+
+function parseQualityContext(body: Record<string, unknown>) {
+  const samplingType = optionalString(body.samplingType);
+
+  return {
+    ...(samplingType ? { samplingType: customSamplingTypeSchema.parse(samplingType) } : {}),
+    ...(body.csatScore !== undefined ? { csatScore: optionalCsatScore(body.csatScore) } : {}),
+    ...(optionalString(body.supportLine) ? { supportLine: optionalString(body.supportLine) } : {}),
+    ...(optionalString(body.teamName) ? { teamName: optionalString(body.teamName) } : {})
+  };
 }
 
 function parseOtrsFamilyImportBody(body: unknown) {
@@ -59,9 +81,12 @@ function parseOtrsFamilyImportBody(body: unknown) {
     baseUrl: optionalString(body.baseUrl),
     samplingReason: optionalString(body.samplingReason)
   };
+  const qualityContext = parseQualityContext(body);
 
   return {
-    conversations: tickets.map((ticket) => normalizeOtrsFamilyTicket(ticket, options))
+    conversations: tickets.map((ticket) =>
+      customConversationSchema.parse({ ...normalizeOtrsFamilyTicket(ticket, options), ...qualityContext })
+    )
   };
 }
 
@@ -85,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ count: imported.length, imported }, { status: 201 });
   } catch (error) {
-    if (error instanceof BadRequestError || error instanceof SyntaxError) {
+    if (error instanceof BadRequestError || error instanceof SyntaxError || error instanceof ZodError) {
       await recordApiTokenError(auth.apiTokenId, "Invalid OTRS-family TicketGet payload.");
       return errorResponse("Invalid OTRS-family TicketGet payload.", 400);
     }

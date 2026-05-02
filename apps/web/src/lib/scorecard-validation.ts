@@ -5,6 +5,7 @@ const criterionKinds = ["SCALE_1_3", "PASS_FAIL"] as const satisfies readonly Cr
 export type ScorecardCriterionDraft = {
   key: string;
   label: string;
+  block: string;
   kind: CriterionKind;
   weight: number;
   required: boolean;
@@ -35,6 +36,7 @@ export function validateScorecardDraft(input: ScorecardDraft): ScorecardDraft {
   const criteria = input.criteria.map((criterion, index) => {
     const key = cleanKey(criterion.key);
     const label = criterion.label.trim();
+    const block = criterion.block.trim();
     const weight = Number(criterion.weight);
 
     if (!/^[a-z0-9_]+$/.test(key)) {
@@ -47,6 +49,10 @@ export function validateScorecardDraft(input: ScorecardDraft): ScorecardDraft {
 
     if (!label) {
       throw new Error(`Название критерия ${index + 1} обязательно.`);
+    }
+
+    if (!block) {
+      throw new Error(`Блок критерия ${index + 1} обязателен.`);
     }
 
     if (!criterionKinds.includes(criterion.kind)) {
@@ -62,6 +68,7 @@ export function validateScorecardDraft(input: ScorecardDraft): ScorecardDraft {
     return {
       key,
       label,
+      block,
       kind: criterion.kind,
       weight,
       required: Boolean(criterion.required),

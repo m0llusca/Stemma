@@ -62,6 +62,7 @@ export default async function AdminScorecardsPage() {
               id: criterion.id,
               key: criterion.key,
               label: criterion.label,
+              block: criterion.block,
               kind: criterion.kind,
               weight: criterion.weight,
               required: criterion.required
@@ -87,6 +88,7 @@ export default async function AdminScorecardsPage() {
                 <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Порядок</th>
+                    <th className="px-5 py-3 font-semibold">Блок</th>
                     <th className="px-5 py-3 font-semibold">Критерий</th>
                     <th className="px-5 py-3 font-semibold">Тип</th>
                     <th className="px-5 py-3 font-semibold">Вес</th>
@@ -97,6 +99,7 @@ export default async function AdminScorecardsPage() {
                   {scorecard.criteria.map((criterion) => (
                     <tr key={criterion.id}>
                       <td className="px-5 py-4 text-[#344054]">{criterion.order}</td>
+                      <td className="px-5 py-4 text-[#344054]">{criterion.block}</td>
                       <td className="px-5 py-4">
                         <div className="font-medium text-[#17202a]">{criterion.label}</div>
                         <div className="mt-1 text-xs text-[#667085]">{criterion.key}</div>

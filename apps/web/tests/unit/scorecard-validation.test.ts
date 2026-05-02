@@ -5,11 +5,12 @@ describe("validateScorecardDraft", () => {
   it("normalizes valid scorecard criteria", () => {
     expect(
       validateScorecardDraft({
-        name: " Новая QA скоркарта ",
+        name: " Новая форма оценки ",
         criteria: [
           {
             key: " Accuracy ",
             label: " Точность ",
+            block: " Решение ",
             kind: "SCALE_1_3",
             weight: 70,
             required: true,
@@ -18,6 +19,7 @@ describe("validateScorecardDraft", () => {
           {
             key: "policy_check",
             label: "Политика",
+            block: "Процессы",
             kind: "PASS_FAIL",
             weight: 30,
             required: false,
@@ -26,11 +28,12 @@ describe("validateScorecardDraft", () => {
         ]
       })
     ).toEqual({
-      name: "Новая QA скоркарта",
+      name: "Новая форма оценки",
       criteria: [
         {
           key: "accuracy",
           label: "Точность",
+          block: "Решение",
           kind: "SCALE_1_3",
           weight: 70,
           required: true,
@@ -39,6 +42,7 @@ describe("validateScorecardDraft", () => {
         {
           key: "policy_check",
           label: "Политика",
+          block: "Процессы",
           kind: "PASS_FAIL",
           weight: 30,
           required: false,
@@ -56,6 +60,7 @@ describe("validateScorecardDraft", () => {
           {
             key: "accuracy",
             label: "Точность",
+            block: "Решение",
             kind: "SCALE_1_3",
             weight: 60,
             required: true,
@@ -74,6 +79,7 @@ describe("validateScorecardDraft", () => {
           {
             key: "accuracy",
             label: "Точность",
+            block: "Решение",
             kind: "SCALE_1_3",
             weight: 50,
             required: true,
@@ -82,6 +88,7 @@ describe("validateScorecardDraft", () => {
           {
             key: "accuracy",
             label: "Повтор",
+            block: "Решение",
             kind: "SCALE_1_3",
             weight: 50,
             required: true,

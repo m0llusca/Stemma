@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 
 export const reviewQueueStatuses = ["all", "unreviewed", "reviewed"] as const;
 export const qaQueueStatuses = ["all", "QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const;
+export const queueSamplingTypes = ["RANDOM", "DSAT", "LEAD_SIGNAL", "NEW_HIRE", "LOW_SCORE", "MANUAL"] as const;
+export const queueCsatBuckets = ["NEGATIVE", "POSITIVE", "NO_SCORE"] as const;
 
 const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
 const conversationQaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
@@ -17,6 +19,9 @@ export type ReviewQueueFilters = {
   source?: string;
   assignee?: string;
   qaAssignee?: string;
+  samplingType?: string;
+  csatBucket?: string;
+  supportLine?: string;
 };
 
 export type ReviewQueueSearchParams = Record<string, string | string[] | undefined>;
@@ -34,6 +39,8 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
   const requestedStatus = cleanParam(searchParams.status);
   const requestedChannel = cleanParam(searchParams.channel);
   const requestedQaStatus = cleanParam(searchParams.qaStatus);
+  const requestedSamplingType = cleanParam(searchParams.samplingType);
+  const requestedCsatBucket = cleanParam(searchParams.csatBucket);
 
   return {
     q: cleanParam(searchParams.q),
@@ -46,7 +53,14 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
     qaStatus: conversationQaStatuses.includes(requestedQaStatus as QaStatus) ? (requestedQaStatus as QaStatus) : undefined,
     source: cleanParam(searchParams.source),
     assignee: cleanParam(searchParams.assignee),
-    qaAssignee: cleanParam(searchParams.qaAssignee)
+    qaAssignee: cleanParam(searchParams.qaAssignee),
+    samplingType: queueSamplingTypes.includes(requestedSamplingType as (typeof queueSamplingTypes)[number])
+      ? requestedSamplingType
+      : undefined,
+    csatBucket: queueCsatBuckets.includes(requestedCsatBucket as (typeof queueCsatBuckets)[number])
+      ? requestedCsatBucket
+      : undefined,
+    supportLine: cleanParam(searchParams.supportLine)
   };
 }
 
@@ -103,6 +117,18 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
 
   if (filters.qaAssignee) {
     and.push({ qaAssigneeName: filters.qaAssignee });
+  }
+
+  if (filters.samplingType) {
+    and.push({ samplingType: filters.samplingType });
+  }
+
+  if (filters.csatBucket) {
+    and.push({ csatBucket: filters.csatBucket });
+  }
+
+  if (filters.supportLine) {
+    and.push({ supportLine: filters.supportLine });
   }
 
   return { AND: and };
@@ -188,7 +214,7 @@ export async function getReviewQueueSummary(workspaceId: string) {
 }
 
 export async function getReviewQueueFilterOptions(workspaceId: string) {
-  const [sourceRows, assigneeRows, qaAssigneeRows] = await Promise.all([
+  const [sourceRows, assigneeRows, qaAssigneeRows, supportLineRows] = await Promise.all([
     prisma.conversation.findMany({
       where: { workspaceId },
       distinct: ["externalSource"],
@@ -228,6 +254,21 @@ export async function getReviewQueueFilterOptions(workspaceId: string) {
       orderBy: {
         qaAssigneeName: "asc"
       }
+    }),
+    prisma.conversation.findMany({
+      where: {
+        workspaceId,
+        supportLine: {
+          not: null
+        }
+      },
+      distinct: ["supportLine"],
+      select: {
+        supportLine: true
+      },
+      orderBy: {
+        supportLine: "asc"
+      }
     })
   ]);
 
@@ -238,7 +279,10 @@ export async function getReviewQueueFilterOptions(workspaceId: string) {
       .filter((assigneeName): assigneeName is string => Boolean(assigneeName)),
     qaAssignees: qaAssigneeRows
       .map((row) => row.qaAssigneeName)
-      .filter((qaAssigneeName): qaAssigneeName is string => Boolean(qaAssigneeName))
+      .filter((qaAssigneeName): qaAssigneeName is string => Boolean(qaAssigneeName)),
+    supportLines: supportLineRows
+      .map((row) => row.supportLine)
+      .filter((supportLine): supportLine is string => Boolean(supportLine))
   };
 }
 

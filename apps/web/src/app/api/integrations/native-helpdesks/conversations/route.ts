@@ -8,7 +8,7 @@ import {
   type NativeHelpdeskNormalizeOptions,
   type NativeHelpdeskSource
 } from "@/lib/normalizers/native-helpdesk";
-import { customConversationSchema } from "@/lib/validation/custom-api";
+import { customConversationSchema, customSamplingTypeSchema } from "@/lib/validation/custom-api";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,15 @@ function optionalString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function optionalCsatScore(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(numberValue) ? numberValue : value;
+}
+
 function parseSource(value: unknown): NativeHelpdeskSource {
   const source = optionalString(value);
 
@@ -36,6 +45,17 @@ function parseSource(value: unknown): NativeHelpdeskSource {
   }
 
   return source as NativeHelpdeskSource;
+}
+
+function parseQualityContext(body: Record<string, unknown>) {
+  const samplingType = optionalString(body.samplingType);
+
+  return {
+    ...(samplingType ? { samplingType: customSamplingTypeSchema.parse(samplingType) } : {}),
+    ...(body.csatScore !== undefined ? { csatScore: optionalCsatScore(body.csatScore) } : {}),
+    ...(optionalString(body.supportLine) ? { supportLine: optionalString(body.supportLine) } : {}),
+    ...(optionalString(body.teamName) ? { teamName: optionalString(body.teamName) } : {})
+  };
 }
 
 function parseNativeHelpdeskImportBody(body: unknown) {
@@ -50,8 +70,9 @@ function parseNativeHelpdeskImportBody(body: unknown) {
     baseUrl: optionalString(body.baseUrl),
     samplingReason: optionalString(body.samplingReason)
   };
+  const qualityContext = parseQualityContext(body);
   const conversations = normalizeNativeHelpdeskPayload(payload, options).map((conversation) =>
-    customConversationSchema.parse(conversation)
+    customConversationSchema.parse({ ...conversation, ...qualityContext })
   );
 
   if (conversations.length === 0) {

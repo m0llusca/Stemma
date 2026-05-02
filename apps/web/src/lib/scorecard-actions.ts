@@ -17,6 +17,7 @@ function parseCriterionDraft(formData: FormData, index: number): ScorecardCriter
   return {
     key: stringField(formData, `criterion.${index}.key`),
     label: stringField(formData, `criterion.${index}.label`),
+    block: stringField(formData, `criterion.${index}.block`),
     kind: stringField(formData, `criterion.${index}.kind`) as CriterionKind,
     weight: Number(stringField(formData, `criterion.${index}.weight`)),
     required: formData.get(`criterion.${index}.required`) === "on",
@@ -85,6 +86,7 @@ export async function createScorecardVersion(formData: FormData) {
           version: nextVersion,
           criteria: draft.criteria.map((criterion) => ({
             key: criterion.key,
+            block: criterion.block,
             weight: criterion.weight,
             kind: criterion.kind
           }))

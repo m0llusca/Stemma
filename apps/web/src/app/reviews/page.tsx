@@ -37,6 +37,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         sources={filterOptions.sources}
         assignees={filterOptions.assignees}
         qaAssignees={filterOptions.qaAssignees}
+        supportLines={filterOptions.supportLines}
       />
       <QueueTable conversations={conversations} />
     </section>

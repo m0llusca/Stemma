@@ -110,3 +110,40 @@ export const reviewQueueStatusLabels = {
   unreviewed: "В очереди",
   reviewed: "Завершена"
 } as const;
+
+export const samplingTypeLabels: Record<string, string> = {
+  RANDOM: "Случайная выборка",
+  DSAT: "Негативный CSAT",
+  LEAD_SIGNAL: "Сигнал руководителя",
+  NEW_HIRE: "Новичок",
+  LOW_SCORE: "Низкая оценка",
+  MANUAL: "Ручное добавление"
+};
+
+export const csatBucketLabels: Record<string, string> = {
+  NEGATIVE: "CSAT 1-2",
+  POSITIVE: "CSAT 3-5",
+  NO_SCORE: "Без CSAT"
+};
+
+export const feedbackStatusLabels: Record<string, string> = {
+  new: "Новая",
+  feedback_sent: "Обратная связь отправлена",
+  appeal: "Апелляция",
+  corrected: "Скорректирована"
+};
+
+export const appealStatusLabels: Record<string, string> = {
+  none: "Нет",
+  open: "Открыта",
+  confirmed: "Оценка подтверждена",
+  corrected: "Оценка скорректирована",
+  calibration: "На калибровку"
+};
+
+export const reanswerStatusLabels: Record<string, string> = {
+  not_needed: "Не нужен",
+  required: "Нужен переответ",
+  requested: "Передан руководителю",
+  completed: "Переответ выполнен"
+};

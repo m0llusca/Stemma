@@ -10,6 +10,9 @@ import { calculateReviewScore } from "@/lib/score";
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+const feedbackStatuses = ["new", "feedback_sent", "appeal", "corrected"] as const;
+const appealStatuses = ["none", "open", "confirmed", "corrected", "calibration"] as const;
+const reanswerStatuses = ["not_needed", "required", "requested", "completed"] as const;
 
 type ReviewScorecard = Scorecard & { criteria: ScorecardCriterion[] };
 
@@ -80,6 +83,43 @@ function optionalRiskLevel(formData: FormData): RiskLevel | undefined {
   }
 
   return value as RiskLevel;
+}
+
+function optionalStatus<T extends readonly string[]>(formData: FormData, key: string, values: T, fallback: T[number]) {
+  const value = optionalString(formData, key);
+
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (!values.includes(value as T[number])) {
+    throw new Error(`Некорректный статус: ${key}`);
+  }
+
+  return value as T[number];
+}
+
+function reviewProcessFields(formData: FormData, summary: string) {
+  const criticalError = formData.get("criticalError") === "on";
+  const needsReanswer = formData.get("needsReanswer") === "on";
+  const appealStatus = optionalStatus(formData, "appealStatus", appealStatuses, "none");
+
+  return {
+    feedbackComment: optionalString(formData, "feedbackComment") ?? summary,
+    positiveNotes: optionalString(formData, "positiveNotes") ?? "",
+    instructionLinks: optionalString(formData, "instructionLinks") ?? "",
+    feedbackStatus: optionalStatus(formData, "feedbackStatus", feedbackStatuses, "new"),
+    appealStatus,
+    appealDueAt: appealStatus === "none" ? null : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    criticalError,
+    criticalCategory: criticalError ? optionalString(formData, "criticalCategory") ?? "Критическая ошибка" : null,
+    needsReanswer,
+    reanswerStatus: needsReanswer
+      ? optionalStatus(formData, "reanswerStatus", reanswerStatuses, "required")
+      : "not_needed",
+    calibrationStatus: appealStatus === "calibration" ? "queued" : "none",
+    calibrationNotes: optionalString(formData, "calibrationNotes") ?? ""
+  };
 }
 
 async function loadReviewContext(workspaceId: string, conversationId: string, scorecardId: string) {
@@ -195,6 +235,8 @@ export async function saveReviewDraft(formData: FormData) {
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
   const summary = optionalString(formData, "summary") ?? "";
+  const processFields = reviewProcessFields(formData, summary);
+  const reviewTotalScore = processFields.criticalError ? 0 : totalScore;
   const draftCategory = optionalString(formData, "category");
   const draftRootCause = optionalString(formData, "rootCause");
   const draftEvidenceSummary = optionalString(formData, "evidenceSummary");
@@ -238,8 +280,9 @@ export async function saveReviewDraft(formData: FormData) {
           scorecardId: scorecard.id,
           reviewSource: "HUMAN",
           rubricVersion: scorecard.version,
-          totalScore,
+          totalScore: reviewTotalScore,
           summary,
+          ...processFields,
           scores: {
             create: criterionScores
           },
@@ -258,8 +301,9 @@ export async function saveReviewDraft(formData: FormData) {
           reviewSource: "HUMAN",
           rubricVersion: scorecard.version,
           status: "DRAFT",
-          totalScore,
+          totalScore: reviewTotalScore,
           summary,
+          ...processFields,
           scores: {
             create: criterionScores
           },
@@ -289,7 +333,7 @@ export async function saveReviewDraft(formData: FormData) {
         metadata: {
           conversationId,
           scorecardId: scorecard.id,
-          totalScore
+          totalScore: reviewTotalScore
         }
       },
       tx
@@ -320,6 +364,9 @@ export async function finalizeReview(formData: FormData) {
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
   const summary = requiredString(formData, "summary");
+  const processFields = reviewProcessFields(formData, summary);
+  const reviewTotalScore = processFields.criticalError ? 0 : totalScore;
+  const findingRiskLevel = processFields.criticalError ? "CRITICAL" : riskLevel;
 
   await prisma.$transaction(async (tx) => {
     const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id);
@@ -334,8 +381,9 @@ export async function finalizeReview(formData: FormData) {
       reviewSource: "HUMAN" as const,
       rubricVersion: scorecard.version,
       status: "FINALIZED" as const,
-      totalScore,
+      totalScore: reviewTotalScore,
       summary,
+      ...processFields,
       finalizedAt: new Date(),
       scores: {
         create: criterionScores
@@ -345,7 +393,7 @@ export async function finalizeReview(formData: FormData) {
           ownerType,
           category: requiredString(formData, "category"),
           rootCause: optionalString(formData, "rootCause") ?? summary,
-          riskLevel,
+          riskLevel: findingRiskLevel,
           evidenceSummary: optionalString(formData, "evidenceSummary") ?? summary,
           coachingAction:
             coachingAction && coachingAssignee
@@ -394,7 +442,9 @@ export async function finalizeReview(formData: FormData) {
         metadata: {
           conversationId,
           scorecardId: scorecard.id,
-          totalScore
+          totalScore: reviewTotalScore,
+          criticalError: processFields.criticalError,
+          needsReanswer: processFields.needsReanswer
         }
       },
       tx

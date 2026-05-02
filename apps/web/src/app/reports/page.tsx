@@ -1,8 +1,22 @@
-import { AlertTriangle, CheckCircle2, ClipboardList, Database } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Database, RotateCcw, Scale } from "lucide-react";
 import { MetricCard } from "@/components/reports/metric-card";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { riskLevelLabels } from "@/lib/labels";
+import {
+  appealStatusLabels,
+  csatBucketLabels,
+  feedbackStatusLabels,
+  reanswerStatusLabels,
+  riskLevelLabels,
+  samplingTypeLabels
+} from "@/lib/labels";
+import {
+  reportDateInputValue,
+  reportPeriodDateLabel,
+  resolvePreviousReportPeriod,
+  resolveReportPeriod,
+  type ReportPeriod
+} from "@/lib/report-period";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +25,12 @@ type BreakdownRow = {
   count: number;
   averageScore?: number | null;
 };
+
+type ReportsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+type ReviewForReport = Awaited<ReturnType<typeof loadFinalizedReviews>>[number];
 
 function formatAverageScore(value: number | null | undefined) {
   if (value == null) {
@@ -38,6 +58,23 @@ function addCountGroup(groups: Map<string, number>, label: string) {
   groups.set(label, (groups.get(label) ?? 0) + 1);
 }
 
+function formatDelta(current: number | null, previous: number | null, suffix = "") {
+  if (current == null || previous == null) {
+    return "Нет сравнения";
+  }
+
+  const delta = Math.round(current - previous);
+  if (delta === 0) {
+    return `Без изменений${suffix}`;
+  }
+
+  return `${delta > 0 ? "+" : ""}${delta}${suffix}`;
+}
+
+function formatPeriod(period: ReportPeriod) {
+  return `${reportPeriodDateLabel(period.start)} - ${reportPeriodDateLabel(period.end)}`;
+}
+
 function scoreGroupRows(groups: Map<string, number[]>): BreakdownRow[] {
   return Array.from(groups.entries())
     .map(([label, scores]) => ({
@@ -55,6 +92,99 @@ function countGroupRows(groups: Map<string, number>): BreakdownRow[] {
       count
     }))
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "ru"));
+}
+
+function reviewWhere(workspaceId: string, period: ReportPeriod) {
+  return {
+    workspaceId,
+    status: "FINALIZED" as const,
+    finalizedAt: {
+      gte: period.start,
+      lte: period.end
+    }
+  };
+}
+
+async function loadFinalizedReviews(workspaceId: string, period: ReportPeriod) {
+  return prisma.review.findMany({
+    where: reviewWhere(workspaceId, period),
+    select: {
+      id: true,
+      totalScore: true,
+      criticalError: true,
+      criticalCategory: true,
+      needsReanswer: true,
+      reanswerStatus: true,
+      appealStatus: true,
+      feedbackStatus: true,
+      conversation: {
+        select: {
+          externalSource: true,
+          assigneeName: true,
+          samplingType: true,
+          csatBucket: true,
+          csatScore: true,
+          supportLine: true,
+          teamName: true
+        }
+      },
+      scores: {
+        select: {
+          value: true,
+          passed: true,
+          isNotApplicable: true,
+          criterion: {
+            select: {
+              block: true,
+              kind: true,
+              weight: true
+            }
+          }
+        }
+      },
+      findings: {
+        select: {
+          category: true,
+          riskLevel: true
+        }
+      }
+    }
+  });
+}
+
+function averageScoreFor(reviews: ReviewForReport[]) {
+  return average(reviews.map((review) => review.totalScore));
+}
+
+function criterionEarnedPercent(score: ReviewForReport["scores"][number]) {
+  if (score.isNotApplicable) {
+    return null;
+  }
+
+  if (score.criterion.kind === "PASS_FAIL") {
+    return score.passed ? 100 : 0;
+  }
+
+  if (score.value == null) {
+    return null;
+  }
+
+  return (score.value / 3) * 100;
+}
+
+function blockRows(reviews: ReviewForReport[]): BreakdownRow[] {
+  const groups = new Map<string, number[]>();
+
+  for (const review of reviews) {
+    for (const score of review.scores) {
+      const percent = criterionEarnedPercent(score);
+      if (percent != null) {
+        addScoreGroup(groups, score.criterion.block, percent);
+      }
+    }
+  }
+
+  return scoreGroupRows(groups);
 }
 
 function BreakdownTable({
@@ -107,6 +237,129 @@ function BreakdownTable({
   );
 }
 
+function PeriodFilter({ period }: { period: ReportPeriod }) {
+  return (
+    <form action="/reports" className="panel mb-6 grid gap-4 p-4 md:grid-cols-[minmax(180px,240px)_160px_160px_auto] md:items-end">
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        Период
+        <select name="period" defaultValue={period.preset} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <option value="vk-current">Текущий период 22-21</option>
+          <option value="vk-previous">Прошлый период 22-21</option>
+          <option value="calendar-current">Календарный месяц</option>
+          <option value="calendar-previous">Прошлый месяц</option>
+          <option value="quarter-current">Текущий квартал</option>
+          <option value="custom">Произвольный</option>
+        </select>
+      </label>
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        С даты
+        <input
+          name="start"
+          type="date"
+          defaultValue={reportDateInputValue(period.start)}
+          className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+        />
+      </label>
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        По дату
+        <input
+          name="end"
+          type="date"
+          defaultValue={reportDateInputValue(period.end)}
+          className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+        />
+      </label>
+      <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+        Показать
+      </button>
+    </form>
+  );
+}
+
+function QuotaTable({
+  quotas,
+  reviews
+}: {
+  quotas: Array<{
+    assigneeName: string;
+    supportLine: string | null;
+    plannedCount: number;
+    dsatTargetPercent: number;
+    absenceDays: number;
+    note: string | null;
+  }>;
+  reviews: ReviewForReport[];
+}) {
+  return (
+    <section className="panel overflow-hidden">
+      <div className="border-b border-[#d7dce5] px-5 py-4">
+        <h2 className="text-lg font-semibold">Нормы проверок</h2>
+        <p className="mt-1 text-sm text-[#667085]">План, факт и доля негативного CSAT по операторам.</p>
+      </div>
+      <div className="scroll-area">
+        <table className="table-fixed-copy w-full min-w-[960px] border-collapse text-left text-sm">
+          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+            <tr>
+              <th className="px-5 py-3 font-semibold">Оператор</th>
+              <th className="px-5 py-3 font-semibold">Линия</th>
+              <th className="px-5 py-3 font-semibold">План</th>
+              <th className="px-5 py-3 font-semibold">Факт</th>
+              <th className="px-5 py-3 font-semibold">Статус</th>
+              <th className="px-5 py-3 font-semibold">Осталось</th>
+              <th className="px-5 py-3 font-semibold">DSAT факт</th>
+              <th className="px-5 py-3 font-semibold">Комментарий</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#d7dce5]">
+            {quotas.length > 0 ? (
+              quotas.map((quota) => {
+                const actualReviews = reviews.filter(
+                  (review) =>
+                    review.conversation.assigneeName === quota.assigneeName &&
+                    (quota.supportLine ? review.conversation.supportLine === quota.supportLine : true)
+                );
+                const dsatCount = actualReviews.filter((review) => review.conversation.csatBucket === "NEGATIVE").length;
+                const remaining = Math.max(0, quota.plannedCount - actualReviews.length);
+                const dsatPercent = actualReviews.length > 0 ? Math.round((dsatCount / actualReviews.length) * 100) : 0;
+                const quotaStatus =
+                  actualReviews.length < 10
+                    ? "Меньше 10 - оценка не считается"
+                    : remaining > 0
+                      ? "Нужно добрать"
+                      : "Норма выполнена";
+
+                return (
+                  <tr key={`${quota.assigneeName}:${quota.supportLine ?? ""}`}>
+                    <td className="px-5 py-4 font-medium text-[#17202a]">{quota.assigneeName}</td>
+                    <td className="px-5 py-4 text-[#344054]">{quota.supportLine ?? "Не указана"}</td>
+                    <td className="px-5 py-4 text-[#344054]">{quota.plannedCount}</td>
+                    <td className="px-5 py-4 text-[#344054]">{actualReviews.length}</td>
+                    <td className="px-5 py-4 text-[#344054]">{quotaStatus}</td>
+                    <td className="px-5 py-4 font-semibold text-[#17202a]">{remaining}</td>
+                    <td className="px-5 py-4 text-[#344054]">
+                      {dsatCount} ({dsatPercent}%) / цель {quota.dsatTargetPercent}%
+                    </td>
+                    <td className="px-5 py-4 text-[#667085]">
+                      {quota.absenceDays > 0 ? `Отсутствий: ${quota.absenceDays}. ` : ""}
+                      {quota.note ?? ""}
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td className="px-5 py-4 text-[#667085]" colSpan={8}>
+                  Нормы на выбранный период пока не заданы.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function InsightCard({
   label,
   value,
@@ -133,27 +386,22 @@ function InsightCard({
   );
 }
 
-export default async function ReportsPage() {
+export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+  const params = await searchParams;
   const user = await getCurrentUser();
+  const period = resolveReportPeriod(params);
+  const previousPeriod = resolvePreviousReportPeriod(period);
 
-  const [scoreAggregate, highRiskFindings, coachingBacklog, finalizedReviews] = await Promise.all([
-    prisma.review.aggregate({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED"
-      },
-      _avg: {
-        totalScore: true
-      }
-    }),
+  const [finalizedReviews, previousReviews, highRiskFindings, coachingBacklog, quotas] = await Promise.all([
+    loadFinalizedReviews(user.workspaceId, period),
+    loadFinalizedReviews(user.workspaceId, previousPeriod),
     prisma.finding.count({
       where: {
         riskLevel: {
           in: ["HIGH", "CRITICAL"]
         },
         review: {
-          workspaceId: user.workspaceId,
-          status: "FINALIZED"
+          ...reviewWhere(user.workspaceId, period)
         }
       }
     }),
@@ -162,41 +410,43 @@ export default async function ReportsPage() {
         status: "open",
         finding: {
           review: {
-            workspaceId: user.workspaceId
+            ...reviewWhere(user.workspaceId, period)
           }
         }
       }
     }),
-    prisma.review.findMany({
+    prisma.reviewQuota.findMany({
       where: {
         workspaceId: user.workspaceId,
-        status: "FINALIZED"
+        periodStart: { lte: period.end },
+        periodEnd: { gte: period.start }
       },
-      select: {
-        totalScore: true,
-        conversation: {
-          select: {
-            externalSource: true,
-            assigneeName: true
-          }
-        },
-        findings: {
-          select: {
-            category: true,
-            riskLevel: true
-          }
-        }
-      }
+      orderBy: [{ supportLine: "asc" }, { assigneeName: "asc" }]
     })
   ]);
   const sourceGroups = new Map<string, number[]>();
   const assigneeGroups = new Map<string, number[]>();
   const categoryGroups = new Map<string, number>();
   const riskGroups = new Map<string, number>();
+  const samplingGroups = new Map<string, number>();
+  const csatGroups = new Map<string, number>();
+  const feedbackGroups = new Map<string, number>();
+  const appealGroups = new Map<string, number>();
+  const reanswerGroups = new Map<string, number>();
+  const criticalCategoryGroups = new Map<string, number>();
 
   for (const review of finalizedReviews) {
     addScoreGroup(sourceGroups, review.conversation.externalSource, review.totalScore);
     addScoreGroup(assigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
+    addCountGroup(samplingGroups, samplingTypeLabels[review.conversation.samplingType] ?? review.conversation.samplingType);
+    addCountGroup(csatGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket);
+    addCountGroup(feedbackGroups, feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus);
+    addCountGroup(appealGroups, appealStatusLabels[review.appealStatus] ?? review.appealStatus);
+    addCountGroup(reanswerGroups, reanswerStatusLabels[review.reanswerStatus] ?? review.reanswerStatus);
+
+    if (review.criticalError) {
+      addCountGroup(criticalCategoryGroups, review.criticalCategory ?? "Критическая ошибка");
+    }
 
     for (const finding of review.findings) {
       addCountGroup(categoryGroups, finding.category);
@@ -208,25 +458,42 @@ export default async function ReportsPage() {
   const assigneeRows = scoreGroupRows(assigneeGroups);
   const categoryRows = countGroupRows(categoryGroups);
   const riskRows = countGroupRows(riskGroups);
+  const samplingRows = countGroupRows(samplingGroups);
+  const csatRows = countGroupRows(csatGroups);
+  const feedbackRows = countGroupRows(feedbackGroups);
+  const appealRows = countGroupRows(appealGroups);
+  const reanswerRows = countGroupRows(reanswerGroups);
+  const criticalCategoryRows = countGroupRows(criticalCategoryGroups);
+  const blockScoreRows = blockRows(finalizedReviews);
   const finalizedCount = finalizedReviews.length;
+  const previousAverageScore = averageScoreFor(previousReviews);
+  const averageScore = averageScoreFor(finalizedReviews);
   const topRiskRow = riskRows[0];
   const topCategoryRow = categoryRows[0];
   const weakestAssignee = assigneeRows
     .filter((row) => row.averageScore != null)
     .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))[0];
+  const criticalCount = finalizedReviews.filter((review) => review.criticalError).length;
+  const reanswerCount = finalizedReviews.filter((review) => review.needsReanswer).length;
+  const appealCount = finalizedReviews.filter((review) => review.appealStatus !== "none").length;
 
   return (
     <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Контроль качества</p>
         <h1 className="mt-1 text-2xl font-semibold">Аналитика качества</h1>
+        <p className="mt-1 text-sm text-[#667085]">
+          {period.label}: {formatPeriod(period)}. Сравнение: {formatPeriod(previousPeriod)}.
+        </p>
       </div>
+
+      <PeriodFilter period={period} />
 
       <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Средняя оценка"
-          value={formatAverageScore(scoreAggregate._avg.totalScore)}
-          helper="Завершенные проверки в текущем рабочем пространстве."
+          value={formatAverageScore(averageScore)}
+          helper={`К прошлому периоду: ${formatDelta(averageScore, previousAverageScore, " п.п.")}`}
           icon={<CheckCircle2 size={18} aria-hidden="true" />}
         />
         <MetricCard
@@ -246,6 +513,27 @@ export default async function ReportsPage() {
           value={String(sourceRows.length)}
           helper="Источник считается проверенным после финальной оценки."
           icon={<Database size={18} aria-hidden="true" />}
+        />
+      </div>
+
+      <div className="mt-4 grid items-stretch gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Критические ошибки"
+          value={String(criticalCount)}
+          helper="Ошибки, которые обнуляют оценку обращения."
+          icon={<Scale size={18} aria-hidden="true" />}
+        />
+        <MetricCard
+          label="Переответы"
+          value={String(reanswerCount)}
+          helper="Проверки, где нужно заново ответить клиенту."
+          icon={<RotateCcw size={18} aria-hidden="true" />}
+        />
+        <MetricCard
+          label="Апелляции"
+          value={String(appealCount)}
+          helper="Открытые или завершенные споры по оценке."
+          icon={<CalendarDays size={18} aria-hidden="true" />}
         />
       </div>
 
@@ -286,8 +574,16 @@ export default async function ReportsPage() {
       </section>
 
       <div className="mt-6 grid items-start gap-5 xl:grid-cols-2">
+        <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
+        <QuotaTable quotas={quotas} reviews={finalizedReviews} />
         <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
         <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
+        <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
+        <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
+        <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
+        <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
+        <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
+        <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
         <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
         <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
       </div>

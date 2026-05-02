@@ -9,6 +9,7 @@ type CriterionRow = {
   clientId: string;
   key: string;
   label: string;
+  block: string;
   kind: CriterionKind;
   weight: number;
   required: boolean;
@@ -20,6 +21,7 @@ type ScorecardVersionFormProps = {
     id: string;
     key: string;
     label: string;
+    block: string;
     kind: CriterionKind;
     weight: number;
     required: boolean;
@@ -48,6 +50,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
       clientId: criterion.id,
       key: criterion.key,
       label: criterion.label,
+      block: criterion.block,
       kind: criterion.kind,
       weight: criterion.weight,
       required: criterion.required
@@ -72,6 +75,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
         clientId: `new-${Date.now()}`,
         key: normalizeKeySeed(`criterion_${nextNumber}`),
         label: "Новый критерий",
+        block: "Общее",
         kind: "SCALE_1_3",
         weight: remainingWeight,
         required: true
@@ -94,11 +98,12 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
       </label>
 
       <div className="scroll-area">
-        <table className="table-fixed-copy w-full min-w-[1060px] border-collapse text-left text-sm">
+        <table className="table-fixed-copy w-full min-w-[1220px] border-collapse text-left text-sm">
           <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
             <tr>
               <th className="w-24 px-4 py-3 font-semibold">Порядок</th>
               <th className="px-4 py-3 font-semibold">Ключ</th>
+              <th className="px-4 py-3 font-semibold">Блок</th>
               <th className="px-4 py-3 font-semibold">Название</th>
               <th className="px-4 py-3 font-semibold">Тип</th>
               <th className="w-28 px-4 py-3 font-semibold">Вес</th>
@@ -139,6 +144,15 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                     required
                     pattern="[a-z0-9_]+"
                     className="w-full rounded border border-[#d7dce5] px-3 py-2 font-mono text-xs"
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    name={`criterion.${index}.block`}
+                    value={criterion.block}
+                    onChange={(event) => updateCriterion(index, { block: event.target.value })}
+                    required
+                    className="w-full rounded border border-[#d7dce5] px-3 py-2"
                   />
                 </td>
                 <td className="px-4 py-3">
