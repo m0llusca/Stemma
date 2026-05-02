@@ -245,7 +245,7 @@ export default async function AdminIntegrationsPage() {
               <h2 className="text-lg font-semibold">Ключи API</h2>
               <p className="mt-1 text-sm text-[#667085]">Состояние ключей и последняя ошибка по своему API.</p>
             </div>
-            <span className="text-xs font-semibold uppercase text-[#667085]">Показать</span>
+            <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
           </summary>
           <div className="mt-4">
             <DataTable

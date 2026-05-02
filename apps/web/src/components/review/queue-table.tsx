@@ -1,7 +1,9 @@
 import type { Conversation, Message, Review } from "@prisma/client";
 import Link from "next/link";
-import { channelLabels, formatMessageCount, reanswerStatusLabels, samplingTypeLabels } from "@/lib/labels";
-import { resolveReviewState, reviewStateBadgeClass, reviewStateLabels } from "@/lib/review-state";
+import { ScoreBar } from "@/components/ui/score-bar";
+import { StatusChip } from "@/components/ui/status-chip";
+import { channelLabels, csatBucketLabels, formatMessageCount, reanswerStatusLabels, samplingTypeLabels } from "@/lib/labels";
+import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 
 type QueueConversation = Conversation & {
   messages: Message[];
@@ -11,6 +13,46 @@ type QueueConversation = Conversation & {
 type QueueTableProps = {
   conversations: QueueConversation[];
 };
+
+function reviewStateTone(state: ReviewState) {
+  if (state === "finalized") {
+    return "success";
+  }
+
+  if (state === "reopened") {
+    return "warning";
+  }
+
+  if (state === "assigned" || state === "in_progress") {
+    return "info";
+  }
+
+  return "neutral";
+}
+
+function samplingTone(samplingType: string) {
+  if (samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE") {
+    return "warning";
+  }
+
+  if (samplingType === "RANDOM") {
+    return "neutral";
+  }
+
+  return "info";
+}
+
+function csatTone(csatBucket: string) {
+  if (csatBucket === "NEGATIVE") {
+    return "danger";
+  }
+
+  if (csatBucket === "POSITIVE") {
+    return "success";
+  }
+
+  return "neutral";
+}
 
 export function QueueTable({ conversations }: QueueTableProps) {
   if (conversations.length === 0) {
@@ -50,51 +92,72 @@ export function QueueTable({ conversations }: QueueTableProps) {
               hasDraftReview: Boolean(draftReview),
               hasFinalizedReview: Boolean(latestFinalizedReview)
             });
+            const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
 
             return (
-              <tr key={conversation.id} className="hover:bg-[#f7f8fb]">
+              <tr key={conversation.id} className="transition-colors hover:bg-[#f7f8fb]">
                 <td className="px-4 py-4 align-top">
                   <Link href={`/reviews/${conversation.id}`} className="font-medium text-[#0b4f52] hover:underline">
                     {conversation.subject}
                   </Link>
                   <div className="mt-1 text-xs text-[#667085]">
-                    {conversation.customerName} · {formatMessageCount(conversation.messages.length)} · {channelLabels[conversation.channel]} ·{" "}
-                    {conversation.externalSource}
+                    {conversation.customerName} · {formatMessageCount(conversation.messages.length)}
+                  </div>
+                  <div className="mt-2 flex max-w-[430px] flex-wrap gap-1.5">
+                    <StatusChip size="xs">{channelLabels[conversation.channel]}</StatusChip>
+                    <StatusChip size="xs">{conversation.externalSource}</StatusChip>
+                    <StatusChip size="xs" tone={csatTone(conversation.csatBucket)}>
+                      {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
+                      {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
+                    </StatusChip>
+                    <StatusChip size="xs" tone={samplingTone(conversation.samplingType)}>
+                      {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
+                    </StatusChip>
+                    {isOverdue && reviewState !== "finalized" ? (
+                      <StatusChip size="xs" tone="danger">
+                        Просрочено
+                      </StatusChip>
+                    ) : null}
+                    {conversation.riskHint ? (
+                      <StatusChip size="xs" tone="warning" title={conversation.riskHint}>
+                        Риск
+                      </StatusChip>
+                    ) : null}
                   </div>
                   <div className="mt-1 max-w-[360px] text-xs leading-4 text-[#667085]">
                     {conversation.samplingReason}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 align-top">
-                  <span
-                    className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                      isOverdue && reviewState !== "finalized" ? "bg-[#fff4ed] text-[#b54708]" : reviewStateBadgeClass(reviewState)
-                    }`}
-                  >
+                  <StatusChip tone={isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState)}>
                     {reviewStateLabels[reviewState]}
-                  </span>
+                  </StatusChip>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{conversation.assigneeName ?? "Не назначен"}</td>
                 <td className="whitespace-nowrap px-4 py-4 text-[#344054]">{conversation.qaAssigneeName ?? "Не назначен"}</td>
                 <td className="px-4 py-4 text-[#344054]">
-                  {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
+                  <StatusChip tone={samplingTone(conversation.samplingType)}>
+                    {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
+                  </StatusChip>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-[#344054]">
                   {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
                 </td>
                 <td className="px-4 py-4 text-[#344054]">
                   {latestFinalizedReview?.criticalError ? (
-                    <span className="rounded-md bg-[#fff4ed] px-2 py-1 text-xs font-semibold text-[#b54708]">Критическая</span>
+                    <StatusChip tone="danger">Критическая</StatusChip>
                   ) : latestFinalizedReview?.needsReanswer ? (
-                    <span className="rounded-md bg-[#fff4ed] px-2 py-1 text-xs font-semibold text-[#b54708]">
+                    <StatusChip tone="warning">
                       {reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"}
-                    </span>
+                    </StatusChip>
+                  ) : hasAppeal ? (
+                    <StatusChip tone="warning">Апелляция</StatusChip>
                   ) : (
                     <span className="text-[#667085]">Без эскалации</span>
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 font-medium text-[#17202a]">
-                  {latestFinalizedReview ? `${latestFinalizedReview.totalScore}%` : draftReview ? "Черновик" : "Не проверено"}
+                  <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
                 </td>
               </tr>
             );

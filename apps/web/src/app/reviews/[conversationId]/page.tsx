@@ -162,7 +162,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
             <h2 className="text-base font-semibold">Детали обращения</h2>
             <p className="mt-1 text-sm text-[#667085]">Источник, канал, выборка, CSAT и назначение проверки.</p>
           </div>
-          <span className="text-xs font-semibold uppercase text-[#667085]">Показать</span>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
         </summary>
         <div className="mt-3 grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-3 xl:grid-cols-6">
           <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>

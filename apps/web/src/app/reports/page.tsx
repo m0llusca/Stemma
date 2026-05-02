@@ -1,5 +1,15 @@
 import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Database, RotateCcw, Scale } from "lucide-react";
 import { MetricCard } from "@/components/reports/metric-card";
+import {
+  ChartPanel,
+  HorizontalBarChart,
+  QuotaProgressBars,
+  ScoreDistribution,
+  SparklineChart,
+  StackedBar,
+  type ChartDatum,
+  type StackedSegment
+} from "@/components/reports/report-charts";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
@@ -75,6 +85,10 @@ function formatPeriod(period: ReportPeriod) {
   return `${reportPeriodDateLabel(period.start)} - ${reportPeriodDateLabel(period.end)}`;
 }
 
+function formatShortDate(value: Date) {
+  return value.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+}
+
 function scoreGroupRows(groups: Map<string, number[]>): BreakdownRow[] {
   return Array.from(groups.entries())
     .map(([label, scores]) => ({
@@ -94,6 +108,68 @@ function countGroupRows(groups: Map<string, number>): BreakdownRow[] {
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "ru"));
 }
 
+function averageScoreChartRows(rows: BreakdownRow[], limit = 6): ChartDatum[] {
+  return rows
+    .filter((row) => row.averageScore != null)
+    .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))
+    .slice(0, limit)
+    .map((row) => ({
+      label: row.label,
+      value: Math.round(row.averageScore ?? 0),
+      detail: `${row.count} проверок`
+    }));
+}
+
+function scoreTrendRows(reviews: ReviewForReport[]): ChartDatum[] {
+  const groups = new Map<string, number[]>();
+
+  for (const review of reviews) {
+    if (!review.finalizedAt) {
+      continue;
+    }
+
+    const key = review.finalizedAt.toISOString().slice(0, 10);
+    const scores = groups.get(key) ?? [];
+    scores.push(review.totalScore);
+    groups.set(key, scores);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, scores]) => {
+      const value = average(scores) ?? 0;
+
+      return {
+        label: formatShortDate(new Date(`${date}T00:00:00.000Z`)),
+        value: Math.round(value),
+        detail: `${scores.length} проверок`
+      };
+    });
+}
+
+function scoreDistributionRows(reviews: ReviewForReport[]): ChartDatum[] {
+  const ranges = [
+    { label: "0-50", min: 0, max: 50 },
+    { label: "51-70", min: 51, max: 70 },
+    { label: "71-85", min: 71, max: 85 },
+    { label: "86-100", min: 86, max: 100 }
+  ];
+
+  return ranges.map((range) => ({
+    label: range.label,
+    value: reviews.filter((review) => review.totalScore >= range.min && review.totalScore <= range.max).length
+  }));
+}
+
+function riskSegments(riskGroups: Map<string, number>): StackedSegment[] {
+  return [
+    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, color: "bg-[#116466]" },
+    { label: "Средний", value: riskGroups.get("Средний") ?? 0, color: "bg-[#5f6f52]" },
+    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, color: "bg-[#f79009]" },
+    { label: "Критический", value: riskGroups.get("Критический") ?? 0, color: "bg-[#d92d20]" }
+  ];
+}
+
 function reviewWhere(workspaceId: string, period: ReportPeriod) {
   return {
     workspaceId,
@@ -111,6 +187,7 @@ async function loadFinalizedReviews(workspaceId: string, period: ReportPeriod) {
     select: {
       id: true,
       totalScore: true,
+      finalizedAt: true,
       criticalError: true,
       criticalCategory: true,
       needsReanswer: true,
@@ -548,6 +625,24 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const criticalCount = finalizedReviews.filter((review) => review.criticalError).length;
   const reanswerCount = finalizedReviews.filter((review) => review.needsReanswer).length;
   const appealCount = finalizedReviews.filter((review) => review.appealStatus !== "none").length;
+  const trendRows = scoreTrendRows(finalizedReviews);
+  const distributionRows = scoreDistributionRows(finalizedReviews);
+  const operatorScoreRows = averageScoreChartRows(assigneeRows);
+  const sourceScoreRows = averageScoreChartRows(sourceRows);
+  const riskStackSegments = riskSegments(riskGroups);
+  const quotaProgressRows = quotas.map((quota) => {
+    const actualReviews = finalizedReviews.filter(
+      (review) =>
+        review.conversation.assigneeName === quota.assigneeName &&
+        (quota.supportLine ? review.conversation.supportLine === quota.supportLine : true)
+    );
+
+    return {
+      label: quota.supportLine ? `${quota.assigneeName} · ${quota.supportLine}` : quota.assigneeName,
+      planned: quota.plannedCount,
+      actual: actualReviews.length
+    };
+  });
 
   return (
     <section className="page-shell">
@@ -588,6 +683,30 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         />
       </div>
 
+      <div className="mt-6 grid items-stretch gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        <ChartPanel title="Динамика оценки" description="Средняя итоговая оценка по дням завершения проверок.">
+          <SparklineChart points={trendRows} />
+        </ChartPanel>
+        <ChartPanel title="Распределение оценок" description="Сколько проверок попало в каждый диапазон.">
+          <ScoreDistribution rows={distributionRows} />
+        </ChartPanel>
+      </div>
+
+      <div className="mt-5 grid items-stretch gap-5 xl:grid-cols-4">
+        <ChartPanel title="По операторам" description="Нижние средние оценки первыми.">
+          <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
+        </ChartPanel>
+        <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам.">
+          <HorizontalBarChart rows={sourceScoreRows} valueSuffix="%" maxValue={100} />
+        </ChartPanel>
+        <ChartPanel title="Профиль рисков" description="Доля замечаний по уровню риска.">
+          <StackedBar segments={riskStackSegments} />
+        </ChartPanel>
+        <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода.">
+          <QuotaProgressBars rows={quotaProgressRows} />
+        </ChartPanel>
+      </div>
+
       <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
 
       <FocusPanel
@@ -610,7 +729,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <h2 className="text-lg font-semibold">Подробные разрезы</h2>
             <p className="mt-1 text-sm text-[#667085]">Выборка, CSAT, обратная связь, апелляции, риски и категории.</p>
           </div>
-          <span className="text-xs font-semibold uppercase text-[#667085]">Показать</span>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
         </summary>
         <div className="mt-5 grid items-start gap-5 xl:grid-cols-2">
           <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />

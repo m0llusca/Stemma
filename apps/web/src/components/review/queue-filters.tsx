@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { channelLabels, csatBucketLabels, reviewQueueStatusLabels, samplingTypeLabels } from "@/lib/labels";
+import { StatusChip } from "@/components/ui/status-chip";
+import { channelLabels, csatBucketLabels, qaStatusLabels, reviewQueueStatusLabels, samplingTypeLabels } from "@/lib/labels";
 import type { ReviewQueueFilters } from "@/lib/review-repository";
 import { queueCsatBuckets, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
 
@@ -21,6 +22,18 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       filters.csatBucket ||
       filters.supportLine
   );
+  const activeFilters = [
+    filters.q ? { label: "Поиск", value: filters.q } : null,
+    filters.status !== "all" ? { label: "Статус", value: reviewQueueStatusLabels[filters.status] } : null,
+    filters.qaStatus ? { label: "Состояние", value: qaStatusLabels[filters.qaStatus] } : null,
+    filters.channel ? { label: "Канал", value: channelLabels[filters.channel] } : null,
+    filters.source ? { label: "Источник", value: filters.source } : null,
+    filters.assignee ? { label: "Оператор", value: filters.assignee } : null,
+    filters.qaAssignee ? { label: "Проверяющий", value: filters.qaAssignee } : null,
+    filters.samplingType ? { label: "Выборка", value: samplingTypeLabels[filters.samplingType] ?? filters.samplingType } : null,
+    filters.csatBucket ? { label: "CSAT", value: csatBucketLabels[filters.csatBucket] ?? filters.csatBucket } : null,
+    filters.supportLine ? { label: "Линия", value: filters.supportLine } : null
+  ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
 
   return (
     <form action="/reviews" className="panel mb-5 overflow-hidden">
@@ -55,6 +68,17 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           </Link>
         </div>
       </div>
+
+      {activeFilters.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+          <span className="text-xs font-semibold uppercase text-[#667085]">Активно</span>
+          {activeFilters.map((filter) => (
+            <StatusChip key={`${filter.label}:${filter.value}`} tone="accent" size="xs">
+              {filter.label}: {filter.value}
+            </StatusChip>
+          ))}
+        </div>
+      ) : null}
 
       <details className="disclosure-panel border-t border-[#d7dce5]" open={hasAdvancedFilters}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#344054]">
