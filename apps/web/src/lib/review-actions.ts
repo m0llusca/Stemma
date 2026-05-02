@@ -15,7 +15,7 @@ function requiredString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`Missing required field: ${key}`);
+    throw new Error(`Не заполнено обязательное поле: ${key}`);
   }
 
   return value.trim();
@@ -36,7 +36,7 @@ function requiredOwnerType(formData: FormData): FindingOwnerType {
   const value = requiredString(formData, "ownerType");
 
   if (!ownerTypes.includes(value as FindingOwnerType)) {
-    throw new Error("Invalid finding owner type.");
+    throw new Error("Некорректный тип ответственности находки.");
   }
 
   return value as FindingOwnerType;
@@ -46,7 +46,7 @@ function requiredRiskLevel(formData: FormData): RiskLevel {
   const value = requiredString(formData, "riskLevel");
 
   if (!riskLevels.includes(value as RiskLevel)) {
-    throw new Error("Invalid risk level.");
+    throw new Error("Некорректный уровень риска.");
   }
 
   return value as RiskLevel;
@@ -56,7 +56,7 @@ export async function finalizeReview(formData: FormData) {
   const user = await getCurrentUser();
 
   if (!canFinalizeReview(user.role)) {
-    throw new Error("You do not have permission to finalize reviews.");
+    throw new Error("Нет прав на завершение проверок.");
   }
 
   const conversationId = requiredString(formData, "conversationId");
@@ -89,11 +89,11 @@ export async function finalizeReview(formData: FormData) {
   ]);
 
   if (!conversation) {
-    throw new Error("Conversation was not found in this workspace.");
+    throw new Error("Диалог не найден в текущем рабочем пространстве.");
   }
 
   if (!scorecard) {
-    throw new Error("Scorecard was not found in this workspace.");
+    throw new Error("Скоркарта не найдена в текущем рабочем пространстве.");
   }
 
   const scoreInputs = scorecard.criteria.map((criterion) => {
@@ -126,7 +126,7 @@ export async function finalizeReview(formData: FormData) {
     const evidenceMessageId = optionalString(formData, `criterion.${criterion.id}.evidenceMessageId`);
 
     if (evidenceMessageId && !validEvidenceMessageIds.has(evidenceMessageId)) {
-      throw new Error(`Invalid evidence message for criterion ${criterion.id}.`);
+      throw new Error(`Некорректное сообщение-доказательство для критерия ${criterion.id}.`);
     }
 
     return {

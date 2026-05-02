@@ -2,18 +2,18 @@ import Link from "next/link";
 import { BarChart3, ClipboardCheck, Gauge, Settings } from "lucide-react";
 
 const navItems = [
-  { href: "/reviews", label: "Reviews", icon: ClipboardCheck },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/admin/scorecards", label: "Scorecards", icon: Gauge },
-  { href: "/admin/integrations", label: "Integrations", icon: Settings }
+  { href: "/reviews", label: "Проверки", icon: ClipboardCheck },
+  { href: "/reports", label: "Отчеты", icon: BarChart3 },
+  { href: "/admin/scorecards", label: "Скоркарты", icon: Gauge },
+  { href: "/admin/integrations", label: "Интеграции", icon: Settings }
 ];
 
 export function AppSidebar() {
   return (
     <aside className="border-r border-[#d7dce5] bg-white px-4 py-5">
       <div className="mb-7">
-        <div className="text-lg font-semibold">Support QA</div>
-        <div className="text-sm text-[#667085]">Manual quality review</div>
+        <div className="text-lg font-semibold">Контроль качества</div>
+        <div className="text-sm text-[#667085]">Ручная проверка поддержки</div>
       </div>
       <nav className="grid gap-1">
         {navItems.map((item) => {

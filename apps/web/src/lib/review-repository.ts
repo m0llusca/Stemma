@@ -60,7 +60,7 @@ export async function getActiveScorecard(workspaceId: string) {
   });
 
   if (!scorecard) {
-    throw new Error("Active scorecard is missing. Run npm run db:seed.");
+    throw new Error("Активная скоркарта не найдена. Запустите npm run db:seed.");
   }
 
   return scorecard;

@@ -17,14 +17,14 @@ async function main() {
   await prisma.workspace.deleteMany();
 
   const workspace = await prisma.workspace.create({
-    data: { name: "Demo Support QA" }
+    data: { name: "Демо Контроль качества" }
   });
 
   const admin = await prisma.user.create({
     data: {
       workspaceId: workspace.id,
       email: "admin@example.com",
-      name: "Admin User",
+      name: "Администратор",
       role: "ADMIN"
     }
   });
@@ -33,7 +33,7 @@ async function main() {
     data: {
       workspaceId: workspace.id,
       email: "qa@example.com",
-      name: "QA Analyst",
+      name: "QA-аналитик",
       role: "QA_ANALYST"
     }
   });
@@ -41,15 +41,15 @@ async function main() {
   const scorecard = await prisma.scorecard.create({
     data: {
       workspaceId: workspace.id,
-      name: "Digital Support QA",
+      name: "Цифровая поддержка",
       version: 1,
       criteria: {
         create: [
-          { key: "accuracy", label: "Accuracy", kind: "SCALE_1_3", weight: 30, order: 1 },
-          { key: "resolution", label: "Resolution quality", kind: "SCALE_1_3", weight: 25, order: 2 },
-          { key: "policy", label: "Policy and compliance", kind: "PASS_FAIL", weight: 20, order: 3 },
-          { key: "tone", label: "Tone and empathy", kind: "SCALE_1_3", weight: 15, order: 4 },
-          { key: "clarity", label: "Writing clarity", kind: "SCALE_1_3", weight: 10, order: 5 }
+          { key: "accuracy", label: "Точность ответа", kind: "SCALE_1_3", weight: 30, order: 1 },
+          { key: "resolution", label: "Качество решения", kind: "SCALE_1_3", weight: 25, order: 2 },
+          { key: "policy", label: "Политики и комплаенс", kind: "PASS_FAIL", weight: 20, order: 3 },
+          { key: "tone", label: "Тон и эмпатия", kind: "SCALE_1_3", weight: 15, order: 4 },
+          { key: "clarity", label: "Ясность письма", kind: "SCALE_1_3", weight: 10, order: 5 }
         ]
       }
     }
@@ -62,13 +62,13 @@ async function main() {
       externalId: "conv-1001",
       externalUrl: "https://example.com/tickets/1001",
       channel: "CHAT",
-      subject: "Refund request after delayed delivery",
+      subject: "Запрос на возврат из-за задержки доставки",
       status: "closed",
-      tags: "refund,delivery,high-value",
-      customerName: "Mila Petrova",
-      assigneeName: "Ivan Support",
-      samplingReason: "High risk: refund policy",
-      riskHint: "Potential policy miss",
+      tags: "возврат,доставка,ценный-клиент",
+      customerName: "Мила Петрова",
+      assigneeName: "Иван Петров",
+      samplingReason: "Высокий риск: политика возврата",
+      riskHint: "Возможное нарушение политики",
       openedAt: new Date("2026-04-25T10:00:00.000Z"),
       closedAt: new Date("2026-04-25T10:18:00.000Z"),
       messages: {
@@ -76,29 +76,29 @@ async function main() {
           {
             externalId: "msg-1",
             participantType: "CUSTOMER",
-            authorName: "Mila Petrova",
-            body: "My delivery is late and I want a refund.",
+            authorName: "Мила Петрова",
+            body: "Доставка задерживается, я хочу возврат.",
             sentAt: new Date("2026-04-25T10:00:00.000Z")
           },
           {
             externalId: "msg-2",
             participantType: "HUMAN_AGENT",
-            authorName: "Ivan Support",
-            body: "I can help. The order is still in transit, so we can offer store credit today or a refund after carrier confirmation.",
+            authorName: "Иван Петров",
+            body: "Помогу разобраться. Заказ еще в пути, поэтому сегодня можем предложить бонусный кредит или оформить возврат после подтверждения перевозчика.",
             sentAt: new Date("2026-04-25T10:04:00.000Z")
           },
           {
             externalId: "msg-3",
             participantType: "CUSTOMER",
-            authorName: "Mila Petrova",
-            body: "Store credit works if it arrives this week.",
+            authorName: "Мила Петрова",
+            body: "Бонусный кредит подойдет, если заказ приедет на этой неделе.",
             sentAt: new Date("2026-04-25T10:09:00.000Z")
           },
           {
             externalId: "msg-4",
             participantType: "HUMAN_AGENT",
-            authorName: "Ivan Support",
-            body: "I issued store credit and added a carrier follow-up. You will get an update by Friday.",
+            authorName: "Иван Петров",
+            body: "Я начислил бонусный кредит и создал задачу на проверку у перевозчика. Обновление придет до пятницы.",
             sentAt: new Date("2026-04-25T10:18:00.000Z")
           }
         ]

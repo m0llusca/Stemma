@@ -1,4 +1,5 @@
 import type { Message, Scorecard, ScorecardCriterion } from "@prisma/client";
+import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
 import { finalizeReview } from "@/lib/review-actions";
 
 type ReviewPanelProps = {
@@ -14,7 +15,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
       <input type="hidden" name="scorecardId" value={scorecard.id} />
 
       <div className="mb-5">
-        <h2 className="text-lg font-semibold">Review panel</h2>
+        <h2 className="text-lg font-semibold">Панель проверки</h2>
         <p className="mt-1 text-sm text-[#667085]">
           {scorecard.name} v{scorecard.version}
         </p>
@@ -29,44 +30,44 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
             <div className="mt-3 grid gap-3">
               {criterion.kind === "SCALE_1_3" ? (
                 <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                  Score
+                  Оценка
                   <select
                     name={`criterion.${criterion.id}.score`}
                     defaultValue="3"
                     className="rounded border border-[#d7dce5] bg-white px-3 py-2"
                   >
-                    <option value="3">3 - Meets standard</option>
-                    <option value="2">2 - Needs improvement</option>
-                    <option value="1">1 - Missed standard</option>
+                    <option value="3">3 - соответствует стандарту</option>
+                    <option value="2">2 - нужна доработка</option>
+                    <option value="1">1 - не соответствует стандарту</option>
                   </select>
                 </label>
               ) : (
                 <div className="grid gap-2 text-sm font-medium text-[#344054]">
-                  Result
+                  Результат
                   <label className="flex items-center gap-2 font-normal">
                     <input type="radio" name={`criterion.${criterion.id}.passed`} value="true" defaultChecked />
-                    Pass
+                    Зачет
                   </label>
                   <label className="flex items-center gap-2 font-normal">
                     <input type="radio" name={`criterion.${criterion.id}.passed`} value="false" />
-                    Fail
+                    Незачет
                   </label>
                 </div>
               )}
 
               <label className="flex items-center gap-2 text-sm text-[#344054]">
                 <input type="checkbox" name={`criterion.${criterion.id}.notApplicable`} />
-                Not applicable
+                Не применимо
               </label>
 
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                Evidence message
+                Сообщение-доказательство
                 <select
                   name={`criterion.${criterion.id}.evidenceMessageId`}
                   defaultValue=""
                   className="rounded border border-[#d7dce5] bg-white px-3 py-2"
                 >
-                  <option value="">No specific message</option>
+                  <option value="">Без привязки к сообщению</option>
                   {messages.map((message) => (
                     <option key={message.id} value={message.id}>
                       {message.authorName}: {message.body.slice(0, 70)}
@@ -76,7 +77,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
               </label>
 
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                Criterion note
+                Комментарий по критерию
                 <textarea
                   name={`criterion.${criterion.id}.comment`}
                   rows={2}
@@ -90,45 +91,45 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
 
       <div className="mt-6 grid gap-4">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Review summary
+          Итог проверки
           <textarea name="summary" rows={3} required className="resize-y rounded border border-[#d7dce5] px-3 py-2" />
         </label>
 
         <div className="grid gap-4 md:grid-cols-3">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Owner
+            Ответственность
             <select name="ownerType" required className="rounded border border-[#d7dce5] bg-white px-3 py-2">
-              <option value="AGENT">Agent</option>
-              <option value="PROCESS">Process</option>
-              <option value="PRODUCT">Product</option>
-              <option value="POLICY">Policy</option>
-              <option value="AI_SYSTEM">AI system</option>
+              <option value="AGENT">{ownerTypeLabels.AGENT}</option>
+              <option value="PROCESS">{ownerTypeLabels.PROCESS}</option>
+              <option value="PRODUCT">{ownerTypeLabels.PRODUCT}</option>
+              <option value="POLICY">{ownerTypeLabels.POLICY}</option>
+              <option value="AI_SYSTEM">{ownerTypeLabels.AI_SYSTEM}</option>
             </select>
           </label>
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Risk
+            Риск
             <select name="riskLevel" required className="rounded border border-[#d7dce5] bg-white px-3 py-2">
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
+              <option value="LOW">{riskLevelLabels.LOW}</option>
+              <option value="MEDIUM">{riskLevelLabels.MEDIUM}</option>
+              <option value="HIGH">{riskLevelLabels.HIGH}</option>
+              <option value="CRITICAL">{riskLevelLabels.CRITICAL}</option>
             </select>
           </label>
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Category
+            Категория
             <input name="category" required className="rounded border border-[#d7dce5] px-3 py-2" />
           </label>
         </div>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Root cause
+          Корневая причина
           <textarea name="rootCause" rows={3} required className="resize-y rounded border border-[#d7dce5] px-3 py-2" />
         </label>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Evidence summary
+          Краткое доказательство
           <textarea
             name="evidenceSummary"
             rows={3}
@@ -139,15 +140,15 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
 
         <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Coaching action
+            Действие по коучингу
             <input name="coachingAction" className="rounded border border-[#d7dce5] px-3 py-2" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Coaching assignee
+            Ответственный за коучинг
             <input name="coachingAssignee" className="rounded border border-[#d7dce5] px-3 py-2" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Due date
+            Срок
             <input name="coachingDueAt" type="date" className="rounded border border-[#d7dce5] px-3 py-2" />
           </label>
         </div>
@@ -156,7 +157,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
           type="submit"
           className="rounded bg-[#116466] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b4f52]"
         >
-          Complete review
+          Завершить проверку
         </button>
       </div>
     </form>

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 function formatAverageScore(value: number | null | undefined) {
   if (value == null) {
-    return "N/A";
+    return "Нет данных";
   }
 
   return `${Math.round(value)}%`;
@@ -63,33 +63,33 @@ export default async function ReportsPage() {
   return (
     <section className="px-8 py-7">
       <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Quality reporting</p>
-        <h1 className="mt-1 text-2xl font-semibold">Reports</h1>
+        <p className="text-sm font-medium text-[#667085]">Отчетность по качеству</p>
+        <h1 className="mt-1 text-2xl font-semibold">Отчеты</h1>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Average score"
+          label="Средняя оценка"
           value={formatAverageScore(scoreAggregate._avg.totalScore)}
-          helper="Finalized reviews in the current workspace."
+          helper="Завершенные проверки в текущем рабочем пространстве."
           icon={<CheckCircle2 size={18} aria-hidden="true" />}
         />
         <MetricCard
-          label="High-risk findings"
+          label="Высокорисковые находки"
           value={String(highRiskFindings)}
-          helper="Finalized findings marked high or critical."
+          helper="Находки с высоким или критическим риском."
           icon={<AlertTriangle size={18} aria-hidden="true" />}
         />
         <MetricCard
-          label="Coaching backlog"
+          label="Очередь коучинга"
           value={String(coachingBacklog)}
-          helper="Open coaching actions linked to QA findings."
+          helper="Открытые действия по коучингу из QA-находок."
           icon={<ClipboardList size={18} aria-hidden="true" />}
         />
         <MetricCard
-          label="Reviewed sources"
+          label="Проверенные источники"
           value={String(reviewedSources.length)}
-          helper="Distinct source systems with finalized reviews."
+          helper="Источник считается проверенным после финальной оценки."
           icon={<Database size={18} aria-hidden="true" />}
         />
       </div>

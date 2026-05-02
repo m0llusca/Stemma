@@ -18,21 +18,23 @@ test.beforeEach(() => {
 test("completes the seeded refund request review workflow", async ({ page }) => {
   await page.goto("/reviews");
 
-  await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Refund request after delayed delivery" }).click();
+  await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
 
-  await expect(page.getByRole("heading", { name: "Refund request after delayed delivery" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Conversation timeline" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
 
-  await page.getByLabel("Review summary").fill("Agent gave the correct refund options and set a clear follow-up.");
-  await page.getByLabel("Root cause").fill("Carrier delay created refund-policy ambiguity.");
-  await page.getByLabel("Evidence summary").fill("The agent explained store credit and refund timing before resolving.");
-  await page.getByLabel("Coaching action").fill("Reinforce proactive delivery-date expectations.");
-  await page.getByLabel("Category").fill("Refund policy");
+  await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
+  await page.getByLabel("Корневая причина").fill("Задержка перевозчика создала неоднозначность по политике возврата.");
+  await page
+    .getByLabel("Краткое доказательство")
+    .fill("Оператор объяснил бонусный кредит и сроки возврата до закрытия диалога.");
+  await page.getByLabel("Действие по коучингу").fill("Закрепить проактивное ожидание по срокам доставки.");
+  await page.getByLabel("Категория").fill("Политика возврата");
 
-  await page.getByRole("button", { name: "Complete review" }).click();
+  await page.getByRole("button", { name: "Завершить проверку" }).click();
 
-  await expect(page.getByText("Latest score")).toBeVisible();
+  await expect(page.getByText("Последняя оценка")).toBeVisible();
   await expect(page.getByText("100%")).toBeVisible();
 });
