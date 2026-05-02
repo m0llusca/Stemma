@@ -90,7 +90,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
 
       <div className="mt-6 grid gap-4">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Summary
+          Review summary
           <textarea name="summary" rows={3} required className="resize-y rounded border border-[#d7dce5] px-3 py-2" />
         </label>
 
@@ -128,7 +128,7 @@ export function ReviewPanel({ conversationId, messages, scorecard }: ReviewPanel
         </label>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Evidence
+          Evidence summary
           <textarea
             name="evidenceSummary"
             rows={3}
