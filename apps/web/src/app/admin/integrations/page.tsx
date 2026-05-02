@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
+import { ChevronDown } from "lucide-react";
 import {
   buildCurlExample,
   customApiEndpoints,
@@ -92,6 +94,36 @@ function CodeBlock({ children }: { children: string }) {
   );
 }
 
+function IntegrationDisclosure({
+  title,
+  description,
+  meta,
+  children,
+  className = "mb-6"
+}: {
+  title: string;
+  description: string;
+  meta: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <details className={`panel disclosure-panel overflow-hidden ${className}`}>
+      <summary className="disclosure-summary flex cursor-pointer list-none flex-wrap items-start justify-between gap-4 px-5 py-4 sm:items-center">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <p className="mt-1 text-sm leading-5 text-[#667085]">{description}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{meta}</span>
+          <ChevronDown className="disclosure-chevron text-[#667085]" size={18} aria-hidden="true" />
+        </div>
+      </summary>
+      <div className="border-t border-[#d7dce5]">{children}</div>
+    </details>
+  );
+}
+
 export default async function AdminIntegrationsPage() {
   const user = await getCurrentUser();
   const [integrations, apiTokens] = await Promise.all([
@@ -120,10 +152,11 @@ export default async function AdminIntegrationsPage() {
         <h1 className="mt-1 text-2xl font-semibold">Интеграции</h1>
       </div>
 
-      <section className="panel mb-6 overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
-          <h2 className="text-lg font-semibold">Кастомный API</h2>
-        </div>
+      <IntegrationDisclosure
+        title="Кастомный API"
+        description="Endpoint-справка, dev-токен, curl-примеры, JSON-схемы и диагностика API-токена."
+        meta={`${customApiEndpoints.length} эндпоинта`}
+      >
         <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -256,16 +289,13 @@ export default async function AdminIntegrationsPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </IntegrationDisclosure>
 
-      <section className="panel mb-6 overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
-          <h2 className="text-lg font-semibold">OTRS-family импорт</h2>
-          <p className="mt-1 text-sm text-[#667085]">
-            Подготовлен mapping-слой для OTRS Community Edition 6, Znuny и OTOBO: тикет становится диалогом, статьи
-            становятся сообщениями.
-          </p>
-        </div>
+      <IntegrationDisclosure
+        title="OTRS-family импорт"
+        description="Mapping-слой для OTRS Community Edition 6, Znuny и OTOBO: тикет становится диалогом, статьи становятся сообщениями."
+        meta="TicketGet"
+      >
         <div className="grid gap-5 p-5 xl:grid-cols-[420px_minmax(0,1fr)]">
           <div className="grid gap-5">
             <div className="grid gap-2">
@@ -305,38 +335,46 @@ export default async function AdminIntegrationsPage() {
             </div>
           </div>
         </div>
-      </section>
+      </IntegrationDisclosure>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Демо-записи</h2>
-          </div>
-          <table className="w-full border-collapse text-left text-sm">
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Название</th>
-                <th className="px-5 py-3 font-semibold">Источник</th>
-                <th className="px-5 py-3 font-semibold">Статус</th>
-                <th className="px-5 py-3 font-semibold">Последняя синхронизация</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#d7dce5]">
-              {integrations.map((integration) => (
-                <tr key={integration.id}>
-                  <td className="px-5 py-4 font-medium text-[#17202a]">{integration.displayName}</td>
-                  <td className="px-5 py-4 text-[#344054]">{integration.source}</td>
-                  <td className="px-5 py-4 text-[#344054]">{integrationStatusLabel(integration.status)}</td>
-                  <td className="px-5 py-4 text-[#344054]">{formatDate(integration.lastSyncedAt)}</td>
+        <IntegrationDisclosure
+          title="Демо-записи"
+          description="Подключенные и запланированные источники в текущем рабочем пространстве."
+          meta={`${integrations.length} записи`}
+          className="mb-0"
+        >
+          <div className="scroll-area">
+            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Название</th>
+                  <th className="px-5 py-3 font-semibold">Источник</th>
+                  <th className="px-5 py-3 font-semibold">Статус</th>
+                  <th className="px-5 py-3 font-semibold">Последняя синхронизация</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5]">
+                {integrations.map((integration) => (
+                  <tr key={integration.id}>
+                    <td className="px-5 py-4 font-medium text-[#17202a]">{integration.displayName}</td>
+                    <td className="px-5 py-4 text-[#344054]">{integration.source}</td>
+                    <td className="px-5 py-4 text-[#344054]">{integrationStatusLabel(integration.status)}</td>
+                    <td className="px-5 py-4 text-[#344054]">{formatDate(integration.lastSyncedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </IntegrationDisclosure>
 
-        <section className="panel p-5">
-          <h2 className="text-lg font-semibold">План интеграций</h2>
-          <div className="mt-4 grid gap-3">
+        <IntegrationDisclosure
+          title="План интеграций"
+          description="Очередность native-коннекторов после универсального API и OTRS-family трека."
+          meta="Этапы 2-3"
+          className="mb-0"
+        >
+          <div className="grid gap-3 p-5">
             {roadmap.map((item) => (
               <article key={item.name} className="rounded-md border border-[#d7dce5] p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -349,7 +387,7 @@ export default async function AdminIntegrationsPage() {
               </article>
             ))}
           </div>
-        </section>
+        </IntegrationDisclosure>
       </div>
     </section>
   );

@@ -77,6 +77,31 @@ button, input, select, textarea {
   width: 100%;
 }
 
+.disclosure-summary {
+  user-select: none;
+}
+
+.disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure-summary:hover {
+  background: #fbfcfd;
+}
+
+.disclosure-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.disclosure-chevron {
+  transition: transform 160ms ease;
+}
+
+.disclosure-panel[open] .disclosure-chevron {
+  transform: rotate(180deg);
+}
+
 .compact-text {
   overflow-wrap: anywhere;
 }

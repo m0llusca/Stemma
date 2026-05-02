@@ -86,7 +86,10 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "OTRS-family импорт" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).not.toBeVisible();
+  await page.getByRole("heading", { name: "План интеграций" }).click();
   await expect(page.getByText("Этап 2 · первый native track")).toBeVisible();
+  await page.getByRole("heading", { name: "OTRS-family импорт" }).click();
   await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
   await page.getByRole("button", { name: "Импортировать в очередь" }).click();
   await expect(page.getByRole("link", { name: "Клиент просит возврат после задержки доставки" })).toBeVisible();
