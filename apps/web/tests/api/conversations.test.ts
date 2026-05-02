@@ -1,0 +1,308 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NextRequest } from "next/server";
+
+const mocks = vi.hoisted(() => ({
+  getCurrentUser: vi.fn(),
+  prisma: {
+    conversation: {
+      findFirst: vi.fn(),
+      upsert: vi.fn()
+    },
+    message: {
+      upsert: vi.fn()
+    },
+    review: {
+      findMany: vi.fn()
+    }
+  }
+}));
+
+vi.mock("@/lib/current-user", () => ({
+  getCurrentUser: mocks.getCurrentUser
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: mocks.prisma
+}));
+
+const currentUser = {
+  id: "user-1",
+  workspaceId: "workspace-1",
+  role: "QA_ANALYST",
+  workspace: { id: "workspace-1", name: "Demo Support QA" }
+};
+
+function jsonRequest(body: unknown) {
+  return new Request("http://localhost/api/conversations", {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" }
+  }) as NextRequest;
+}
+
+describe("custom conversation API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getCurrentUser.mockResolvedValue(currentUser);
+  });
+
+  it("upserts a conversation and its messages", async () => {
+    const { POST } = await import("@/app/api/conversations/route");
+    mocks.prisma.conversation.upsert.mockResolvedValue({ id: "conv-db-1" });
+    mocks.prisma.message.upsert.mockResolvedValueOnce({ id: "msg-db-1" }).mockResolvedValueOnce({ id: "msg-db-2" });
+
+    const response = await POST(
+      jsonRequest({
+        externalSource: "custom_api",
+        externalId: "conv-123",
+        externalUrl: "https://example.com/conversations/conv-123",
+        channel: "chat",
+        subject: "Refund request",
+        status: "closed",
+        tags: ["refund", "delivery"],
+        customerName: "Ava Customer",
+        assigneeName: "Sam Agent",
+        samplingReason: "High-value customer",
+        riskHint: "Policy risk",
+        openedAt: "2026-04-25T10:00:00.000Z",
+        closedAt: "2026-04-25T10:30:00.000Z",
+        messages: [
+          {
+            externalId: "msg-1",
+            participantType: "customer",
+            authorName: "Ava Customer",
+            body: "Where is my refund?",
+            sentAt: "2026-04-25T10:00:00.000Z"
+          },
+          {
+            externalId: "msg-2",
+            participantType: "human_agent",
+            authorName: "Sam Agent",
+            body: "I can help.",
+            sentAt: "2026-04-25T10:04:00.000Z",
+            isPrivate: true
+          }
+        ]
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ id: "conv-db-1" });
+    expect(response.status).toBe(201);
+    expect(mocks.prisma.conversation.upsert).toHaveBeenCalledWith({
+      where: {
+        workspaceId_externalSource_externalId: {
+          workspaceId: "workspace-1",
+          externalSource: "custom_api",
+          externalId: "conv-123"
+        }
+      },
+      create: expect.objectContaining({
+        workspaceId: "workspace-1",
+        channel: "CHAT",
+        tags: "refund,delivery"
+      }),
+      update: expect.objectContaining({
+        channel: "CHAT",
+        tags: "refund,delivery"
+      })
+    });
+    expect(mocks.prisma.conversation.upsert.mock.calls[0][0].create.messages).toBeUndefined();
+    expect(mocks.prisma.message.upsert).toHaveBeenCalledTimes(2);
+    expect(mocks.prisma.message.upsert).toHaveBeenCalledWith({
+      where: {
+        conversationId_externalId: {
+          conversationId: "conv-db-1",
+          externalId: "msg-2"
+        }
+      },
+      create: expect.objectContaining({
+        conversationId: "conv-db-1",
+        participantType: "HUMAN_AGENT",
+        isPrivate: true
+      }),
+      update: expect.objectContaining({
+        participantType: "HUMAN_AGENT",
+        isPrivate: true
+      })
+    });
+  });
+
+  it("returns 400 for invalid conversation payloads", async () => {
+    const { POST } = await import("@/app/api/conversations/route");
+
+    const response = await POST(jsonRequest({ externalId: "missing-required-fields" }));
+
+    await expect(response.json()).resolves.toEqual({ error: "Invalid custom conversation payload." });
+    expect(response.status).toBe(400);
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+  });
+
+  it("upserts a message only when the conversation belongs to the workspace", async () => {
+    const { POST } = await import("@/app/api/conversations/[id]/messages/route");
+    mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-db-1" });
+    mocks.prisma.message.upsert.mockResolvedValue({ id: "msg-db-1" });
+
+    const response = await POST(
+      jsonRequest({
+        externalId: "msg-1",
+        participantType: "ai_agent",
+        authorName: "AI Assistant",
+        body: "Suggested answer.",
+        sentAt: "2026-04-25T10:06:00.000Z"
+      }),
+      { params: Promise.resolve({ id: "conv-db-1" }) }
+    );
+
+    await expect(response.json()).resolves.toEqual({ id: "msg-db-1" });
+    expect(response.status).toBe(201);
+    expect(mocks.prisma.conversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "conv-db-1",
+        workspaceId: "workspace-1"
+      },
+      select: { id: true }
+    });
+    expect(mocks.prisma.message.upsert).toHaveBeenCalledWith({
+      where: {
+        conversationId_externalId: {
+          conversationId: "conv-db-1",
+          externalId: "msg-1"
+        }
+      },
+      create: expect.objectContaining({
+        conversationId: "conv-db-1",
+        participantType: "AI_AGENT",
+        isPrivate: false
+      }),
+      update: expect.objectContaining({
+        participantType: "AI_AGENT",
+        isPrivate: false
+      })
+    });
+  });
+
+  it("returns 404 before message validation when the conversation is outside the workspace", async () => {
+    const { POST } = await import("@/app/api/conversations/[id]/messages/route");
+    mocks.prisma.conversation.findFirst.mockResolvedValue(null);
+
+    const response = await POST(jsonRequest({}), { params: Promise.resolve({ id: "conv-db-2" }) });
+
+    await expect(response.json()).resolves.toEqual({ error: "Conversation not found." });
+    expect(response.status).toBe(404);
+    expect(mocks.prisma.message.upsert).not.toHaveBeenCalled();
+  });
+
+  it("exports reviews for the current workspace", async () => {
+    const { GET } = await import("@/app/api/reviews/export/route");
+    mocks.prisma.review.findMany.mockResolvedValue([
+      {
+        id: "review-1",
+        status: "FINALIZED",
+        reviewSource: "HUMAN",
+        rubricVersion: 1,
+        totalScore: 92,
+        confidence: null,
+        summary: "Strong resolution.",
+        finalizedAt: new Date("2026-04-26T12:00:00.000Z"),
+        createdAt: new Date("2026-04-26T11:50:00.000Z"),
+        conversation: {
+          id: "conv-db-1",
+          externalSource: "custom_api",
+          externalId: "conv-123",
+          externalUrl: null,
+          channel: "CHAT",
+          subject: "Refund request",
+          status: "closed",
+          tags: "refund,delivery",
+          customerName: "Ava Customer",
+          assigneeName: "Sam Agent",
+          samplingReason: "High-value customer",
+          riskHint: null,
+          openedAt: new Date("2026-04-25T10:00:00.000Z"),
+          closedAt: null
+        },
+        reviewer: {
+          id: "user-1",
+          email: "qa@example.com",
+          name: "QA Analyst",
+          role: "QA_ANALYST"
+        },
+        scores: [
+          {
+            value: 3,
+            passed: null,
+            isNotApplicable: false,
+            comment: "Accurate.",
+            evidenceMessageId: "msg-db-1",
+            criterion: {
+              id: "criterion-1",
+              key: "accuracy",
+              label: "Accuracy",
+              kind: "SCALE_1_3",
+              weight: 30,
+              order: 1
+            }
+          }
+        ],
+        findings: [
+          {
+            id: "finding-1",
+            ownerType: "AGENT",
+            category: "Resolution",
+            rootCause: "None",
+            riskLevel: "LOW",
+            evidenceSummary: "Good answer.",
+            coachingAction: {
+              assignee: "Sam Agent",
+              action: "Share example.",
+              dueAt: new Date("2026-05-01T00:00:00.000Z"),
+              status: "open"
+            }
+          }
+        ]
+      }
+    ]);
+
+    const response = await GET();
+
+    await expect(response.json()).resolves.toEqual({
+      reviews: [
+        expect.objectContaining({
+          id: "review-1",
+          finalizedAt: "2026-04-26T12:00:00.000Z",
+          conversation: expect.objectContaining({
+            externalId: "conv-123",
+            openedAt: "2026-04-25T10:00:00.000Z",
+            closedAt: null
+          }),
+          reviewer: expect.objectContaining({
+            email: "qa@example.com"
+          }),
+          scores: [
+            expect.objectContaining({
+              criterion: expect.objectContaining({
+                key: "accuracy"
+              })
+            })
+          ],
+          findings: [
+            expect.objectContaining({
+              coachingAction: {
+                assignee: "Sam Agent",
+                action: "Share example.",
+                dueAt: "2026-05-01T00:00:00.000Z",
+                status: "open"
+              }
+            })
+          ]
+        })
+      ]
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workspaceId: "workspace-1" }
+      })
+    );
+  });
+});
