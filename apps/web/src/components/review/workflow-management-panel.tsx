@@ -30,8 +30,8 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
         <div className="min-w-0">
           <h2 className="text-base font-semibold">Управление проверкой</h2>
           <p className="mt-1 truncate text-sm text-[#667085]">
-            {qaStatusLabels[conversation.qaStatus]} · {conversation.qaAssigneeName ?? "QA не назначен"} ·{" "}
-            {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "без дедлайна"}
+            {qaStatusLabels[conversation.qaStatus]} · {conversation.qaAssigneeName ?? "Проверяющий не назначен"} ·{" "}
+            {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "без срока"}
           </p>
         </div>
         <span
@@ -64,7 +64,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
         </label>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          QA-исполнитель
+          Проверяющий
           <select
             name="qaAssigneeId"
             defaultValue={conversation.qaAssigneeId ?? ""}
@@ -83,7 +83,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
         </label>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Дедлайн
+          Срок
           <input
             name="reviewDueAt"
             type="date"

@@ -43,7 +43,8 @@ button, input, select, textarea {
 }
 
 button {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 input, select, textarea {
@@ -51,11 +52,23 @@ input, select, textarea {
 }
 
 h1, h2, h3, h4, p, td, th, dd, dt, span {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 pre, code {
   max-width: 100%;
+}
+
+pre {
+  white-space: pre-wrap;
+}
+
+pre code {
+  display: block;
+  overflow-wrap: break-word;
+  white-space: inherit;
+  word-break: normal;
 }
 
 .page {
@@ -99,6 +112,8 @@ pre, code {
 .table-fixed-copy th,
 .table-fixed-copy td {
   vertical-align: top;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .scroll-area {

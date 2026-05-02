@@ -51,7 +51,7 @@ export default async function AdminTokensPage() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-          <h1 className="mt-1 text-2xl font-semibold">API-токены</h1>
+          <h1 className="mt-1 text-2xl font-semibold">Ключи API</h1>
         </div>
         <Link
           href="/admin/integrations"
@@ -63,7 +63,7 @@ export default async function AdminTokensPage() {
 
       <section className="panel mb-6 overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
-          <h2 className="text-lg font-semibold">Локальный dev secret</h2>
+          <h2 className="text-lg font-semibold">Локальный ключ для разработки</h2>
           <p className="mt-1 text-sm text-[#667085]">
             На страницах интеграций используется плейсхолдер {apiTokenPlaceholder}; реальные значения собраны здесь.
           </p>
@@ -71,15 +71,15 @@ export default async function AdminTokensPage() {
         <div className="grid gap-4 p-5 lg:grid-cols-2">
           <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[#17202a]">Token</p>
-              <CopyButton value={demoApiToken} label="Скопировать token" />
+              <p className="text-sm font-semibold text-[#17202a]">Ключ</p>
+              <CopyButton value={demoApiToken} label="Скопировать ключ" />
             </div>
             <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054] compact-text">{demoApiToken}</code>
           </div>
           <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[#17202a]">Authorization header</p>
-              <CopyButton value={authorizationHeader} label="Скопировать header" />
+              <p className="text-sm font-semibold text-[#17202a]">Заголовок Authorization</p>
+              <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
             </div>
             <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054] compact-text">{authorizationHeader}</code>
           </div>
@@ -88,7 +88,7 @@ export default async function AdminTokensPage() {
 
       <section className="panel overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
-          <h2 className="text-lg font-semibold">Токены workspace</h2>
+          <h2 className="text-lg font-semibold">Ключи рабочего пространства</h2>
         </div>
         <div className="scroll-area">
           <table className="table-fixed-copy w-full min-w-[980px] border-collapse text-left text-sm">
@@ -97,7 +97,7 @@ export default async function AdminTokensPage() {
                 <th className="px-5 py-3 font-semibold">Статус</th>
                 <th className="px-5 py-3 font-semibold">Название</th>
                 <th className="px-5 py-3 font-semibold">Префикс</th>
-                <th className="px-5 py-3 font-semibold">Scopes</th>
+                <th className="px-5 py-3 font-semibold">Права доступа</th>
                 <th className="px-5 py-3 font-semibold">Использование</th>
                 <th className="px-5 py-3 font-semibold">Последний успех</th>
                 <th className="px-5 py-3 font-semibold">Последняя ошибка</th>

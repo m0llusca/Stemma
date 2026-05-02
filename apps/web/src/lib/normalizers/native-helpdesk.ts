@@ -189,7 +189,7 @@ function actorName(actor: NativeRecord | undefined, fallback: unknown) {
 }
 
 function defaultSamplingReason(source: NativeHelpdeskSource) {
-  return `Native ${sourceLabels[source]} импорт: тикет/диалог и история сообщений.`;
+  return `Импорт ${sourceLabels[source]}: тикет/диалог и история сообщений.`;
 }
 
 function statusFromClosed(status: string | undefined, closedValues = ["closed", "solved", "resolved"]) {
@@ -632,7 +632,7 @@ export const nativeHelpdeskMappingRows = [
   { source: "Intercom conversation.id + source + conversation_parts", target: "conversation/messages", note: "Source становится первым сообщением, parts добавляются по created_at." },
   { source: "Freshdesk ticket.id + conversations[]", target: "conversation/messages", note: "incoming=true считается клиентом, private=true становится внутренней заметкой." },
   { source: "HubSpot ticket.properties + associated activities", target: "conversation/messages", note: "properties дают карточку тикета, activities/notes/emails дают историю." },
-  { source: "priority/tags/status/stage", target: "tags/riskHint/status", note: "Высокий/urgent priority подсвечивается QA как риск." }
+  { source: "priority/tags/status/stage", target: "tags/riskHint/status", note: "Высокий/urgent priority подсвечивается как риск." }
 ] as const;
 
 export const nativeHelpdeskImportExamples: Record<NativeHelpdeskSource, unknown> = {

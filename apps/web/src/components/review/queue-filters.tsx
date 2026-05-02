@@ -71,7 +71,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees }: Queue
       </label>
 
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
-        QA
+        Проверяющий
         <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
           <option value="">Все</option>
           {qaAssignees.map((qaAssignee) => (

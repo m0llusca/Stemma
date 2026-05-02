@@ -138,7 +138,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
           <HeaderChip label="Канал" icon={Radio}>{channelLabels[conversation.channel]}</HeaderChip>
           <HeaderChip label="Тикет" icon={TicketCheck}>{conversationStatusLabel(conversation.status)}</HeaderChip>
           <HeaderChip label="Сообщения" icon={MessageSquareText}>{formatMessageCount(conversation.messages.length)}</HeaderChip>
-          <HeaderChip label="QA" icon={Headset}>{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
+          <HeaderChip label="Проверяющий" icon={Headset}>{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
           <HeaderChip label="Срок" icon={CalendarClock}>
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
           </HeaderChip>
@@ -162,7 +162,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         <details className="panel disclosure-panel mb-6 overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold">Последняя находка</h2>
+              <h2 className="text-lg font-semibold">Последнее замечание</h2>
               <p className="mt-1 truncate text-sm text-[#667085]">{latestFinalizedReview.summary}</p>
             </div>
             <span
@@ -193,7 +193,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
           </div>
           {latestFinding?.coachingAction ? (
             <div className="mx-5 mb-5 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm">
-              <p className="font-semibold text-[#667085]">Коучинг</p>
+              <p className="font-semibold text-[#667085]">Разбор с оператором</p>
               <p className="mt-1 text-[#17202a]">{latestFinding.coachingAction.action}</p>
               <p className="mt-2 text-[#667085]">
                 {latestFinding.coachingAction.assignee}
@@ -240,7 +240,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
                     <td className="px-5 py-4 text-[#344054]">{review.reviewer.name}</td>
                     <td className="px-5 py-4 text-[#344054]">{reviewStatusLabels[review.status]}</td>
                     <td className="px-5 py-4 font-semibold text-[#17202a]">{Math.round(review.totalScore)}%</td>
-                    <td className="px-5 py-4 text-[#344054]">{review.findings[0]?.category ?? "Без находки"}</td>
+                    <td className="px-5 py-4 text-[#344054]">{review.findings[0]?.category ?? "Без замечаний"}</td>
                   </tr>
                 ))}
               </tbody>

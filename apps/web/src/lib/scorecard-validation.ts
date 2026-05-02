@@ -24,7 +24,7 @@ export function validateScorecardDraft(input: ScorecardDraft): ScorecardDraft {
   const name = input.name.trim();
 
   if (!name) {
-    throw new Error("Название скоркарты обязательно.");
+    throw new Error("Название формы оценки обязательно.");
   }
 
   if (input.criteria.length === 0) {

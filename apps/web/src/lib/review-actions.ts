@@ -38,7 +38,7 @@ function requiredOwnerType(formData: FormData): FindingOwnerType {
   const value = requiredString(formData, "ownerType");
 
   if (!ownerTypes.includes(value as FindingOwnerType)) {
-    throw new Error("Некорректный тип ответственности находки.");
+    throw new Error("Некорректный тип ответственности замечания.");
   }
 
   return value as FindingOwnerType;
@@ -62,7 +62,7 @@ function optionalOwnerType(formData: FormData): FindingOwnerType | undefined {
   }
 
   if (!ownerTypes.includes(value as FindingOwnerType)) {
-    throw new Error("Некорректный тип ответственности находки.");
+    throw new Error("Некорректный тип ответственности замечания.");
   }
 
   return value as FindingOwnerType;
@@ -116,7 +116,7 @@ async function loadReviewContext(workspaceId: string, conversationId: string, sc
   }
 
   if (!scorecard) {
-    throw new Error("Скоркарта не найдена в текущем рабочем пространстве.");
+    throw new Error("Форма оценки не найдена в текущем рабочем пространстве.");
   }
 
   return { conversation, scorecard };

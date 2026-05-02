@@ -32,8 +32,8 @@ export function QueueTable({ conversations }: QueueTableProps) {
             <th className="px-4 py-3 font-semibold">Канал</th>
             <th className="px-4 py-3 font-semibold">Источник</th>
             <th className="px-4 py-3 font-semibold">Оператор</th>
-            <th className="px-4 py-3 font-semibold">QA</th>
-            <th className="px-4 py-3 font-semibold">Дедлайн</th>
+            <th className="px-4 py-3 font-semibold">Проверяющий</th>
+            <th className="px-4 py-3 font-semibold">Срок</th>
             <th className="px-4 py-3 font-semibold">Причина</th>
             <th className="px-4 py-3 font-semibold">Оценка</th>
           </tr>

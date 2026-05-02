@@ -73,8 +73,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("cell", { name: "Завершена" })).toBeVisible();
 
   await page.goto("/admin/scorecards");
-  await expect(page.getByRole("heading", { name: "Скоркарты", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Новая версия скоркарты" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Формы оценки", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Новая версия формы оценки" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeVisible();
   await expect(page.getByText("Сумма весов: 100%")).toBeVisible();
   await page.getByRole("button", { name: "Добавить критерий" }).click();
@@ -82,21 +82,22 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeDisabled();
 
   await page.goto("/admin/audit");
-  await expect(page.getByRole("heading", { name: "Аудит" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Журнал действий" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "review.finalized" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "API-активность" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Активность API-ключей" })).toBeVisible();
 
   await page.goto("/reports");
-  await expect(page.getByRole("heading", { name: "Отчеты" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "По источникам" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "По операторам" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "По уровню риска" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "По категориям находок" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Что требует внимания" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Источники" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Операторы" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Риски" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
 
   await page.goto("/admin/tokens");
-  await expect(page.getByRole("heading", { name: "API-токены" })).toBeVisible();
-  await expect(page.getByText("Authorization header")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Скопировать header" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ключи API" })).toBeVisible();
+  await expect(page.getByText("Заголовок Authorization")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Скопировать заголовок" })).toBeVisible();
 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
@@ -110,7 +111,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByText("Znuny", { exact: true }).first()).toBeVisible();
   await expect(page.getByLabel("Base URL")).toHaveValue("https://support.example.com/znuny");
   await expect(page.getByLabel("Платформа")).not.toBeVisible();
-  await expect(page.getByLabel("TicketID для preview")).toHaveValue("42");
+  await expect(page.getByLabel("TicketID для проверки")).toHaveValue("42");
 
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 3. Лимиты" })).toBeVisible();
@@ -118,21 +119,21 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByLabel("Размер батча")).toHaveValue("25");
 
   await page.getByRole("button", { name: "Далее" }).click();
-  await expect(page.getByRole("heading", { name: "Шаг 4. Preview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Шаг 4. Проверка" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Сохранить настройку" })).toBeDisabled();
-  await page.getByRole("button", { name: "Проверить подключение и preview" }).click();
-  await expect(page.getByText("Preview готов")).toBeVisible();
+  await page.getByRole("button", { name: "Проверить подключение" }).click();
+  await expect(page.getByText("Подключение проверено")).toBeVisible();
   await expect(page.getByRole("button", { name: "Сохранить настройку" })).toBeEnabled();
 
   await page.getByText("Технические детали OTRS-family").click();
-  await expect(page.getByText("Fallback JSON body")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Запасной JSON-запрос" })).toBeVisible();
 
   await page.goto("/admin/integrations");
   await page.getByLabel("Источник").selectOption("custom_api");
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
   await expect(page.getByLabel("Название системы")).toHaveValue("Внутренний helpdesk");
-  await expect(page.getByRole("main").getByRole("link", { name: "Токены" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "API-доступ" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).not.toBeVisible();
 
   await page.goto("/admin/integrations");
@@ -141,7 +142,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
   await expect(page.getByText("Zendesk", { exact: true }).first()).toBeVisible();
   await expect(page.getByLabel("Выбранный сервис")).not.toBeVisible();
-  await page.getByText("Mapping и endpoint native-адаптера").click();
+  await page.getByText("Сопоставление готового адаптера").click();
   await expect(page.getByText("/api/integrations/native-helpdesks/conversations")).toBeVisible();
   await expect(page.getByRole("button", { name: "Импортировать в очередь" })).not.toBeVisible();
 });

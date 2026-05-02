@@ -48,14 +48,14 @@ const smallButtonClass =
 
 const sourceModeLabels: Record<SourceMode, string> = {
   otrs_family: "OTRS / Znuny / OTOBO",
-  native_helpdesk: "SaaS helpdesk",
+  native_helpdesk: "Облачные helpdesk",
   custom_api: "Своя система"
 };
 
 const sourceModeDescriptions: Record<SourceMode, string> = {
-  otrs_family: "Подключение через GenericInterface TicketGet с безопасным preview перед запуском.",
-  native_helpdesk: "Импорт тикетов и сообщений из популярных SaaS helpdesk через native-адаптеры.",
-  custom_api: "Единый контракт для внутренних систем и нестандартных helpdesk."
+  otrs_family: "Подключение через GenericInterface TicketGet с безопасной проверкой перед запуском.",
+  native_helpdesk: "Импорт тикетов и сообщений из популярных облачных helpdesk через готовые адаптеры.",
+  custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk."
 };
 
 const sourceOptions = [
@@ -76,7 +76,7 @@ const sourceOptions = [
   })),
   {
     value: "custom_api" as const,
-    label: "Своя система через Custom API",
+    label: "Своя система через API",
     mode: "custom_api" as const,
     description: sourceModeDescriptions.custom_api
   }
@@ -91,7 +91,7 @@ const wizardSteps: Array<{ value: WizardStep; label: string; title: string }> = 
   { value: "source", label: "Источник", title: "Шаг 1. Источник" },
   { value: "access", label: "Доступ", title: "Шаг 2. Доступ" },
   { value: "limits", label: "Лимиты", title: "Шаг 3. Лимиты" },
-  { value: "preview", label: "Preview", title: "Шаг 4. Preview" },
+  { value: "preview", label: "Проверка", title: "Шаг 4. Проверка" },
   { value: "done", label: "Готово", title: "Шаг 5. Готово" }
 ];
 
@@ -114,7 +114,7 @@ function nativeImportCurl(source: NativeHelpdeskSource) {
   return buildCurlExample("/api/integrations/native-helpdesks/conversations", "POST", {
     source,
     baseUrl: "https://support.example.com",
-    samplingReason: `Native ${info.label} импорт: тикет/диалог и история сообщений.`,
+    samplingReason: `Импорт ${info.label}: тикет/диалог и история сообщений.`,
     payload: nativeHelpdeskImportExamples[source]
   });
 }
@@ -278,7 +278,7 @@ function SourceChoiceStep({
                 </option>
               ))}
           </optgroup>
-          <optgroup label="SaaS helpdesk">
+          <optgroup label="Облачные helpdesk">
             {sourceOptions
               .filter((option) => option.mode === "native_helpdesk")
               .map((option) => (
@@ -365,7 +365,7 @@ function AccessStep({
             className={fieldClass}
           />
         </FormField>
-        <FormField label="TicketID для preview">
+        <FormField label="TicketID для проверки">
           <input value={ticketId} onChange={(event) => onTicketIdChange(event.target.value)} className={fieldClass} />
         </FormField>
       </div>
@@ -378,7 +378,7 @@ function AccessStep({
         <FormField label="Base URL">
           <input value={nativeBaseUrl} onChange={(event) => onNativeBaseUrlChange(event.target.value)} className={fieldClass} />
         </FormField>
-        <FormField label="API token или app secret">
+        <FormField label="Ключ API или секрет приложения">
           <input
             value={nativeToken}
             onChange={(event) => onNativeTokenChange(event.target.value)}
@@ -404,13 +404,13 @@ function AccessStep({
       <div className="grid min-h-full content-start gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={`w-fit rounded-md px-2 py-1 text-xs font-semibold ${apiHealth.className}`}>{apiHealth.label}</span>
-          <span className="text-xs font-semibold uppercase text-[#667085]">Custom API</span>
+          <span className="text-xs font-semibold uppercase text-[#667085]">Свой API</span>
         </div>
-        <p className="break-words">{apiTokenCount} API-токен(ов) в рабочем пространстве.</p>
+        <p className="break-words">{apiTokenCount} ключ(а) API в рабочем пространстве.</p>
         <div className="flex flex-wrap gap-2">
-          <CopyButton value={`Authorization: Bearer ${apiTokenPlaceholder}`} label="Скопировать header" />
+          <CopyButton value={`Authorization: Bearer ${apiTokenPlaceholder}`} label="Скопировать заголовок" />
           <Link href="/admin/tokens" className={smallButtonClass}>
-            Токены
+            API-доступ
           </Link>
         </div>
       </div>
@@ -585,7 +585,7 @@ function PreviewStep({
 
       <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
         <button type="button" onClick={onCheck} className={primaryButtonClass}>
-          Проверить подключение и preview
+          Проверить подключение
         </button>
         <span className="text-sm leading-5 text-[#667085]">
           Проверка не создает тикеты; импорт будет подтверждаться автоматическим запуском с лимитами.
@@ -596,7 +596,7 @@ function PreviewStep({
         <div className="flex min-w-0 items-start gap-3 rounded-md border border-[#b7dfcb] bg-[#e8f3ef] p-4 text-sm leading-5 text-[#116466]">
           <CheckCircle2 className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
           <div className="min-w-0">
-            <p className="font-semibold text-[#17202a]">Preview готов</p>
+            <p className="font-semibold text-[#17202a]">Подключение проверено</p>
             <p>
               Подключение принято для {sourceLabel}. При запуске автоматики будет обработано не больше {maxTicketCount} тикетов
               батчами по {batchTicketCount}; найденные дубликаты будут {deduplicate ? "пропущены" : "загружены повторно"}.
@@ -607,7 +607,7 @@ function PreviewStep({
 
       {mode === "custom_api" ? (
         <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
-          Для custom API preview считается успешным после валидного `Authorization` и первого ответа на импорт диалога.
+          Для своего API проверка считается успешной после валидного `Authorization` и первого ответа на импорт диалога.
         </div>
       ) : null}
     </div>
@@ -623,8 +623,8 @@ function DoneStep({ checked }: { checked: boolean }) {
           <p className="font-semibold text-[#17202a]">Настройка готова к первому ограниченному запуску</p>
           <p>
             {checked
-              ? "Preview уже пройден. Следующий шаг - сохранить подключение и включить расписание импорта."
-              : "Перед включением расписания вернитесь на шаг preview и проверьте подключение."}
+              ? "Проверка уже пройдена. Следующий шаг - сохранить подключение и включить расписание импорта."
+              : "Перед включением расписания вернитесь на шаг проверки и проверьте подключение."}
           </p>
         </div>
       </div>
@@ -633,7 +633,7 @@ function DoneStep({ checked }: { checked: boolean }) {
           Открыть очередь
         </Link>
         <Link href="/admin/audit" className={secondaryButtonClass}>
-          Проверить аудит
+          Открыть журнал
         </Link>
       </div>
     </div>
@@ -688,20 +688,20 @@ function TechnicalDetailsForMode({
       <TechnicalDetails title="Технические детали OTRS-family">
         <div className="grid gap-5">
           <div className="grid items-stretch gap-4 xl:grid-cols-2">
-            <CodeExampleCard title="TicketGet URL и query">
+            <CodeExampleCard title="TicketGet URL и параметры">
               {ticketGetCurl}
             </CodeExampleCard>
-            <CodeExampleCard title="Fallback JSON body">
+            <CodeExampleCard title="Запасной JSON-запрос">
               {ticketGetRequest}
             </CodeExampleCard>
           </div>
 
           <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-            <DataTable title="Mapping в custom API" minWidth="min-w-[640px]">
+            <DataTable title="Сопоставление с единым форматом" minWidth="min-w-[640px]">
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">OTRS/Znuny/OTOBO</th>
-                  <th className="px-4 py-3 font-semibold">Поле QC</th>
+                  <th className="px-4 py-3 font-semibold">Поле проверки</th>
                   <th className="px-4 py-3 font-semibold">Правило</th>
                 </tr>
               </thead>
@@ -715,7 +715,7 @@ function TechnicalDetailsForMode({
                 ))}
               </tbody>
             </DataTable>
-            <CodeExampleCard title="Fallback endpoint native-импорта">
+            <CodeExampleCard title="Запасной endpoint импорта">
               {otrsImportCurl}
             </CodeExampleCard>
           </div>
@@ -749,17 +749,17 @@ function TechnicalDetailsForMode({
 
   if (mode === "native_helpdesk") {
     return (
-      <TechnicalDetails title="Mapping и endpoint native-адаптера">
+      <TechnicalDetails title="Сопоставление готового адаптера">
         <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <DataTable
-            title="Mapping в custom API"
-            description="Как native-поля превращаются в единый формат ручной проверки."
+            title="Сопоставление с единым форматом"
+            description="Как поля источника превращаются в единый формат ручной проверки."
             minWidth="min-w-[640px]"
           >
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
-                <th className="px-4 py-3 font-semibold">Native поле</th>
-                <th className="px-4 py-3 font-semibold">Поле QC</th>
+                <th className="px-4 py-3 font-semibold">Поле источника</th>
+                <th className="px-4 py-3 font-semibold">Поле проверки</th>
                 <th className="px-4 py-3 font-semibold">Правило</th>
               </tr>
             </thead>
@@ -774,8 +774,8 @@ function TechnicalDetailsForMode({
             </tbody>
           </DataTable>
           <CodeExampleCard
-            title="Endpoint native-импорта"
-            description="Один endpoint принимает разные native payload и применяет выбранный адаптер."
+            title="Endpoint импорта"
+            description="Один endpoint принимает разные форматы источников и применяет выбранный адаптер."
           >
             {nativeImportCurl(nativeSource)}
           </CodeExampleCard>
@@ -785,14 +785,14 @@ function TechnicalDetailsForMode({
   }
 
   return (
-    <TechnicalDetails title="Технический контракт custom API">
+    <TechnicalDetails title="Технический контракт своего API">
       <div className="grid gap-5">
-        <DataTable title="Endpoint-карта" minWidth="min-w-[720px]">
+        <DataTable title="Карта endpoint" minWidth="min-w-[720px]">
           <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
             <tr>
               <th className="px-4 py-3 font-semibold">Метод</th>
               <th className="px-4 py-3 font-semibold">Endpoint</th>
-              <th className="px-4 py-3 font-semibold">Scope</th>
+              <th className="px-4 py-3 font-semibold">Право доступа</th>
               <th className="px-4 py-3 font-semibold">Назначение</th>
             </tr>
           </thead>
@@ -954,7 +954,7 @@ export function IntegrationSetupWorkspace({
         <p className="text-sm font-medium text-[#667085]">Новая интеграция</p>
         <h2 className="mt-1 text-lg font-semibold text-[#17202a]">Мастер подключения источника</h2>
         <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">
-          Один последовательный поток: источник, доступ, лимиты, preview и безопасный первый запуск.
+          Один последовательный поток: источник, доступ, лимиты, проверка и безопасный первый запуск.
         </p>
       </div>
 

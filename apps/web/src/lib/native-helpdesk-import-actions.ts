@@ -31,7 +31,7 @@ function sourceField(formData: FormData): NativeHelpdeskSource {
   const source = stringField(formData, "source");
 
   if (!nativeHelpdeskSourceValues.includes(source as NativeHelpdeskSource)) {
-    throw new Error("Некорректный native helpdesk источник.");
+    throw new Error("Некорректный источник helpdesk.");
   }
 
   return source as NativeHelpdeskSource;
@@ -101,7 +101,7 @@ export async function importNativeHelpdeskPayload(formData: FormData) {
   const rawPayload = stringField(formData, "payload");
 
   if (!rawPayload) {
-    throw new Error("Вставьте native helpdesk payload.");
+    throw new Error("Вставьте данные из helpdesk.");
   }
 
   const options: NativeHelpdeskNormalizeOptions = {

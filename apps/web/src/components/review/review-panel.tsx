@@ -24,7 +24,7 @@ const categoryTemplates = [
   "Точность ответа",
   "Эмпатия и тон",
   "Скорость эскалации",
-  "Работа с AI-подсказкой"
+  "Работа с подсказкой ИИ"
 ];
 
 const coachingTemplates = [
@@ -287,7 +287,7 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
           <div>
             <h3 className="text-sm font-semibold uppercase text-[#667085]">Дополнительно</h3>
-            <p className="mt-1 text-sm text-[#667085]">Корневая причина, доказательство и коучинг</p>
+            <p className="mt-1 text-sm text-[#667085]">Корневая причина, доказательство и разбор с оператором</p>
           </div>
           <span
             className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
@@ -320,7 +320,7 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
 
           <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Действие по коучингу
+              Действие для разбора
               <input
                 name="coachingAction"
                 list="coaching-templates"
@@ -334,7 +334,7 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
               ))}
             </datalist>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Ответственный за коучинг
+              Ответственный за разбор
               <input
                 name="coachingAssignee"
                 defaultValue={draftFinding?.coachingAction?.assignee ?? ""}

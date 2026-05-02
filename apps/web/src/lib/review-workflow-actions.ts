@@ -23,7 +23,7 @@ function statusField(formData: FormData): QaStatus {
   const value = stringField(formData, "qaStatus");
 
   if (!qaStatuses.includes(value as QaStatus)) {
-    throw new Error("Некорректный workflow-статус.");
+    throw new Error("Некорректное состояние проверки.");
   }
 
   return value as QaStatus;
@@ -33,7 +33,7 @@ export async function updateConversationWorkflow(formData: FormData) {
   const user = await getCurrentUser();
 
   if (!canManageReviewWorkflow(user.role)) {
-    throw new Error("Нет прав на изменение workflow проверки.");
+    throw new Error("Нет прав на изменение состояния проверки.");
   }
 
   const conversationId = stringField(formData, "conversationId");
@@ -62,7 +62,7 @@ export async function updateConversationWorkflow(formData: FormData) {
     : null;
 
   if (qaAssigneeId && !qaAssignee) {
-    throw new Error("QA-исполнитель не найден.");
+    throw new Error("Проверяющий не найден.");
   }
 
   const conversation = await prisma.conversation.findFirst({

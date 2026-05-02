@@ -77,7 +77,7 @@ function BreakdownTable({
         <table className="table-fixed-copy w-full min-w-[520px] border-collapse text-left text-sm">
           <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
             <tr>
-              <th className="px-5 py-3 font-semibold">Разрез</th>
+              <th className="px-5 py-3 font-semibold">Показатель</th>
               <th className="px-5 py-3 font-semibold">{countLabel}</th>
               {showAverage ? <th className="px-5 py-3 font-semibold">Средняя оценка</th> : null}
             </tr>
@@ -104,6 +104,32 @@ function BreakdownTable({
         </table>
       </div>
     </section>
+  );
+}
+
+function InsightCard({
+  label,
+  value,
+  helper,
+  tone = "neutral"
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  tone?: "neutral" | "warning" | "success";
+}) {
+  const toneClassName = {
+    neutral: "border-[#d7dce5] bg-white",
+    warning: "border-[#fed7aa] bg-[#fffaf5]",
+    success: "border-[#b9ddd2] bg-[#f4faf7]"
+  }[tone];
+
+  return (
+    <article className={`grid min-h-[132px] content-start gap-2 rounded-lg border p-4 ${toneClassName}`}>
+      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
+      <p className="text-xl font-semibold text-[#17202a]">{value}</p>
+      <p className="text-sm leading-5 text-[#667085]">{helper}</p>
+    </article>
   );
 }
 
@@ -182,12 +208,18 @@ export default async function ReportsPage() {
   const assigneeRows = scoreGroupRows(assigneeGroups);
   const categoryRows = countGroupRows(categoryGroups);
   const riskRows = countGroupRows(riskGroups);
+  const finalizedCount = finalizedReviews.length;
+  const topRiskRow = riskRows[0];
+  const topCategoryRow = categoryRows[0];
+  const weakestAssignee = assigneeRows
+    .filter((row) => row.averageScore != null)
+    .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))[0];
 
   return (
     <section className="page-shell">
       <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Отчетность по качеству</p>
-        <h1 className="mt-1 text-2xl font-semibold">Отчеты</h1>
+        <p className="text-sm font-medium text-[#667085]">Контроль качества</p>
+        <h1 className="mt-1 text-2xl font-semibold">Аналитика качества</h1>
       </div>
 
       <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -198,15 +230,15 @@ export default async function ReportsPage() {
           icon={<CheckCircle2 size={18} aria-hidden="true" />}
         />
         <MetricCard
-          label="Высокорисковые находки"
+          label="Замечания с высоким риском"
           value={String(highRiskFindings)}
-          helper="Находки с высоким или критическим риском."
+          helper="Замечания с высоким или критическим риском."
           icon={<AlertTriangle size={18} aria-hidden="true" />}
         />
         <MetricCard
-          label="Очередь коучинга"
+          label="Разборы с операторами"
           value={String(coachingBacklog)}
-          helper="Открытые действия по коучингу из QA-находок."
+          helper="Открытые действия по разбору замечаний."
           icon={<ClipboardList size={18} aria-hidden="true" />}
         />
         <MetricCard
@@ -217,11 +249,47 @@ export default async function ReportsPage() {
         />
       </div>
 
+      <section className="mt-6">
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold">Что требует внимания</h2>
+          <p className="mt-1 text-sm text-[#667085]">
+            Короткая сводка для руководителя: где чаще возникают риски и кого стоит разобрать первым.
+          </p>
+        </div>
+        <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <InsightCard
+            label="Завершено проверок"
+            value={String(finalizedCount)}
+            helper="Количество проверок, на которых построена текущая аналитика."
+            tone={finalizedCount > 0 ? "success" : "neutral"}
+          />
+          <InsightCard
+            label="Главный риск"
+            value={topRiskRow ? `${topRiskRow.label}: ${topRiskRow.count}` : "Нет данных"}
+            helper="Самый частый уровень риска среди замечаний."
+            tone={topRiskRow ? "warning" : "neutral"}
+          />
+          <InsightCard
+            label="Частая категория"
+            value={topCategoryRow ? `${topCategoryRow.label}: ${topCategoryRow.count}` : "Нет данных"}
+            helper="Категория, которая чаще всего встречается в замечаниях."
+          />
+          <InsightCard
+            label="Оператор для разбора"
+            value={
+              weakestAssignee ? `${weakestAssignee.label}: ${formatAverageScore(weakestAssignee.averageScore)}` : "Нет данных"
+            }
+            helper="Самая низкая средняя оценка среди завершенных проверок."
+            tone={weakestAssignee ? "warning" : "neutral"}
+          />
+        </div>
+      </section>
+
       <div className="mt-6 grid items-start gap-5 xl:grid-cols-2">
-        <BreakdownTable title="По источникам" rows={sourceRows} countLabel="Проверок" showAverage />
-        <BreakdownTable title="По операторам" rows={assigneeRows} countLabel="Проверок" showAverage />
-        <BreakdownTable title="По уровню риска" rows={riskRows} countLabel="Находок" />
-        <BreakdownTable title="По категориям находок" rows={categoryRows} countLabel="Находок" />
+        <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
+        <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
+        <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
+        <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
       </div>
     </section>
   );

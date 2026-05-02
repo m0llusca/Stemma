@@ -45,15 +45,15 @@ export default async function AdminScorecardsPage() {
     <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-        <h1 className="mt-1 text-2xl font-semibold">Скоркарты</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Формы оценки</h1>
       </div>
 
       {activeScorecard ? (
         <section className="panel mb-6 overflow-hidden">
           <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Новая версия скоркарты</h2>
+            <h2 className="text-lg font-semibold">Новая версия формы оценки</h2>
             <p className="mt-1 text-sm text-[#667085]">
-              Создает новую активную версию и оставляет исторические проверки на прежней версии.
+              Создает новую активную форму и оставляет исторические проверки на прежних версиях.
             </p>
           </div>
           <ScorecardVersionForm

@@ -286,7 +286,7 @@ export async function getActiveScorecard(workspaceId: string) {
   });
 
   if (!scorecard) {
-    throw new Error("Активная скоркарта не найдена. Запустите npm run db:seed.");
+    throw new Error("Активная форма оценки не найдена. Запустите npm run db:seed.");
   }
 
   return scorecard;

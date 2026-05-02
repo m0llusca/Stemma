@@ -3,11 +3,11 @@ import { BarChart3, ClipboardCheck, Gauge, History, KeyRound, Settings } from "l
 
 const navItems = [
   { href: "/reviews", label: "Проверки", icon: ClipboardCheck },
-  { href: "/reports", label: "Отчеты", icon: BarChart3 },
-  { href: "/admin/scorecards", label: "Скоркарты", icon: Gauge },
+  { href: "/reports", label: "Аналитика", icon: BarChart3 },
+  { href: "/admin/scorecards", label: "Формы оценки", icon: Gauge },
   { href: "/admin/integrations", label: "Интеграции", icon: Settings },
-  { href: "/admin/tokens", label: "Токены", icon: KeyRound },
-  { href: "/admin/audit", label: "Аудит", icon: History }
+  { href: "/admin/tokens", label: "API-доступ", icon: KeyRound },
+  { href: "/admin/audit", label: "Журнал", icon: History }
 ];
 
 export function AppSidebar() {

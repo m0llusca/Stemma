@@ -19,7 +19,7 @@ export const channelLabels: Record<ConversationChannel, string> = {
 export const participantLabels: Record<ParticipantType, string> = {
   CUSTOMER: "Клиент",
   HUMAN_AGENT: "Оператор",
-  AI_AGENT: "AI",
+  AI_AGENT: "ИИ",
   SYSTEM: "Система"
 };
 
@@ -38,8 +38,8 @@ export const qaStatusLabels: Record<QaStatus, string> = {
 
 export const roleLabels: Record<RoleName, string> = {
   ADMIN: "Администратор",
-  TEAM_LEAD: "Руководитель QA",
-  QA_ANALYST: "QA-аналитик",
+  TEAM_LEAD: "Руководитель контроля качества",
+  QA_ANALYST: "Проверяющий",
   VIEWER: "Наблюдатель"
 };
 
@@ -53,7 +53,7 @@ export const ownerTypeLabels: Record<FindingOwnerType, string> = {
   PROCESS: "Процесс",
   PRODUCT: "Продукт",
   POLICY: "Политика",
-  AI_SYSTEM: "AI-система"
+  AI_SYSTEM: "ИИ-система"
 };
 
 export const riskLevelLabels: Record<RiskLevel, string> = {

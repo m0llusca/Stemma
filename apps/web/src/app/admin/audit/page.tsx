@@ -116,12 +116,12 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
     <section className="page-shell">
       <div className="mb-6">
         <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-        <h1 className="mt-1 text-2xl font-semibold">Аудит</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Журнал действий</h1>
       </div>
 
       <form action="/admin/audit" className="panel mb-6 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(180px,220px)_minmax(180px,220px)_auto]">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Action
+          Действие
           <select name="action" defaultValue={action ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
             <option value="">Все</option>
             {actionRows.map((row) => (
@@ -132,7 +132,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Target type
+          Тип объекта
           <select name="targetType" defaultValue={targetType ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
             <option value="">Все</option>
             {targetTypeRows.map((row) => (
@@ -202,7 +202,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
 
         <section className="panel overflow-hidden">
           <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">API-активность</h2>
+            <h2 className="text-lg font-semibold">Активность API-ключей</h2>
           </div>
           <div className="divide-y divide-[#d7dce5]">
             {apiTokens.map((token) => (

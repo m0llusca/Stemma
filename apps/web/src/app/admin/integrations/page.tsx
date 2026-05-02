@@ -157,7 +157,7 @@ export default async function AdminIntegrationsPage() {
         {recentImportLogs.length > 0 ? (
           <DataTable
             title="Последние импорты"
-            description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
+            description="Успешные импорты через готовые адаптеры: количество диалогов, ошибки и быстрый переход в очередь."
             minWidth="min-w-[820px]"
           >
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
@@ -197,10 +197,10 @@ export default async function AdminIntegrationsPage() {
         ) : (
           <Surface
             title="Последние импорты"
-            description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
+            description="Успешные импорты через готовые адаптеры: количество диалогов, ошибки и быстрый переход в очередь."
           >
             <div className={emptyStateClass}>
-              Импорты появятся здесь после успешного запуска native-коннектора или custom API.
+              Импорты появятся здесь после успешного запуска готового адаптера или своего API.
             </div>
           </Surface>
         )}
@@ -240,15 +240,15 @@ export default async function AdminIntegrationsPage() {
         </Surface>
 
         <DataTable
-          title="API-токены"
-          description="Состояние dev-токенов помогает понять, был ли успешный импорт или свежая ошибка."
+          title="Ключи API"
+          description="Состояние ключей помогает понять, был ли успешный импорт или свежая ошибка."
           minWidth="min-w-[980px]"
         >
           <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
             <tr>
               <th className="px-5 py-3 font-semibold">Название</th>
               <th className="px-5 py-3 font-semibold">Префикс</th>
-              <th className="px-5 py-3 font-semibold">Scopes</th>
+              <th className="px-5 py-3 font-semibold">Права доступа</th>
               <th className="px-5 py-3 font-semibold">Последнее использование</th>
               <th className="px-5 py-3 font-semibold">Последний успех</th>
               <th className="px-5 py-3 font-semibold">Последняя ошибка</th>

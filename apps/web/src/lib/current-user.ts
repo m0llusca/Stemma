@@ -7,7 +7,7 @@ export async function getCurrentUser() {
   });
 
   if (!user) {
-    throw new Error("Демо-пользователь QA-аналитика не найден. Запустите npm run db:seed.");
+    throw new Error("Демо-пользователь для проверки не найден. Запустите npm run db:seed.");
   }
 
   return user;

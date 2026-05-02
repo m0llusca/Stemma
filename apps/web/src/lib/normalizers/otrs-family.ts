@@ -224,20 +224,20 @@ export const otrsFamilyRequestShapeNotes = [
     detail: "Для стандартного GenericTicketConnectorREST TicketGet чаще вызывается GET-запросом: TicketID идет в route или query, auth и флаги в query."
   },
   {
-    title: "JSON-body fallback",
-    detail: "POST/PATCH с JSON-body нужен только для кастомного route mapping; поля обычно идут в корне JSON без TicketGet wrapper."
+    title: "Запасной JSON-запрос",
+    detail: "POST/PATCH с JSON-body нужен только для нестандартной маршрутизации; поля обычно идут в корне JSON без обертки TicketGet."
   },
   {
-    title: "Wrapped body",
-    detail: "Форму { TicketGet: { ... } } используйте только если ваш gateway или inbound mapping явно ожидает wrapper операции."
+    title: "JSON с оберткой",
+    detail: "Форму { TicketGet: { ... } } используйте только если ваш gateway или входящее сопоставление явно ожидает обертку операции."
   },
   {
-    title: "Route mapping",
+    title: "Маршрут TicketGet",
     detail: "URL зависит от Admin -> Web Services: у OTRS/Znuny часто /Ticket/{TicketID}, у OTOBO часто /TicketGet?TicketID=..."
   },
   {
     title: "Attachments",
-    detail: "Для QA-импорта по умолчанию Attachments=0 и GetAttachmentContents=0, чтобы не тащить тяжелый base64."
+    detail: "Для проверки по умолчанию Attachments=0 и GetAttachmentContents=0, чтобы не тащить тяжелый base64."
   }
 ] as const;
 

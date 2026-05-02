@@ -28,13 +28,13 @@ export const customApiEndpoints = [
     method: "POST",
     path: "/api/integrations/native-helpdesks/conversations",
     scope: "conversations:write",
-    purpose: "Импортировать native payload Zendesk, Intercom, Freshdesk или HubSpot."
+    purpose: "Импортировать данные Zendesk, Intercom, Freshdesk или HubSpot через готовый адаптер."
   },
   {
     method: "GET",
     path: "/api/reviews/export",
     scope: "reviews:read",
-    purpose: "Выгрузить завершенные проверки и находки."
+    purpose: "Выгрузить завершенные проверки и замечания."
   }
 ] as const;
 
@@ -84,14 +84,14 @@ export const customMessageExample = {
 export const otrsFamilyImportExample = {
   source: "znuny",
   baseUrl: "https://support.example.com/otrs",
-  samplingReason: "Native OTRS-family импорт: очередь Refunds и статьи тикета.",
+  samplingReason: "Импорт OTRS-family: очередь Refunds и статьи тикета.",
   ticketGet: otrsFamilyTicketGetExample
 } as const;
 
 export const nativeHelpdeskImportExample = {
   source: "zendesk",
   baseUrl: "https://support.example.com",
-  samplingReason: "Native Zendesk импорт: тикет и комментарии.",
+  samplingReason: "Импорт Zendesk: тикет и комментарии.",
   payload: nativeHelpdeskImportExamples.zendesk
 } as const;
 
@@ -105,7 +105,7 @@ export const customConversationSchemaRows = [
   { field: "tags", required: "Нет", type: "string[]", note: "Метки для фильтрации и выборки." },
   { field: "customerName", required: "Да", type: "string", note: "Имя клиента." },
   { field: "assigneeName", required: "Нет", type: "string", note: "Оператор или группа поддержки." },
-  { field: "samplingReason", required: "Да", type: "string", note: "Почему диалог попал в QA-очередь." },
+  { field: "samplingReason", required: "Да", type: "string", note: "Почему диалог попал в очередь проверок." },
   { field: "riskHint", required: "Нет", type: "string", note: "Подсказка для проверяющего." },
   { field: "openedAt", required: "Да", type: "ISO datetime", note: "Дата открытия с timezone offset." },
   { field: "closedAt", required: "Нет", type: "ISO datetime | null", note: "Дата закрытия, если есть." },
