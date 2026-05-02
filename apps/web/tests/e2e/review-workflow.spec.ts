@@ -1,5 +1,15 @@
 import { execFileSync } from "node:child_process";
+import { closeSync, openSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+
+test.beforeAll(() => {
+  closeSync(openSync("prisma/dev.db", "a"));
+  execFileSync("npx", ["prisma", "migrate", "deploy"], {
+    cwd: process.cwd(),
+    env: { ...process.env, DATABASE_URL: "file:./dev.db" },
+    stdio: "inherit"
+  });
+});
 
 test.beforeEach(() => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
