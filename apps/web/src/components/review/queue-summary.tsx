@@ -1,24 +1,28 @@
 type QueueSummaryProps = {
   total: number;
-  unreviewed: number;
+  queued: number;
+  inWork: number;
+  drafts: number;
   reviewed: number;
-  highRisk: number;
+  overdue: number;
   filtered: number;
 };
 
 const summaryItems = [
   { key: "total", label: "Всего" },
-  { key: "unreviewed", label: "В очереди" },
+  { key: "queued", label: "В очереди" },
+  { key: "inWork", label: "В работе" },
+  { key: "drafts", label: "Черновики" },
   { key: "reviewed", label: "Завершено" },
-  { key: "highRisk", label: "С риском" },
+  { key: "overdue", label: "Просрочено" },
   { key: "filtered", label: "Найдено" }
 ] as const;
 
-export function QueueSummary({ total, unreviewed, reviewed, highRisk, filtered }: QueueSummaryProps) {
-  const values = { total, unreviewed, reviewed, highRisk, filtered };
+export function QueueSummary({ total, queued, inWork, drafts, reviewed, overdue, filtered }: QueueSummaryProps) {
+  const values = { total, queued, inWork, drafts, reviewed, overdue, filtered };
 
   return (
-    <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
       {summaryItems.map((item) => (
         <div key={item.key} className="panel p-4">
           <p className="text-xs font-semibold uppercase text-[#667085]">{item.label}</p>

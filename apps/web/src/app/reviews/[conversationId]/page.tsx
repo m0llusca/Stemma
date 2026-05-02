@@ -2,12 +2,15 @@ import { notFound } from "next/navigation";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewWorkflow } from "@/components/review/review-workflow";
-import { getCurrentUser } from "@/lib/current-user";
+import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
+import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
+import { prisma } from "@/lib/db";
 import {
   channelLabels,
   conversationStatusLabel,
   formatMessageCount,
   ownerTypeLabels,
+  qaStatusLabels,
   reviewStatusLabels,
   riskLevelLabels
 } from "@/lib/labels";
@@ -21,24 +24,45 @@ type ReviewDetailPageProps = {
 
 export default async function ReviewDetailPage({ params }: ReviewDetailPageProps) {
   const [{ conversationId }, user] = await Promise.all([params, getCurrentUser()]);
-  const [conversation, scorecard] = await Promise.all([
+  const [conversation, scorecard, qaAssignees] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId),
-    getActiveScorecard(user.workspaceId)
+    getActiveScorecard(user.workspaceId),
+    prisma.user.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        role: {
+          in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+        }
+      },
+      orderBy: {
+        name: "asc"
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true
+      }
+    })
   ]);
 
   if (!conversation) {
     notFound();
   }
 
-  const latestReview = conversation.reviews[0];
-  const latestFinding = latestReview?.findings[0];
+  const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED");
+  const currentDraftReview = conversation.reviews.find(
+    (review) => review.status === "DRAFT" && review.reviewerId === user.id
+  );
+  const scorePreviewReview = latestFinalizedReview ?? currentDraftReview;
+  const latestFinding = latestFinalizedReview?.findings[0];
   const evidenceMessageIds = Array.from(
     new Set(
-      latestReview?.scores
+      scorePreviewReview?.scores
         .map((score) => score.evidenceMessageId)
         .filter((messageId): messageId is string => Boolean(messageId)) ?? []
     )
   );
+  const canManageWorkflow = canManageReviewWorkflow(user.role);
 
   return (
     <section className="page-shell">
@@ -57,35 +81,45 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         <div className="panel min-w-[220px] p-4">
           <p className="text-xs font-semibold uppercase text-[#667085]">Последняя оценка</p>
           <p className="mt-2 text-3xl font-semibold text-[#17202a]">
-            {latestReview ? `${latestReview.totalScore}%` : "Не проверено"}
+            {scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено"}
           </p>
-          {latestReview ? (
+          {scorePreviewReview ? (
             <p className="mt-1 text-sm text-[#667085]">
-              {reviewStatusLabels[latestReview.status]}: {latestReview.reviewer.name}
+              {reviewStatusLabels[scorePreviewReview.status]}: {scorePreviewReview.reviewer.name}
             </p>
           ) : null}
         </div>
       </div>
 
       <ReviewWorkflow
-        isReviewed={Boolean(latestReview)}
+        isReviewed={Boolean(latestFinalizedReview)}
         scorecardName={`${scorecard.name} v${scorecard.version}`}
         hasFinding={Boolean(latestFinding)}
         hasCoachingAction={Boolean(latestFinding?.coachingAction)}
       />
 
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mb-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Ответственный</p>
+          <p className="text-xs font-semibold uppercase text-[#667085]">Оператор</p>
           <p className="mt-2 text-sm font-medium">{conversation.assigneeName ?? "Не назначен"}</p>
+        </div>
+        <div className="panel p-4">
+          <p className="text-xs font-semibold uppercase text-[#667085]">QA</p>
+          <p className="mt-2 text-sm font-medium">{conversation.qaAssigneeName ?? "Не назначен"}</p>
+        </div>
+        <div className="panel p-4">
+          <p className="text-xs font-semibold uppercase text-[#667085]">Workflow</p>
+          <p className="mt-2 text-sm font-medium">{qaStatusLabels[conversation.qaStatus]}</p>
+        </div>
+        <div className="panel p-4">
+          <p className="text-xs font-semibold uppercase text-[#667085]">Дедлайн</p>
+          <p className="mt-2 text-sm font-medium">
+            {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
+          </p>
         </div>
         <div className="panel p-4">
           <p className="text-xs font-semibold uppercase text-[#667085]">Причина выборки</p>
           <p className="mt-2 text-sm font-medium">{conversation.samplingReason}</p>
-        </div>
-        <div className="panel p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Подсказка риска</p>
-          <p className="mt-2 text-sm font-medium">{conversation.riskHint ?? "Нет"}</p>
         </div>
         <div className="panel p-4">
           <p className="text-xs font-semibold uppercase text-[#667085]">Открыто</p>
@@ -93,10 +127,19 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         </div>
       </div>
 
-      {latestReview ? (
+      {conversation.riskHint ? (
+        <section className="panel mb-6 p-4">
+          <p className="text-xs font-semibold uppercase text-[#667085]">Подсказка риска</p>
+          <p className="mt-2 text-sm font-medium">{conversation.riskHint}</p>
+        </section>
+      ) : null}
+
+      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
+
+      {latestFinalizedReview ? (
         <section className="panel mb-6 p-5">
           <h2 className="text-lg font-semibold">Последняя находка</h2>
-          <p className="mt-2 text-sm leading-6 text-[#344054]">{latestReview.summary}</p>
+          <p className="mt-2 text-sm leading-6 text-[#344054]">{latestFinalizedReview.summary}</p>
           {latestFinding ? (
             <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
               <div>
@@ -162,7 +205,12 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_520px]">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
-        <ReviewPanel conversationId={conversation.id} messages={conversation.messages} scorecard={scorecard} />
+        <ReviewPanel
+          conversationId={conversation.id}
+          messages={conversation.messages}
+          scorecard={scorecard}
+          draftReview={currentDraftReview}
+        />
       </div>
     </section>
   );

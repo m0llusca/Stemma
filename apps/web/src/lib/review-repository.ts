@@ -1,9 +1,11 @@
-import type { ConversationChannel, Prisma } from "@prisma/client";
+import type { ConversationChannel, Prisma, QaStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export const reviewQueueStatuses = ["all", "unreviewed", "reviewed"] as const;
+export const qaQueueStatuses = ["all", "QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const;
 
 const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
+const conversationQaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
 
 export type ReviewQueueStatus = (typeof reviewQueueStatuses)[number];
 
@@ -11,8 +13,10 @@ export type ReviewQueueFilters = {
   q?: string;
   status: ReviewQueueStatus;
   channel?: ConversationChannel;
+  qaStatus?: QaStatus;
   source?: string;
   assignee?: string;
+  qaAssignee?: string;
 };
 
 export type ReviewQueueSearchParams = Record<string, string | string[] | undefined>;
@@ -29,6 +33,7 @@ function cleanParam(value: string | string[] | undefined) {
 export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = {}): ReviewQueueFilters {
   const requestedStatus = cleanParam(searchParams.status);
   const requestedChannel = cleanParam(searchParams.channel);
+  const requestedQaStatus = cleanParam(searchParams.qaStatus);
 
   return {
     q: cleanParam(searchParams.q),
@@ -38,8 +43,10 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
     channel: conversationChannels.includes(requestedChannel as ConversationChannel)
       ? (requestedChannel as ConversationChannel)
       : undefined,
+    qaStatus: conversationQaStatuses.includes(requestedQaStatus as QaStatus) ? (requestedQaStatus as QaStatus) : undefined,
     source: cleanParam(searchParams.source),
-    assignee: cleanParam(searchParams.assignee)
+    assignee: cleanParam(searchParams.assignee),
+    qaAssignee: cleanParam(searchParams.qaAssignee)
   };
 }
 
@@ -82,12 +89,20 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
     and.push({ channel: filters.channel });
   }
 
+  if (filters.qaStatus) {
+    and.push({ qaStatus: filters.qaStatus });
+  }
+
   if (filters.source) {
     and.push({ externalSource: filters.source });
   }
 
   if (filters.assignee) {
     and.push({ assigneeName: filters.assignee });
+  }
+
+  if (filters.qaAssignee) {
+    and.push({ qaAssigneeName: filters.qaAssignee });
   }
 
   return { AND: and };
@@ -102,7 +117,7 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
       },
       reviews: {
         orderBy: { createdAt: "desc" },
-        take: 1
+        take: 4
       }
     },
     orderBy: { openedAt: "desc" }
@@ -110,16 +125,30 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
 }
 
 export async function getReviewQueueSummary(workspaceId: string) {
-  const [total, unreviewed, reviewed, highRisk] = await Promise.all([
+  const [total, queued, inWork, drafts, reviewed, overdue] = await Promise.all([
     prisma.conversation.count({
       where: { workspaceId }
     }),
     prisma.conversation.count({
       where: {
         workspaceId,
+        qaStatus: "QUEUED"
+      }
+    }),
+    prisma.conversation.count({
+      where: {
+        workspaceId,
+        qaStatus: {
+          in: ["ASSIGNED", "IN_PROGRESS", "REOPENED"]
+        }
+      }
+    }),
+    prisma.conversation.count({
+      where: {
+        workspaceId,
         reviews: {
-          none: {
-            status: "FINALIZED"
+          some: {
+            status: "DRAFT"
           }
         }
       }
@@ -127,6 +156,7 @@ export async function getReviewQueueSummary(workspaceId: string) {
     prisma.conversation.count({
       where: {
         workspaceId,
+        qaStatus: "FINALIZED",
         reviews: {
           some: {
             status: "FINALIZED"
@@ -137,25 +167,28 @@ export async function getReviewQueueSummary(workspaceId: string) {
     prisma.conversation.count({
       where: {
         workspaceId,
-        OR: [
-          { riskHint: { not: null } },
-          { samplingReason: { contains: "риск" } },
-          { samplingReason: { contains: "risk" } }
-        ]
+        reviewDueAt: {
+          lt: new Date()
+        },
+        qaStatus: {
+          not: "FINALIZED"
+        }
       }
     })
   ]);
 
   return {
     total,
-    unreviewed,
+    queued,
+    inWork,
+    drafts,
     reviewed,
-    highRisk
+    overdue
   };
 }
 
 export async function getReviewQueueFilterOptions(workspaceId: string) {
-  const [sourceRows, assigneeRows] = await Promise.all([
+  const [sourceRows, assigneeRows, qaAssigneeRows] = await Promise.all([
     prisma.conversation.findMany({
       where: { workspaceId },
       distinct: ["externalSource"],
@@ -180,6 +213,21 @@ export async function getReviewQueueFilterOptions(workspaceId: string) {
       orderBy: {
         assigneeName: "asc"
       }
+    }),
+    prisma.conversation.findMany({
+      where: {
+        workspaceId,
+        qaAssigneeName: {
+          not: null
+        }
+      },
+      distinct: ["qaAssigneeName"],
+      select: {
+        qaAssigneeName: true
+      },
+      orderBy: {
+        qaAssigneeName: "asc"
+      }
     })
   ]);
 
@@ -187,7 +235,10 @@ export async function getReviewQueueFilterOptions(workspaceId: string) {
     sources: sourceRows.map((row) => row.externalSource),
     assignees: assigneeRows
       .map((row) => row.assigneeName)
-      .filter((assigneeName): assigneeName is string => Boolean(assigneeName))
+      .filter((assigneeName): assigneeName is string => Boolean(assigneeName)),
+    qaAssignees: qaAssigneeRows
+      .map((row) => row.qaAssigneeName)
+      .filter((qaAssigneeName): qaAssigneeName is string => Boolean(qaAssigneeName))
   };
 }
 

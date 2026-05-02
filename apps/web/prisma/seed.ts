@@ -45,6 +45,24 @@ async function main() {
     }
   });
 
+  const teamLead = await prisma.user.create({
+    data: {
+      workspaceId: workspace.id,
+      email: "lead@example.com",
+      name: "Руководитель QA",
+      role: "TEAM_LEAD"
+    }
+  });
+
+  const viewer = await prisma.user.create({
+    data: {
+      workspaceId: workspace.id,
+      email: "viewer@example.com",
+      name: "Наблюдатель",
+      role: "VIEWER"
+    }
+  });
+
   const scorecard = await prisma.scorecard.create({
     data: {
       workspaceId: workspace.id,
@@ -74,6 +92,10 @@ async function main() {
       tags: "возврат,доставка,ценный-клиент",
       customerName: "Мила Петрова",
       assigneeName: "Иван Петров",
+      qaStatus: "QUEUED",
+      qaAssigneeId: analyst.id,
+      qaAssigneeName: analyst.name,
+      reviewDueAt: new Date("2026-05-05T12:00:00.000Z"),
       samplingReason: "Высокий риск: политика возврата",
       riskHint: "Возможное нарушение политики",
       openedAt: new Date("2026-04-25T10:00:00.000Z"),
@@ -149,6 +171,8 @@ async function main() {
       targetId: workspace.id,
       metadata: JSON.stringify({
         analystId: analyst.id,
+        teamLeadId: teamLead.id,
+        viewerId: viewer.id,
         scorecardId: scorecard.id,
         conversationId: conversation.id,
         apiTokenId: apiToken.id

@@ -43,9 +43,19 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByText("Шаг 1")).toBeVisible();
   await expect(page.getByText("Оценка по критериям")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Управление проверкой" })).toBeVisible();
+
+  await page.getByLabel("Workflow").selectOption("IN_PROGRESS");
+  await page.getByRole("button", { name: "Обновить" }).click();
+  await expect(page.getByText("В работе").first()).toBeVisible();
 
   await page.locator('select[name^="criterion."][name$=".evidenceMessageId"]').first().selectOption({ index: 1 });
   await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
+
+  await page.getByRole("button", { name: "Сохранить черновик" }).click();
+  await expect(page.getByText(/Черновик:/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
+
   await page.getByLabel("Корневая причина").fill("Задержка перевозчика создала неоднозначность по политике возврата.");
   await page
     .getByLabel("Краткое доказательство")

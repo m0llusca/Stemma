@@ -14,5 +14,21 @@ export async function getCurrentUser() {
 }
 
 export function canFinalizeReview(role: string) {
-  return role === "ADMIN" || role === "QA_ANALYST";
+  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+}
+
+export function canSaveReviewDraft(role: string) {
+  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+}
+
+export function canManageReviewWorkflow(role: string) {
+  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+}
+
+export function canManageScorecards(role: string) {
+  return role === "ADMIN" || role === "TEAM_LEAD";
+}
+
+export function canManageIntegrations(role: string) {
+  return role === "ADMIN";
 }

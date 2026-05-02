@@ -32,7 +32,12 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         <p className="mt-1 text-sm text-[#667085]">Рабочая очередь QA с фильтрами по статусу, каналу и источнику.</p>
       </div>
       <QueueSummary {...summary} filtered={conversations.length} />
-      <QueueFilters filters={filters} sources={filterOptions.sources} assignees={filterOptions.assignees} />
+      <QueueFilters
+        filters={filters}
+        sources={filterOptions.sources}
+        assignees={filterOptions.assignees}
+        qaAssignees={filterOptions.qaAssignees}
+      />
       <QueueTable conversations={conversations} />
     </section>
   );

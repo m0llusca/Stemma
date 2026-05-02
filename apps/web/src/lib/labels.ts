@@ -3,6 +3,8 @@ import type {
   CriterionKind,
   FindingOwnerType,
   ParticipantType,
+  QaStatus,
+  RoleName,
   ReviewStatus,
   RiskLevel
 } from "@prisma/client";
@@ -24,6 +26,21 @@ export const participantLabels: Record<ParticipantType, string> = {
 export const reviewStatusLabels: Record<ReviewStatus, string> = {
   DRAFT: "Черновик",
   FINALIZED: "Завершена"
+};
+
+export const qaStatusLabels: Record<QaStatus, string> = {
+  QUEUED: "В очереди",
+  ASSIGNED: "Назначено",
+  IN_PROGRESS: "В работе",
+  FINALIZED: "Завершено",
+  REOPENED: "На пересмотре"
+};
+
+export const roleLabels: Record<RoleName, string> = {
+  ADMIN: "Администратор",
+  TEAM_LEAD: "Руководитель QA",
+  QA_ANALYST: "QA-аналитик",
+  VIEWER: "Наблюдатель"
 };
 
 export const criterionKindLabels: Record<CriterionKind, string> = {

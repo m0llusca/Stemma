@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { channelLabels, reviewQueueStatusLabels } from "@/lib/labels";
+import { channelLabels, qaStatusLabels, reviewQueueStatusLabels } from "@/lib/labels";
 import type { ReviewQueueFilters } from "@/lib/review-repository";
-import { reviewQueueStatuses } from "@/lib/review-repository";
+import { qaQueueStatuses, reviewQueueStatuses } from "@/lib/review-repository";
 
 type QueueFiltersProps = {
   filters: ReviewQueueFilters;
   sources: string[];
   assignees: string[];
+  qaAssignees: string[];
 };
 
-export function QueueFilters({ filters, sources, assignees }: QueueFiltersProps) {
+export function QueueFilters({ filters, sources, assignees, qaAssignees }: QueueFiltersProps) {
   return (
-    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(140px,160px)_minmax(140px,160px)_minmax(150px,180px)_minmax(150px,180px)_auto]">
+    <form action="/reviews" className="panel mb-5 grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(150px,170px)_minmax(150px,170px)_minmax(130px,150px)_minmax(150px,170px)_minmax(150px,170px)_minmax(150px,170px)_auto]">
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
         Поиск
         <input
@@ -28,6 +29,17 @@ export function QueueFilters({ filters, sources, assignees }: QueueFiltersProps)
           {reviewQueueStatuses.map((status) => (
             <option key={status} value={status}>
               {reviewQueueStatusLabels[status]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        Workflow
+        <select name="qaStatus" defaultValue={filters.qaStatus ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          {qaQueueStatuses.map((status) => (
+            <option key={status} value={status === "all" ? "" : status}>
+              {status === "all" ? "Все" : qaStatusLabels[status]}
             </option>
           ))}
         </select>
@@ -58,12 +70,24 @@ export function QueueFilters({ filters, sources, assignees }: QueueFiltersProps)
       </label>
 
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
-        Ответственный
+        Оператор
         <select name="assignee" defaultValue={filters.assignee ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
           <option value="">Все</option>
           {assignees.map((assignee) => (
             <option key={assignee} value={assignee}>
               {assignee}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        QA
+        <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <option value="">Все</option>
+          {qaAssignees.map((qaAssignee) => (
+            <option key={qaAssignee} value={qaAssignee}>
+              {qaAssignee}
             </option>
           ))}
         </select>
