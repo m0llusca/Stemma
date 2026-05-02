@@ -130,16 +130,17 @@ Create `apps/web/package.json`:
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "DATABASE_URL=file:./dev.db prisma generate && next build",
+    "build": "cross-env DATABASE_URL=file:./dev.db prisma generate && cross-env DATABASE_URL=file:./dev.db next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "db:generate": "DATABASE_URL=file:./dev.db prisma generate",
-    "db:migrate": "DATABASE_URL=file:./dev.db RUST_LOG=info prisma migrate dev",
-    "db:seed": "DATABASE_URL=file:./dev.db tsx prisma/seed.ts",
-    "db:reset": "DATABASE_URL=file:./dev.db prisma migrate reset --force"
+    "db:generate": "cross-env DATABASE_URL=file:./dev.db prisma generate",
+    "db:migrate": "cross-env DATABASE_URL=file:./dev.db RUST_LOG=info prisma migrate dev",
+    "db:migrate:debug": "cross-env DATABASE_URL=file:./dev.db RUST_LOG=debug prisma migrate dev",
+    "db:seed": "cross-env DATABASE_URL=file:./dev.db tsx prisma/seed.ts",
+    "db:reset": "cross-env DATABASE_URL=file:./dev.db prisma migrate reset --force"
   },
   "dependencies": {
     "@prisma/client": "6.19.2",
@@ -158,8 +159,9 @@ Create `apps/web/package.json`:
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "jsdom": "^25.0.1",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
+    "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
@@ -618,6 +620,9 @@ model ScorecardCriterion {
   required    Boolean       @default(true)
   order       Int
   scores      CriterionScore[]
+
+  @@unique([scorecardId, key])
+  @@unique([scorecardId, order])
 }
 
 model Review {
@@ -654,6 +659,8 @@ model CriterionScore {
   isNotApplicable Boolean        @default(false)
   comment     String
   evidenceMessageId String?
+
+  @@unique([reviewId, criterionId])
 }
 
 model Finding {
@@ -724,7 +731,7 @@ Update `apps/web/package.json`:
 ```json
 {
   "scripts": {
-    "build": "DATABASE_URL=file:./dev.db prisma generate && next build"
+    "build": "cross-env DATABASE_URL=file:./dev.db prisma generate && cross-env DATABASE_URL=file:./dev.db next build"
   }
 }
 ```

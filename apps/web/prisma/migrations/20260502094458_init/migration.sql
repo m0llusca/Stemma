@@ -179,4 +179,13 @@ CREATE UNIQUE INDEX "Conversation_workspaceId_externalSource_externalId_key" ON 
 CREATE UNIQUE INDEX "Message_conversationId_externalId_key" ON "Message"("conversationId", "externalId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ScorecardCriterion_scorecardId_key_key" ON "ScorecardCriterion"("scorecardId", "key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ScorecardCriterion_scorecardId_order_key" ON "ScorecardCriterion"("scorecardId", "order");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CriterionScore_reviewId_criterionId_key" ON "CriterionScore"("reviewId", "criterionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "CoachingAction_findingId_key" ON "CoachingAction"("findingId");

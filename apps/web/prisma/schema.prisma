@@ -163,6 +163,9 @@ model ScorecardCriterion {
   required    Boolean          @default(true)
   order       Int
   scores      CriterionScore[]
+
+  @@unique([scorecardId, key])
+  @@unique([scorecardId, order])
 }
 
 model Review {
@@ -199,6 +202,8 @@ model CriterionScore {
   isNotApplicable   Boolean            @default(false)
   comment           String
   evidenceMessageId String?
+
+  @@unique([reviewId, criterionId])
 }
 
 model Finding {
