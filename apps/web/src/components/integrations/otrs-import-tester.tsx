@@ -87,7 +87,7 @@ export function OtrsImportTester() {
             name="source"
             value={source}
             onChange={(event) => updateSource(event.target.value as OtrsFamilySource)}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2"
           >
             {otrsFamilySourceOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -102,7 +102,7 @@ export function OtrsImportTester() {
             name="baseUrl"
             value={baseUrl}
             onChange={(event) => setBaseUrl(event.target.value)}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2"
           />
         </label>
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
@@ -111,7 +111,7 @@ export function OtrsImportTester() {
             name="samplingReason"
             value={samplingReason}
             onChange={(event) => setSamplingReason(event.target.value)}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2"
           />
         </label>
       </div>
@@ -124,7 +124,7 @@ export function OtrsImportTester() {
           onChange={(event) => setPayload(event.target.value)}
           rows={14}
           spellCheck={false}
-          className="min-h-[280px] resize-y rounded border border-[#d7dce5] bg-white px-3 py-2 font-mono text-xs leading-5"
+          className="min-h-[280px] w-full min-w-0 resize-y rounded border border-[#d7dce5] bg-white px-3 py-2 font-mono text-xs leading-5"
         />
       </label>
 
@@ -147,7 +147,7 @@ export function OtrsImportTester() {
         <button
           type="submit"
           disabled={!preview.ok}
-          className="inline-flex items-center gap-2 rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52] disabled:cursor-not-allowed disabled:bg-[#98a2b3]"
+          className="inline-flex items-center justify-center gap-2 rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52] disabled:cursor-not-allowed disabled:bg-[#98a2b3]"
         >
           <UploadCloud size={16} aria-hidden="true" />
           Импортировать в очередь

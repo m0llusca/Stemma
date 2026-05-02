@@ -21,10 +21,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
 import { nativeHelpdeskMappingRows, nativeHelpdeskSources } from "@/lib/normalizers/native-helpdesk";
-import {
-  otrsFamilyApiProfiles,
-  otrsFamilyMappingRows,
-} from "@/lib/normalizers/otrs-family";
+import { otrsFamilyApiProfiles, otrsFamilyMappingRows } from "@/lib/normalizers/otrs-family";
 
 export const dynamic = "force-dynamic";
 
@@ -164,7 +161,7 @@ function SectionHeader({
   return (
     <div className="min-w-0">
       {eyebrow ? <p className="text-xs font-semibold uppercase text-[#667085]">{eyebrow}</p> : null}
-      <h3 className="mt-1 text-sm font-semibold text-[#17202a]">{title}</h3>
+      <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[#17202a]`}>{title}</h3>
       {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p> : null}
     </div>
   );
@@ -193,6 +190,53 @@ function IntegrationBlock({
   );
 }
 
+function Surface({
+  title,
+  description,
+  children,
+  className = "",
+  bodyClassName = "p-4"
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+  bodyClassName?: string;
+}) {
+  return (
+    <div className={`min-w-0 overflow-hidden rounded-md border border-[#d7dce5] bg-white ${className}`}>
+      {title ? (
+        <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+          <SectionHeader title={title} description={description} />
+        </div>
+      ) : null}
+      <div className={bodyClassName}>{children}</div>
+    </div>
+  );
+}
+
+function DataTable({
+  title,
+  description,
+  minWidth = "min-w-[720px]",
+  children,
+  className = ""
+}: {
+  title?: string;
+  description?: string;
+  minWidth?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Surface title={title} description={description} bodyClassName="p-0" className={className}>
+      <div className="scroll-area">
+        <table className={`w-full ${minWidth} border-collapse text-left text-sm`}>{children}</table>
+      </div>
+    </Surface>
+  );
+}
+
 function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children: string; maxHeight?: string }) {
   return (
     <div className="grid min-w-0 content-start gap-2">
@@ -203,6 +247,26 @@ function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children: string
         <code>{children}</code>
       </pre>
     </div>
+  );
+}
+
+function CodeExampleCard({
+  title,
+  description,
+  children,
+  maxHeight,
+  className = ""
+}: {
+  title: string;
+  description?: string;
+  children: string;
+  maxHeight?: string;
+  className?: string;
+}) {
+  return (
+    <Surface title={title} description={description} className={className}>
+      <CodeBlock maxHeight={maxHeight}>{children}</CodeBlock>
+    </Surface>
   );
 }
 
@@ -231,7 +295,7 @@ function IntegrationDisclosure({
           <h2 className="text-lg font-semibold">{title}</h2>
           <p className="mt-1 text-sm leading-5 text-[#667085]">{description}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:gap-3">
           {health ? <span className={`rounded-md px-2 py-1 text-xs font-semibold ${health.className}`}>{health.label}</span> : null}
           <span className="rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{meta}</span>
           <ChevronDown className="disclosure-chevron text-[#667085]" size={18} aria-hidden="true" />
@@ -297,13 +361,11 @@ export default async function AdminIntegrationsPage() {
         meta={`${customApiEndpoints.length} эндпоинта`}
         health={apiHealth}
       >
-        <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
-            <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
-              <SectionHeader title="Endpoint-карта" description="Минимальный контракт для ручного QA MVP и импорта внешних диалогов." />
-            </div>
-            <div className="scroll-area">
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+        <div className="grid items-start gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <DataTable
+            title="Endpoint-карта"
+            description="Минимальный контракт для ручного QA MVP и импорта внешних диалогов."
+          >
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Метод</th>
@@ -322,13 +384,14 @@ export default async function AdminIntegrationsPage() {
                   </tr>
                 ))}
               </tbody>
-              </table>
-            </div>
-          </div>
+          </DataTable>
 
-          <aside className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-            <SectionHeader title="Токены вынесены отдельно" description="Здесь только примеры вызовов. Создание и диагностика токенов живут на отдельном экране." />
-            <p className="mt-3 text-sm leading-5 text-[#667085]">
+          <Surface
+            title="Токены вынесены отдельно"
+            description="Здесь только примеры вызовов. Создание и диагностика токенов живут на отдельном экране."
+            className="self-start bg-[#fbfcfd]"
+          >
+            <p className="text-sm leading-5 text-[#667085]">
               В примерах используется {apiTokenPlaceholder}; реальные значения, scopes и диагностика доступны на экране
               управления токенами.
             </p>
@@ -341,7 +404,7 @@ export default async function AdminIntegrationsPage() {
                 Управлять токенами
               </Link>
             </div>
-          </aside>
+          </Surface>
         </div>
 
         <IntegrationBlock
@@ -349,19 +412,10 @@ export default async function AdminIntegrationsPage() {
           title="Быстрые API-вызовы"
           description="Три базовых сценария: создать диалог, добавить сообщение и выгрузить завершенные проверки."
         >
-          <div className="grid gap-4 xl:grid-cols-3">
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Импорт диалога</h3>
-            <CodeBlock>{conversationImportCurl}</CodeBlock>
-          </div>
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Добавление сообщения</h3>
-            <CodeBlock>{messageImportCurl}</CodeBlock>
-          </div>
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Экспорт проверок</h3>
-            <CodeBlock>{reviewExportCurl}</CodeBlock>
-          </div>
+          <div className="grid items-start gap-4 xl:grid-cols-3">
+            <CodeExampleCard title="Импорт диалога">{conversationImportCurl}</CodeExampleCard>
+            <CodeExampleCard title="Добавление сообщения">{messageImportCurl}</CodeExampleCard>
+            <CodeExampleCard title="Экспорт проверок">{reviewExportCurl}</CodeExampleCard>
           </div>
         </IntegrationBlock>
 
@@ -370,15 +424,12 @@ export default async function AdminIntegrationsPage() {
           title="JSON и поля custom API"
           description="Контракт нормализован под QC-очередь: диалог, сообщения и служебные признаки выборки."
         >
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_520px]">
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Пример JSON для импорта</h3>
-            <CodeBlock>{formatJsonExample(customConversationExample)}</CodeBlock>
-          </div>
-          <div className="grid gap-5">
-            <div className="overflow-x-auto">
-              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Поля диалога</h3>
-              <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_520px]">
+            <CodeExampleCard title="Пример JSON для импорта" className="self-start">
+              {formatJsonExample(customConversationExample)}
+            </CodeExampleCard>
+            <div className="grid gap-5">
+              <DataTable title="Поля диалога" minWidth="min-w-[520px]">
                 <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                   <tr>
                     <th className="px-3 py-2 font-semibold">Поле</th>
@@ -397,11 +448,8 @@ export default async function AdminIntegrationsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
-            <div className="overflow-x-auto">
-              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Поля сообщения</h3>
-              <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+              </DataTable>
+              <DataTable title="Поля сообщения" minWidth="min-w-[520px]">
                 <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                   <tr>
                     <th className="px-3 py-2 font-semibold">Поле</th>
@@ -420,9 +468,8 @@ export default async function AdminIntegrationsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
-          </div>
           </div>
         </IntegrationBlock>
 
@@ -431,8 +478,7 @@ export default async function AdminIntegrationsPage() {
           title="Последние API-токены"
           description="Состояние dev-токенов помогает понять, был ли успешный импорт или свежая ошибка."
         >
-          <div className="scroll-area rounded-md border border-[#d7dce5]">
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+          <DataTable minWidth="min-w-[980px]">
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
                 <th className="px-5 py-3 font-semibold">Название</th>
@@ -457,8 +503,7 @@ export default async function AdminIntegrationsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
-          </div>
+          </DataTable>
         </IntegrationBlock>
       </IntegrationDisclosure>
 
@@ -478,14 +523,11 @@ export default async function AdminIntegrationsPage() {
           description="Этот блок проверяет готовый TicketGet JSON и отправляет нормализованные диалоги в очередь ручной проверки."
         >
           <div className="grid items-start gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-            <div className="grid content-start gap-2">
-              <h3 className="text-sm font-semibold text-[#17202a]">Fallback endpoint native-импорта</h3>
-              <CodeBlock>{otrsImportCurl}</CodeBlock>
-            </div>
+            <CodeExampleCard title="Fallback endpoint native-импорта" className="self-start">
+              {otrsImportCurl}
+            </CodeExampleCard>
             <div className="grid gap-5">
-            <div className="overflow-x-auto">
-              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Mapping в custom API</h3>
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <DataTable title="Mapping в custom API">
                 <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                   <tr>
                     <th className="px-4 py-3 font-semibold">OTRS/Znuny/OTOBO</th>
@@ -502,12 +544,10 @@ export default async function AdminIntegrationsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
-            <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
-              <h3 className="mb-3 text-sm font-semibold text-[#17202a]">Тестовый импорт TicketGet</h3>
-              <OtrsImportTester />
-            </div>
+              </DataTable>
+              <Surface title="Тестовый импорт TicketGet" className="bg-[#f7f8fb]">
+                <OtrsImportTester />
+              </Surface>
             </div>
           </div>
         </IntegrationBlock>
@@ -518,13 +558,13 @@ export default async function AdminIntegrationsPage() {
               <span>Техническая справка по OTRS-family</span>
               <ChevronDown className="example-chevron shrink-0 text-[#98a2b3]" size={16} aria-hidden="true" />
             </summary>
-            <div className="grid gap-4 border-t border-[#d7dce5] bg-white p-4 text-sm leading-5 text-[#667085] xl:grid-cols-[minmax(0,1fr)_320px]">
-              <p>
+            <div className="grid items-start gap-4 border-t border-[#d7dce5] bg-white p-4 text-sm leading-5 text-[#667085] xl:grid-cols-[minmax(0,1fr)_320px]">
+              <p className="min-w-0">
                 OTRS CE 6, Znuny и OTOBO поддерживаются через GenericInterface TicketGet. В рабочем интерфейсе достаточно
                 выбрать источник в мастере выше: он покажет актуальную форму запроса и fallback JSON-body. Конкретный route
                 все равно нужно сверять в Admin → Web Services, потому что его часто меняют при настройке.
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid content-start gap-2 sm:grid-cols-3 xl:grid-cols-1">
                 {otrsFamilyApiProfiles.map((profile) => (
                   <a
                     key={profile.source}
@@ -548,65 +588,60 @@ export default async function AdminIntegrationsPage() {
         meta={`${nativeHelpdeskSources.length} коннектора`}
         health={nativeHealth}
       >
-        <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid items-start gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="grid gap-5">
-            <div className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
-              <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
-                <SectionHeader title="Поддерживаемые источники" description="Готовые native-shape адаптеры без ручного маппинга в JSON-схему QC." />
-              </div>
-              <div className="scroll-area">
-                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                  <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Источник</th>
-                      <th className="px-4 py-3 font-semibold">Объект</th>
-                      <th className="px-4 py-3 font-semibold">API/export shape</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#d7dce5]">
-                    {nativeHelpdeskSources.map((source) => (
-                      <tr key={source.value}>
-                        <td className="px-4 py-3 font-medium text-[#17202a]">{source.label}</td>
-                        <td className="px-4 py-3 text-[#344054]">{source.objectName}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-[#344054]">{source.endpointHint}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <DataTable
+              title="Поддерживаемые источники"
+              description="Готовые native-shape адаптеры без ручного маппинга в JSON-схему QC."
+            >
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Источник</th>
+                  <th className="px-4 py-3 font-semibold">Объект</th>
+                  <th className="px-4 py-3 font-semibold">API/export shape</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5]">
+                {nativeHelpdeskSources.map((source) => (
+                  <tr key={source.value}>
+                    <td className="px-4 py-3 font-medium text-[#17202a]">{source.label}</td>
+                    <td className="px-4 py-3 text-[#344054]">{source.objectName}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#344054]">{source.endpointHint}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
 
-            <div className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
-              <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
-                <SectionHeader title="Mapping в custom API" description="Как native-поля превращаются в единый формат ручной проверки." />
-              </div>
-              <div className="scroll-area">
-                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                  <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Native поле</th>
-                      <th className="px-4 py-3 font-semibold">Поле QC</th>
-                      <th className="px-4 py-3 font-semibold">Правило</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#d7dce5]">
-                    {nativeHelpdeskMappingRows.map((row) => (
-                      <tr key={`${row.source}:${row.target}`}>
-                        <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
-                        <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
-                        <td className="px-4 py-3 text-[#344054]">{row.note}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <DataTable
+              title="Mapping в custom API"
+              description="Как native-поля превращаются в единый формат ручной проверки."
+            >
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Native поле</th>
+                  <th className="px-4 py-3 font-semibold">Поле QC</th>
+                  <th className="px-4 py-3 font-semibold">Правило</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5]">
+                {nativeHelpdeskMappingRows.map((row) => (
+                  <tr key={`${row.source}:${row.target}`}>
+                    <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
+                    <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
           </div>
 
-          <aside className="grid content-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-            <SectionHeader title="Endpoint native-импорта" description="Один endpoint принимает разные native payload и применяет выбранный адаптер." />
-            <CodeBlock>{nativeHelpdeskImportCurl}</CodeBlock>
-          </aside>
+          <CodeExampleCard
+            title="Endpoint native-импорта"
+            description="Один endpoint принимает разные native payload и применяет выбранный адаптер."
+            className="self-start"
+          >
+            {nativeHelpdeskImportCurl}
+          </CodeExampleCard>
         </div>
 
         <IntegrationBlock
@@ -614,10 +649,9 @@ export default async function AdminIntegrationsPage() {
           title="Тестовый импорт native helpdesk"
           description="Можно быстро переключить источник, посмотреть preview и отправить диалог в очередь."
         >
-          <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-            <p className="mb-3 text-sm font-semibold text-[#17202a]">Payload и preview перед импортом</p>
+          <Surface title="Payload и preview перед импортом" className="bg-[#fbfcfd]">
             <NativeHelpdeskImportTester />
-          </div>
+          </Surface>
         </IntegrationBlock>
       </IntegrationDisclosure>
 
@@ -625,44 +659,46 @@ export default async function AdminIntegrationsPage() {
         title="Последние импорты"
         description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
         meta={`${recentImportLogs.length} событий`}
-        health={hasRecentOtrsImport ? { label: "Есть данные", className: badgeClass("ok") } : { label: "Пока пусто", className: badgeClass("neutral") }}
+        health={
+          recentImportLogs.length > 0
+            ? { label: "Есть данные", className: badgeClass("ok") }
+            : { label: "Пока пусто", className: badgeClass("neutral") }
+        }
       >
         {recentImportLogs.length > 0 ? (
           <div className="p-5">
-            <div className="scroll-area rounded-md border border-[#d7dce5]">
-              <table className="w-full min-w-[820px] border-collapse text-left text-sm">
-                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                  <tr>
-                    <th className="px-5 py-3 font-semibold">Дата</th>
-                    <th className="px-5 py-3 font-semibold">Источник</th>
-                    <th className="px-5 py-3 font-semibold">Тикеты</th>
-                    <th className="px-5 py-3 font-semibold">Ошибки</th>
-                    <th className="px-5 py-3 font-semibold">Запустил</th>
-                    <th className="px-5 py-3 font-semibold">Очередь</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#d7dce5] bg-white">
-                  {recentImportLogs.map((log) => {
-                    const metadata = parseImportMetadata(log.metadata);
+            <DataTable minWidth="min-w-[820px]">
+              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Дата</th>
+                  <th className="px-5 py-3 font-semibold">Источник</th>
+                  <th className="px-5 py-3 font-semibold">Тикеты</th>
+                  <th className="px-5 py-3 font-semibold">Ошибки</th>
+                  <th className="px-5 py-3 font-semibold">Запустил</th>
+                  <th className="px-5 py-3 font-semibold">Очередь</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#d7dce5] bg-white">
+                {recentImportLogs.map((log) => {
+                  const metadata = parseImportMetadata(log.metadata);
 
-                    return (
-                      <tr key={log.id}>
-                        <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
-                        <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
-                        <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
-                        <td className="px-5 py-4 text-[#344054]">0</td>
-                        <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
-                        <td className="px-5 py-4">
-                          <Link href={queueHref(metadata.source, metadata.externalIds)} className="font-semibold text-[#0b4f52] hover:underline">
-                            Открыть
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <tr key={log.id}>
+                      <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
+                      <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
+                      <td className="px-5 py-4 text-[#344054]">0</td>
+                      <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
+                      <td className="px-5 py-4">
+                        <Link href={queueHref(metadata.source, metadata.externalIds)} className="font-semibold text-[#0b4f52] hover:underline">
+                          Открыть
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </DataTable>
           </div>
         ) : (
           <div className="p-5">
@@ -673,7 +709,7 @@ export default async function AdminIntegrationsPage() {
         )}
       </IntegrationDisclosure>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <IntegrationDisclosure
           title="Демо-записи"
           description="Подключенные и запланированные источники в текущем рабочем пространстве."
@@ -682,8 +718,7 @@ export default async function AdminIntegrationsPage() {
           className="mb-0"
         >
           <div className="p-5">
-            <div className="scroll-area rounded-md border border-[#d7dce5]">
-            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+            <DataTable minWidth="min-w-[640px]">
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Название</th>
@@ -702,8 +737,7 @@ export default async function AdminIntegrationsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-            </div>
+            </DataTable>
           </div>
         </IntegrationDisclosure>
 
