@@ -22,13 +22,16 @@ import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
 import { nativeHelpdeskMappingRows, nativeHelpdeskSources } from "@/lib/normalizers/native-helpdesk";
 import {
+  buildOtrsFamilyTicketGetQueryParams,
   buildOtrsFamilyTicketGetRequest,
   buildOtrsFamilyTicketSearchRequest,
   otrsFamilyApiProfiles,
   otrsFamilyMappingRows,
+  otrsFamilyRequestShapeNotes,
   otrsFamilyTicketGetExample,
   otrsFamilyTicketGetUrl,
   otrsFamilyTicketSearchUrl,
+  otrsFamilyUrlWithQuery,
   type OtrsFamilyApiProfile
 } from "@/lib/normalizers/otrs-family";
 
@@ -158,20 +161,64 @@ function queueHref(source: string, externalIds: string[]) {
   return `/reviews?${params.toString()}`;
 }
 
-function buildProviderCurl(url: string, body: unknown) {
-  return [
-    `curl -X POST "${url}"`,
-    `  -H "Content-Type: application/json"`,
-    `  -d '${formatJsonExample(body)}'`
-  ].join(" \\\n");
+function buildProviderCurl({
+  method,
+  url,
+  body
+}: {
+  method: "GET" | "POST";
+  url: string;
+  body?: unknown;
+}) {
+  const lines = [`curl -X ${method} "${url}"`, `  -H "Accept: application/json"`];
+
+  if (body) {
+    lines.push(`  -H "Content-Type: application/json"`);
+    lines.push(`  -d '${formatJsonExample(body)}'`);
+  }
+
+  return lines.join(" \\\n");
 }
 
 function providerTicketSearchCurl(profile: OtrsFamilyApiProfile) {
-  return buildProviderCurl(otrsFamilyTicketSearchUrl(profile), buildOtrsFamilyTicketSearchRequest());
+  const body = buildOtrsFamilyTicketSearchRequest();
+  const url = otrsFamilyTicketSearchUrl(profile);
+
+  if (profile.ticketSearchMethod === "GET") {
+    return buildProviderCurl({
+      method: "GET",
+      url: otrsFamilyUrlWithQuery(url, body)
+    });
+  }
+
+  return buildProviderCurl({
+    method: "POST",
+    url,
+    body
+  });
 }
 
 function providerTicketGetCurl(profile: OtrsFamilyApiProfile) {
-  return buildProviderCurl(otrsFamilyTicketGetUrl(profile), buildOtrsFamilyTicketGetRequest());
+  return buildProviderCurl({
+    method: profile.ticketGetMethod,
+    url: otrsFamilyUrlWithQuery(otrsFamilyTicketGetUrl(profile), buildOtrsFamilyTicketGetQueryParams(profile))
+  });
+}
+
+function providerJsonTicketGetCurl(profile: OtrsFamilyApiProfile) {
+  return buildProviderCurl({
+    method: "POST",
+    url: otrsFamilyTicketGetUrl(profile),
+    body: buildOtrsFamilyTicketGetRequest()
+  });
+}
+
+function providerWrappedTicketGetCurl(profile: OtrsFamilyApiProfile) {
+  return buildProviderCurl({
+    method: "POST",
+    url: otrsFamilyTicketGetUrl(profile),
+    body: buildOtrsFamilyTicketGetRequest({ wrapped: true })
+  });
 }
 
 function qcImportCurl(profile: OtrsFamilyApiProfile) {
@@ -441,6 +488,14 @@ export default async function AdminIntegrationsPage() {
 
         <div className="border-t border-[#d7dce5] p-5">
           <h3 className="mb-3 text-sm font-semibold text-[#17202a]">API-профили OTRS-family</h3>
+          <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {otrsFamilyRequestShapeNotes.map((note) => (
+              <div key={note.title} className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-3">
+                <p className="text-sm font-semibold text-[#17202a]">{note.title}</p>
+                <p className="mt-1 text-sm leading-5 text-[#667085]">{note.detail}</p>
+              </div>
+            ))}
+          </div>
           <div className="grid gap-3 xl:grid-cols-3">
             {otrsFamilyApiProfiles.map((profile) => (
               <article key={profile.source} className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
@@ -458,6 +513,18 @@ export default async function AdminIntegrationsPage() {
                   <div>
                     <dt className="font-semibold text-[#667085]">Web Service</dt>
                     <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.webService}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-[#667085]">TicketGet route</dt>
+                    <dd className="mt-1 font-mono text-xs text-[#344054]">
+                      {profile.ticketGetMethod} {profile.ticketGetPath}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-[#667085]">TicketSearch route</dt>
+                    <dd className="mt-1 font-mono text-xs text-[#344054]">
+                      {profile.ticketSearchMethod} {profile.ticketSearchPath}
+                    </dd>
                   </div>
                   <div>
                     <dt className="font-semibold text-[#667085]">Auth</dt>
@@ -491,8 +558,16 @@ export default async function AdminIntegrationsPage() {
                 <CodeBlock>{providerTicketSearchCurl(profile)}</CodeBlock>
               </div>
               <div className="grid gap-2">
-                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet в helpdesk</p>
+                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet: канонический GET</p>
                 <CodeBlock>{providerTicketGetCurl(profile)}</CodeBlock>
+              </div>
+              <div className="grid gap-2">
+                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet: JSON fallback</p>
+                <CodeBlock>{providerJsonTicketGetCurl(profile)}</CodeBlock>
+              </div>
+              <div className="grid gap-2">
+                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet: wrapped fallback</p>
+                <CodeBlock>{providerWrappedTicketGetCurl(profile)}</CodeBlock>
               </div>
               <div className="grid gap-2">
                 <p className="text-xs font-semibold uppercase text-[#667085]">Импорт TicketGet в QC</p>

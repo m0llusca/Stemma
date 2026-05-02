@@ -1,6 +1,26 @@
 import type { CustomConversationInput, CustomMessageInput } from "@/lib/validation/custom-api";
 
 type OtrsScalar = string | number | boolean | null | undefined;
+type OtrsRequestValue = string | number | boolean | Array<string | number | boolean>;
+type OtrsFamilyTicketGetRequestOptions = {
+  userLogin?: string;
+  password?: string;
+  ticketId?: string;
+  includeAttachments?: boolean;
+  wrapped?: boolean;
+};
+type OtrsFamilyTicketGetFlatRequest = Record<
+  | "UserLogin"
+  | "Password"
+  | "TicketID"
+  | "Extended"
+  | "AllArticles"
+  | "ArticleOrder"
+  | "DynamicFields"
+  | "Attachments"
+  | "GetAttachmentContents",
+  string | number
+>;
 
 export type OtrsFamilySource = "otrs" | "znuny" | "otobo" | "otrs_family";
 
@@ -20,9 +40,13 @@ export const otrsFamilyApiProfiles = [
     exampleBaseUrl: "https://support.example.com/otrs",
     webService: "GenericTicketConnectorREST",
     auth: "UserLogin + Password или SessionID",
+    ticketGetMethod: "GET",
+    ticketGetPath: "/Ticket/{TicketID}",
+    ticketSearchMethod: "GET",
+    ticketSearchPath: "/Ticket",
     ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
     docsUrl: "https://otrscommunityedition.com/doc/manual/admin/6.0/en/html/genericinterface.html",
-    note: "Обычно используется импортированный GenericTicketConnectorREST; route может отличаться, если Web Service переименован."
+    note: "В стандартном REST-примере OTRS CE 6 TicketGet идет GET на /Ticket/{TicketID}; имя Web Service и route могут отличаться после ручной настройки."
   },
   {
     source: "znuny",
@@ -32,9 +56,13 @@ export const otrsFamilyApiProfiles = [
     exampleBaseUrl: "https://support.example.com/znuny",
     webService: "GenericTicketConnectorREST",
     auth: "UserLogin + Password или SessionID",
+    ticketGetMethod: "GET",
+    ticketGetPath: "/Ticket/{TicketID}",
+    ticketSearchMethod: "POST",
+    ticketSearchPath: "/Ticket/Search",
     ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
     docsUrl: "https://doc.znuny.org/znuny/admin/webservices/examples/GenericTicketConnectorREST/index.html",
-    note: "В актуальной документации Znuny примеры GenericTicketConnectorREST используют base path /znuny."
+    note: "Ready2Adopt GenericTicketConnectorREST в Znuny показывает TicketGet через GET /Ticket/<ticket_id>; base path обычно /znuny."
   },
   {
     source: "otobo",
@@ -44,9 +72,13 @@ export const otrsFamilyApiProfiles = [
     exampleBaseUrl: "https://support.example.com/otobo",
     webService: "GenericTicketConnectorREST",
     auth: "UserLogin + Password или SessionID",
+    ticketGetMethod: "GET",
+    ticketGetPath: "/TicketGet",
+    ticketSearchMethod: "GET",
+    ticketSearchPath: "/TicketSearch",
     ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
     docsUrl: "https://otobo-docs.softoft.de/en/administration/automation/rest-api",
-    note: "OTOBO сохраняет GenericInterface-подход; проверьте route в Admin -> Web Services после импорта конфигурации."
+    note: "В OTOBO web service создается в админке, поэтому часто встречается GET /TicketGet?TicketID=... вместо /Ticket/{TicketID}."
   }
 ] as const satisfies ReadonlyArray<{
   source: Exclude<OtrsFamilySource, "otrs_family">;
@@ -56,6 +88,10 @@ export const otrsFamilyApiProfiles = [
   exampleBaseUrl: string;
   webService: string;
   auth: string;
+  ticketGetMethod: "GET";
+  ticketGetPath: string;
+  ticketSearchMethod: "GET" | "POST";
+  ticketSearchPath: string;
   ticketZoomPath: string;
   docsUrl: string;
   note: string;
@@ -77,25 +113,46 @@ export function otrsFamilyRestBaseUrl(profile: OtrsFamilyApiProfile, baseUrl?: s
   return `${normalizeBaseUrl(baseUrl, profile)}/nph-genericinterface.pl/Webservice/${profile.webService}`;
 }
 
+function pathWithTicketId(path: string, ticketId: string) {
+  return path.replace("{TicketID}", encodeURIComponent(ticketId));
+}
+
 export function otrsFamilyTicketGetUrl(profile: OtrsFamilyApiProfile, ticketId = "42", baseUrl?: string) {
-  return `${otrsFamilyRestBaseUrl(profile, baseUrl)}/Ticket/${encodeURIComponent(ticketId)}`;
+  return `${otrsFamilyRestBaseUrl(profile, baseUrl)}${pathWithTicketId(profile.ticketGetPath, ticketId)}`;
 }
 
 export function otrsFamilyTicketSearchUrl(profile: OtrsFamilyApiProfile, baseUrl?: string) {
-  return `${otrsFamilyRestBaseUrl(profile, baseUrl)}/Ticket/search`;
+  return `${otrsFamilyRestBaseUrl(profile, baseUrl)}${profile.ticketSearchPath}`;
 }
 
-export function buildOtrsFamilyTicketGetRequest({
+export function otrsFamilyUrlWithQuery(url: string, params: Record<string, OtrsRequestValue | undefined>) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined) {
+      return;
+    }
+
+    const values = Array.isArray(value) ? value : [value];
+
+    values.forEach((item) => query.append(key, String(item)));
+  });
+
+  const queryString = query.toString();
+
+  if (!queryString) {
+    return url;
+  }
+
+  return `${url}${url.includes("?") ? "&" : "?"}${queryString}`;
+}
+
+function buildOtrsFamilyTicketGetFlatRequest({
   userLogin = "qa_api",
   password = "<PASSWORD>",
   ticketId = "42",
   includeAttachments = false
-}: {
-  userLogin?: string;
-  password?: string;
-  ticketId?: string;
-  includeAttachments?: boolean;
-} = {}) {
+}: OtrsFamilyTicketGetRequestOptions = {}): OtrsFamilyTicketGetFlatRequest {
   return {
     UserLogin: userLogin,
     Password: password,
@@ -107,6 +164,37 @@ export function buildOtrsFamilyTicketGetRequest({
     Attachments: includeAttachments ? 1 : 0,
     GetAttachmentContents: 0
   };
+}
+
+export function buildOtrsFamilyTicketGetRequest(
+  options?: OtrsFamilyTicketGetRequestOptions & { wrapped?: false }
+): OtrsFamilyTicketGetFlatRequest;
+export function buildOtrsFamilyTicketGetRequest(
+  options: OtrsFamilyTicketGetRequestOptions & { wrapped: true }
+): { TicketGet: OtrsFamilyTicketGetFlatRequest };
+export function buildOtrsFamilyTicketGetRequest(
+  options: OtrsFamilyTicketGetRequestOptions
+): OtrsFamilyTicketGetFlatRequest | { TicketGet: OtrsFamilyTicketGetFlatRequest };
+export function buildOtrsFamilyTicketGetRequest(options: OtrsFamilyTicketGetRequestOptions = {}) {
+  const request = buildOtrsFamilyTicketGetFlatRequest(options);
+
+  return options.wrapped ? { TicketGet: request } : request;
+}
+
+export function buildOtrsFamilyTicketGetQueryParams(
+  profile: OtrsFamilyApiProfile,
+  options: OtrsFamilyTicketGetRequestOptions = {}
+) {
+  const request = buildOtrsFamilyTicketGetFlatRequest(options);
+
+  if (profile.ticketGetPath.includes("{TicketID}")) {
+    const params: Partial<OtrsFamilyTicketGetFlatRequest> = { ...request };
+    delete params.TicketID;
+
+    return params;
+  }
+
+  return request;
 }
 
 export function buildOtrsFamilyTicketSearchRequest({
@@ -129,6 +217,29 @@ export function buildOtrsFamilyTicketSearchRequest({
     Limit: 50
   };
 }
+
+export const otrsFamilyRequestShapeNotes = [
+  {
+    title: "GET по умолчанию",
+    detail: "Для стандартного GenericTicketConnectorREST TicketGet чаще вызывается GET-запросом: TicketID идет в route или query, auth и флаги в query."
+  },
+  {
+    title: "JSON-body fallback",
+    detail: "POST/PATCH с JSON-body нужен только для кастомного route mapping; поля обычно идут в корне JSON без TicketGet wrapper."
+  },
+  {
+    title: "Wrapped body",
+    detail: "Форму { TicketGet: { ... } } используйте только если ваш gateway или inbound mapping явно ожидает wrapper операции."
+  },
+  {
+    title: "Route mapping",
+    detail: "URL зависит от Admin -> Web Services: у OTRS/Znuny часто /Ticket/{TicketID}, у OTOBO часто /TicketGet?TicketID=..."
+  },
+  {
+    title: "Attachments",
+    detail: "Для QA-импорта по умолчанию Attachments=0 и GetAttachmentContents=0, чтобы не тащить тяжелый base64."
+  }
+] as const;
 
 export type OtrsFamilyArticle = {
   ArticleID?: OtrsScalar;

@@ -1,4 +1,5 @@
 import {
+  buildOtrsFamilyTicketGetQueryParams,
   buildOtrsFamilyTicketGetRequest,
   buildOtrsFamilyTicketSearchRequest,
   normalizeOtrsFamilyTicket,
@@ -6,6 +7,7 @@ import {
   otrsFamilyApiProfiles,
   otrsFamilyTicketGetUrl,
   otrsFamilyTicketSearchUrl,
+  otrsFamilyUrlWithQuery,
   type OtrsFamilyTicketGetResponse
 } from "@/lib/normalizers/otrs-family";
 import { customConversationSchema } from "@/lib/validation/custom-api";
@@ -129,15 +131,18 @@ describe("OTRS-family normalizer", () => {
     expect(otrsFamilyApiProfiles.map((profile) => otrsFamilyTicketGetUrl(profile, "42"))).toEqual([
       "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
       "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
-      "https://support.example.com/otobo/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42"
+      "https://support.example.com/otobo/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketGet"
     ]);
     expect(znunyProfile).toBeDefined();
     expect(otrsFamilyTicketSearchUrl(znunyProfile!)).toBe(
-      "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/search"
+      "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/Search"
     );
   });
 
-  it("builds TicketSearch and TicketGet API payload examples", () => {
+  it("builds TicketSearch and TicketGet API examples", () => {
+    const otrsProfile = otrsFamilyApiProfiles.find((profile) => profile.source === "otrs")!;
+    const otoboProfile = otrsFamilyApiProfiles.find((profile) => profile.source === "otobo")!;
+
     expect(buildOtrsFamilyTicketSearchRequest()).toMatchObject({
       UserLogin: "qa_api",
       Password: "<PASSWORD>",
@@ -154,5 +159,17 @@ describe("OTRS-family normalizer", () => {
       Attachments: 1,
       GetAttachmentContents: 0
     });
+    expect(buildOtrsFamilyTicketGetRequest({ ticketId: "42", wrapped: true })).toMatchObject({
+      TicketGet: expect.objectContaining({
+        TicketID: "42",
+        AllArticles: 1,
+        Attachments: 0
+      })
+    });
+    expect(buildOtrsFamilyTicketGetQueryParams(otrsProfile, { ticketId: "42" })).not.toHaveProperty("TicketID");
+    expect(buildOtrsFamilyTicketGetQueryParams(otoboProfile, { ticketId: "42" })).toHaveProperty("TicketID", "42");
+    expect(
+      otrsFamilyUrlWithQuery(otrsFamilyTicketGetUrl(otrsProfile, "42"), buildOtrsFamilyTicketGetQueryParams(otrsProfile))
+    ).toContain("/Ticket/42?UserLogin=qa_api&Password=%3CPASSWORD%3E");
   });
 });

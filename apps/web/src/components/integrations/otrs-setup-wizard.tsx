@@ -4,10 +4,13 @@ import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import {
+  buildOtrsFamilyTicketGetQueryParams,
   buildOtrsFamilyTicketGetRequest,
   otrsFamilyProfileForSource,
+  otrsFamilyRequestShapeNotes,
   otrsFamilySourceOptions,
   otrsFamilyTicketGetUrl,
+  otrsFamilyUrlWithQuery,
   type OtrsFamilySource
 } from "@/lib/normalizers/otrs-family";
 
@@ -22,22 +25,35 @@ export function OtrsSetupWizard() {
   const [password, setPassword] = useState("");
   const [ticketId, setTicketId] = useState("42");
   const [checked, setChecked] = useState(false);
+  const [useWrappedBody, setUseWrappedBody] = useState(false);
   const profile = otrsFamilyProfileForSource(source);
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const isReady = normalizedBaseUrl.startsWith("http") && userLogin.trim() !== "" && ticketId.trim() !== "";
-  const genericInterfaceUrl = otrsFamilyTicketGetUrl(profile, ticketId.trim() || "42", normalizedBaseUrl);
+  const ticketGetUrl = otrsFamilyTicketGetUrl(profile, ticketId.trim() || "42", normalizedBaseUrl);
+  const ticketGetQueryUrl = otrsFamilyUrlWithQuery(
+    ticketGetUrl,
+    buildOtrsFamilyTicketGetQueryParams(profile, {
+      userLogin: userLogin.trim() || "agent_login",
+      password: password ? "[hidden]" : "[empty]",
+      ticketId: ticketId.trim() || "42"
+    })
+  );
+  const ticketGetCurl = [`curl -X ${profile.ticketGetMethod} "${ticketGetQueryUrl}"`, `  -H "Accept: application/json"`].join(
+    " \\\n"
+  );
   const ticketGetRequest = useMemo(
     () =>
       JSON.stringify(
         buildOtrsFamilyTicketGetRequest({
           userLogin: userLogin.trim() || "agent_login",
           password: password ? "[hidden]" : "[empty]",
-          ticketId: ticketId.trim() || "42"
+          ticketId: ticketId.trim() || "42",
+          wrapped: useWrappedBody
         }),
         null,
         2
       ),
-    [password, ticketId, userLogin]
+    [password, ticketId, useWrappedBody, userLogin]
   );
 
   function updateSource(nextSource: OtrsFamilySource) {
@@ -50,8 +66,10 @@ export function OtrsSetupWizard() {
     <section className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-[#17202a]">Wizard подключения OTRS/Znuny</h3>
-          <p className="mt-1 text-sm text-[#667085]">URL, auth, preflight TicketGet и sample-импорт с учетом платформы.</p>
+          <h3 className="text-sm font-semibold text-[#17202a]">Мастер подключения OTRS/Znuny</h3>
+          <p className="mt-1 text-sm text-[#667085]">
+            URL, авторизация, preflight TicketGet и тестовый импорт с учетом платформы.
+          </p>
         </div>
         <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">{profile.shortLabel}</span>
       </div>
@@ -105,6 +123,14 @@ export function OtrsSetupWizard() {
               className="rounded border border-[#d7dce5] bg-white px-3 py-2"
             />
           </label>
+          <label className="flex items-center gap-2 text-sm text-[#344054] md:col-span-2">
+            <input
+              type="checkbox"
+              checked={useWrappedBody}
+              onChange={(event) => setUseWrappedBody(event.target.checked)}
+            />
+            Вложенное тело: <span className="font-mono text-xs">{"{ TicketGet: { ... } }"}</span>
+          </label>
           <div className="flex flex-wrap items-center gap-3 md:col-span-2">
             <button
               type="button"
@@ -126,18 +152,38 @@ export function OtrsSetupWizard() {
 
         <div className="grid gap-3">
           <div className="rounded border border-[#d7dce5] bg-white p-3">
-            <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet URL</p>
-            <code className="mt-2 block break-all text-xs text-[#344054]">{genericInterfaceUrl}</code>
+            <p className="text-xs font-semibold uppercase text-[#667085]">Канонический TicketGet URL</p>
+            <code className="mt-2 block break-all text-xs text-[#344054]">{ticketGetQueryUrl}</code>
           </div>
           <div className="rounded border border-[#d7dce5] bg-white p-3">
             <p className="text-xs font-semibold uppercase text-[#667085]">Web Service</p>
             <p className="mt-2 text-xs leading-5 text-[#344054]">
-              {profile.webService}; base path {profile.basePath}. Если в админке route переименован, замените этот сегмент в URL.
+              {profile.webService}; {profile.ticketGetMethod} {profile.ticketGetPath}. Если в админке route переименован,
+              замените этот сегмент в URL.
             </p>
+          </div>
+          <div className="rounded border border-[#d7dce5] bg-white p-3">
+            <p className="text-xs font-semibold uppercase text-[#667085]">Форма запроса</p>
+            <ul className="mt-2 grid gap-1 text-xs leading-5 text-[#344054]">
+              {otrsFamilyRequestShapeNotes.map((note) => (
+                <li key={note.title}>
+                  <span className="font-semibold">{note.title}:</span> {note.detail}
+                </li>
+              ))}
+            </ul>
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet request</p>
+              <p className="text-xs font-semibold uppercase text-[#667085]">Канонический GET curl</p>
+              <CopyButton value={ticketGetCurl} />
+            </div>
+            <pre className="max-h-[180px] overflow-auto rounded-md bg-[#17202a] p-4 text-xs leading-5 text-white">
+              <code>{ticketGetCurl}</code>
+            </pre>
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase text-[#667085]">Fallback JSON body</p>
               <CopyButton value={ticketGetRequest} />
             </div>
             <pre className="max-h-[260px] overflow-auto rounded-md bg-[#17202a] p-4 text-xs leading-5 text-white">
