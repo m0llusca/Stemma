@@ -24,12 +24,12 @@ type ReviewDetailPageProps = {
   params: Promise<{ conversationId: string }>;
 };
 
-function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+function HeaderChip({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div className="min-w-0">
-      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
-      <div className="mt-1 min-w-0 break-words text-sm font-medium text-[#17202a]">{children}</div>
-    </div>
+    <span className={`inline-flex min-w-0 items-center gap-1 rounded-md border border-[#d7dce5] bg-white px-2.5 py-1.5 text-sm ${className}`}>
+      <span className="shrink-0 text-xs font-semibold uppercase text-[#667085]">{label}</span>
+      <span className="min-w-0 truncate font-semibold text-[#17202a]">{children}</span>
+    </span>
   );
 }
 
@@ -79,63 +79,35 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
     )
   );
   const canManageWorkflow = canManageReviewWorkflow(user.role);
+  const scoreLabel = scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено";
 
   return (
     <section className="page-shell">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[#667085]">Доска проверки</p>
-          <h1 className="mt-1 text-2xl font-semibold">{conversation.subject}</h1>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#667085]">
-            <span>{conversation.customerName}</span>
-            <span>{channelLabels[conversation.channel]}</span>
-            <span>Статус тикета: {conversationStatusLabel(conversation.status)}</span>
-            <span>{formatMessageCount(conversation.messages.length)}</span>
-          </div>
-        </div>
-
-        <div className="panel min-w-[220px] p-4">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Последняя оценка</p>
-          <p className="mt-2 text-3xl font-semibold text-[#17202a]">
-            {scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено"}
-          </p>
-          {scorePreviewReview ? (
-            <p className="mt-1 text-sm leading-5 text-[#667085]">
-              {reviewStateLabels[reviewState]} · {scorePreviewReview.reviewer.name}
-            </p>
-          ) : null}
+      <div className="mb-5">
+        <p className="text-sm font-medium text-[#667085]">Доска проверки</p>
+        <h1 className="mt-1 text-2xl font-semibold">{conversation.subject}</h1>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <HeaderChip label="Состояние" className={reviewStateBadgeClass(reviewState)}>
+            {reviewStateLabels[reviewState]}
+          </HeaderChip>
+          <HeaderChip label="Оценка">{scoreLabel}</HeaderChip>
+          <HeaderChip label="Клиент">{conversation.customerName}</HeaderChip>
+          <HeaderChip label="Канал">{channelLabels[conversation.channel]}</HeaderChip>
+          <HeaderChip label="Тикет">{conversationStatusLabel(conversation.status)}</HeaderChip>
+          <HeaderChip label="Сообщения">{formatMessageCount(conversation.messages.length)}</HeaderChip>
+          <HeaderChip label="QA">{conversation.qaAssigneeName ?? "Не назначен"}</HeaderChip>
+          <HeaderChip label="Срок">
+            {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
+          </HeaderChip>
+          {conversation.riskHint ? <HeaderChip label="Риск">{conversation.riskHint}</HeaderChip> : null}
         </div>
       </div>
 
       <ReviewWorkflow
         isReviewed={Boolean(latestFinalizedReview)}
+        hasDraftReview={Boolean(currentDraftReview)}
         scorecardName={`${scorecard.name} v${scorecard.version}`}
-        hasFinding={Boolean(latestFinding)}
-        hasCoachingAction={Boolean(latestFinding?.coachingAction)}
       />
-
-      <section className="panel mb-6 overflow-hidden">
-        <div className="border-b border-[#d7dce5] bg-white px-5 py-4">
-          <h2 className="text-lg font-semibold">Контекст проверки</h2>
-          <p className="mt-1 text-sm text-[#667085]">Состояние QA-задачи, участники, сроки и причина выборки.</p>
-        </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
-          <DetailItem label="Состояние проверки">
-            <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${reviewStateBadgeClass(reviewState)}`}>
-              {reviewStateLabels[reviewState]}
-            </span>
-          </DetailItem>
-          <DetailItem label="QA">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
-          <DetailItem label="Оператор">{conversation.assigneeName ?? "Не назначен"}</DetailItem>
-          <DetailItem label="Дедлайн">
-            {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-          </DetailItem>
-          <DetailItem label="Причина выборки">{conversation.samplingReason}</DetailItem>
-          <DetailItem label="Риск">{conversation.riskHint ?? "Без отдельной подсказки"}</DetailItem>
-          <DetailItem label="Статус тикета">{conversationStatusLabel(conversation.status)}</DetailItem>
-          <DetailItem label="Открыто">{conversation.openedAt.toLocaleString("ru-RU")}</DetailItem>
-        </div>
-      </section>
 
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 

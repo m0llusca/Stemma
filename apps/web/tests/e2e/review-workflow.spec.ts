@@ -45,6 +45,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Управление проверкой" })).toBeVisible();
 
+  await page.locator("summary").filter({ hasText: "Управление проверкой" }).click();
   await page.getByLabel("Состояние проверки").selectOption("IN_PROGRESS");
   await page.getByRole("button", { name: "Обновить" }).click();
   await expect(page.getByText("В работе").first()).toBeVisible();
@@ -55,22 +56,15 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
 
   await page.getByRole("button", { name: "Сохранить черновик" }).click();
-  await expect(page.getByText(/В работе ·/)).toBeVisible();
+  await expect(page.getByText("В работе").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 
-  await page.getByLabel("Корневая причина").fill("Задержка перевозчика создала неоднозначность по политике возврата.");
-  await page
-    .getByLabel("Краткое доказательство")
-    .fill("Оператор объяснил бонусный кредит и сроки возврата до закрытия диалога.");
-  await page.locator("summary").filter({ hasText: "Коучинг" }).click();
-  await page.getByLabel("Действие по коучингу").fill("Закрепить проактивное ожидание по срокам доставки.");
   await page.getByLabel("Категория").fill("Политика возврата");
 
   await page.getByRole("button", { name: "Завершить проверку" }).click();
 
-  await expect(page.getByText("Последняя оценка")).toBeVisible();
+  await expect(page.locator("span").filter({ hasText: /^СостояниеЗавершена$/ })).toBeVisible();
   await expect(page.getByText("100%").first()).toBeVisible();
-  await expect(page.getByText(/Завершена ·/)).toBeVisible();
   await expect(page.getByText("Доказательство", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 

@@ -319,6 +319,7 @@ export async function finalizeReview(formData: FormData) {
   const riskLevel = requiredRiskLevel(formData);
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
+  const summary = requiredString(formData, "summary");
 
   await prisma.$transaction(async (tx) => {
     const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id);
@@ -334,7 +335,7 @@ export async function finalizeReview(formData: FormData) {
       rubricVersion: scorecard.version,
       status: "FINALIZED" as const,
       totalScore,
-      summary: requiredString(formData, "summary"),
+      summary,
       finalizedAt: new Date(),
       scores: {
         create: criterionScores
@@ -343,9 +344,9 @@ export async function finalizeReview(formData: FormData) {
         create: {
           ownerType,
           category: requiredString(formData, "category"),
-          rootCause: requiredString(formData, "rootCause"),
+          rootCause: optionalString(formData, "rootCause") ?? summary,
           riskLevel,
-          evidenceSummary: requiredString(formData, "evidenceSummary"),
+          evidenceSummary: optionalString(formData, "evidenceSummary") ?? summary,
           coachingAction:
             coachingAction && coachingAssignee
               ? {

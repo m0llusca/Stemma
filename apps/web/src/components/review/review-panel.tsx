@@ -63,10 +63,26 @@ function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionSco
   );
 }
 
+function StepHeader({ number, title, detail }: { number: number; title: string; detail: string }) {
+  return (
+    <div className="mb-4 flex items-start gap-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#116466] text-sm font-semibold text-white">
+        {number}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold uppercase text-[#667085]">{title}</h3>
+        <p className="mt-1 text-sm text-[#475467]">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
 export function ReviewPanel({ conversationId, messages, scorecard, draftReview }: ReviewPanelProps) {
   const draftScores = new Map(draftReview?.scores.map((score) => [score.criterionId, score]) ?? []);
   const draftFinding = draftReview?.findings[0];
-  const hasCoachingDraft = Boolean(draftFinding?.coachingAction);
+  const hasOptionalDetails = Boolean(
+    draftFinding?.rootCause || draftFinding?.evidenceSummary || draftFinding?.coachingAction
+  );
 
   return (
     <form action={saveReviewDraft} className="panel overflow-hidden">
@@ -77,7 +93,7 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
       <div className="border-b border-[#d7dce5] px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Панель проверки</h2>
+            <h2 className="text-lg font-semibold">Проверка</h2>
             <p className="mt-1 text-sm text-[#667085]">
               {scorecard.name} v{scorecard.version}
             </p>
@@ -88,13 +104,10 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
         </div>
       </div>
 
-      <section className="border-b border-[#d7dce5] p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold uppercase text-[#667085]">Оценка по критериям</h3>
-          <span className="text-sm text-[#667085]">{draftReview ? "Черновик сохранен" : "Новая проверка"}</span>
-        </div>
+      <section className="border-b border-[#d7dce5] bg-[#fbfcfd] p-5">
+        <StepHeader number={1} title="Оценка по критериям" detail="Заполните только то, что отличается от нормы." />
 
-        <div className="mt-4 space-y-3">
+        <div className="space-y-3">
           {scorecard.criteria.map((criterion) => {
             const draftScore = draftScores.get(criterion.id);
             const passedValue = draftScore?.passed ?? true;
@@ -102,10 +115,10 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
             return (
               <details
                 key={criterion.id}
-                className="disclosure-panel overflow-hidden rounded-lg border border-[#d7dce5] bg-[#fbfcfd]"
+                className="disclosure-panel overflow-hidden rounded-lg border border-[#d7dce5] bg-white"
                 open={shouldOpenCriterion(criterion, draftScore)}
               >
-                <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 bg-white px-4 py-3">
+                <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <h4 className="truncate text-sm font-semibold text-[#17202a]">
                       {criterion.order}. {criterion.label}
@@ -171,33 +184,31 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
                     Не применимо
                   </label>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                      Сообщение-доказательство
-                      <select
-                        name={`criterion.${criterion.id}.evidenceMessageId`}
-                        defaultValue={draftScore?.evidenceMessageId ?? ""}
-                        className={fieldClassName}
-                      >
-                        <option value="">Без привязки к сообщению</option>
-                        {messages.map((message) => (
-                          <option key={message.id} value={message.id}>
-                            {message.authorName}: {message.body.slice(0, 70)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                  <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                    Сообщение-доказательство
+                    <select
+                      name={`criterion.${criterion.id}.evidenceMessageId`}
+                      defaultValue={draftScore?.evidenceMessageId ?? ""}
+                      className={fieldClassName}
+                    >
+                      <option value="">Без привязки к сообщению</option>
+                      {messages.map((message) => (
+                        <option key={message.id} value={message.id}>
+                          {message.authorName}: {message.body.slice(0, 70)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                    <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
-                      Комментарий по критерию
-                      <textarea
-                        name={`criterion.${criterion.id}.comment`}
-                        rows={2}
-                        defaultValue={draftScore?.comment ?? ""}
-                        className={textareaClassName}
-                      />
-                    </label>
-                  </div>
+                  <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                    Комментарий
+                    <textarea
+                      name={`criterion.${criterion.id}.comment`}
+                      rows={2}
+                      defaultValue={draftScore?.comment ?? ""}
+                      className={textareaClassName}
+                    />
+                  </label>
                 </div>
               </details>
             );
@@ -205,21 +216,10 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
         </div>
       </section>
 
-      <details className="disclosure-panel border-b border-[#d7dce5]" open>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <h3 className="text-sm font-semibold uppercase text-[#667085]">Итог и находка</h3>
-            <p className="mt-1 text-sm text-[#667085]">Результат, ответственность и доказательство</p>
-          </div>
-          <span
-            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
-            aria-hidden="true"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </span>
-        </summary>
+      <section className="border-b border-[#d7dce5] p-5">
+        <StepHeader number={2} title="Итог проверки" detail="Короткий вывод и классификация, без лишней детализации." />
 
-        <div className="grid gap-4 border-t border-[#d7dce5] p-5">
+        <div className="grid gap-4">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Итог проверки
             <textarea
@@ -232,6 +232,17 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
           </label>
 
           <div className="grid gap-4 md:grid-cols-3">
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Категория
+              <input
+                name="category"
+                list="category-templates"
+                required
+                defaultValue={draftFinding?.category ?? ""}
+                className={fieldClassName}
+              />
+            </label>
+
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Ответственность
               <select
@@ -262,31 +273,36 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
                 <option value="CRITICAL">{riskLevelLabels.CRITICAL}</option>
               </select>
             </label>
-
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
-              Категория
-              <input
-                name="category"
-                list="category-templates"
-                required
-                defaultValue={draftFinding?.category ?? ""}
-                className={fieldClassName}
-              />
-            </label>
           </div>
+
           <datalist id="category-templates">
             {categoryTemplates.map((template) => (
               <option key={template} value={template} />
             ))}
           </datalist>
+        </div>
+      </section>
 
+      <details className="disclosure-panel border-b border-[#d7dce5]" open={hasOptionalDetails}>
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold uppercase text-[#667085]">Дополнительно</h3>
+            <p className="mt-1 text-sm text-[#667085]">Корневая причина, доказательство и коучинг</p>
+          </div>
+          <span
+            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </summary>
+
+        <div className="grid gap-4 border-t border-[#d7dce5] p-5">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Корневая причина
             <textarea
               name="rootCause"
               rows={3}
-              required
-              placeholder="Например: оператор не сверил ответ с актуальной политикой перед финальным сообщением."
               defaultValue={draftFinding?.rootCause ?? ""}
               className={textareaClassName}
             />
@@ -297,61 +313,44 @@ export function ReviewPanel({ conversationId, messages, scorecard, draftReview }
             <textarea
               name="evidenceSummary"
               rows={3}
-              required
-              placeholder="Например: в сообщении-доказательстве клиенту обещан срок, которого нет в политике."
               defaultValue={draftFinding?.evidenceSummary ?? ""}
               className={textareaClassName}
             />
           </label>
-        </div>
-      </details>
 
-      <details className="disclosure-panel border-b border-[#d7dce5]" open={hasCoachingDraft}>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <h3 className="text-sm font-semibold uppercase text-[#667085]">Коучинг</h3>
-            <p className="mt-1 text-sm text-[#667085]">Действие, ответственный и срок</p>
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Действие по коучингу
+              <input
+                name="coachingAction"
+                list="coaching-templates"
+                defaultValue={draftFinding?.coachingAction?.action ?? ""}
+                className={fieldClassName}
+              />
+            </label>
+            <datalist id="coaching-templates">
+              {coachingTemplates.map((template) => (
+                <option key={template} value={template} />
+              ))}
+            </datalist>
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Ответственный за коучинг
+              <input
+                name="coachingAssignee"
+                defaultValue={draftFinding?.coachingAction?.assignee ?? ""}
+                className={fieldClassName}
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Срок
+              <input
+                name="coachingDueAt"
+                type="date"
+                defaultValue={draftFinding?.coachingAction?.dueAt?.toISOString().slice(0, 10) ?? ""}
+                className={fieldClassName}
+              />
+            </label>
           </div>
-          <span
-            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
-            aria-hidden="true"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </span>
-        </summary>
-
-        <div className="grid gap-4 border-t border-[#d7dce5] p-5 md:grid-cols-[1fr_1fr_160px]">
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Действие по коучингу
-            <input
-              name="coachingAction"
-              list="coaching-templates"
-              defaultValue={draftFinding?.coachingAction?.action ?? ""}
-              className={fieldClassName}
-            />
-          </label>
-          <datalist id="coaching-templates">
-            {coachingTemplates.map((template) => (
-              <option key={template} value={template} />
-            ))}
-          </datalist>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Ответственный за коучинг
-            <input
-              name="coachingAssignee"
-              defaultValue={draftFinding?.coachingAction?.assignee ?? ""}
-              className={fieldClassName}
-            />
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Срок
-            <input
-              name="coachingDueAt"
-              type="date"
-              defaultValue={draftFinding?.coachingAction?.dueAt?.toISOString().slice(0, 10) ?? ""}
-              className={fieldClassName}
-            />
-          </label>
         </div>
       </details>
 
