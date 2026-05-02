@@ -9,7 +9,7 @@ export type CriterionInput = {
 };
 
 export type ScoreResult = {
-  score: number;
+  totalScore: number;
   maxWeight: number;
 };
 
@@ -24,7 +24,7 @@ export function calculateReviewScore(criteria: CriterionInput[]): ScoreResult {
   );
 
   if (maxWeight === 0) {
-    return { score: 0, maxWeight: 0 };
+    return { totalScore: 0, maxWeight: 0 };
   }
 
   const earnedWeight = applicableCriteria.reduce((total, criterion) => {
@@ -56,7 +56,7 @@ export function calculateReviewScore(criteria: CriterionInput[]): ScoreResult {
   }, 0);
 
   return {
-    score: roundToTwoDecimals((earnedWeight / maxWeight) * 100),
+    totalScore: roundToTwoDecimals((earnedWeight / maxWeight) * 100),
     maxWeight
   };
 }

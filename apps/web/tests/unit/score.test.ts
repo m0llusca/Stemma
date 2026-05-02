@@ -28,7 +28,7 @@ describe("calculateReviewScore", () => {
     ];
 
     expect(calculateReviewScore(criteria)).toEqual({
-      score: 86.67,
+      totalScore: 86.67,
       maxWeight: 100
     });
   });
@@ -52,7 +52,7 @@ describe("calculateReviewScore", () => {
     ];
 
     expect(calculateReviewScore(criteria)).toEqual({
-      score: 100,
+      totalScore: 100,
       maxWeight: 50
     });
   });
