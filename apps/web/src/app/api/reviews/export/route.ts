@@ -65,42 +65,20 @@ export async function GET() {
           openedAt: review.conversation.openedAt.toISOString(),
           closedAt: isoDate(review.conversation.closedAt)
         },
-        reviewer: {
-          id: review.reviewer.id,
-          email: review.reviewer.email,
-          name: review.reviewer.name,
-          role: review.reviewer.role
-        },
+        reviewer: review.reviewer.email,
         scores: review.scores.map((score) => ({
-          criterion: {
-            id: score.criterion.id,
-            key: score.criterion.key,
-            label: score.criterion.label,
-            kind: score.criterion.kind,
-            weight: score.criterion.weight,
-            order: score.criterion.order
-          },
+          criterion: score.criterion.key,
           value: score.value,
           passed: score.passed,
           isNotApplicable: score.isNotApplicable,
-          comment: score.comment,
-          evidenceMessageId: score.evidenceMessageId
+          comment: score.comment
         })),
         findings: review.findings.map((finding) => ({
-          id: finding.id,
           ownerType: finding.ownerType,
           category: finding.category,
           rootCause: finding.rootCause,
           riskLevel: finding.riskLevel,
-          evidenceSummary: finding.evidenceSummary,
-          coachingAction: finding.coachingAction
-            ? {
-                assignee: finding.coachingAction.assignee,
-                action: finding.coachingAction.action,
-                dueAt: isoDate(finding.coachingAction.dueAt),
-                status: finding.coachingAction.status
-              }
-            : null
+          coachingAction: finding.coachingAction?.action ?? null
         }))
       }))
     });

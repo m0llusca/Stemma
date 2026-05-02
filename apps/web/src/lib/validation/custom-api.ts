@@ -11,6 +11,11 @@ const optionalStringSchema = z
   .nullable()
   .transform((value) => (value ? value : undefined));
 
+const optionalUrlSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().url().optional()
+);
+
 export const customMessageSchema = z.object({
   externalId: z.string().trim().min(1),
   participantType: customParticipantTypeSchema,
@@ -23,7 +28,7 @@ export const customMessageSchema = z.object({
 export const customConversationSchema = z.object({
   externalSource: z.string().trim().min(1),
   externalId: z.string().trim().min(1),
-  externalUrl: optionalStringSchema,
+  externalUrl: optionalUrlSchema,
   channel: customChannelSchema,
   subject: z.string().trim().min(1),
   status: z.string().trim().min(1),

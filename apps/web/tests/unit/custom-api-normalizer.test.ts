@@ -56,4 +56,22 @@ describe("custom API normalizer", () => {
       isPrivate: false
     });
   });
+
+  it("rejects invalid external URLs", () => {
+    expect(() =>
+      customConversationSchema.parse({
+        externalSource: "custom_api",
+        externalId: "conv-123",
+        externalUrl: "not-a-url",
+        channel: "chat",
+        subject: "Delayed shipment",
+        status: "closed",
+        tags: ["shipping"],
+        customerName: "Ava Customer",
+        samplingReason: "High-value customer",
+        openedAt: "2026-04-25T10:00:00.000Z",
+        messages: []
+      })
+    ).toThrow();
+  });
 });

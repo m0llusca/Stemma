@@ -192,7 +192,7 @@ describe("custom conversation API", () => {
     expect(mocks.prisma.message.upsert).not.toHaveBeenCalled();
   });
 
-  it("exports reviews for the current workspace", async () => {
+  it("exports reviews for the current workspace with the planned JSON shape", async () => {
     const { GET } = await import("@/app/api/reviews/export/route");
     mocks.prisma.review.findMany.mockResolvedValue([
       {
@@ -267,35 +267,52 @@ describe("custom conversation API", () => {
 
     await expect(response.json()).resolves.toEqual({
       reviews: [
-        expect.objectContaining({
+        {
           id: "review-1",
+          status: "FINALIZED",
+          reviewSource: "HUMAN",
+          rubricVersion: 1,
+          totalScore: 92,
+          confidence: null,
+          summary: "Strong resolution.",
           finalizedAt: "2026-04-26T12:00:00.000Z",
-          conversation: expect.objectContaining({
+          createdAt: "2026-04-26T11:50:00.000Z",
+          conversation: {
+            id: "conv-db-1",
+            externalSource: "custom_api",
             externalId: "conv-123",
+            externalUrl: null,
+            channel: "CHAT",
+            subject: "Refund request",
+            status: "closed",
+            tags: "refund,delivery",
+            customerName: "Ava Customer",
+            assigneeName: "Sam Agent",
+            samplingReason: "High-value customer",
+            riskHint: null,
             openedAt: "2026-04-25T10:00:00.000Z",
             closedAt: null
-          }),
-          reviewer: expect.objectContaining({
-            email: "qa@example.com"
-          }),
+          },
+          reviewer: "qa@example.com",
           scores: [
-            expect.objectContaining({
-              criterion: expect.objectContaining({
-                key: "accuracy"
-              })
-            })
+            {
+              criterion: "accuracy",
+              value: 3,
+              passed: null,
+              isNotApplicable: false,
+              comment: "Accurate."
+            }
           ],
           findings: [
-            expect.objectContaining({
-              coachingAction: {
-                assignee: "Sam Agent",
-                action: "Share example.",
-                dueAt: "2026-05-01T00:00:00.000Z",
-                status: "open"
-              }
-            })
+            {
+              ownerType: "AGENT",
+              category: "Resolution",
+              rootCause: "None",
+              riskLevel: "LOW",
+              coachingAction: "Share example."
+            }
           ]
-        })
+        }
       ]
     });
     expect(response.status).toBe(200);
