@@ -102,6 +102,18 @@ button, input, select, textarea {
   transform: rotate(180deg);
 }
 
+.example-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.example-chevron {
+  transition: transform 160ms ease;
+}
+
+.example-disclosure[open] .example-chevron {
+  transform: rotate(180deg);
+}
+
 .compact-text {
   overflow-wrap: anywhere;
 }

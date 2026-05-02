@@ -69,7 +69,7 @@ export function NativeHelpdeskImportTester() {
 
   return (
     <form action={importNativeHelpdeskPayload} className="grid gap-4">
-      <div className="grid gap-4 lg:grid-cols-[240px_1fr_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_minmax(0,1fr)]">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Источник
           <select
@@ -113,23 +113,23 @@ export function NativeHelpdeskImportTester() {
           onChange={(event) => setPayload(event.target.value)}
           rows={16}
           spellCheck={false}
-          className="resize-y rounded border border-[#d7dce5] bg-white px-3 py-2 font-mono text-xs leading-5"
+          className="min-h-[320px] resize-y rounded border border-[#d7dce5] bg-white px-3 py-2 font-mono text-xs leading-5"
         />
       </label>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-[#f7f8fb] px-4 py-3">
+      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#f7f8fb] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         {preview.ok ? (
-          <div className="flex items-center gap-3 text-sm text-[#344054]">
+          <div className="flex min-w-0 items-start gap-3 text-sm text-[#344054]">
             <CheckCircle2 size={18} className="text-[#116466]" aria-hidden="true" />
-            <span>
+            <span className="min-w-0 break-words">
               {preview.count} диалог(ов), {preview.messageCount} сообщени(й), первый: {preview.firstExternalId} ·{" "}
               {preview.firstSubject}
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-3 text-sm text-[#b54708]">
+          <div className="flex min-w-0 items-start gap-3 text-sm text-[#b54708]">
             <AlertTriangle size={18} aria-hidden="true" />
-            <span>{preview.error}</span>
+            <span className="min-w-0 break-words">{preview.error}</span>
           </div>
         )}
 

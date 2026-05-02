@@ -122,11 +122,12 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "OTRS Community Edition 6" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Znuny LTS" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "OTOBO", exact: true })).toBeVisible();
-  await expect(page.getByText("GET по умолчанию", { exact: true })).toBeVisible();
+  await expect(page.getByText("GET по умолчанию", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("TicketGet: канонический GET").first()).toBeVisible();
   await expect(page.getByText("TicketGet: JSON fallback").first()).toBeVisible();
   await expect(page.getByText("TicketGet: wrapped fallback").first()).toBeVisible();
   await expect(page.getByText("/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/Search").first()).toBeVisible();
+  await page.locator("article").filter({ hasText: "OTOBO: API-примеры" }).getByText("TicketGet: канонический GET").click();
   await expect(page.getByText("/otobo/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketGet").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
   await page.getByRole("button", { name: "Импортировать в очередь" }).click();

@@ -63,75 +63,86 @@ export function OtrsSetupWizard() {
   }
 
   return (
-    <section className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-[#17202a]">Мастер подключения OTRS/Znuny</h3>
-          <p className="mt-1 text-sm text-[#667085]">
-            URL, авторизация, preflight TicketGet и тестовый импорт с учетом платформы.
+    <section className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase text-[#667085]">Preflight</p>
+          <h3 className="mt-1 text-base font-semibold text-[#17202a]">Мастер подключения OTRS/Znuny</h3>
+          <p className="mt-1 max-w-2xl text-sm leading-5 text-[#667085]">
+            Собирает URL, авторизацию и форму TicketGet для быстрой проверки перед импортом в QC.
           </p>
         </div>
-        <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">{profile.shortLabel}</span>
+        <span className="rounded-md border border-[#d7dce5] bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+          {profile.shortLabel}
+        </span>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Источник
-            <select
-              value={source}
-              onChange={(event) => updateSource(event.target.value as OtrsFamilySource)}
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            >
-              {otrsFamilySourceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Base URL
-            <input
-              value={baseUrl}
-              onChange={(event) => setBaseUrl(event.target.value)}
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            />
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            UserLogin
-            <input
-              value={userLogin}
-              onChange={(event) => setUserLogin(event.target.value)}
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            />
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
-            Password
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type="password"
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            />
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
-            TicketID для проверки
-            <input
-              value={ticketId}
-              onChange={(event) => setTicketId(event.target.value)}
-              className="rounded border border-[#d7dce5] bg-white px-3 py-2"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-[#344054] md:col-span-2">
-            <input
-              type="checkbox"
-              checked={useWrappedBody}
-              onChange={(event) => setUseWrappedBody(event.target.checked)}
-            />
-            Вложенное тело: <span className="font-mono text-xs">{"{ TicketGet: { ... } }"}</span>
-          </label>
-          <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_460px]">
+        <div className="grid content-start gap-4 p-4 xl:border-r xl:border-[#d7dce5]">
+          <div className="flex items-center gap-2">
+            <span className="grid size-6 place-items-center rounded bg-[#116466] text-xs font-semibold text-white">1</span>
+            <h4 className="text-sm font-semibold text-[#17202a]">Параметры подключения</h4>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Источник
+              <select
+                value={source}
+                onChange={(event) => updateSource(event.target.value as OtrsFamilySource)}
+                className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+              >
+                {otrsFamilySourceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Base URL
+              <input
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
+                className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              UserLogin
+              <input
+                value={userLogin}
+                onChange={(event) => setUserLogin(event.target.value)}
+                className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              Password
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              TicketID для проверки
+              <input
+                value={ticketId}
+                onChange={(event) => setTicketId(event.target.value)}
+                className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+              />
+            </label>
+            <label className="flex min-h-[42px] items-center gap-2 rounded border border-[#d7dce5] bg-[#fbfcfd] px-3 text-sm text-[#344054]">
+              <input
+                type="checkbox"
+                checked={useWrappedBody}
+                onChange={(event) => setUseWrappedBody(event.target.checked)}
+              />
+              <span className="min-w-0">
+                Вложенное тело <span className="font-mono text-xs">{"{ TicketGet: { ... } }"}</span>
+              </span>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setChecked(true)}
@@ -142,7 +153,7 @@ export function OtrsSetupWizard() {
               Проверить подключение
             </button>
             {checked && isReady ? (
-              <span className="inline-flex items-center gap-2 text-sm font-medium text-[#116466]">
+              <span className="inline-flex items-center gap-2 rounded-md bg-[#e8f3ef] px-3 py-2 text-sm font-medium text-[#116466]">
                 <CheckCircle2 size={16} aria-hidden="true" />
                 Preflight готов для {source}
               </span>
@@ -150,7 +161,11 @@ export function OtrsSetupWizard() {
           </div>
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid content-start gap-3 bg-[#fbfcfd] p-4">
+          <div className="flex items-center gap-2">
+            <span className="grid size-6 place-items-center rounded bg-[#17202a] text-xs font-semibold text-white">2</span>
+            <h4 className="text-sm font-semibold text-[#17202a]">Запрос к helpdesk</h4>
+          </div>
           <div className="rounded border border-[#d7dce5] bg-white p-3">
             <p className="text-xs font-semibold uppercase text-[#667085]">Канонический TicketGet URL</p>
             <code className="mt-2 block break-all text-xs text-[#344054]">{ticketGetQueryUrl}</code>
@@ -161,16 +176,6 @@ export function OtrsSetupWizard() {
               {profile.webService}; {profile.ticketGetMethod} {profile.ticketGetPath}. Если в админке route переименован,
               замените этот сегмент в URL.
             </p>
-          </div>
-          <div className="rounded border border-[#d7dce5] bg-white p-3">
-            <p className="text-xs font-semibold uppercase text-[#667085]">Форма запроса</p>
-            <ul className="mt-2 grid gap-1 text-xs leading-5 text-[#344054]">
-              {otrsFamilyRequestShapeNotes.map((note) => (
-                <li key={note.title}>
-                  <span className="font-semibold">{note.title}:</span> {note.detail}
-                </li>
-              ))}
-            </ul>
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
@@ -190,6 +195,21 @@ export function OtrsSetupWizard() {
               <code>{ticketGetRequest}</code>
             </pre>
           </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[#d7dce5] bg-[#f7f8fb] p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="grid size-6 place-items-center rounded bg-[#667085] text-xs font-semibold text-white">3</span>
+          <h4 className="text-sm font-semibold text-[#17202a]">Как читать форму запроса</h4>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {otrsFamilyRequestShapeNotes.map((note) => (
+            <div key={note.title} className="rounded border border-[#d7dce5] bg-white p-3">
+              <p className="text-sm font-semibold text-[#17202a]">{note.title}</p>
+              <p className="mt-1 text-xs leading-5 text-[#667085]">{note.detail}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

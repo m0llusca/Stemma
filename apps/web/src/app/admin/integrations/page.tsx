@@ -27,7 +27,6 @@ import {
   buildOtrsFamilyTicketSearchRequest,
   otrsFamilyApiProfiles,
   otrsFamilyMappingRows,
-  otrsFamilyRequestShapeNotes,
   otrsFamilyTicketGetExample,
   otrsFamilyTicketGetUrl,
   otrsFamilyTicketSearchUrl,
@@ -230,16 +229,86 @@ function qcImportCurl(profile: OtrsFamilyApiProfile) {
   });
 }
 
-function CodeBlock({ children }: { children: string }) {
+function SectionHeader({
+  eyebrow,
+  title,
+  description
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+}) {
   return (
-    <div className="grid gap-2">
+    <div className="min-w-0">
+      {eyebrow ? <p className="text-xs font-semibold uppercase text-[#667085]">{eyebrow}</p> : null}
+      <h3 className="mt-1 text-sm font-semibold text-[#17202a]">{title}</h3>
+      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p> : null}
+    </div>
+  );
+}
+
+function IntegrationBlock({
+  eyebrow,
+  title,
+  description,
+  children,
+  className = ""
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`border-t border-[#d7dce5] p-5 ${className}`}>
+      <div className="mb-4">
+        <SectionHeader eyebrow={eyebrow} title={title} description={description} />
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function InlineStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-[#d7dce5] bg-white px-3 py-2">
+      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
+      <p className="mt-1 break-words font-mono text-xs text-[#344054]">{value}</p>
+    </div>
+  );
+}
+
+function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children: string; maxHeight?: string }) {
+  return (
+    <div className="grid min-w-0 content-start gap-2">
       <div className="flex justify-end">
         <CopyButton value={children} />
       </div>
-      <pre className="overflow-x-auto rounded-md bg-[#17202a] p-4 text-xs leading-5 text-white">
+      <pre className={`${maxHeight} overflow-auto rounded-md bg-[#17202a] p-4 text-xs leading-5 text-white`}>
         <code>{children}</code>
       </pre>
     </div>
+  );
+}
+
+function ExampleDisclosure({
+  title,
+  children,
+  open = false
+}: {
+  title: string;
+  children: ReactNode;
+  open?: boolean;
+}) {
+  return (
+    <details className="example-disclosure overflow-hidden rounded-md border border-[#d7dce5] bg-white" open={open}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-[#fbfcfd] px-3 py-2 text-xs font-semibold uppercase text-[#667085]">
+        <span className="min-w-0">{title}</span>
+        <ChevronDown className="example-chevron shrink-0 text-[#98a2b3]" size={16} aria-hidden="true" />
+      </summary>
+      <div className="border-t border-[#d7dce5] p-3">{children}</div>
+    </details>
   );
 }
 
@@ -335,8 +404,12 @@ export default async function AdminIntegrationsPage() {
         health={apiHealth}
       >
         <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+          <div className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
+            <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+              <SectionHeader title="Endpoint-карта" description="Минимальный контракт для ручного QA MVP и импорта внешних диалогов." />
+            </div>
+            <div className="scroll-area">
+              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Метод</th>
@@ -355,12 +428,13 @@ export default async function AdminIntegrationsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
 
-          <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
-            <p className="text-sm font-semibold text-[#17202a]">Токены вынесены отдельно</p>
-            <p className="mt-2 text-sm leading-5 text-[#667085]">
+          <aside className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+            <SectionHeader title="Токены вынесены отдельно" description="Здесь только примеры вызовов. Создание и диагностика токенов живут на отдельном экране." />
+            <p className="mt-3 text-sm leading-5 text-[#667085]">
               В примерах используется {apiTokenPlaceholder}; реальные значения, scopes и диагностика доступны на экране
               управления токенами.
             </p>
@@ -373,10 +447,15 @@ export default async function AdminIntegrationsPage() {
                 Управлять токенами
               </Link>
             </div>
-          </div>
+          </aside>
         </div>
 
-        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-3">
+        <IntegrationBlock
+          eyebrow="Примеры"
+          title="Быстрые API-вызовы"
+          description="Три базовых сценария: создать диалог, добавить сообщение и выгрузить завершенные проверки."
+        >
+          <div className="grid gap-4 xl:grid-cols-3">
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold text-[#17202a]">Импорт диалога</h3>
             <CodeBlock>{conversationImportCurl}</CodeBlock>
@@ -389,9 +468,15 @@ export default async function AdminIntegrationsPage() {
             <h3 className="text-sm font-semibold text-[#17202a]">Экспорт проверок</h3>
             <CodeBlock>{reviewExportCurl}</CodeBlock>
           </div>
-        </div>
+          </div>
+        </IntegrationBlock>
 
-        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-[minmax(0,1fr)_520px]">
+        <IntegrationBlock
+          eyebrow="Схема"
+          title="JSON и поля custom API"
+          description="Контракт нормализован под QC-очередь: диалог, сообщения и служебные признаки выборки."
+        >
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_520px]">
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold text-[#17202a]">Пример JSON для импорта</h3>
             <CodeBlock>{formatJsonExample(customConversationExample)}</CodeBlock>
@@ -444,9 +529,15 @@ export default async function AdminIntegrationsPage() {
               </table>
             </div>
           </div>
-        </div>
+          </div>
+        </IntegrationBlock>
 
-        <div className="scroll-area border-t border-[#d7dce5]">
+        <IntegrationBlock
+          eyebrow="Диагностика"
+          title="Последние API-токены"
+          description="Состояние dev-токенов помогает понять, был ли успешный импорт или свежая ошибка."
+        >
+          <div className="scroll-area rounded-md border border-[#d7dce5]">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
@@ -473,7 +564,8 @@ export default async function AdminIntegrationsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </IntegrationBlock>
       </IntegrationDisclosure>
 
       <IntegrationDisclosure
@@ -486,55 +578,31 @@ export default async function AdminIntegrationsPage() {
           <OtrsSetupWizard />
         </div>
 
-        <div className="border-t border-[#d7dce5] p-5">
-          <h3 className="mb-3 text-sm font-semibold text-[#17202a]">API-профили OTRS-family</h3>
-          <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {otrsFamilyRequestShapeNotes.map((note) => (
-              <div key={note.title} className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-3">
-                <p className="text-sm font-semibold text-[#17202a]">{note.title}</p>
-                <p className="mt-1 text-sm leading-5 text-[#667085]">{note.detail}</p>
-              </div>
-            ))}
-          </div>
-          <div className="grid gap-3 xl:grid-cols-3">
+        <IntegrationBlock
+          eyebrow="Профили"
+          title="API-профили OTRS-family"
+          description="Разводим route mapping по системам, чтобы было понятно, где canonical GET, а где кастомная настройка GenericInterface."
+        >
+          <div className="grid items-start gap-3 xl:grid-cols-3">
             {otrsFamilyApiProfiles.map((profile) => (
-              <article key={profile.source} className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
+              <article key={profile.source} className="self-start rounded-md border border-[#d7dce5] bg-white p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <h4 className="font-semibold text-[#17202a]">{profile.label}</h4>
-                  <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+                  <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
                     {profile.source}
                   </span>
                 </div>
-                <dl className="grid gap-2 text-sm">
-                  <div>
-                    <dt className="font-semibold text-[#667085]">Base path</dt>
-                    <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.basePath}</dd>
+                <div className="grid gap-2 text-sm">
+                  <InlineStat label="Base path" value={profile.basePath} />
+                  <InlineStat label="Web Service" value={profile.webService} />
+                  <InlineStat label="TicketGet route" value={`${profile.ticketGetMethod} ${profile.ticketGetPath}`} />
+                  <InlineStat label="TicketSearch route" value={`${profile.ticketSearchMethod} ${profile.ticketSearchPath}`} />
+                  <div className="rounded-md border border-[#d7dce5] bg-white px-3 py-2">
+                    <p className="text-xs font-semibold uppercase text-[#667085]">Auth</p>
+                    <p className="mt-1 text-sm text-[#344054]">{profile.auth}</p>
                   </div>
-                  <div>
-                    <dt className="font-semibold text-[#667085]">Web Service</dt>
-                    <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.webService}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-[#667085]">TicketGet route</dt>
-                    <dd className="mt-1 font-mono text-xs text-[#344054]">
-                      {profile.ticketGetMethod} {profile.ticketGetPath}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-[#667085]">TicketSearch route</dt>
-                    <dd className="mt-1 font-mono text-xs text-[#344054]">
-                      {profile.ticketSearchMethod} {profile.ticketSearchPath}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-[#667085]">Auth</dt>
-                    <dd className="mt-1 text-[#344054]">{profile.auth}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-[#667085]">Agent URL</dt>
-                    <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.ticketZoomPath}</dd>
-                  </div>
-                </dl>
+                  <InlineStat label="Agent URL" value={profile.ticketZoomPath} />
+                </div>
                 <p className="mt-3 text-sm leading-5 text-[#667085]">{profile.note}</p>
                 <a
                   href={profile.docsUrl}
@@ -547,42 +615,53 @@ export default async function AdminIntegrationsPage() {
               </article>
             ))}
           </div>
-        </div>
+        </IntegrationBlock>
 
-        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-3">
-          {otrsFamilyApiProfiles.map((profile) => (
-            <div key={`${profile.source}:examples`} className="grid gap-4">
-              <h3 className="text-sm font-semibold text-[#17202a]">{profile.shortLabel}: API-примеры</h3>
-              <div className="grid gap-2">
-                <p className="text-xs font-semibold uppercase text-[#667085]">TicketSearch в helpdesk</p>
-                <CodeBlock>{providerTicketSearchCurl(profile)}</CodeBlock>
-              </div>
-              <div className="grid gap-2">
-                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet: канонический GET</p>
-                <CodeBlock>{providerTicketGetCurl(profile)}</CodeBlock>
-              </div>
-              <div className="grid gap-2">
-                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet: JSON fallback</p>
-                <CodeBlock>{providerJsonTicketGetCurl(profile)}</CodeBlock>
-              </div>
-              <div className="grid gap-2">
-                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet: wrapped fallback</p>
-                <CodeBlock>{providerWrappedTicketGetCurl(profile)}</CodeBlock>
-              </div>
-              <div className="grid gap-2">
-                <p className="text-xs font-semibold uppercase text-[#667085]">Импорт TicketGet в QC</p>
-                <CodeBlock>{qcImportCurl(profile)}</CodeBlock>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Fallback endpoint native-импорта</h3>
-            <CodeBlock>{otrsImportCurl}</CodeBlock>
+        <IntegrationBlock
+          eyebrow="API-примеры"
+          title="Готовые вызовы по каждому профилю"
+          description="Примеры свернуты внутри профиля, чтобы страница не превращалась в длинную стену curl-команд."
+        >
+          <div className="grid items-start gap-4 xl:grid-cols-3">
+            {otrsFamilyApiProfiles.map((profile) => (
+              <article key={`${profile.source}:examples`} className="self-start rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-[#17202a]">{profile.shortLabel}: API-примеры</h3>
+                  <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">{profile.source}</span>
+                </div>
+                <div className="grid gap-3">
+                  <ExampleDisclosure title="TicketSearch в helpdesk" open={profile.source === "znuny"}>
+                    <CodeBlock>{providerTicketSearchCurl(profile)}</CodeBlock>
+                  </ExampleDisclosure>
+                  <ExampleDisclosure title="TicketGet: канонический GET" open={profile.source === "znuny"}>
+                    <CodeBlock>{providerTicketGetCurl(profile)}</CodeBlock>
+                  </ExampleDisclosure>
+                  <ExampleDisclosure title="TicketGet: JSON fallback">
+                    <CodeBlock>{providerJsonTicketGetCurl(profile)}</CodeBlock>
+                  </ExampleDisclosure>
+                  <ExampleDisclosure title="TicketGet: wrapped fallback">
+                    <CodeBlock>{providerWrappedTicketGetCurl(profile)}</CodeBlock>
+                  </ExampleDisclosure>
+                  <ExampleDisclosure title="Импорт TicketGet в QC">
+                    <CodeBlock>{qcImportCurl(profile)}</CodeBlock>
+                  </ExampleDisclosure>
+                </div>
+              </article>
+            ))}
           </div>
-          <div className="grid gap-5">
+        </IntegrationBlock>
+
+        <IntegrationBlock
+          eyebrow="Импорт"
+          title="Fallback endpoint и тестовый импорт"
+          description="Этот блок проверяет готовый TicketGet JSON и отправляет нормализованные диалоги в очередь ручной проверки."
+        >
+          <div className="grid items-start gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+            <div className="grid content-start gap-2">
+              <h3 className="text-sm font-semibold text-[#17202a]">Fallback endpoint native-импорта</h3>
+              <CodeBlock>{otrsImportCurl}</CodeBlock>
+            </div>
+            <div className="grid gap-5">
             <div className="overflow-x-auto">
               <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Mapping в custom API</h3>
               <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -608,8 +687,9 @@ export default async function AdminIntegrationsPage() {
               <h3 className="mb-3 text-sm font-semibold text-[#17202a]">Тестовый импорт TicketGet</h3>
               <OtrsImportTester />
             </div>
+            </div>
           </div>
-        </div>
+        </IntegrationBlock>
       </IntegrationDisclosure>
 
       <IntegrationDisclosure
@@ -620,63 +700,75 @@ export default async function AdminIntegrationsPage() {
       >
         <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="grid gap-5">
-            <div className="overflow-x-auto">
-              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Поддерживаемые источники</h3>
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Источник</th>
-                    <th className="px-4 py-3 font-semibold">Объект</th>
-                    <th className="px-4 py-3 font-semibold">API/export shape</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#d7dce5]">
-                  {nativeHelpdeskSources.map((source) => (
-                    <tr key={source.value}>
-                      <td className="px-4 py-3 font-medium text-[#17202a]">{source.label}</td>
-                      <td className="px-4 py-3 text-[#344054]">{source.objectName}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-[#344054]">{source.endpointHint}</td>
+            <div className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
+              <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+                <SectionHeader title="Поддерживаемые источники" description="Готовые native-shape адаптеры без ручного маппинга в JSON-схему QC." />
+              </div>
+              <div className="scroll-area">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Источник</th>
+                      <th className="px-4 py-3 font-semibold">Объект</th>
+                      <th className="px-4 py-3 font-semibold">API/export shape</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-[#d7dce5]">
+                    {nativeHelpdeskSources.map((source) => (
+                      <tr key={source.value}>
+                        <td className="px-4 py-3 font-medium text-[#17202a]">{source.label}</td>
+                        <td className="px-4 py-3 text-[#344054]">{source.objectName}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-[#344054]">{source.endpointHint}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <h3 className="mb-2 text-sm font-semibold text-[#17202a]">Mapping в custom API</h3>
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Native поле</th>
-                    <th className="px-4 py-3 font-semibold">Поле QC</th>
-                    <th className="px-4 py-3 font-semibold">Правило</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#d7dce5]">
-                  {nativeHelpdeskMappingRows.map((row) => (
-                    <tr key={`${row.source}:${row.target}`}>
-                      <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
-                      <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+            <div className="overflow-hidden rounded-md border border-[#d7dce5] bg-white">
+              <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+                <SectionHeader title="Mapping в custom API" description="Как native-поля превращаются в единый формат ручной проверки." />
+              </div>
+              <div className="scroll-area">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Native поле</th>
+                      <th className="px-4 py-3 font-semibold">Поле QC</th>
+                      <th className="px-4 py-3 font-semibold">Правило</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-[#d7dce5]">
+                    {nativeHelpdeskMappingRows.map((row) => (
+                      <tr key={`${row.source}:${row.target}`}>
+                        <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
+                        <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
+                        <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold text-[#17202a]">Endpoint native-импорта</h3>
+          <aside className="grid content-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+            <SectionHeader title="Endpoint native-импорта" description="Один endpoint принимает разные native payload и применяет выбранный адаптер." />
             <CodeBlock>{nativeHelpdeskImportCurl}</CodeBlock>
-          </div>
+          </aside>
         </div>
 
-        <div className="border-t border-[#d7dce5] p-5">
-          <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
-            <h3 className="mb-3 text-sm font-semibold text-[#17202a]">Тестовый импорт native helpdesk</h3>
+        <IntegrationBlock
+          eyebrow="Проверка"
+          title="Тестовый импорт native helpdesk"
+          description="Можно быстро переключить источник, посмотреть preview и отправить диалог в очередь."
+        >
+          <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+            <p className="mb-3 text-sm font-semibold text-[#17202a]">Payload и preview перед импортом</p>
             <NativeHelpdeskImportTester />
           </div>
-        </div>
+        </IntegrationBlock>
       </IntegrationDisclosure>
 
       <IntegrationDisclosure
@@ -686,42 +778,48 @@ export default async function AdminIntegrationsPage() {
         health={hasRecentOtrsImport ? { label: "Есть данные", className: badgeClass("ok") } : { label: "Пока пусто", className: badgeClass("neutral") }}
       >
         {recentImportLogs.length > 0 ? (
-          <div className="scroll-area">
-            <table className="w-full min-w-[820px] border-collapse text-left text-sm">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Дата</th>
-                  <th className="px-5 py-3 font-semibold">Источник</th>
-                  <th className="px-5 py-3 font-semibold">Тикеты</th>
-                  <th className="px-5 py-3 font-semibold">Ошибки</th>
-                  <th className="px-5 py-3 font-semibold">Запустил</th>
-                  <th className="px-5 py-3 font-semibold">Очередь</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
-                {recentImportLogs.map((log) => {
-                  const metadata = parseImportMetadata(log.metadata);
+          <div className="p-5">
+            <div className="scroll-area rounded-md border border-[#d7dce5]">
+              <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+                <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Дата</th>
+                    <th className="px-5 py-3 font-semibold">Источник</th>
+                    <th className="px-5 py-3 font-semibold">Тикеты</th>
+                    <th className="px-5 py-3 font-semibold">Ошибки</th>
+                    <th className="px-5 py-3 font-semibold">Запустил</th>
+                    <th className="px-5 py-3 font-semibold">Очередь</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#d7dce5] bg-white">
+                  {recentImportLogs.map((log) => {
+                    const metadata = parseImportMetadata(log.metadata);
 
-                  return (
-                    <tr key={log.id}>
-                      <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
-                      <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
-                      <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
-                      <td className="px-5 py-4 text-[#344054]">0</td>
-                      <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
-                      <td className="px-5 py-4">
-                        <Link href={queueHref(metadata.source, metadata.externalIds)} className="font-semibold text-[#0b4f52] hover:underline">
-                          Открыть
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    return (
+                      <tr key={log.id}>
+                        <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
+                        <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
+                        <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
+                        <td className="px-5 py-4 text-[#344054]">0</td>
+                        <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
+                        <td className="px-5 py-4">
+                          <Link href={queueHref(metadata.source, metadata.externalIds)} className="font-semibold text-[#0b4f52] hover:underline">
+                            Открыть
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
-          <div className="p-5 text-sm text-[#667085]">Импорты появятся здесь после тестового или API-импорта native-коннекторов.</div>
+          <div className="p-5">
+            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
+              Импорты появятся здесь после тестового или API-импорта native-коннекторов.
+            </div>
+          </div>
         )}
       </IntegrationDisclosure>
 
@@ -733,7 +831,8 @@ export default async function AdminIntegrationsPage() {
           health={{ label: "Запланировано", className: badgeClass("neutral") }}
           className="mb-0"
         >
-          <div className="scroll-area">
+          <div className="p-5">
+            <div className="scroll-area rounded-md border border-[#d7dce5]">
             <table className="w-full min-w-[640px] border-collapse text-left text-sm">
               <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
                 <tr>
@@ -754,6 +853,7 @@ export default async function AdminIntegrationsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </IntegrationDisclosure>
 
@@ -766,7 +866,7 @@ export default async function AdminIntegrationsPage() {
         >
           <div className="grid gap-3 p-5">
             {connectorCoverage.map((item) => (
-              <article key={item.name} className="rounded-md border border-[#d7dce5] p-4">
+              <article key={item.name} className="rounded-md border border-[#d7dce5] bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-semibold text-[#17202a]">{item.name}</h3>
                   <span className="shrink-0 rounded-md bg-[#e8f3ef] px-2 py-1 text-xs font-semibold text-[#116466]">
