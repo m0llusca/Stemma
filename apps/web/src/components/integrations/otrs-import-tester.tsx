@@ -80,7 +80,7 @@ export function OtrsImportTester() {
 
   return (
     <form action={importOtrsFamilyTicketGet} className="grid gap-4">
-      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid gap-4">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Источник
           <select
@@ -128,7 +128,7 @@ export function OtrsImportTester() {
         />
       </label>
 
-      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#f7f8fb] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#f7f8fb] px-4 py-3">
         {preview.ok ? (
           <div className="flex min-w-0 items-start gap-3 text-sm text-[#344054]">
             <CheckCircle2 size={18} className="text-[#116466]" aria-hidden="true" />

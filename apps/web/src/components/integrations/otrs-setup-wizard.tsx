@@ -138,9 +138,9 @@ export function OtrsSetupWizard() {
                   checked={useWrappedBody}
                   onChange={(event) => setUseWrappedBody(event.target.checked)}
                 />
-                <span className="min-w-0">
-                  Вложенное тело <span className="font-mono text-xs">{"{ TicketGet: { ... } }"}</span>
-                </span>
+              <span className="min-w-0 break-words">
+                Вложенное тело <span className="font-mono text-xs">{"{ TicketGet: { ... } }"}</span>
+              </span>
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -208,11 +208,11 @@ export function OtrsSetupWizard() {
           <span className="grid size-6 place-items-center rounded bg-[#667085] text-xs font-semibold text-white">3</span>
           <h4 className="text-sm font-semibold text-[#17202a]">Как читать форму запроса</h4>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           {otrsFamilyRequestShapeNotes.map((note) => (
             <div key={note.title} className="rounded border border-[#d7dce5] bg-white p-3">
               <p className="text-sm font-semibold text-[#17202a]">{note.title}</p>
-              <p className="mt-1 text-xs leading-5 text-[#667085]">{note.detail}</p>
+              <p className="mt-1 break-words text-xs leading-5 text-[#667085]">{note.detail}</p>
             </div>
           ))}
         </div>

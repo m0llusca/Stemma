@@ -102,21 +102,25 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Скопировать header" })).toBeVisible();
 
   await page.goto("/admin/integrations");
-  await expect(page.getByRole("heading", { name: "OTRS-family импорт" })).toBeVisible();
-  await page.getByRole("heading", { name: "Кастомный API" }).click();
+  await expect(page.getByRole("heading", { name: "Единый мастер подключения источника" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /OTRS \/ Znuny \/ OTOBO/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Мастер подключения OTRS/Znuny" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).toBeVisible();
+  await page.getByRole("button", { name: /Своя система/ }).click();
+  await expect(page.getByRole("heading", { name: "Своя система через custom API" })).toBeVisible();
   await expect(page.getByText("Authorization: Bearer <API_TOKEN>").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Управлять токенами" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).not.toBeVisible();
-  await page.getByRole("heading", { name: "Покрытие интеграций" }).click();
+  await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "HubSpot Service Hub" })).toBeVisible();
-  await page.getByRole("heading", { name: "Native SaaS импорт" }).click();
-  await expect(page.getByRole("heading", { name: "Тестовый импорт native helpdesk" })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "/api/integrations/native-helpdesks/conversations" })).toBeVisible();
+  await page.getByRole("button", { name: /Zendesk/ }).click();
+  await expect(page.getByRole("heading", { name: "Zendesk: payload и preview" })).toBeVisible();
+  await page.getByText("Mapping и endpoint native-адаптера").click();
+  await expect(page.getByText("/api/integrations/native-helpdesks/conversations")).toBeVisible();
   await page.getByRole("button", { name: "Импортировать в очередь" }).click();
   await expect(page.getByRole("link", { name: "Refund request from Zendesk" })).toBeVisible();
 
   await page.goto("/admin/integrations");
-  await page.getByRole("heading", { name: "OTRS-family импорт" }).click();
+  await page.getByRole("button", { name: /OTRS \/ Znuny \/ OTOBO/ }).click();
   await expect(page.getByRole("heading", { name: "Мастер подключения OTRS/Znuny" })).toBeVisible();
   await expect(page.getByText("GET по умолчанию", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("API-профили OTRS-family")).not.toBeVisible();

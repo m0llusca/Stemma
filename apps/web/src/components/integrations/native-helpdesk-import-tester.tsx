@@ -52,9 +52,9 @@ function buildPreview(payload: string, source: NativeHelpdeskSource, baseUrl: st
   }
 }
 
-export function NativeHelpdeskImportTester() {
-  const [source, setSource] = useState<NativeHelpdeskSource>("zendesk");
-  const [payload, setPayload] = useState(examplePayload("zendesk"));
+export function NativeHelpdeskImportTester({ initialSource = "zendesk" }: { initialSource?: NativeHelpdeskSource }) {
+  const [source, setSource] = useState<NativeHelpdeskSource>(initialSource);
+  const [payload, setPayload] = useState(examplePayload(initialSource));
   const [baseUrl, setBaseUrl] = useState("https://support.example.com");
   const [samplingReason, setSamplingReason] = useState("Тестовый native импорт helpdesk.");
   const preview = useMemo(
