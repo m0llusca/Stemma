@@ -22,16 +22,8 @@ import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
 import { nativeHelpdeskMappingRows, nativeHelpdeskSources } from "@/lib/normalizers/native-helpdesk";
 import {
-  buildOtrsFamilyTicketGetQueryParams,
-  buildOtrsFamilyTicketGetRequest,
-  buildOtrsFamilyTicketSearchRequest,
   otrsFamilyApiProfiles,
   otrsFamilyMappingRows,
-  otrsFamilyTicketGetExample,
-  otrsFamilyTicketGetUrl,
-  otrsFamilyTicketSearchUrl,
-  otrsFamilyUrlWithQuery,
-  type OtrsFamilyApiProfile
 } from "@/lib/normalizers/otrs-family";
 
 export const dynamic = "force-dynamic";
@@ -160,75 +152,6 @@ function queueHref(source: string, externalIds: string[]) {
   return `/reviews?${params.toString()}`;
 }
 
-function buildProviderCurl({
-  method,
-  url,
-  body
-}: {
-  method: "GET" | "POST";
-  url: string;
-  body?: unknown;
-}) {
-  const lines = [`curl -X ${method} "${url}"`, `  -H "Accept: application/json"`];
-
-  if (body) {
-    lines.push(`  -H "Content-Type: application/json"`);
-    lines.push(`  -d '${formatJsonExample(body)}'`);
-  }
-
-  return lines.join(" \\\n");
-}
-
-function providerTicketSearchCurl(profile: OtrsFamilyApiProfile) {
-  const body = buildOtrsFamilyTicketSearchRequest();
-  const url = otrsFamilyTicketSearchUrl(profile);
-
-  if (profile.ticketSearchMethod === "GET") {
-    return buildProviderCurl({
-      method: "GET",
-      url: otrsFamilyUrlWithQuery(url, body)
-    });
-  }
-
-  return buildProviderCurl({
-    method: "POST",
-    url,
-    body
-  });
-}
-
-function providerTicketGetCurl(profile: OtrsFamilyApiProfile) {
-  return buildProviderCurl({
-    method: profile.ticketGetMethod,
-    url: otrsFamilyUrlWithQuery(otrsFamilyTicketGetUrl(profile), buildOtrsFamilyTicketGetQueryParams(profile))
-  });
-}
-
-function providerJsonTicketGetCurl(profile: OtrsFamilyApiProfile) {
-  return buildProviderCurl({
-    method: "POST",
-    url: otrsFamilyTicketGetUrl(profile),
-    body: buildOtrsFamilyTicketGetRequest()
-  });
-}
-
-function providerWrappedTicketGetCurl(profile: OtrsFamilyApiProfile) {
-  return buildProviderCurl({
-    method: "POST",
-    url: otrsFamilyTicketGetUrl(profile),
-    body: buildOtrsFamilyTicketGetRequest({ wrapped: true })
-  });
-}
-
-function qcImportCurl(profile: OtrsFamilyApiProfile) {
-  return buildCurlExample("/api/integrations/otrs-family/tickets", "POST", {
-    source: profile.source,
-    baseUrl: profile.exampleBaseUrl,
-    samplingReason: `Native ${profile.shortLabel} импорт: очередь Refunds и статьи тикета.`,
-    ticketGet: otrsFamilyTicketGetExample
-  });
-}
-
 function SectionHeader({
   eyebrow,
   title,
@@ -270,15 +193,6 @@ function IntegrationBlock({
   );
 }
 
-function InlineStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-[#d7dce5] bg-white px-3 py-2">
-      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
-      <p className="mt-1 break-words font-mono text-xs text-[#344054]">{value}</p>
-    </div>
-  );
-}
-
 function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children: string; maxHeight?: string }) {
   return (
     <div className="grid min-w-0 content-start gap-2">
@@ -289,26 +203,6 @@ function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children: string
         <code>{children}</code>
       </pre>
     </div>
-  );
-}
-
-function ExampleDisclosure({
-  title,
-  children,
-  open = false
-}: {
-  title: string;
-  children: ReactNode;
-  open?: boolean;
-}) {
-  return (
-    <details className="example-disclosure overflow-hidden rounded-md border border-[#d7dce5] bg-white" open={open}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-[#fbfcfd] px-3 py-2 text-xs font-semibold uppercase text-[#667085]">
-        <span className="min-w-0">{title}</span>
-        <ChevronDown className="example-chevron shrink-0 text-[#98a2b3]" size={16} aria-hidden="true" />
-      </summary>
-      <div className="border-t border-[#d7dce5] p-3">{children}</div>
-    </details>
   );
 }
 
@@ -571,85 +465,12 @@ export default async function AdminIntegrationsPage() {
       <IntegrationDisclosure
         title="OTRS-family импорт"
         description="Mapping-слой для OTRS Community Edition 6, Znuny и OTOBO: тикет становится диалогом, статьи становятся сообщениями."
-        meta={`${otrsFamilyApiProfiles.length} API-профиля`}
+        meta={`${otrsFamilyApiProfiles.length} источника`}
         health={otrsHealth}
       >
         <div className="p-5">
           <OtrsSetupWizard />
         </div>
-
-        <IntegrationBlock
-          eyebrow="Профили"
-          title="API-профили OTRS-family"
-          description="Разводим route mapping по системам, чтобы было понятно, где canonical GET, а где кастомная настройка GenericInterface."
-        >
-          <div className="grid items-start gap-3 xl:grid-cols-3">
-            {otrsFamilyApiProfiles.map((profile) => (
-              <article key={profile.source} className="self-start rounded-md border border-[#d7dce5] bg-white p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <h4 className="font-semibold text-[#17202a]">{profile.label}</h4>
-                  <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
-                    {profile.source}
-                  </span>
-                </div>
-                <div className="grid gap-2 text-sm">
-                  <InlineStat label="Base path" value={profile.basePath} />
-                  <InlineStat label="Web Service" value={profile.webService} />
-                  <InlineStat label="TicketGet route" value={`${profile.ticketGetMethod} ${profile.ticketGetPath}`} />
-                  <InlineStat label="TicketSearch route" value={`${profile.ticketSearchMethod} ${profile.ticketSearchPath}`} />
-                  <div className="rounded-md border border-[#d7dce5] bg-white px-3 py-2">
-                    <p className="text-xs font-semibold uppercase text-[#667085]">Auth</p>
-                    <p className="mt-1 text-sm text-[#344054]">{profile.auth}</p>
-                  </div>
-                  <InlineStat label="Agent URL" value={profile.ticketZoomPath} />
-                </div>
-                <p className="mt-3 text-sm leading-5 text-[#667085]">{profile.note}</p>
-                <a
-                  href={profile.docsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex text-sm font-semibold text-[#0b4f52] hover:underline"
-                >
-                  Документация API
-                </a>
-              </article>
-            ))}
-          </div>
-        </IntegrationBlock>
-
-        <IntegrationBlock
-          eyebrow="API-примеры"
-          title="Готовые вызовы по каждому профилю"
-          description="Примеры свернуты внутри профиля, чтобы страница не превращалась в длинную стену curl-команд."
-        >
-          <div className="grid items-start gap-4 xl:grid-cols-3">
-            {otrsFamilyApiProfiles.map((profile) => (
-              <article key={`${profile.source}:examples`} className="self-start rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-[#17202a]">{profile.shortLabel}: API-примеры</h3>
-                  <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">{profile.source}</span>
-                </div>
-                <div className="grid gap-3">
-                  <ExampleDisclosure title="TicketSearch в helpdesk" open={profile.source === "znuny"}>
-                    <CodeBlock>{providerTicketSearchCurl(profile)}</CodeBlock>
-                  </ExampleDisclosure>
-                  <ExampleDisclosure title="TicketGet: канонический GET" open={profile.source === "znuny"}>
-                    <CodeBlock>{providerTicketGetCurl(profile)}</CodeBlock>
-                  </ExampleDisclosure>
-                  <ExampleDisclosure title="TicketGet: JSON fallback">
-                    <CodeBlock>{providerJsonTicketGetCurl(profile)}</CodeBlock>
-                  </ExampleDisclosure>
-                  <ExampleDisclosure title="TicketGet: wrapped fallback">
-                    <CodeBlock>{providerWrappedTicketGetCurl(profile)}</CodeBlock>
-                  </ExampleDisclosure>
-                  <ExampleDisclosure title="Импорт TicketGet в QC">
-                    <CodeBlock>{qcImportCurl(profile)}</CodeBlock>
-                  </ExampleDisclosure>
-                </div>
-              </article>
-            ))}
-          </div>
-        </IntegrationBlock>
 
         <IntegrationBlock
           eyebrow="Импорт"
@@ -690,6 +511,35 @@ export default async function AdminIntegrationsPage() {
             </div>
           </div>
         </IntegrationBlock>
+
+        <div className="border-t border-[#d7dce5] p-5">
+          <details className="example-disclosure rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#17202a]">
+              <span>Техническая справка по OTRS-family</span>
+              <ChevronDown className="example-chevron shrink-0 text-[#98a2b3]" size={16} aria-hidden="true" />
+            </summary>
+            <div className="grid gap-4 border-t border-[#d7dce5] bg-white p-4 text-sm leading-5 text-[#667085] xl:grid-cols-[minmax(0,1fr)_320px]">
+              <p>
+                OTRS CE 6, Znuny и OTOBO поддерживаются через GenericInterface TicketGet. В рабочем интерфейсе достаточно
+                выбрать источник в мастере выше: он покажет актуальную форму запроса и fallback JSON-body. Конкретный route
+                все равно нужно сверять в Admin → Web Services, потому что его часто меняют при настройке.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {otrsFamilyApiProfiles.map((profile) => (
+                  <a
+                    key={profile.source}
+                    href={profile.docsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-xs font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+                  >
+                    {profile.shortLabel}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </details>
+        </div>
       </IntegrationDisclosure>
 
       <IntegrationDisclosure
