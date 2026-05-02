@@ -4,22 +4,8 @@ import { DataTable, Surface } from "@/components/integrations/integration-ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
-import { nativeHelpdeskSources } from "@/lib/normalizers/native-helpdesk";
 
 export const dynamic = "force-dynamic";
-
-const connectorCoverage = [
-  {
-    name: "Znuny / OTRS / OTOBO",
-    phase: "Готово",
-    summary: "GenericInterface TicketGet с AllArticles=1, нормализация ticket/article и идемпотентный импорт."
-  },
-  ...nativeHelpdeskSources.map((source) => ({
-    name: source.label,
-    phase: "Готово",
-    summary: `${source.objectName}: ${source.endpointHint}.`
-  }))
-];
 
 function formatDate(value: Date | null) {
   if (!value) {
@@ -164,135 +150,113 @@ export default async function AdminIntegrationsPage() {
 
       <IntegrationSetupWorkspace apiTokenCount={apiTokens.length} apiHealth={apiHealth} />
 
-      <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="grid gap-6">
-          {recentImportLogs.length > 0 ? (
-            <DataTable
-              title="Последние импорты"
-              description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
-              minWidth="min-w-[820px]"
-            >
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Дата</th>
-                  <th className="px-5 py-3 font-semibold">Источник</th>
-                  <th className="px-5 py-3 font-semibold">Тикеты</th>
-                  <th className="px-5 py-3 font-semibold">Ошибки</th>
-                  <th className="px-5 py-3 font-semibold">Запустил</th>
-                  <th className="px-5 py-3 font-semibold">Очередь</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5] bg-white">
-                {recentImportLogs.map((log) => {
-                  const metadata = parseImportMetadata(log.metadata);
-
-                  return (
-                    <tr key={log.id}>
-                      <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
-                      <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
-                      <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
-                      <td className="px-5 py-4 text-[#344054]">0</td>
-                      <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
-                      <td className="px-5 py-4">
-                        <Link
-                          href={queueHref(metadata.source, metadata.externalIds)}
-                          className="font-semibold text-[#0b4f52] hover:underline"
-                        >
-                          Открыть
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </DataTable>
-          ) : (
-            <Surface
-              title="Последние импорты"
-              description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
-            >
-              <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
-                Импорты появятся здесь после тестового или API-импорта native-коннекторов.
-              </div>
-            </Surface>
-          )}
-
+      <div className="mt-6 grid gap-6">
+        {recentImportLogs.length > 0 ? (
           <DataTable
-            title="Подключенные источники"
-            description="Подключенные и запланированные источники в текущем рабочем пространстве."
-            minWidth="min-w-[640px]"
+            title="Последние импорты"
+            description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
+            minWidth="min-w-[820px]"
           >
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
               <tr>
-                <th className="px-5 py-3 font-semibold">Название</th>
+                <th className="px-5 py-3 font-semibold">Дата</th>
                 <th className="px-5 py-3 font-semibold">Источник</th>
-                <th className="px-5 py-3 font-semibold">Статус</th>
-                <th className="px-5 py-3 font-semibold">Последняя синхронизация</th>
+                <th className="px-5 py-3 font-semibold">Тикеты</th>
+                <th className="px-5 py-3 font-semibold">Ошибки</th>
+                <th className="px-5 py-3 font-semibold">Запустил</th>
+                <th className="px-5 py-3 font-semibold">Очередь</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#d7dce5]">
-              {integrations.map((integration) => (
-                <tr key={integration.id}>
-                  <td className="px-5 py-4 font-medium text-[#17202a]">{integration.displayName}</td>
-                  <td className="px-5 py-4 text-[#344054]">{integration.source}</td>
-                  <td className="px-5 py-4 text-[#344054]">{integrationStatusLabel(integration.status)}</td>
-                  <td className="px-5 py-4 text-[#344054]">{formatDate(integration.lastSyncedAt)}</td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-[#d7dce5] bg-white">
+              {recentImportLogs.map((log) => {
+                const metadata = parseImportMetadata(log.metadata);
+
+                return (
+                  <tr key={log.id}>
+                    <td className="px-5 py-4 text-[#344054]">{formatDate(log.createdAt)}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{metadata.source}</td>
+                    <td className="px-5 py-4 font-semibold text-[#17202a]">{metadata.count}</td>
+                    <td className="px-5 py-4 text-[#344054]">0</td>
+                    <td className="px-5 py-4 text-[#344054]">{log.actor.name}</td>
+                    <td className="px-5 py-4">
+                      <Link
+                        href={queueHref(metadata.source, metadata.externalIds)}
+                        className="font-semibold text-[#0b4f52] hover:underline"
+                      >
+                        Открыть
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </DataTable>
-
-          <DataTable
-            title="API-токены"
-            description="Состояние dev-токенов помогает понять, был ли успешный импорт или свежая ошибка."
-            minWidth="min-w-[980px]"
+        ) : (
+          <Surface
+            title="Последние импорты"
+            description="Успешные native импорты с количеством диалогов, ошибками и быстрым переходом в очередь."
           >
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Название</th>
-                <th className="px-5 py-3 font-semibold">Префикс</th>
-                <th className="px-5 py-3 font-semibold">Scopes</th>
-                <th className="px-5 py-3 font-semibold">Последнее использование</th>
-                <th className="px-5 py-3 font-semibold">Последний успех</th>
-                <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#d7dce5]">
-              {apiTokens.map((apiToken) => (
-                <tr key={apiToken.id}>
-                  <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
-                  <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
-                  <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
-                  <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
-                  <td className="px-5 py-4 text-[#344054]">{formatOptionalDate(apiToken.lastSuccessAt)}</td>
-                  <td className="px-5 py-4 text-[#344054]">
-                    {apiToken.lastError ? `${formatOptionalDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        </div>
+            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">
+              Импорты появятся здесь после тестового или API-импорта native-коннекторов.
+            </div>
+          </Surface>
+        )}
 
-        <Surface
-          title="Покрытие адаптеров"
-          description="Native-адаптеры, доступные для ручного QA MVP через API или тестовый импорт."
-          className="xl:sticky xl:top-6"
+        <DataTable
+          title="Подключенные источники"
+          description="Подключенные и запланированные источники в текущем рабочем пространстве."
+          minWidth="min-w-[640px]"
         >
-          <div className="grid gap-3">
-            {connectorCoverage.map((item) => (
-              <article key={item.name} className="rounded-md border border-[#d7dce5] bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-semibold text-[#17202a]">{item.name}</h3>
-                  <span className="shrink-0 rounded-md bg-[#e8f3ef] px-2 py-1 text-xs font-semibold text-[#116466]">
-                    {item.phase}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-5 text-[#667085]">{item.summary}</p>
-              </article>
+          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+            <tr>
+              <th className="px-5 py-3 font-semibold">Название</th>
+              <th className="px-5 py-3 font-semibold">Источник</th>
+              <th className="px-5 py-3 font-semibold">Статус</th>
+              <th className="px-5 py-3 font-semibold">Последняя синхронизация</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#d7dce5]">
+            {integrations.map((integration) => (
+              <tr key={integration.id}>
+                <td className="px-5 py-4 font-medium text-[#17202a]">{integration.displayName}</td>
+                <td className="px-5 py-4 text-[#344054]">{integration.source}</td>
+                <td className="px-5 py-4 text-[#344054]">{integrationStatusLabel(integration.status)}</td>
+                <td className="px-5 py-4 text-[#344054]">{formatDate(integration.lastSyncedAt)}</td>
+              </tr>
             ))}
-          </div>
-        </Surface>
+          </tbody>
+        </DataTable>
+
+        <DataTable
+          title="API-токены"
+          description="Состояние dev-токенов помогает понять, был ли успешный импорт или свежая ошибка."
+          minWidth="min-w-[980px]"
+        >
+          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+            <tr>
+              <th className="px-5 py-3 font-semibold">Название</th>
+              <th className="px-5 py-3 font-semibold">Префикс</th>
+              <th className="px-5 py-3 font-semibold">Scopes</th>
+              <th className="px-5 py-3 font-semibold">Последнее использование</th>
+              <th className="px-5 py-3 font-semibold">Последний успех</th>
+              <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#d7dce5]">
+            {apiTokens.map((apiToken) => (
+              <tr key={apiToken.id}>
+                <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
+                <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
+                <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
+                <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
+                <td className="px-5 py-4 text-[#344054]">{formatOptionalDate(apiToken.lastSuccessAt)}</td>
+                <td className="px-5 py-4 text-[#344054]">
+                  {apiToken.lastError ? `${formatOptionalDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </DataTable>
       </div>
     </section>
   );

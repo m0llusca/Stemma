@@ -183,7 +183,7 @@ export function OtrsSetupWizard() {
 
         <div className="grid items-start gap-4 xl:grid-cols-2">
           <div className="min-w-0 rounded-md border border-[#d7dce5] bg-white p-4">
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase text-[#667085]">Канонический GET curl</p>
               <CopyButton value={ticketGetCurl} />
             </div>
@@ -192,7 +192,7 @@ export function OtrsSetupWizard() {
             </pre>
           </div>
           <div className="min-w-0 rounded-md border border-[#d7dce5] bg-white p-4">
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase text-[#667085]">Fallback JSON body</p>
               <CopyButton value={ticketGetRequest} />
             </div>
