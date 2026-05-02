@@ -4,6 +4,132 @@ type OtrsScalar = string | number | boolean | null | undefined;
 
 export type OtrsFamilySource = "otrs" | "znuny" | "otobo" | "otrs_family";
 
+export const otrsFamilySourceOptions = [
+  { value: "znuny", label: "Znuny" },
+  { value: "otrs", label: "OTRS CE 6" },
+  { value: "otobo", label: "OTOBO" },
+  { value: "otrs_family", label: "OTRS-family fallback" }
+] as const satisfies ReadonlyArray<{ value: OtrsFamilySource; label: string }>;
+
+export const otrsFamilyApiProfiles = [
+  {
+    source: "otrs",
+    label: "OTRS Community Edition 6",
+    shortLabel: "OTRS CE 6",
+    basePath: "/otrs",
+    exampleBaseUrl: "https://support.example.com/otrs",
+    webService: "GenericTicketConnectorREST",
+    auth: "UserLogin + Password или SessionID",
+    ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
+    docsUrl: "https://otrscommunityedition.com/doc/manual/admin/6.0/en/html/genericinterface.html",
+    note: "Обычно используется импортированный GenericTicketConnectorREST; route может отличаться, если Web Service переименован."
+  },
+  {
+    source: "znuny",
+    label: "Znuny LTS",
+    shortLabel: "Znuny",
+    basePath: "/znuny",
+    exampleBaseUrl: "https://support.example.com/znuny",
+    webService: "GenericTicketConnectorREST",
+    auth: "UserLogin + Password или SessionID",
+    ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
+    docsUrl: "https://doc.znuny.org/znuny/admin/webservices/examples/GenericTicketConnectorREST/index.html",
+    note: "В актуальной документации Znuny примеры GenericTicketConnectorREST используют base path /znuny."
+  },
+  {
+    source: "otobo",
+    label: "OTOBO",
+    shortLabel: "OTOBO",
+    basePath: "/otobo",
+    exampleBaseUrl: "https://support.example.com/otobo",
+    webService: "GenericTicketConnectorREST",
+    auth: "UserLogin + Password или SessionID",
+    ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
+    docsUrl: "https://otobo-docs.softoft.de/en/administration/automation/rest-api",
+    note: "OTOBO сохраняет GenericInterface-подход; проверьте route в Admin -> Web Services после импорта конфигурации."
+  }
+] as const satisfies ReadonlyArray<{
+  source: Exclude<OtrsFamilySource, "otrs_family">;
+  label: string;
+  shortLabel: string;
+  basePath: string;
+  exampleBaseUrl: string;
+  webService: string;
+  auth: string;
+  ticketZoomPath: string;
+  docsUrl: string;
+  note: string;
+}>;
+
+export type OtrsFamilyApiProfile = (typeof otrsFamilyApiProfiles)[number];
+
+const genericOtrsFamilyProfile: OtrsFamilyApiProfile = otrsFamilyApiProfiles[1];
+
+export function otrsFamilyProfileForSource(source: OtrsFamilySource): OtrsFamilyApiProfile {
+  return otrsFamilyApiProfiles.find((profile) => profile.source === source) ?? genericOtrsFamilyProfile;
+}
+
+function normalizeBaseUrl(value: string | undefined, profile: OtrsFamilyApiProfile) {
+  return (value?.trim() || profile.exampleBaseUrl).replace(/\/$/, "");
+}
+
+export function otrsFamilyRestBaseUrl(profile: OtrsFamilyApiProfile, baseUrl?: string) {
+  return `${normalizeBaseUrl(baseUrl, profile)}/nph-genericinterface.pl/Webservice/${profile.webService}`;
+}
+
+export function otrsFamilyTicketGetUrl(profile: OtrsFamilyApiProfile, ticketId = "42", baseUrl?: string) {
+  return `${otrsFamilyRestBaseUrl(profile, baseUrl)}/Ticket/${encodeURIComponent(ticketId)}`;
+}
+
+export function otrsFamilyTicketSearchUrl(profile: OtrsFamilyApiProfile, baseUrl?: string) {
+  return `${otrsFamilyRestBaseUrl(profile, baseUrl)}/Ticket/search`;
+}
+
+export function buildOtrsFamilyTicketGetRequest({
+  userLogin = "qa_api",
+  password = "<PASSWORD>",
+  ticketId = "42",
+  includeAttachments = false
+}: {
+  userLogin?: string;
+  password?: string;
+  ticketId?: string;
+  includeAttachments?: boolean;
+} = {}) {
+  return {
+    UserLogin: userLogin,
+    Password: password,
+    TicketID: ticketId,
+    Extended: 1,
+    AllArticles: 1,
+    ArticleOrder: "ASC",
+    DynamicFields: 1,
+    Attachments: includeAttachments ? 1 : 0,
+    GetAttachmentContents: 0
+  };
+}
+
+export function buildOtrsFamilyTicketSearchRequest({
+  userLogin = "qa_api",
+  password = "<PASSWORD>",
+  queue = "Support::Refunds",
+  title = "%refund%"
+}: {
+  userLogin?: string;
+  password?: string;
+  queue?: string;
+  title?: string;
+} = {}) {
+  return {
+    UserLogin: userLogin,
+    Password: password,
+    Queue: queue,
+    Title: title,
+    StateType: ["open", "closed"],
+    Limit: 50
+  };
+}
+
 export type OtrsFamilyArticle = {
   ArticleID?: OtrsScalar;
   ArticleNumber?: OtrsScalar;

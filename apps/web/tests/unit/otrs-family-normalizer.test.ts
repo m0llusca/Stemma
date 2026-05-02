@@ -1,6 +1,11 @@
 import {
+  buildOtrsFamilyTicketGetRequest,
+  buildOtrsFamilyTicketSearchRequest,
   normalizeOtrsFamilyTicket,
   normalizeOtrsFamilyTicketGetResponse,
+  otrsFamilyApiProfiles,
+  otrsFamilyTicketGetUrl,
+  otrsFamilyTicketSearchUrl,
   type OtrsFamilyTicketGetResponse
 } from "@/lib/normalizers/otrs-family";
 import { customConversationSchema } from "@/lib/validation/custom-api";
@@ -115,5 +120,39 @@ describe("OTRS-family normalizer", () => {
     expect(conversation.messages[0].externalId).toBe("chat-article-1");
     expect(conversation.messages[0].participantType).toBe("customer");
     expect(() => customConversationSchema.parse(conversation)).not.toThrow();
+  });
+
+  it("documents separate API profile URLs for OTRS CE, Znuny and OTOBO", () => {
+    const znunyProfile = otrsFamilyApiProfiles.find((profile) => profile.source === "znuny");
+
+    expect(otrsFamilyApiProfiles.map((profile) => profile.source)).toEqual(["otrs", "znuny", "otobo"]);
+    expect(otrsFamilyApiProfiles.map((profile) => otrsFamilyTicketGetUrl(profile, "42"))).toEqual([
+      "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
+      "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
+      "https://support.example.com/otobo/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42"
+    ]);
+    expect(znunyProfile).toBeDefined();
+    expect(otrsFamilyTicketSearchUrl(znunyProfile!)).toBe(
+      "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/search"
+    );
+  });
+
+  it("builds TicketSearch and TicketGet API payload examples", () => {
+    expect(buildOtrsFamilyTicketSearchRequest()).toMatchObject({
+      UserLogin: "qa_api",
+      Password: "<PASSWORD>",
+      Queue: "Support::Refunds",
+      Title: "%refund%",
+      Limit: 50
+    });
+    expect(buildOtrsFamilyTicketGetRequest({ ticketId: "42", includeAttachments: true })).toMatchObject({
+      TicketID: "42",
+      Extended: 1,
+      AllArticles: 1,
+      ArticleOrder: "ASC",
+      DynamicFields: 1,
+      Attachments: 1,
+      GetAttachmentContents: 0
+    });
   });
 });

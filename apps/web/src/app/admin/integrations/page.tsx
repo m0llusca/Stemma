@@ -21,7 +21,16 @@ import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { integrationStatusLabel } from "@/lib/labels";
 import { nativeHelpdeskMappingRows, nativeHelpdeskSources } from "@/lib/normalizers/native-helpdesk";
-import { otrsFamilyMappingRows } from "@/lib/normalizers/otrs-family";
+import {
+  buildOtrsFamilyTicketGetRequest,
+  buildOtrsFamilyTicketSearchRequest,
+  otrsFamilyApiProfiles,
+  otrsFamilyMappingRows,
+  otrsFamilyTicketGetExample,
+  otrsFamilyTicketGetUrl,
+  otrsFamilyTicketSearchUrl,
+  type OtrsFamilyApiProfile
+} from "@/lib/normalizers/otrs-family";
 
 export const dynamic = "force-dynamic";
 
@@ -34,19 +43,6 @@ const nativeHelpdeskImportCurl = buildCurlExample(
   "POST",
   nativeHelpdeskImportExample
 );
-const otrsTicketGetRequest = formatJsonExample({
-  TicketGet: {
-    UserLogin: "agent_login",
-    Password: "agent_password",
-    TicketID: "42",
-    Extended: 1,
-    AllArticles: 1,
-    ArticleOrder: "ASC",
-    DynamicFields: 1,
-    Attachments: 0
-  }
-});
-
 const connectorCoverage = [
   {
     name: "Znuny / OTRS / OTOBO",
@@ -160,6 +156,31 @@ function queueHref(source: string, externalIds: string[]) {
   }
 
   return `/reviews?${params.toString()}`;
+}
+
+function buildProviderCurl(url: string, body: unknown) {
+  return [
+    `curl -X POST "${url}"`,
+    `  -H "Content-Type: application/json"`,
+    `  -d '${formatJsonExample(body)}'`
+  ].join(" \\\n");
+}
+
+function providerTicketSearchCurl(profile: OtrsFamilyApiProfile) {
+  return buildProviderCurl(otrsFamilyTicketSearchUrl(profile), buildOtrsFamilyTicketSearchRequest());
+}
+
+function providerTicketGetCurl(profile: OtrsFamilyApiProfile) {
+  return buildProviderCurl(otrsFamilyTicketGetUrl(profile), buildOtrsFamilyTicketGetRequest());
+}
+
+function qcImportCurl(profile: OtrsFamilyApiProfile) {
+  return buildCurlExample("/api/integrations/otrs-family/tickets", "POST", {
+    source: profile.source,
+    baseUrl: profile.exampleBaseUrl,
+    samplingReason: `Native ${profile.shortLabel} импорт: очередь Refunds и статьи тикета.`,
+    ticketGet: otrsFamilyTicketGetExample
+  });
 }
 
 function CodeBlock({ children }: { children: string }) {
@@ -411,22 +432,80 @@ export default async function AdminIntegrationsPage() {
       <IntegrationDisclosure
         title="OTRS-family импорт"
         description="Mapping-слой для OTRS Community Edition 6, Znuny и OTOBO: тикет становится диалогом, статьи становятся сообщениями."
-        meta="TicketGet"
+        meta={`${otrsFamilyApiProfiles.length} API-профиля`}
         health={otrsHealth}
       >
         <div className="p-5">
           <OtrsSetupWizard />
         </div>
-        <div className="grid gap-5 p-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <div className="grid gap-5">
-            <div className="grid gap-2">
-              <h3 className="text-sm font-semibold text-[#17202a]">Рекомендуемый TicketGet</h3>
-              <CodeBlock>{otrsTicketGetRequest}</CodeBlock>
+
+        <div className="border-t border-[#d7dce5] p-5">
+          <h3 className="mb-3 text-sm font-semibold text-[#17202a]">API-профили OTRS-family</h3>
+          <div className="grid gap-3 xl:grid-cols-3">
+            {otrsFamilyApiProfiles.map((profile) => (
+              <article key={profile.source} className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h4 className="font-semibold text-[#17202a]">{profile.label}</h4>
+                  <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+                    {profile.source}
+                  </span>
+                </div>
+                <dl className="grid gap-2 text-sm">
+                  <div>
+                    <dt className="font-semibold text-[#667085]">Base path</dt>
+                    <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.basePath}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-[#667085]">Web Service</dt>
+                    <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.webService}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-[#667085]">Auth</dt>
+                    <dd className="mt-1 text-[#344054]">{profile.auth}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-[#667085]">Agent URL</dt>
+                    <dd className="mt-1 font-mono text-xs text-[#344054]">{profile.ticketZoomPath}</dd>
+                  </div>
+                </dl>
+                <p className="mt-3 text-sm leading-5 text-[#667085]">{profile.note}</p>
+                <a
+                  href={profile.docsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-sm font-semibold text-[#0b4f52] hover:underline"
+                >
+                  Документация API
+                </a>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-3">
+          {otrsFamilyApiProfiles.map((profile) => (
+            <div key={`${profile.source}:examples`} className="grid gap-4">
+              <h3 className="text-sm font-semibold text-[#17202a]">{profile.shortLabel}: API-примеры</h3>
+              <div className="grid gap-2">
+                <p className="text-xs font-semibold uppercase text-[#667085]">TicketSearch в helpdesk</p>
+                <CodeBlock>{providerTicketSearchCurl(profile)}</CodeBlock>
+              </div>
+              <div className="grid gap-2">
+                <p className="text-xs font-semibold uppercase text-[#667085]">TicketGet в helpdesk</p>
+                <CodeBlock>{providerTicketGetCurl(profile)}</CodeBlock>
+              </div>
+              <div className="grid gap-2">
+                <p className="text-xs font-semibold uppercase text-[#667085]">Импорт TicketGet в QC</p>
+                <CodeBlock>{qcImportCurl(profile)}</CodeBlock>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <h3 className="text-sm font-semibold text-[#17202a]">Endpoint native-импорта</h3>
-              <CodeBlock>{otrsImportCurl}</CodeBlock>
-            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-[#17202a]">Fallback endpoint native-импорта</h3>
+            <CodeBlock>{otrsImportCurl}</CodeBlock>
           </div>
           <div className="grid gap-5">
             <div className="overflow-x-auto">

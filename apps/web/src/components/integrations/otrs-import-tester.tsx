@@ -7,19 +7,14 @@ import {
   extractOtrsFamilyTickets,
   isOtrsFamilyTicketLike,
   normalizeOtrsFamilyTicket,
+  otrsFamilyProfileForSource,
+  otrsFamilySourceOptions,
   otrsFamilyTicketGetExample,
   type OtrsFamilySource,
   type OtrsFamilyTicketGetResponse
 } from "@/lib/normalizers/otrs-family";
 
 const defaultPayload = JSON.stringify(otrsFamilyTicketGetExample, null, 2);
-
-const sourceOptions = [
-  { value: "znuny", label: "Znuny" },
-  { value: "otrs", label: "OTRS CE 6" },
-  { value: "otobo", label: "OTOBO" },
-  { value: "otrs_family", label: "OTRS-family" }
-] as const satisfies ReadonlyArray<{ value: OtrsFamilySource; label: string }>;
 
 type PreviewState =
   | {
@@ -71,12 +66,17 @@ function buildPreview(
 export function OtrsImportTester() {
   const [payload, setPayload] = useState(defaultPayload);
   const [source, setSource] = useState<OtrsFamilySource>("znuny");
-  const [baseUrl, setBaseUrl] = useState("https://support.example.com/otrs");
+  const [baseUrl, setBaseUrl] = useState<string>(otrsFamilyProfileForSource("znuny").exampleBaseUrl);
   const [samplingReason, setSamplingReason] = useState("Тестовый native импорт OTRS-family.");
   const preview = useMemo(
     () => buildPreview(payload, source, baseUrl, samplingReason),
     [baseUrl, payload, samplingReason, source]
   );
+
+  function updateSource(nextSource: OtrsFamilySource) {
+    setSource(nextSource);
+    setBaseUrl(otrsFamilyProfileForSource(nextSource).exampleBaseUrl);
+  }
 
   return (
     <form action={importOtrsFamilyTicketGet} className="grid gap-4">
@@ -86,10 +86,10 @@ export function OtrsImportTester() {
           <select
             name="source"
             value={source}
-            onChange={(event) => setSource(event.target.value as OtrsFamilySource)}
+            onChange={(event) => updateSource(event.target.value as OtrsFamilySource)}
             className="rounded border border-[#d7dce5] bg-white px-3 py-2"
           >
-            {sourceOptions.map((option) => (
+            {otrsFamilySourceOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
