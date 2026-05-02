@@ -16,7 +16,7 @@ export async function getReviewQueue(workspaceId: string) {
   });
 }
 
-export async function getConversationForReview(conversationId: string, workspaceId: string) {
+export async function getConversationForReview(workspaceId: string, conversationId: string) {
   return prisma.conversation.findFirst({
     where: {
       id: conversationId,
