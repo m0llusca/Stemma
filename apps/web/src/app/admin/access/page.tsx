@@ -211,13 +211,16 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Провайдер авторизации</h2>
-            <p className="mt-1 text-sm text-[#667085]">
-              Для Active Directory предпочтителен Microsoft Entra ID через OIDC. LDAPS оставлен для закрытых on-prem установок.
-            </p>
-          </div>
+        <details className="disclosure-panel panel overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Провайдер авторизации</h2>
+              <p className="mt-1 text-sm text-[#667085]">
+                Основные поля скрыты, чтобы экран не превращался в форму настроек.
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Изменить</span>
+          </summary>
           <form action={saveIdentityProvider} className="grid gap-5 p-5">
             <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
             <div className="grid gap-4 md:grid-cols-2">
@@ -257,7 +260,6 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 <ProviderField label="Token URL" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
                 <ProviderField label="JWKS URL" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
                 <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
-                  Дополнительная конфигурация JSON
                   <textarea
                     name="configJson"
                     defaultValue={configText(selectedProvider)}
@@ -287,12 +289,16 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </button>
             </div>
           </form>
-        </section>
+        </details>
 
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Рекомендации</h2>
-          </div>
+        <details className="disclosure-panel panel overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Рекомендации</h2>
+              <p className="mt-1 text-sm text-[#667085]">Короткие подсказки по AD/Entra и fallback-сценариям.</p>
+            </div>
+            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Показать</span>
+          </summary>
           <div className="grid gap-3 p-5 text-sm leading-6 text-[#667085]">
             <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
               <p className="font-semibold text-[#17202a]">Основной путь</p>
@@ -316,7 +322,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </form>
             ) : null}
           </div>
-        </section>
+        </details>
       </div>
 
       {selectedProvider ? (
@@ -354,39 +360,47 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               )}
             </div>
 
-            <form action={saveGroupRoleMapping} className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-              <input type="hidden" name="providerId" value={selectedProvider.id} />
-              <h3 className="font-semibold text-[#17202a]">Добавить группу</h3>
-              <ProviderField label="ID группы" name="externalGroupId" placeholder="QC_Analysts или GUID группы" />
-              <ProviderField label="Название группы" name="externalGroupName" placeholder="QC Analysts" />
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
-                Роль
-                <select name="role" defaultValue="QA_ANALYST" className="rounded border border-[#d7dce5] bg-white px-3 py-2">
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {roleLabels[role]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
-              <label className="flex items-center gap-2 text-sm font-medium text-[#344054]">
-                <input type="checkbox" name="isActive" defaultChecked />
-                Активна
-              </label>
-              <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
-                Сохранить группу
-              </button>
-            </form>
+            <details className="disclosure-panel rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+              <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                <h3 className="font-semibold text-[#17202a]">Добавить группу</h3>
+                <span className="text-sm font-semibold text-[#0b4f52]">Открыть</span>
+              </summary>
+              <form action={saveGroupRoleMapping} className="grid gap-3 border-t border-[#d7dce5] p-4">
+                <input type="hidden" name="providerId" value={selectedProvider.id} />
+                <ProviderField label="ID группы" name="externalGroupId" placeholder="QC_Analysts или GUID группы" />
+                <ProviderField label="Название группы" name="externalGroupName" placeholder="QC Analysts" />
+                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                  Роль
+                  <select name="role" defaultValue="QA_ANALYST" className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+                    {roles.map((role) => (
+                      <option key={role} value={role}>
+                        {roleLabels[role]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
+                <label className="flex items-center gap-2 text-sm font-medium text-[#344054]">
+                  <input type="checkbox" name="isActive" defaultChecked />
+                  Активна
+                </label>
+                <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+                  Сохранить группу
+                </button>
+              </form>
+            </details>
           </div>
         </section>
       ) : null}
 
-      <section className="panel mt-6 overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
-          <h2 className="text-lg font-semibold">Сессии пользователей</h2>
-          <p className="mt-1 text-sm text-[#667085]">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
-        </div>
+      <details className="disclosure-panel panel mt-6 overflow-hidden">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold">Сессии пользователей</h2>
+            <p className="mt-1 text-sm text-[#667085]">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
+          </div>
+          <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{sessions.length}</span>
+        </summary>
         <div className="scroll-area">
           <table className="table-fixed-copy w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
@@ -441,7 +455,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </tbody>
           </table>
         </div>
-      </section>
+      </details>
 
       <div className="mt-6 rounded-md border border-[#d7dce5] bg-white p-4 text-sm text-[#667085]">
         <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />

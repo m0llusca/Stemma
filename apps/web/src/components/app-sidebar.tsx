@@ -1,16 +1,10 @@
 import Link from "next/link";
 import {
-  Activity,
   BarChart3,
   BookOpenCheck,
   ClipboardCheck,
-  Gauge,
-  History,
-  KeyRound,
-  ListChecks,
   Scale,
   Settings,
-  ShieldCheck,
   UserCheck
 } from "lucide-react";
 import type { RoleName } from "@prisma/client";
@@ -24,13 +18,7 @@ const navItems = [
   { href: "/calibration", label: "Калибровка", icon: Scale, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
   { href: "/coaching", label: "Обучение", icon: BookOpenCheck, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
   { href: "/reports", label: "Аналитика", icon: BarChart3, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "VIEWER"] },
-  { href: "/admin/scorecards", label: "Формы оценки", icon: Gauge, roles: ["ADMIN", "TEAM_LEAD"] },
-  { href: "/admin/sampling", label: "Выборки", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] },
-  { href: "/admin/integrations", label: "Интеграции", icon: Settings, roles: ["ADMIN"] },
-  { href: "/admin/system", label: "Система", icon: Activity, roles: ["ADMIN"] },
-  { href: "/admin/access", label: "Доступ", icon: ShieldCheck, roles: ["ADMIN"] },
-  { href: "/admin/tokens", label: "API-доступ", icon: KeyRound, roles: ["ADMIN"] },
-  { href: "/admin/audit", label: "Журнал", icon: History, roles: ["ADMIN", "TEAM_LEAD"] }
+  { href: "/admin", label: "Настройки", icon: Settings, roles: ["ADMIN", "TEAM_LEAD"] }
 ];
 
 function canSeeNavItem(role: RoleName, roles: string[]) {
