@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const customConversationLimits = {
+  maxMessagesPerConversation: 300,
+  maxConversationsPerImportRequest: 100
+} as const;
+
 export const customChannelSchema = z.enum(["chat", "email", "ticket", "messenger"]);
 
 export const customParticipantTypeSchema = z.enum(["customer", "human_agent", "ai_agent", "system"]);
@@ -44,7 +49,7 @@ export const customConversationSchema = z.object({
   riskHint: optionalStringSchema,
   openedAt: z.string().datetime({ offset: true }),
   closedAt: z.string().datetime({ offset: true }).optional().nullable(),
-  messages: z.array(customMessageSchema).optional().default([])
+  messages: z.array(customMessageSchema).max(customConversationLimits.maxMessagesPerConversation).optional().default([])
 });
 
 export type CustomMessageInput = z.infer<typeof customMessageSchema>;

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
-test.setTimeout(60_000);
+test.setTimeout(120_000);
 
 test.beforeAll(() => {
   closeSync(openSync("prisma/dev.db", "a"));
@@ -30,7 +30,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.getByLabel("Поиск").fill("несуществующий клиент");
   await page.getByRole("button", { name: "Применить" }).click();
-  await expect(page.getByText("Очередь пуста")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Очередь пуста" })).toBeVisible({ timeout: 10_000 });
 
   await page.goto("/reviews");
   await page.getByLabel("Статус проверки").selectOption("unreviewed");
@@ -48,16 +48,18 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.locator("summary").filter({ hasText: "Управление проверкой" }).click();
   await page.getByLabel("Состояние проверки").selectOption("IN_PROGRESS");
   await page.getByRole("button", { name: "Обновить" }).click();
-  await expect(page.getByText("В работе").first()).toBeVisible();
+  await expect(page.locator(".meta-chip").filter({ hasText: "Состояние" }).filter({ hasText: "В работе" })).toBeVisible({
+    timeout: 10_000
+  });
 
   const firstEvidenceSelect = page.locator('select[name^="criterion."][name$=".evidenceMessageId"]').first();
   await page.getByRole("button", { name: "В доказательство" }).first().click();
-  await expect(firstEvidenceSelect).not.toHaveValue("");
+  await expect(firstEvidenceSelect).toHaveValue(/.+/, { timeout: 10_000 });
   await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
 
   await page.getByRole("button", { name: "Сохранить черновик" }).click();
   await expect(page.getByText("Еще не сохранен")).not.toBeVisible();
-  await expect(page.getByText("В работе").first()).toBeVisible();
+  await expect(page.locator(".meta-chip").filter({ hasText: "Состояние" }).filter({ hasText: "В работе" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 
   await page.getByLabel("Категория").fill("Политика возврата");

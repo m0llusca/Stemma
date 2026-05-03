@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   prisma: {
+    $transaction: vi.fn(),
     apiToken: {
       findUnique: vi.fn(),
       update: vi.fn()
@@ -73,6 +74,7 @@ describe("custom conversation API", () => {
       expiresAt: null
     });
     mocks.prisma.apiToken.update.mockResolvedValue({});
+    mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
   });
 
   it("requires a bearer token before ingesting conversations", async () => {
@@ -131,6 +133,7 @@ describe("custom conversation API", () => {
 
     await expect(response.json()).resolves.toEqual({ id: "conv-db-1" });
     expect(response.status).toBe(201);
+    expect(mocks.prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
       where: { id: "api-token-1" },
       data: {
@@ -387,6 +390,64 @@ describe("custom conversation API", () => {
       })
     });
     expect(mocks.prisma.message.upsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects oversized custom conversation payloads before database writes", async () => {
+    const { POST } = await import("@/app/api/conversations/route");
+    const { customConversationLimits } = await import("@/lib/validation/custom-api");
+
+    const response = await POST(
+      jsonRequest({
+        externalSource: "custom_api",
+        externalId: "conv-too-large",
+        channel: "ticket",
+        subject: "Oversized import",
+        status: "closed",
+        customerName: "Ava Customer",
+        samplingReason: "Backend limit check",
+        openedAt: "2026-04-25T10:00:00.000Z",
+        messages: Array.from({ length: customConversationLimits.maxMessagesPerConversation + 1 }, (_, index) => ({
+          externalId: `msg-${index + 1}`,
+          participantType: "customer",
+          authorName: "Ava Customer",
+          body: "Message body",
+          sentAt: "2026-04-25T10:00:00.000Z"
+        }))
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ error: "Invalid custom conversation payload." });
+    expect(response.status).toBe(400);
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.message.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized native helpdesk batches before database writes", async () => {
+    const { POST } = await import("@/app/api/integrations/native-helpdesks/conversations/route");
+    const { customConversationLimits } = await import("@/lib/validation/custom-api");
+    const expectedError = `За один запрос можно импортировать не более ${customConversationLimits.maxConversationsPerImportRequest} обращений.`;
+
+    const response = await POST(
+      jsonRequest({
+        source: "zendesk",
+        tickets: Array.from({ length: customConversationLimits.maxConversationsPerImportRequest + 1 }, (_, index) => ({
+          id: `ticket-${index + 1}`,
+          subject: `Ticket ${index + 1}`,
+          status: "solved",
+          description: "Customer asks for help.",
+          requester_id: "customer-1",
+          created_at: "2026-04-25T10:00:00.000Z",
+          updated_at: "2026-04-25T10:05:00.000Z"
+        }))
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ error: expectedError });
+    expect(response.status).toBe(400);
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.message.upsert).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid conversation payloads", async () => {

@@ -3,6 +3,22 @@
 import { useEffect, useRef } from "react";
 
 type EvidenceSelectedEvent = CustomEvent<{ messageId?: string }>;
+const evidenceSelectSelector = 'select[name^="criterion."][name$=".evidenceMessageId"]';
+
+export function applyEvidenceMessageSelection(messageId: string, target?: HTMLSelectElement | null) {
+  const select = target ?? document.querySelector<HTMLSelectElement>(evidenceSelectSelector);
+
+  if (!select) {
+    return false;
+  }
+
+  select.value = messageId;
+  select.dispatchEvent(new Event("input", { bubbles: true }));
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  select.focus();
+
+  return true;
+}
 
 export function EvidencePickerListener() {
   const activeSelectRef = useRef<HTMLSelectElement | null>(null);
@@ -23,18 +39,7 @@ export function EvidencePickerListener() {
         return;
       }
 
-      const target =
-        activeSelectRef.current ??
-        document.querySelector<HTMLSelectElement>('select[name^="criterion."][name$=".evidenceMessageId"]');
-
-      if (!target) {
-        return;
-      }
-
-      target.value = messageId;
-      target.dispatchEvent(new Event("input", { bubbles: true }));
-      target.dispatchEvent(new Event("change", { bubbles: true }));
-      target.focus();
+      applyEvidenceMessageSelection(messageId, activeSelectRef.current);
     }
 
     document.addEventListener("focusin", rememberSelect);

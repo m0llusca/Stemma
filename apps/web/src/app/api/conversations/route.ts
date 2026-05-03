@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
-import { upsertCustomConversation } from "@/lib/conversation-import";
+import { upsertCustomConversationAtomic } from "@/lib/conversation-import";
 import { customConversationSchema } from "@/lib/validation/custom-api";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const payload = customConversationSchema.parse(body);
-    const conversation = await upsertCustomConversation(auth.workspaceId, payload);
+    const conversation = await upsertCustomConversationAtomic(auth.workspaceId, payload);
 
     await recordApiTokenSuccess(auth.apiTokenId);
 

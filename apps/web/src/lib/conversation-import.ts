@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
-import type { CustomConversationInput } from "@/lib/validation/custom-api";
+import { customConversationLimits, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 type ConversationImportClient = Pick<Prisma.TransactionClient, "conversation" | "message">;
 
@@ -12,6 +12,21 @@ export type ImportedConversation = {
   subject: string;
   messageCount: number;
 };
+
+export class ConversationImportLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConversationImportLimitError";
+  }
+}
+
+export function assertConversationImportBatchLimit(conversations: readonly unknown[]) {
+  if (conversations.length > customConversationLimits.maxConversationsPerImportRequest) {
+    throw new ConversationImportLimitError(
+      `За один запрос можно импортировать не более ${customConversationLimits.maxConversationsPerImportRequest} обращений.`
+    );
+  }
+}
 
 export async function upsertCustomConversation(
   workspaceId: string,
@@ -59,4 +74,24 @@ export async function upsertCustomConversation(
     subject: payload.subject,
     messageCount: payload.messages.length
   };
+}
+
+export async function upsertCustomConversationsAtomic(workspaceId: string, payloads: CustomConversationInput[]) {
+  assertConversationImportBatchLimit(payloads);
+
+  return prisma.$transaction(async (tx) => {
+    const imported: ImportedConversation[] = [];
+
+    for (const payload of payloads) {
+      imported.push(await upsertCustomConversation(workspaceId, payload, tx));
+    }
+
+    return imported;
+  });
+}
+
+export async function upsertCustomConversationAtomic(workspaceId: string, payload: CustomConversationInput) {
+  const [conversation] = await upsertCustomConversationsAtomic(workspaceId, [payload]);
+
+  return conversation;
 }

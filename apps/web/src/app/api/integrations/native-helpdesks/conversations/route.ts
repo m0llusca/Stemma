@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
-import { upsertCustomConversation } from "@/lib/conversation-import";
+import {
+  assertConversationImportBatchLimit,
+  ConversationImportLimitError,
+  upsertCustomConversationsAtomic
+} from "@/lib/conversation-import";
 import {
   nativeHelpdeskSources,
   normalizeNativeHelpdeskPayload,
@@ -71,7 +75,11 @@ function parseNativeHelpdeskImportBody(body: unknown) {
     samplingReason: optionalString(body.samplingReason)
   };
   const qualityContext = parseQualityContext(body);
-  const conversations = normalizeNativeHelpdeskPayload(payload, options).map((conversation) =>
+  const normalizedConversations = normalizeNativeHelpdeskPayload(payload, options);
+
+  assertConversationImportBatchLimit(normalizedConversations);
+
+  const conversations = normalizedConversations.map((conversation) =>
     customConversationSchema.parse({ ...conversation, ...qualityContext })
   );
 
@@ -92,16 +100,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { conversations } = parseNativeHelpdeskImportBody(body);
-    const imported = [];
-
-    for (const conversation of conversations) {
-      imported.push(await upsertCustomConversation(auth.workspaceId, conversation));
-    }
+    const imported = await upsertCustomConversationsAtomic(auth.workspaceId, conversations);
 
     await recordApiTokenSuccess(auth.apiTokenId);
 
     return NextResponse.json({ count: imported.length, imported }, { status: 201 });
   } catch (error) {
+    if (error instanceof ConversationImportLimitError) {
+      await recordApiTokenError(auth.apiTokenId, error.message);
+      return errorResponse(error.message, 400);
+    }
+
     if (error instanceof BadRequestError || error instanceof SyntaxError || error instanceof ZodError) {
       await recordApiTokenError(auth.apiTokenId, "Invalid native helpdesk payload.");
       return errorResponse("Invalid native helpdesk payload.", 400);

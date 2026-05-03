@@ -6,7 +6,7 @@ import { firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination } f
 import { enforceApiRateLimit } from "@/lib/api/rate-limit";
 import { apiError, apiJson } from "@/lib/api/response";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
-import { upsertCustomConversation } from "@/lib/conversation-import";
+import { upsertCustomConversationAtomic } from "@/lib/conversation-import";
 import { prisma } from "@/lib/db";
 import { customConversationSchema } from "@/lib/validation/custom-api";
 
@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
       return apiJson(JSON.parse(reserved.record.responseBodyJson || "{}"), reserved.record.responseStatus ?? 200);
     }
 
-    const conversation = await upsertCustomConversation(auth.workspaceId, payload);
+    const conversation = await upsertCustomConversationAtomic(auth.workspaceId, payload);
     const responseBody = { id: conversation.id };
 
     if (reserved) {

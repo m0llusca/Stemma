@@ -1,6 +1,6 @@
 import { nativeHelpdeskImportExamples } from "@/lib/normalizers/native-helpdesk";
 import { otrsFamilyTicketGetExample } from "@/lib/normalizers/otrs-family";
-import type { CustomConversationInput } from "@/lib/validation/custom-api";
+import { customConversationLimits, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 export const demoApiToken = "qa_demo_dev_token";
 export const apiTokenPlaceholder = "<API_TOKEN>";
@@ -22,13 +22,13 @@ export const customApiEndpoints = [
     method: "POST",
     path: "/api/integrations/otrs-family/tickets",
     scope: "conversations:write",
-    purpose: "Импортировать TicketGet-ответы OTRS CE 6, Znuny или OTOBO."
+    purpose: `Импортировать TicketGet-ответы OTRS CE 6, Znuny или OTOBO, до ${customConversationLimits.maxConversationsPerImportRequest} тикетов за запрос.`
   },
   {
     method: "POST",
     path: "/api/integrations/native-helpdesks/conversations",
     scope: "conversations:write",
-    purpose: "Импортировать данные Zendesk, Intercom, Freshdesk или HubSpot через готовый адаптер."
+    purpose: `Импортировать данные Zendesk, Intercom, Freshdesk или HubSpot через готовый адаптер, до ${customConversationLimits.maxConversationsPerImportRequest} обращений за запрос.`
   },
   {
     method: "GET",
@@ -124,7 +124,12 @@ export const customConversationSchemaRows = [
   { field: "riskHint", required: "Нет", type: "string", note: "Подсказка для проверяющего." },
   { field: "openedAt", required: "Да", type: "ISO datetime", note: "Дата открытия с timezone offset." },
   { field: "closedAt", required: "Нет", type: "ISO datetime | null", note: "Дата закрытия, если есть." },
-  { field: "messages", required: "Нет", type: "Message[]", note: "Сообщения можно импортировать сразу или отдельным endpoint." }
+  {
+    field: "messages",
+    required: "Нет",
+    type: "Message[]",
+    note: `Сообщения можно импортировать сразу или отдельным endpoint, до ${customConversationLimits.maxMessagesPerConversation} сообщений в обращении.`
+  }
 ] as const;
 
 export const customMessageSchemaRows = [

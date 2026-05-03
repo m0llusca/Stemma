@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
-import { upsertCustomConversation } from "@/lib/conversation-import";
+import {
+  assertConversationImportBatchLimit,
+  ConversationImportLimitError,
+  upsertCustomConversationsAtomic
+} from "@/lib/conversation-import";
 import {
   extractOtrsFamilyTickets,
   isOtrsFamilyTicketLike,
@@ -76,6 +80,8 @@ function parseOtrsFamilyImportBody(body: unknown) {
     throw new BadRequestError("Invalid OTRS-family TicketGet payload.");
   }
 
+  assertConversationImportBatchLimit(tickets);
+
   const options: OtrsFamilyNormalizeOptions = {
     source: parseSource(body.source),
     baseUrl: optionalString(body.baseUrl),
@@ -100,16 +106,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { conversations } = parseOtrsFamilyImportBody(body);
-    const imported = [];
-
-    for (const conversation of conversations) {
-      imported.push(await upsertCustomConversation(auth.workspaceId, conversation));
-    }
+    const imported = await upsertCustomConversationsAtomic(auth.workspaceId, conversations);
 
     await recordApiTokenSuccess(auth.apiTokenId);
 
     return NextResponse.json({ count: imported.length, imported }, { status: 201 });
   } catch (error) {
+    if (error instanceof ConversationImportLimitError) {
+      await recordApiTokenError(auth.apiTokenId, error.message);
+      return errorResponse(error.message, 400);
+    }
+
     if (error instanceof BadRequestError || error instanceof SyntaxError || error instanceof ZodError) {
       await recordApiTokenError(auth.apiTokenId, "Invalid OTRS-family TicketGet payload.");
       return errorResponse("Invalid OTRS-family TicketGet payload.", 400);
