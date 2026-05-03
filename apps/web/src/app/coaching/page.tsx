@@ -148,14 +148,11 @@ export default async function CoachingPage() {
         </section>
       ) : null}
 
-      <details className="training-create-panel panel compact-details">
+      <details className="training-create-panel">
         <summary className="training-create-summary">
-          <span className="training-create-summary__icon" aria-hidden="true">
+          <span className="action-button action-button--primary training-create-summary__button">
             <PlusCircle size={18} />
-          </span>
-          <span className="min-w-0">
-            <span className="training-create-summary__title">Новая учебная задача</span>
-            <span className="training-create-summary__meta">Создать разбор вручную или привязать его к проверке</span>
+            Новая задача
           </span>
         </summary>
         <form action={createTrainingAssignment} className="training-create-form">
