@@ -106,10 +106,10 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       <details className="disclosure-panel border-t border-[#d9e0ea]" open={hasAdvancedFilters}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#334155]">
           <span>{hasAdvancedFilters ? "Точные фильтры применены" : "Точные фильтры"}</span>
-          <span className="queue-filterbar__summary-action">
+          <span className="queue-filterbar__summary-action queue-filterbar__summary-action--chevron">
             <span className="queue-filterbar__summary-closed">Раскрыть</span>
             <span className="queue-filterbar__summary-open">Скрыть</span>
-            <span className="text-[#64748b]">9 параметров</span>
+            <span className="text-[#64748b]">10 параметров</span>
             <ChevronDown className="queue-filterbar__chevron" size={15} aria-hidden="true" />
           </span>
         </summary>

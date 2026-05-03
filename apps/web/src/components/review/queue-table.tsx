@@ -133,6 +133,23 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
             : "Переответ";
           const stateTone = isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState);
+          const contextItems = [
+            conversation.customerName,
+            conversation.assigneeName ?? "Не назначен",
+            formatMessageCount(conversation.messages.length),
+            channelLabels[conversation.channel],
+            externalSourceLabel(conversation.externalSource),
+            `срок ${conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "не задан"}`,
+            `проверяющий: ${conversation.qaAssigneeName ?? "не назначен"}`
+          ];
+          const signalItems = [
+            conversation.csatBucket === "NEGATIVE"
+              ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
+              : null,
+            samplingIsSignal(conversation.samplingType) ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType : null,
+            conversation.riskHint ? "риск" : null
+          ].filter((signal): signal is string => Boolean(signal));
+          const hasFlags = signalItems.length > 0 || Boolean(latestFinalizedReview?.criticalError) || hasReanswer || Boolean(hasAppeal);
 
           return (
             <article key={conversation.id} className={ticketClassName(stateTone)}>
@@ -151,45 +168,25 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   </Link>
                   <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
                 </div>
-                <p className="queue-ticket__meta">
-                  {conversation.customerName} · {conversation.assigneeName ?? "Не назначен"} · {formatMessageCount(conversation.messages.length)}
-                </p>
-                <div className="queue-ticket__chips">
-                  <span className="pill pill--neutral">
-                    {channelLabels[conversation.channel]} · {externalSourceLabel(conversation.externalSource)}
-                  </span>
-                  <span className={`pill ${isOverdue ? "pill--warn" : "pill--neutral"}`}>
-                    Срок: {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "нет"}
-                  </span>
-                  <span className="pill pill--neutral">
-                    Проверяющий: {conversation.qaAssigneeName ?? "не назначен"}
-                  </span>
-                  {conversation.csatBucket === "NEGATIVE" ? (
-                    <span className="inbox-signal inbox-signal--warn">
-                      {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
-                      {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
-                    </span>
-                  ) : null}
-                  {samplingIsSignal(conversation.samplingType) ? (
-                    <span className="inbox-signal inbox-signal--warn">
-                      {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
-                    </span>
-                  ) : null}
-                  {conversation.riskHint ? <span className="inbox-signal inbox-signal--warn">Риск</span> : null}
-                  {latestFinalizedReview?.criticalError ? (
-                    <span className="inbox-signal inbox-signal--danger">Критическая ошибка</span>
-                  ) : null}
-                  {hasReanswer ? (
-                    <span className="inbox-signal inbox-signal--warn queue-ticket__process">
-                      {reanswerLabel}
-                    </span>
-                  ) : null}
-                  {hasAppeal ? (
-                    <span className="inbox-signal inbox-signal--warn queue-ticket__process">
-                      Апелляция: {appealLabel}
-                    </span>
-                  ) : null}
-                </div>
+                <p className="queue-ticket__meta">{contextItems.join(" · ")}</p>
+                {hasFlags ? (
+                  <div className="queue-ticket__signals">
+                    {signalItems.length > 0 ? (
+                      <span className={`queue-ticket__signal-group ${isOverdue ? "queue-ticket__signal-group--warn" : ""}`}>
+                        Сигналы: {signalItems.join(", ")}
+                      </span>
+                    ) : null}
+                    {latestFinalizedReview?.criticalError ? (
+                      <span className="queue-ticket__priority queue-ticket__priority--danger">Критическая ошибка</span>
+                    ) : null}
+                    {hasReanswer ? (
+                      <span className="queue-ticket__priority queue-ticket__priority--warn">{reanswerLabel}</span>
+                    ) : null}
+                    {hasAppeal ? (
+                      <span className="queue-ticket__priority queue-ticket__priority--warn">Апелляция: {appealLabel}</span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="queue-ticket__aside">
