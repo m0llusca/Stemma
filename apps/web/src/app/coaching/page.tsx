@@ -55,41 +55,42 @@ export default async function CoachingPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Учебные задачи</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Разборы по итогам проверок, переответам и апелляциям.</p>
+      <section className="admin-group-grid admin-group-grid--two" aria-label="Обучение">
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Учебные задачи</h2>
+            <p className="text-sm leading-5 text-[#64748b]">Разборы по итогам проверок, переответам и апелляциям.</p>
           </div>
-          <div className="grid gap-0">
+          <div className="grid gap-2">
             {assignments.length > 0 ? (
               assignments.map((assignment) => (
-                <article key={assignment.id} className="task-row md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#111827]">{assignment.title}</p>
-                    <p className="mt-1 text-sm leading-5 text-[#64748b]">{assignment.description}</p>
-                    <p className="mt-2 text-xs font-semibold uppercase text-[#64748b]">
+                <article key={assignment.id} className="admin-tile admin-tile--compact">
+                  <span className="admin-tile__icon admin-tile__icon--plain">T</span>
+                  <div className="admin-tile__body">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="record-title record-title--tight">{assignment.title}</span>
+                      <span className="pill pill--neutral">{trainingStatusLabel(assignment.status)}</span>
+                    </span>
+                    <span className="record-meta compact-text">{assignment.description}</span>
+                    <span className="record-meta compact-text">
                       {assignment.assigneeName}
                       {assignment.dueAt ? ` · до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : ""}
                       {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
-                    </p>
-                  </div>
-                  <span className="w-fit rounded-md bg-[#f8fafc] px-2 py-1 text-xs font-semibold uppercase text-[#475569]">
-                    {trainingStatusLabel(assignment.status)}
-                  </span>
-                  <div className="flex flex-wrap gap-2 md:justify-end">
-                    {assignment.review ? (
-                      <Link href={`/reviews/${assignment.review.conversationId}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
-                        Проверка
-                      </Link>
-                    ) : null}
-                    <form action={updateTrainingAssignmentStatus}>
-                      <input type="hidden" name="id" value={assignment.id} />
-                      <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
-                      <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
-                        {assignment.status === "done" ? "Переоткрыть" : "Готово"}
-                      </button>
-                    </form>
+                    </span>
+                    <span className="flex flex-wrap gap-2">
+                      {assignment.review ? (
+                        <Link href={`/reviews/${assignment.review.conversationId}`} className="quiet-link">
+                          Открыть проверку
+                        </Link>
+                      ) : null}
+                      <form action={updateTrainingAssignmentStatus}>
+                        <input type="hidden" name="id" value={assignment.id} />
+                        <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
+                        <button type="submit" className="quiet-link">
+                          {assignment.status === "done" ? "Переоткрыть" : "Готово"}
+                        </button>
+                      </form>
+                    </span>
                   </div>
                 </article>
               ))
@@ -99,12 +100,12 @@ export default async function CoachingPage() {
               </div>
             )}
           </div>
-        </section>
+        </div>
 
-        <details className="disclosure-panel panel h-fit overflow-hidden">
+        <details className="disclosure-panel admin-group h-fit overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
-              <h2 className="text-lg font-semibold">Добавить типовую ошибку</h2>
+              <h2 className="text-base font-semibold">Добавить типовую ошибку</h2>
               <p className="mt-1 text-sm text-[#64748b]">Форма скрыта, пока не нужно пополнить базу.</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
@@ -141,16 +142,16 @@ export default async function CoachingPage() {
             </button>
           </form>
         </details>
-      </div>
+      </section>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">База типовых ошибок</h2>
-          <p className="mt-1 text-sm text-[#64748b]">Используется для рекомендаций, калибровки и обучения операторов.</p>
+      <section className="admin-group">
+        <div className="admin-group__header admin-group__header--compact">
+          <h2 className="text-base font-semibold text-[#111827]">База типовых ошибок</h2>
+          <p className="text-sm leading-5 text-[#64748b]">Используется для рекомендаций, калибровки и обучения операторов.</p>
         </div>
-        <div className="knowledge-grid md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {knowledgeEntries.map((entry) => (
-            <article key={entry.id} className="knowledge-item">
+            <article key={entry.id} className="soft-callout">
               <p className="text-xs font-semibold uppercase text-[#64748b]">{entry.category} · {riskLevelLabels[entry.riskLevel]}</p>
               <h3 className="mt-2 font-semibold text-[#111827]">{entry.title}</h3>
               <p className="mt-2 text-sm leading-5 text-[#64748b]">{entry.description}</p>

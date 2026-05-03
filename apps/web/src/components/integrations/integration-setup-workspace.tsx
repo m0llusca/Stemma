@@ -282,79 +282,40 @@ function SourceChoiceStep({
   const selectedOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
   const selectedGroup = sourceChoiceGroups.find((group) => group.mode === selectedOption.mode);
 
-  function optionCaption(option: typeof sourceOptions[number]) {
-    if (option.mode === "otrs_family") {
-      return option.value === "otrs:otobo" ? "REST web service" : "GenericInterface TicketGet";
-    }
-
-    if (option.mode === "native_helpdesk") {
-      return "Готовый адаптер";
-    }
-
-    return "Единый API-контракт";
-  }
-
   return (
-    <div className="source-choice-layout">
-      <label className="sr-only">
-        Источник
-        <select
-          value={sourceValue}
-          onChange={(event) => onSourceChange(event.target.value as SourceOptionValue)}
-        >
-          {sourceOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="source-picker">
-        <div className="source-picker__header">
-          <p className="soft-callout__label">Источник обращений</p>
-          <p className="text-sm leading-5 text-[#64748b]">Выберите систему. Технические детали появятся ниже только для выбранного варианта.</p>
-        </div>
-        {sourceChoiceGroups.map((group) => (
-          <section key={group.mode} className="source-choice-section">
-            <div className="source-choice-section__header">
-              <h4>{group.title}</h4>
-              <span>{group.options.length}</span>
-            </div>
-            <div className="source-choice-list">
-              {group.options.map((option) => {
-                const isSelected = option.value === sourceValue;
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => onSourceChange(option.value)}
-                    aria-pressed={isSelected}
-                    className={`source-choice-row ${isSelected ? "source-choice-row--active" : ""}`}
-                  >
-                    <span className="source-choice-row__mark" aria-hidden="true" />
-                    <span className="source-choice-row__body">
-                      <span className="source-choice-row__title">{option.label}</span>
-                      <span className="source-choice-row__caption">{optionCaption(option)}</span>
-                    </span>
-                    {isSelected ? <span className="source-choice-row__state">Выбрано</span> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+    <div className="source-select-panel">
+      <div className="source-select-panel__control">
+        <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          Система-источник
+          <select
+            value={sourceValue}
+            onChange={(event) => onSourceChange(event.target.value as SourceOptionValue)}
+            className="form-control"
+          >
+            {sourceChoiceGroups.map((group) => (
+              <optgroup key={group.mode} label={group.title}>
+                {group.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <p className="text-sm leading-5 text-[#64748b]">
+          Показываем только выбранный сценарий. Список источников остается в одном поле, без набора карточек на весь экран.
+        </p>
       </div>
 
-      <aside className="source-choice-summary">
-        <div className="source-choice-summary__header">
+      <aside className="source-selected-card" aria-live="polite">
+        <div className="source-selected-card__top">
           <p className="soft-callout__label">Выбранный сценарий</p>
-          <span>{selectedGroup?.title ?? "Источник"}</span>
+          <span className="pill pill--neutral">{selectedGroup?.title ?? "Источник"}</span>
         </div>
-        <div className="source-choice-summary__body">
-          <h4>{selectedOption.label}</h4>
-          <p>{selectedOption.description}</p>
+        <div className="grid min-w-0 gap-1">
+          <h4 className="source-selected-card__title">{selectedOption.label}</h4>
+          <p className="text-sm leading-5 text-[#64748b]">{selectedOption.description}</p>
         </div>
         <div className="source-next-steps" aria-label="Следующие шаги">
           <span>Доступ</span>

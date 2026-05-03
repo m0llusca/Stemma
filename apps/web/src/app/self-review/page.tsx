@@ -35,38 +35,38 @@ export default async function SelfReviewPage() {
         </div>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">Мои обращения</h2>
-          <p className="mt-1 text-sm text-[#64748b]">Сначала видны последние закрытые обращения.</p>
+      <section className="admin-group">
+        <div className="admin-group__header admin-group__header--compact">
+          <h2 className="text-base font-semibold text-[#111827]">Мои обращения</h2>
+          <p className="text-sm leading-5 text-[#64748b]">Сначала видны последние закрытые обращения.</p>
         </div>
-        <div className="record-list px-5">
+        <div className="grid gap-2">
               {conversations.map((conversation) => {
                 const selfReview = conversation.reviews[0];
 
                 return (
-                  <article key={conversation.id} className="record-card record-card--interactive">
-                    <div className="record-row">
-                      <div className="min-w-0">
-                        <h3 className="record-title">{conversation.subject}</h3>
-                        <p className="record-meta mt-1">{externalSourceLabel(conversation.externalSource)} · {conversation.externalId}</p>
-                      </div>
+                  <Link
+                    key={conversation.id}
+                    href={`/reviews/${conversation.id}?reviewSource=SELF_REVIEW&returnTo=${encodeURIComponent("/self-review")}`}
+                    className="admin-tile admin-tile--compact"
+                  >
+                    <span className="admin-tile__icon admin-tile__icon--plain">S</span>
+                    <span className="admin-tile__body">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="record-title record-title--tight">{conversation.subject}</span>
                       <span className={`pill ${selfReview ? "pill--ok" : "pill--neutral"}`}>
                         {selfReview ? `${Math.round(selfReview.totalScore)}%` : "Нет самооценки"}
                       </span>
-                    </div>
-                    <div className="record-row">
-                      <p className="record-meta">
+                      </span>
+                      <span className="record-meta">{externalSourceLabel(conversation.externalSource)} · {conversation.externalId}</span>
+                      <span className="record-meta">
                         Канал: {channelLabels[conversation.channel]} · CSAT: {conversation.csatScore ?? csatBucketLabels[conversation.csatBucket]}
-                      </p>
-                      <Link
-                        href={`/reviews/${conversation.id}?reviewSource=SELF_REVIEW&returnTo=${encodeURIComponent("/self-review")}`}
-                        className="text-sm font-semibold text-[#1d3fae] hover:underline"
-                      >
+                      </span>
+                      <span className="quiet-link">
                         Оценить себя
-                      </Link>
-                    </div>
-                  </article>
+                      </span>
+                    </span>
+                  </Link>
                 );
               })}
         </div>

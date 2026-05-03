@@ -92,54 +92,50 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Правила</h2>
-            <p className="mt-1 text-sm text-[#64748b]">
+      <section className="admin-group-grid admin-group-grid--two" aria-label="Правила выборки">
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Правила</h2>
+            <p className="text-sm leading-5 text-[#64748b]">
               Активно: {activeRules} · всего: {rules.length}
             </p>
           </div>
-          <div className="record-list px-5">
+          <div className="grid gap-2">
             {rules.map((rule) => {
               const conditions = parseConditions(rule.conditionsJson);
 
               return (
-                <article key={rule.id} className="record-card">
-                  <div className="min-w-0">
-                    <div className="record-row">
-                      <div className="min-w-0">
-                        <h3 className="record-title">{rule.name}</h3>
-                        <p className="record-meta mt-1">
-                          {samplingRuleTypeLabels[rule.type] ?? rule.type} · {rule.targetPercent}% · приоритет {rule.priority}
-                        </p>
-                      </div>
+                <div key={rule.id} className="admin-tile admin-tile--compact">
+                  <span className="admin-tile__icon admin-tile__icon--plain">{rule.priority}</span>
+                  <div className="admin-tile__body">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="record-title record-title--tight">{rule.name}</span>
                       <span className={`pill ${rule.isActive ? "pill--ok" : "pill--neutral"}`}>
                         {rule.isActive ? "Активно" : "Выключено"}
                       </span>
-                    </div>
-                    <p className="record-meta mt-2">{formatConditions(conditions)}</p>
-                  </div>
-                  <div className="record-row">
-                    <p className="record-meta">Правило применяется автоматически при формировании очереди.</p>
-                    <form action={updateSamplingRuleStatus}>
+                    </span>
+                    <span className="record-meta">
+                      {samplingRuleTypeLabels[rule.type] ?? rule.type} · {rule.targetPercent}% · приоритет {rule.priority}
+                    </span>
+                    <span className="record-meta">{formatConditions(conditions)}</span>
+                    <form action={updateSamplingRuleStatus} className="mt-1">
                       <input type="hidden" name="id" value={rule.id} />
                       <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
-                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                      <button type="submit" className="quiet-link text-sm">
                         {rule.isActive ? "Выключить" : "Включить"}
                       </button>
                     </form>
                   </div>
-                </article>
+                </div>
               );
             })}
           </div>
-        </section>
+        </div>
 
-        <details id="new-rule" className="disclosure-panel panel h-fit overflow-hidden" open={shouldOpenNewRule}>
+        <details id="new-rule" className="disclosure-panel admin-group h-fit" open={shouldOpenNewRule}>
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
-              <h2 className="text-lg font-semibold">Новое правило</h2>
+              <h2 className="text-base font-semibold">Новое правило</h2>
               <p className="mt-1 text-sm text-[#64748b]">Форма создания скрыта, пока вы не добавляете правило.</p>
             </div>
             <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Открыть</span>
@@ -212,7 +208,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
             </button>
           </form>
         </details>
-      </div>
+      </section>
     </section>
   );
 }

@@ -75,34 +75,44 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
         </div>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">Версионирование правил</h2>
-          <p className="mt-1 text-sm text-[#64748b]">
-            Каждая завершенная проверка хранит версию формы оценки. Новая версия не переписывает старые результаты и позволяет сравнивать периоды без смешивания методик.
-          </p>
+      <section className="admin-group-grid admin-group-grid--wide" aria-label="Сводка форм оценки">
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Активная форма</h2>
+            <p className="text-sm leading-5 text-[#64748b]">По ней сейчас оцениваются новые проверки.</p>
+          </div>
+          <div className="admin-tile admin-tile--compact">
+            <span className="admin-tile__icon admin-tile__icon--plain">V</span>
+            <span className="admin-tile__body">
+              <span className="record-title record-title--tight">
+                {activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет активной формы"}
+              </span>
+              <span className="record-meta">
+                {activeScorecard ? `${activeScorecard.criteria.length} критериев` : "Создайте первую версию формы оценки"}
+              </span>
+            </span>
+          </div>
         </div>
-        <div className="metric-strip m-5">
-          <div className="metric-strip__item">
-            <p className="metric-strip__label">Активная версия</p>
-            <p className="metric-strip__value text-base">{activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет"}</p>
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">История версий</h2>
+            <p className="text-sm leading-5 text-[#64748b]">Старые проверки не пересчитываются при изменении методики.</p>
           </div>
-          <div className="metric-strip__item">
-            <p className="metric-strip__label">История</p>
-            <p className="metric-strip__value">{scorecards.length}</p>
-          </div>
-          <div className="metric-strip__item">
-            <p className="metric-strip__label">Правило изменения</p>
-            <p className="mt-2 text-sm leading-5 text-[#334155]">Изменения выпускаются только новой версией формы.</p>
+          <div className="admin-tile admin-tile--compact">
+            <span className="admin-tile__icon admin-tile__icon--plain">{scorecards.length}</span>
+            <span className="admin-tile__body">
+              <span className="record-title">Версий в системе</span>
+              <span className="record-meta">Изменения выпускаются только новой версией формы.</span>
+            </span>
           </div>
         </div>
       </section>
 
       {activeScorecard ? (
-        <details id="new-version" className="disclosure-panel panel overflow-hidden" open={openNewVersion}>
+        <details id="new-version" className="disclosure-panel admin-group overflow-hidden" open={openNewVersion}>
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
-              <h2 className="text-lg font-semibold">Новая версия формы оценки</h2>
+              <h2 className="text-base font-semibold">Новая версия формы оценки</h2>
               <p className="mt-1 text-sm text-[#64748b]">
                 Создает новую активную форму и оставляет исторические проверки на прежних версиях.
               </p>
@@ -124,37 +134,38 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
         </details>
       ) : null}
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">История форм</h2>
-          <p className="mt-1 text-sm text-[#64748b]">Старые версии свернуты и не смешиваются с активной методикой.</p>
+      <section className="admin-group">
+        <div className="admin-group__header admin-group__header--compact">
+          <h2 className="text-base font-semibold text-[#111827]">История форм</h2>
+          <p className="text-sm leading-5 text-[#64748b]">Старые версии свернуты и не смешиваются с активной методикой.</p>
         </div>
-        <div className="record-list px-5">
+        <div className="grid gap-2">
           {scorecards.map((scorecard) => (
-            <details key={scorecard.id} className="record-card disclosure-panel" open={scorecard.isActive}>
-              <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="record-title">{scorecard.name}</h3>
+            <details key={scorecard.id} className="compact-details disclosure-panel" open={scorecard.isActive}>
+              <summary className="disclosure-summary version-summary cursor-pointer list-none">
+                <span className="admin-tile__icon admin-tile__icon--plain">{scorecard.version}</span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="record-title">{scorecard.name}</span>
                     <span className={`pill ${scorecard.isActive ? "pill--ok" : "pill--neutral"}`}>
                       {scorecard.isActive ? "Активна" : "Неактивна"}
                     </span>
-                  </div>
-                  <p className="record-meta mt-1">
+                  </span>
+                  <span className="record-meta mt-1 block">
                     Версия {scorecard.version} · критериев: {scorecard.criteria.length}
-                  </p>
-                </div>
+                  </span>
+                </span>
                 <span
                   className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
                   aria-hidden="true"
                 >
                   <ChevronDown className="h-4 w-4" />
-                </span>
-              </summary>
-              <div className="mt-3 border-t border-[#d9e0ea] pt-1">
-                <div className="record-list">
+                  </span>
+                </summary>
+              <div className="border-t border-[#d9e0ea] p-3">
+                <div className="grid gap-2">
                   {scorecard.criteria.map((criterion) => (
-                    <article key={criterion.id} className="record-card">
+                    <article key={criterion.id} className="soft-callout">
                       <div className="record-row">
                         <div className="min-w-0">
                           <h4 className="record-title">{criterion.label}</h4>

@@ -66,67 +66,75 @@ export default async function AdminTokensPage() {
         </div>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">Локальный ключ для разработки</h2>
-          <p className="mt-1 text-sm text-[#64748b]">
-            На страницах интеграций используется плейсхолдер {apiTokenPlaceholder}; реальные значения собраны здесь.
-          </p>
-        </div>
-        <div className="record-list px-5">
-          <article className="record-card">
-            <div className="record-row">
-              <div className="min-w-0">
-                <h3 className="record-title">Ключ</h3>
-                <p className="record-meta mt-1">Локальное значение для тестовых запросов.</p>
+      <section className="admin-group-grid admin-group-grid--two" aria-label="Ключи API">
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Локальная проверка</h2>
+            <p className="text-sm leading-5 text-[#64748b]">
+              Плейсхолдер {apiTokenPlaceholder} и реальные значения для тестовых запросов.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <div className="admin-tile admin-tile--compact">
+              <span className="admin-tile__icon admin-tile__icon--plain">K</span>
+              <div className="admin-tile__body">
+                <span className="record-row">
+                  <span className="record-title">Ключ</span>
+                  <CopyButton value={demoApiToken} label="Скопировать ключ" />
+                </span>
+                <code className="inline-code-box compact-text">{demoApiToken}</code>
               </div>
-              <CopyButton value={demoApiToken} label="Скопировать ключ" />
             </div>
-            <code className="inline-code-box compact-text">{demoApiToken}</code>
-          </article>
-          <article className="record-card">
-            <div className="record-row">
-              <div className="min-w-0">
-                <h3 className="record-title">Заголовок Authorization</h3>
-                <p className="record-meta mt-1">Готовая строка для своего API и внешних тестов.</p>
+            <div className="admin-tile admin-tile--compact">
+              <span className="admin-tile__icon admin-tile__icon--plain">A</span>
+              <div className="admin-tile__body">
+                <span className="record-row">
+                  <span className="record-title">Заголовок Authorization</span>
+                  <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
+                </span>
+                <code className="inline-code-box compact-text">{authorizationHeader}</code>
               </div>
-              <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
             </div>
-            <code className="inline-code-box compact-text">{authorizationHeader}</code>
-          </article>
+          </div>
         </div>
-      </section>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">Ключи рабочего пространства</h2>
-          <p className="mt-1 text-sm text-[#64748b]">Статус, права и последняя активность без широкой таблицы.</p>
-        </div>
-        <div className="record-list px-5">
-          {apiTokens.map((apiToken) => {
-            const health = tokenHealth(apiToken);
-            const healthTone = health.label === "Ошибка" ? "pill--warn" : health.label === "Работает" ? "pill--ok" : "pill--neutral";
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Ключи рабочего пространства</h2>
+            <p className="text-sm leading-5 text-[#64748b]">Статус, права и последняя активность без широкой таблицы.</p>
+          </div>
+          <div className="grid gap-2">
+            {apiTokens.length > 0 ? (
+              apiTokens.map((apiToken) => {
+                const health = tokenHealth(apiToken);
+                const healthTone = health.label === "Ошибка" ? "pill--warn" : health.label === "Работает" ? "pill--ok" : "pill--neutral";
 
-            return (
-              <article key={apiToken.id} className="record-card">
-                <div className="record-row">
-                  <div className="min-w-0">
-                    <h3 className="record-title">{apiToken.name}</h3>
-                    <p className="record-meta mt-1 font-mono compact-text">{apiToken.tokenPrefix}</p>
+                return (
+                  <div key={apiToken.id} className="admin-tile admin-tile--compact">
+                    <span className="admin-tile__icon admin-tile__icon--plain">K</span>
+                    <div className="admin-tile__body">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="record-title record-title--tight">{apiToken.name}</span>
+                        <span className={`pill ${healthTone}`}>{health.label}</span>
+                      </span>
+                      <span className="record-meta font-mono compact-text">{apiToken.tokenPrefix}</span>
+                      <span className="record-meta compact-text">Права: {formatScopes(apiToken.scopes)}</span>
+                      <span className="record-meta">
+                        Использование: {formatDate(apiToken.lastUsedAt)} · успех: {formatDate(apiToken.lastSuccessAt)}
+                      </span>
+                      {apiToken.lastError ? (
+                        <span className="record-meta compact-text text-[#b91c1c]">
+                          Ошибка: {formatDate(apiToken.lastErrorAt)} · {apiToken.lastError}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  <span className={`pill ${healthTone}`}>{health.label}</span>
-                </div>
-                <p className="record-meta compact-text">Права доступа: {formatScopes(apiToken.scopes)}</p>
-                <div className="grid gap-2 md:grid-cols-3">
-                  <p className="record-meta">Использование: {formatDate(apiToken.lastUsedAt)}</p>
-                  <p className="record-meta">Последний успех: {formatDate(apiToken.lastSuccessAt)}</p>
-                  <p className="record-meta compact-text">
-                    Последняя ошибка: {apiToken.lastError ? `${formatDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
-                  </p>
-                </div>
-              </article>
-            );
-          })}
+                );
+              })
+            ) : (
+              <div className="soft-callout text-sm text-[#64748b]">Ключи еще не созданы.</div>
+            )}
+          </div>
         </div>
       </section>
     </section>

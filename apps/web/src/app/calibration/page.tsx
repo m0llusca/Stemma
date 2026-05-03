@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { roleLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -80,13 +79,13 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Сессии калибровки</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Активные и последние сессии без лишних карточек.</p>
+      <section className="admin-group-grid admin-group-grid--two" aria-label="Калибровка">
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Сессии калибровки</h2>
+            <p className="text-sm leading-5 text-[#64748b]">Активные и последние сессии в компактном списке.</p>
           </div>
-          <div className="record-list">
+          <div className="calibration-compact-list">
           {sessions.map((session) => {
             const isSelected = selectedSession?.id === session.id;
             const itemCount = session.items.length;
@@ -103,18 +102,20 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             const expectedCount = itemCount * participantCount;
 
             return (
-              <article key={session.id} className={`calibration-session ${isSelected ? "calibration-session--selected" : ""}`}>
-                <div className="calibration-session__header">
-                  <div className="min-w-0">
-                    <h3 className="record-title text-lg">{session.name}</h3>
-                    <div className="signal-row mt-2">
-                      <span className={`pill ${session.status === "completed" ? "pill--ok" : "pill--neutral"}`}>{statusLabel(session.status)}</span>
-                      <span className="pill pill--neutral">{itemCount} обращений</span>
-                      <span className="pill pill--neutral">{participantCount} участников</span>
-                      <span className="pill pill--neutral">{completedCount}/{expectedCount} оценок</span>
-                    </div>
+              <article key={session.id} className={`calibration-compact-item ${isSelected ? "calibration-compact-item--selected" : ""}`}>
+                <div className="min-w-0">
+                  <h3 className="record-title record-title--tight">{session.name}</h3>
+                  <div className="calibration-compact-meta mt-2">
+                    <span className={`pill ${session.status === "completed" ? "pill--ok" : "pill--neutral"}`}>{statusLabel(session.status)}</span>
+                    <span className="pill pill--neutral">{itemCount} обращений</span>
+                    <span className="pill pill--neutral">{participantCount} участников</span>
+                    <span className="pill pill--neutral">{completedCount}/{expectedCount} оценок</span>
                   </div>
-                  <div className="calibration-session__actions">
+                  <p className="record-meta mt-2 compact-text">
+                    {session.participants.map((participant) => participant.user.name).join(", ") || "Участники не выбраны"}
+                  </p>
+                </div>
+                <div className="calibration-session__actions">
                     <Link href={`/calibration?session=${session.id}`} className="action-button min-h-[38px] px-4 py-2 text-sm">
                       Открыть
                     </Link>
@@ -127,42 +128,17 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                         </button>
                       </form>
                     ) : null}
-                  </div>
-                </div>
-                <div className="calibration-participants">
-                  {session.participants.map((participant) => {
-                    const done = session.items.filter((item) =>
-                      item.conversation.reviews.some(
-                        (review) =>
-                          review.reviewSource === "CALIBRATION" &&
-                          review.status === "FINALIZED" &&
-                          review.reviewerId === participant.userId
-                      )
-                    ).length;
-
-                    return (
-                      <div key={participant.id} className="calibration-participant">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#111827]">{participant.user.name}</p>
-                          <p className="mt-0.5 truncate text-xs text-[#64748b]">{roleLabels[participant.user.role]}</p>
-                        </div>
-                        <span className={`pill ${done === itemCount && itemCount > 0 ? "pill--ok" : "pill--neutral"}`}>
-                          {done}/{itemCount}
-                        </span>
-                      </div>
-                    );
-                  })}
                 </div>
               </article>
             );
           })}
           </div>
-        </section>
+        </div>
 
-        <details className="disclosure-panel panel h-fit overflow-hidden" open={openNewSession}>
+        <details className="disclosure-panel admin-group h-fit overflow-hidden" open={openNewSession}>
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
-              <h2 className="text-lg font-semibold">Новая калибровка</h2>
+              <h2 className="text-base font-semibold">Новая калибровка</h2>
               <p className="mt-1 text-sm text-[#64748b]">Выберите обращения и проверяющих.</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
@@ -203,7 +179,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             </button>
           </form>
         </details>
-      </div>
+      </section>
 
       {selectedSession ? (
         <section className="panel mt-6 overflow-hidden">
