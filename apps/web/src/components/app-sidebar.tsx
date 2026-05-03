@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Activity,
   BarChart3,
   BookOpenCheck,
   ClipboardCheck,
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/admin/scorecards", label: "Формы оценки", icon: Gauge, roles: ["ADMIN", "TEAM_LEAD"] },
   { href: "/admin/sampling", label: "Выборки", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] },
   { href: "/admin/integrations", label: "Интеграции", icon: Settings, roles: ["ADMIN"] },
+  { href: "/admin/system", label: "Система", icon: Activity, roles: ["ADMIN"] },
   { href: "/admin/tokens", label: "API-доступ", icon: KeyRound, roles: ["ADMIN"] },
   { href: "/admin/audit", label: "Журнал", icon: History, roles: ["ADMIN", "TEAM_LEAD"] }
 ];
