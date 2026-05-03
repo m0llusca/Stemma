@@ -4,6 +4,7 @@ import {
   CalendarClock,
   ChevronDown,
   Gauge,
+  MessageSquareWarning,
   RotateCcw,
   ShieldAlert,
   UserRound
@@ -144,6 +145,11 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   );
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const scoreLabel = scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено";
+  const hasAppeal = latestFinalizedReview ? latestFinalizedReview.appealStatus !== "none" : false;
+  const hasOpenAppeal = latestFinalizedReview?.appealStatus === "open";
+  const appealLabel = latestFinalizedReview
+    ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
+    : "Нет";
 
   return (
     <section className="page-shell workspace-shell">
@@ -169,8 +175,84 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               {conversation.riskHint}
             </HeaderChip>
           ) : null}
+          {hasAppeal ? (
+            <HeaderChip label="Апелляция" icon={MessageSquareWarning} tone={hasOpenAppeal ? "warning" : "active"}>
+              {appealLabel}
+            </HeaderChip>
+          ) : null}
         </div>
       </div>
+
+      <div className="review-brief-grid">
+        <details className="panel compact-details review-brief-card">
+          <summary className="disclosure-summary">
+            <span className="min-w-0">
+              <h2 className="review-brief-card__title">Ход проверки</h2>
+              <p className="review-brief-card__meta">
+                {reviewStateLabels[reviewState]} · {scorecard.name} v{scorecard.version}
+              </p>
+            </span>
+            <ChevronDown className="disclosure-chevron h-4 w-4 text-[#1d3fae]" aria-hidden="true" />
+          </summary>
+          <div className="border-t border-[#d9e0ea] p-4">
+            <ReviewWorkflow
+              isReviewed={Boolean(latestFinalizedReview)}
+              hasDraftReview={Boolean(currentDraftReview)}
+              scorecardName={`${scorecard.name} v${scorecard.version}`}
+            />
+          </div>
+        </details>
+
+        <details className="panel compact-details review-brief-card">
+          <summary className="disclosure-summary">
+            <span className="min-w-0">
+              <h2 className="review-brief-card__title">Детали обращения</h2>
+              <p className="review-brief-card__meta">
+                {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
+              </p>
+            </span>
+            <ChevronDown className="disclosure-chevron h-4 w-4 text-[#1d3fae]" aria-hidden="true" />
+          </summary>
+          <div className="grid gap-3 border-t border-[#d9e0ea] p-4 md:grid-cols-3 xl:grid-cols-6">
+            <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
+            <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
+            <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
+            <DetailItem label="Проверяющий">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
+            <DetailItem label="Выборка">{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</DetailItem>
+            <DetailItem label="CSAT">
+              {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
+            </DetailItem>
+          </div>
+        </details>
+      </div>
+
+      {latestFinalizedReview && hasOpenAppeal ? (
+        <section className="appeal-alert">
+          <div className="appeal-alert__icon" aria-hidden="true">
+            <MessageSquareWarning size={18} />
+          </div>
+          <div className="appeal-alert__body">
+            <h2>Открыта апелляция</h2>
+            <p>
+              Статус: {appealLabel}
+              {latestFinalizedReview.appealDueAt ? ` · срок ${latestFinalizedReview.appealDueAt.toLocaleDateString("ru-RU")}` : ""}.
+              Руководитель должен принять решение и зафиксировать итог.
+            </p>
+          </div>
+          <div className="appeal-alert__actions">
+            <form action={updateReviewFeedback}>
+              <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+              <input type="hidden" name="action" value="appeal_confirmed" />
+              <button type="submit" className="action-button">Оценка верна</button>
+            </form>
+            <form action={updateReviewFeedback}>
+              <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+              <input type="hidden" name="action" value="appeal_corrected" />
+              <button type="submit" className="action-button action-button--primary">Нужна корректировка</button>
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       <div className="review-main">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
@@ -186,52 +268,6 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           />
         </div>
       </div>
-
-      <details className="review-secondary panel disclosure-panel overflow-hidden">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold">Ход проверки</h2>
-            <p className="mt-1 truncate text-sm text-[#64748b]">
-              {reviewStateLabels[reviewState]} · {scorecard.name} v{scorecard.version}
-            </p>
-          </div>
-          <span
-            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
-            aria-hidden="true"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </span>
-        </summary>
-        <div className="border-t border-[#d9e0ea] p-4">
-          <ReviewWorkflow
-            isReviewed={Boolean(latestFinalizedReview)}
-            hasDraftReview={Boolean(currentDraftReview)}
-            scorecardName={`${scorecard.name} v${scorecard.version}`}
-          />
-        </div>
-      </details>
-
-      <details className="review-context disclosure-panel">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold">Детали обращения</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Источник, канал, выборка, CSAT и назначение проверки.</p>
-          </div>
-          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#64748b]">Показать</span>
-        </summary>
-        <div className="mt-3 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
-          <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
-          <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
-          <DetailItem label="Проверяющий">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
-          <DetailItem label="Выборка">{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</DetailItem>
-          <DetailItem label="CSAT">
-            {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
-          </DetailItem>
-        </div>
-      </details>
-
-      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
       {latestFinalizedReview ? (
         <details className="review-secondary panel disclosure-panel overflow-hidden">
@@ -383,6 +419,8 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           </div>
         </details>
       ) : null}
+
+      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
       {conversation.reviews.length > 0 ? (
         <details className="review-secondary panel disclosure-panel overflow-hidden">

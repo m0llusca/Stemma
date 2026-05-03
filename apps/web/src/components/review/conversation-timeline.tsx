@@ -23,20 +23,18 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
           return (
             <article
               key={message.id}
-              className={`record-card ${
-                isHighlighted ? "record-card--selected" : ""
-              }`}
+              className={`conversation-message ${isHighlighted ? "conversation-message--selected" : ""}`}
             >
-              <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-                <span className="font-semibold text-[#111827]">{message.authorName}</span>
-                <span className="rounded bg-white px-2 py-1 text-xs font-medium text-[#475569]">
+              <div className="conversation-message__header">
+                <span className="conversation-message__author">{message.authorName}</span>
+                <span className="conversation-message__role">
                   {participantLabels[message.participantType]}
                 </span>
                 {isHighlighted ? (
-                  <span className="rounded bg-[#3157d5] px-2 py-1 text-xs font-semibold text-white">Доказательство</span>
+                  <span className="conversation-message__evidence">Доказательство</span>
                 ) : null}
                 {message.isPrivate ? (
-                  <span className="rounded bg-[#fff7ed] px-2 py-1 text-xs font-medium text-[#b45309]">Приватно</span>
+                  <span className="conversation-message__private">Приватно</span>
                 ) : null}
                 <div className="message-toolbar">
                   <time className="text-xs text-[#64748b]" dateTime={message.sentAt.toISOString()}>
@@ -45,7 +43,7 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
                   <EvidenceMessageButton messageId={message.id} />
                 </div>
               </div>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-[#334155]">{message.body}</p>
+              <p className="conversation-message__body">{message.body}</p>
             </article>
           );
         })}

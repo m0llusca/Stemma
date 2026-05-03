@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookOpenCheck, CheckCircle2, Clock3, PlusCircle, TriangleAlert } from "lucide-react";
-import { updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
+import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
@@ -44,7 +44,7 @@ export default async function CoachingPage() {
     user.role === "SUPPORT_AGENT"
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
       : { workspaceId: user.workspaceId };
-  const [assignments, knowledgeEntries] = await Promise.all([
+  const [assignments, knowledgeEntries, supportUsers, reviewCandidates] = await Promise.all([
     prisma.trainingAssignment.findMany({
       where: trainingWhere,
       include: {
@@ -61,6 +61,20 @@ export default async function CoachingPage() {
     prisma.qualityKnowledgeEntry.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: [{ riskLevel: "desc" }, { category: "asc" }]
+    }),
+    prisma.user.findMany({
+      where: { workspaceId: user.workspaceId, role: "SUPPORT_AGENT" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, supportLine: true, teamName: true }
+    }),
+    prisma.review.findMany({
+      where: { workspaceId: user.workspaceId, status: "FINALIZED", reviewSource: "HUMAN" },
+      include: {
+        conversation: true,
+        findings: true
+      },
+      orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
+      take: 20
     })
   ]);
   const now = new Date();
@@ -97,6 +111,63 @@ export default async function CoachingPage() {
           </div>
         </div>
       </div>
+
+      <section className="training-create-panel panel">
+        <div className="learning-section-header">
+          <div className="min-w-0">
+            <h2>Новая учебная задача</h2>
+            <p>Создайте разбор вручную или привяжите его к финальной проверке.</p>
+          </div>
+        </div>
+        <form action={createTrainingAssignment} className="training-create-form">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            Исполнитель
+            <select name="assigneeId" required className="form-control">
+              <option value="">Выберите оператора</option>
+              {supportUsers.map((supportUser) => (
+                <option key={supportUser.id} value={supportUser.id}>
+                  {supportUser.name}
+                  {supportUser.teamName ? ` · ${supportUser.teamName}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            Проверка
+            <select name="reviewId" className="form-control">
+              <option value="">Без привязки</option>
+              {reviewCandidates.map((review) => (
+                <option key={review.id} value={review.id}>
+                  {review.conversation.externalId} · {review.findings[0]?.category ?? review.conversation.subject}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            Срок
+            <input name="dueAt" type="date" className="form-control" />
+          </label>
+          <label className="training-create-form__title grid gap-1 text-sm font-medium text-[#334155]">
+            Задача
+            <input name="title" required placeholder="Например: разбор маршрутизации" className="form-control" />
+          </label>
+          <label className="training-create-form__description grid gap-1 text-sm font-medium text-[#334155]">
+            Что разобрать
+            <textarea
+              name="description"
+              required
+              rows={3}
+              placeholder="Коротко опишите ошибку, ожидаемое правило и результат разбора."
+              className="form-control"
+            />
+          </label>
+          <div className="training-create-form__action">
+            <button type="submit" className="action-button action-button--primary">
+              Создать задачу
+            </button>
+          </div>
+        </form>
+      </section>
 
       <section className="learning-layout" aria-label="Обучение и база ошибок">
         <div className="learning-primary panel">

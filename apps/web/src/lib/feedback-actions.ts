@@ -91,6 +91,7 @@ export async function updateReviewFeedback(formData: FormData) {
 
   revalidatePath(`/reviews/${review.conversationId}`);
   revalidatePath("/coaching");
+  revalidatePath("/self-review");
 }
 
 export async function createTrainingAssignmentFromReview(formData: FormData) {
@@ -145,6 +146,97 @@ export async function createTrainingAssignmentFromReview(formData: FormData) {
 
   revalidatePath(`/reviews/${review.conversationId}`);
   revalidatePath("/coaching");
+}
+
+export async function createTrainingAssignment(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageTraining(user.role)) {
+    throw new Error("Нет прав на создание учебных задач.");
+  }
+
+  const reviewId = stringField(formData, "reviewId");
+  const assigneeId = stringField(formData, "assigneeId");
+  const fallbackAssigneeName = stringField(formData, "assigneeName");
+  const title = stringField(formData, "title");
+  const description = stringField(formData, "description");
+  const dueAt = stringField(formData, "dueAt");
+
+  if (!title || !description || (!assigneeId && !fallbackAssigneeName)) {
+    throw new Error("Нужны название, описание и исполнитель.");
+  }
+
+  const [assignee, review] = await Promise.all([
+    assigneeId
+      ? prisma.user.findFirst({
+          where: { id: assigneeId, workspaceId: user.workspaceId },
+          select: { id: true, name: true }
+        })
+      : null,
+    reviewId
+      ? prisma.review.findFirst({
+          where: { id: reviewId, workspaceId: user.workspaceId },
+          select: { id: true, conversationId: true }
+        })
+      : null
+  ]);
+
+  if (assigneeId && !assignee) {
+    throw new Error("Исполнитель не найден.");
+  }
+
+  if (reviewId && !review) {
+    throw new Error("Проверка не найдена.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const assignment = await tx.trainingAssignment.create({
+      data: {
+        workspaceId: user.workspaceId,
+        reviewId: review?.id,
+        assigneeId: assignee?.id,
+        assignedById: user.id,
+        assigneeName: assignee?.name ?? fallbackAssigneeName,
+        title,
+        description,
+        dueAt: dueAt ? new Date(`${dueAt}T12:00:00.000Z`) : undefined
+      }
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "training.assignment_created",
+        targetType: "training_assignment",
+        targetId: assignment.id,
+        metadata: {
+          reviewId: review?.id,
+          assigneeName: assignee?.name ?? fallbackAssigneeName
+        }
+      },
+      tx
+    );
+
+    if (review) {
+      await recordReviewEvent(tx, {
+        workspaceId: user.workspaceId,
+        reviewId: review.id,
+        conversationId: review.conversationId,
+        actorId: user.id,
+        action: "training.assignment_created",
+        metadata: {
+          assignmentId: assignment.id,
+          assigneeName: assignee?.name ?? fallbackAssigneeName
+        }
+      });
+    }
+  });
+
+  revalidatePath("/coaching");
+  if (review) {
+    revalidatePath(`/reviews/${review.conversationId}`);
+  }
 }
 
 export async function updateTrainingAssignmentStatus(formData: FormData) {

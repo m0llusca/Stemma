@@ -21,9 +21,9 @@
   --success: #15803d;
   --success-soft: #ecfdf5;
   --radius-page: 18px;
-  --radius-card: 14px;
-  --radius-control: 12px;
-  --radius-small: 10px;
+  --radius-card: 18px;
+  --radius-control: 14px;
+  --radius-small: 12px;
   --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.05);
   --shadow-raised: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
@@ -138,6 +138,23 @@ pre code {
 .app-sidebar a:hover {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
+}
+
+.app-sidebar__badge {
+  margin-left: auto;
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-small);
+  background: #fed7aa;
+  padding: 0 7px;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1;
 }
 
 .app-sidebar .form-control,
@@ -1152,9 +1169,7 @@ a.quiet-link:hover {
 .review-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 480px);
-  height: clamp(620px, calc(100vh - 172px), 920px);
-  min-height: 620px;
-  align-items: stretch;
+  align-items: start;
   gap: 18px;
   order: 2;
 }
@@ -1162,13 +1177,14 @@ a.quiet-link:hover {
 .review-panel-column {
   min-height: 0;
   min-width: 0;
+  position: sticky;
+  top: 20px;
 }
 
 .review-panel-form {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  height: 100%;
-  max-height: 100%;
+  max-height: calc(100vh - 40px);
   min-width: 0;
 }
 
@@ -1181,16 +1197,94 @@ a.quiet-link:hover {
 
 .review-conversation-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: 100%;
-  max-height: 100%;
+  grid-template-rows: auto auto;
 }
 
 .review-conversation-panel__body {
   min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow: visible;
+}
+
+.review-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  order: 1;
+}
+
+.review-brief-card {
+  overflow: hidden;
+}
+
+.review-brief-card__title,
+.review-brief-card__meta {
+  display: block;
+  min-width: 0;
+}
+
+.review-brief-card__title {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.3;
+}
+
+.review-brief-card__meta {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.appeal-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-page);
+  background: #fff7ed;
+  padding: 14px;
+  color: #9a3412;
+}
+
+.appeal-alert__icon {
+  display: inline-flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: #ffffff;
+  color: var(--warning);
+}
+
+.appeal-alert__body {
+  min-width: 0;
+}
+
+.appeal-alert__body h2 {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 780;
+}
+
+.appeal-alert__body p {
+  margin-top: 3px;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.appeal-alert__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.appeal-alert__actions form {
+  display: contents;
 }
 
 .review-context,
@@ -1202,6 +1296,76 @@ a.quiet-link:hover {
   border: 0;
   background: transparent;
   padding: 0;
+}
+
+.conversation-message {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 18px 0;
+}
+
+.conversation-message:last-child {
+  border-bottom: 0;
+}
+
+.conversation-message--selected {
+  margin: 12px -12px;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius-card);
+  background: #f8faff;
+  padding: 16px 12px;
+}
+
+.conversation-message__header {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.conversation-message__author {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.conversation-message__role,
+.conversation-message__evidence,
+.conversation-message__private {
+  display: inline-flex;
+  min-height: 24px;
+  width: fit-content;
+  align-items: center;
+  border-radius: var(--radius-small);
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.conversation-message__role {
+  background: #ffffff;
+  color: #475569;
+}
+
+.conversation-message__evidence {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.conversation-message__private {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.conversation-message__body {
+  white-space: pre-wrap;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .work-section {
@@ -1657,6 +1821,32 @@ a.quiet-link:hover {
   gap: 16px;
 }
 
+.training-create-panel {
+  overflow: hidden;
+}
+
+.training-create-form {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) minmax(260px, 1fr) minmax(150px, 190px);
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+}
+
+.training-create-form__title {
+  grid-column: 1 / 3;
+}
+
+.training-create-form__description {
+  grid-column: 1 / -1;
+}
+
+.training-create-form__action {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+
 .learning-primary,
 .feedback-main,
 .feedback-side,
@@ -2059,7 +2249,8 @@ a.quiet-link:hover {
 .workflow-strip,
 .source-picker,
 .source-choice-summary,
-.report-toolbar {
+.report-toolbar,
+.appeal-alert {
   border-radius: var(--radius-page);
 }
 
@@ -2067,6 +2258,8 @@ a.quiet-link:hover {
 .soft-callout,
 .criterion-card,
 .compact-details,
+.conversation-message--selected,
+.learning-metric,
 .source-select-panel__control,
 .source-selected-card,
 .source-choice-row,
@@ -2079,6 +2272,7 @@ a.quiet-link:hover {
 .meta-chip,
 .pill,
 .icon-box,
+.appeal-alert__icon,
 .command-row__icon,
 .admin-tile__icon,
 .workflow-step,
@@ -2123,6 +2317,7 @@ a.quiet-link:hover {
   .section-grid--three,
   .focus-summary,
   .review-main,
+  .review-brief-grid,
   .learning-layout,
   .feedback-layout,
   .calibration-workspace,
@@ -2134,6 +2329,10 @@ a.quiet-link:hover {
   .review-main {
     height: auto;
     min-height: 0;
+  }
+
+  .review-panel-column {
+    position: static;
   }
 
   .review-panel-form,
@@ -2204,6 +2403,23 @@ a.quiet-link:hover {
     justify-content: flex-start;
   }
 
+  .appeal-alert {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .appeal-alert__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .training-create-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .training-create-form__action {
+    justify-content: flex-start;
+  }
+
   .source-choice-summary {
     position: static;
   }
@@ -2271,6 +2487,29 @@ a.quiet-link:hover {
   .learning-metrics,
   .calibration-summary-strip {
     grid-template-columns: 1fr;
+  }
+
+  .training-create-form,
+  .appeal-alert {
+    grid-template-columns: 1fr;
+  }
+
+  .appeal-alert__icon {
+    display: none;
+  }
+
+  .appeal-alert__actions {
+    grid-column: auto;
+  }
+
+  .training-create-form__action .action-button {
+    width: 100%;
+  }
+
+  .training-create-form__title,
+  .training-create-form__description,
+  .training-create-form__action {
+    grid-column: auto;
   }
 
   .learning-task,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BarChart3, BookOpenCheck, ClipboardCheck, Scale, Settings, UserCheck } from "lucide-react";
 import type { RoleName } from "@prisma/client";
 import { getCurrentUser, getWorkspaceUsers } from "@/lib/current-user";
+import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { switchCurrentUser } from "@/lib/user-actions";
 
@@ -20,7 +21,22 @@ function canSeeNavItem(role: RoleName, roles: string[]) {
 
 export async function AppSidebar() {
   const currentUser = await getCurrentUser();
-  const users = await getWorkspaceUsers(currentUser.workspaceId);
+  const [users, openAppealCount] = await Promise.all([
+    getWorkspaceUsers(currentUser.workspaceId),
+    prisma.conversation.count({
+      where: {
+        workspaceId: currentUser.workspaceId,
+        ...(currentUser.role === "SUPPORT_AGENT" ? { assigneeName: currentUser.name } : {}),
+        reviews: {
+          some: {
+            reviewSource: "HUMAN",
+            status: "FINALIZED",
+            appealStatus: "open"
+          }
+        }
+      }
+    })
+  ]);
   const visibleItems = navItems.filter((item) => canSeeNavItem(currentUser.role, item.roles));
 
   return (
@@ -49,6 +65,11 @@ export async function AppSidebar() {
                 <Icon size={16} aria-hidden="true" />
               </span>
               <span className="truncate">{item.label}</span>
+              {(item.href === "/reviews" || item.href === "/self-review") && openAppealCount > 0 ? (
+                <span className="app-sidebar__badge" aria-label={`Открытые апелляции: ${openAppealCount}`}>
+                  {openAppealCount}
+                </span>
+              ) : null}
             </Link>
           );
         })}
