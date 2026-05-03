@@ -384,9 +384,9 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </details>
       ) : null}
 
-      <div className="review-main grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+      <div className="review-main">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
-        <div className="xl:sticky xl:top-6 xl:max-h-[calc(100vh-48px)] xl:overflow-auto">
+        <div className="review-panel-column">
           <ReviewPanel
             conversationId={conversation.id}
             messages={conversation.messages}

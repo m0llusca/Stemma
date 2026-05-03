@@ -38,7 +38,7 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
                 {message.isPrivate ? (
                   <span className="rounded bg-[#fff7ed] px-2 py-1 text-xs font-medium text-[#b45309]">Приватно</span>
                 ) : null}
-                <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="message-toolbar">
                   <time className="text-xs text-[#64748b]" dateTime={message.sentAt.toISOString()}>
                     {message.sentAt.toLocaleString("ru-RU")}
                   </time>

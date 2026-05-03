@@ -149,7 +149,7 @@ export function ReviewPanel({
   }, []);
 
   return (
-    <form action={saveReviewDraft} className="panel overflow-hidden">
+    <form action={saveReviewDraft} className="review-panel-form panel overflow-hidden">
       <EvidencePickerListener />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
@@ -211,7 +211,7 @@ export function ReviewPanel({
                   >
                     <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
-                        <h4 className="truncate text-sm font-semibold text-[#111827]">
+                        <h4 className="text-sm font-semibold leading-5 text-[#111827]">
                           {criterion.order}. {criterion.label}
                         </h4>
                         <p className="mt-1 text-xs text-[#64748b]">
