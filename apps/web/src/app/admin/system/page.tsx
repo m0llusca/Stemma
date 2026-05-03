@@ -305,7 +305,7 @@ export default async function AdminSystemPage() {
                   </div>
                   <div className="record-row">
                     <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
-                    <Link href={`/api/v1/jobs/${job.id}`} className="text-sm font-semibold text-[#1d3fae] hover:underline">
+                    <Link href={`/admin/system/jobs/${job.id}`} className="text-sm font-semibold text-[#1d3fae] hover:underline">
                       Детали задачи
                     </Link>
                   </div>

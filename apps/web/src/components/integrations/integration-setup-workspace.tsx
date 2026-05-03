@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CheckCircle2, ChevronDown, ShieldCheck } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useActionState, useEffect, useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { CodeExampleCard, DataTable } from "@/components/integrations/integration-ui";
 import {
@@ -16,7 +16,11 @@ import {
   formatJsonExample,
   otrsFamilyImportExample
 } from "@/lib/custom-api-docs";
-import { recordIntegrationDryRun } from "@/lib/integration-actions";
+import {
+  recordIntegrationDryRunState,
+  saveIntegrationConfigurationState,
+  type IntegrationActionState
+} from "@/lib/integration-actions";
 import {
   nativeHelpdeskImportExamples,
   nativeHelpdeskMappingRows,
@@ -207,6 +211,7 @@ function WizardFrame({
   children,
   nextLabel = "Далее",
   nextDisabled = false,
+  nextSlot,
   onBack,
   onNext
 }: {
@@ -217,6 +222,7 @@ function WizardFrame({
   children: ReactNode;
   nextLabel?: string;
   nextDisabled?: boolean;
+  nextSlot?: ReactNode;
   onBack?: () => void;
   onNext?: () => void;
 }) {
@@ -249,7 +255,9 @@ function WizardFrame({
         >
           Назад
         </button>
-        {onNext ? (
+        {nextSlot ? (
+          nextSlot
+        ) : onNext ? (
           <button
             type="button"
             onClick={onNext}
@@ -341,6 +349,7 @@ function AccessStep({
   ticketId,
   nativeBaseUrl,
   nativeToken,
+  nativeTicketId,
   customSystemName,
   customBaseUrl,
   apiTokenCount,
@@ -351,6 +360,7 @@ function AccessStep({
   onTicketIdChange,
   onNativeBaseUrlChange,
   onNativeTokenChange,
+  onNativeTicketIdChange,
   onCustomSystemNameChange,
   onCustomBaseUrlChange
 }: {
@@ -361,6 +371,7 @@ function AccessStep({
   ticketId: string;
   nativeBaseUrl: string;
   nativeToken: string;
+  nativeTicketId: string;
   customSystemName: string;
   customBaseUrl: string;
   apiTokenCount: number;
@@ -374,6 +385,7 @@ function AccessStep({
   onTicketIdChange: (value: string) => void;
   onNativeBaseUrlChange: (value: string) => void;
   onNativeTokenChange: (value: string) => void;
+  onNativeTicketIdChange: (value: string) => void;
   onCustomSystemNameChange: (value: string) => void;
   onCustomBaseUrlChange: (value: string) => void;
 }) {
@@ -415,6 +427,9 @@ function AccessStep({
             placeholder="Будет храниться в секретах окружения"
             className={fieldClass}
           />
+        </FormField>
+        <FormField label="ID обращения для проверки">
+          <input value={nativeTicketId} onChange={(event) => onNativeTicketIdChange(event.target.value)} className={fieldClass} />
         </FormField>
       </div>
     );
@@ -567,7 +582,10 @@ function PreviewStep({
   dryRun,
   deduplicate,
   checked,
-  onCheck
+  checkState,
+  checkPending,
+  checkAction,
+  setupFields
 }: {
   mode: SourceMode;
   sourceKey: string;
@@ -581,7 +599,10 @@ function PreviewStep({
   dryRun: boolean;
   deduplicate: boolean;
   checked: boolean;
-  onCheck: () => void;
+  checkState: IntegrationActionState;
+  checkPending: boolean;
+  checkAction: (payload: FormData) => void;
+  setupFields: ReactNode;
 }) {
   const maxTicketCount = toPositiveNumber(maxTickets, 100);
   const batchTicketCount = toPositiveNumber(batchSize, 25);
@@ -616,24 +637,15 @@ function PreviewStep({
 
       <div className="soft-callout md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onCheck} className={primaryButtonClass}>
-            Проверить подключение
-          </button>
-          <form action={recordIntegrationDryRun}>
-            <input type="hidden" name="source" value={sourceKey} />
-            <input type="hidden" name="sourceLabel" value={sourceLabel} />
-            <input type="hidden" name="mode" value={mode} />
-            <input type="hidden" name="baseUrl" value={normalizeBaseUrl(baseUrl)} />
-            <input type="hidden" name="maxTickets" value={maxTickets} />
-            <input type="hidden" name="batchSize" value={batchSize} />
-            <input type="hidden" name="dateRangeDays" value={dateRangeDays} />
-            <button type="submit" className={secondaryButtonClass}>
-              Записать пробный запуск
+          <form action={checkAction}>
+            {setupFields}
+            <button type="submit" disabled={checkPending} className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#94a3b8]`}>
+              {checkPending ? "Ставим в очередь" : "Проверить подключение"}
             </button>
           </form>
         </div>
         <span className="text-sm leading-5 text-[#64748b]">
-          Проверка не создает тикеты; импорт будет подтверждаться автоматическим запуском с лимитами.
+          Проверка создает backend-задачу dry-run: runner проверит источник и не создаст тикеты в очереди.
         </span>
       </div>
 
@@ -641,12 +653,18 @@ function PreviewStep({
         <div className="soft-callout soft-callout--ok grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#3157d5]">
           <CheckCircle2 className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
           <div className="min-w-0">
-            <p className="font-semibold text-[#111827]">Подключение проверено</p>
+            <p className="font-semibold text-[#111827]">Проверка поставлена в очередь</p>
             <p>
-              Подключение принято для {sourceLabel}. При запуске автоматики будет обработано не больше {maxTicketCount} тикетов
+              Backend сохранит подключение для {sourceLabel} и обработает не больше {maxTicketCount} тикетов
               батчами по {batchTicketCount}; найденные дубликаты будут {deduplicate ? "пропущены" : "загружены повторно"}.
             </p>
           </div>
+        </div>
+      ) : null}
+
+      {checkState && !checkState.ok ? (
+        <div className="soft-callout soft-callout--warn text-sm leading-5 text-[#b45309]">
+          {checkState.message}
         </div>
       ) : null}
 
@@ -659,7 +677,7 @@ function PreviewStep({
   );
 }
 
-function DoneStep({ checked }: { checked: boolean }) {
+function DoneStep({ checked, saveState }: { checked: boolean; saveState: IntegrationActionState }) {
   return (
     <div className="grid gap-4">
       <div className="soft-callout grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#334155]">
@@ -667,9 +685,11 @@ function DoneStep({ checked }: { checked: boolean }) {
         <div className="min-w-0">
           <p className="font-semibold text-[#111827]">Настройка готова к первому ограниченному запуску</p>
           <p>
-            {checked
-              ? "Проверка уже пройдена. Следующий шаг - сохранить подключение и включить расписание импорта."
-              : "Перед включением расписания вернитесь на шаг проверки и проверьте подключение."}
+            {saveState?.ok
+              ? saveState.message
+              : checked
+                ? "Проверка поставлена в очередь. Источник можно запускать из списка подключений после завершения dry-run."
+                : "Перед включением расписания вернитесь на шаг проверки и поставьте dry-run в очередь."}
           </p>
         </div>
       </div>
@@ -682,6 +702,62 @@ function DoneStep({ checked }: { checked: boolean }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+type SetupFieldsProps = {
+  mode: SourceMode;
+  sourceKey: string;
+  sourceLabel: string;
+  baseUrl: string;
+  userLogin: string;
+  password: string;
+  ticketId: string;
+  nativeToken: string;
+  queueFilter: string;
+  statusFilter: string;
+  dateRangeDays: string;
+  maxTickets: string;
+  batchSize: string;
+  dryRun: boolean;
+  deduplicate: boolean;
+};
+
+function SetupFields({
+  mode,
+  sourceKey,
+  sourceLabel,
+  baseUrl,
+  userLogin,
+  password,
+  ticketId,
+  nativeToken,
+  queueFilter,
+  statusFilter,
+  dateRangeDays,
+  maxTickets,
+  batchSize,
+  dryRun,
+  deduplicate
+}: SetupFieldsProps) {
+  return (
+    <>
+      <input type="hidden" name="source" value={sourceKey} />
+      <input type="hidden" name="sourceLabel" value={sourceLabel} />
+      <input type="hidden" name="mode" value={mode} />
+      <input type="hidden" name="baseUrl" value={normalizeBaseUrl(baseUrl)} />
+      <input type="hidden" name="userLogin" value={userLogin} />
+      <input type="hidden" name="password" value={password} />
+      <input type="hidden" name="nativeToken" value={nativeToken} />
+      <input type="hidden" name="ticketId" value={ticketId} />
+      <input type="hidden" name="queueFilter" value={queueFilter} />
+      <input type="hidden" name="statusFilter" value={statusFilter} />
+      <input type="hidden" name="maxTickets" value={maxTickets} />
+      <input type="hidden" name="batchSize" value={batchSize} />
+      <input type="hidden" name="dateRangeDays" value={dateRangeDays} />
+      <input type="hidden" name="dryRun" value={dryRun ? "true" : "false"} />
+      <input type="hidden" name="deduplicate" value={deduplicate ? "true" : "false"} />
+    </>
   );
 }
 
@@ -931,6 +1007,7 @@ export function IntegrationSetupWorkspace({
   const [ticketId, setTicketId] = useState("42");
   const [nativeBaseUrl, setNativeBaseUrl] = useState("https://support.example.com");
   const [nativeToken, setNativeToken] = useState("");
+  const [nativeTicketId, setNativeTicketId] = useState("35436");
   const [customSystemName, setCustomSystemName] = useState("Внутренний helpdesk");
   const [customBaseUrl, setCustomBaseUrl] = useState("https://helpdesk.internal.example.com");
   const [dateRangeDays, setDateRangeDays] = useState("30");
@@ -941,6 +1018,8 @@ export function IntegrationSetupWorkspace({
   const [dryRun, setDryRun] = useState(true);
   const [deduplicate, setDeduplicate] = useState(true);
   const [checked, setChecked] = useState(false);
+  const [checkState, checkAction, checkPending] = useActionState(recordIntegrationDryRunState, null);
+  const [saveState, saveAction, savePending] = useActionState(saveIntegrationConfigurationState, null);
   const useWrappedBody = false;
 
   const currentStepIndex = wizardSteps.findIndex((item) => item.value === step);
@@ -955,6 +1034,39 @@ export function IntegrationSetupWorkspace({
   const selectedSourceKey = mode === "otrs_family" ? otrsSource : mode === "native_helpdesk" ? nativeSource : "custom_api";
   const activeBaseUrl =
     mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" ? nativeBaseUrl : customBaseUrl;
+  const activeTicketId = mode === "native_helpdesk" ? nativeTicketId : ticketId;
+  const setupFields = (
+    <SetupFields
+      mode={mode}
+      sourceKey={selectedSourceKey}
+      sourceLabel={selectedSourceLabel}
+      baseUrl={activeBaseUrl}
+      userLogin={userLogin}
+      password={password}
+      ticketId={activeTicketId}
+      nativeToken={nativeToken}
+      queueFilter={queueFilter}
+      statusFilter={statusFilter}
+      dateRangeDays={dateRangeDays}
+      maxTickets={maxTickets}
+      batchSize={batchSize}
+      dryRun={dryRun}
+      deduplicate={deduplicate}
+    />
+  );
+
+  useEffect(() => {
+    if (checkState?.ok) {
+      setChecked(true);
+    }
+  }, [checkState]);
+
+  useEffect(() => {
+    if (saveState?.ok) {
+      setChecked(true);
+      setStep("done");
+    }
+  }, [saveState]);
 
   function resetCheck() {
     setChecked(false);
@@ -1024,6 +1136,20 @@ export function IntegrationSetupWorkspace({
           onNext={step === "done" ? undefined : goNext}
           nextLabel={step === "preview" ? "Сохранить настройку" : "Далее"}
           nextDisabled={step === "preview" && !checked}
+          nextSlot={
+            step === "preview" ? (
+              <form action={saveAction}>
+                {setupFields}
+                <button
+                  type="submit"
+                  disabled={!checked || savePending}
+                  className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#94a3b8]`}
+                >
+                  {savePending ? "Сохраняем" : "Сохранить настройку"}
+                </button>
+              </form>
+            ) : undefined
+          }
         >
           {step === "source" ? (
             <SourceChoiceStep
@@ -1041,6 +1167,7 @@ export function IntegrationSetupWorkspace({
               ticketId={ticketId}
               nativeBaseUrl={nativeBaseUrl}
               nativeToken={nativeToken}
+              nativeTicketId={nativeTicketId}
               customSystemName={customSystemName}
               customBaseUrl={customBaseUrl}
               apiTokenCount={apiTokenCount}
@@ -1067,6 +1194,10 @@ export function IntegrationSetupWorkspace({
               }}
               onNativeTokenChange={(value) => {
                 setNativeToken(value);
+                resetCheck();
+              }}
+              onNativeTicketIdChange={(value) => {
+                setNativeTicketId(value);
                 resetCheck();
               }}
               onCustomSystemNameChange={(value) => {
@@ -1134,11 +1265,14 @@ export function IntegrationSetupWorkspace({
               dryRun={dryRun}
               deduplicate={deduplicate}
               checked={checked}
-              onCheck={() => setChecked(true)}
+              checkState={checkState}
+              checkPending={checkPending}
+              checkAction={checkAction}
+              setupFields={setupFields}
             />
           ) : null}
 
-          {step === "done" ? <DoneStep checked={checked} /> : null}
+          {step === "done" ? <DoneStep checked={checked} saveState={saveState} /> : null}
         </WizardFrame>
 
         <TechnicalDetailsForMode

@@ -88,6 +88,7 @@ export function integrationStatusLabel(status: string) {
     planned: "Запланировано",
     ready: "Готова к подключению",
     active: "Активна",
+    queued: "В очереди",
     paused: "На паузе",
     error: "Ошибка"
   };

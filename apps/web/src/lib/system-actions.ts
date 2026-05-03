@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { requireCurrentUserPermission } from "@/lib/current-user";
+import { prisma } from "@/lib/db";
 import { enqueueBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
 
 function numberField(formData: FormData, key: string, fallback: number, max: number) {
@@ -98,4 +99,62 @@ export async function queueDirectorySync(formData: FormData) {
   });
 
   revalidatePath("/admin/system");
+}
+
+export async function cancelQueuedBackendJob(formData: FormData) {
+  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const jobId = stringField(formData, "jobId");
+
+  const job = await prisma.backendJob.findFirst({
+    where: {
+      id: jobId,
+      workspaceId: user.workspaceId
+    }
+  });
+
+  if (!job) {
+    throw new Error("Фоновая задача не найдена.");
+  }
+
+  if (job.status !== "QUEUED") {
+    throw new Error("Можно отменить только задачу в очереди.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.backendJob.update({
+      where: { id: job.id },
+      data: {
+        status: "CANCELLED",
+        finishedAt: new Date(),
+        lockedAt: null,
+        lockedBy: null
+      }
+    });
+
+    await tx.backendJobEvent.create({
+      data: {
+        jobId: job.id,
+        level: "warn",
+        message: "Задача отменена администратором из интерфейса.",
+        metadata: JSON.stringify({ actorId: user.id })
+      }
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "backend_job.cancelled",
+        targetType: "backend_job",
+        targetId: job.id,
+        metadata: {
+          type: job.type
+        }
+      },
+      tx
+    );
+  });
+
+  revalidatePath("/admin/system");
+  revalidatePath(`/admin/system/jobs/${job.id}`);
 }

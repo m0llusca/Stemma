@@ -1,10 +1,25 @@
 import type { BackendJob, BackendJobType, Prisma } from "@prisma/client";
+import { syncDirectoryProvider } from "@/lib/auth/directory-sync";
 import { prisma } from "@/lib/db";
+import { runIntegrationConnector } from "@/lib/integrations/runner";
 import { logBackendEvent } from "@/lib/observability";
 
 export type BackendJobPayload = Record<string, unknown>;
 
-type JobClient = Pick<Prisma.TransactionClient, "backendJob" | "backendJobEvent" | "integration" | "integrationRun" | "identityProvider" | "authSession" | "idempotencyKey" | "apiRateLimit" | "reportSnapshot">;
+type JobClient = Pick<
+  Prisma.TransactionClient,
+  | "backendJob"
+  | "backendJobEvent"
+  | "integration"
+  | "integrationRun"
+  | "identityProvider"
+  | "externalIdentity"
+  | "user"
+  | "authSession"
+  | "idempotencyKey"
+  | "apiRateLimit"
+  | "reportSnapshot"
+>;
 
 export async function enqueueBackendJob(input: {
   workspaceId: string;
@@ -79,7 +94,7 @@ function parsePayload(job: BackendJob): BackendJobPayload {
   }
 }
 
-async function runIntegrationImportJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {
+async function runIntegrationImportJob(job: BackendJob, payload: BackendJobPayload) {
   const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
   const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
   const dryRun = payload.dryRun === true;
@@ -88,38 +103,34 @@ async function runIntegrationImportJob(client: JobClient, job: BackendJob, paylo
     throw new Error("Для задачи импорта не указан integrationId.");
   }
 
-  await client.integration.update({
-    where: { id: integrationId },
-    data: {
-      status: dryRun ? "ready" : "active",
-      lastSyncedAt: dryRun ? undefined : new Date(),
-      lastDryRunAt: dryRun ? new Date() : undefined,
-      lastImportAt: dryRun ? undefined : new Date(),
-      lastError: null
-    }
+  const result = await runIntegrationConnector({
+    workspaceId: job.workspaceId,
+    integrationId,
+    integrationRunId,
+    requestedLimit: payload.requestedLimit,
+    dryRun
   });
 
-  if (integrationRunId) {
-    await client.integrationRun.update({
-      where: { id: integrationRunId },
-      data: {
-        status: dryRun ? "dry_run_ok" : "succeeded",
-        finishedAt: new Date(),
-        importedCount: dryRun ? 0 : Number(payload.requestedLimit ?? 0)
-      }
-    });
-  }
-
-  await recordJobEvent(client, job.id, "info", "Импорт интеграции завершен в backend-очереди.", {
-    integrationId,
-    integrationRunId
+  await prisma.backendJobEvent.create({
+    data: {
+      jobId: job.id,
+      level: "info",
+      message: dryRun ? "Проверка подключения выполнена connector runner." : "Импорт интеграции выполнен connector runner.",
+      metadata: JSON.stringify({
+        integrationId,
+        integrationRunId,
+        source: result.source,
+        checkedCount: result.checkedCount,
+        importedCount: result.importedCount,
+        externalIds: result.externalIds
+      })
+    }
   });
 
   return {
     integrationId,
     integrationRunId,
-    dryRun,
-    importedCount: dryRun ? 0 : Number(payload.requestedLimit ?? 0)
+    ...result
   };
 }
 
@@ -150,14 +161,15 @@ async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: 
     throw new Error("Для синхронизации каталога не указан providerId.");
   }
 
-  await client.identityProvider.update({
-    where: { id: providerId },
-    data: { lastSyncAt: new Date() }
+  const result = await syncDirectoryProvider({
+    workspaceId: job.workspaceId,
+    providerId,
+    client
   });
 
-  await recordJobEvent(client, job.id, "info", "Directory sync scaffold выполнен.", { providerId });
+  await recordJobEvent(client, job.id, "info", "Синхронизация каталога выполнена.", result);
 
-  return { providerId };
+  return result;
 }
 
 async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
@@ -205,21 +217,30 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
 async function executeBackendJob(job: BackendJob) {
   const payload = parsePayload(job);
 
-  return prisma.$transaction(async (tx) => {
-    await recordJobEvent(tx, job.id, "info", "Задача запущена.", {
-      type: job.type,
-      attempt: job.attempts
-    });
+  await prisma.backendJobEvent.create({
+    data: {
+      jobId: job.id,
+      level: "info",
+      message: "Задача запущена.",
+      metadata: JSON.stringify({
+        type: job.type,
+        attempt: job.attempts
+      })
+    }
+  });
 
-    const result =
-      job.type === "INTEGRATION_IMPORT"
-        ? await runIntegrationImportJob(tx, job, payload)
-        : job.type === "REPORT_EXPORT"
-          ? await runReportExportJob(tx, job, payload)
-          : job.type === "DIRECTORY_SYNC"
-            ? await runDirectorySyncJob(tx, job, payload)
-            : await runRetentionCleanupJob(tx, job);
+  const result =
+    job.type === "INTEGRATION_IMPORT"
+      ? await runIntegrationImportJob(job, payload)
+      : await prisma.$transaction(async (tx) =>
+          job.type === "REPORT_EXPORT"
+            ? runReportExportJob(tx, job, payload)
+            : job.type === "DIRECTORY_SYNC"
+              ? runDirectorySyncJob(tx, job, payload)
+              : runRetentionCleanupJob(tx, job)
+        );
 
+  await prisma.$transaction(async (tx) => {
     await tx.backendJob.update({
       where: { id: job.id },
       data: {
@@ -314,8 +335,11 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
         const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
 
         if (integrationId) {
-          await prisma.integration.update({
-            where: { id: integrationId },
+          await prisma.integration.updateMany({
+            where: {
+              id: integrationId,
+              workspaceId: job.workspaceId
+            },
             data: {
               status: shouldRetry ? "queued" : "error",
               lastError: message
@@ -324,8 +348,11 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
         }
 
         if (integrationRunId) {
-          await prisma.integrationRun.update({
-            where: { id: integrationRunId },
+          await prisma.integrationRun.updateMany({
+            where: {
+              id: integrationRunId,
+              workspaceId: job.workspaceId
+            },
             data: {
               status: shouldRetry ? "retry_scheduled" : "failed",
               errorCount: {

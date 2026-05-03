@@ -131,7 +131,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Шаг 4. Проверка" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Сохранить настройку" })).toBeDisabled();
   await page.getByRole("button", { name: "Проверить подключение" }).click();
-  await expect(page.getByText("Подключение проверено")).toBeVisible();
+  await expect(page.getByText("Проверка поставлена в очередь")).toBeVisible();
   await expect(page.getByRole("button", { name: "Сохранить настройку" })).toBeEnabled();
 
   await page.getByText("Технические детали OTRS-family").click();
