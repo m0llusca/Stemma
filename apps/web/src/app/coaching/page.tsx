@@ -147,13 +147,17 @@ export default async function CoachingPage() {
         </section>
       ) : null}
 
-      <section className="training-create-panel panel">
-        <div className="learning-section-header">
-          <div className="min-w-0">
-            <h2>Новая учебная задача</h2>
-            <p>Создайте разбор вручную или привяжите его к финальной проверке.</p>
-          </div>
-        </div>
+      <details className="training-create-panel panel compact-details">
+        <summary className="training-create-summary">
+          <span className="training-create-summary__icon" aria-hidden="true">
+            <PlusCircle size={18} />
+          </span>
+          <span className="min-w-0">
+            <span className="training-create-summary__title">Новая учебная задача</span>
+            <span className="training-create-summary__meta">Создать разбор вручную или привязать его к проверке</span>
+          </span>
+          <span className="training-create-summary__action">Добавить</span>
+        </summary>
         <form action={createTrainingAssignment} className="training-create-form">
           <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Исполнитель
@@ -202,7 +206,7 @@ export default async function CoachingPage() {
             </button>
           </div>
         </form>
-      </section>
+      </details>
 
       <section className="learning-layout" aria-label="Обучение и база ошибок">
         <div className="learning-primary panel">
@@ -267,31 +271,29 @@ export default async function CoachingPage() {
           </div>
         </div>
 
-        <aside className="learning-sidebar">
-          <section className="panel">
-            <div className="learning-section-header">
-              <div className="min-w-0">
-                <h2>База ошибок</h2>
-                <p>Короткие правила для повторяющихся замечаний.</p>
-              </div>
-              <span className="pill pill--warn">{criticalKnowledgeCount} важных</span>
+        <section className="learning-knowledge-panel panel">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>База ошибок</h2>
+              <p>Короткие правила рядом с задачами, чтобы сразу закрепить норму.</p>
             </div>
-            <div className="knowledge-compact-list">
-              {knowledgeEntries.map((entry) => (
-                <article key={entry.id} className="knowledge-compact-card">
-                  <div className="knowledge-compact-card__head">
-                    <span className="pill pill--neutral">{entry.category}</span>
-                    <span className="text-xs font-semibold text-[#64748b]">{riskLevelLabels[entry.riskLevel]}</span>
-                  </div>
-                  <h3>{entry.title}</h3>
-                  <p>{entry.recommendation}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+            <span className="pill pill--warn">{criticalKnowledgeCount} важных</span>
+          </div>
+          <div className="knowledge-compact-list">
+            {knowledgeEntries.map((entry) => (
+              <article key={entry.id} className="knowledge-compact-card">
+                <div className="knowledge-compact-card__head">
+                  <span className="pill pill--neutral">{entry.category}</span>
+                  <span className="text-xs font-semibold text-[#64748b]">{riskLevelLabels[entry.riskLevel]}</span>
+                </div>
+                <h3>{entry.title}</h3>
+                <p>{entry.recommendation}</p>
+              </article>
+            ))}
+          </div>
 
-          <details className="panel compact-details">
-            <summary className="disclosure-summary">
+          <details className="compact-details knowledge-create-details">
+            <summary className="disclosure-summary border-t border-[#d9e0ea]">
               <span className="flex min-w-0 items-center gap-2">
                 <PlusCircle size={17} aria-hidden="true" />
                 <span className="text-sm font-semibold">Добавить типовую ошибку</span>
@@ -330,7 +332,7 @@ export default async function CoachingPage() {
               </button>
             </form>
           </details>
-        </aside>
+        </section>
       </section>
     </section>
   );

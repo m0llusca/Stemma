@@ -20,17 +20,17 @@ export function QueueSummary({ total, queued, inWork, drafts, reviewed, overdue,
   const values = { total, queued, inWork, drafts, reviewed, overdue, filtered };
 
   return (
-    <section className="focus-summary" aria-label="Сводка очереди проверок">
-      <div className="focus-summary__lead">
-        <p className="focus-summary__label">Найдено</p>
-        <p className="focus-summary__value">{filtered}</p>
-        <p className="focus-summary__hint">Всего в очереди: {total}. Сначала разберите просрочки и обращения с риском.</p>
+    <section className="queue-summary-compact" aria-label="Сводка очереди проверок">
+      <div className="queue-summary-compact__lead">
+        <span>Найдено</span>
+        <strong>{filtered}</strong>
+        <small>всего {total}</small>
       </div>
-      <div className="focus-summary__metrics">
+      <div className="queue-summary-compact__metrics">
         {summaryItems.map((item) => (
-          <div key={item.key} className="focus-summary__metric">
-            <p className="metric-strip__label">{item.label}</p>
-            <p className="metric-strip__value">{values[item.key]}</p>
+          <div key={item.key} className="queue-summary-compact__metric">
+            <span>{item.label}</span>
+            <strong>{values[item.key]}</strong>
           </div>
         ))}
       </div>

@@ -196,36 +196,25 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </div>
       </div>
 
-      <div className="review-brief-grid">
-        <details className="panel compact-details review-brief-card">
-          <summary className="disclosure-summary">
-            <span className="min-w-0">
-              <h2 className="review-brief-card__title">Ход проверки</h2>
-              <p className="review-brief-card__meta">
-                {reviewStateLabels[reviewState]} · {scorecard.name} v{scorecard.version}
-              </p>
-            </span>
-            <ChevronDown className="disclosure-chevron h-4 w-4 text-[#1d3fae]" aria-hidden="true" />
-          </summary>
-          <div className="border-t border-[#d9e0ea] p-4">
-            <ReviewWorkflow
-              isReviewed={Boolean(latestFinalizedReview)}
-              hasDraftReview={Boolean(currentDraftReview)}
-              scorecardName={`${scorecard.name} v${scorecard.version}`}
-            />
+      <section className="review-context-panel panel" aria-label="Контекст проверки">
+        <div className="review-context-panel__workflow">
+          <div className="review-context-panel__header">
+            <h2>Ход проверки</h2>
+            <p>{reviewStateLabels[reviewState]} · {scorecard.name} v{scorecard.version}</p>
           </div>
-        </details>
-
-        <details className="panel compact-details review-brief-card">
-          <summary className="disclosure-summary">
-            <span className="min-w-0">
-              <h2 className="review-brief-card__title">Детали обращения</h2>
-              <p className="review-brief-card__meta">
-                {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
-              </p>
-            </span>
-            <ChevronDown className="disclosure-chevron h-4 w-4 text-[#1d3fae]" aria-hidden="true" />
-          </summary>
+          <ReviewWorkflow
+            isReviewed={Boolean(latestFinalizedReview)}
+            hasDraftReview={Boolean(currentDraftReview)}
+            scorecardName={`${scorecard.name} v${scorecard.version}`}
+          />
+        </div>
+        <div className="review-context-panel__details">
+          <div className="review-context-panel__header">
+            <h2>Детали обращения</h2>
+            <p>
+              {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
+            </p>
+          </div>
           <div className="review-detail-grid">
             <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
             <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
@@ -236,8 +225,8 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
             </DetailItem>
           </div>
-        </details>
-      </div>
+        </div>
+      </section>
 
       {latestFinalizedReview && hasOpenAppeal ? (
         <section className="appeal-alert">

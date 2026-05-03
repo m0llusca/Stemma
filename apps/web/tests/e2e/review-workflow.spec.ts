@@ -41,8 +41,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await expect(page.getByRole("heading", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Ход проверки" })).toBeVisible();
-  await page.locator("summary").filter({ hasText: "Ход проверки" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 1. Диалог" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Детали обращения" })).toBeVisible();
   await expect(page.getByText("Оценка по критериям")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Управление проверкой" })).toBeVisible();
