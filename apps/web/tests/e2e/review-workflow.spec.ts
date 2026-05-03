@@ -102,6 +102,9 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Скопировать заголовок" })).toBeVisible();
 
   await page.goto("/admin/integrations");
+  await expect(page.getByRole("heading", { name: "Подключить источник" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).not.toBeVisible();
+  await page.getByRole("heading", { name: "Подключить источник" }).click();
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Шаг 1. Источник" })).toBeVisible();
   await expect(page.getByLabel("Источник")).toHaveValue("otrs:znuny");
@@ -131,6 +134,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Запасной JSON-запрос" })).toBeVisible();
 
   await page.goto("/admin/integrations");
+  await page.getByRole("heading", { name: "Подключить источник" }).click();
   await page.getByLabel("Источник").selectOption("custom_api");
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
@@ -139,6 +143,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).not.toBeVisible();
 
   await page.goto("/admin/integrations");
+  await page.getByRole("heading", { name: "Подключить источник" }).click();
   await page.getByLabel("Источник").selectOption("native:zendesk");
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();

@@ -32,6 +32,16 @@ function statusTone(status: string) {
   return "border-[#d7dce5] bg-[#f7f8fb] text-[#344054]";
 }
 
+function runtimeStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    ok: "Готово",
+    warn: "Требует внимания",
+    error: "Ошибка"
+  };
+
+  return labels[status] ?? status;
+}
+
 function providerTypeLabel(type: IdentityProviderType) {
   const labels: Record<IdentityProviderType, string> = {
     DEMO: "Демо",
@@ -250,11 +260,16 @@ export default async function AdminSystemPage() {
           </div>
         </section>
 
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Готовность окружения</h2>
-            <p className="mt-1 text-sm text-[#667085]">Проверки конфигурации, которые важны перед production-запуском.</p>
-          </div>
+        <details className="disclosure-panel panel overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Готовность окружения</h2>
+              <p className="mt-1 text-sm text-[#667085]">Проверки конфигурации перед production-запуском.</p>
+            </div>
+            <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(runtime.status)}`}>
+              {runtimeStatusLabel(runtime.status)}
+            </span>
+          </summary>
           <div className="divide-y divide-[#d7dce5]">
             {runtime.checks.map((check) => {
               const Icon = check.status === "ok" ? CheckCircle2 : AlertTriangle;
@@ -272,11 +287,19 @@ export default async function AdminSystemPage() {
               );
             })}
           </div>
-        </section>
+        </details>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <section className="panel overflow-hidden">
+      <details className="disclosure-panel mt-6">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold">Дополнительные проверки</h2>
+            <p className="mt-1 text-sm text-[#667085]">SSO, интеграции и обслуживание данных скрыты, чтобы не перегружать основной экран.</p>
+          </div>
+          <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Показать</span>
+        </summary>
+        <div className="mt-4 grid gap-6 xl:grid-cols-3">
+          <section className="panel overflow-hidden">
           <div className="border-b border-[#d7dce5] px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -385,7 +408,7 @@ export default async function AdminSystemPage() {
                       </span>
                     </div>
                     <p className="mt-2 text-[#667085]">
-                      {run.dryRun ? "Dry-run" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
+                      {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
                     </p>
                   </div>
                 ))
@@ -393,7 +416,8 @@ export default async function AdminSystemPage() {
             </div>
           </div>
         </section>
-      </div>
+        </div>
+      </details>
 
       <div className="mt-6 rounded-md border border-[#d7dce5] bg-white p-4 text-sm text-[#667085]">
         <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
