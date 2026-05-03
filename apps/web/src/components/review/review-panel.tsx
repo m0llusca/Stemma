@@ -13,6 +13,7 @@ import { CopyButton } from "@/components/copy-button";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
 import { ScoreBar } from "@/components/ui/score-bar";
 import { StatusChip } from "@/components/ui/status-chip";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { appealStatusLabels, feedbackStatusLabels, ownerTypeLabels, reanswerStatusLabels, riskLevelLabels } from "@/lib/labels";
 import { finalizeReview, saveReviewDraft } from "@/lib/review-actions";
 
@@ -615,13 +616,9 @@ export function ReviewPanel({
         >
           Сохранить черновик
         </button>
-        <button
-          type="submit"
-          formAction={finalizeReview}
-          className="action-button action-button--primary"
-        >
+        <ValidatedSubmitButton formAction={finalizeReview}>
           Завершить проверку
-        </button>
+        </ValidatedSubmitButton>
       </div>
     </form>
   );

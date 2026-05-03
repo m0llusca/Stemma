@@ -57,7 +57,18 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
     }))
   );
   const totalWeight = useMemo(() => criteria.reduce((sum, criterion) => sum + Number(criterion.weight || 0), 0), [criteria]);
-  const canSubmit = criteria.length > 0 && totalWeight === 100;
+  const canSubmit =
+    name.trim().length > 0 &&
+    criteria.length > 0 &&
+    totalWeight === 100 &&
+    criteria.every(
+      (criterion) =>
+        criterion.key.trim().length > 0 &&
+        criterion.block.trim().length > 0 &&
+        criterion.label.trim().length > 0 &&
+        Number(criterion.weight) >= 1 &&
+        Number(criterion.weight) <= 100
+    );
 
   function updateCriterion(index: number, patch: Partial<CriterionRow>) {
     setCriteria((current) =>
@@ -226,7 +237,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
         <button
           type="submit"
           disabled={!canSubmit}
-          className="action-button action-button--primary disabled:cursor-not-allowed disabled:border-[#94a3b8] disabled:bg-[#94a3b8]"
+          className="action-button action-button--primary"
         >
           Создать новую версию
         </button>

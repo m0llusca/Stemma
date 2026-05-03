@@ -86,6 +86,9 @@ export default async function CoachingPage() {
   const nextAssignment =
     assignments.find((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)) ??
     assignments.find((assignment) => assignment.status !== "done");
+  const listedAssignments = nextAssignment
+    ? assignments.filter((assignment) => assignment.id !== nextAssignment.id)
+    : assignments;
   const nextConversation = nextAssignment?.review?.conversation;
   const nextFinding = nextAssignment?.review?.findings[0];
 
@@ -208,14 +211,14 @@ export default async function CoachingPage() {
           <div className="learning-section-header">
             <div className="min-w-0">
               <h2>Учебные задачи</h2>
-              <p>Разборы из проверок, переответов, апелляций и калибровок.</p>
+              <p>{nextAssignment ? "Остальные разборы без задачи, вынесенной выше." : "Разборы из проверок, переответов, апелляций и калибровок."}</p>
             </div>
-            <span className="pill pill--neutral">{assignments.length}</span>
+            <span className="pill pill--neutral">{listedAssignments.length}</span>
           </div>
 
           <div className="learning-task-list">
-            {assignments.length > 0 ? (
-              assignments.map((assignment) => {
+            {listedAssignments.length > 0 ? (
+              listedAssignments.map((assignment) => {
                 const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
                 const conversation = assignment.review?.conversation;
                 const finding = assignment.review?.findings[0];
@@ -259,8 +262,12 @@ export default async function CoachingPage() {
               })
             ) : (
               <div className="empty-state">
-                <h3>Нет учебных задач</h3>
-                <p>После проверки с замечанием здесь появится задача на разбор с оператором.</p>
+                <h3>{nextAssignment ? "Других задач нет" : "Нет учебных задач"}</h3>
+                <p>
+                  {nextAssignment
+                    ? "Текущий приоритет вынесен выше, чтобы его не искать в списке."
+                    : "После проверки с замечанием здесь появится задача на разбор с оператором."}
+                </p>
               </div>
             )}
           </div>

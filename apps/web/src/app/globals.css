@@ -430,7 +430,7 @@ pre code {
   line-height: 1.2;
   white-space: normal;
   overflow-wrap: anywhere;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+  transition: border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
 .action-button:hover {
@@ -468,8 +468,10 @@ pre code {
 }
 
 .action-button--primary:hover {
-  background: var(--accent-strong);
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #4268e8, var(--accent));
   color: #ffffff;
+  box-shadow: 0 10px 24px rgba(49, 87, 213, 0.22);
 }
 
 .action-button--quiet {
@@ -1950,10 +1952,6 @@ a.quiet-link:hover {
 
 .training-create-summary::-webkit-details-marker {
   display: none;
-}
-
-.training-create-summary__button {
-  pointer-events: none;
 }
 
 .training-create-panel[open] {

@@ -136,6 +136,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByLabel("Base URL")).toHaveValue("https://support.example.com/znuny");
   await expect(page.getByLabel("Платформа")).not.toBeVisible();
   await expect(page.getByLabel("TicketID для проверки")).toHaveValue("42");
+  await expect(page.getByRole("button", { name: "Далее" })).toBeDisabled();
+  await page.getByLabel("Password").fill("demo-secret");
 
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 3. Лимиты" })).toBeVisible();

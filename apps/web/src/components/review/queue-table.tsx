@@ -1,6 +1,7 @@
 import type { Conversation, Message, Review } from "@prisma/client";
 import Link from "next/link";
 import { ScoreBar } from "@/components/ui/score-bar";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import {
   channelLabels,
   csatBucketLabels,
@@ -191,9 +192,12 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             Срок
             <input name="reviewDueAt" type="date" className="form-control" />
           </label>
-          <button type="submit" className="action-button action-button--primary">
+          <ValidatedSubmitButton
+            minCheckedNames={["conversationId"]}
+            requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt"]}
+          >
             Обновить выбранные
-          </button>
+          </ValidatedSubmitButton>
         </div>
       </details>
     </form>

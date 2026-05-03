@@ -7,6 +7,7 @@ import {
   saveIdentityProvider,
   toggleGroupRoleMapping
 } from "@/lib/auth-provider-actions";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { buildEntraAuthorizationMetadata, getDirectoryIntegrationGuidance } from "@/lib/auth/providers";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -102,13 +103,15 @@ function ProviderField({
   name,
   defaultValue,
   placeholder,
-  type = "text"
+  type = "text",
+  required = false
 }: {
   label: string;
   name: string;
   defaultValue?: string | null;
   placeholder?: string;
   type?: string;
+  required?: boolean;
 }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-[#334155]">
@@ -118,6 +121,7 @@ function ProviderField({
         name={name}
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
+        required={required}
         className="form-control"
       />
     </label>
@@ -274,8 +278,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   <option value="disabled">Отключен</option>
                 </select>
               </label>
-              <ProviderField label="Название" name="name" defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.name} placeholder="Microsoft Entra ID" />
-              <ProviderField label="Slug для входа" name="slug" defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.slug} placeholder="microsoft-entra-id" />
+              <ProviderField label="Название" name="name" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.name} placeholder="Microsoft Entra ID" />
+              <ProviderField label="Slug для входа" name="slug" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.slug} placeholder="microsoft-entra-id" />
               <ProviderField label="Tenant ID" name="tenantId" defaultValue={selectedProvider?.tenantId} placeholder="00000000-0000-0000-0000-000000000000" />
               <ProviderField label="Client ID" name="clientId" defaultValue={selectedProvider?.clientId} placeholder="Application client ID" />
               <ProviderField label="Ссылка на секрет" name="clientSecretRef" defaultValue={selectedProvider?.clientSecretRef} placeholder="env:QC_ENTRA_CLIENT_SECRET" />
@@ -316,9 +320,9 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </div>
 
             <div className="flex justify-end">
-              <button type="submit" className="action-button action-button--primary">
+              <ValidatedSubmitButton>
                 Сохранить провайдера
-              </button>
+              </ValidatedSubmitButton>
             </div>
           </form>
         </details>
@@ -401,8 +405,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </summary>
               <form action={saveGroupRoleMapping} className="grid gap-3 border-t border-[#d9e0ea] p-4">
                 <input type="hidden" name="providerId" value={selectedProvider.id} />
-                <ProviderField label="ID группы" name="externalGroupId" placeholder="QC_Analysts или GUID группы" />
-                <ProviderField label="Название группы" name="externalGroupName" placeholder="QC Analysts" />
+                <ProviderField label="ID группы" name="externalGroupId" required placeholder="QC_Analysts или GUID группы" />
+                <ProviderField label="Название группы" name="externalGroupName" required placeholder="QC Analysts" />
                 <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Роль
                   <select name="role" defaultValue="QA_ANALYST" className="form-control">
@@ -418,9 +422,9 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   <input type="checkbox" name="isActive" defaultChecked />
                   Активна
                 </label>
-                <button type="submit" className="action-button action-button--primary">
+                <ValidatedSubmitButton>
                   Сохранить группу
-                </button>
+                </ValidatedSubmitButton>
               </form>
             </details>
           </div>

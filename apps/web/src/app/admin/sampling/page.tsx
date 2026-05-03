@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { channelLabels, csatBucketLabels } from "@/lib/labels";
@@ -203,9 +204,9 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
               <input name="isActive" type="checkbox" defaultChecked />
               Включить сразу
             </label>
-            <button type="submit" className="action-button action-button--primary">
+            <ValidatedSubmitButton>
               Создать правило
-            </button>
+            </ValidatedSubmitButton>
           </form>
         </details>
       </section>

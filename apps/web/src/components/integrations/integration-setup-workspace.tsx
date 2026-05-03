@@ -251,7 +251,7 @@ function WizardFrame({
           type="button"
           onClick={onBack}
           disabled={!onBack}
-          className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-40`}
+          className={secondaryButtonClass}
         >
           Назад
         </button>
@@ -262,7 +262,7 @@ function WizardFrame({
             type="button"
             onClick={onNext}
             disabled={nextDisabled}
-            className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#94a3b8]`}
+            className={primaryButtonClass}
           >
             {nextLabel}
           </button>
@@ -570,6 +570,7 @@ function PreviewStep({
   checked,
   checkState,
   checkPending,
+  accessComplete,
   checkAction,
   setupFields
 }: {
@@ -587,6 +588,7 @@ function PreviewStep({
   checked: boolean;
   checkState: IntegrationActionState;
   checkPending: boolean;
+  accessComplete: boolean;
   checkAction: (payload: FormData) => void;
   setupFields: ReactNode;
 }) {
@@ -625,7 +627,7 @@ function PreviewStep({
         <div className="flex flex-wrap gap-2">
           <form action={checkAction}>
             {setupFields}
-            <button type="submit" disabled={checkPending} className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#94a3b8]`}>
+            <button type="submit" disabled={!accessComplete || checkPending} className={primaryButtonClass}>
               {checkPending ? "Ставим в очередь" : "Проверить подключение"}
             </button>
           </form>
@@ -1021,6 +1023,17 @@ export function IntegrationSetupWorkspace({
   const activeBaseUrl =
     mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" ? nativeBaseUrl : customBaseUrl;
   const activeTicketId = mode === "native_helpdesk" ? nativeTicketId : ticketId;
+  const accessComplete =
+    mode === "otrs_family"
+      ? [otrsBaseUrl, userLogin, password, ticketId].every((value) => value.trim().length > 0)
+      : mode === "native_helpdesk"
+        ? [nativeBaseUrl, nativeToken, nativeTicketId].every((value) => value.trim().length > 0)
+        : [customSystemName, customBaseUrl].every((value) => value.trim().length > 0);
+  const limitsComplete = [dateRangeDays, maxTickets, batchSize].every((value) => Number(value) > 0);
+  const stepNextDisabled =
+    (step === "access" && !accessComplete) ||
+    (step === "limits" && !limitsComplete) ||
+    (step === "preview" && !checked);
   const setupFields = (
     <SetupFields
       mode={mode}
@@ -1121,7 +1134,7 @@ export function IntegrationSetupWorkspace({
           onBack={safeStepIndex > 0 ? goBack : undefined}
           onNext={step === "done" ? undefined : goNext}
           nextLabel={step === "preview" ? "Сохранить настройку" : "Далее"}
-          nextDisabled={step === "preview" && !checked}
+          nextDisabled={stepNextDisabled}
           nextSlot={
             step === "preview" ? (
               <form action={saveAction}>
@@ -1129,7 +1142,7 @@ export function IntegrationSetupWorkspace({
                 <button
                   type="submit"
                   disabled={!checked || savePending}
-                  className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#94a3b8]`}
+                  className={primaryButtonClass}
                 >
                   {savePending ? "Сохраняем" : "Сохранить настройку"}
                 </button>
@@ -1253,6 +1266,7 @@ export function IntegrationSetupWorkspace({
               checked={checked}
               checkState={checkState}
               checkPending={checkPending}
+              accessComplete={accessComplete}
               checkAction={checkAction}
               setupFields={setupFields}
             />

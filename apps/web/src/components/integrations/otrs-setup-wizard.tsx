@@ -148,7 +148,7 @@ export function OtrsSetupWizard() {
                 type="button"
                 onClick={() => setChecked(true)}
                 disabled={!isReady}
-                className="inline-flex items-center justify-center gap-2 rounded bg-[#3157d5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d3fae] disabled:cursor-not-allowed disabled:bg-[#94a3b8]"
+                className="action-button action-button--primary"
               >
                 <ShieldCheck size={16} aria-hidden="true" />
                 Проверить подключение
