@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StatusChip } from "@/components/ui/status-chip";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createSavedQueueView, deleteSavedQueueView } from "@/lib/queue-view-actions";
 
 type SavedView = {
@@ -81,7 +82,7 @@ export function QueueSavedViews({
           <input type="hidden" name="href" value={currentHref} />
           <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Сохранить текущий вид
-            <input name="name" placeholder="Например, 2ЛП критические" className="form-control" />
+            <input name="name" required placeholder="Например, 2ЛП критические" className="form-control" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Доступ
@@ -90,9 +91,7 @@ export function QueueSavedViews({
               <option value="workspace">Всем</option>
             </select>
           </label>
-          <button type="submit" className="action-button">
-            Сохранить
-          </button>
+          <ValidatedSubmitButton className="action-button">Сохранить</ValidatedSubmitButton>
         </form>
       </div>
     </details>

@@ -13,8 +13,8 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
-import { ReviewWorkflow } from "@/components/review/review-workflow";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import { canManageReviewWorkflow, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -196,21 +196,10 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </div>
       </div>
 
-      <section className="review-context-panel panel" aria-label="Контекст проверки">
-        <div className="review-context-panel__workflow">
-          <div className="review-context-panel__header">
-            <h2>Ход проверки</h2>
-            <p>{reviewStateLabels[reviewState]} · {scorecard.name} v{scorecard.version}</p>
-          </div>
-          <ReviewWorkflow
-            isReviewed={Boolean(latestFinalizedReview)}
-            hasDraftReview={Boolean(currentDraftReview)}
-            scorecardName={`${scorecard.name} v${scorecard.version}`}
-          />
-        </div>
+      <section className="review-context-panel panel" aria-label="Контекст обращения">
         <div className="review-context-panel__details">
           <div className="review-context-panel__header">
-            <h2>Детали обращения</h2>
+            <h2>Контекст обращения</h2>
             <p>
               {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
             </p>
@@ -394,19 +383,17 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
               <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Учебная задача
-                <input name="title" defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
+                <input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Описание
-                <input name="description" defaultValue={latestFinalizedReview.summary} className="form-control" />
+                <input name="description" required defaultValue={latestFinalizedReview.summary} className="form-control" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Срок
                 <input name="dueAt" type="date" className="form-control" />
               </label>
-              <button type="submit" className="action-button">
-                Создать
-              </button>
+              <ValidatedSubmitButton className="action-button">Создать</ValidatedSubmitButton>
             </form>
             {latestFinalizedReview.feedbackEvents.length > 0 ? (
               <div className="grid gap-2 text-sm">

@@ -439,6 +439,23 @@ pre code {
   color: var(--accent-strong);
 }
 
+.action-button:disabled,
+.action-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  border-color: #d9e0ea;
+  background: #eef2f7;
+  color: #94a3b8;
+  box-shadow: none;
+  transform: none;
+}
+
+.action-button:disabled:hover,
+.action-button[aria-disabled="true"]:hover {
+  border-color: #d9e0ea;
+  background: #eef2f7;
+  color: #94a3b8;
+}
+
 .action-button:active {
   transform: translateY(1px);
 }
@@ -1188,86 +1205,6 @@ a.quiet-link:hover {
   text-decoration: underline;
 }
 
-.workflow-strip {
-  display: grid;
-  order: 1;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: #ffffff;
-  padding: 12px;
-}
-
-.workflow-strip--focus {
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(237, 242, 255, 0.58)),
-    #ffffff;
-}
-
-.workflow-strip__list {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.workflow-step {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  border-radius: 12px;
-  padding: 9px;
-}
-
-.workflow-step--active {
-  background: #f8faff;
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.workflow-step__badge {
-  display: inline-flex;
-  height: 26px;
-  width: 26px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: var(--accent-soft);
-  color: var(--muted);
-}
-
-.workflow-step__badge--done {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.workflow-step__badge--active {
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.workflow-step__copy {
-  min-width: 0;
-}
-
-.workflow-step__copy p {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 760;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.workflow-step__copy h3 {
-  margin-top: 2px;
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.25;
-}
-
 .review-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 480px);
@@ -1314,16 +1251,11 @@ a.quiet-link:hover {
   order: 0;
 }
 
-.review-context-panel__workflow,
 .review-context-panel__details {
   display: grid;
   min-width: 0;
   gap: 12px;
   padding: 14px 16px;
-}
-
-.review-context-panel__workflow {
-  border-bottom: 1px solid var(--border);
 }
 
 .review-context-panel__header {
@@ -1346,13 +1278,6 @@ a.quiet-link:hover {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
-}
-
-.review-context-panel .workflow-strip {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel-muted);
-  padding: 10px 12px;
 }
 
 .review-brief-grid {
@@ -1484,12 +1409,6 @@ a.quiet-link:hover {
 .review-context,
 .review-secondary {
   order: 3;
-}
-
-.review-secondary .workflow-strip {
-  border: 0;
-  background: transparent;
-  padding: 0;
 }
 
 .conversation-message {
@@ -2065,15 +1984,6 @@ a.quiet-link:hover {
   line-height: 1.35;
 }
 
-.training-create-summary__action {
-  justify-self: end;
-  color: var(--accent-strong);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
 .training-create-panel[open] .training-create-form {
   border-top: 1px solid var(--border);
 }
@@ -2623,7 +2533,6 @@ a.quiet-link:hover {
 .metric-strip,
 .focus-summary,
 .queue-filterbar,
-.workflow-strip,
 .source-picker,
 .source-choice-summary,
 .report-toolbar,
@@ -2652,12 +2561,10 @@ a.quiet-link:hover {
 .appeal-alert__icon,
 .command-row__icon,
 .admin-tile__icon,
-.workflow-step,
 .step-header__number {
   border-radius: var(--radius-control);
 }
 
-.workflow-step__badge,
 .admin-tile--compact .admin-tile__icon,
 .meta-chip__icon,
 .inline-code-box,
@@ -2903,7 +2810,6 @@ a.quiet-link:hover {
     grid-template-columns: 1fr;
   }
 
-  .workflow-strip__list,
   .review-detail-grid {
     grid-template-columns: 1fr;
   }
@@ -2913,8 +2819,7 @@ a.quiet-link:hover {
     grid-template-columns: 1fr;
   }
 
-  .training-create-summary__icon,
-  .training-create-summary__action {
+  .training-create-summary__icon {
     display: none;
   }
 

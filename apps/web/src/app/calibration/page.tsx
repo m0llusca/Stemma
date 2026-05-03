@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, TriangleAlert, UsersRound } from "lucide-react";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -184,9 +185,9 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
               </fieldset>
             </div>
 
-            <button type="submit" className="action-button action-button--primary">
+            <ValidatedSubmitButton minCheckedNames={["participantId", "conversationId"]}>
               Создать сессию
-            </button>
+            </ValidatedSubmitButton>
           </form>
         </section>
       ) : null}

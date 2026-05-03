@@ -5,6 +5,7 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
 import { createKnowledgeEntry } from "@/lib/quality-actions";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -156,7 +157,6 @@ export default async function CoachingPage() {
             <span className="training-create-summary__title">Новая учебная задача</span>
             <span className="training-create-summary__meta">Создать разбор вручную или привязать его к проверке</span>
           </span>
-          <span className="training-create-summary__action">Добавить</span>
         </summary>
         <form action={createTrainingAssignment} className="training-create-form">
           <label className="grid gap-1 text-sm font-medium text-[#334155]">
@@ -201,9 +201,7 @@ export default async function CoachingPage() {
             />
           </label>
           <div className="training-create-form__action">
-            <button type="submit" className="action-button action-button--primary">
-              Создать задачу
-            </button>
+            <ValidatedSubmitButton>Создать задачу</ValidatedSubmitButton>
           </div>
         </form>
       </details>
@@ -298,7 +296,6 @@ export default async function CoachingPage() {
                 <PlusCircle size={17} aria-hidden="true" />
                 <span className="text-sm font-semibold">Добавить типовую ошибку</span>
               </span>
-              <span className="text-xs font-semibold uppercase text-[#64748b]">Форма</span>
             </summary>
             <form action={createKnowledgeEntry} className="form-stack border-t border-[#d9e0ea] p-4">
               <label className="grid gap-1 text-sm font-medium text-[#334155]">
@@ -327,9 +324,7 @@ export default async function CoachingPage() {
                 Рекомендация
                 <textarea name="recommendation" required rows={3} className="form-control" />
               </label>
-              <button type="submit" className="action-button action-button--primary">
-                Сохранить
-              </button>
+              <ValidatedSubmitButton>Сохранить</ValidatedSubmitButton>
             </form>
           </details>
         </section>
