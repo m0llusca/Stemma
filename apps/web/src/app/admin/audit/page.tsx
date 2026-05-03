@@ -148,16 +148,21 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
   ]);
 
   return (
-    <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-        <h1 className="mt-1 text-2xl font-semibold">Журнал действий</h1>
+    <section className="page-shell admin-shell">
+      <div className="admin-hero">
+        <div className="min-w-0">
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Журнал действий</h1>
+          <p className="page-subtitle">
+            Аудит показывает события списком, а технические данные раскрываются внутри конкретной записи.
+          </p>
+        </div>
       </div>
 
-      <form action="/admin/audit" className="panel mb-6 grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(170px,220px)_minmax(170px,220px)_150px_150px_auto]">
+      <form action="/admin/audit" className="panel grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(170px,220px)_minmax(170px,220px)_150px_150px_auto]">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Действие
-          <select name="action" defaultValue={action ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <select name="action" defaultValue={action ?? ""} className="form-control">
             <option value="">Все</option>
             {actionRows.map((row) => (
               <option key={row.action} value={row.action}>
@@ -168,7 +173,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
         </label>
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Тип объекта
-          <select name="targetType" defaultValue={targetType ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <select name="targetType" defaultValue={targetType ?? ""} className="form-control">
             <option value="">Все</option>
             {targetTypeRows.map((row) => (
               <option key={row.targetType} value={row.targetType}>
@@ -183,7 +188,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             type="date"
             name="start"
             defaultValue={dateInputValue(start)}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="form-control"
           />
         </label>
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
@@ -192,18 +197,18 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             type="date"
             name="end"
             defaultValue={dateInputValue(end)}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="form-control"
           />
         </label>
         <div className="flex items-end md:col-span-2 lg:col-span-1">
-          <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+          <button type="submit" className="action-button action-button--primary">
             Применить
           </button>
         </div>
         <input type="hidden" name="page" value="1" />
       </form>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="panel overflow-hidden">
           <div className="border-b border-[#d7dce5] px-5 py-4">
             <h2 className="text-lg font-semibold">История действий</h2>
@@ -211,26 +216,32 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               Страница {page} · событий найдено: {totalLogs}
             </p>
           </div>
-          <div className="divide-y divide-[#d7dce5]">
+          <div className="record-list p-5">
             {logs.length === 0 ? (
-              <div className="p-5 text-sm text-[#667085]">События не найдены.</div>
+              <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">События не найдены.</div>
             ) : (
               logs.map((log) => (
-                <article key={log.id} className="grid gap-3 p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold text-[#17202a]">{log.action}</h3>
-                      <p className="mt-1 text-sm text-[#667085]">
+                <article key={log.id} className="record-card">
+                  <div className="record-row">
+                    <div className="min-w-0">
+                      <h3 className="record-title">{log.action}</h3>
+                      <p className="record-meta mt-1">
                         {log.targetType} · {log.actor.name}
                       </p>
                     </div>
-                    <time className="text-sm text-[#667085]" dateTime={log.createdAt.toISOString()}>
+                    <time className="pill pill--neutral" dateTime={log.createdAt.toISOString()}>
                       {formatDate(log.createdAt)}
                     </time>
                   </div>
-                  <pre className="overflow-x-auto rounded bg-[#f7f8fb] p-3 text-xs leading-5 text-[#344054]">
-                    <code>{parseMetadata(log.metadata)}</code>
-                  </pre>
+                  <details className="compact-details bg-[#fbfcfd]">
+                    <summary>
+                      <span className="text-sm font-semibold text-[#344054]">Детали события</span>
+                      <span className="text-sm font-semibold text-[#0b4f52]">Показать</span>
+                    </summary>
+                    <pre className="m-0 overflow-x-auto rounded-b-md bg-[#f7f8fb] p-3 text-xs leading-5 text-[#344054]">
+                      <code>{parseMetadata(log.metadata)}</code>
+                    </pre>
+                  </details>
                 </article>
               ))
             )}
@@ -253,19 +264,23 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           </div>
         </section>
 
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Активность API-ключей</h2>
-          </div>
-          <div className="divide-y divide-[#d7dce5]">
+        <details className="disclosure-panel panel h-fit overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Активность API-ключей</h2>
+              <p className="mt-1 text-sm text-[#667085]">Открывается только при разборе интеграций.</p>
+            </div>
+            <span className="pill pill--neutral">{apiTokens.length}</span>
+          </summary>
+          <div className="record-list p-5">
             {apiTokens.map((token) => (
-              <article key={token.id} className="p-5 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-[#17202a]">{token.name}</h3>
-                    <p className="mt-1 font-mono text-xs text-[#667085]">{token.tokenPrefix}</p>
+              <article key={token.id} className="record-card">
+                <div className="record-row">
+                  <div className="min-w-0">
+                    <h3 className="record-title">{token.name}</h3>
+                    <p className="record-meta mt-1 font-mono compact-text">{token.tokenPrefix}</p>
                   </div>
-                  <span className="rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">API</span>
+                  <span className="pill pill--neutral">API</span>
                 </div>
                 <dl className="mt-4 grid gap-3">
                   <div className="min-w-0">
@@ -286,7 +301,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               </article>
             ))}
           </div>
-        </section>
+        </details>
       </div>
     </section>
   );

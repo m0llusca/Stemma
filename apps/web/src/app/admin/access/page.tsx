@@ -71,6 +71,16 @@ function statusTone(status: string) {
   return "border-[#d7dce5] bg-white text-[#344054]";
 }
 
+function providerStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    active: "Активен",
+    draft: "Черновик",
+    disabled: "Отключен"
+  };
+
+  return labels[status] ?? status;
+}
+
 function configText(provider: IdentityProvider | null | undefined) {
   if (!provider?.configJson) {
     return "";
@@ -108,7 +118,7 @@ function ProviderField({
         name={name}
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
-        className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+        className="form-control"
       />
     </label>
   );
@@ -162,6 +172,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
     providers.find((provider) => provider.type !== "DEMO") ??
     null;
   const selectedProviderType = selectedProvider?.type === "DEMO" ? "MICROSOFT_ENTRA_ID" : selectedProvider?.type ?? "MICROSOFT_ENTRA_ID";
+  const openProviderSettings = firstParam(params.section) === "provider";
+  const openSessions = firstParam(params.section) === "sessions";
   const entraMetadata =
     selectedProvider?.type === "MICROSOFT_ENTRA_ID" || selectedProvider?.type === "OIDC"
       ? buildEntraAuthorizationMetadata(selectedProvider)
@@ -169,25 +181,33 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
   const guidance = getDirectoryIntegrationGuidance();
 
   return (
-    <section className="page-shell">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <section className="page-shell admin-shell">
+      <div className="admin-hero">
         <div>
-          <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-          <h1 className="mt-1 text-2xl font-semibold">Доступ и SSO</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Доступ и SSO</h1>
+          <p className="page-subtitle">
             Настройка сквозной авторизации, связки AD/Entra-групп с ролями и контроль активных сессий.
           </p>
         </div>
-        <Link
-          href={`/auth/login?provider=${selectedProvider?.slug ?? "microsoft-entra-id"}&returnTo=/reviews`}
-          className="inline-flex items-center gap-2 rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
-        >
-          <KeyRound size={16} aria-hidden="true" />
-          Проверить вход
-        </Link>
+        <div className="admin-actions">
+          <Link
+            href={`/auth/login?provider=${selectedProvider?.slug ?? "microsoft-entra-id"}&returnTo=/reviews`}
+            className="action-button action-button--primary"
+          >
+            <KeyRound size={16} aria-hidden="true" />
+            Проверить вход
+          </Link>
+          <Link href="/admin/access?section=provider" className="action-button">
+            Провайдер
+          </Link>
+          <Link href="/admin/access?section=sessions" className="action-button action-button--quiet">
+            Сессии
+          </Link>
+        </div>
       </div>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {providers.map((provider) => (
           <Link
             key={provider.id}
@@ -201,7 +221,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 <h2 className="font-semibold text-[#17202a]">{provider.name}</h2>
                 <p className="mt-1 text-sm text-[#667085]">{providerTypeLabels[provider.type]}</p>
               </div>
-              <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>{provider.status}</span>
+              <span className={`whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
             </div>
             <p className="mt-3 text-sm text-[#667085]">
               Групп: {provider.groupRoleMappings.length} · пользователей: {provider._count.externalIdentities}
@@ -211,7 +231,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-        <details className="disclosure-panel panel overflow-hidden">
+        <details className="disclosure-panel panel overflow-hidden" open={openProviderSettings}>
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Провайдер авторизации</h2>
@@ -226,7 +246,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
                 Тип
-                <select name="type" defaultValue={selectedProviderType} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+                <select name="type" defaultValue={selectedProviderType} className="form-control">
                   {providerTypes.map((type) => (
                     <option key={type.value} value={type.value}>
                       {type.label}
@@ -236,7 +256,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </label>
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
                 Статус
-                <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+                <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="form-control">
                   <option value="draft">Черновик</option>
                   <option value="active">Активен</option>
                   <option value="disabled">Отключен</option>
@@ -264,7 +284,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                     name="configJson"
                     defaultValue={configText(selectedProvider)}
                     rows={5}
-                    className="rounded border border-[#d7dce5] bg-white px-3 py-2 font-mono text-xs"
+                    className="form-control font-mono text-xs"
                     placeholder='{"roleSource":"groups"}'
                   />
                 </label>
@@ -284,7 +304,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </div>
 
             <div className="flex justify-end">
-              <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+              <button type="submit" className="action-button action-button--primary">
                 Сохранить провайдера
               </button>
             </div>
@@ -315,7 +335,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             {selectedProvider && selectedProvider.type !== "DEMO" ? (
               <form action={queueDirectorySync}>
                 <input type="hidden" name="providerId" value={selectedProvider.id} />
-                <button type="submit" className="inline-flex items-center gap-2 rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                   <ShieldCheck size={16} aria-hidden="true" />
                   Запланировать синхронизацию
                 </button>
@@ -371,7 +391,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 <ProviderField label="Название группы" name="externalGroupName" placeholder="QC Analysts" />
                 <label className="grid gap-1 text-sm font-medium text-[#344054]">
                   Роль
-                  <select name="role" defaultValue="QA_ANALYST" className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+                  <select name="role" defaultValue="QA_ANALYST" className="form-control">
                     {roles.map((role) => (
                       <option key={role} value={role}>
                         {roleLabels[role]}
@@ -384,7 +404,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   <input type="checkbox" name="isActive" defaultChecked />
                   Активна
                 </label>
-                <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+                <button type="submit" className="action-button action-button--primary">
                   Сохранить группу
                 </button>
               </form>
@@ -393,7 +413,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         </section>
       ) : null}
 
-      <details className="disclosure-panel panel mt-6 overflow-hidden">
+      <details className="disclosure-panel panel mt-6 overflow-hidden" open={openSessions}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Сессии пользователей</h2>
@@ -401,59 +421,42 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </div>
           <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{sessions.length}</span>
         </summary>
-        <div className="scroll-area">
-          <table className="table-fixed-copy w-full min-w-[980px] border-collapse text-left text-sm">
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Статус</th>
-                <th className="px-5 py-3 font-semibold">Пользователь</th>
-                <th className="px-5 py-3 font-semibold">Провайдер</th>
-                <th className="px-5 py-3 font-semibold">Создана</th>
-                <th className="px-5 py-3 font-semibold">Последняя активность</th>
-                <th className="px-5 py-3 font-semibold">Истекает</th>
-                <th className="px-5 py-3 font-semibold">Действие</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#d7dce5] bg-white">
-              {sessions.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-5 text-[#667085]">
-                    Сессий пока нет.
-                  </td>
-                </tr>
-              ) : (
-                sessions.map((session) => (
-                  <tr key={session.id}>
-                    <td className="px-5 py-4">
-                      <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(session.status)}`}>
-                        {sessionStatusLabels[session.status]}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-medium text-[#17202a]">{session.user.name}</p>
-                      <p className="mt-1 text-xs text-[#667085]">{session.user.email}</p>
-                    </td>
-                    <td className="px-5 py-4 text-[#344054]">{session.provider?.name ?? "Без провайдера"}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatDate(session.createdAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatDate(session.lastSeenAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatDate(session.expiresAt)}</td>
-                    <td className="px-5 py-4">
-                      {session.status === "ACTIVE" ? (
-                        <form action={revokeAuthSessionById}>
-                          <input type="hidden" name="sessionId" value={session.id} />
-                          <button type="submit" className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm font-semibold text-[#344054] hover:bg-[#f7f8fb]">
-                            Отозвать
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="text-[#98a2b3]">Нет</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="record-list p-5">
+          {sessions.length === 0 ? (
+            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+              Сессий пока нет.
+            </div>
+          ) : (
+            sessions.map((session) => (
+              <article key={session.id} className="record-card">
+                <div className="record-row">
+                  <div className="min-w-0">
+                    <h3 className="record-title">{session.user.name}</h3>
+                    <p className="record-meta mt-1">{session.user.email}</p>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(session.status)}`}>
+                    {sessionStatusLabels[session.status]}
+                  </span>
+                </div>
+                <p className="record-meta">
+                  Провайдер: {session.provider?.name ?? "Без провайдера"} · последняя активность: {formatDate(session.lastSeenAt)}
+                </p>
+                <div className="record-row">
+                  <p className="record-meta">
+                    Создана: {formatDate(session.createdAt)} · истекает: {formatDate(session.expiresAt)}
+                  </p>
+                  {session.status === "ACTIVE" ? (
+                    <form action={revokeAuthSessionById}>
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                        Отозвать
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
         </div>
       </details>
 

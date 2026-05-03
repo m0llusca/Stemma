@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { IntegrationSetupWorkspace } from "@/components/integrations/integration-setup-workspace";
-import { DataTable, Surface } from "@/components/integrations/integration-ui";
+import { Surface } from "@/components/integrations/integration-ui";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { queueIntegrationImport } from "@/lib/integration-actions";
@@ -9,6 +9,15 @@ import { integrationStatusLabel } from "@/lib/labels";
 export const dynamic = "force-dynamic";
 
 const emptyStateClass = "rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm leading-5 text-[#667085]";
+
+type AdminIntegrationsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstParam(value: string | string[] | undefined) {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  return firstValue?.trim() || undefined;
+}
 
 function formatDate(value: Date | null) {
   if (!value) {
@@ -118,7 +127,8 @@ function queueHref(source: string, externalIds: string[]) {
   return `/reviews?${params.toString()}`;
 }
 
-export default async function AdminIntegrationsPage() {
+export default async function AdminIntegrationsPage({ searchParams }: AdminIntegrationsPageProps) {
+  const params = await searchParams;
   const user = await requireCurrentUserPermission("integrations:manage");
   const [integrations, apiTokens, recentRuns] = await Promise.all([
     prisma.integration.findMany({
@@ -153,15 +163,32 @@ export default async function AdminIntegrationsPage() {
   ]);
   const apiHealth = customApiHealth(apiTokens);
   const connectedIntegrations = integrations.filter((integration) => integration.status === "active" || integration.lastDryRunAt);
+  const shouldOpenSetup = firstParam(params.setup) === "1";
 
   return (
-    <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-        <h1 className="mt-1 text-2xl font-semibold">Интеграции</h1>
+    <section className="page-shell admin-shell">
+      <div className="admin-hero">
+        <div className="min-w-0">
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Интеграции</h1>
+          <p className="page-subtitle">
+            Подключения показывают только рабочие источники по умолчанию. Настройка, история и API-детали раскрываются по необходимости.
+          </p>
+        </div>
+        <div className="admin-actions">
+          <Link href="/admin/integrations?setup=1#connect" className="action-button action-button--primary">
+            Подключить источник
+          </Link>
+          <Link href="/admin/tokens" className="action-button">
+            API-доступ
+          </Link>
+          <Link href="/reviews" className="action-button action-button--quiet">
+            Очередь проверок
+          </Link>
+        </div>
       </div>
 
-      <details className="disclosure-panel">
+      <details id="connect" className="disclosure-panel" open={shouldOpenSetup}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Подключить источник</h2>
@@ -180,35 +207,31 @@ export default async function AdminIntegrationsPage() {
           description="Компактный список источников, у которых был пробный запуск или включен импорт."
         >
           {connectedIntegrations.length > 0 ? (
-            <div className="grid gap-2">
-              <div className="hidden grid-cols-[minmax(0,1fr)_110px_150px_170px_auto] gap-3 px-3 text-xs font-semibold uppercase text-[#667085] md:grid">
-                <span>Название</span>
-                <span>Статус</span>
-                <span>Лимит</span>
-                <span>Последний запуск</span>
-                <span>Импорт</span>
-              </div>
+            <div className="record-list">
               {connectedIntegrations.map((integration) => (
-                <div
-                  key={integration.id}
-                  className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm md:grid-cols-[minmax(0,1fr)_110px_150px_170px_auto] md:items-center"
-                >
-                  <div className="min-w-0">
-                    <p className="break-words font-semibold text-[#17202a]">{integration.displayName}</p>
-                    <p className="mt-1 break-words font-mono text-xs text-[#667085]">{integration.source}</p>
+                <article key={integration.id} className="record-card">
+                  <div className="record-row">
+                    <div className="min-w-0">
+                      <h3 className="record-title">{integration.displayName}</h3>
+                      <p className="record-meta mt-1 font-mono compact-text">{integration.source}</p>
+                    </div>
+                    <span className="pill pill--ok">
+                      {integrationStatusLabel(integration.status)}
+                    </span>
                   </div>
-                  <span className="w-fit rounded-md bg-[#e8f3ef] px-2 py-1 text-xs font-semibold text-[#116466]">
-                    {integrationStatusLabel(integration.status)}
-                  </span>
-                  <p className="break-words text-[#667085]">{integration.importLimit} тикетов · батч {integration.batchSize}</p>
-                  <p className="break-words text-[#667085]">{formatDate(integration.lastImportAt ?? integration.lastDryRunAt)}</p>
-                  <form action={queueIntegrationImport}>
-                    <input type="hidden" name="integrationId" value={integration.id} />
-                    <button type="submit" className="rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
-                      Запланировать
-                    </button>
-                  </form>
-                </div>
+                  <div className="record-row">
+                    <p className="record-meta">
+                      Лимит: {integration.importLimit} тикетов · батч {integration.batchSize} · последний запуск:{" "}
+                      {formatDate(integration.lastImportAt ?? integration.lastDryRunAt)}
+                    </p>
+                    <form action={queueIntegrationImport}>
+                      <input type="hidden" name="integrationId" value={integration.id} />
+                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                        Запланировать
+                      </button>
+                    </form>
+                  </div>
+                </article>
               ))}
             </div>
           ) : (
@@ -227,51 +250,47 @@ export default async function AdminIntegrationsPage() {
             <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{recentRuns.length}</span>
           </summary>
           <div className="mt-4">
-        {recentRuns.length > 0 ? (
-          <DataTable
-            title="Последние запуски"
-            description="Dry-run и успешные импорты: объем, источник и быстрый переход в очередь."
-            minWidth="min-w-[820px]"
-          >
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Дата</th>
-                <th className="px-5 py-3 font-semibold">Режим</th>
-                <th className="px-5 py-3 font-semibold">Источник</th>
-                <th className="px-5 py-3 font-semibold">Тикеты</th>
-                <th className="px-5 py-3 font-semibold">Ошибки</th>
-                <th className="px-5 py-3 font-semibold">Запустил</th>
-                <th className="px-5 py-3 font-semibold">Очередь</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#d7dce5] bg-white">
-              {recentRuns.map((run) => (
-                <tr key={run.id}>
-                  <td className="px-5 py-4 text-[#344054]">{formatDate(run.startedAt)}</td>
-                  <td className="px-5 py-4 text-[#344054]">{run.dryRun ? "Dry-run" : "Импорт"}</td>
-                  <td className="px-5 py-4 text-[#344054]">{run.integration?.displayName ?? run.source}</td>
-                  <td className="px-5 py-4 font-semibold text-[#17202a]">{run.importedCount}</td>
-                  <td className="px-5 py-4 text-[#344054]">{run.errorCount}</td>
-                  <td className="px-5 py-4 text-[#344054]">{run.actor?.name ?? "Автоматика"}</td>
-                  <td className="px-5 py-4">
-                    <Link href={queueHref(run.source, [])} className="font-semibold text-[#0b4f52] hover:underline">
-                      Очередь
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        ) : (
-          <Surface
-            title="Последние запуски"
-            description="Dry-run и успешные импорты через готовые адаптеры появятся здесь после запуска."
-          >
-            <div className={emptyStateClass}>
-              Запуски появятся здесь после dry-run, готового адаптера или своего API.
-            </div>
-          </Surface>
-        )}
+            {recentRuns.length > 0 ? (
+              <Surface
+                title="Последние запуски"
+                description="Пробные запуски и успешные импорты: объем, источник и быстрый переход в очередь."
+              >
+                <div className="record-list">
+                  {recentRuns.map((run) => (
+                    <article key={run.id} className="record-card">
+                      <div className="record-row">
+                        <div className="min-w-0">
+                          <h3 className="record-title">{run.integration?.displayName ?? run.source}</h3>
+                          <p className="record-meta mt-1">
+                            {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
+                          </p>
+                        </div>
+                        <span className={`pill ${run.errorCount > 0 ? "pill--warn" : "pill--ok"}`}>
+                          {run.dryRun ? "Пробный запуск" : "Импорт"}
+                        </span>
+                      </div>
+                      <div className="record-row">
+                        <p className="record-meta">
+                          Импортировано: <strong className="text-[#17202a]">{run.importedCount}</strong> · ошибок: {run.errorCount}
+                        </p>
+                        <Link href={queueHref(run.source, [])} className="text-sm font-semibold text-[#0b4f52] hover:underline">
+                          Открыть очередь
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </Surface>
+            ) : (
+              <Surface
+                title="Последние запуски"
+                description="Пробные запуски и успешные импорты через готовые адаптеры появятся здесь после запуска."
+              >
+                <div className={emptyStateClass}>
+                  Запуски появятся здесь после пробного запуска, готового адаптера или своего API.
+                </div>
+              </Surface>
+            )}
           </div>
         </details>
 
@@ -284,36 +303,35 @@ export default async function AdminIntegrationsPage() {
             <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
           </summary>
           <div className="mt-4">
-            <DataTable
+            <Surface
               title="Ключи API"
               description="Состояние ключей помогает понять, был ли успешный импорт или свежая ошибка."
-              minWidth="min-w-[980px]"
             >
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Название</th>
-                  <th className="px-5 py-3 font-semibold">Префикс</th>
-                  <th className="px-5 py-3 font-semibold">Права доступа</th>
-                  <th className="px-5 py-3 font-semibold">Последнее использование</th>
-                  <th className="px-5 py-3 font-semibold">Последний успех</th>
-                  <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
+              <div className="record-list">
                 {apiTokens.map((apiToken) => (
-                  <tr key={apiToken.id}>
-                    <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatLastUsed(apiToken.lastUsedAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatOptionalDate(apiToken.lastSuccessAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">
-                      {apiToken.lastError ? `${formatOptionalDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
-                    </td>
-                  </tr>
+                  <article key={apiToken.id} className="record-card">
+                    <div className="record-row">
+                      <div className="min-w-0">
+                        <h3 className="record-title">{apiToken.name}</h3>
+                        <p className="record-meta mt-1 font-mono compact-text">{apiToken.tokenPrefix}</p>
+                      </div>
+                      <span className={`pill ${apiToken.lastError ? "pill--warn" : "pill--neutral"}`}>
+                        {apiToken.lastError ? "Есть ошибка" : "Готов"}
+                      </span>
+                    </div>
+                    <p className="record-meta compact-text">Права доступа: {formatScopes(apiToken.scopes)}</p>
+                    <p className="record-meta">
+                      Использование: {formatLastUsed(apiToken.lastUsedAt)} · успех: {formatOptionalDate(apiToken.lastSuccessAt)}
+                    </p>
+                    {apiToken.lastError ? (
+                      <p className="text-sm font-medium text-[#b42318]">
+                        {formatOptionalDate(apiToken.lastErrorAt)} · {apiToken.lastError}
+                      </p>
+                    ) : null}
+                  </article>
                 ))}
-              </tbody>
-            </DataTable>
+              </div>
+            </Surface>
           </div>
         </details>
       </div>

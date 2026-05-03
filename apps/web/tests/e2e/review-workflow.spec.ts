@@ -56,6 +56,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByLabel("Итог проверки").fill("Оператор дал корректные варианты возврата и понятный план follow-up.");
 
   await page.getByRole("button", { name: "Сохранить черновик" }).click();
+  await expect(page.getByText("Еще не сохранен")).not.toBeVisible();
   await expect(page.getByText("В работе").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 
@@ -75,6 +76,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/admin/scorecards");
   await expect(page.getByRole("heading", { name: "Формы оценки", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Новая версия формы оценки" })).toBeVisible();
+  await page.getByRole("heading", { name: "Новая версия формы оценки" }).click();
   await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeVisible();
   await expect(page.getByText("Сумма весов: 100%")).toBeVisible();
   await page.getByRole("button", { name: "Добавить критерий" }).click();
@@ -139,7 +141,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
   await expect(page.getByLabel("Название системы")).toHaveValue("Внутренний helpdesk");
-  await expect(page.getByRole("main").getByRole("link", { name: "API-доступ" })).toBeVisible();
+  await expect(page.locator("#connect").getByRole("link", { name: "API-доступ" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).not.toBeVisible();
 
   await page.goto("/admin/integrations");

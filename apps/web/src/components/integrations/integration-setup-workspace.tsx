@@ -504,7 +504,7 @@ function LimitsStep({
             className="mt-1"
           />
           <span className="min-w-0 leading-5">
-            Сначала dry-run: проверить доступ и объем без создания записей в очереди.
+            Сначала пробный запуск: проверить доступ и объем без создания записей в очереди.
           </span>
         </label>
         <label className="grid min-h-[76px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
@@ -515,7 +515,7 @@ function LimitsStep({
             className="mt-1"
           />
           <span className="min-w-0 leading-5">
-            Не создавать дубликаты по паре externalSource + externalId.
+            Не создавать дубликаты по источнику и внешнему номеру обращения.
           </span>
         </label>
       </div>
@@ -580,7 +580,7 @@ function PreviewStep({
           </span>
         </SummaryItem>
         <SummaryItem label="Режим запуска">
-          <span>{dryRun ? "Dry-run перед импортом" : "Сразу импортировать после успешной проверки"}</span>
+          <span>{dryRun ? "Пробный запуск перед импортом" : "Сразу импортировать после успешной проверки"}</span>
         </SummaryItem>
         <SummaryItem label="Дубликаты">
           <span>{deduplicate ? "Пропускать повторы" : "Разрешить повторную загрузку"}</span>
@@ -601,7 +601,7 @@ function PreviewStep({
             <input type="hidden" name="batchSize" value={batchSize} />
             <input type="hidden" name="dateRangeDays" value={dateRangeDays} />
             <button type="submit" className={secondaryButtonClass}>
-              Записать dry-run
+              Записать пробный запуск
             </button>
           </form>
         </div>

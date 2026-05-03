@@ -47,21 +47,26 @@ export default async function AdminTokensPage() {
   const authorizationHeader = `Authorization: Bearer ${demoApiToken}`;
 
   return (
-    <section className="page-shell">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <section className="page-shell admin-shell">
+      <div className="admin-hero">
         <div>
-          <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-          <h1 className="mt-1 text-2xl font-semibold">Ключи API</h1>
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Ключи API</h1>
+          <p className="page-subtitle">
+            Рабочие ключи и локальный ключ для проверки интеграций. Технические поля собраны в компактные карточки.
+          </p>
         </div>
-        <Link
-          href="/admin/integrations"
-          className="rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]"
-        >
-          К интеграциям
-        </Link>
+        <div className="admin-actions">
+          <Link href="/admin/integrations?setup=1#connect" className="action-button action-button--primary">
+            К интеграциям
+          </Link>
+          <Link href="/admin/audit" className="action-button">
+            Журнал действий
+          </Link>
+        </div>
       </div>
 
-      <section className="panel mb-6 overflow-hidden">
+      <section className="panel overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
           <h2 className="text-lg font-semibold">Локальный ключ для разработки</h2>
           <p className="mt-1 text-sm text-[#667085]">
@@ -89,44 +94,33 @@ export default async function AdminTokensPage() {
       <section className="panel overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
           <h2 className="text-lg font-semibold">Ключи рабочего пространства</h2>
+          <p className="mt-1 text-sm text-[#667085]">Статус, права и последняя активность без широкой таблицы.</p>
         </div>
-        <div className="scroll-area">
-          <table className="table-fixed-copy w-full min-w-[980px] border-collapse text-left text-sm">
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Статус</th>
-                <th className="px-5 py-3 font-semibold">Название</th>
-                <th className="px-5 py-3 font-semibold">Префикс</th>
-                <th className="px-5 py-3 font-semibold">Права доступа</th>
-                <th className="px-5 py-3 font-semibold">Использование</th>
-                <th className="px-5 py-3 font-semibold">Последний успех</th>
-                <th className="px-5 py-3 font-semibold">Последняя ошибка</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#d7dce5]">
-              {apiTokens.map((apiToken) => {
-                const health = tokenHealth(apiToken);
+        <div className="record-list p-5">
+          {apiTokens.map((apiToken) => {
+            const health = tokenHealth(apiToken);
+            const healthTone = health.label === "Ошибка" ? "pill--warn" : health.label === "Работает" ? "pill--ok" : "pill--neutral";
 
-                return (
-                  <tr key={apiToken.id}>
-                    <td className="px-5 py-4">
-                      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${health.className}`}>
-                        {health.label}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 font-medium text-[#17202a]">{apiToken.name}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{apiToken.tokenPrefix}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#344054]">{formatScopes(apiToken.scopes)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatDate(apiToken.lastUsedAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">{formatDate(apiToken.lastSuccessAt)}</td>
-                    <td className="px-5 py-4 text-[#344054]">
-                      {apiToken.lastError ? `${formatDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            return (
+              <article key={apiToken.id} className="record-card">
+                <div className="record-row">
+                  <div className="min-w-0">
+                    <h3 className="record-title">{apiToken.name}</h3>
+                    <p className="record-meta mt-1 font-mono compact-text">{apiToken.tokenPrefix}</p>
+                  </div>
+                  <span className={`pill ${healthTone}`}>{health.label}</span>
+                </div>
+                <p className="record-meta compact-text">Права доступа: {formatScopes(apiToken.scopes)}</p>
+                <div className="grid gap-2 md:grid-cols-3">
+                  <p className="record-meta">Использование: {formatDate(apiToken.lastUsedAt)}</p>
+                  <p className="record-meta">Последний успех: {formatDate(apiToken.lastSuccessAt)}</p>
+                  <p className="record-meta compact-text">
+                    Последняя ошибка: {apiToken.lastError ? `${formatDate(apiToken.lastErrorAt)} · ${apiToken.lastError}` : "Нет"}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
     </section>

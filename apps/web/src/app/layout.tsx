@@ -11,9 +11,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru">
       <body>
+        <a href="#main-content" className="skip-link">
+          Перейти к содержимому
+        </a>
         <div className="page">
           <AppSidebar />
-          <main>{children}</main>
+          <main id="main-content">{children}</main>
         </div>
       </body>
     </html>

@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, Gauge, History, KeyRound, ListChecks, Plug, ShieldCheck } from "lucide-react";
+import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Plug, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -16,10 +16,10 @@ type AdminCard = {
   tone?: "ok" | "warn" | "neutral";
 };
 
-function cardTone(tone: AdminCard["tone"]) {
-  if (tone === "ok") return "border-[#b9ddd2] bg-[#f4faf7]";
-  if (tone === "warn") return "border-[#fed7aa] bg-[#fffaf5]";
-  return "border-[#d7dce5] bg-white";
+function pillTone(tone: AdminCard["tone"]) {
+  if (tone === "ok") return "pill--ok";
+  if (tone === "warn") return "pill--warn";
+  return "pill--neutral";
 }
 
 function canSee(role: RoleName, roles: RoleName[]) {
@@ -122,37 +122,104 @@ export default async function AdminHomePage() {
     }
   ];
   const visibleCards = cards.filter((card) => canSee(user.role, card.roles));
+  const quickActions = [
+    { href: "/admin/integrations?setup=1#connect", label: "Подключить источник", icon: Plug, roles: ["ADMIN"] as RoleName[] },
+    { href: "/admin/scorecards?new=1#new-version", label: "Изменить форму оценки", icon: Gauge, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { href: "/admin/sampling?new=1#new-rule", label: "Добавить выборку", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { href: "/admin/access?section=provider", label: "Настроить SSO", icon: ShieldCheck, roles: ["ADMIN"] as RoleName[] },
+    { href: "/admin/system", label: "Проверить систему", icon: Activity, roles: ["ADMIN"] as RoleName[] }
+  ].filter((action) => canSee(user.role, action.roles));
 
   return (
-    <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-        <h1 className="mt-1 text-2xl font-semibold">Настройки</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
-          Один вход в служебные настройки. В рабочих разделах остаются только ежедневные задачи проверки.
-        </p>
+    <section className="page-shell admin-shell">
+      <div className="admin-hero admin-hero--split">
+        <div className="min-w-0">
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Настройки</h1>
+          <p className="page-subtitle">
+            Главные действия доступны отсюда напрямую, а редкие технические детали остаются внутри профильных разделов.
+          </p>
+          <div className="admin-actions mt-5">
+            {quickActions.slice(0, 3).map((action, index) => {
+              const Icon = action.icon;
+              return (
+                <Link key={action.href} href={action.href} className={`action-button ${index === 0 ? "action-button--primary" : ""}`}>
+                  <Icon size={16} aria-hidden="true" />
+                  {action.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="quick-grid">
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <div className="record-card">
+              <p className="record-meta">Форма оценки</p>
+              <p className="record-title">{activeScorecard ? `Версия ${activeScorecard.version}` : "Не настроено"}</p>
+            </div>
+            <div className="record-card">
+              <p className="record-meta">Выборки</p>
+              <p className="record-title">{activeSamplingRules} активных</p>
+            </div>
+            <div className="record-card">
+              <p className="record-meta">Системные ошибки</p>
+              <p className="record-title">{failedJobs}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="panel overflow-hidden">
+        <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Разделы администрирования</h2>
+              <p className="mt-1 text-sm text-[#667085]">Каждый раздел открывает рабочий экран без промежуточных вложенных меню.</p>
+            </div>
+            <SlidersHorizontal size={18} className="text-[#0b4f52]" aria-hidden="true" />
+          </div>
+        </div>
+        <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
         {visibleCards.map((card) => {
           const Icon = card.icon;
 
           return (
-            <Link key={card.href} href={card.href} className={`grid min-h-[168px] gap-4 rounded-md border p-5 shadow-sm hover:border-[#116466] ${cardTone(card.tone)}`}>
-              <div className="flex items-start justify-between gap-4">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#d7dce5] bg-white text-[#0b4f52]">
-                  <Icon size={19} aria-hidden="true" />
+            <Link key={card.href} href={card.href} className="quick-card">
+              <div className="quick-card__top">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#eef4f4] text-[#0b4f52]">
+                  <Icon size={18} aria-hidden="true" />
                 </span>
-                <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#344054]">{card.metric}</span>
+                <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-[#17202a]">{card.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-[#667085]">{card.description}</p>
+              <div className="min-w-0">
+                <h3 className="quick-card__title">{card.title}</h3>
+                <p className="quick-card__copy mt-1">{card.description}</p>
               </div>
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#0b4f52]">
+                Открыть <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </Link>
           );
         })}
-      </div>
+        </div>
+      </section>
+
+      {quickActions.length > 3 ? (
+        <section className="panel p-4">
+          <div className="admin-actions">
+            {quickActions.slice(3).map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link key={action.href} href={action.href} className="action-button action-button--quiet">
+                  <Icon size={16} aria-hidden="true" />
+                  {action.label}
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

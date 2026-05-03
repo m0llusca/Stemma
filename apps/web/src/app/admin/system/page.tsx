@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, ShieldCheck } fro
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { integrationStatusLabel } from "@/lib/labels";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync, queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 
@@ -37,6 +38,28 @@ function runtimeStatusLabel(status: string) {
     ok: "Готово",
     warn: "Требует внимания",
     error: "Ошибка"
+  };
+
+  return labels[status] ?? status;
+}
+
+function providerStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    active: "Активен",
+    draft: "Черновик",
+    disabled: "Отключен"
+  };
+
+  return labels[status] ?? status;
+}
+
+function importRunStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    ready: "Готово",
+    active: "Активно",
+    queued: "В очереди",
+    error: "Ошибка",
+    draft: "Черновик"
   };
 
   return labels[status] ?? status;
@@ -183,29 +206,29 @@ export default async function AdminSystemPage() {
   ).length;
 
   return (
-    <section className="page-shell">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <section className="page-shell admin-shell">
+      <div className="admin-hero admin-hero--split">
         <div>
-          <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-          <h1 className="mt-1 text-2xl font-semibold">Состояние системы</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Состояние системы</h1>
+          <p className="page-subtitle">
             Короткий операционный экран: окружение, фоновые задачи, SSO/AD, импорты и очистка технических записей.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 xl:justify-end">
           <form action={runQueuedBackendJobs} className="flex min-w-[220px] gap-2">
-            <select name="limit" defaultValue="5" className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm">
+            <select name="limit" defaultValue="5" className="form-control text-sm">
               <option value="5">5 задач</option>
               <option value="10">10 задач</option>
               <option value="20">20 задач</option>
             </select>
-            <button type="submit" className="inline-flex items-center gap-2 rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+            <button type="submit" className="action-button action-button--primary">
               <Play size={16} aria-hidden="true" />
               Запустить
             </button>
           </form>
           <form action={queueRetentionCleanup}>
-            <button type="submit" className="inline-flex items-center gap-2 rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+            <button type="submit" className="action-button">
               <RotateCcw size={16} aria-hidden="true" />
               Очистка
             </button>
@@ -213,7 +236,7 @@ export default async function AdminSystemPage() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Окружение" value={runtime.status === "ok" ? "Готово" : runtime.status === "warn" ? "Есть предупреждения" : "Ошибка"} hint={runtime.environment} tone={runtime.status === "ok" ? "ok" : runtime.status === "warn" ? "warn" : "error"} />
         <StatCard label="Очередь задач" value={queuedJobs} hint={`Выполняется: ${runningJobs}`} tone={failedJobs > 0 ? "error" : queuedJobs > 0 ? "warn" : "ok"} />
         <StatCard label="Ошибки задач" value={failedJobs} hint={`Успешно за 24 часа: ${succeededJobsToday}`} tone={failedJobs > 0 ? "error" : "ok"} />
@@ -226,12 +249,12 @@ export default async function AdminSystemPage() {
             <h2 className="text-lg font-semibold">Фоновые задачи</h2>
             <p className="mt-1 text-sm text-[#667085]">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
           </div>
-          <div className="divide-y divide-[#d7dce5]">
+          <div className="record-list p-5">
             {recentJobs.length === 0 ? (
-              <div className="p-5 text-sm text-[#667085]">Фоновых задач пока нет.</div>
+              <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">Фоновых задач пока нет.</div>
             ) : (
               recentJobs.map((job) => (
-                <article key={job.id} className="grid gap-3 p-5 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center">
+                <article key={job.id} className="record-card">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(job.status)}`}>
@@ -247,13 +270,12 @@ export default async function AdminSystemPage() {
                     ) : null}
                     {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[#b42318]">{job.errorMessage}</p> : null}
                   </div>
-                  <div className="text-sm text-[#667085]">
-                    <p className="font-semibold text-[#344054]">Запуск</p>
-                    <p>{formatDate(job.runAfter)}</p>
+                  <div className="record-row">
+                    <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
+                    <Link href={`/api/v1/jobs/${job.id}`} className="text-sm font-semibold text-[#0b4f52] hover:underline">
+                      Детали задачи
+                    </Link>
                   </div>
-                  <Link href={`/api/v1/jobs/${job.id}`} className="text-sm font-semibold text-[#0b4f52] hover:underline">
-                    JSON задачи
-                  </Link>
                 </article>
               ))
             )}
@@ -328,7 +350,7 @@ export default async function AdminSystemPage() {
                     </p>
                   </div>
                   <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>
-                    {provider.status}
+                    {providerStatusLabel(provider.status)}
                   </span>
                 </div>
                 <p className="text-sm text-[#667085]">
@@ -338,7 +360,7 @@ export default async function AdminSystemPage() {
                 {provider.type !== "DEMO" ? (
                   <form action={queueDirectorySync}>
                     <input type="hidden" name="providerId" value={provider.id} />
-                    <button type="submit" className="inline-flex items-center gap-2 rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+                    <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                       <ShieldCheck size={16} aria-hidden="true" />
                       Синхронизировать
                     </button>
@@ -370,7 +392,7 @@ export default async function AdminSystemPage() {
                       <p className="mt-1 font-mono text-xs text-[#667085]">{integration.source}</p>
                     </div>
                     <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(integration.status)}`}>
-                      {integration.status}
+                      {integrationStatusLabel(integration.status)}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-[#667085]">
@@ -390,8 +412,8 @@ export default async function AdminSystemPage() {
           </div>
           <div className="grid gap-3 p-5">
             <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
-            <StatCard label="Idempotency keys" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
-            <StatCard label="Rate-limit buckets" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
+            <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
+            <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
           </div>
           <div className="border-t border-[#d7dce5] px-5 py-4">
             <h3 className="font-semibold text-[#17202a]">Последние импорты</h3>
@@ -404,7 +426,7 @@ export default async function AdminSystemPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-[#17202a]">{run.integration?.displayName ?? run.source}</p>
                       <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(run.status)}`}>
-                        {run.status}
+                        {importRunStatusLabel(run.status)}
                       </span>
                     </div>
                     <p className="mt-2 text-[#667085]">

@@ -1,4 +1,5 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
+import Link from "next/link";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -6,7 +7,17 @@ import { criterionKindLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminScorecardsPage() {
+type AdminScorecardsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstParam(value: string | string[] | undefined) {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  return firstValue?.trim() || undefined;
+}
+
+export default async function AdminScorecardsPage({ searchParams }: AdminScorecardsPageProps) {
+  const params = await searchParams;
   const user = await requireCurrentUserPermission("scorecards:manage");
   const activeScorecard = await prisma.scorecard.findFirst({
     where: {
@@ -41,15 +52,30 @@ export default async function AdminScorecardsPage() {
       }
     ]
   });
+  const openNewVersion = firstParam(params.new) === "1";
 
   return (
-    <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Администрирование</p>
-        <h1 className="mt-1 text-2xl font-semibold">Формы оценки</h1>
+    <section className="page-shell admin-shell">
+      <div className="admin-hero">
+        <div className="min-w-0">
+          <p className="page-kicker">Администрирование</p>
+          <h1 className="page-title">Формы оценки</h1>
+          <p className="page-subtitle">
+            Активная форма видна сразу. Редактирование новой версии открывается только тогда, когда нужно изменить методику.
+          </p>
+        </div>
+        <div className="admin-actions">
+          <Link href="/admin/scorecards?new=1#new-version" className="action-button action-button--primary">
+            <Plus size={16} aria-hidden="true" />
+            Новая версия
+          </Link>
+          <Link href="/reviews" className="action-button">
+            Очередь проверок
+          </Link>
+        </div>
       </div>
 
-      <section className="panel mb-6 overflow-hidden">
+      <section className="panel overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
           <h2 className="text-lg font-semibold">Версионирование правил</h2>
           <p className="mt-1 text-sm text-[#667085]">
@@ -73,13 +99,16 @@ export default async function AdminScorecardsPage() {
       </section>
 
       {activeScorecard ? (
-        <section className="panel mb-6 overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Новая версия формы оценки</h2>
-            <p className="mt-1 text-sm text-[#667085]">
-              Создает новую активную форму и оставляет исторические проверки на прежних версиях.
-            </p>
-          </div>
+        <details id="new-version" className="disclosure-panel panel overflow-hidden" open={openNewVersion}>
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Новая версия формы оценки</h2>
+              <p className="mt-1 text-sm text-[#667085]">
+                Создает новую активную форму и оставляет исторические проверки на прежних версиях.
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Открыть</span>
+          </summary>
           <ScorecardVersionForm
             initialName={activeScorecard.name}
             initialCriteria={activeScorecard.criteria.map((criterion) => ({
@@ -92,7 +121,7 @@ export default async function AdminScorecardsPage() {
               required: criterion.required
             }))}
           />
-        </section>
+        </details>
       ) : null}
 
       <div className="grid gap-5">
@@ -118,34 +147,23 @@ export default async function AdminScorecardsPage() {
               </div>
             </summary>
             <div className="border-t border-[#d7dce5]">
-              <div className="scroll-area">
-                <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
-                  <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                    <tr>
-                      <th className="px-5 py-3 font-semibold">Порядок</th>
-                      <th className="px-5 py-3 font-semibold">Блок</th>
-                      <th className="px-5 py-3 font-semibold">Критерий</th>
-                      <th className="px-5 py-3 font-semibold">Тип</th>
-                      <th className="px-5 py-3 font-semibold">Вес</th>
-                      <th className="px-5 py-3 font-semibold">Обязателен</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#d7dce5]">
-                    {scorecard.criteria.map((criterion) => (
-                      <tr key={criterion.id}>
-                        <td className="px-5 py-4 text-[#344054]">{criterion.order}</td>
-                        <td className="px-5 py-4 text-[#344054]">{criterion.block}</td>
-                        <td className="px-5 py-4">
-                          <div className="font-medium text-[#17202a]">{criterion.label}</div>
-                          <div className="mt-1 text-xs text-[#667085]">{criterion.key}</div>
-                        </td>
-                        <td className="px-5 py-4 text-[#344054]">{criterionKindLabels[criterion.kind]}</td>
-                        <td className="px-5 py-4 text-[#344054]">{criterion.weight}%</td>
-                        <td className="px-5 py-4 text-[#344054]">{criterion.required ? "Да" : "Нет"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="record-list p-5">
+                {scorecard.criteria.map((criterion) => (
+                  <article key={criterion.id} className="record-card">
+                    <div className="record-row">
+                      <div className="min-w-0">
+                        <h3 className="record-title">{criterion.label}</h3>
+                        <p className="record-meta mt-1">
+                          {criterion.block} · {criterionKindLabels[criterion.kind]} · ключ: {criterion.key}
+                        </p>
+                      </div>
+                      <span className="pill pill--neutral">Вес {criterion.weight}%</span>
+                    </div>
+                    <p className="record-meta">
+                      Порядок: {criterion.order} · обязательный критерий: {criterion.required ? "да" : "нет"}
+                    </p>
+                  </article>
+                ))}
               </div>
             </div>
           </details>
