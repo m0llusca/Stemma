@@ -280,6 +280,19 @@ function SourceChoiceStep({
   onSourceChange: (value: SourceOptionValue) => void;
 }) {
   const selectedOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
+  const selectedGroup = sourceChoiceGroups.find((group) => group.mode === selectedOption.mode);
+
+  function optionCaption(option: typeof sourceOptions[number]) {
+    if (option.mode === "otrs_family") {
+      return option.value === "otrs:otobo" ? "REST web service" : "GenericInterface TicketGet";
+    }
+
+    if (option.mode === "native_helpdesk") {
+      return "Готовый адаптер";
+    }
+
+    return "Единый API-контракт";
+  }
 
   return (
     <div className="source-choice-layout">
@@ -296,14 +309,19 @@ function SourceChoiceStep({
           ))}
         </select>
       </label>
-      <div className="source-choice-list">
+
+      <div className="source-picker">
+        <div className="source-picker__header">
+          <p className="soft-callout__label">Источник обращений</p>
+          <p className="text-sm leading-5 text-[#64748b]">Выберите систему. Технические детали появятся ниже только для выбранного варианта.</p>
+        </div>
         {sourceChoiceGroups.map((group) => (
           <section key={group.mode} className="source-choice-section">
-            <div className="min-w-0">
-              <h4 className="text-base font-semibold text-[#111827]">{group.title}</h4>
-              <p className="mt-1 text-sm leading-5 text-[#64748b]">{group.description}</p>
+            <div className="source-choice-section__header">
+              <h4>{group.title}</h4>
+              <span>{group.options.length}</span>
             </div>
-            <div className="source-card-grid">
+            <div className="source-choice-list">
               {group.options.map((option) => {
                 const isSelected = option.value === sourceValue;
 
@@ -313,11 +331,14 @@ function SourceChoiceStep({
                     type="button"
                     onClick={() => onSourceChange(option.value)}
                     aria-pressed={isSelected}
-                    className={`source-choice-card ${isSelected ? "source-choice-card--active" : ""}`}
+                    className={`source-choice-row ${isSelected ? "source-choice-row--active" : ""}`}
                   >
-                    <span className="text-sm font-semibold text-[#111827]">{option.label}</span>
-                    <span className="text-sm leading-5 text-[#64748b]">{option.description}</span>
-                    {isSelected ? <span className="pill pill--ok w-fit">Выбрано</span> : null}
+                    <span className="source-choice-row__mark" aria-hidden="true" />
+                    <span className="source-choice-row__body">
+                      <span className="source-choice-row__title">{option.label}</span>
+                      <span className="source-choice-row__caption">{optionCaption(option)}</span>
+                    </span>
+                    {isSelected ? <span className="source-choice-row__state">Выбрано</span> : null}
                   </button>
                 );
               })}
@@ -327,14 +348,18 @@ function SourceChoiceStep({
       </div>
 
       <aside className="source-choice-summary">
-        <p className="soft-callout__label">Выбранный сценарий</p>
-        <div>
-          <h4 className="text-base font-semibold text-[#111827]">{selectedOption.label}</h4>
-          <p className="mt-2 text-sm leading-5 text-[#334155]">{selectedOption.description}</p>
+        <div className="source-choice-summary__header">
+          <p className="soft-callout__label">Выбранный сценарий</p>
+          <span>{selectedGroup?.title ?? "Источник"}</span>
         </div>
-        <div className="soft-callout">
-          <p className="soft-callout__label">Дальше</p>
-          <p className="text-sm leading-5 text-[#334155]">Откроются только поля доступа, лимиты и проверка подключения для выбранного источника.</p>
+        <div className="source-choice-summary__body">
+          <h4>{selectedOption.label}</h4>
+          <p>{selectedOption.description}</p>
+        </div>
+        <div className="source-next-steps" aria-label="Следующие шаги">
+          <span>Доступ</span>
+          <span>Лимиты</span>
+          <span>Проверка</span>
         </div>
       </aside>
     </div>
