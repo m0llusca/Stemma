@@ -92,6 +92,25 @@ export async function GET() {
           }
         }
       },
+      "/audit-logs": {
+        get: {
+          summary: "Журнал действий workspace с фильтрами и пагинацией",
+          parameters: [
+            { name: "action", in: "query", required: false },
+            { name: "targetType", in: "query", required: false },
+            { name: "targetId", in: "query", required: false },
+            { name: "actorId", in: "query", required: false },
+            { name: "from", in: "query", required: false },
+            { name: "to", in: "query", required: false },
+            { name: "page", in: "query", required: false },
+            { name: "limit", in: "query", required: false }
+          ],
+          responses: {
+            "200": { description: "Список событий аудита" },
+            "403": { description: "Нет прав на просмотр аудита" }
+          }
+        }
+      },
       "/integrations": {
         get: {
           summary: "Интеграции рабочего пространства",
@@ -138,6 +157,26 @@ export async function GET() {
         }
       },
       "/conversations": {
+        get: {
+          summary: "Список обращений workspace с фильтрами и пагинацией",
+          parameters: [
+            { name: "q", in: "query", required: false },
+            { name: "qaStatus", in: "query", required: false },
+            { name: "channel", in: "query", required: false },
+            { name: "externalSource", in: "query", required: false },
+            { name: "supportLine", in: "query", required: false },
+            { name: "teamName", in: "query", required: false },
+            { name: "qaAssigneeId", in: "query", required: false },
+            { name: "openedFrom", in: "query", required: false },
+            { name: "openedTo", in: "query", required: false },
+            { name: "page", in: "query", required: false },
+            { name: "limit", in: "query", required: false }
+          ],
+          responses: {
+            "200": { description: "Список обращений" },
+            "400": { description: "Некорректные фильтры" }
+          }
+        },
         post: {
           summary: "Импорт обращения из кастомной системы",
           parameters: [{ name: "Idempotency-Key", in: "header", required: false }],
@@ -147,11 +186,56 @@ export async function GET() {
           }
         }
       },
+      "/reviews": {
+        get: {
+          summary: "Список проверок workspace с фильтрами и пагинацией",
+          parameters: [
+            { name: "q", in: "query", required: false },
+            { name: "status", in: "query", required: false },
+            { name: "reviewSource", in: "query", required: false },
+            { name: "reviewerId", in: "query", required: false },
+            { name: "conversationId", in: "query", required: false },
+            { name: "externalSource", in: "query", required: false },
+            { name: "minScore", in: "query", required: false },
+            { name: "maxScore", in: "query", required: false },
+            { name: "finalizedFrom", in: "query", required: false },
+            { name: "finalizedTo", in: "query", required: false },
+            { name: "page", in: "query", required: false },
+            { name: "limit", in: "query", required: false }
+          ],
+          responses: {
+            "200": { description: "Список проверок" },
+            "400": { description: "Некорректные фильтры" }
+          }
+        }
+      },
+      "/conversations/{conversationId}": {
+        get: {
+          summary: "Детали обращения, сообщения и последние проверки",
+          parameters: [
+            { name: "conversationId", in: "path", required: true },
+            { name: "messageLimit", in: "query", required: false }
+          ],
+          responses: {
+            "200": { description: "Карточка обращения" },
+            "404": { description: "Обращение не найдено" }
+          }
+        }
+      },
       "/conversations/{conversationId}/events": {
         get: {
           summary: "История событий обращения в контуре проверки",
           responses: {
             "200": { description: "Список событий обращения" }
+          }
+        }
+      },
+      "/reviews/{reviewId}": {
+        get: {
+          summary: "Детали проверки, критерии, находки, обратная связь и события",
+          responses: {
+            "200": { description: "Карточка проверки" },
+            "404": { description: "Проверка не найдена" }
           }
         }
       },
