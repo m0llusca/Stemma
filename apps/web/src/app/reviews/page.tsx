@@ -86,7 +86,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         </div>
       </div>
       <QueueSummary {...summary} filtered={conversations.length} />
-      <div className="grid min-w-0 gap-3">
+      <section className="queue-controls panel">
         <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} savedViews={savedViews} />
         <QueueFilters
           filters={filters}
@@ -95,6 +95,8 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           qaAssignees={filterOptions.qaAssignees}
           supportLines={filterOptions.supportLines}
         />
+      </section>
+      <div className="grid min-w-0 gap-3">
         <QueueTable conversations={conversations} qaAssignees={qaAssignees} returnTo={currentHref} />
       </div>
     </section>

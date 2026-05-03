@@ -39,18 +39,21 @@ export function QueueSavedViews({
   ];
   const currentView = allViews.find((view) => currentHref === view.href);
   return (
-    <details className="panel disclosure-panel overflow-hidden">
-      <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
+    <details className="queue-quick-views">
+      <summary className="queue-quick-views__summary">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-[#111827]">Быстрые виды</h2>
           <p className="mt-1 truncate text-sm text-[#64748b]">
             {currentView?.label ?? "Текущий фильтр"}
           </p>
         </div>
-        <span className="shrink-0 text-xs font-semibold uppercase text-[#64748b]">Открыть</span>
+        <span className="queue-filterbar__summary-action">
+          <span className="queue-filterbar__summary-closed">Раскрыть</span>
+          <span className="queue-filterbar__summary-open">Скрыть</span>
+        </span>
       </summary>
 
-      <div className="min-w-0 border-t border-[#d9e0ea] bg-white">
+      <div className="queue-quick-views__content">
         <div className="signal-row px-4 py-3" aria-label="Быстрые представления очереди">
           {allViews.map((view, index) => {
             const isActive = currentHref === view.href;

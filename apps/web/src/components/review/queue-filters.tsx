@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { StatusChip } from "@/components/ui/status-chip";
 import {
   channelLabels,
@@ -105,7 +106,12 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       <details className="disclosure-panel border-t border-[#d9e0ea]" open={hasAdvancedFilters}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#334155]">
           <span>{hasAdvancedFilters ? "Точные фильтры применены" : "Точные фильтры"}</span>
-          <span className="text-xs font-semibold uppercase text-[#64748b]">9 параметров</span>
+          <span className="queue-filterbar__summary-action">
+            <span className="queue-filterbar__summary-closed">Раскрыть</span>
+            <span className="queue-filterbar__summary-open">Скрыть</span>
+            <span className="text-[#64748b]">9 параметров</span>
+            <ChevronDown className="queue-filterbar__chevron" size={15} aria-hidden="true" />
+          </span>
         </summary>
 
         <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4 md:grid-cols-2 lg:grid-cols-4">

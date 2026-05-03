@@ -147,7 +147,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               </div>
 
               <div className="queue-ticket__aside">
-                <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
+                <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact label="Оценка" />
                 <Link href={`/reviews/${conversation.id}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
                   Открыть
                 </Link>
