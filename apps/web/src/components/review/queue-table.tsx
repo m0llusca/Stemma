@@ -4,6 +4,7 @@ import { ScoreBar } from "@/components/ui/score-bar";
 import {
   channelLabels,
   csatBucketLabels,
+  externalSourceLabel,
   formatMessageCount,
   qaStatusLabels,
   reanswerStatusLabels,
@@ -106,7 +107,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
 
               <div className="inbox-row__meta min-w-0">
                 <p className="inbox-meta">
-                  {channelLabels[conversation.channel]} · {conversation.externalSource}
+                  {channelLabels[conversation.channel]} · {externalSourceLabel(conversation.externalSource)}
                 </p>
                 <p className="inbox-meta mt-1">
                   Проверяющий: {conversation.qaAssigneeName ?? "не назначен"}

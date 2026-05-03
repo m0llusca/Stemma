@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { channelLabels, csatBucketLabels } from "@/lib/labels";
+import { channelLabels, csatBucketLabels, externalSourceLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export default async function SelfReviewPage() {
                     <div className="record-row">
                       <div className="min-w-0">
                         <h3 className="record-title">{conversation.subject}</h3>
-                        <p className="record-meta mt-1">{conversation.externalSource} · {conversation.externalId}</p>
+                        <p className="record-meta mt-1">{externalSourceLabel(conversation.externalSource)} · {conversation.externalId}</p>
                       </div>
                       <span className={`pill ${selfReview ? "pill--ok" : "pill--neutral"}`}>
                         {selfReview ? `${Math.round(selfReview.totalScore)}%` : "Нет самооценки"}

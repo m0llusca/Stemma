@@ -216,12 +216,12 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               selectedProvider?.id === provider.id ? "border-[#116466] ring-2 ring-[#e8f3ef]" : "border-[#d7dce5]"
             }`}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-3">
               <div className="min-w-0">
                 <h2 className="font-semibold text-[#17202a]">{provider.name}</h2>
                 <p className="mt-1 text-sm text-[#667085]">{providerTypeLabels[provider.type]}</p>
               </div>
-              <span className={`whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
+              <span className={`w-fit whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
             </div>
             <p className="mt-3 text-sm text-[#667085]">
               Групп: {provider.groupRoleMappings.length} · пользователей: {provider._count.externalIdentities}
@@ -335,7 +335,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             {selectedProvider && selectedProvider.type !== "DEMO" ? (
               <form action={queueDirectorySync}>
                 <input type="hidden" name="providerId" value={selectedProvider.id} />
-                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                   <ShieldCheck size={16} aria-hidden="true" />
                   Запланировать синхронизацию
                 </button>
@@ -359,12 +359,12 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 </div>
               ) : (
                 selectedProvider.groupRoleMappings.map((mapping) => (
-                  <article key={mapping.id} className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-4 md:grid-cols-[minmax(0,1fr)_130px_100px_auto] md:items-center">
+                  <article key={mapping.id} className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-4 md:grid-cols-[minmax(0,1fr)_minmax(150px,220px)_100px_auto] md:items-center">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-[#17202a]">{mapping.externalGroupName}</h3>
                       <p className="mt-1 font-mono text-xs text-[#667085] compact-text">{mapping.externalGroupId}</p>
                     </div>
-                    <span className="w-fit rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+                    <span className="w-fit max-w-full rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold leading-4 text-[#0b4f52]">
                       {roleLabels[mapping.role]}
                     </span>
                     <p className="text-sm text-[#667085]">Приоритет {mapping.priority}</p>
@@ -383,7 +383,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             <details className="disclosure-panel rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
               <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                 <h3 className="font-semibold text-[#17202a]">Добавить группу</h3>
-                <span className="text-sm font-semibold text-[#0b4f52]">Открыть</span>
+                <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
               </summary>
               <form action={saveGroupRoleMapping} className="grid gap-3 border-t border-[#d7dce5] p-4">
                 <input type="hidden" name="providerId" value={selectedProvider.id} />

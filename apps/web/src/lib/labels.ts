@@ -95,6 +95,24 @@ export function integrationStatusLabel(status: string) {
   return labels[status] ?? status;
 }
 
+export function externalSourceLabel(source: string) {
+  const labels: Record<string, string> = {
+    custom_api: "Свой API",
+    demo_import: "Демо-импорт",
+    freshdesk: "Freshdesk",
+    hubspot: "HubSpot Service Hub",
+    intercom: "Intercom",
+    native_helpdesk: "Helpdesk API",
+    otrs: "OTRS",
+    otrs6: "OTRS 6 Community Edition",
+    otrs_family: "OTRS/Znuny",
+    znuny: "Znuny",
+    zendesk: "Zendesk"
+  };
+
+  return labels[source] ?? source;
+}
+
 export function conversationStatusLabel(status: string) {
   const labels: Record<string, string> = {
     open: "Открыт",

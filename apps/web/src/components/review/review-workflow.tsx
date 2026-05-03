@@ -9,7 +9,7 @@ type ReviewWorkflowProps = {
 const iconClassName = "h-4 w-4";
 
 export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: ReviewWorkflowProps) {
-  const activeIndex = isReviewed ? 3 : hasDraftReview ? 2 : 1;
+  const activeIndex = isReviewed ? 3 : hasDraftReview ? 2 : 0;
   const steps = [
     {
       title: "Диалог",

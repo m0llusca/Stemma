@@ -51,7 +51,7 @@ export function QueueSavedViews({
         <span className="shrink-0 text-xs font-semibold uppercase text-[#667085]">Открыть</span>
       </summary>
 
-      <div className="border-t border-[#d7dce5] bg-white">
+      <div className="min-w-0 border-t border-[#d7dce5] bg-white">
         <div className="signal-row px-4 py-3" aria-label="Быстрые представления очереди">
           {allViews.map((view, index) => {
             const isActive = currentHref === view.href;
@@ -79,7 +79,7 @@ export function QueueSavedViews({
             );
           })}
         </div>
-        <form action={createSavedQueueView} className="grid gap-2 border-t border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-[minmax(220px,1fr)_160px_auto] md:items-end">
+        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
           <input type="hidden" name="href" value={currentHref} />
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Сохранить текущий вид

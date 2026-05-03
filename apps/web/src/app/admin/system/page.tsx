@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, ShieldCheck } fro
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { integrationStatusLabel } from "@/lib/labels";
+import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync, queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 
@@ -87,6 +87,39 @@ function jobStatusLabel(status: BackendJobStatus) {
   };
 
   return labels[status];
+}
+
+function jobTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    DIRECTORY_SYNC: "Синхронизация каталога",
+    INTEGRATION_IMPORT: "Импорт обращений",
+    REPORT_EXPORT: "Экспорт отчета",
+    RETENTION_CLEANUP: "Очистка данных"
+  };
+
+  return labels[type] ?? type;
+}
+
+function queueNameLabel(queueName: string) {
+  const labels: Record<string, string> = {
+    default: "Общая очередь",
+    directory: "Каталог пользователей",
+    integrations: "Интеграции",
+    maintenance: "Обслуживание",
+    reports: "Отчеты"
+  };
+
+  return labels[queueName] ?? queueName;
+}
+
+function environmentLabel(environment: string) {
+  const labels: Record<string, string> = {
+    development: "Разработка",
+    production: "Продакшен",
+    test: "Тест"
+  };
+
+  return labels[environment] ?? environment;
 }
 
 function StatCard({
@@ -237,7 +270,7 @@ export default async function AdminSystemPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Окружение" value={runtime.status === "ok" ? "Готово" : runtime.status === "warn" ? "Есть предупреждения" : "Ошибка"} hint={runtime.environment} tone={runtime.status === "ok" ? "ok" : runtime.status === "warn" ? "warn" : "error"} />
+        <StatCard label="Окружение" value={runtime.status === "ok" ? "Готово" : runtime.status === "warn" ? "Есть предупреждения" : "Ошибка"} hint={environmentLabel(runtime.environment)} tone={runtime.status === "ok" ? "ok" : runtime.status === "warn" ? "warn" : "error"} />
         <StatCard label="Очередь задач" value={queuedJobs} hint={`Выполняется: ${runningJobs}`} tone={failedJobs > 0 ? "error" : queuedJobs > 0 ? "warn" : "ok"} />
         <StatCard label="Ошибки задач" value={failedJobs} hint={`Успешно за 24 часа: ${succeededJobsToday}`} tone={failedJobs > 0 ? "error" : "ok"} />
         <StatCard label="Активные сессии" value={activeSessions} hint={`Просрочено активных: ${expiredActiveSessions}`} tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
@@ -260,10 +293,10 @@ export default async function AdminSystemPage() {
                       <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(job.status)}`}>
                         {jobStatusLabel(job.status)}
                       </span>
-                      <h3 className="font-semibold text-[#17202a]">{job.type}</h3>
+                      <h3 className="font-semibold text-[#17202a]">{jobTypeLabel(job.type)}</h3>
                     </div>
                     <p className="mt-1 text-sm text-[#667085]">
-                      {job.queueName} · попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
+                      {queueNameLabel(job.queueName)} · попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
                     </p>
                     {job.events[0] ? (
                       <p className="mt-2 text-sm text-[#667085]">{job.events[0].message}</p>
@@ -389,7 +422,7 @@ export default async function AdminSystemPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-[#17202a]">{integration.displayName}</h3>
-                      <p className="mt-1 font-mono text-xs text-[#667085]">{integration.source}</p>
+                      <p className="mt-1 text-sm text-[#667085]">{externalSourceLabel(integration.source)}</p>
                     </div>
                     <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(integration.status)}`}>
                       {integrationStatusLabel(integration.status)}
@@ -443,8 +476,8 @@ export default async function AdminSystemPage() {
 
       <div className="mt-6 rounded-md border border-[#d7dce5] bg-white p-4 text-sm text-[#667085]">
         <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
-        Для регулярного production-запуска фоновых задач используйте cron-команду{" "}
-        <code className="rounded bg-[#f7f8fb] px-1.5 py-0.5 text-xs text-[#344054]">npm run jobs:run</code> или внешний scheduler.
+        Для регулярного запуска фоновых задач в продакшене используйте cron-команду{" "}
+        <code className="rounded bg-[#f7f8fb] px-1.5 py-0.5 text-xs text-[#344054]">npm run jobs:run</code> или внешний планировщик.
       </div>
     </section>
   );

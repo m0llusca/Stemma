@@ -40,7 +40,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
 
   await expect(page.getByRole("heading", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
-  await expect(page.getByText("Шаг 1")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Шаг 1. Диалог" })).toBeVisible();
   await expect(page.getByText("Оценка по критериям")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Управление проверкой" })).toBeVisible();
@@ -85,7 +85,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/admin/audit");
   await expect(page.getByRole("heading", { name: "Журнал действий" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "review.finalized" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Проверка завершена" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Активность API-ключей" })).toBeVisible();
 
   await page.goto("/reports");

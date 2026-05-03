@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import {
   appealStatusLabels,
   csatBucketLabels,
+  externalSourceLabel,
   feedbackStatusLabels,
   reanswerStatusLabels,
   riskLevelLabels,
@@ -597,7 +598,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const criticalCategoryGroups = new Map<string, number>();
 
   for (const review of finalizedReviews) {
-    addScoreGroup(sourceGroups, review.conversation.externalSource, review.totalScore);
+    addScoreGroup(sourceGroups, externalSourceLabel(review.conversation.externalSource), review.totalScore);
     addScoreGroup(assigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
     addScoreGroup(reviewerGroups, review.reviewer.name, review.totalScore);
     addCountGroup(samplingGroups, samplingTypeLabels[review.conversation.samplingType] ?? review.conversation.samplingType);

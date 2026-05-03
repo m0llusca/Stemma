@@ -4,7 +4,7 @@ import { Surface } from "@/components/integrations/integration-ui";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { queueIntegrationImport } from "@/lib/integration-actions";
-import { integrationStatusLabel } from "@/lib/labels";
+import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -213,7 +213,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                   <div className="record-row">
                     <div className="min-w-0">
                       <h3 className="record-title">{integration.displayName}</h3>
-                      <p className="record-meta mt-1 font-mono compact-text">{integration.source}</p>
+                      <p className="record-meta mt-1 compact-text">{externalSourceLabel(integration.source)}</p>
                     </div>
                     <span className="pill pill--ok">
                       {integrationStatusLabel(integration.status)}
@@ -260,7 +260,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                     <article key={run.id} className="record-card">
                       <div className="record-row">
                         <div className="min-w-0">
-                          <h3 className="record-title">{run.integration?.displayName ?? run.source}</h3>
+                          <h3 className="record-title">{run.integration?.displayName ?? externalSourceLabel(run.source)}</h3>
                           <p className="record-meta mt-1">
                             {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
                           </p>

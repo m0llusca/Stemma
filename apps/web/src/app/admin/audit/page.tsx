@@ -5,6 +5,54 @@ import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
 const pageSize = 20;
 
+const auditActionLabels: Record<string, string> = {
+  "api_token.created": "Создан API-ключ",
+  "api_token.revoked": "API-ключ отозван",
+  "auth.directory_sync_queued": "Синхронизация каталога поставлена в очередь",
+  "auth.group_role_mapping_saved": "Сохранена связь группы и роли",
+  "auth.group_role_mapping_toggled": "Изменен статус связи группы и роли",
+  "auth.group_role_mapping_upserted": "Обновлена связь группы и роли",
+  "auth.provider_saved": "Сохранен провайдер входа",
+  "auth.provider_updated": "Обновлен провайдер входа",
+  "auth.provider_upserted": "Обновлен провайдер входа",
+  "auth.session_revoked": "Сессия отозвана",
+  "backend_job.cancelled": "Фоновая задача отменена",
+  "backend_job.retention_cleanup_queued": "Очистка данных поставлена в очередь",
+  "backend_jobs.run_from_ui": "Фоновые задачи запущены вручную",
+  "calibration.session_created": "Создана калибровка",
+  "conversation.bulk_workflow_updated": "Массово обновлена очередь проверок",
+  "conversation.workflow_updated": "Обновлена проверка обращения",
+  "integration.dry_run_checked": "Проверен пробный импорт",
+  "integration.import_queued": "Импорт поставлен в очередь",
+  "integration.native_helpdesk_imported": "Импорт из helpdesk завершен",
+  "integration.otrs_family_imported": "Импорт из OTRS/Znuny завершен",
+  "integration.upserted": "Сохранена интеграция",
+  "privacy.conversation_redacted": "Обращение обезличено",
+  "review.draft_saved": "Черновик проверки сохранен",
+  "review.feedback.acknowledged": "Обратная связь подтверждена",
+  "review.feedback.appeal_opened": "Открыта апелляция",
+  "review.feedback.reanswer_completed": "Переответ отмечен выполненным",
+  "review.finalized": "Проверка завершена",
+  "scorecard.version_created": "Создана версия формы оценки",
+  "seed.created": "Демо-данные загружены",
+  "training.assignment_created": "Создана учебная задача"
+};
+
+const auditTargetTypeLabels: Record<string, string> = {
+  api_token: "API-ключ",
+  auth_group_mapping: "Группа доступа",
+  auth_provider: "Провайдер входа",
+  auth_session: "Сессия",
+  backend_job: "Фоновая задача",
+  calibration_session: "Калибровка",
+  conversation: "Обращение",
+  integration: "Интеграция",
+  review: "Проверка",
+  scorecard: "Форма оценки",
+  training_assignment: "Учебная задача",
+  workspace: "Рабочая область"
+};
+
 type AuditPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -50,6 +98,14 @@ function parseMetadata(value: string) {
   } catch {
     return value;
   }
+}
+
+function auditActionLabel(value: string) {
+  return auditActionLabels[value] ?? value;
+}
+
+function auditTargetTypeLabel(value: string) {
+  return auditTargetTypeLabels[value] ?? value;
 }
 
 function buildAuditHref(page: number, action?: string, targetType?: string, start?: Date, end?: Date) {
@@ -166,7 +222,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             <option value="">Все</option>
             {actionRows.map((row) => (
               <option key={row.action} value={row.action}>
-                {row.action}
+                {auditActionLabel(row.action)}
               </option>
             ))}
           </select>
@@ -177,7 +233,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             <option value="">Все</option>
             {targetTypeRows.map((row) => (
               <option key={row.targetType} value={row.targetType}>
-                {row.targetType}
+                {auditTargetTypeLabel(row.targetType)}
               </option>
             ))}
           </select>
@@ -224,9 +280,9 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                 <article key={log.id} className="record-card">
                   <div className="record-row">
                     <div className="min-w-0">
-                      <h3 className="record-title">{log.action}</h3>
+                      <h3 className="record-title">{auditActionLabel(log.action)}</h3>
                       <p className="record-meta mt-1">
-                        {log.targetType} · {log.actor.name}
+                        {auditTargetTypeLabel(log.targetType)} · {log.actor.name}
                       </p>
                     </div>
                     <time className="pill pill--neutral" dateTime={log.createdAt.toISOString()}>
