@@ -37,15 +37,13 @@ export function QueueSavedViews({
     }))
   ];
   const currentView = allViews.find((view) => currentHref === view.href);
-  const customCount = savedViews.length;
-
   return (
     <details className="panel disclosure-panel overflow-hidden">
       <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-[#111827]">Быстрые виды</h2>
           <p className="mt-1 truncate text-sm text-[#64748b]">
-            Сейчас: {currentView?.label ?? "Текущий фильтр"}{customCount > 0 ? ` · сохраненных: ${customCount}` : ""}
+            {currentView?.label ?? "Текущий фильтр"}
           </p>
         </div>
         <span className="shrink-0 text-xs font-semibold uppercase text-[#64748b]">Открыть</span>
@@ -69,7 +67,7 @@ export function QueueSavedViews({
                     <button
                       type="submit"
                       title="Удалить представление"
-                      className="rounded px-1 text-xs font-semibold text-[#94a3b8] hover:bg-[#fff7ed] hover:text-[#b45309]"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-semibold text-[#94a3b8] hover:bg-[#fff7ed] hover:text-[#b45309]"
                     >
                       ×
                     </button>

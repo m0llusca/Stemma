@@ -45,12 +45,6 @@ const primaryButtonClass = "action-button action-button--primary";
 const secondaryButtonClass = "action-button";
 const smallButtonClass = "action-button min-h-[34px] px-3 py-2 text-xs";
 
-const sourceModeLabels: Record<SourceMode, string> = {
-  otrs_family: "OTRS / Znuny / OTOBO",
-  native_helpdesk: "Облачные helpdesk",
-  custom_api: "Своя система"
-};
-
 const sourceModeDescriptions: Record<SourceMode, string> = {
   otrs_family: "Подключение через GenericInterface TicketGet с безопасной проверкой перед запуском.",
   native_helpdesk: "Импорт тикетов и сообщений из популярных облачных helpdesk через готовые адаптеры.",
@@ -89,13 +83,13 @@ const sourceOptions = [
 const sourceChoiceGroups = [
   {
     mode: "otrs_family" as const,
-    title: "OTRS-family",
+    title: "OTRS / Znuny / OTOBO",
     description: "OTRS Community Edition 6, Znuny, OTOBO и совместимые форки.",
     options: sourceOptions.filter((option) => option.mode === "otrs_family")
   },
   {
     mode: "native_helpdesk" as const,
-    title: "Готовые helpdesk",
+    title: "Облачные helpdesk",
     description: "Облачные сервисы с готовым адаптером нормализации.",
     options: sourceOptions.filter((option) => option.mode === "native_helpdesk")
   },
@@ -298,7 +292,6 @@ function SourceChoiceStep({
         {sourceChoiceGroups.map((group) => (
           <section key={group.mode} className="source-choice-section">
             <div className="min-w-0">
-              <p className="source-choice-card__eyebrow">{sourceModeLabels[group.mode]}</p>
               <h4 className="text-base font-semibold text-[#111827]">{group.title}</h4>
               <p className="mt-1 text-sm leading-5 text-[#64748b]">{group.description}</p>
             </div>
@@ -1004,7 +997,7 @@ export function IntegrationSetupWorkspace({
   return (
     <section className="panel overflow-hidden">
       <div className="border-b border-[#d9e0ea] px-5 py-4">
-        <p className="text-sm font-medium text-[#64748b]">Новая интеграция</p>
+        <p className="text-sm font-medium text-[#64748b]">Пошаговая настройка</p>
         <h2 className="mt-1 text-lg font-semibold text-[#111827]">Мастер подключения источника</h2>
         <p className="mt-1 max-w-3xl text-sm leading-5 text-[#64748b]">
           Один последовательный поток: источник, доступ, лимиты, проверка и безопасный первый запуск.

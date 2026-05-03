@@ -156,7 +156,7 @@ export default async function AdminHomePage() {
 
   return (
     <section className="page-shell admin-shell">
-      <div className="command-center command-center--split">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Настройки</h1>
@@ -173,21 +173,6 @@ export default async function AdminHomePage() {
                 </Link>
               );
             })}
-          </div>
-        </div>
-
-        <div className="hero-stat-row">
-          <div className="hero-stat">
-            <p className="hero-stat__label">Форма оценки</p>
-            <p className="hero-stat__value">{activeScorecard ? `Версия ${activeScorecard.version}` : "Не настроено"}</p>
-          </div>
-          <div className="hero-stat">
-            <p className="hero-stat__label">Выборки</p>
-            <p className="hero-stat__value">{activeSamplingRules} активных</p>
-          </div>
-          <div className="hero-stat">
-            <p className="hero-stat__label">Системные ошибки</p>
-            <p className="hero-stat__value">{failedJobs}</p>
           </div>
         </div>
       </div>

@@ -86,38 +86,16 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         </div>
       </div>
       <QueueSummary {...summary} filtered={conversations.length} />
-      <div className="ops-layout ops-layout--queue">
-        <div className="grid min-w-0 gap-3">
-          <QueueFilters
-            filters={filters}
-            sources={filterOptions.sources}
-            assignees={filterOptions.assignees}
-            qaAssignees={filterOptions.qaAssignees}
-            supportLines={filterOptions.supportLines}
-          />
-          <QueueTable conversations={conversations} qaAssignees={qaAssignees} returnTo={currentHref} />
-        </div>
-        <aside className="ops-rail">
-          <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} savedViews={savedViews} />
-          <section className="ops-focus">
-            <h2 className="ops-heading">Фокус смены</h2>
-            <p className="ops-copy">Сначала просрочки и обращения с риском, затем плановая очередь.</p>
-            <div className="ops-section mt-4 grid gap-3">
-              <div>
-                <p className="metric-strip__label">Просрочено</p>
-                <p className="metric-strip__value">{summary.overdue}</p>
-              </div>
-              <div>
-                <p className="metric-strip__label">В работе</p>
-                <p className="metric-strip__value">{summary.inWork}</p>
-              </div>
-              <div>
-                <p className="metric-strip__label">В фильтре</p>
-                <p className="metric-strip__value">{conversations.length}</p>
-              </div>
-            </div>
-          </section>
-        </aside>
+      <div className="grid min-w-0 gap-3">
+        <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} savedViews={savedViews} />
+        <QueueFilters
+          filters={filters}
+          sources={filterOptions.sources}
+          assignees={filterOptions.assignees}
+          qaAssignees={filterOptions.qaAssignees}
+          supportLines={filterOptions.supportLines}
+        />
+        <QueueTable conversations={conversations} qaAssignees={qaAssignees} returnTo={currentHref} />
       </div>
     </section>
   );

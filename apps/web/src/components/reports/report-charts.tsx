@@ -64,7 +64,7 @@ export function ChartPanel({
           {description ? <p className="mt-1 text-sm text-[#64748b]">{description}</p> : null}
         </div>
         {actionHref ? (
-          <Link href={actionHref} className="shrink-0 text-xs font-semibold uppercase text-[#1d3fae] hover:underline">
+          <Link href={actionHref} className="flex min-h-7 shrink-0 items-center rounded-md px-2 text-xs font-semibold uppercase text-[#1d3fae] hover:bg-[#edf2ff]">
             {actionLabel}
           </Link>
         ) : null}

@@ -86,7 +86,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                 name="conversationId"
                 value={conversation.id}
                 aria-label={`Выбрать ${conversation.subject}`}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-[#d9e0ea]"
+                className="mt-1 h-6 w-6 shrink-0 rounded border-[#d9e0ea]"
               />
 
               <div className="queue-ticket__main">

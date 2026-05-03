@@ -177,7 +177,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
         </div>
         <div className="admin-actions">
           <Link href="/admin/integrations?setup=1#connect" className="action-button action-button--primary">
-            Подключить источник
+            Новый источник
           </Link>
           <Link href="/admin/tokens" className="action-button">
             API-доступ
@@ -273,7 +273,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                         <p className="record-meta">
                           Импортировано: <strong className="text-[#111827]">{run.importedCount}</strong> · ошибок: {run.errorCount}
                         </p>
-                        <Link href={queueHref(run.source, [])} className="text-sm font-semibold text-[#1d3fae] hover:underline">
+                        <Link href={queueHref(run.source, [])} className="action-button min-h-[36px] px-3 py-2 text-sm">
                           Открыть очередь
                         </Link>
                       </div>

@@ -266,7 +266,7 @@ export function ReviewPanel({
                         </fieldset>
                       )}
 
-                      <label className="flex items-center gap-2 text-sm text-[#334155]">
+                      <label className="flex min-h-7 items-center gap-2 text-sm text-[#334155]">
                         <input
                           type="checkbox"
                           name={`criterion.${criterion.id}.notApplicable`}
@@ -418,7 +418,7 @@ export function ReviewPanel({
             </summary>
 
             <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#334155]">
+              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[#334155]">
                 <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
                 Критическая ошибка: обнулить итоговую оценку
               </label>
@@ -436,7 +436,7 @@ export function ReviewPanel({
                   <option key={template} value={template} />
                 ))}
               </datalist>
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#334155]">
+              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[#334155]">
                 <input name="needsReanswer" type="checkbox" defaultChecked={draftReview?.needsReanswer ?? false} />
                 Нужен переответ клиенту
               </label>
