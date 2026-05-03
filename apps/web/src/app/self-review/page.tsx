@@ -36,9 +36,9 @@ export default async function SelfReviewPage() {
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">Мои обращения</h2>
-          <p className="mt-1 text-sm text-[#667085]">Сначала видны последние закрытые обращения.</p>
+          <p className="mt-1 text-sm text-[#64748b]">Сначала видны последние закрытые обращения.</p>
         </div>
         <div className="record-list px-5">
               {conversations.map((conversation) => {
@@ -61,7 +61,7 @@ export default async function SelfReviewPage() {
                       </p>
                       <Link
                         href={`/reviews/${conversation.id}?reviewSource=SELF_REVIEW&returnTo=${encodeURIComponent("/self-review")}`}
-                        className="text-sm font-semibold text-[#0b4f52] hover:underline"
+                        className="text-sm font-semibold text-[#1d3fae] hover:underline"
                       >
                         Оценить себя
                       </Link>

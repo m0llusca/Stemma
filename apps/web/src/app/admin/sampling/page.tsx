@@ -94,9 +94,9 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Правила</h2>
-            <p className="mt-1 text-sm text-[#667085]">
+            <p className="mt-1 text-sm text-[#64748b]">
               Активно: {activeRules} · всего: {rules.length}
             </p>
           </div>
@@ -137,19 +137,19 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
         </section>
 
         <details id="new-rule" className="disclosure-panel panel h-fit overflow-hidden" open={shouldOpenNewRule}>
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Новое правило</h2>
-              <p className="mt-1 text-sm text-[#667085]">Форма создания скрыта, пока вы не добавляете правило.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Форма создания скрыта, пока вы не добавляете правило.</p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Открыть</span>
+            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Открыть</span>
           </summary>
           <form action={createSamplingRule} className="grid gap-3 p-5">
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Название
               <input name="name" required className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Тип
               <select name="type" defaultValue="random" className="form-control">
                 <option value="random">Случайная</option>
@@ -160,7 +160,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
               </select>
             </label>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Канал
                 <select name="channel" defaultValue="" className="form-control">
                   <option value="">Любой</option>
@@ -171,7 +171,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 CSAT
                 <select name="csatBucket" defaultValue="" className="form-control">
                   <option value="">Любой</option>
@@ -184,26 +184,26 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
               </label>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Линия
                 <input name="supportLine" placeholder="1ЛП" className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Тег
                 <input name="tag" placeholder="new_hire" className="form-control" />
               </label>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Доля, %
                 <input name="targetPercent" type="number" min="1" max="100" defaultValue="10" className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Приоритет
                 <input name="priority" type="number" defaultValue="100" className="form-control" />
               </label>
             </div>
-            <label className="flex items-center gap-2 text-sm font-medium text-[#344054]">
+            <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">
               <input name="isActive" type="checkbox" defaultChecked />
               Включить сразу
             </label>

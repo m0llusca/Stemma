@@ -8,7 +8,7 @@ import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
-const emptyStateClass = "soft-callout text-sm leading-5 text-[#667085]";
+const emptyStateClass = "soft-callout text-sm leading-5 text-[#64748b]";
 
 type AdminIntegrationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -53,9 +53,9 @@ function formatScopes(scopes: string) {
 
 function badgeClass(tone: "ok" | "warn" | "neutral") {
   const classes = {
-    ok: "bg-[#e8f3ef] text-[#116466]",
-    warn: "bg-[#fff4ed] text-[#b54708]",
-    neutral: "bg-[#eef4f4] text-[#0b4f52]"
+    ok: "bg-[#edf2ff] text-[#3157d5]",
+    warn: "bg-[#fff7ed] text-[#b45309]",
+    neutral: "bg-[#edf2ff] text-[#1d3fae]"
   };
 
   return classes[tone];
@@ -189,12 +189,12 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
       </div>
 
       <details id="connect" className="disclosure-panel" open={shouldOpenSetup}>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Подключить источник</h2>
-            <p className="mt-1 text-sm text-[#667085]">Пошаговая настройка скрыта до момента, когда она действительно нужна.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Пошаговая настройка скрыта до момента, когда она действительно нужна.</p>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
+          <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
         </summary>
         <div className="mt-4">
           <IntegrationSetupWorkspace apiTokenCount={apiTokens.length} apiHealth={apiHealth} />
@@ -242,12 +242,12 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
         </Surface>
 
         <details className="disclosure-panel">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Последние запуски</h2>
-              <p className="mt-1 text-sm text-[#667085]">Пробные запуски и импорты можно открыть при разборе ошибок или сверке объемов.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Пробные запуски и импорты можно открыть при разборе ошибок или сверке объемов.</p>
             </div>
-            <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{recentRuns.length}</span>
+            <span className="shrink-0 rounded-md bg-[#edf2ff] px-2 py-1 text-xs font-semibold text-[#1d3fae]">{recentRuns.length}</span>
           </summary>
           <div className="mt-4">
             {recentRuns.length > 0 ? (
@@ -271,9 +271,9 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                       </div>
                       <div className="record-row">
                         <p className="record-meta">
-                          Импортировано: <strong className="text-[#17202a]">{run.importedCount}</strong> · ошибок: {run.errorCount}
+                          Импортировано: <strong className="text-[#111827]">{run.importedCount}</strong> · ошибок: {run.errorCount}
                         </p>
-                        <Link href={queueHref(run.source, [])} className="text-sm font-semibold text-[#0b4f52] hover:underline">
+                        <Link href={queueHref(run.source, [])} className="text-sm font-semibold text-[#1d3fae] hover:underline">
                           Открыть очередь
                         </Link>
                       </div>
@@ -295,12 +295,12 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
         </details>
 
         <details className="disclosure-panel">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Ключи API</h2>
-              <p className="mt-1 text-sm text-[#667085]">Состояние ключей и последняя ошибка по своему API.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Состояние ключей и последняя ошибка по своему API.</p>
             </div>
-            <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
+            <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#64748b]">Показать</span>
           </summary>
           <div className="mt-4">
             <Surface
@@ -324,7 +324,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                       Использование: {formatLastUsed(apiToken.lastUsedAt)} · успех: {formatOptionalDate(apiToken.lastSuccessAt)}
                     </p>
                     {apiToken.lastError ? (
-                      <p className="text-sm font-medium text-[#b42318]">
+                      <p className="text-sm font-medium text-[#b91c1c]">
                         {formatOptionalDate(apiToken.lastErrorAt)} · {apiToken.lastError}
                       </p>
                     ) : null}

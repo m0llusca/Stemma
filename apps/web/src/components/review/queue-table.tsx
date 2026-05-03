@@ -46,8 +46,8 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
   if (conversations.length === 0) {
     return (
       <div className="panel px-5 py-10 text-center">
-        <h2 className="text-base font-semibold text-[#17202a]">Очередь пуста</h2>
-        <p className="mt-2 text-sm text-[#667085]">Новые диалоги появятся после импорта или ручной загрузки через API.</p>
+        <h2 className="text-base font-semibold text-[#111827]">Очередь пуста</h2>
+        <p className="mt-2 text-sm text-[#64748b]">Новые диалоги появятся после импорта или ручной загрузки через API.</p>
       </div>
     );
   }
@@ -79,11 +79,11 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                 name="conversationId"
                 value={conversation.id}
                 aria-label={`Выбрать ${conversation.subject}`}
-                className="h-4 w-4 shrink-0 rounded border-[#d7dce5]"
+                className="h-4 w-4 shrink-0 rounded border-[#d9e0ea]"
               />
 
               <div className="min-w-0">
-                <Link href={`/reviews/${conversation.id}`} className="inbox-title text-[#0b4f52] hover:underline">
+                <Link href={`/reviews/${conversation.id}`} className="inbox-title text-[#1d3fae] hover:underline">
                   {conversation.subject}
                 </Link>
                 <p className="inbox-meta mt-1">
@@ -139,16 +139,16 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
         })}
       </div>
 
-      <details className="disclosure-panel border-t border-[#d7dce5]">
+      <details className="disclosure-panel border-t border-[#d9e0ea]">
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-[#17202a]">Массовые действия</h2>
-            <p className="mt-1 text-sm text-[#667085]">Назначение, срок или состояние для отмеченных обращений.</p>
+            <h2 className="text-base font-semibold text-[#111827]">Массовые действия</h2>
+            <p className="mt-1 text-sm text-[#64748b]">Назначение, срок или состояние для отмеченных обращений.</p>
           </div>
           <span className="pill pill--neutral">{conversations.length}</span>
         </summary>
-        <div className="grid gap-3 border-t border-[#d7dce5] bg-[#fafbf8] p-4 lg:grid-cols-[170px_220px_160px_auto] lg:items-end">
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <div className="grid gap-3 border-t border-[#d9e0ea] bg-[#f8fafc] p-4 lg:grid-cols-[170px_220px_160px_auto] lg:items-end">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Состояние
             <select name="qaStatus" defaultValue="" className="form-control">
               <option value="">Не менять</option>
@@ -159,7 +159,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Проверяющий
             <select name="qaAssigneeId" defaultValue="" className="form-control">
               <option value="">Не менять</option>
@@ -170,7 +170,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Срок
             <input name="reviewDueAt" type="date" className="form-control" />
           </label>

@@ -43,15 +43,15 @@ export function QueueSavedViews({
     <details className="panel disclosure-panel overflow-hidden">
       <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-[#17202a]">Быстрые виды</h2>
-          <p className="mt-1 truncate text-sm text-[#667085]">
+          <h2 className="text-sm font-semibold text-[#111827]">Быстрые виды</h2>
+          <p className="mt-1 truncate text-sm text-[#64748b]">
             Сейчас: {currentView?.label ?? "Текущий фильтр"}{customCount > 0 ? ` · сохраненных: ${customCount}` : ""}
           </p>
         </div>
-        <span className="shrink-0 text-xs font-semibold uppercase text-[#667085]">Открыть</span>
+        <span className="shrink-0 text-xs font-semibold uppercase text-[#64748b]">Открыть</span>
       </summary>
 
-      <div className="min-w-0 border-t border-[#d7dce5] bg-white">
+      <div className="min-w-0 border-t border-[#d9e0ea] bg-white">
         <div className="signal-row px-4 py-3" aria-label="Быстрые представления очереди">
           {allViews.map((view, index) => {
             const isActive = currentHref === view.href;
@@ -69,7 +69,7 @@ export function QueueSavedViews({
                     <button
                       type="submit"
                       title="Удалить представление"
-                      className="rounded px-1 text-xs font-semibold text-[#98a2b3] hover:bg-[#fff4ed] hover:text-[#b54708]"
+                      className="rounded px-1 text-xs font-semibold text-[#94a3b8] hover:bg-[#fff7ed] hover:text-[#b45309]"
                     >
                       ×
                     </button>
@@ -79,13 +79,13 @@ export function QueueSavedViews({
             );
           })}
         </div>
-        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
+        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
           <input type="hidden" name="href" value={currentHref} />
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Сохранить текущий вид
             <input name="name" placeholder="Например, 2ЛП критические" className="form-control" />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Доступ
             <select name="scope" defaultValue="private" className="form-control">
               <option value="private">Только мне</option>

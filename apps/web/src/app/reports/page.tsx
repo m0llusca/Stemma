@@ -196,10 +196,10 @@ function scoreDistributionRows(reviews: ReviewForReport[]): ChartDatum[] {
 
 function riskSegments(riskGroups: Map<string, number>): StackedSegment[] {
   return [
-    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, color: "bg-[#116466]" },
-    { label: "Средний", value: riskGroups.get("Средний") ?? 0, color: "bg-[#5f6f52]" },
-    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, color: "bg-[#f79009]" },
-    { label: "Критический", value: riskGroups.get("Критический") ?? 0, color: "bg-[#d92d20]" }
+    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, color: "bg-[#3157d5]" },
+    { label: "Средний", value: riskGroups.get("Средний") ?? 0, color: "bg-[#0f766e]" },
+    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, color: "bg-[#d97706]" },
+    { label: "Критический", value: riskGroups.get("Критический") ?? 0, color: "bg-[#dc2626]" }
   ];
 }
 
@@ -315,7 +315,7 @@ function BreakdownTable({
 }) {
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d7dce5] px-5 py-4">
+      <div className="border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
       </div>
       <div className="record-list px-5">
@@ -332,7 +332,7 @@ function BreakdownTable({
             </article>
           ))
         ) : (
-          <div className="soft-callout text-sm text-[#667085]">
+          <div className="soft-callout text-sm text-[#64748b]">
             Нет завершенных проверок.
           </div>
         )}
@@ -344,7 +344,7 @@ function BreakdownTable({
 function PeriodFilter({ period }: { period: ReportPeriod }) {
   return (
     <form action="/reports" className="panel grid gap-4 p-4 md:grid-cols-[minmax(180px,240px)_160px_160px_auto] md:items-end">
-      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+      <label className="grid gap-1 text-sm font-medium text-[#334155]">
         Период
         <select name="period" defaultValue={period.preset} className="form-control">
           <option value="vk-current">Текущий период 22-21</option>
@@ -355,7 +355,7 @@ function PeriodFilter({ period }: { period: ReportPeriod }) {
           <option value="custom">Произвольный</option>
         </select>
       </label>
-      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+      <label className="grid gap-1 text-sm font-medium text-[#334155]">
         С даты
         <input
           name="start"
@@ -364,7 +364,7 @@ function PeriodFilter({ period }: { period: ReportPeriod }) {
           className="form-control"
         />
       </label>
-      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+      <label className="grid gap-1 text-sm font-medium text-[#334155]">
         По дату
         <input
           name="end"
@@ -396,9 +396,9 @@ function QuotaTable({
 }) {
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d7dce5] px-5 py-4">
+      <div className="border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">Нормы проверок</h2>
-        <p className="mt-1 text-sm text-[#667085]">План, факт и доля негативного CSAT по операторам.</p>
+        <p className="mt-1 text-sm text-[#64748b]">План, факт и доля негативного CSAT по операторам.</p>
       </div>
       <div className="record-list px-5">
         {quotas.length > 0 ? (
@@ -440,7 +440,7 @@ function QuotaTable({
             );
           })
         ) : (
-          <div className="soft-callout text-sm text-[#667085]">
+          <div className="soft-callout text-sm text-[#64748b]">
             Нормы на выбранный период пока не заданы.
           </div>
         )}
@@ -467,11 +467,11 @@ function ProcessSummary({
   return (
     <section className="overflow-hidden bg-white">
       <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="border-b border-[#d7dce5] bg-[#fbfcfd] p-4 lg:border-b-0 lg:border-r">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Контроль процесса</p>
-          <p className="mt-1 text-sm leading-5 text-[#667085]">Эскалации, которые требуют управленческого внимания.</p>
+        <div className="border-b border-[#d9e0ea] bg-[#f8fafc] p-4 lg:border-b-0 lg:border-r">
+          <p className="text-xs font-semibold uppercase text-[#64748b]">Контроль процесса</p>
+          <p className="mt-1 text-sm leading-5 text-[#64748b]">Эскалации, которые требуют управленческого внимания.</p>
         </div>
-        <dl className="grid divide-y divide-[#d7dce5] md:grid-cols-3 md:divide-x md:divide-y-0">
+        <dl className="grid divide-y divide-[#d9e0ea] md:grid-cols-3 md:divide-x md:divide-y-0">
           {items.map((item) => {
             const Icon = item.icon;
 
@@ -481,9 +481,9 @@ function ProcessSummary({
                   <Icon size={17} aria-hidden="true" />
                 </span>
                 <div>
-                  <dt className="text-xs font-semibold uppercase text-[#667085]">{item.label}</dt>
-                  <dd className="mt-1 text-xl font-semibold text-[#17202a]">{item.value}</dd>
-                  <p className="text-sm text-[#667085]">{item.detail}</p>
+                  <dt className="text-xs font-semibold uppercase text-[#64748b]">{item.label}</dt>
+                  <dd className="mt-1 text-xl font-semibold text-[#111827]">{item.value}</dd>
+                  <p className="text-sm text-[#64748b]">{item.detail}</p>
                 </div>
               </div>
             );
@@ -530,16 +530,16 @@ function FocusPanel({
 
   return (
     <section className="panel mt-6 overflow-hidden">
-      <div className="border-b border-[#d7dce5] px-5 py-4">
+      <div className="border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">Что требует внимания</h2>
-        <p className="mt-1 text-sm text-[#667085]">Короткая сводка для руководителя без лишних разрезов.</p>
+        <p className="mt-1 text-sm text-[#64748b]">Короткая сводка для руководителя без лишних разрезов.</p>
       </div>
-      <div className="grid divide-y divide-[#d7dce5] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
+      <div className="grid divide-y divide-[#d9e0ea] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
         {rows.map((row) => (
           <article key={row.label} className="p-4">
-            <p className="text-xs font-semibold uppercase text-[#667085]">{row.label}</p>
-            <p className="mt-2 text-base font-semibold text-[#17202a]">{row.value}</p>
-            <p className="mt-1 text-sm leading-5 text-[#667085]">{row.detail}</p>
+            <p className="text-xs font-semibold uppercase text-[#64748b]">{row.label}</p>
+            <p className="mt-2 text-base font-semibold text-[#111827]">{row.value}</p>
+            <p className="mt-1 text-sm leading-5 text-[#64748b]">{row.detail}</p>
           </article>
         ))}
       </div>
@@ -750,11 +750,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Дополнительная аналитика</h2>
-            <p className="mt-1 text-sm text-[#667085]">Операторы, источники, риски, нормы и блоки критериев.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Операторы, источники, риски, нормы и блоки критериев.</p>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#64748b]">Показать</span>
         </summary>
-        <div className="grid items-stretch gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-4">
+        <div className="grid items-stretch gap-5 border-t border-[#d9e0ea] p-5 xl:grid-cols-4">
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
             <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
           </ChartPanel>
@@ -773,10 +773,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <QuotaProgressBars rows={quotaProgressRows} />
           </ChartPanel>
         </div>
-        <div className="border-t border-[#d7dce5]">
+        <div className="border-t border-[#d9e0ea]">
           <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
         </div>
-        <div className="grid items-start gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-2">
+        <div className="grid items-start gap-5 border-t border-[#d9e0ea] p-5 xl:grid-cols-2">
           <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
           <QuotaTable quotas={quotas} reviews={finalizedReviews} />
           <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
@@ -786,12 +786,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </details>
 
       <details className="disclosure-panel">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Подробные разрезы</h2>
-            <p className="mt-1 text-sm text-[#667085]">Выборка, CSAT, обратная связь, апелляции, риски и категории.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Выборка, CSAT, обратная связь, апелляции, риски и категории.</p>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#64748b]">Показать</span>
         </summary>
         <div className="mt-5 grid items-start gap-5 xl:grid-cols-2">
           <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />

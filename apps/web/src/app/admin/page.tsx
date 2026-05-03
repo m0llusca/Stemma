@@ -171,13 +171,13 @@ export default async function AdminHomePage() {
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Разделы администрирования</h2>
-              <p className="mt-1 text-sm text-[#667085]">Каждый раздел открывает рабочий экран без промежуточных вложенных меню.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Каждый раздел открывает рабочий экран без промежуточных вложенных меню.</p>
             </div>
-            <SlidersHorizontal size={18} className="text-[#0b4f52]" aria-hidden="true" />
+            <SlidersHorizontal size={18} className="text-[#1d3fae]" aria-hidden="true" />
           </div>
         </div>
         <div className="command-list">
@@ -196,7 +196,7 @@ export default async function AdminHomePage() {
                 </div>
                 <p className="record-meta mt-1">{card.description}</p>
               </div>
-              <span className="command-row__action text-sm font-semibold text-[#0b4f52]">
+              <span className="command-row__action text-sm font-semibold text-[#1d3fae]">
                 Открыть <ArrowRight size={14} aria-hidden="true" />
               </span>
             </Link>
@@ -207,9 +207,9 @@ export default async function AdminHomePage() {
 
       {quickActions.length > 3 ? (
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Дополнительные действия</h2>
-            <p className="mt-1 text-sm text-[#667085]">Редкие настройки остаются в один клик, но не спорят с основным списком.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Редкие настройки остаются в один клик, но не спорят с основным списком.</p>
           </div>
           <div className="flex flex-wrap gap-2 px-5 py-4">
             {quickActions.slice(3).map((action) => {

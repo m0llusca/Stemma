@@ -12,9 +12,9 @@ export function SectionHeader({
 }) {
   return (
     <div className="min-w-0">
-      {eyebrow ? <p className="text-xs font-semibold uppercase text-[#667085]">{eyebrow}</p> : null}
-      <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[#17202a]`}>{title}</h3>
-      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085] compact-text">{description}</p> : null}
+      {eyebrow ? <p className="text-xs font-semibold uppercase text-[#64748b]">{eyebrow}</p> : null}
+      <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[#111827]`}>{title}</h3>
+      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#64748b] compact-text">{description}</p> : null}
     </div>
   );
 }
@@ -35,7 +35,7 @@ export function Surface({
   return (
     <div className={`panel min-w-0 overflow-hidden ${className}`}>
       {title ? (
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <SectionHeader title={title} description={description} />
         </div>
       ) : null}
@@ -72,7 +72,7 @@ export function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children:
       <div className="flex justify-end">
         <CopyButton value={children} />
       </div>
-      <pre className={`${maxHeight} overflow-auto rounded-md bg-[#17202a] p-4 text-xs leading-5 text-white`}>
+      <pre className={`${maxHeight} overflow-auto rounded-md bg-[#111827] p-4 text-xs leading-5 text-white`}>
         <code>{children}</code>
       </pre>
     </div>

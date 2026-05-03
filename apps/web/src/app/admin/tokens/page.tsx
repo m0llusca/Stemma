@@ -24,14 +24,14 @@ function formatScopes(scopes: string) {
 
 function tokenHealth(token: { lastSuccessAt: Date | null; lastErrorAt: Date | null; lastError: string | null }) {
   if (token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)) {
-    return { label: "Ошибка", className: "bg-[#fff4ed] text-[#b54708]" };
+    return { label: "Ошибка", className: "bg-[#fff7ed] text-[#b45309]" };
   }
 
   if (token.lastSuccessAt) {
-    return { label: "Работает", className: "bg-[#e8f3ef] text-[#116466]" };
+    return { label: "Работает", className: "bg-[#edf2ff] text-[#3157d5]" };
   }
 
-  return { label: "Готов", className: "bg-[#eef4f4] text-[#0b4f52]" };
+  return { label: "Готов", className: "bg-[#edf2ff] text-[#1d3fae]" };
 }
 
 export default async function AdminTokensPage() {
@@ -67,9 +67,9 @@ export default async function AdminTokensPage() {
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">Локальный ключ для разработки</h2>
-          <p className="mt-1 text-sm text-[#667085]">
+          <p className="mt-1 text-sm text-[#64748b]">
             На страницах интеграций используется плейсхолдер {apiTokenPlaceholder}; реальные значения собраны здесь.
           </p>
         </div>
@@ -98,9 +98,9 @@ export default async function AdminTokensPage() {
       </section>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">Ключи рабочего пространства</h2>
-          <p className="mt-1 text-sm text-[#667085]">Статус, права и последняя активность без широкой таблицы.</p>
+          <p className="mt-1 text-sm text-[#64748b]">Статус, права и последняя активность без широкой таблицы.</p>
         </div>
         <div className="record-list px-5">
           {apiTokens.map((apiToken) => {

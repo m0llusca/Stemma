@@ -29,13 +29,13 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
       <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">Управление проверкой</h2>
-          <p className="mt-1 truncate text-sm text-[#667085]">
+          <p className="mt-1 truncate text-sm text-[#64748b]">
             {qaStatusLabels[conversation.qaStatus]} · {conversation.qaAssigneeName ?? "Проверяющий не назначен"} ·{" "}
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "без срока"}
           </p>
         </div>
         <span
-          className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+          className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
           aria-hidden="true"
         >
           <ChevronDown className="h-4 w-4" />
@@ -44,11 +44,11 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
 
       <form
         action={updateConversationWorkflow}
-        className="grid gap-3 border-t border-[#d7dce5] p-4 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto]"
+        className="grid gap-3 border-t border-[#d9e0ea] p-4 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto]"
       >
         <input type="hidden" name="conversationId" value={conversation.id} />
 
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Состояние проверки
           <select
             name="qaStatus"
@@ -63,7 +63,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           </select>
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Проверяющий
           <select
             name="qaAssigneeId"
@@ -82,7 +82,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           </select>
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Срок
           <input
             name="reviewDueAt"

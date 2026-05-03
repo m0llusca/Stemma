@@ -96,8 +96,8 @@ function StepHeader({ number, title, detail }: { number: number; title: string; 
         {number}
       </span>
       <div className="min-w-0">
-        <h3 className="text-sm font-semibold uppercase text-[#667085]">{title}</h3>
-        <p className="mt-1 text-sm text-[#475467]">{detail}</p>
+        <h3 className="text-sm font-semibold uppercase text-[#64748b]">{title}</h3>
+        <p className="mt-1 text-sm text-[#475569]">{detail}</p>
       </div>
     </div>
   );
@@ -156,15 +156,15 @@ export function ReviewPanel({
       <input type="hidden" name="reviewSource" value={reviewSource} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
-      <div className="border-b border-[#d7dce5] px-5 py-4">
+      <div className="border-b border-[#d9e0ea] px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{title}</h2>
-            <p className="mt-1 text-sm text-[#667085]">
+            <p className="mt-1 text-sm text-[#64748b]">
               {scorecard.name} v{scorecard.version}
             </p>
           </div>
-          <span className="rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">
+          <span className="rounded-md bg-[#edf2ff] px-2 py-1 text-xs font-semibold text-[#1d3fae]">
             {scorecard.criteria.length} критериев
           </span>
         </div>
@@ -196,8 +196,8 @@ export function ReviewPanel({
           {criteriaByBlock.map((group) => (
             <div key={group.block} className="grid gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h4 className="text-xs font-semibold uppercase text-[#667085]">{group.block}</h4>
-                <span className="text-xs text-[#667085]">{group.criteria.reduce((sum, criterion) => sum + criterion.weight, 0)}%</span>
+                <h4 className="text-xs font-semibold uppercase text-[#64748b]">{group.block}</h4>
+                <span className="text-xs text-[#64748b]">{group.criteria.reduce((sum, criterion) => sum + criterion.weight, 0)}%</span>
               </div>
               {group.criteria.map((criterion) => {
                 const draftScore = draftScores.get(criterion.id);
@@ -206,29 +206,29 @@ export function ReviewPanel({
                 return (
                   <details
                     key={criterion.id}
-                    className="disclosure-panel overflow-hidden rounded-lg border border-[#d7dce5] bg-white"
+                    className="disclosure-panel overflow-hidden rounded-lg border border-[#d9e0ea] bg-white"
                     open={shouldOpenCriterion(criterion, draftScore)}
                   >
                     <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
-                        <h4 className="truncate text-sm font-semibold text-[#17202a]">
+                        <h4 className="truncate text-sm font-semibold text-[#111827]">
                           {criterion.order}. {criterion.label}
                         </h4>
-                        <p className="mt-1 text-xs text-[#667085]">
+                        <p className="mt-1 text-xs text-[#64748b]">
                           Вес {criterion.weight}% · {criterionStateLabel(criterion, draftScore)}
                         </p>
                       </div>
                       <span
-                        className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+                        className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
                         aria-hidden="true"
                       >
                         <ChevronDown className="h-4 w-4" />
                       </span>
                     </summary>
 
-                    <div className="grid gap-3 border-t border-[#d7dce5] p-4">
+                    <div className="grid gap-3 border-t border-[#d9e0ea] p-4">
                       {criterion.kind === "SCALE_1_3" ? (
-                        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                        <label className="grid gap-1 text-sm font-medium text-[#334155]">
                           Оценка
                           <select
                             name={`criterion.${criterion.id}.score`}
@@ -241,10 +241,10 @@ export function ReviewPanel({
                           </select>
                         </label>
                       ) : (
-                        <fieldset className="grid gap-2 text-sm font-medium text-[#344054]">
+                        <fieldset className="grid gap-2 text-sm font-medium text-[#334155]">
                           <legend>Результат</legend>
                           <div className="grid grid-cols-2 gap-2">
-                            <label className="flex items-center gap-2 rounded-md border border-[#d7dce5] bg-white px-3 py-2 font-normal">
+                            <label className="flex items-center gap-2 rounded-md border border-[#d9e0ea] bg-white px-3 py-2 font-normal">
                               <input
                                 type="radio"
                                 name={`criterion.${criterion.id}.passed`}
@@ -253,7 +253,7 @@ export function ReviewPanel({
                               />
                               Зачет
                             </label>
-                            <label className="flex items-center gap-2 rounded-md border border-[#d7dce5] bg-white px-3 py-2 font-normal">
+                            <label className="flex items-center gap-2 rounded-md border border-[#d9e0ea] bg-white px-3 py-2 font-normal">
                               <input
                                 type="radio"
                                 name={`criterion.${criterion.id}.passed`}
@@ -266,7 +266,7 @@ export function ReviewPanel({
                         </fieldset>
                       )}
 
-                      <label className="flex items-center gap-2 text-sm text-[#344054]">
+                      <label className="flex items-center gap-2 text-sm text-[#334155]">
                         <input
                           type="checkbox"
                           name={`criterion.${criterion.id}.notApplicable`}
@@ -275,7 +275,7 @@ export function ReviewPanel({
                         Не применимо
                       </label>
 
-                      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                      <label className="grid gap-1 text-sm font-medium text-[#334155]">
                         Сообщение-доказательство
                         <select
                           name={`criterion.${criterion.id}.evidenceMessageId`}
@@ -291,7 +291,7 @@ export function ReviewPanel({
                         </select>
                       </label>
 
-                      <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                      <label className="grid gap-1 text-sm font-medium text-[#334155]">
                         Комментарий
                         <textarea
                           name={`criterion.${criterion.id}.comment`}
@@ -315,20 +315,20 @@ export function ReviewPanel({
         <div className="grid gap-4">
           <details className="compact-details">
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
-              <span className="text-sm font-semibold text-[#17202a]">Шаблоны итогового комментария</span>
-              <span className="text-xs font-semibold uppercase text-[#667085]">3 варианта</span>
+              <span className="text-sm font-semibold text-[#111827]">Шаблоны итогового комментария</span>
+              <span className="text-xs font-semibold uppercase text-[#64748b]">3 варианта</span>
             </summary>
-            <div className="grid gap-2 border-t border-[#d7dce5] p-3">
+            <div className="grid gap-2 border-t border-[#d9e0ea] p-3">
               {summaryTemplates.map((template) => (
                 <div key={template} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2">
-                  <span className="text-sm leading-5 text-[#344054]">{template}</span>
+                  <span className="text-sm leading-5 text-[#334155]">{template}</span>
                   <CopyButton value={template} label="Скопировать" />
                 </div>
               ))}
             </div>
           </details>
 
-          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
             Итог проверки
             <textarea
               name="summary"
@@ -340,7 +340,7 @@ export function ReviewPanel({
           </label>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Категория
               <input
                 name="category"
@@ -351,7 +351,7 @@ export function ReviewPanel({
               />
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Ответственность
               <select
                 name="ownerType"
@@ -367,7 +367,7 @@ export function ReviewPanel({
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Риск
               <select
                 name="riskLevel"
@@ -391,38 +391,38 @@ export function ReviewPanel({
         </div>
       </section>
 
-      <details className="disclosure-panel border-b border-[#d7dce5]" open={hasOptionalDetails}>
+      <details className="disclosure-panel border-b border-[#d9e0ea]" open={hasOptionalDetails}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
           <div>
-            <h3 className="text-sm font-semibold uppercase text-[#667085]">Дополнительно</h3>
-            <p className="mt-1 text-sm text-[#667085]">Критические ошибки, переответ, обратная связь и разбор</p>
+            <h3 className="text-sm font-semibold uppercase text-[#64748b]">Дополнительно</h3>
+            <p className="mt-1 text-sm text-[#64748b]">Критические ошибки, переответ, обратная связь и разбор</p>
           </div>
           <span
-            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
             aria-hidden="true"
           >
             <ChevronDown className="h-4 w-4" />
           </span>
         </summary>
 
-        <div className="grid gap-3 border-t border-[#d7dce5] p-5">
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5]" open={hasCriticalDetails}>
+        <div className="grid gap-3 border-t border-[#d9e0ea] p-5">
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d9e0ea]" open={hasCriticalDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[#17202a]">Критическая ошибка и переответ</h4>
-                <p className="mt-1 text-xs text-[#667085]">Открывайте только для обнуления оценки или переответа клиенту.</p>
+                <h4 className="text-sm font-semibold text-[#111827]">Критическая ошибка и переответ</h4>
+                <p className="mt-1 text-xs text-[#64748b]">Открывайте только для обнуления оценки или переответа клиенту.</p>
               </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]" aria-hidden="true">
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#344054]">
+            <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-[#334155]">
                 <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
                 Критическая ошибка: обнулить итоговую оценку
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Тип критической ошибки
                 <input
                   name="criticalCategory"
@@ -436,13 +436,13 @@ export function ReviewPanel({
                   <option key={template} value={template} />
                 ))}
               </datalist>
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#344054]">
+              <label className="flex items-center gap-2 text-sm font-semibold text-[#334155]">
                 <input name="needsReanswer" type="checkbox" defaultChecked={draftReview?.needsReanswer ?? false} />
                 Нужен переответ клиенту
               </label>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Статус обратной связи
                   <select name="feedbackStatus" defaultValue={draftReview?.feedbackStatus ?? "new"} className={fieldClassName}>
                     {feedbackStatuses.map((status) => (
@@ -452,7 +452,7 @@ export function ReviewPanel({
                     ))}
                   </select>
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Апелляция
                   <select name="appealStatus" defaultValue={draftReview?.appealStatus ?? "none"} className={fieldClassName}>
                     {appealStatuses.map((status) => (
@@ -462,7 +462,7 @@ export function ReviewPanel({
                     ))}
                   </select>
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Переответ
                   <select name="reanswerStatus" defaultValue={draftReview?.reanswerStatus ?? "not_needed"} className={fieldClassName}>
                     {reanswerStatuses.map((status) => (
@@ -476,19 +476,19 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5]" open={hasFeedbackDetails}>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d9e0ea]" open={hasFeedbackDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[#17202a]">Обратная связь</h4>
-                <p className="mt-1 text-xs text-[#667085]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
+                <h4 className="text-sm font-semibold text-[#111827]">Обратная связь</h4>
+                <p className="mt-1 text-xs text-[#64748b]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
               </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]" aria-hidden="true">
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Комментарий для обратной связи
                 <textarea
                   name="feedbackComment"
@@ -500,7 +500,7 @@ export function ReviewPanel({
               </label>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Положительные моменты
                   <textarea
                     name="positiveNotes"
@@ -510,7 +510,7 @@ export function ReviewPanel({
                   />
                 </label>
 
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Ссылки на инструкции и материалы
                   <textarea
                     name="instructionLinks"
@@ -523,20 +523,20 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5]" open={hasAnalysisDetails}>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d9e0ea]" open={hasAnalysisDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[#17202a]">Разбор и калибровка</h4>
-                <p className="mt-1 text-xs text-[#667085]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
+                <h4 className="text-sm font-semibold text-[#111827]">Разбор и калибровка</h4>
+                <p className="mt-1 text-xs text-[#64748b]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
               </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]" aria-hidden="true">
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4">
+            <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Корневая причина
                   <textarea
                     name="rootCause"
@@ -546,7 +546,7 @@ export function ReviewPanel({
                   />
                 </label>
 
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Краткое доказательство
                   <textarea
                     name="evidenceSummary"
@@ -558,7 +558,7 @@ export function ReviewPanel({
               </div>
 
               <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Действие для разбора
                   <input
                     name="coachingAction"
@@ -572,7 +572,7 @@ export function ReviewPanel({
                     <option key={template} value={template} />
                   ))}
                 </datalist>
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Ответственный за разбор
                   <input
                     name="coachingAssignee"
@@ -580,7 +580,7 @@ export function ReviewPanel({
                     className={fieldClassName}
                   />
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Срок
                   <input
                     name="coachingDueAt"
@@ -591,7 +591,7 @@ export function ReviewPanel({
                 </label>
               </div>
 
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Заметки для калибровки
                 <textarea
                   name="calibrationNotes"
@@ -605,7 +605,7 @@ export function ReviewPanel({
         </div>
       </details>
 
-      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t border-[#d7dce5] bg-white p-5 shadow-[0_-8px_24px_rgba(23,32,42,0.06)]">
+      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t border-[#d9e0ea] bg-white p-5 shadow-[0_-8px_24px_rgba(23,32,42,0.06)]">
         <button
           type="submit"
           formNoValidate

@@ -12,9 +12,9 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
 
   return (
     <section className="panel overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-[#d7dce5] px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">Таймлайн диалога</h2>
-        <span className="text-sm text-[#667085]">{formatMessageCount(messages.length)}</span>
+        <span className="text-sm text-[#64748b]">{formatMessageCount(messages.length)}</span>
       </div>
       <div className="record-list px-5">
         {messages.map((message) => {
@@ -28,24 +28,24 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
               }`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-                <span className="font-semibold text-[#17202a]">{message.authorName}</span>
-                <span className="rounded bg-white px-2 py-1 text-xs font-medium text-[#475467]">
+                <span className="font-semibold text-[#111827]">{message.authorName}</span>
+                <span className="rounded bg-white px-2 py-1 text-xs font-medium text-[#475569]">
                   {participantLabels[message.participantType]}
                 </span>
                 {isHighlighted ? (
-                  <span className="rounded bg-[#116466] px-2 py-1 text-xs font-semibold text-white">Доказательство</span>
+                  <span className="rounded bg-[#3157d5] px-2 py-1 text-xs font-semibold text-white">Доказательство</span>
                 ) : null}
                 {message.isPrivate ? (
-                  <span className="rounded bg-[#fff4ed] px-2 py-1 text-xs font-medium text-[#b54708]">Приватно</span>
+                  <span className="rounded bg-[#fff7ed] px-2 py-1 text-xs font-medium text-[#b45309]">Приватно</span>
                 ) : null}
                 <div className="ml-auto flex shrink-0 items-center gap-2">
-                  <time className="text-xs text-[#667085]" dateTime={message.sentAt.toISOString()}>
+                  <time className="text-xs text-[#64748b]" dateTime={message.sentAt.toISOString()}>
                     {message.sentAt.toLocaleString("ru-RU")}
                   </time>
                   <EvidenceMessageButton messageId={message.id} />
                 </div>
               </div>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-[#344054]">{message.body}</p>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-[#334155]">{message.body}</p>
             </article>
           );
         })}

@@ -86,7 +86,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
   return (
     <form action={createScorecardVersion} className="grid gap-4 p-5">
       <input type="hidden" name="criterionCount" value={criteria.length} />
-      <label className="grid max-w-xl gap-1 text-sm font-medium text-[#344054]">
+      <label className="grid max-w-xl gap-1 text-sm font-medium text-[#334155]">
         Название
         <input
           name="name"
@@ -97,7 +97,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
         />
       </label>
 
-      <div className="record-list border-y border-[#d7dce5]">
+      <div className="record-list border-y border-[#d9e0ea]">
         {criteria.map((criterion, index) => (
           <article key={criterion.clientId} className="record-card">
             <div className="record-row">
@@ -111,7 +111,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   title="Поднять"
                   disabled={index === 0}
                   onClick={() => setCriteria((current) => moveRow(current, index, index - 1))}
-                  className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:text-[#98a2b3]"
+                  className="rounded border border-[#d9e0ea] bg-white p-2 text-[#334155] hover:bg-[#edf2ff] disabled:cursor-not-allowed disabled:text-[#94a3b8]"
                 >
                   <ArrowUp size={15} aria-hidden="true" />
                 </button>
@@ -120,7 +120,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   title="Опустить"
                   disabled={index === criteria.length - 1}
                   onClick={() => setCriteria((current) => moveRow(current, index, index + 1))}
-                  className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:text-[#98a2b3]"
+                  className="rounded border border-[#d9e0ea] bg-white p-2 text-[#334155] hover:bg-[#edf2ff] disabled:cursor-not-allowed disabled:text-[#94a3b8]"
                 >
                   <ArrowDown size={15} aria-hidden="true" />
                 </button>
@@ -128,7 +128,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   type="button"
                   title="Удалить"
                   onClick={() => setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))}
-                  className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#fff4ed]"
+                  className="rounded border border-[#d9e0ea] bg-white p-2 text-[#334155] hover:bg-[#fff7ed]"
                 >
                   <Trash2 size={15} aria-hidden="true" />
                 </button>
@@ -136,7 +136,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(150px,0.8fr)_minmax(160px,0.9fr)_minmax(220px,1.2fr)_minmax(140px,0.8fr)_96px_auto] xl:items-end">
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Ключ
                 <input
                   name={`criterion.${index}.key`}
@@ -147,7 +147,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   className="form-control font-mono text-xs"
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Блок
                 <input
                   name={`criterion.${index}.block`}
@@ -157,7 +157,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   className="form-control"
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Название
                 <input
                   name={`criterion.${index}.label`}
@@ -167,7 +167,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   className="form-control"
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Тип
                 <select
                   name={`criterion.${index}.kind`}
@@ -179,7 +179,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   <option value="PASS_FAIL">Зачет/незачет</option>
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Вес
                 <input
                   name={`criterion.${index}.weight`}
@@ -192,7 +192,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   className="form-control"
                 />
               </label>
-              <label className="flex min-h-[40px] items-center gap-2 text-sm font-medium text-[#344054]">
+              <label className="flex min-h-[40px] items-center gap-2 text-sm font-medium text-[#334155]">
                 <input
                   name={`criterion.${index}.required`}
                   type="checkbox"
@@ -226,7 +226,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
         <button
           type="submit"
           disabled={!canSubmit}
-          className="action-button action-button--primary disabled:cursor-not-allowed disabled:border-[#98a2b3] disabled:bg-[#98a2b3]"
+          className="action-button action-button--primary disabled:cursor-not-allowed disabled:border-[#94a3b8] disabled:bg-[#94a3b8]"
         >
           Создать новую версию
         </button>

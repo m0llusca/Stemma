@@ -76,9 +76,9 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">Версионирование правил</h2>
-          <p className="mt-1 text-sm text-[#667085]">
+          <p className="mt-1 text-sm text-[#64748b]">
             Каждая завершенная проверка хранит версию формы оценки. Новая версия не переписывает старые результаты и позволяет сравнивать периоды без смешивания методик.
           </p>
         </div>
@@ -93,21 +93,21 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
           </div>
           <div className="metric-strip__item">
             <p className="metric-strip__label">Правило изменения</p>
-            <p className="mt-2 text-sm leading-5 text-[#344054]">Изменения выпускаются только новой версией формы.</p>
+            <p className="mt-2 text-sm leading-5 text-[#334155]">Изменения выпускаются только новой версией формы.</p>
           </div>
         </div>
       </section>
 
       {activeScorecard ? (
         <details id="new-version" className="disclosure-panel panel overflow-hidden" open={openNewVersion}>
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Новая версия формы оценки</h2>
-              <p className="mt-1 text-sm text-[#667085]">
+              <p className="mt-1 text-sm text-[#64748b]">
                 Создает новую активную форму и оставляет исторические проверки на прежних версиях.
               </p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Открыть</span>
+            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Открыть</span>
           </summary>
           <ScorecardVersionForm
             initialName={activeScorecard.name}
@@ -125,9 +125,9 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
       ) : null}
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">История форм</h2>
-          <p className="mt-1 text-sm text-[#667085]">Старые версии свернуты и не смешиваются с активной методикой.</p>
+          <p className="mt-1 text-sm text-[#64748b]">Старые версии свернуты и не смешиваются с активной методикой.</p>
         </div>
         <div className="record-list px-5">
           {scorecards.map((scorecard) => (
@@ -145,13 +145,13 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
                   </p>
                 </div>
                 <span
-                  className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
+                  className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
                   aria-hidden="true"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </span>
               </summary>
-              <div className="mt-3 border-t border-[#d7dce5] pt-1">
+              <div className="mt-3 border-t border-[#d9e0ea] pt-1">
                 <div className="record-list">
                   {scorecard.criteria.map((criterion) => (
                     <article key={criterion.id} className="record-card">

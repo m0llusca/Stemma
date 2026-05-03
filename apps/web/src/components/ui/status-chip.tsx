@@ -4,12 +4,12 @@ type StatusChipTone = "neutral" | "success" | "warning" | "danger" | "info" | "a
 type StatusChipSize = "xs" | "sm";
 
 const toneClassNames: Record<StatusChipTone, string> = {
-  neutral: "border-[#d7dce5] bg-white text-[#475467]",
-  success: "border-[#b9ddd2] bg-[#eef8f3] text-[#116466]",
-  warning: "border-[#fed7aa] bg-[#fff7ed] text-[#b54708]",
-  danger: "border-[#fecaca] bg-[#fff1f1] text-[#b42318]",
-  info: "border-[#bfdbfe] bg-[#eff6ff] text-[#175cd3]",
-  accent: "border-[#b9ddd2] bg-[#e8f3ef] text-[#0b4f52]"
+  neutral: "border-[#d9e0ea] bg-white text-[#475569]",
+  success: "border-[#bbf7d0] bg-[#ecfdf5] text-[#15803d]",
+  warning: "border-[#fed7aa] bg-[#fff7ed] text-[#b45309]",
+  danger: "border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]",
+  info: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
+  accent: "border-[#c7d2fe] bg-[#edf2ff] text-[#1d3fae]"
 };
 
 const sizeClassNames: Record<StatusChipSize, string> = {

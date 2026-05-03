@@ -131,11 +131,11 @@ function toPositiveNumber(value: string, fallback: number) {
 function TechnicalDetails({ title, children }: { title: string; children: ReactNode }) {
   return (
     <details className="example-disclosure compact-details">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#17202a]">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#111827]">
         <span>{title}</span>
-        <ChevronDown className="example-chevron shrink-0 text-[#98a2b3]" size={16} aria-hidden="true" />
+        <ChevronDown className="example-chevron shrink-0 text-[#94a3b8]" size={16} aria-hidden="true" />
       </summary>
-      <div className="border-t border-[#d7dce5] bg-white p-4">{children}</div>
+      <div className="border-t border-[#d9e0ea] bg-white p-4">{children}</div>
     </details>
   );
 }
@@ -150,7 +150,7 @@ function FormField({
   className?: string;
 }) {
   return (
-    <label className={`grid min-w-0 content-start gap-1.5 text-sm font-medium text-[#344054] ${className}`}>
+    <label className={`grid min-w-0 content-start gap-1.5 text-sm font-medium text-[#334155] ${className}`}>
       <span className="min-w-0 break-words">{label}</span>
       {children}
     </label>
@@ -161,7 +161,7 @@ function SummaryItem({ label, children }: { label: string; children: ReactNode }
   return (
     <div className="soft-callout min-h-[58px]">
       <p className="soft-callout__label">{label}</p>
-      <div className="min-w-0 break-words text-sm leading-5 text-[#344054]">{children}</div>
+      <div className="min-w-0 break-words text-sm leading-5 text-[#334155]">{children}</div>
     </div>
   );
 }
@@ -173,11 +173,11 @@ function StepProgress({ currentStepIndex }: { currentStepIndex: number }) {
         {wizardSteps.map((step, index) => (
           <span
             key={step.value}
-            className={`h-1.5 flex-1 rounded-full ${index <= currentStepIndex ? "bg-[#116466]" : "bg-[#d7dce5]"}`}
+            className={`h-1.5 flex-1 rounded-full ${index <= currentStepIndex ? "bg-[#3157d5]" : "bg-[#d9e0ea]"}`}
           />
         ))}
       </div>
-      <p className="text-xs font-semibold uppercase text-[#667085]">
+      <p className="text-xs font-semibold uppercase text-[#64748b]">
         Шаг {currentStepIndex + 1} из {wizardSteps.length}: {wizardSteps[currentStepIndex].label}
       </p>
     </div>
@@ -207,10 +207,10 @@ function WizardFrame({
 }) {
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 border-b border-[#d7dce5] pb-4">
+      <div className="grid gap-3 border-b border-[#d9e0ea] pb-4">
         <div className="min-w-0">
           {currentStepIndex > 0 ? (
-            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase text-[#667085]">
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase text-[#64748b]">
               <span>Источник</span>
               <span className="pill pill--neutral normal-case">
                 {sourceLabel}
@@ -218,14 +218,14 @@ function WizardFrame({
             </div>
           ) : null}
           <StepProgress currentStepIndex={currentStepIndex} />
-          <h3 className="mt-2 text-base font-semibold text-[#17202a]">{title}</h3>
-          <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">{description}</p>
+          <h3 className="mt-2 text-base font-semibold text-[#111827]">{title}</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-5 text-[#64748b]">{description}</p>
         </div>
       </div>
 
       {children}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#d7dce5] pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#d9e0ea] pt-4">
         <button
           type="button"
           onClick={onBack}
@@ -239,7 +239,7 @@ function WizardFrame({
             type="button"
             onClick={onNext}
             disabled={nextDisabled}
-            className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#98a2b3]`}
+            className={`${primaryButtonClass} disabled:cursor-not-allowed disabled:bg-[#94a3b8]`}
           >
             {nextLabel}
           </button>
@@ -298,7 +298,7 @@ function SourceChoiceStep({
 
       <div className="soft-callout">
         <p className="soft-callout__label">Что будет настроено</p>
-        <p className="mt-1 text-sm leading-5 text-[#344054]">{selectedOption.description}</p>
+        <p className="mt-1 text-sm leading-5 text-[#334155]">{selectedOption.description}</p>
       </div>
     </div>
   );
@@ -401,10 +401,10 @@ function AccessStep({
           <input value={customBaseUrl} onChange={(event) => onCustomBaseUrlChange(event.target.value)} className={fieldClass} />
         </FormField>
       </div>
-      <div className="soft-callout min-h-full text-sm leading-5 text-[#667085]">
+      <div className="soft-callout min-h-full text-sm leading-5 text-[#64748b]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={`w-fit rounded-md px-2 py-1 text-xs font-semibold ${apiHealth.className}`}>{apiHealth.label}</span>
-          <span className="text-xs font-semibold uppercase text-[#667085]">Свой API</span>
+          <span className="text-xs font-semibold uppercase text-[#64748b]">Свой API</span>
         </div>
         <p className="break-words">{apiTokenCount} ключ(а) API в рабочем пространстве.</p>
         <div className="flex flex-wrap gap-2">
@@ -493,7 +493,7 @@ function LimitsStep({
         </FormField>
       </div>
 
-      <div className="grid gap-3 text-sm text-[#344054] md:grid-cols-2">
+      <div className="grid gap-3 text-sm text-[#334155] md:grid-cols-2">
         <label className="soft-callout min-h-[76px] grid-cols-[auto_minmax(0,1fr)] items-start text-sm">
           <input
             type="checkbox"
@@ -518,7 +518,7 @@ function LimitsStep({
         </label>
       </div>
 
-      <div className="soft-callout text-sm leading-5 text-[#667085]">
+      <div className="soft-callout text-sm leading-5 text-[#64748b]">
         Автоматика не заберет весь архив сразу: каждый запуск ограничен периодом, максимумом тикетов и размером батча.
       </div>
     </div>
@@ -562,10 +562,10 @@ function PreviewStep({
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-2">
         <SummaryItem label="Источник">
-          <span className="font-semibold text-[#17202a]">{sourceLabel}</span>
+          <span className="font-semibold text-[#111827]">{sourceLabel}</span>
         </SummaryItem>
         <SummaryItem label="Base URL">
-          <span className="font-semibold text-[#17202a]">{normalizeBaseUrl(baseUrl) || "Не указан"}</span>
+          <span className="font-semibold text-[#111827]">{normalizeBaseUrl(baseUrl) || "Не указан"}</span>
         </SummaryItem>
         <SummaryItem label="Объем">
           <span>
@@ -603,16 +603,16 @@ function PreviewStep({
             </button>
           </form>
         </div>
-        <span className="text-sm leading-5 text-[#667085]">
+        <span className="text-sm leading-5 text-[#64748b]">
           Проверка не создает тикеты; импорт будет подтверждаться автоматическим запуском с лимитами.
         </span>
       </div>
 
       {checked ? (
-        <div className="soft-callout soft-callout--ok grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#116466]">
+        <div className="soft-callout soft-callout--ok grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#3157d5]">
           <CheckCircle2 className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
           <div className="min-w-0">
-            <p className="font-semibold text-[#17202a]">Подключение проверено</p>
+            <p className="font-semibold text-[#111827]">Подключение проверено</p>
             <p>
               Подключение принято для {sourceLabel}. При запуске автоматики будет обработано не больше {maxTicketCount} тикетов
               батчами по {batchTicketCount}; найденные дубликаты будут {deduplicate ? "пропущены" : "загружены повторно"}.
@@ -622,7 +622,7 @@ function PreviewStep({
       ) : null}
 
       {mode === "custom_api" ? (
-        <div className="soft-callout text-sm leading-5 text-[#667085]">
+        <div className="soft-callout text-sm leading-5 text-[#64748b]">
           Для своего API проверка считается успешной после валидного `Authorization` и первого ответа на импорт диалога.
         </div>
       ) : null}
@@ -633,10 +633,10 @@ function PreviewStep({
 function DoneStep({ checked }: { checked: boolean }) {
   return (
     <div className="grid gap-4">
-      <div className="soft-callout grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#344054]">
-        <ShieldCheck className="mt-0.5 shrink-0 text-[#116466]" size={20} aria-hidden="true" />
+      <div className="soft-callout grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#334155]">
+        <ShieldCheck className="mt-0.5 shrink-0 text-[#3157d5]" size={20} aria-hidden="true" />
         <div className="min-w-0">
-          <p className="font-semibold text-[#17202a]">Настройка готова к первому ограниченному запуску</p>
+          <p className="font-semibold text-[#111827]">Настройка готова к первому ограниченному запуску</p>
           <p>
             {checked
               ? "Проверка уже пройдена. Следующий шаг - сохранить подключение и включить расписание импорта."
@@ -714,19 +714,19 @@ function TechnicalDetailsForMode({
 
           <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
             <DataTable title="Сопоставление с единым форматом" minWidth="min-w-[640px]">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+              <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">OTRS/Znuny/OTOBO</th>
                   <th className="px-4 py-3 font-semibold">Поле проверки</th>
                   <th className="px-4 py-3 font-semibold">Правило</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
+              <tbody className="divide-y divide-[#d9e0ea]">
                 {otrsFamilyMappingRows.map((row) => (
                   <tr key={`${row.source}:${row.target}`}>
                     <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
                     <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
-                    <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+                    <td className="px-4 py-3 text-[#334155]">{row.note}</td>
                   </tr>
                 ))}
               </tbody>
@@ -736,10 +736,10 @@ function TechnicalDetailsForMode({
             </CodeExampleCard>
           </div>
 
-          <div className="grid gap-3 text-sm leading-5 text-[#667085] md:grid-cols-2">
+          <div className="grid gap-3 text-sm leading-5 text-[#64748b] md:grid-cols-2">
             {otrsFamilyRequestShapeNotes.map((note) => (
               <div key={note.title} className="soft-callout">
-                <p className="font-semibold text-[#17202a]">{note.title}</p>
+                <p className="font-semibold text-[#111827]">{note.title}</p>
                 <p className="mt-1">{note.detail}</p>
               </div>
             ))}
@@ -752,7 +752,7 @@ function TechnicalDetailsForMode({
                 href={profile.docsUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-xs font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+                className="rounded border border-[#d9e0ea] bg-white px-3 py-2 text-xs font-semibold text-[#1d3fae] hover:bg-[#edf2ff]"
               >
                 {profile.shortLabel}
               </a>
@@ -772,19 +772,19 @@ function TechnicalDetailsForMode({
             description="Как поля источника превращаются в единый формат ручной проверки."
             minWidth="min-w-[640px]"
           >
-            <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+            <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
               <tr>
                 <th className="px-4 py-3 font-semibold">Поле источника</th>
                 <th className="px-4 py-3 font-semibold">Поле проверки</th>
                 <th className="px-4 py-3 font-semibold">Правило</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#d7dce5]">
+            <tbody className="divide-y divide-[#d9e0ea]">
               {nativeHelpdeskMappingRows.map((row) => (
                 <tr key={`${row.source}:${row.target}`}>
                   <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
                   <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
-                  <td className="px-4 py-3 text-[#344054]">{row.note}</td>
+                  <td className="px-4 py-3 text-[#334155]">{row.note}</td>
                 </tr>
               ))}
             </tbody>
@@ -804,7 +804,7 @@ function TechnicalDetailsForMode({
     <TechnicalDetails title="Технический контракт своего API">
       <div className="grid gap-5">
         <DataTable title="Карта endpoint" minWidth="min-w-[720px]">
-          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+          <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
             <tr>
               <th className="px-4 py-3 font-semibold">Метод</th>
               <th className="px-4 py-3 font-semibold">Endpoint</th>
@@ -812,13 +812,13 @@ function TechnicalDetailsForMode({
               <th className="px-4 py-3 font-semibold">Назначение</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#d7dce5]">
+          <tbody className="divide-y divide-[#d9e0ea]">
             {customApiEndpoints.map((endpoint) => (
               <tr key={`${endpoint.method}:${endpoint.path}`}>
                 <td className="px-4 py-3 font-medium">{endpoint.method}</td>
                 <td className="px-4 py-3 font-mono text-xs">{endpoint.path}</td>
                 <td className="px-4 py-3 font-mono text-xs">{endpoint.scope}</td>
-                <td className="px-4 py-3 text-[#344054]">{endpoint.purpose}</td>
+                <td className="px-4 py-3 text-[#334155]">{endpoint.purpose}</td>
               </tr>
             ))}
           </tbody>
@@ -836,7 +836,7 @@ function TechnicalDetailsForMode({
           </CodeExampleCard>
           <div className="grid gap-5">
             <DataTable title="Поля диалога" minWidth="min-w-[520px]">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+              <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Поле</th>
                   <th className="px-3 py-2 font-semibold">Обяз.</th>
@@ -844,19 +844,19 @@ function TechnicalDetailsForMode({
                   <th className="px-3 py-2 font-semibold">Примечание</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
+              <tbody className="divide-y divide-[#d9e0ea]">
                 {customConversationSchemaRows.map((row) => (
                   <tr key={row.field}>
                     <td className="px-3 py-2 font-mono text-xs">{row.field}</td>
                     <td className="px-3 py-2">{row.required}</td>
                     <td className="px-3 py-2 font-mono text-xs">{row.type}</td>
-                    <td className="px-3 py-2 text-[#344054]">{row.note}</td>
+                    <td className="px-3 py-2 text-[#334155]">{row.note}</td>
                   </tr>
                 ))}
               </tbody>
             </DataTable>
             <DataTable title="Поля сообщения" minWidth="min-w-[520px]">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
+              <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Поле</th>
                   <th className="px-3 py-2 font-semibold">Обяз.</th>
@@ -864,13 +864,13 @@ function TechnicalDetailsForMode({
                   <th className="px-3 py-2 font-semibold">Примечание</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
+              <tbody className="divide-y divide-[#d9e0ea]">
                 {customMessageSchemaRows.map((row) => (
                   <tr key={row.field}>
                     <td className="px-3 py-2 font-mono text-xs">{row.field}</td>
                     <td className="px-3 py-2">{row.required}</td>
                     <td className="px-3 py-2 font-mono text-xs">{row.type}</td>
-                    <td className="px-3 py-2 text-[#344054]">{row.note}</td>
+                    <td className="px-3 py-2 text-[#334155]">{row.note}</td>
                   </tr>
                 ))}
               </tbody>
@@ -967,10 +967,10 @@ export function IntegrationSetupWorkspace({
 
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d7dce5] px-5 py-4">
-        <p className="text-sm font-medium text-[#667085]">Новая интеграция</p>
-        <h2 className="mt-1 text-lg font-semibold text-[#17202a]">Мастер подключения источника</h2>
-        <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">
+      <div className="border-b border-[#d9e0ea] px-5 py-4">
+        <p className="text-sm font-medium text-[#64748b]">Новая интеграция</p>
+        <h2 className="mt-1 text-lg font-semibold text-[#111827]">Мастер подключения источника</h2>
+        <p className="mt-1 max-w-3xl text-sm leading-5 text-[#64748b]">
           Один последовательный поток: источник, доступ, лимиты, проверка и безопасный первый запуск.
         </p>
       </div>

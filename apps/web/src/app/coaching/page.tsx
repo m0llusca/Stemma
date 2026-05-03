@@ -57,24 +57,24 @@ export default async function CoachingPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Учебные задачи</h2>
-            <p className="mt-1 text-sm text-[#667085]">Разборы по итогам проверок, переответам и апелляциям.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Разборы по итогам проверок, переответам и апелляциям.</p>
           </div>
           <div className="grid gap-0">
             {assignments.length > 0 ? (
               assignments.map((assignment) => (
                 <article key={assignment.id} className="task-row md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center">
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#17202a]">{assignment.title}</p>
-                    <p className="mt-1 text-sm leading-5 text-[#667085]">{assignment.description}</p>
-                    <p className="mt-2 text-xs font-semibold uppercase text-[#667085]">
+                    <p className="font-semibold text-[#111827]">{assignment.title}</p>
+                    <p className="mt-1 text-sm leading-5 text-[#64748b]">{assignment.description}</p>
+                    <p className="mt-2 text-xs font-semibold uppercase text-[#64748b]">
                       {assignment.assigneeName}
                       {assignment.dueAt ? ` · до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : ""}
                       {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
                     </p>
                   </div>
-                  <span className="w-fit rounded-md bg-[#f7f8fb] px-2 py-1 text-xs font-semibold uppercase text-[#475467]">
+                  <span className="w-fit rounded-md bg-[#f8fafc] px-2 py-1 text-xs font-semibold uppercase text-[#475569]">
                     {trainingStatusLabel(assignment.status)}
                   </span>
                   <div className="flex flex-wrap gap-2 md:justify-end">
@@ -94,7 +94,7 @@ export default async function CoachingPage() {
                 </article>
               ))
             ) : (
-              <div className="soft-callout text-sm text-[#667085]">
+              <div className="soft-callout text-sm text-[#64748b]">
                 Учебных задач пока нет.
               </div>
             )}
@@ -102,23 +102,23 @@ export default async function CoachingPage() {
         </section>
 
         <details className="disclosure-panel panel h-fit overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Добавить типовую ошибку</h2>
-              <p className="mt-1 text-sm text-[#667085]">Форма скрыта, пока не нужно пополнить базу.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Форма скрыта, пока не нужно пополнить базу.</p>
             </div>
-            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
           </summary>
           <form action={createKnowledgeEntry} className="grid gap-3 p-5">
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Категория
               <input name="category" required className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Название
               <input name="title" required className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Риск
               <select name="riskLevel" defaultValue="MEDIUM" className="form-control">
                 {Object.entries(riskLevelLabels).map(([value, label]) => (
@@ -128,11 +128,11 @@ export default async function CoachingPage() {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Описание
               <textarea name="description" required rows={3} className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Рекомендация
               <textarea name="recommendation" required rows={3} className="form-control" />
             </label>
@@ -144,17 +144,17 @@ export default async function CoachingPage() {
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">База типовых ошибок</h2>
-          <p className="mt-1 text-sm text-[#667085]">Используется для рекомендаций, калибровки и обучения операторов.</p>
+          <p className="mt-1 text-sm text-[#64748b]">Используется для рекомендаций, калибровки и обучения операторов.</p>
         </div>
         <div className="knowledge-grid md:grid-cols-2 xl:grid-cols-3">
           {knowledgeEntries.map((entry) => (
             <article key={entry.id} className="knowledge-item">
-              <p className="text-xs font-semibold uppercase text-[#667085]">{entry.category} · {riskLevelLabels[entry.riskLevel]}</p>
-              <h3 className="mt-2 font-semibold text-[#17202a]">{entry.title}</h3>
-              <p className="mt-2 text-sm leading-5 text-[#667085]">{entry.description}</p>
-              <p className="mt-3 text-sm leading-5 text-[#344054]">{entry.recommendation}</p>
+              <p className="text-xs font-semibold uppercase text-[#64748b]">{entry.category} · {riskLevelLabels[entry.riskLevel]}</p>
+              <h3 className="mt-2 font-semibold text-[#111827]">{entry.title}</h3>
+              <p className="mt-2 text-sm leading-5 text-[#64748b]">{entry.description}</p>
+              <p className="mt-3 text-sm leading-5 text-[#334155]">{entry.recommendation}</p>
             </article>
           ))}
         </div>

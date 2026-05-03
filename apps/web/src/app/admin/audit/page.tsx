@@ -216,7 +216,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
       </div>
 
       <form action="/admin/audit" className="panel grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[minmax(170px,220px)_minmax(170px,220px)_150px_150px_auto]">
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Действие
           <select name="action" defaultValue={action ?? ""} className="form-control">
             <option value="">Все</option>
@@ -227,7 +227,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Тип объекта
           <select name="targetType" defaultValue={targetType ?? ""} className="form-control">
             <option value="">Все</option>
@@ -238,7 +238,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           С даты
           <input
             type="date"
@@ -247,7 +247,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             className="form-control"
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
           По дату
           <input
             type="date"
@@ -266,15 +266,15 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">История действий</h2>
-            <p className="mt-1 text-sm text-[#667085]">
+            <p className="mt-1 text-sm text-[#64748b]">
               Страница {page} · событий найдено: {totalLogs}
             </p>
           </div>
           <div className="record-list px-5">
             {logs.length === 0 ? (
-              <div className="soft-callout text-sm text-[#667085]">События не найдены.</div>
+              <div className="soft-callout text-sm text-[#64748b]">События не найдены.</div>
             ) : (
               logs.map((log) => (
                 <article key={log.id} className="record-card">
@@ -289,12 +289,12 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                       {formatDate(log.createdAt)}
                     </time>
                   </div>
-                  <details className="compact-details bg-[#fbfcfd]">
+                  <details className="compact-details bg-[#f8fafc]">
                     <summary>
-                      <span className="text-sm font-semibold text-[#344054]">Детали события</span>
-                      <span className="text-sm font-semibold text-[#0b4f52]">Показать</span>
+                      <span className="text-sm font-semibold text-[#334155]">Детали события</span>
+                      <span className="text-sm font-semibold text-[#1d3fae]">Показать</span>
                     </summary>
-                    <pre className="m-0 overflow-x-auto rounded-b-md bg-[#f7f8fb] p-3 text-xs leading-5 text-[#344054]">
+                    <pre className="m-0 overflow-x-auto rounded-b-md bg-[#f8fafc] p-3 text-xs leading-5 text-[#334155]">
                       <code>{parseMetadata(log.metadata)}</code>
                     </pre>
                   </details>
@@ -302,29 +302,29 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               ))
             )}
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-[#d7dce5] px-5 py-4 text-sm">
+          <div className="flex items-center justify-between gap-3 border-t border-[#d9e0ea] px-5 py-4 text-sm">
             {page > 1 ? (
-              <Link href={buildAuditHref(page - 1, action, targetType, start, end)} className="font-semibold text-[#0b4f52] hover:underline">
+              <Link href={buildAuditHref(page - 1, action, targetType, start, end)} className="font-semibold text-[#1d3fae] hover:underline">
                 Назад
               </Link>
             ) : (
-              <span className="text-[#98a2b3]">Назад</span>
+              <span className="text-[#94a3b8]">Назад</span>
             )}
             {page * pageSize < totalLogs ? (
-              <Link href={buildAuditHref(page + 1, action, targetType, start, end)} className="font-semibold text-[#0b4f52] hover:underline">
+              <Link href={buildAuditHref(page + 1, action, targetType, start, end)} className="font-semibold text-[#1d3fae] hover:underline">
                 Вперед
               </Link>
             ) : (
-              <span className="text-[#98a2b3]">Вперед</span>
+              <span className="text-[#94a3b8]">Вперед</span>
             )}
           </div>
         </section>
 
         <details className="disclosure-panel panel h-fit overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Активность API-ключей</h2>
-              <p className="mt-1 text-sm text-[#667085]">Открывается только при разборе интеграций.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Открывается только при разборе интеграций.</p>
             </div>
             <span className="pill pill--neutral">{apiTokens.length}</span>
           </summary>
@@ -340,16 +340,16 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                 </div>
                 <dl className="mt-4 grid gap-3">
                   <div className="min-w-0">
-                    <dt className="font-semibold text-[#667085]">Последнее использование</dt>
-                    <dd className="mt-1 text-[#17202a]">{formatDate(token.lastUsedAt)}</dd>
+                    <dt className="font-semibold text-[#64748b]">Последнее использование</dt>
+                    <dd className="mt-1 text-[#111827]">{formatDate(token.lastUsedAt)}</dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="font-semibold text-[#667085]">Последний успех</dt>
-                    <dd className="mt-1 text-[#17202a]">{formatDate(token.lastSuccessAt)}</dd>
+                    <dt className="font-semibold text-[#64748b]">Последний успех</dt>
+                    <dd className="mt-1 text-[#111827]">{formatDate(token.lastSuccessAt)}</dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="font-semibold text-[#667085]">Последняя ошибка</dt>
-                    <dd className="mt-1 text-[#17202a]">
+                    <dt className="font-semibold text-[#64748b]">Последняя ошибка</dt>
+                    <dd className="mt-1 text-[#111827]">
                       {token.lastError ? `${formatDate(token.lastErrorAt)} · ${token.lastError}` : "Нет"}
                     </dd>
                   </div>

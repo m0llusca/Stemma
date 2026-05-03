@@ -57,18 +57,18 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (status === "active" || status === "ACTIVE") {
-    return "border-[#b9ddd2] bg-[#f4faf7] text-[#116466]";
+    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#3157d5]";
   }
 
   if (status === "draft") {
-    return "border-[#fed7aa] bg-[#fffaf5] text-[#b54708]";
+    return "border-[#fed7aa] bg-[#fff7ed] text-[#b45309]";
   }
 
   if (status === "disabled" || status === "REVOKED" || status === "EXPIRED") {
-    return "border-[#d7dce5] bg-[#f7f8fb] text-[#667085]";
+    return "border-[#d9e0ea] bg-[#f8fafc] text-[#64748b]";
   }
 
-  return "border-[#d7dce5] bg-white text-[#344054]";
+  return "border-[#d9e0ea] bg-white text-[#334155]";
 }
 
 function providerStatusLabel(status: string) {
@@ -111,7 +111,7 @@ function ProviderField({
   type?: string;
 }) {
   return (
-    <label className="grid gap-1 text-sm font-medium text-[#344054]">
+    <label className="grid gap-1 text-sm font-medium text-[#334155]">
       {label}
       <input
         type={type}
@@ -208,16 +208,16 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="border-b border-[#d7dce5] px-5 py-4">
+        <div className="border-b border-[#d9e0ea] px-5 py-4">
           <h2 className="text-lg font-semibold">Провайдеры входа</h2>
-          <p className="mt-1 text-sm text-[#667085]">Выберите источник авторизации, чтобы ниже открыть настройки и связи групп.</p>
+          <p className="mt-1 text-sm text-[#64748b]">Выберите источник авторизации, чтобы ниже открыть настройки и связи групп.</p>
         </div>
         <div className="command-list">
           {providers.map((provider) => (
             <Link
               key={provider.id}
               href={`/admin/access?provider=${provider.id}`}
-              className={`command-row ${selectedProvider?.id === provider.id ? "bg-[#f8faf5]" : ""}`}
+              className={`command-row ${selectedProvider?.id === provider.id ? "bg-[#f8faff]" : ""}`}
             >
               <span className="command-row__icon">
                 <ShieldCheck size={18} aria-hidden="true" />
@@ -234,7 +234,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   {provider._count.externalIdentities}
                 </p>
               </div>
-              <span className="command-row__action text-sm font-semibold text-[#0b4f52]">
+              <span className="command-row__action text-sm font-semibold text-[#1d3fae]">
                 {selectedProvider?.id === provider.id ? "Выбран" : "Открыть"}
               </span>
             </Link>
@@ -244,19 +244,19 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
         <details className="disclosure-panel panel overflow-hidden" open={openProviderSettings}>
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Провайдер авторизации</h2>
-              <p className="mt-1 text-sm text-[#667085]">
+              <p className="mt-1 text-sm text-[#64748b]">
                 Основные поля скрыты, чтобы экран не превращался в форму настроек.
               </p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Изменить</span>
+            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Изменить</span>
           </summary>
           <form action={saveIdentityProvider} className="grid gap-5 p-5">
             <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Тип
                 <select name="type" defaultValue={selectedProviderType} className="form-control">
                   {providerTypes.map((type) => (
@@ -266,7 +266,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Статус
                 <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="form-control">
                   <option value="draft">Черновик</option>
@@ -283,15 +283,15 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </div>
 
             <details className="compact-details">
-              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#344054]">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
                 OIDC/SAML endpoints и расширенная конфигурация
               </summary>
-              <div className="grid gap-4 border-t border-[#d7dce5] p-4 md:grid-cols-2">
+              <div className="grid gap-4 border-t border-[#d9e0ea] p-4 md:grid-cols-2">
                 <ProviderField label="Issuer" name="issuer" defaultValue={selectedProvider?.issuer} placeholder="https://login.microsoftonline.com/{tenantId}/v2.0" />
                 <ProviderField label="Authorization URL" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
                 <ProviderField label="Token URL" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
                 <ProviderField label="JWKS URL" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
-                <label className="grid gap-1 text-sm font-medium text-[#344054] md:col-span-2">
+                <label className="grid gap-1 text-sm font-medium text-[#334155] md:col-span-2">
                   <textarea
                     name="configJson"
                     defaultValue={configText(selectedProvider)}
@@ -303,9 +303,9 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </div>
             </details>
 
-            <div className="soft-callout text-sm text-[#667085]">
+            <div className="soft-callout text-sm text-[#64748b]">
               <div className="min-w-0">
-                <p className="font-semibold text-[#344054]">Callback URL</p>
+                <p className="font-semibold text-[#334155]">Callback URL</p>
                 <p className="mt-1 font-mono text-xs compact-text">{callbackPath()}</p>
               </div>
               {entraMetadata ? (
@@ -324,14 +324,14 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         </details>
 
         <details className="disclosure-panel panel overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Рекомендации</h2>
-              <p className="mt-1 text-sm text-[#667085]">Короткие подсказки по AD/Entra и fallback-сценариям.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Короткие подсказки по AD/Entra и fallback-сценариям.</p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Показать</span>
+            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Показать</span>
           </summary>
-          <div className="record-list px-5 text-sm leading-6 text-[#667085]">
+          <div className="record-list px-5 text-sm leading-6 text-[#64748b]">
             <article className="record-card">
               <h3 className="record-title">Основной путь</h3>
               <p className="record-meta">{guidance.preferred}</p>
@@ -359,14 +359,14 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
 
       {selectedProvider ? (
         <section className="panel mt-6 overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Группы и роли</h2>
-            <p className="mt-1 text-sm text-[#667085]">Маппинг групп AD/Entra в роли приложения. Приоритет меньше — роль применяется раньше.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Маппинг групп AD/Entra в роли приложения. Приоритет меньше — роль применяется раньше.</p>
           </div>
           <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="record-list border-y border-[#d7dce5]">
+            <div className="record-list border-y border-[#d9e0ea]">
               {selectedProvider.groupRoleMappings.length === 0 ? (
-                <div className="soft-callout text-sm text-[#667085]">
+                <div className="soft-callout text-sm text-[#64748b]">
                   Для выбранного провайдера пока нет групп.
                 </div>
               ) : (
@@ -396,14 +396,14 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
 
             <details className="compact-details">
               <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                <h3 className="font-semibold text-[#17202a]">Добавить группу</h3>
-                <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
+                <h3 className="font-semibold text-[#111827]">Добавить группу</h3>
+                <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
               </summary>
-              <form action={saveGroupRoleMapping} className="grid gap-3 border-t border-[#d7dce5] p-4">
+              <form action={saveGroupRoleMapping} className="grid gap-3 border-t border-[#d9e0ea] p-4">
                 <input type="hidden" name="providerId" value={selectedProvider.id} />
                 <ProviderField label="ID группы" name="externalGroupId" placeholder="QC_Analysts или GUID группы" />
                 <ProviderField label="Название группы" name="externalGroupName" placeholder="QC Analysts" />
-                <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
                   Роль
                   <select name="role" defaultValue="QA_ANALYST" className="form-control">
                     {roles.map((role) => (
@@ -414,7 +414,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   </select>
                 </label>
                 <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
-                <label className="flex items-center gap-2 text-sm font-medium text-[#344054]">
+                <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">
                   <input type="checkbox" name="isActive" defaultChecked />
                   Активна
                 </label>
@@ -428,16 +428,16 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
       ) : null}
 
       <details className="disclosure-panel panel mt-6 overflow-hidden" open={openSessions}>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Сессии пользователей</h2>
-            <p className="mt-1 text-sm text-[#667085]">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
           </div>
-          <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{sessions.length}</span>
+          <span className="shrink-0 rounded-md bg-[#edf2ff] px-2 py-1 text-xs font-semibold text-[#1d3fae]">{sessions.length}</span>
         </summary>
         <div className="record-list px-5">
           {sessions.length === 0 ? (
-            <div className="soft-callout text-sm text-[#667085]">
+            <div className="soft-callout text-sm text-[#64748b]">
               Сессий пока нет.
             </div>
           ) : (
@@ -474,10 +474,10 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         </div>
       </details>
 
-      <div className="soft-callout mt-6 text-sm text-[#667085]">
+      <div className="soft-callout mt-6 text-sm text-[#64748b]">
         <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
         Для входа через выбранный провайдер используйте{" "}
-        <code className="rounded bg-[#f7f8fb] px-1.5 py-0.5 text-xs text-[#344054]">
+        <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">
           /auth/login?provider={selectedProvider?.slug ?? "microsoft-entra-id"}
         </code>
         .

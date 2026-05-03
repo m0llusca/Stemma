@@ -19,18 +19,18 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (["ok", "active", "SUCCEEDED", "READY"].includes(status)) {
-    return "border-[#b9ddd2] bg-[#f4faf7] text-[#116466]";
+    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#3157d5]";
   }
 
   if (["warn", "queued", "RUNNING", "QUEUED", "draft"].includes(status)) {
-    return "border-[#fed7aa] bg-[#fffaf5] text-[#b54708]";
+    return "border-[#fed7aa] bg-[#fff7ed] text-[#b45309]";
   }
 
   if (["error", "FAILED", "disabled"].includes(status)) {
-    return "border-[#fecdca] bg-[#fff1f3] text-[#b42318]";
+    return "border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]";
   }
 
-  return "border-[#d7dce5] bg-[#f7f8fb] text-[#344054]";
+  return "border-[#d9e0ea] bg-[#f8fafc] text-[#334155]";
 }
 
 function runtimeStatusLabel(status: string) {
@@ -136,7 +136,7 @@ function StatCard({
   const toneClass = {
     ok: "soft-callout--ok",
     warn: "soft-callout--warn",
-    error: "border-[#fecdca] bg-[#fff1f3]",
+    error: "border-[#fecaca] bg-[#fef2f2]",
     neutral: ""
   }[tone];
 
@@ -278,13 +278,13 @@ export default async function AdminSystemPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Фоновые задачи</h2>
-            <p className="mt-1 text-sm text-[#667085]">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
           </div>
           <div className="record-list px-5">
             {recentJobs.length === 0 ? (
-              <div className="soft-callout text-sm text-[#667085]">Фоновых задач пока нет.</div>
+              <div className="soft-callout text-sm text-[#64748b]">Фоновых задач пока нет.</div>
             ) : (
               recentJobs.map((job) => (
                 <article key={job.id} className="record-card">
@@ -293,19 +293,19 @@ export default async function AdminSystemPage() {
                       <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(job.status)}`}>
                         {jobStatusLabel(job.status)}
                       </span>
-                      <h3 className="font-semibold text-[#17202a]">{jobTypeLabel(job.type)}</h3>
+                      <h3 className="font-semibold text-[#111827]">{jobTypeLabel(job.type)}</h3>
                     </div>
-                    <p className="mt-1 text-sm text-[#667085]">
+                    <p className="mt-1 text-sm text-[#64748b]">
                       {queueNameLabel(job.queueName)} · попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
                     </p>
                     {job.events[0] ? (
-                      <p className="mt-2 text-sm text-[#667085]">{job.events[0].message}</p>
+                      <p className="mt-2 text-sm text-[#64748b]">{job.events[0].message}</p>
                     ) : null}
-                    {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[#b42318]">{job.errorMessage}</p> : null}
+                    {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[#b91c1c]">{job.errorMessage}</p> : null}
                   </div>
                   <div className="record-row">
                     <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
-                    <Link href={`/api/v1/jobs/${job.id}`} className="text-sm font-semibold text-[#0b4f52] hover:underline">
+                    <Link href={`/api/v1/jobs/${job.id}`} className="text-sm font-semibold text-[#1d3fae] hover:underline">
                       Детали задачи
                     </Link>
                   </div>
@@ -316,10 +316,10 @@ export default async function AdminSystemPage() {
         </section>
 
         <details className="disclosure-panel panel overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">Готовность окружения</h2>
-              <p className="mt-1 text-sm text-[#667085]">Проверки конфигурации перед production-запуском.</p>
+              <p className="mt-1 text-sm text-[#64748b]">Проверки конфигурации перед production-запуском.</p>
             </div>
             <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(runtime.status)}`}>
               {runtimeStatusLabel(runtime.status)}
@@ -335,8 +335,8 @@ export default async function AdminSystemPage() {
                     <Icon size={17} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#17202a]">{check.key}</p>
-                    <p className="mt-1 text-sm leading-5 text-[#667085]">{check.message}</p>
+                    <p className="font-semibold text-[#111827]">{check.key}</p>
+                    <p className="mt-1 text-sm leading-5 text-[#64748b]">{check.message}</p>
                   </div>
                 </div>
               );
@@ -346,24 +346,24 @@ export default async function AdminSystemPage() {
       </div>
 
       <details className="disclosure-panel mt-6">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Дополнительные проверки</h2>
-            <p className="mt-1 text-sm text-[#667085]">SSO, интеграции и обслуживание данных скрыты, чтобы не перегружать основной экран.</p>
+            <p className="mt-1 text-sm text-[#64748b]">SSO, интеграции и обслуживание данных скрыты, чтобы не перегружать основной экран.</p>
           </div>
-          <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Показать</span>
+          <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Показать</span>
         </summary>
         <div className="mt-4 grid gap-6 xl:grid-cols-3">
           <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">SSO и каталог</h2>
-                <p className="mt-1 text-sm text-[#667085]">
+                <p className="mt-1 text-sm text-[#64748b]">
                   Провайдеры авторизации, маппинги групп и ручной запуск синхронизации.
                 </p>
               </div>
-              <Link href="/admin/access" className="text-sm font-semibold text-[#0b4f52] hover:underline">
+              <Link href="/admin/access" className="text-sm font-semibold text-[#1d3fae] hover:underline">
                 Настроить
               </Link>
             </div>
@@ -377,8 +377,8 @@ export default async function AdminSystemPage() {
               <article key={provider.id} className="record-card">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-[#17202a]">{provider.name}</h3>
-                    <p className="mt-1 text-sm text-[#667085]">
+                    <h3 className="font-semibold text-[#111827]">{provider.name}</h3>
+                    <p className="mt-1 text-sm text-[#64748b]">
                       {providerTypeLabel(provider.type)} · {provider.slug}
                     </p>
                   </div>
@@ -386,7 +386,7 @@ export default async function AdminSystemPage() {
                     {providerStatusLabel(provider.status)}
                   </span>
                 </div>
-                <p className="text-sm text-[#667085]">
+                <p className="text-sm text-[#64748b]">
                   Маппингов: {provider._count.groupRoleMappings} · сессий: {provider._count.authSessions} · последняя синхронизация:{" "}
                   {formatDate(provider.lastSyncAt)}
                 </p>
@@ -405,9 +405,9 @@ export default async function AdminSystemPage() {
         </section>
 
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Интеграции</h2>
-            <p className="mt-1 text-sm text-[#667085]">Последние подключения и статусы импортов.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Последние подключения и статусы импортов.</p>
           </div>
           <div className="grid grid-cols-2 gap-3 p-5 text-sm">
             <StatCard label="Источники" value={integrations.length} hint={`Ошибки: ${integrationErrors}`} tone={integrationErrors > 0 ? "error" : "neutral"} />
@@ -415,23 +415,23 @@ export default async function AdminSystemPage() {
           </div>
           <div className="record-list px-5">
             {integrations.length === 0 ? (
-              <div className="soft-callout text-sm text-[#667085]">Интеграции еще не настроены.</div>
+              <div className="soft-callout text-sm text-[#64748b]">Интеграции еще не настроены.</div>
             ) : (
               integrations.map((integration) => (
                 <article key={integration.id} className="record-card">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-[#17202a]">{integration.displayName}</h3>
-                      <p className="mt-1 text-sm text-[#667085]">{externalSourceLabel(integration.source)}</p>
+                      <h3 className="font-semibold text-[#111827]">{integration.displayName}</h3>
+                      <p className="mt-1 text-sm text-[#64748b]">{externalSourceLabel(integration.source)}</p>
                     </div>
                     <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(integration.status)}`}>
                       {integrationStatusLabel(integration.status)}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm text-[#667085]">
+                  <p className="mt-3 text-sm text-[#64748b]">
                     Лимит: {integration.importLimit} · батч: {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
                   </p>
-                  {integration.lastError ? <p className="mt-2 text-sm font-medium text-[#b42318]">{integration.lastError}</p> : null}
+                  {integration.lastError ? <p className="mt-2 text-sm font-medium text-[#b91c1c]">{integration.lastError}</p> : null}
                 </article>
               ))
             )}
@@ -439,30 +439,30 @@ export default async function AdminSystemPage() {
         </section>
 
         <section className="panel overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
+          <div className="border-b border-[#d9e0ea] px-5 py-4">
             <h2 className="text-lg font-semibold">Обслуживание</h2>
-            <p className="mt-1 text-sm text-[#667085]">Технические записи, которые чистит задача обслуживания.</p>
+            <p className="mt-1 text-sm text-[#64748b]">Технические записи, которые чистит задача обслуживания.</p>
           </div>
           <div className="grid gap-3 p-5">
             <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
             <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
             <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
           </div>
-          <div className="border-t border-[#d7dce5] px-5 py-4">
-            <h3 className="font-semibold text-[#17202a]">Последние импорты</h3>
-            <div className="record-list mt-3 border-y border-[#d7dce5]">
+          <div className="border-t border-[#d9e0ea] px-5 py-4">
+            <h3 className="font-semibold text-[#111827]">Последние импорты</h3>
+            <div className="record-list mt-3 border-y border-[#d9e0ea]">
               {recentRuns.length === 0 ? (
-                <p className="soft-callout text-sm text-[#667085]">Запусков пока нет.</p>
+                <p className="soft-callout text-sm text-[#64748b]">Запусков пока нет.</p>
               ) : (
                 recentRuns.map((run) => (
                   <div key={run.id} className="record-card text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-[#17202a]">{run.integration?.displayName ?? run.source}</p>
+                      <p className="font-semibold text-[#111827]">{run.integration?.displayName ?? run.source}</p>
                       <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(run.status)}`}>
                         {importRunStatusLabel(run.status)}
                       </span>
                     </div>
-                    <p className="mt-2 text-[#667085]">
+                    <p className="mt-2 text-[#64748b]">
                       {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
                     </p>
                   </div>
@@ -474,10 +474,10 @@ export default async function AdminSystemPage() {
         </div>
       </details>
 
-      <div className="soft-callout mt-6 text-sm text-[#667085]">
+      <div className="soft-callout mt-6 text-sm text-[#64748b]">
         <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
         Для регулярного запуска фоновых задач в продакшене используйте cron-команду{" "}
-        <code className="rounded bg-[#f7f8fb] px-1.5 py-0.5 text-xs text-[#344054]">npm run jobs:run</code> или внешний планировщик.
+        <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run</code> или внешний планировщик.
       </div>
     </section>
   );

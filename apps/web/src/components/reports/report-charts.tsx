@@ -58,13 +58,13 @@ export function ChartPanel({
 }) {
   return (
     <section className="panel overflow-hidden">
-      <div className="flex items-start justify-between gap-3 border-b border-[#d7dce5] px-5 py-4">
+      <div className="flex items-start justify-between gap-3 border-b border-[#d9e0ea] px-5 py-4">
         <div>
           <h2 className="text-lg font-semibold">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-[#667085]">{description}</p> : null}
+          {description ? <p className="mt-1 text-sm text-[#64748b]">{description}</p> : null}
         </div>
         {actionHref ? (
-          <Link href={actionHref} className="shrink-0 text-xs font-semibold uppercase text-[#0b4f52] hover:underline">
+          <Link href={actionHref} className="shrink-0 text-xs font-semibold uppercase text-[#1d3fae] hover:underline">
             {actionLabel}
           </Link>
         ) : null}
@@ -76,7 +76,7 @@ export function ChartPanel({
 
 export function SparklineChart({ points }: { points: ChartDatum[] }) {
   if (points.length === 0) {
-    return <p className="text-sm text-[#667085]">Нет завершенных проверок за выбранный период.</p>;
+    return <p className="text-sm text-[#64748b]">Нет завершенных проверок за выбранный период.</p>;
   }
 
   const width = 360;
@@ -89,19 +89,19 @@ export function SparklineChart({ points }: { points: ChartDatum[] }) {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Начало периода</p>
-          <p className="mt-1 text-lg font-semibold text-[#17202a]">{formatPercent(firstPoint.value)}</p>
-          <p className="text-xs text-[#667085]">{firstPoint.label}</p>
+          <p className="text-xs font-semibold uppercase text-[#64748b]">Начало периода</p>
+          <p className="mt-1 text-lg font-semibold text-[#111827]">{formatPercent(firstPoint.value)}</p>
+          <p className="text-xs text-[#64748b]">{firstPoint.label}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold uppercase text-[#667085]">Последняя точка</p>
-          <p className="mt-1 text-lg font-semibold text-[#17202a]">{formatPercent(lastPoint.value)}</p>
-          <p className="text-xs text-[#667085]">{lastPoint.label}</p>
+          <p className="text-xs font-semibold uppercase text-[#64748b]">Последняя точка</p>
+          <p className="mt-1 text-lg font-semibold text-[#111827]">{formatPercent(lastPoint.value)}</p>
+          <p className="text-xs text-[#64748b]">{lastPoint.label}</p>
         </div>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="h-32 w-full overflow-visible" role="img" aria-label="Тренд средней оценки">
-        <line x1="0" y1={height} x2={width} y2={height} stroke="#d7dce5" strokeWidth="1" />
-        <path d={path} fill="none" stroke="#116466" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+        <line x1="0" y1={height} x2={width} y2={height} stroke="#d9e0ea" strokeWidth="1" />
+        <path d={path} fill="none" stroke="#3157d5" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
         {points.map((point, index) => {
           const values = points.map((item) => item.value);
           const min = Math.min(...values);
@@ -110,7 +110,7 @@ export function SparklineChart({ points }: { points: ChartDatum[] }) {
           const x = points.length > 1 ? (index * width) / (points.length - 1) : width / 2;
           const y = height - ((point.value - min) / range) * height;
 
-          return <circle key={`${point.label}:${index}`} cx={x} cy={y} r="4" fill="#ffffff" stroke="#116466" strokeWidth="2" />;
+          return <circle key={`${point.label}:${index}`} cx={x} cy={y} r="4" fill="#ffffff" stroke="#3157d5" strokeWidth="2" />;
         })}
       </svg>
     </div>
@@ -129,7 +129,7 @@ export function HorizontalBarChart({
   emptyLabel?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[#667085]">{emptyLabel}</p>;
+    return <p className="text-sm text-[#64748b]">{emptyLabel}</p>;
   }
 
   const computedMax = maxValue ?? Math.max(...rows.map((row) => row.value), 1);
@@ -142,16 +142,16 @@ export function HorizontalBarChart({
         return (
           <div key={row.label} className="grid gap-1">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-semibold text-[#17202a]">{row.label}</p>
-              <p className="shrink-0 text-sm font-semibold text-[#344054]">
+              <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">{row.label}</p>
+              <p className="shrink-0 text-sm font-semibold text-[#334155]">
                 {Math.round(row.value)}
                 {valueSuffix}
               </p>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#e4e8ef]">
-              <div className="h-full rounded-full bg-[#116466]" style={{ width: `${percent}%` }} />
+            <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">
+              <div className="h-full rounded-full bg-[#3157d5]" style={{ width: `${percent}%` }} />
             </div>
-            {row.detail ? <p className="text-xs text-[#667085]">{row.detail}</p> : null}
+            {row.detail ? <p className="text-xs text-[#64748b]">{row.detail}</p> : null}
           </div>
         );
       })}
@@ -163,18 +163,18 @@ export function ScoreDistribution({ rows }: { rows: ChartDatum[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-[#667085]">Нет завершенных проверок для распределения.</p>;
+    return <p className="text-sm text-[#64748b]">Нет завершенных проверок для распределения.</p>;
   }
 
   return (
     <div className="grid gap-3">
       {rows.map((row) => (
         <div key={row.label} className="grid grid-cols-[72px_minmax(0,1fr)_48px] items-center gap-3">
-          <span className="text-sm font-semibold text-[#344054]">{row.label}</span>
-          <div className="h-8 overflow-hidden rounded-md bg-[#eef4f4]">
-            <div className="h-full rounded-md bg-[#116466]" style={{ width: `${(row.value / total) * 100}%` }} />
+          <span className="text-sm font-semibold text-[#334155]">{row.label}</span>
+          <div className="h-8 overflow-hidden rounded-md bg-[#edf2ff]">
+            <div className="h-full rounded-md bg-[#3157d5]" style={{ width: `${(row.value / total) * 100}%` }} />
           </div>
-          <span className="text-right text-sm font-semibold text-[#17202a]">{row.value}</span>
+          <span className="text-right text-sm font-semibold text-[#111827]">{row.value}</span>
         </div>
       ))}
     </div>
@@ -185,12 +185,12 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-[#667085]">Нет данных для распределения.</p>;
+    return <p className="text-sm text-[#64748b]">Нет данных для распределения.</p>;
   }
 
   return (
     <div className="grid gap-4">
-      <div className="flex h-4 overflow-hidden rounded-full bg-[#e4e8ef]">
+      <div className="flex h-4 overflow-hidden rounded-full bg-[#e2e8f0]">
         {segments.map((segment) => (
           <div
             key={segment.label}
@@ -205,9 +205,9 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
           <div key={segment.label} className="flex items-center justify-between gap-3 text-sm">
             <span className="flex min-w-0 items-center gap-2">
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${segment.color}`} />
-              <span className="truncate text-[#344054]">{segment.label}</span>
+              <span className="truncate text-[#334155]">{segment.label}</span>
             </span>
-            <span className="shrink-0 font-semibold text-[#17202a]">{segment.value}</span>
+            <span className="shrink-0 font-semibold text-[#111827]">{segment.value}</span>
           </div>
         ))}
       </div>
@@ -225,7 +225,7 @@ export function QuotaProgressBars({
   }>;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[#667085]">Нормы на выбранный период пока не заданы.</p>;
+    return <p className="text-sm text-[#64748b]">Нормы на выбранный период пока не заданы.</p>;
   }
 
   return (
@@ -236,8 +236,8 @@ export function QuotaProgressBars({
         return (
           <div key={row.label} className="grid gap-2">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-semibold text-[#17202a]">{row.label}</p>
-              <p className="shrink-0 text-sm text-[#667085]">
+              <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">{row.label}</p>
+              <p className="shrink-0 text-sm text-[#64748b]">
                 {row.actual} из {row.planned}
               </p>
             </div>
