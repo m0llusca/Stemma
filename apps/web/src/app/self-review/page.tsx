@@ -1,75 +1,208 @@
 import Link from "next/link";
+import { MessageSquareText, ShieldQuestion } from "lucide-react";
+import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { channelLabels, csatBucketLabels, externalSourceLabel } from "@/lib/labels";
+import {
+  appealStatusLabels,
+  feedbackStatusLabels,
+  externalSourceLabel,
+  riskLevelLabels
+} from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
+function feedbackTone(status: string) {
+  if (status === "acknowledged" || status === "corrected") {
+    return "pill--ok";
+  }
+
+  if (status === "appeal") {
+    return "pill--warn";
+  }
+
+  return "pill--neutral";
+}
+
 export default async function SelfReviewPage() {
-  const user = await requireCurrentUserPermission("self_review:write");
-  const conversations = await prisma.conversation.findMany({
-    where: {
-      workspaceId: user.workspaceId,
-      assigneeName: user.role === "SUPPORT_AGENT" ? user.name : undefined
-    },
-    include: {
-      reviews: {
-        where: { reviewSource: "SELF_REVIEW" },
-        orderBy: { createdAt: "desc" },
-        take: 1
-      }
-    },
-    orderBy: { closedAt: "desc" },
-    take: 20
-  });
+  const user = await requireCurrentUserPermission("feedback:acknowledge");
+  const scopedToAgent = user.role === "SUPPORT_AGENT";
+  const [conversations, assignments] = await Promise.all([
+    prisma.conversation.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        assigneeName: scopedToAgent ? user.name : undefined,
+        reviews: { some: { reviewSource: "HUMAN", status: "FINALIZED" } }
+      },
+      include: {
+        reviews: {
+          where: { reviewSource: "HUMAN", status: "FINALIZED" },
+          include: {
+            findings: true,
+            reviewer: true
+          },
+          orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
+          take: 1
+        }
+      },
+      orderBy: [{ closedAt: "desc" }, { updatedAt: "desc" }],
+      take: 20
+    }),
+    prisma.trainingAssignment.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        assigneeId: scopedToAgent ? user.id : undefined,
+        status: { not: "done" }
+      },
+      include: {
+        review: { include: { conversation: true } }
+      },
+      orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+      take: 6
+    })
+  ]);
+  const waitingFeedback = conversations.filter((conversation) => {
+    const review = conversation.reviews[0];
+    return review && review.feedbackStatus !== "acknowledged" && review.feedbackStatus !== "corrected";
+  }).length;
+  const appealCount = conversations.filter((conversation) => conversation.reviews[0]?.appealStatus === "open").length;
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center">
+      <div className="command-center command-center--split">
         <div className="min-w-0">
-          <p className="page-kicker">Контроль качества</p>
-          <h1 className="page-title">Самооценка оператора</h1>
+          <p className="page-kicker">Обратная связь</p>
+          <h1 className="page-title">Моя обратная связь</h1>
           <p className="page-subtitle">
-            Оператор может заранее оценить свои обращения по той же форме. Самооценка не меняет итоговую оценку проверяющего.
+            Это не отдельная самооценка, а рабочее место оператора: принять проверку, открыть апелляцию и закрыть учебные задачи.
           </p>
+        </div>
+        <div className="learning-metrics" aria-label="Сводка обратной связи">
+          <div className="learning-metric">
+            <MessageSquareText size={16} aria-hidden="true" />
+            <span>{waitingFeedback}</span>
+            <small>ожидают ответа</small>
+          </div>
+          <div className="learning-metric">
+            <ShieldQuestion size={16} aria-hidden="true" />
+            <span>{appealCount}</span>
+            <small>апелляции</small>
+          </div>
         </div>
       </div>
 
-      <section className="admin-group">
-        <div className="admin-group__header admin-group__header--compact">
-          <h2 className="text-base font-semibold text-[#111827]">Мои обращения</h2>
-          <p className="text-sm leading-5 text-[#64748b]">Сначала видны последние закрытые обращения.</p>
-        </div>
-        <div className="grid gap-2">
-              {conversations.map((conversation) => {
-                const selfReview = conversation.reviews[0];
+      <section className="feedback-layout" aria-label="Операторская обратная связь">
+        <div className="feedback-main panel">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>Проверки к ознакомлению</h2>
+              <p>Последние финальные оценки по обращениям оператора.</p>
+            </div>
+            <span className="pill pill--neutral">{conversations.length}</span>
+          </div>
+
+          <div className="feedback-card-list">
+            {conversations.length > 0 ? (
+              conversations.map((conversation) => {
+                const review = conversation.reviews[0];
+                const finding = review?.findings[0];
+
+                if (!review) {
+                  return null;
+                }
 
                 return (
-                  <Link
-                    key={conversation.id}
-                    href={`/reviews/${conversation.id}?reviewSource=SELF_REVIEW&returnTo=${encodeURIComponent("/self-review")}`}
-                    className="admin-tile admin-tile--compact"
-                  >
-                    <span className="admin-tile__icon admin-tile__icon--plain">S</span>
-                    <span className="admin-tile__body">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="record-title record-title--tight">{conversation.subject}</span>
-                      <span className={`pill ${selfReview ? "pill--ok" : "pill--neutral"}`}>
-                        {selfReview ? `${Math.round(selfReview.totalScore)}%` : "Нет самооценки"}
-                      </span>
-                      </span>
-                      <span className="record-meta">{externalSourceLabel(conversation.externalSource)} · {conversation.externalId}</span>
-                      <span className="record-meta">
-                        Канал: {channelLabels[conversation.channel]} · CSAT: {conversation.csatScore ?? csatBucketLabels[conversation.csatBucket]}
-                      </span>
-                      <span className="quiet-link">
-                        Оценить себя
-                      </span>
-                    </span>
-                  </Link>
+                  <article key={conversation.id} className="feedback-card">
+                    <div className="feedback-card__main">
+                      <div className="feedback-card__head">
+                        <Link href={`/reviews/${conversation.id}`} className="record-title text-[#1d3fae] hover:underline">
+                          {conversation.subject}
+                        </Link>
+                        <span className="pill pill--neutral">{Math.round(review.totalScore)}%</span>
+                      </div>
+                      <p>{review.summary}</p>
+                      <div className="feedback-card__meta">
+                        <span>{externalSourceLabel(conversation.externalSource)} · {conversation.externalId}</span>
+                        <span>{review.reviewer.name}</span>
+                        <span>{(review.finalizedAt ?? review.createdAt).toLocaleDateString("ru-RU")}</span>
+                      </div>
+                      <div className="feedback-card__meta">
+                        <span className={`pill ${feedbackTone(review.feedbackStatus)}`}>
+                          {feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus}
+                        </span>
+                        <span className="pill pill--neutral">
+                          {appealStatusLabels[review.appealStatus] ?? review.appealStatus}
+                        </span>
+                        {finding ? (
+                          <span className="pill pill--neutral">
+                            {finding.category} · {riskLevelLabels[finding.riskLevel]}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="feedback-card__actions">
+                      <form action={updateReviewFeedback}>
+                        <input type="hidden" name="reviewId" value={review.id} />
+                        <input type="hidden" name="action" value="acknowledged" />
+                        <button type="submit" className="action-button action-button--primary">
+                          Ознакомлен
+                        </button>
+                      </form>
+                      <form action={updateReviewFeedback}>
+                        <input type="hidden" name="reviewId" value={review.id} />
+                        <input type="hidden" name="action" value="appeal_opened" />
+                        <button type="submit" className="action-button">
+                          Апелляция
+                        </button>
+                      </form>
+                    </div>
+                  </article>
                 );
-              })}
+              })
+            ) : (
+              <div className="empty-state">
+                <h3>Нет проверок</h3>
+                <p>Когда проверяющий отправит обратную связь, она появится здесь.</p>
+              </div>
+            )}
+          </div>
         </div>
+
+        <aside className="feedback-side panel">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>Учебные задачи</h2>
+              <p>Короткий список того, что нужно закрыть после разбора.</p>
+            </div>
+            <span className="pill pill--neutral">{assignments.length}</span>
+          </div>
+          <div className="feedback-task-list">
+            {assignments.length > 0 ? (
+              assignments.map((assignment) => (
+                <article key={assignment.id} className="feedback-task">
+                  <h3>{assignment.title}</h3>
+                  <p>{assignment.description}</p>
+                  <span className="record-meta">
+                    {assignment.dueAt ? `до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : "без срока"}
+                    {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
+                  </span>
+                  <form action={updateTrainingAssignmentStatus}>
+                    <input type="hidden" name="id" value={assignment.id} />
+                    <input type="hidden" name="status" value="done" />
+                    <button type="submit" className="action-button">
+                      Закрыть задачу
+                    </button>
+                  </form>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state empty-state--compact">
+                <h3>Задач нет</h3>
+                <p>Все разборы закрыты.</p>
+              </div>
+            )}
+          </div>
+        </aside>
       </section>
     </section>
   );

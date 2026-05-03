@@ -172,6 +172,45 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </div>
       </div>
 
+      <div className="review-main">
+        <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
+        <div className="review-panel-column">
+          <ReviewPanel
+            conversationId={conversation.id}
+            messages={conversation.messages}
+            scorecard={scorecard}
+            draftReview={currentDraftReview}
+            reviewSource={reviewSource}
+            returnTo={returnTo}
+            title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
+          />
+        </div>
+      </div>
+
+      <details className="review-secondary panel disclosure-panel overflow-hidden">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">Ход проверки</h2>
+            <p className="mt-1 truncate text-sm text-[#64748b]">
+              {reviewStateLabels[reviewState]} · {scorecard.name} v{scorecard.version}
+            </p>
+          </div>
+          <span
+            className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </summary>
+        <div className="border-t border-[#d9e0ea] p-4">
+          <ReviewWorkflow
+            isReviewed={Boolean(latestFinalizedReview)}
+            hasDraftReview={Boolean(currentDraftReview)}
+            scorecardName={`${scorecard.name} v${scorecard.version}`}
+          />
+        </div>
+      </details>
+
       <details className="review-context disclosure-panel">
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
           <div>
@@ -191,12 +230,6 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           </DetailItem>
         </div>
       </details>
-
-      <ReviewWorkflow
-        isReviewed={Boolean(latestFinalizedReview)}
-        hasDraftReview={Boolean(currentDraftReview)}
-        scorecardName={`${scorecard.name} v${scorecard.version}`}
-      />
 
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
@@ -384,20 +417,6 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </details>
       ) : null}
 
-      <div className="review-main">
-        <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
-        <div className="review-panel-column">
-          <ReviewPanel
-            conversationId={conversation.id}
-            messages={conversation.messages}
-            scorecard={scorecard}
-            draftReview={currentDraftReview}
-            reviewSource={reviewSource}
-            returnTo={returnTo}
-            title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Самооценка" : "Проверка"}
-          />
-        </div>
-      </div>
     </section>
   );
 }

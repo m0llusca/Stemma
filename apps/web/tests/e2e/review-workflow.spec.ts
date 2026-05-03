@@ -40,6 +40,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
 
   await expect(page.getByRole("heading", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ход проверки" })).toBeVisible();
+  await page.locator("summary").filter({ hasText: "Ход проверки" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 1. Диалог" })).toBeVisible();
   await expect(page.getByText("Оценка по критериям")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
@@ -99,6 +101,21 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByText("Подробные разрезы").click();
   await expect(page.getByRole("heading", { name: "Риски" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
+
+  await page.goto("/calibration");
+  await expect(page.getByRole("heading", { name: "Калибровка", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Сессии" })).toBeVisible();
+  await expect(page.locator("h2").filter({ hasText: "Калибровка по маршрутизации" })).toBeVisible();
+
+  await page.goto("/coaching");
+  await expect(page.getByRole("heading", { name: "Обучение" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Учебные задачи" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "База ошибок" })).toBeVisible();
+
+  await page.goto("/self-review");
+  await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Проверки к ознакомлению" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Учебные задачи" })).toBeVisible();
 
   await page.goto("/admin/tokens");
   await expect(page.getByRole("heading", { name: "Ключи API" })).toBeVisible();

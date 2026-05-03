@@ -189,6 +189,7 @@ export function ReviewPanel({
         </div>
       </section>
 
+      <div className="review-panel-scroll">
       <section className="work-section work-section--muted">
         <StepHeader number={1} title="Оценка по критериям" detail="Заполните только то, что отличается от нормы." />
 
@@ -604,6 +605,7 @@ export function ReviewPanel({
           </details>
         </div>
       </details>
+      </div>
 
       <div className="review-actions-bar">
         <button

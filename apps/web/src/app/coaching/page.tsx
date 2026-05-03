@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookOpenCheck, CheckCircle2, Clock3, PlusCircle, TriangleAlert } from "lucide-react";
 import { updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -15,6 +16,26 @@ function trainingStatusLabel(status: string) {
   };
 
   return labels[status] ?? status;
+}
+
+function trainingStatusClassName(status: string) {
+  if (status === "done") {
+    return "pill--ok";
+  }
+
+  if (status === "in_progress") {
+    return "pill--warn";
+  }
+
+  return "pill--neutral";
+}
+
+function dueText(date: Date | null) {
+  return date ? `до ${date.toLocaleDateString("ru-RU")}` : "без срока";
+}
+
+function isOverdue(date: Date | null, now: Date) {
+  return Boolean(date && date.getTime() < now.getTime());
 }
 
 export default async function CoachingPage() {
@@ -42,123 +63,168 @@ export default async function CoachingPage() {
       orderBy: [{ riskLevel: "desc" }, { category: "asc" }]
     })
   ]);
+  const now = new Date();
+  const openCount = assignments.filter((assignment) => assignment.status !== "done").length;
+  const doneCount = assignments.filter((assignment) => assignment.status === "done").length;
+  const overdueCount = assignments.filter((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)).length;
+  const criticalKnowledgeCount = knowledgeEntries.filter((entry) => entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH").length;
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center">
+      <div className="command-center command-center--split">
         <div className="min-w-0">
           <p className="page-kicker">Развитие качества</p>
-          <h1 className="page-title">Обучение и база ошибок</h1>
+          <h1 className="page-title">Обучение</h1>
           <p className="page-subtitle">
-            Замечания превращаются в учебные задачи, а повторяющиеся ошибки попадают в базу рекомендаций.
+            Один экран для разбора ошибок: что назначено, какой тикет открыть и какое правило закрепить.
           </p>
+        </div>
+        <div className="learning-metrics" aria-label="Сводка обучения">
+          <div className="learning-metric">
+            <Clock3 size={16} aria-hidden="true" />
+            <span>{openCount}</span>
+            <small>в работе</small>
+          </div>
+          <div className="learning-metric">
+            <TriangleAlert size={16} aria-hidden="true" />
+            <span>{overdueCount}</span>
+            <small>просрочено</small>
+          </div>
+          <div className="learning-metric">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <span>{doneCount}</span>
+            <small>закрыто</small>
+          </div>
         </div>
       </div>
 
-      <section className="admin-group-grid admin-group-grid--two" aria-label="Обучение">
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Учебные задачи</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Разборы по итогам проверок, переответам и апелляциям.</p>
+      <section className="learning-layout" aria-label="Обучение и база ошибок">
+        <div className="learning-primary panel">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>Учебные задачи</h2>
+              <p>Разборы из проверок, переответов, апелляций и калибровок.</p>
+            </div>
+            <span className="pill pill--neutral">{assignments.length}</span>
           </div>
-          <div className="grid gap-2">
+
+          <div className="learning-task-list">
             {assignments.length > 0 ? (
-              assignments.map((assignment) => (
-                <article key={assignment.id} className="admin-tile admin-tile--compact">
-                  <span className="admin-tile__icon admin-tile__icon--plain">T</span>
-                  <div className="admin-tile__body">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="record-title record-title--tight">{assignment.title}</span>
-                      <span className="pill pill--neutral">{trainingStatusLabel(assignment.status)}</span>
-                    </span>
-                    <span className="record-meta compact-text">{assignment.description}</span>
-                    <span className="record-meta compact-text">
-                      {assignment.assigneeName}
-                      {assignment.dueAt ? ` · до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : ""}
-                      {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
-                    </span>
-                    <span className="flex flex-wrap gap-2">
-                      {assignment.review ? (
-                        <Link href={`/reviews/${assignment.review.conversationId}`} className="quiet-link">
+              assignments.map((assignment) => {
+                const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
+                const conversation = assignment.review?.conversation;
+                const finding = assignment.review?.findings[0];
+
+                return (
+                  <article key={assignment.id} className={`learning-task ${overdue ? "learning-task--urgent" : ""}`}>
+                    <div className="learning-task__marker" aria-hidden="true">
+                      <BookOpenCheck size={17} />
+                    </div>
+                    <div className="learning-task__content">
+                      <div className="learning-task__head">
+                        <h3>{assignment.title}</h3>
+                        <span className={`pill ${trainingStatusClassName(assignment.status)}`}>
+                          {trainingStatusLabel(assignment.status)}
+                        </span>
+                      </div>
+                      <p className="learning-task__description">{assignment.description}</p>
+                      <div className="learning-task__meta">
+                        <span>{assignment.assigneeName}</span>
+                        <span className={overdue ? "text-[#b45309]" : ""}>{dueText(assignment.dueAt)}</span>
+                        {conversation ? <span>{conversation.externalId}</span> : null}
+                        {finding ? <span>{finding.category}</span> : null}
+                      </div>
+                    </div>
+                    <div className="learning-task__actions">
+                      {conversation ? (
+                        <Link href={`/reviews/${conversation.id}`} className="action-button">
                           Открыть проверку
                         </Link>
                       ) : null}
                       <form action={updateTrainingAssignmentStatus}>
                         <input type="hidden" name="id" value={assignment.id} />
                         <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
-                        <button type="submit" className="quiet-link">
-                          {assignment.status === "done" ? "Переоткрыть" : "Готово"}
+                        <button type="submit" className="action-button action-button--primary">
+                          {assignment.status === "done" ? "Вернуть" : "Готово"}
                         </button>
                       </form>
-                    </span>
-                  </div>
-                </article>
-              ))
+                    </div>
+                  </article>
+                );
+              })
             ) : (
-              <div className="soft-callout text-sm text-[#64748b]">
-                Учебных задач пока нет.
+              <div className="empty-state">
+                <h3>Нет учебных задач</h3>
+                <p>После проверки с замечанием здесь появится задача на разбор с оператором.</p>
               </div>
             )}
           </div>
         </div>
 
-        <details className="disclosure-panel admin-group h-fit overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
-            <div>
-              <h2 className="text-base font-semibold">Добавить типовую ошибку</h2>
-              <p className="mt-1 text-sm text-[#64748b]">Форма скрыта, пока не нужно пополнить базу.</p>
+        <aside className="learning-sidebar">
+          <section className="panel">
+            <div className="learning-section-header">
+              <div className="min-w-0">
+                <h2>База ошибок</h2>
+                <p>Короткие правила для повторяющихся замечаний.</p>
+              </div>
+              <span className="pill pill--warn">{criticalKnowledgeCount} важных</span>
             </div>
-            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
-          </summary>
-          <form action={createKnowledgeEntry} className="grid gap-3 p-5">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Категория
-              <input name="category" required className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Название
-              <input name="title" required className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Риск
-              <select name="riskLevel" defaultValue="MEDIUM" className="form-control">
-                {Object.entries(riskLevelLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Описание
-              <textarea name="description" required rows={3} className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Рекомендация
-              <textarea name="recommendation" required rows={3} className="form-control" />
-            </label>
-            <button type="submit" className="action-button action-button--primary">
-              Сохранить
-            </button>
-          </form>
-        </details>
-      </section>
+            <div className="knowledge-compact-list">
+              {knowledgeEntries.map((entry) => (
+                <article key={entry.id} className="knowledge-compact-card">
+                  <div className="knowledge-compact-card__head">
+                    <span className="pill pill--neutral">{entry.category}</span>
+                    <span className="text-xs font-semibold text-[#64748b]">{riskLevelLabels[entry.riskLevel]}</span>
+                  </div>
+                  <h3>{entry.title}</h3>
+                  <p>{entry.recommendation}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
-      <section className="admin-group">
-        <div className="admin-group__header admin-group__header--compact">
-          <h2 className="text-base font-semibold text-[#111827]">База типовых ошибок</h2>
-          <p className="text-sm leading-5 text-[#64748b]">Используется для рекомендаций, калибровки и обучения операторов.</p>
-        </div>
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {knowledgeEntries.map((entry) => (
-            <article key={entry.id} className="soft-callout">
-              <p className="text-xs font-semibold uppercase text-[#64748b]">{entry.category} · {riskLevelLabels[entry.riskLevel]}</p>
-              <h3 className="mt-2 font-semibold text-[#111827]">{entry.title}</h3>
-              <p className="mt-2 text-sm leading-5 text-[#64748b]">{entry.description}</p>
-              <p className="mt-3 text-sm leading-5 text-[#334155]">{entry.recommendation}</p>
-            </article>
-          ))}
-        </div>
+          <details className="panel compact-details">
+            <summary className="disclosure-summary">
+              <span className="flex min-w-0 items-center gap-2">
+                <PlusCircle size={17} aria-hidden="true" />
+                <span className="text-sm font-semibold">Добавить типовую ошибку</span>
+              </span>
+              <span className="text-xs font-semibold uppercase text-[#64748b]">Форма</span>
+            </summary>
+            <form action={createKnowledgeEntry} className="form-stack border-t border-[#d9e0ea] p-4">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Категория
+                <input name="category" required className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Название
+                <input name="title" required className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Риск
+                <select name="riskLevel" defaultValue="MEDIUM" className="form-control">
+                  {Object.entries(riskLevelLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Описание
+                <textarea name="description" required rows={3} className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Рекомендация
+                <textarea name="recommendation" required rows={3} className="form-control" />
+              </label>
+              <button type="submit" className="action-button action-button--primary">
+                Сохранить
+              </button>
+            </form>
+          </details>
+        </aside>
       </section>
     </section>
   );

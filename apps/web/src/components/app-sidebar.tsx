@@ -7,7 +7,7 @@ import { switchCurrentUser } from "@/lib/user-actions";
 
 const navItems = [
   { href: "/reviews", label: "Проверки", icon: ClipboardCheck, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "VIEWER"] },
-  { href: "/self-review", label: "Самооценка", icon: UserCheck, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
+  { href: "/self-review", label: "Моя обратная связь", icon: UserCheck, roles: ["SUPPORT_AGENT"] },
   { href: "/calibration", label: "Калибровка", icon: Scale, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
   { href: "/coaching", label: "Обучение", icon: BookOpenCheck, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
   { href: "/reports", label: "Аналитика", icon: BarChart3, roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "VIEWER"] },

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, UsersRound } from "lucide-react";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -24,6 +25,18 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
+function statusClassName(status: string) {
+  if (status === "completed") {
+    return "pill--ok";
+  }
+
+  if (status === "active") {
+    return "pill--warn";
+  }
+
+  return "pill--neutral";
+}
+
 function scoreSpread(scores: number[]) {
   if (scores.length < 2) {
     return null;
@@ -46,7 +59,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
         items: { include: { conversation: { include: { reviews: { include: { reviewer: true } } } } } }
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-      take: 10
+      take: 12
     }),
     prisma.user.findMany({
       where: { workspaceId: user.workspaceId, role: { in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] } },
@@ -62,133 +75,151 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
     })
   ]);
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0];
+  const selectedItemCount = selectedSession?.items.length ?? 0;
+  const selectedParticipantCount = selectedSession?.participants.length ?? 0;
+  const selectedCalibrationReviews =
+    selectedSession?.items.flatMap((item) =>
+      item.conversation.reviews.filter(
+        (review) =>
+          review.reviewSource === "CALIBRATION" &&
+          review.status === "FINALIZED" &&
+          selectedSession.participants.some((participant) => participant.userId === review.reviewerId)
+      )
+    ) ?? [];
+  const selectedCompletedCount = new Set(selectedCalibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
+  const selectedExpectedCount = selectedItemCount * selectedParticipantCount;
+  const selectedProgress = selectedExpectedCount > 0 ? Math.round((selectedCompletedCount / selectedExpectedCount) * 100) : 0;
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center">
+      <div className="command-center command-center--split">
         <div className="min-w-0">
           <p className="page-kicker">Контроль качества</p>
-          <h1 className="page-title">Калибровка проверяющих</h1>
+          <h1 className="page-title">Калибровка</h1>
           <p className="page-subtitle">
-          Несколько проверяющих оценивают одинаковые обращения, а руководитель смотрит расхождения по оценке и комментариям.
+            Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило.
           </p>
         </div>
         <div className="admin-actions">
-          <Link href="/calibration?new=1" className="action-button action-button--primary">Новая калибровка</Link>
-          {selectedSession ? <Link href={`/calibration?session=${selectedSession.id}`} className="action-button">Текущая сессия</Link> : null}
+          <Link href="/calibration?new=1" className="action-button action-button--primary">
+            <PlusCircle size={16} aria-hidden="true" />
+            Новая сессия
+          </Link>
+          {selectedSession ? (
+            <Link href={`/calibration?session=${selectedSession.id}`} className="action-button">
+              Текущая
+            </Link>
+          ) : null}
         </div>
       </div>
 
-      <section className="admin-group-grid admin-group-grid--two" aria-label="Калибровка">
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Сессии калибровки</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Активные и последние сессии в компактном списке.</p>
+      <section className="calibration-workspace" aria-label="Рабочая область калибровки">
+        <aside className="calibration-rail panel">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>Сессии</h2>
+              <p>Активные и последние калибровки.</p>
+            </div>
+            <span className="pill pill--neutral">{sessions.length}</span>
           </div>
-          <div className="calibration-compact-list">
-          {sessions.map((session) => {
-            const isSelected = selectedSession?.id === session.id;
-            const itemCount = session.items.length;
-            const participantCount = session.participants.length;
-            const calibrationReviews = session.items.flatMap((item) =>
-              item.conversation.reviews.filter(
-                (review) =>
-                  review.reviewSource === "CALIBRATION" &&
-                  review.status === "FINALIZED" &&
-                  session.participants.some((participant) => participant.userId === review.reviewerId)
-              )
-            );
-            const completedCount = new Set(calibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
-            const expectedCount = itemCount * participantCount;
+          <div className="calibration-session-list">
+            {sessions.map((session) => {
+              const isSelected = selectedSession?.id === session.id;
+              const itemCount = session.items.length;
+              const participantCount = session.participants.length;
+              const calibrationReviews = session.items.flatMap((item) =>
+                item.conversation.reviews.filter(
+                  (review) =>
+                    review.reviewSource === "CALIBRATION" &&
+                    review.status === "FINALIZED" &&
+                    session.participants.some((participant) => participant.userId === review.reviewerId)
+                )
+              );
+              const completedCount = new Set(calibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
+              const expectedCount = itemCount * participantCount;
+              const progress = expectedCount > 0 ? Math.round((completedCount / expectedCount) * 100) : 0;
 
-            return (
-              <article key={session.id} className={`calibration-compact-item ${isSelected ? "calibration-compact-item--selected" : ""}`}>
-                <div className="min-w-0">
-                  <h3 className="record-title record-title--tight">{session.name}</h3>
-                  <div className="calibration-compact-meta mt-2">
-                    <span className={`pill ${session.status === "completed" ? "pill--ok" : "pill--neutral"}`}>{statusLabel(session.status)}</span>
-                    <span className="pill pill--neutral">{itemCount} обращений</span>
-                    <span className="pill pill--neutral">{participantCount} участников</span>
-                    <span className="pill pill--neutral">{completedCount}/{expectedCount} оценок</span>
+              return (
+                <Link
+                  key={session.id}
+                  href={`/calibration?session=${session.id}`}
+                  className={`calibration-session-card ${isSelected ? "calibration-session-card--selected" : ""}`}
+                >
+                  <span className={`pill ${statusClassName(session.status)}`}>{statusLabel(session.status)}</span>
+                  <h3>{session.name}</h3>
+                  <p>{itemCount} обращений · {participantCount} участников</p>
+                  <div className="mini-progress" aria-label={`Готовность ${progress}%`}>
+                    <span style={{ width: `${progress}%` }} />
                   </div>
-                  <p className="record-meta mt-2 compact-text">
-                    {session.participants.map((participant) => participant.user.name).join(", ") || "Участники не выбраны"}
+                </Link>
+              );
+            })}
+          </div>
+        </aside>
+
+        <div className="calibration-board panel">
+          {selectedSession ? (
+            <>
+              <div className="calibration-board__header">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2>{selectedSession.name}</h2>
+                    <span className={`pill ${statusClassName(selectedSession.status)}`}>{statusLabel(selectedSession.status)}</span>
+                  </div>
+                  <p>
+                    {selectedSession.notes || "Сравните оценки по одним обращениям и зафиксируйте, где правило трактуется по-разному."}
                   </p>
                 </div>
-                <div className="calibration-session__actions">
-                    <Link href={`/calibration?session=${session.id}`} className="action-button min-h-[38px] px-4 py-2 text-sm">
-                      Открыть
-                    </Link>
-                    {session.status !== "completed" ? (
-                      <form action={updateCalibrationSessionStatus}>
-                        <input type="hidden" name="id" value={session.id} />
-                        <input type="hidden" name="status" value="completed" />
-                        <button type="submit" className="action-button action-button--primary min-h-[38px] px-4 py-2 text-sm">
-                          Завершить
-                        </button>
-                      </form>
-                    ) : null}
+                <div className="calibration-board__actions">
+                  {selectedSession.status !== "completed" ? (
+                    <form action={updateCalibrationSessionStatus}>
+                      <input type="hidden" name="id" value={selectedSession.id} />
+                      <input type="hidden" name="status" value="completed" />
+                      <button type="submit" className="action-button action-button--primary">
+                        <CheckCircle2 size={16} aria-hidden="true" />
+                        Завершить
+                      </button>
+                    </form>
+                  ) : (
+                    <form action={updateCalibrationSessionStatus}>
+                      <input type="hidden" name="id" value={selectedSession.id} />
+                      <input type="hidden" name="status" value="active" />
+                      <button type="submit" className="action-button">
+                        Вернуть в работу
+                      </button>
+                    </form>
+                  )}
                 </div>
-              </article>
-            );
-          })}
-          </div>
-        </div>
+              </div>
 
-        <details className="disclosure-panel admin-group h-fit overflow-hidden" open={openNewSession}>
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
-            <div>
-              <h2 className="text-base font-semibold">Новая калибровка</h2>
-              <p className="mt-1 text-sm text-[#64748b]">Выберите обращения и проверяющих.</p>
-            </div>
-            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
-          </summary>
-          <form action={createCalibrationSession} className="grid gap-4 p-5">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Название
-              <input name="name" required defaultValue="Калибровка недели" className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Срок
-              <input name="dueAt" type="date" className="form-control" />
-            </label>
-            <fieldset className="grid gap-2">
-              <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
-              {qaUsers.map((qaUser) => (
-                <label key={qaUser.id} className="flex items-center gap-2 text-sm text-[#334155]">
-                  <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
-                  {qaUser.name}
-                </label>
-              ))}
-            </fieldset>
-            <fieldset className="grid gap-2">
-              <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
-              {conversations.map((conversation) => (
-                <label key={conversation.id} className="flex items-start gap-2 text-sm text-[#334155]">
-                  <input name="conversationId" type="checkbox" value={conversation.id} />
-                  <span>{conversation.subject}</span>
-                </label>
-              ))}
-            </fieldset>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Заметки
-              <textarea name="notes" rows={3} className="form-control" />
-            </label>
-            <button type="submit" className="action-button action-button--primary">
-              Создать сессию
-            </button>
-          </form>
-        </details>
-      </section>
+              <div className="calibration-summary-strip">
+                <div>
+                  <ClipboardCheck size={16} aria-hidden="true" />
+                  <span>{selectedItemCount}</span>
+                  <small>обращений</small>
+                </div>
+                <div>
+                  <UsersRound size={16} aria-hidden="true" />
+                  <span>{selectedParticipantCount}</span>
+                  <small>участников</small>
+                </div>
+                <div>
+                  <Gauge size={16} aria-hidden="true" />
+                  <span>{selectedProgress}%</span>
+                  <small>готово</small>
+                </div>
+                <div>
+                  <CalendarClock size={16} aria-hidden="true" />
+                  <span>{selectedSession.dueAt ? selectedSession.dueAt.toLocaleDateString("ru-RU") : "нет"}</span>
+                  <small>срок</small>
+                </div>
+              </div>
 
-      {selectedSession ? (
-        <section className="panel mt-6 overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Разбор расхождений: {selectedSession.name}</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Оценки калибровки не меняют итоговую оценку обращения.</p>
-          </div>
-          <div className="record-list px-5">
+              <div className="calibration-item-list">
                 {selectedSession.items.map((item) => {
+                  const baselineReview =
+                    item.conversation.reviews.find((review) => review.id === item.baselineReviewId) ??
+                    item.conversation.reviews.find((review) => review.reviewSource === "HUMAN" && review.status === "FINALIZED");
                   const reviews = item.conversation.reviews.filter(
                     (review) =>
                       review.reviewSource === "CALIBRATION" &&
@@ -199,25 +230,33 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   const spread = scoreSpread(scores);
 
                   return (
-                    <article key={item.id} className="record-card">
-                      <div className="record-row">
+                    <article key={item.id} className="calibration-item-card">
+                      <div className="calibration-item-card__main">
                         <Link href={`/reviews/${item.conversationId}`} className="record-title text-[#1d3fae] hover:underline">
                           {item.conversation.subject}
                         </Link>
-                        <span className={`pill ${spread != null && spread > 10 ? "pill--warn" : "pill--neutral"}`}>
-                          {spread == null ? "Недостаточно данных" : `${spread} п.п.`}
-                        </span>
+                        <p>
+                          Эталон: {baselineReview ? `${Math.round(baselineReview.totalScore)}% · ${baselineReview.reviewer.name}` : "нет финальной проверки"}
+                        </p>
+                        <div className="calibration-reviewers">
+                          {selectedSession.participants.map((participant) => {
+                            const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
+
+                            return (
+                              <span key={participant.id} className={`pill ${review ? "pill--ok" : "pill--neutral"}`}>
+                                {participant.user.name}: {review ? `${Math.round(review.totalScore)}%` : "ждет"}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <p className="record-meta">
-                        {reviews.length > 0
-                          ? reviews.map((review) => `${review.reviewer.name}: ${Math.round(review.totalScore)}%`).join(" · ")
-                          : "Пока нет оценок"}
-                      </p>
-                      <div className="record-row">
-                        <span className="record-meta">Оценки калибровки не меняют итоговую оценку обращения.</span>
+                      <div className="calibration-item-card__aside">
+                        <span className={`pill ${spread != null && spread > 10 ? "pill--warn" : "pill--neutral"}`}>
+                          {spread == null ? "нет расхождения" : `${spread} п.п.`}
+                        </span>
                         <Link
                           href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
-                          className="text-sm font-semibold text-[#1d3fae] hover:underline"
+                          className="action-button"
                         >
                           Оценить
                         </Link>
@@ -225,9 +264,73 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                     </article>
                   );
                 })}
+              </div>
+            </>
+          ) : (
+            <div className="empty-state">
+              <h3>Нет калибровок</h3>
+              <p>Создайте первую сессию из проверенных обращений и выберите участников.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <details className="panel compact-details" open={openNewSession}>
+        <summary className="disclosure-summary">
+          <span className="flex min-w-0 items-center gap-2">
+            <PlusCircle size={17} aria-hidden="true" />
+            <span className="text-sm font-semibold">Новая калибровка</span>
+          </span>
+          <span className="text-xs font-semibold uppercase text-[#64748b]">Открыть</span>
+        </summary>
+        <form action={createCalibrationSession} className="calibration-create-form border-t border-[#d9e0ea] p-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Название
+              <input name="name" required defaultValue="Калибровка недели" className="form-control" />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Срок
+              <input name="dueAt" type="date" className="form-control" />
+            </label>
           </div>
-        </section>
-      ) : null}
+
+          <fieldset className="form-stack">
+            <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
+            <div className="calibration-picker-grid">
+              {qaUsers.map((qaUser) => (
+                <label key={qaUser.id} className="compact-check-card">
+                  <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
+                  <span>{qaUser.name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="form-stack">
+            <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
+            <div className="calibration-picker-grid">
+              {conversations.map((conversation) => (
+                <label key={conversation.id} className="compact-check-card compact-check-card--tall">
+                  <input name="conversationId" type="checkbox" value={conversation.id} />
+                  <span>
+                    <strong>{conversation.externalId}</strong>
+                    {conversation.subject}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            Заметки
+            <textarea name="notes" rows={3} className="form-control" />
+          </label>
+          <button type="submit" className="action-button action-button--primary">
+            Создать сессию
+          </button>
+        </form>
+      </details>
     </section>
   );
 }
