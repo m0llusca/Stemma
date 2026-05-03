@@ -1,0 +1,341 @@
+"use server";
+
+import type { IdentityProviderType, RoleName } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { auditLog } from "@/lib/audit";
+import { requireCurrentUserPermission } from "@/lib/current-user";
+import { prisma } from "@/lib/db";
+
+const providerTypes = ["MICROSOFT_ENTRA_ID", "ACTIVE_DIRECTORY_LDAPS", "OIDC", "SAML"] as const satisfies readonly IdentityProviderType[];
+const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] as const satisfies readonly RoleName[];
+type ConfigurableProviderType = (typeof providerTypes)[number];
+
+function stringField(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function optionalValue(value: string) {
+  return value || null;
+}
+
+function providerTypeField(value: string) {
+  if (!providerTypes.includes(value as ConfigurableProviderType)) {
+    throw new Error("Некорректный тип провайдера авторизации.");
+  }
+
+  return value as ConfigurableProviderType;
+}
+
+function roleField(value: string) {
+  if (!roles.includes(value as RoleName)) {
+    throw new Error("Некорректная роль для группы.");
+  }
+
+  return value as RoleName;
+}
+
+function priorityField(formData: FormData) {
+  const parsed = Number(stringField(formData, "priority"));
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 1000 ? parsed : 100;
+}
+
+function parseConfigJson(value: string) {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    throw new Error("Дополнительная конфигурация должна быть валидным JSON-объектом.");
+  }
+}
+
+export async function saveIdentityProvider(formData: FormData) {
+  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const providerId = stringField(formData, "providerId");
+  const type = providerTypeField(stringField(formData, "type"));
+  const name = stringField(formData, "name");
+  const slug = stringField(formData, "slug");
+  const status = stringField(formData, "status") || "draft";
+  const scopes = stringField(formData, "scopes") || "openid profile email";
+  const config = parseConfigJson(stringField(formData, "configJson"));
+
+  if (name.length < 2 || slug.length < 2 || !/^[a-z0-9-]+$/.test(slug)) {
+    throw new Error("Заполните название и slug латиницей в нижнем регистре.");
+  }
+
+  if (!["draft", "active", "disabled"].includes(status)) {
+    throw new Error("Некорректный статус провайдера.");
+  }
+
+  const data = {
+    type,
+    name,
+    slug,
+    status,
+    issuer: optionalValue(stringField(formData, "issuer")),
+    tenantId: optionalValue(stringField(formData, "tenantId")),
+    clientId: optionalValue(stringField(formData, "clientId")),
+    clientSecretRef: optionalValue(stringField(formData, "clientSecretRef")),
+    authorizationUrl: optionalValue(stringField(formData, "authorizationUrl")),
+    tokenUrl: optionalValue(stringField(formData, "tokenUrl")),
+    jwksUrl: optionalValue(stringField(formData, "jwksUrl")),
+    scopes,
+    configJson: JSON.stringify(config)
+  };
+
+  const provider = await prisma.$transaction(async (tx) => {
+    const existingProvider = providerId
+      ? await tx.identityProvider.findFirst({
+          where: {
+            id: providerId,
+            workspaceId: user.workspaceId
+          },
+          select: { id: true }
+        })
+      : null;
+
+    if (providerId && !existingProvider) {
+      throw new Error("Провайдер не относится к текущему рабочему пространству.");
+    }
+
+    const result = existingProvider
+      ? await tx.identityProvider.update({
+          where: { id: providerId },
+          data
+        })
+      : await tx.identityProvider.upsert({
+          where: {
+            workspaceId_slug: {
+              workspaceId: user.workspaceId,
+              slug
+            }
+          },
+          create: {
+            workspaceId: user.workspaceId,
+            ...data
+          },
+          update: data
+        });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "auth.provider_saved",
+        targetType: "identity_provider",
+        targetId: result.id,
+        metadata: {
+          type: result.type,
+          slug: result.slug,
+          status: result.status,
+          clientSecretRef: result.clientSecretRef
+        }
+      },
+      tx
+    );
+
+    return result;
+  });
+
+  revalidatePath("/admin/access");
+  revalidatePath("/admin/system");
+  redirect(`/admin/access?provider=${provider.id}`);
+}
+
+export async function saveGroupRoleMapping(formData: FormData) {
+  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const mappingId = stringField(formData, "mappingId");
+  const providerId = stringField(formData, "providerId") || undefined;
+  const externalGroupId = stringField(formData, "externalGroupId");
+  const externalGroupName = stringField(formData, "externalGroupName") || externalGroupId;
+  const role = roleField(stringField(formData, "role"));
+  const priority = priorityField(formData);
+  const isActive = formData.get("isActive") === "on";
+
+  if (!externalGroupId) {
+    throw new Error("Укажите идентификатор группы.");
+  }
+
+  if (providerId) {
+    const provider = await prisma.identityProvider.findFirst({
+      where: {
+        id: providerId,
+        workspaceId: user.workspaceId
+      },
+      select: { id: true }
+    });
+
+    if (!provider) {
+      throw new Error("Провайдер авторизации не найден.");
+    }
+  }
+
+  const mapping = await prisma.$transaction(async (tx) => {
+    const existingMapping = mappingId
+      ? await tx.groupRoleMapping.findFirst({
+          where: {
+            id: mappingId,
+            workspaceId: user.workspaceId
+          },
+          select: { id: true }
+        })
+      : null;
+
+    if (mappingId && !existingMapping) {
+      throw new Error("Маппинг не относится к текущему рабочему пространству.");
+    }
+
+    const result = existingMapping
+      ? await tx.groupRoleMapping.update({
+          where: { id: mappingId },
+          data: {
+            providerId,
+            externalGroupId,
+            externalGroupName,
+            role,
+            priority,
+            isActive
+          }
+        })
+      : await tx.groupRoleMapping.upsert({
+          where: {
+            workspaceId_externalGroupId_role: {
+              workspaceId: user.workspaceId,
+              externalGroupId,
+              role
+            }
+          },
+          create: {
+            workspaceId: user.workspaceId,
+            providerId,
+            externalGroupId,
+            externalGroupName,
+            role,
+            priority,
+            isActive
+          },
+          update: {
+            providerId,
+            externalGroupName,
+            priority,
+            isActive
+          }
+        });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "auth.group_role_mapping_saved",
+        targetType: "group_role_mapping",
+        targetId: result.id,
+        metadata: {
+          providerId,
+          externalGroupId,
+          role,
+          priority,
+          isActive
+        }
+      },
+      tx
+    );
+
+    return result;
+  });
+
+  revalidatePath("/admin/access");
+  revalidatePath("/admin/system");
+  redirect(`/admin/access?provider=${mapping.providerId ?? providerId ?? ""}`);
+}
+
+export async function toggleGroupRoleMapping(formData: FormData) {
+  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const mappingId = stringField(formData, "mappingId");
+  const isActive = stringField(formData, "isActive") === "true";
+
+  const mapping = await prisma.groupRoleMapping.findFirst({
+    where: {
+      id: mappingId,
+      workspaceId: user.workspaceId
+    }
+  });
+
+  if (!mapping) {
+    throw new Error("Маппинг группы не найден.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.groupRoleMapping.update({
+      where: { id: mapping.id },
+      data: { isActive }
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "auth.group_role_mapping_toggled",
+        targetType: "group_role_mapping",
+        targetId: updated.id,
+        metadata: {
+          externalGroupId: updated.externalGroupId,
+          role: updated.role,
+          isActive
+        }
+      },
+      tx
+    );
+  });
+
+  revalidatePath("/admin/access");
+  revalidatePath("/admin/system");
+}
+
+export async function revokeAuthSessionById(formData: FormData) {
+  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const sessionId = stringField(formData, "sessionId");
+
+  const session = await prisma.authSession.findFirst({
+    where: {
+      id: sessionId,
+      workspaceId: user.workspaceId
+    }
+  });
+
+  if (!session) {
+    throw new Error("Сессия не найдена.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const revoked = await tx.authSession.update({
+      where: { id: session.id },
+      data: {
+        status: "REVOKED",
+        revokedAt: new Date()
+      }
+    });
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "auth.session_revoked",
+        targetType: "auth_session",
+        targetId: revoked.id,
+        metadata: {
+          userId: revoked.userId,
+          providerId: revoked.providerId
+        }
+      },
+      tx
+    );
+  });
+
+  revalidatePath("/admin/access");
+  revalidatePath("/admin/system");
+}

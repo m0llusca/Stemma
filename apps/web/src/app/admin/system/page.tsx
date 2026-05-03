@@ -278,10 +278,17 @@ export default async function AdminSystemPage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <section className="panel overflow-hidden">
           <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">SSO и каталог</h2>
-            <p className="mt-1 text-sm text-[#667085]">
-              Провайдеры авторизации, маппинги групп и ручной запуск синхронизации.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">SSO и каталог</h2>
+                <p className="mt-1 text-sm text-[#667085]">
+                  Провайдеры авторизации, маппинги групп и ручной запуск синхронизации.
+                </p>
+              </div>
+              <Link href="/admin/access" className="text-sm font-semibold text-[#0b4f52] hover:underline">
+                Настроить
+              </Link>
+            </div>
           </div>
           <div className="divide-y divide-[#d7dce5]">
             <div className="grid grid-cols-2 gap-3 p-5 text-sm">

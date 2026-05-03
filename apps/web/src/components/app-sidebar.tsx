@@ -10,6 +10,7 @@ import {
   ListChecks,
   Scale,
   Settings,
+  ShieldCheck,
   UserCheck
 } from "lucide-react";
 import type { RoleName } from "@prisma/client";
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/admin/sampling", label: "Выборки", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] },
   { href: "/admin/integrations", label: "Интеграции", icon: Settings, roles: ["ADMIN"] },
   { href: "/admin/system", label: "Система", icon: Activity, roles: ["ADMIN"] },
+  { href: "/admin/access", label: "Доступ", icon: ShieldCheck, roles: ["ADMIN"] },
   { href: "/admin/tokens", label: "API-доступ", icon: KeyRound, roles: ["ADMIN"] },
   { href: "/admin/audit", label: "Журнал", icon: History, roles: ["ADMIN", "TEAM_LEAD"] }
 ];
