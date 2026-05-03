@@ -4,7 +4,7 @@ import type { CriterionKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
-import { getCurrentUser } from "@/lib/current-user";
+import { canManageScorecards, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { validateScorecardDraft, type ScorecardCriterionDraft } from "@/lib/scorecard-validation";
 
@@ -27,6 +27,11 @@ function parseCriterionDraft(formData: FormData, index: number): ScorecardCriter
 
 export async function createScorecardVersion(formData: FormData) {
   const user = await getCurrentUser();
+
+  if (!canManageScorecards(user.role)) {
+    throw new Error("Нет прав на управление формами оценки.");
+  }
+
   const criterionCount = Number(stringField(formData, "criterionCount"));
 
   if (!Number.isInteger(criterionCount) || criterionCount < 1 || criterionCount > 20) {

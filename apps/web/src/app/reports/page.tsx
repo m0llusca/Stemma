@@ -11,7 +11,7 @@ import {
   type ChartDatum,
   type StackedSegment
 } from "@/components/reports/report-charts";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   appealStatusLabels,
@@ -574,7 +574,7 @@ function FocusPanel({
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("reports:read");
   const period = resolveReportPeriod(params);
   const previousPeriod = resolvePreviousReportPeriod(period);
 

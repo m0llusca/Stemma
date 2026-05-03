@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { upsertCustomConversation } from "@/lib/conversation-import";
-import { getCurrentUser } from "@/lib/current-user";
+import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   extractOtrsFamilyTickets,
@@ -61,6 +61,11 @@ function parseTicketGetPayload(rawPayload: string) {
 
 export async function importOtrsFamilyTicketGet(formData: FormData) {
   const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на импорт из OTRS-family.");
+  }
+
   const source = sourceField(formData);
   const rawPayload = stringField(formData, "payload");
 

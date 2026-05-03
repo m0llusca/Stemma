@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { channelLabels, csatBucketLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
 export default async function SelfReviewPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("self_review:write");
   const conversations = await prisma.conversation.findMany({
     where: {
       workspaceId: user.workspaceId,

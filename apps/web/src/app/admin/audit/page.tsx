@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -78,7 +78,7 @@ function buildAuditHref(page: number, action?: string, targetType?: string, star
 
 export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
   const params = await searchParams;
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("audit:read");
   const action = firstParam(params.action);
   const targetType = firstParam(params.targetType);
   const start = parseDateFilter(params.start);

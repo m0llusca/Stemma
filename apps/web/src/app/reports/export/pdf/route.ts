@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { loadReportExportRows, reportExportFilename, reportRowsToPdf } from "@/lib/report-export";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("reports:read");
   const params = Object.fromEntries(request.nextUrl.searchParams.entries());
   const { period, rows } = await loadReportExportRows(user.workspaceId, params);
 

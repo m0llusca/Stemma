@@ -1,10 +1,27 @@
 import { cookies } from "next/headers";
+import type { RoleName } from "@prisma/client";
+import { hasPermission, type Permission, requirePermission } from "@/lib/auth/permissions";
+import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 
 export const currentUserCookieName = "qc_current_user_id";
 
+export function isDemoAuthEnabled() {
+  return process.env.NODE_ENV !== "production" || process.env.QC_DEMO_AUTH === "enabled";
+}
+
 export async function getCurrentUser() {
   const cookieStore = await cookies();
+  const session = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
+
+  if (session) {
+    return session.user;
+  }
+
+  if (!isDemoAuthEnabled()) {
+    throw new Error("Нет активной пользовательской сессии.");
+  }
+
   const requestedUserId = cookieStore.get(currentUserCookieName)?.value;
   const user = requestedUserId
     ? await prisma.user.findUnique({
@@ -32,6 +49,12 @@ export async function getCurrentUser() {
   return fallbackUser;
 }
 
+export async function requireCurrentUserPermission(permission: Permission) {
+  const user = await getCurrentUser();
+  requirePermission(user, permission);
+  return user;
+}
+
 export async function getWorkspaceUsers(workspaceId: string) {
   return prisma.user.findMany({
     where: { workspaceId },
@@ -47,46 +70,46 @@ export async function getWorkspaceUsers(workspaceId: string) {
   });
 }
 
-export function canFinalizeReview(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+export function canFinalizeReview(role: RoleName) {
+  return hasPermission(role, "reviews:finalize");
 }
 
-export function canSaveReviewDraft(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+export function canSaveReviewDraft(role: RoleName) {
+  return hasPermission(role, "reviews:write");
 }
 
-export function canManageReviewWorkflow(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+export function canManageReviewWorkflow(role: RoleName) {
+  return hasPermission(role, "workflow:manage");
 }
 
-export function canManageCalibration(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+export function canManageCalibration(role: RoleName) {
+  return hasPermission(role, "calibration:manage");
 }
 
-export function canAcknowledgeFeedback(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST" || role === "SUPPORT_AGENT";
+export function canAcknowledgeFeedback(role: RoleName) {
+  return hasPermission(role, "feedback:acknowledge");
 }
 
-export function canSelfReview(role: string) {
-  return role === "SUPPORT_AGENT" || role === "TEAM_LEAD" || role === "QA_ANALYST" || role === "ADMIN";
+export function canSelfReview(role: RoleName) {
+  return hasPermission(role, "self_review:write");
 }
 
-export function canManageScorecards(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD";
+export function canManageScorecards(role: RoleName) {
+  return hasPermission(role, "scorecards:manage");
 }
 
-export function canManageIntegrations(role: string) {
-  return role === "ADMIN";
+export function canManageIntegrations(role: RoleName) {
+  return hasPermission(role, "integrations:manage");
 }
 
-export function canManageSamplingRules(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD";
+export function canManageSamplingRules(role: RoleName) {
+  return hasPermission(role, "sampling:manage");
 }
 
-export function canManageTraining(role: string) {
-  return role === "ADMIN" || role === "TEAM_LEAD" || role === "QA_ANALYST";
+export function canManageTraining(role: RoleName) {
+  return hasPermission(role, "training:manage");
 }
 
-export function canViewAdmin(role: string) {
+export function canViewAdmin(role: RoleName) {
   return role === "ADMIN" || role === "TEAM_LEAD";
 }

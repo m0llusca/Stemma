@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 
@@ -35,7 +35,7 @@ function tokenHealth(token: { lastSuccessAt: Date | null; lastErrorAt: Date | nu
 }
 
 export default async function AdminTokensPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("api_tokens:manage");
   const apiTokens = await prisma.apiToken.findMany({
     where: {
       workspaceId: user.workspaceId

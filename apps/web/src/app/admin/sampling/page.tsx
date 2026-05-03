@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { channelLabels, csatBucketLabels } from "@/lib/labels";
 import { createSamplingRule, updateSamplingRuleStatus } from "@/lib/quality-actions";
@@ -14,7 +14,7 @@ function parseConditions(value: string) {
 }
 
 export default async function SamplingRulesPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("sampling:manage");
   const rules = await prisma.samplingRule.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ isActive: "desc" }, { priority: "asc" }, { createdAt: "desc" }]

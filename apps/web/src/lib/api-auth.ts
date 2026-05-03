@@ -2,7 +2,16 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export type ApiScope = "conversations:write" | "reviews:read";
+export type ApiScope =
+  | "all"
+  | "conversations:read"
+  | "conversations:write"
+  | "reviews:read"
+  | "reviews:write"
+  | "reports:read"
+  | "integrations:run"
+  | "jobs:read"
+  | "jobs:write";
 
 type ApiAuthResult =
   | {

@@ -10,7 +10,18 @@ function hashApiToken(token: string) {
 
 async function main() {
   await prisma.auditLog.deleteMany();
+  await prisma.reportSnapshot.deleteMany();
+  await prisma.idempotencyKey.deleteMany();
+  await prisma.backendJobEvent.deleteMany();
+  await prisma.backendJob.deleteMany();
+  await prisma.reviewEvent.deleteMany();
+  await prisma.apiRateLimit.deleteMany();
+  await prisma.authSession.deleteMany();
+  await prisma.groupRoleMapping.deleteMany();
+  await prisma.externalIdentity.deleteMany();
+  await prisma.identityProvider.deleteMany();
   await prisma.integrationRun.deleteMany();
+  await prisma.integrationCredential.deleteMany();
   await prisma.savedQueueView.deleteMany();
   await prisma.calibrationParticipant.deleteMany();
   await prisma.calibrationSessionItem.deleteMany();
@@ -35,6 +46,42 @@ async function main() {
 
   const workspace = await prisma.workspace.create({
     data: { name: "Демо Контроль качества" }
+  });
+
+  const demoProvider = await prisma.identityProvider.create({
+    data: {
+      workspaceId: workspace.id,
+      type: "DEMO",
+      name: "Демо-вход",
+      slug: "demo",
+      status: "active",
+      issuer: "local-demo",
+      configJson: JSON.stringify({
+        mode: "local_cookie",
+        note: "Используется только для локального MVP."
+      })
+    }
+  });
+
+  const entraProvider = await prisma.identityProvider.create({
+    data: {
+      workspaceId: workspace.id,
+      type: "MICROSOFT_ENTRA_ID",
+      name: "Microsoft Entra ID / Active Directory",
+      slug: "microsoft-entra-id",
+      status: "draft",
+      issuer: "https://login.microsoftonline.com/{tenantId}/v2.0",
+      authorizationUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize",
+      tokenUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
+      jwksUrl: "https://login.microsoftonline.com/{tenantId}/discovery/v2.0/keys",
+      scopes: "openid profile email",
+      configJson: JSON.stringify({
+        recommendedFlow: "authorization_code_pkce",
+        roleSource: "app_roles",
+        fallbackRoleSource: "assigned_groups",
+        directorySync: "Microsoft Entra Connect or Cloud Sync"
+      })
+    }
   });
 
   const admin = await prisma.user.create({
@@ -86,6 +133,91 @@ async function main() {
       name: "Наблюдатель",
       role: "VIEWER"
     }
+  });
+
+  await prisma.externalIdentity.createMany({
+    data: [
+      {
+        userId: admin.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-admin",
+        email: admin.email,
+        displayName: admin.name
+      },
+      {
+        userId: analyst.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-qa",
+        email: analyst.email,
+        displayName: analyst.name
+      },
+      {
+        userId: teamLead.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-lead",
+        email: teamLead.email,
+        displayName: teamLead.name
+      },
+      {
+        userId: supportAgent.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-agent",
+        email: supportAgent.email,
+        displayName: supportAgent.name
+      },
+      {
+        userId: viewer.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-viewer",
+        email: viewer.email,
+        displayName: viewer.name
+      }
+    ]
+  });
+
+  await prisma.groupRoleMapping.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        providerId: entraProvider.id,
+        externalGroupId: "QC_Admins",
+        externalGroupName: "QC_Admins",
+        role: "ADMIN",
+        priority: 10
+      },
+      {
+        workspaceId: workspace.id,
+        providerId: entraProvider.id,
+        externalGroupId: "QC_TeamLeads",
+        externalGroupName: "QC_TeamLeads",
+        role: "TEAM_LEAD",
+        priority: 20
+      },
+      {
+        workspaceId: workspace.id,
+        providerId: entraProvider.id,
+        externalGroupId: "QC_Analysts",
+        externalGroupName: "QC_Analysts",
+        role: "QA_ANALYST",
+        priority: 30
+      },
+      {
+        workspaceId: workspace.id,
+        providerId: entraProvider.id,
+        externalGroupId: "Support_Agents",
+        externalGroupName: "Support_Agents",
+        role: "SUPPORT_AGENT",
+        priority: 40
+      },
+      {
+        workspaceId: workspace.id,
+        providerId: entraProvider.id,
+        externalGroupId: "QC_Viewers",
+        externalGroupName: "QC_Viewers",
+        role: "VIEWER",
+        priority: 50
+      }
+    ]
   });
 
   const scorecard = await prisma.scorecard.create({
@@ -710,7 +842,7 @@ async function main() {
       name: "Локальный dev API",
       tokenPrefix: `${demoApiToken.slice(0, 7)}...`,
       tokenHash: hashApiToken(demoApiToken),
-      scopes: "conversations:write,reviews:read"
+      scopes: "all"
     }
   });
 

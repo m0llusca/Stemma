@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 
@@ -34,7 +34,7 @@ function scoreSpread(scores: number[]) {
 }
 
 export default async function CalibrationPage({ searchParams }: CalibrationPageProps) {
-  const [user, rawSearchParams] = await Promise.all([getCurrentUser(), searchParams]);
+  const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("calibration:manage"), searchParams]);
   const selectedSessionId = firstParam(rawSearchParams.session);
   const [sessions, qaUsers, conversations] = await Promise.all([
     prisma.calibrationSession.findMany({

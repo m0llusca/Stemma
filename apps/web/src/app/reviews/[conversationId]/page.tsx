@@ -15,7 +15,7 @@ import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewWorkflow } from "@/components/review/review-workflow";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
-import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
+import { canManageReviewWorkflow, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   channelLabels,
@@ -94,7 +94,7 @@ function singleParam(value: string | string[] | undefined) {
 }
 
 export default async function ReviewDetailPage({ params, searchParams }: ReviewDetailPageProps) {
-  const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, getCurrentUser()]);
+  const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, requireCurrentUserPermission("reviews:read")]);
   const requestedReviewSource = singleParam(rawSearchParams.reviewSource);
   const reviewSource =
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";

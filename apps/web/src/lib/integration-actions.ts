@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
-import { getCurrentUser } from "@/lib/current-user";
+import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 function stringField(formData: FormData, key: string) {
@@ -18,6 +18,11 @@ function numberField(formData: FormData, key: string, fallback: number) {
 
 export async function recordIntegrationDryRun(formData: FormData) {
   const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
   const source = stringField(formData, "source") || "unknown";
   const sourceLabel = stringField(formData, "sourceLabel") || source;
   const mode = stringField(formData, "mode") || "unknown";
@@ -104,6 +109,11 @@ export async function recordIntegrationDryRun(formData: FormData) {
 
 export async function queueIntegrationImport(formData: FormData) {
   const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
   const integrationId = stringField(formData, "integrationId");
 
   const integration = await prisma.integration.findFirst({
@@ -121,14 +131,13 @@ export async function queueIntegrationImport(formData: FormData) {
     await tx.integration.update({
       where: { id: integration.id },
       data: {
-        status: "active",
+        status: "queued",
         lastImportAt: new Date(),
-        lastSyncedAt: new Date(),
         lastError: null
       }
     });
 
-    await tx.integrationRun.create({
+    const run = await tx.integrationRun.create({
       data: {
         workspaceId: user.workspaceId,
         integrationId: integration.id,
@@ -140,6 +149,24 @@ export async function queueIntegrationImport(formData: FormData) {
         requestedLimit: integration.importLimit,
         importedCount: 0,
         errorCount: 0
+      }
+    });
+
+    await tx.backendJob.create({
+      data: {
+        workspaceId: user.workspaceId,
+        type: "INTEGRATION_IMPORT",
+        status: "QUEUED",
+        queueName: "integrations",
+        priority: 50,
+        createdById: user.id,
+        payloadJson: JSON.stringify({
+          integrationId: integration.id,
+          integrationRunId: run.id,
+          source: integration.source,
+          mode: integration.type,
+          requestedLimit: integration.importLimit
+        })
       }
     });
 

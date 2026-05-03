@@ -14,7 +14,8 @@
     "db:migrate": "cross-env DATABASE_URL=file:./dev.db RUST_LOG=info prisma migrate dev",
     "db:migrate:debug": "cross-env DATABASE_URL=file:./dev.db RUST_LOG=debug prisma migrate dev",
     "db:seed": "cross-env DATABASE_URL=file:./dev.db tsx prisma/seed.ts",
-    "db:reset": "cross-env DATABASE_URL=file:./dev.db prisma migrate reset --force"
+    "db:reset": "cross-env DATABASE_URL=file:./dev.db prisma migrate reset --force",
+    "jobs:run": "cross-env DATABASE_URL=file:./dev.db tsx src/scripts/run-jobs.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

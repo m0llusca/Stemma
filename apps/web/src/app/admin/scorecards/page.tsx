@@ -1,13 +1,13 @@
 import { ChevronDown } from "lucide-react";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { criterionKindLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminScorecardsPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("scorecards:manage");
   const activeScorecard = await prisma.scorecard.findFirst({
     where: {
       workspaceId: user.workspaceId,

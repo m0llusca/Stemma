@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { IntegrationSetupWorkspace } from "@/components/integrations/integration-setup-workspace";
 import { DataTable, Surface } from "@/components/integrations/integration-ui";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { queueIntegrationImport } from "@/lib/integration-actions";
 import { integrationStatusLabel } from "@/lib/labels";
@@ -119,7 +119,7 @@ function queueHref(source: string, externalIds: string[]) {
 }
 
 export default async function AdminIntegrationsPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("integrations:manage");
   const [integrations, apiTokens, recentRuns] = await Promise.all([
     prisma.integration.findMany({
       where: {

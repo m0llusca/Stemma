@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
 import { createKnowledgeEntry } from "@/lib/quality-actions";
@@ -18,7 +18,7 @@ function trainingStatusLabel(status: string) {
 }
 
 export default async function CoachingPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("training:manage");
   const trainingWhere =
     user.role === "SUPPORT_AGENT"
       ? { workspaceId: user.workspaceId, assigneeId: user.id }

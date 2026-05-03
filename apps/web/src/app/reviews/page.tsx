@@ -2,7 +2,7 @@ import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueSummary } from "@/components/review/queue-summary";
 import { QueueTable } from "@/components/review/queue-table";
-import { getCurrentUser } from "@/lib/current-user";
+import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   getReviewQueue,
@@ -37,7 +37,7 @@ function reviewQueueHref(params: ReviewQueueSearchParams) {
 }
 
 export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("reviews:read");
   const rawParams = await searchParams;
   const filters = parseReviewQueueFilters(rawParams);
   const effectiveFilters = user.role === "SUPPORT_AGENT" ? { ...filters, assignee: user.name } : filters;
