@@ -25,7 +25,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
     conversation.qaAssigneeId !== null && !assignees.some((assignee) => assignee.id === conversation.qaAssigneeId);
 
   return (
-    <details className="panel disclosure-panel mb-5 overflow-hidden">
+    <details className="panel disclosure-panel overflow-hidden">
       <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">Управление проверкой</h2>
@@ -53,7 +53,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           <select
             name="qaStatus"
             defaultValue={conversation.qaStatus}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="form-control"
           >
             {qaStatuses.map((status) => (
               <option key={status} value={status}>
@@ -68,7 +68,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           <select
             name="qaAssigneeId"
             defaultValue={conversation.qaAssigneeId ?? ""}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="form-control"
           >
             <option value="">Не назначен</option>
             {hasUnknownAssignee ? (
@@ -88,14 +88,14 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
             name="reviewDueAt"
             type="date"
             defaultValue={toDateInputValue(conversation.reviewDueAt)}
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="form-control"
           />
         </label>
 
         <div className="flex items-end">
           <button
             type="submit"
-            className="w-full rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52] md:w-auto"
+            className="action-button action-button--primary w-full md:w-auto"
           >
             Обновить
           </button>

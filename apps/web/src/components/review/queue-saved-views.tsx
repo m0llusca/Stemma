@@ -38,7 +38,7 @@ export function QueueSavedViews({
   ];
 
   return (
-    <section className="panel mb-5 overflow-hidden">
+    <section className="panel overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-[#d7dce5] bg-white px-4 py-3" aria-label="Быстрые представления очереди">
         {allViews.map((view, index) => {
           const isActive = currentHref === view.href;
@@ -70,16 +70,16 @@ export function QueueSavedViews({
         <input type="hidden" name="href" value={currentHref} />
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Сохранить текущий вид
-          <input name="name" placeholder="Например, 2ЛП критические" className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+          <input name="name" placeholder="Например, 2ЛП критические" className="form-control" />
         </label>
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Доступ
-          <select name="scope" defaultValue="private" className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <select name="scope" defaultValue="private" className="form-control">
             <option value="private">Только мне</option>
             <option value="workspace">Всем</option>
           </select>
         </label>
-        <button type="submit" className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+        <button type="submit" className="action-button">
           Сохранить
         </button>
       </form>

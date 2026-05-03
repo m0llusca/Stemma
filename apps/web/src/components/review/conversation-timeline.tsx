@@ -16,15 +16,15 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
         <h2 className="text-lg font-semibold">Таймлайн диалога</h2>
         <span className="text-sm text-[#667085]">{formatMessageCount(messages.length)}</span>
       </div>
-      <div className="space-y-4">
+      <div className="record-list">
         {messages.map((message) => {
           const isHighlighted = highlightedMessages.has(message.id);
 
           return (
             <article
               key={message.id}
-              className={`rounded-lg border p-4 ${
-                isHighlighted ? "border-[#116466] bg-[#eef4f4]" : "border-[#d7dce5] bg-[#f7f8fb]"
+              className={`record-card ${
+                isHighlighted ? "record-card--selected bg-[#eef4f4]" : "bg-[#fbfcfd]"
               }`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">

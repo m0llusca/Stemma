@@ -34,7 +34,7 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
   ];
 
   return (
-    <section className="panel mb-5 p-4">
+    <section className="panel p-4">
       <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[#667085]">Текущий шаг</p>

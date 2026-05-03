@@ -86,7 +86,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                     <input type="hidden" name="id" value={rule.id} />
                     <label className="flex items-center gap-2 text-sm text-[#344054]">
                       <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
-                      <button type="submit" className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                         {rule.isActive ? "Выключить" : "Включить"}
                       </button>
                     </label>

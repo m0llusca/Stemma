@@ -21,15 +21,15 @@ export function QueueSummary({ total, queued, inWork, drafts, reviewed, overdue,
   const values = { total, queued, inWork, drafts, reviewed, overdue, filtered };
 
   return (
-    <section className="panel mb-4 overflow-hidden">
+    <section className="panel overflow-hidden">
       <div className="grid lg:grid-cols-[190px_minmax(0,1fr)]">
-        <div className="border-b border-[#d7dce5] bg-[#fbfcfd] p-4 lg:border-b-0 lg:border-r">
+        <div className="border-b border-[#d7dce5] bg-[#fafbf8] p-4 lg:border-b-0 lg:border-r">
           <p className="text-xs font-semibold uppercase text-[#667085]">Найдено</p>
           <p className="mt-1 text-3xl font-semibold text-[#17202a]">{filtered}</p>
         </div>
-        <dl className="grid grid-cols-2 divide-x divide-y divide-[#d7dce5] text-sm sm:grid-cols-3 xl:grid-cols-6 xl:divide-y-0">
+        <dl className="grid grid-cols-2 text-sm sm:grid-cols-3 xl:grid-cols-6">
           {summaryItems.map((item) => (
-            <div key={item.key} className="min-h-[74px] p-4">
+            <div key={item.key} className="m-3 min-h-[74px] rounded-md border border-[#d7dce5] bg-white p-3">
               <dt className="text-xs font-semibold uppercase text-[#667085]">{item.label}</dt>
               <dd className="mt-1 text-xl font-semibold text-[#17202a]">{values[item.key]}</dd>
             </div>

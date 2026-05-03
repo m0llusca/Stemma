@@ -294,7 +294,8 @@ pre code {
   color: var(--accent-strong);
 }
 
-.admin-shell {
+.admin-shell,
+.workspace-shell {
   display: grid;
   gap: 20px;
 }
@@ -323,7 +324,8 @@ pre code {
   line-height: 1.65;
 }
 
-.admin-hero {
+.admin-hero,
+.workspace-hero {
   display: grid;
   gap: 22px;
   border: 1px solid var(--border);
@@ -335,7 +337,8 @@ pre code {
   padding: 22px;
 }
 
-.admin-hero--split {
+.admin-hero--split,
+.workspace-hero--split {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
   align-items: start;
 }
@@ -467,6 +470,11 @@ pre code {
   padding: 14px;
 }
 
+.record-card--selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(17, 100, 102, 0.16);
+}
+
 .record-card--interactive:hover {
   border-color: var(--accent);
   background: #fbfdfb;
@@ -594,6 +602,7 @@ pre code {
   }
 
   .admin-hero--split,
+  .workspace-hero--split,
   .section-grid--three {
     grid-template-columns: 1fr;
   }

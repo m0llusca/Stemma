@@ -36,6 +36,7 @@ function scoreSpread(scores: number[]) {
 export default async function CalibrationPage({ searchParams }: CalibrationPageProps) {
   const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("calibration:manage"), searchParams]);
   const selectedSessionId = firstParam(rawSearchParams.session);
+  const openNewSession = firstParam(rawSearchParams.new) === "1";
   const [sessions, qaUsers, conversations] = await Promise.all([
     prisma.calibrationSession.findMany({
       where: { workspaceId: user.workspaceId },
@@ -64,13 +65,19 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0];
 
   return (
-    <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Контроль качества</p>
-        <h1 className="mt-1 text-2xl font-semibold">Калибровка проверяющих</h1>
-        <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">
+    <section className="page-shell workspace-shell">
+      <div className="workspace-hero">
+        <div className="min-w-0">
+          <p className="page-kicker">Контроль качества</p>
+          <h1 className="page-title">Калибровка проверяющих</h1>
+          <p className="page-subtitle">
           Несколько проверяющих оценивают одинаковые обращения, а руководитель смотрит расхождения по оценке и комментариям.
-        </p>
+          </p>
+        </div>
+        <div className="admin-actions">
+          <Link href="/calibration?new=1" className="action-button action-button--primary">Новая калибровка</Link>
+          {selectedSession ? <Link href={`/calibration?session=${selectedSession.id}`} className="action-button">Текущая сессия</Link> : null}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -100,14 +107,14 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/calibration?session=${session.id}`} className="rounded border border-[#d7dce5] px-3 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+                    <Link href={`/calibration?session=${session.id}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
                       Открыть
                     </Link>
                     {session.status !== "completed" ? (
                       <form action={updateCalibrationSessionStatus}>
                         <input type="hidden" name="id" value={session.id} />
                         <input type="hidden" name="status" value="completed" />
-                        <button type="submit" className="rounded bg-[#116466] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+                        <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
                           Завершить
                         </button>
                       </form>
@@ -139,19 +146,22 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
           })}
         </div>
 
-        <form action={createCalibrationSession} className="panel h-fit overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Новая калибровка</h2>
-            <p className="mt-1 text-sm text-[#667085]">Выберите обращения и проверяющих.</p>
-          </div>
-          <div className="grid gap-4 p-5">
+        <details className="disclosure-panel panel h-fit overflow-hidden" open={openNewSession}>
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Новая калибровка</h2>
+              <p className="mt-1 text-sm text-[#667085]">Выберите обращения и проверяющих.</p>
+            </div>
+            <span className="text-sm font-semibold text-[#0b4f52]">Открыть</span>
+          </summary>
+          <form action={createCalibrationSession} className="grid gap-4 p-5">
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Название
-              <input name="name" required defaultValue="Калибровка недели" className="rounded border border-[#d7dce5] px-3 py-2" />
+              <input name="name" required defaultValue="Калибровка недели" className="form-control" />
             </label>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Срок
-              <input name="dueAt" type="date" className="rounded border border-[#d7dce5] px-3 py-2" />
+              <input name="dueAt" type="date" className="form-control" />
             </label>
             <fieldset className="grid gap-2">
               <legend className="text-sm font-semibold text-[#344054]">Участники</legend>
@@ -173,13 +183,13 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             </fieldset>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Заметки
-              <textarea name="notes" rows={3} className="rounded border border-[#d7dce5] px-3 py-2" />
+              <textarea name="notes" rows={3} className="form-control" />
             </label>
-            <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+            <button type="submit" className="action-button action-button--primary">
               Создать сессию
             </button>
-          </div>
-        </form>
+          </form>
+        </details>
       </div>
 
       {selectedSession ? (
@@ -188,17 +198,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             <h2 className="text-lg font-semibold">Разбор расхождений: {selectedSession.name}</h2>
             <p className="mt-1 text-sm text-[#667085]">Оценки калибровки не меняют итоговую оценку обращения.</p>
           </div>
-          <div className="scroll-area">
-            <table className="table-fixed-copy w-full min-w-[900px] border-collapse text-left text-sm">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Обращение</th>
-                  <th className="px-5 py-3 font-semibold">Оценки</th>
-                  <th className="px-5 py-3 font-semibold">Разброс</th>
-                  <th className="px-5 py-3 font-semibold">Действие</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
+          <div className="record-list p-5">
                 {selectedSession.items.map((item) => {
                   const reviews = item.conversation.reviews.filter(
                     (review) =>
@@ -210,31 +210,32 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   const spread = scoreSpread(scores);
 
                   return (
-                    <tr key={item.id}>
-                      <td className="px-5 py-4">
-                        <Link href={`/reviews/${item.conversationId}`} className="font-semibold text-[#0b4f52] hover:underline">
+                    <article key={item.id} className="record-card">
+                      <div className="record-row">
+                        <Link href={`/reviews/${item.conversationId}`} className="record-title text-[#0b4f52] hover:underline">
                           {item.conversation.subject}
                         </Link>
-                      </td>
-                      <td className="px-5 py-4 text-[#344054]">
+                        <span className={`pill ${spread != null && spread > 10 ? "pill--warn" : "pill--neutral"}`}>
+                          {spread == null ? "Недостаточно данных" : `${spread} п.п.`}
+                        </span>
+                      </div>
+                      <p className="record-meta">
                         {reviews.length > 0
                           ? reviews.map((review) => `${review.reviewer.name}: ${Math.round(review.totalScore)}%`).join(" · ")
                           : "Пока нет оценок"}
-                      </td>
-                      <td className="px-5 py-4 font-semibold text-[#17202a]">{spread == null ? "Недостаточно данных" : `${spread} п.п.`}</td>
-                      <td className="px-5 py-4">
+                      </p>
+                      <div className="record-row">
+                        <span className="record-meta">Оценки калибровки не меняют итоговую оценку обращения.</span>
                         <Link
                           href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
-                          className="font-semibold text-[#0b4f52] hover:underline"
+                          className="text-sm font-semibold text-[#0b4f52] hover:underline"
                         >
                           Оценить
                         </Link>
-                      </td>
-                    </tr>
+                      </div>
+                    </article>
                   );
                 })}
-              </tbody>
-            </table>
           </div>
         </section>
       ) : null}

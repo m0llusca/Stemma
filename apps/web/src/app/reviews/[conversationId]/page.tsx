@@ -146,10 +146,15 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   const scoreLabel = scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено";
 
   return (
-    <section className="page-shell">
-      <div className="mb-5">
-        <p className="text-sm font-medium text-[#667085]">Доска проверки</p>
-        <h1 className="mt-1 text-2xl font-semibold">{conversation.subject}</h1>
+    <section className="page-shell workspace-shell">
+      <div className="workspace-hero">
+        <div className="min-w-0">
+          <p className="page-kicker">Доска проверки</p>
+          <h1 className="page-title">{conversation.subject}</h1>
+          <p className="page-subtitle">
+            Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц.
+          </p>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <HeaderChip label="Состояние" icon={BadgeCheck} tone={reviewStateTone(reviewState)}>
             {reviewStateLabels[reviewState]}
@@ -167,7 +172,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </div>
       </div>
 
-      <details className="disclosure-panel mb-5">
+      <details className="disclosure-panel">
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">Детали обращения</h2>
@@ -196,7 +201,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
       {latestFinalizedReview ? (
-        <details className="panel disclosure-panel mb-6 overflow-hidden">
+        <details className="panel disclosure-panel overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Последнее замечание</h2>
@@ -291,14 +296,14 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
                 <form action={updateReviewFeedback}>
                   <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                   <input type="hidden" name="action" value="acknowledged" />
-                  <button type="submit" className="rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+                  <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                     Ознакомлен
                   </button>
                 </form>
                 <form action={updateReviewFeedback}>
                   <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                   <input type="hidden" name="action" value="appeal_opened" />
-                  <button type="submit" className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+                  <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                     Открыть апелляцию
                   </button>
                 </form>
@@ -306,7 +311,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
                   <form action={updateReviewFeedback}>
                     <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                     <input type="hidden" name="action" value="reanswer_completed" />
-                    <button type="submit" className="rounded bg-[#116466] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+                    <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
                       Переответ выполнен
                     </button>
                   </form>
@@ -318,17 +323,17 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
                 Учебная задача
-                <input name="title" defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+                <input name="title" defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
                 Описание
-                <input name="description" defaultValue={latestFinalizedReview.summary} className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+                <input name="description" defaultValue={latestFinalizedReview.summary} className="form-control" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-[#344054]">
                 Срок
-                <input name="dueAt" type="date" className="rounded border border-[#d7dce5] bg-white px-3 py-2" />
+                <input name="dueAt" type="date" className="form-control" />
               </label>
-              <button type="submit" className="rounded border border-[#116466] bg-white px-3 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]">
+              <button type="submit" className="action-button">
                 Создать
               </button>
             </form>
@@ -347,7 +352,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       ) : null}
 
       {conversation.reviews.length > 0 ? (
-        <details className="panel disclosure-panel mb-6 overflow-hidden">
+        <details className="panel disclosure-panel overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">История проверок</h2>
@@ -360,31 +365,21 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <ChevronDown className="h-4 w-4" />
             </span>
           </summary>
-          <div className="scroll-area border-t border-[#d7dce5]">
-            <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
-              <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Дата</th>
-                  <th className="px-5 py-3 font-semibold">Проверяющий</th>
-                  <th className="px-5 py-3 font-semibold">Статус записи</th>
-                  <th className="px-5 py-3 font-semibold">Оценка</th>
-                  <th className="px-5 py-3 font-semibold">Категория</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d7dce5]">
-                {conversation.reviews.map((review) => (
-                  <tr key={review.id}>
-                    <td className="px-5 py-4 text-[#344054]">
-                      {(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}
-                    </td>
-                    <td className="px-5 py-4 text-[#344054]">{review.reviewer.name}</td>
-                    <td className="px-5 py-4 text-[#344054]">{reviewStatusLabels[review.status]}</td>
-                    <td className="px-5 py-4 font-semibold text-[#17202a]">{Math.round(review.totalScore)}%</td>
-                    <td className="px-5 py-4 text-[#344054]">{review.findings[0]?.category ?? "Без замечаний"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="record-list border-t border-[#d7dce5] p-5">
+            {conversation.reviews.map((review) => (
+              <article key={review.id} className="record-card">
+                <div className="record-row">
+                  <div className="min-w-0">
+                    <h3 className="record-title">{review.reviewer.name}</h3>
+                    <p className="record-meta mt-1">{(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}</p>
+                  </div>
+                  <span className="pill pill--neutral">{Math.round(review.totalScore)}%</span>
+                </div>
+                <p className="record-meta">
+                  {reviewStatusLabels[review.status]} · {review.findings[0]?.category ?? "Без замечаний"}
+                </p>
+              </article>
+            ))}
           </div>
         </details>
       ) : null}

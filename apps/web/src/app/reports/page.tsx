@@ -317,35 +317,24 @@ function BreakdownTable({
       <div className="border-b border-[#d7dce5] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
       </div>
-      <div className="scroll-area">
-        <table className="table-fixed-copy w-full min-w-[520px] border-collapse text-left text-sm">
-          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Показатель</th>
-              <th className="px-5 py-3 font-semibold">{countLabel}</th>
-              {showAverage ? <th className="px-5 py-3 font-semibold">Средняя оценка</th> : null}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#d7dce5]">
-            {rows.length > 0 ? (
-              rows.map((row) => (
-                <tr key={row.label}>
-                  <td className="px-5 py-4 font-medium text-[#17202a]">{row.label}</td>
-                  <td className="px-5 py-4 text-[#344054]">{row.count}</td>
-                  {showAverage ? (
-                    <td className="px-5 py-4 text-[#344054]">{formatAverageScore(row.averageScore)}</td>
-                  ) : null}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td className="px-5 py-4 text-[#667085]" colSpan={showAverage ? 3 : 2}>
-                  Нет завершенных проверок.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="record-list p-5">
+        {rows.length > 0 ? (
+          rows.map((row) => (
+            <article key={row.label} className="record-card">
+              <div className="record-row">
+                <h3 className="record-title">{row.label}</h3>
+                <span className="pill pill--neutral">
+                  {row.count} {countLabel.toLowerCase()}
+                </span>
+              </div>
+              {showAverage ? <p className="record-meta">Средняя оценка: {formatAverageScore(row.averageScore)}</p> : null}
+            </article>
+          ))
+        ) : (
+          <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+            Нет завершенных проверок.
+          </div>
+        )}
       </div>
     </section>
   );
@@ -353,10 +342,10 @@ function BreakdownTable({
 
 function PeriodFilter({ period }: { period: ReportPeriod }) {
   return (
-    <form action="/reports" className="panel mb-6 grid gap-4 p-4 md:grid-cols-[minmax(180px,240px)_160px_160px_auto] md:items-end">
+    <form action="/reports" className="panel grid gap-4 p-4 md:grid-cols-[minmax(180px,240px)_160px_160px_auto] md:items-end">
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
         Период
-        <select name="period" defaultValue={period.preset} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+        <select name="period" defaultValue={period.preset} className="form-control">
           <option value="vk-current">Текущий период 22-21</option>
           <option value="vk-previous">Прошлый период 22-21</option>
           <option value="calendar-current">Календарный месяц</option>
@@ -371,7 +360,7 @@ function PeriodFilter({ period }: { period: ReportPeriod }) {
           name="start"
           type="date"
           defaultValue={reportDateInputValue(period.start)}
-          className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+          className="form-control"
         />
       </label>
       <label className="grid gap-1 text-sm font-medium text-[#344054]">
@@ -380,10 +369,10 @@ function PeriodFilter({ period }: { period: ReportPeriod }) {
           name="end"
           type="date"
           defaultValue={reportDateInputValue(period.end)}
-          className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+          className="form-control"
         />
       </label>
-      <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+      <button type="submit" className="action-button action-button--primary">
         Показать
       </button>
     </form>
@@ -410,65 +399,50 @@ function QuotaTable({
         <h2 className="text-lg font-semibold">Нормы проверок</h2>
         <p className="mt-1 text-sm text-[#667085]">План, факт и доля негативного CSAT по операторам.</p>
       </div>
-      <div className="scroll-area">
-        <table className="table-fixed-copy w-full min-w-[960px] border-collapse text-left text-sm">
-          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Оператор</th>
-              <th className="px-5 py-3 font-semibold">Линия</th>
-              <th className="px-5 py-3 font-semibold">План</th>
-              <th className="px-5 py-3 font-semibold">Факт</th>
-              <th className="px-5 py-3 font-semibold">Статус</th>
-              <th className="px-5 py-3 font-semibold">Осталось</th>
-              <th className="px-5 py-3 font-semibold">DSAT факт</th>
-              <th className="px-5 py-3 font-semibold">Комментарий</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#d7dce5]">
-            {quotas.length > 0 ? (
-              quotas.map((quota) => {
-                const actualReviews = reviews.filter(
-                  (review) =>
-                    review.conversation.assigneeName === quota.assigneeName &&
-                    (quota.supportLine ? review.conversation.supportLine === quota.supportLine : true)
-                );
-                const dsatCount = actualReviews.filter((review) => review.conversation.csatBucket === "NEGATIVE").length;
-                const remaining = Math.max(0, quota.plannedCount - actualReviews.length);
-                const dsatPercent = actualReviews.length > 0 ? Math.round((dsatCount / actualReviews.length) * 100) : 0;
-                const quotaStatus =
-                  actualReviews.length < 10
-                    ? "Меньше 10 - оценка не считается"
-                    : remaining > 0
-                      ? "Нужно добрать"
-                      : "Норма выполнена";
+      <div className="record-list p-5">
+        {quotas.length > 0 ? (
+          quotas.map((quota) => {
+            const actualReviews = reviews.filter(
+              (review) =>
+                review.conversation.assigneeName === quota.assigneeName &&
+                (quota.supportLine ? review.conversation.supportLine === quota.supportLine : true)
+            );
+            const dsatCount = actualReviews.filter((review) => review.conversation.csatBucket === "NEGATIVE").length;
+            const remaining = Math.max(0, quota.plannedCount - actualReviews.length);
+            const dsatPercent = actualReviews.length > 0 ? Math.round((dsatCount / actualReviews.length) * 100) : 0;
+            const quotaStatus =
+              actualReviews.length < 10
+                ? "Меньше 10 - оценка не считается"
+                : remaining > 0
+                  ? "Нужно добрать"
+                  : "Норма выполнена";
 
-                return (
-                  <tr key={`${quota.assigneeName}:${quota.supportLine ?? ""}`}>
-                    <td className="px-5 py-4 font-medium text-[#17202a]">{quota.assigneeName}</td>
-                    <td className="px-5 py-4 text-[#344054]">{quota.supportLine ?? "Не указана"}</td>
-                    <td className="px-5 py-4 text-[#344054]">{quota.plannedCount}</td>
-                    <td className="px-5 py-4 text-[#344054]">{actualReviews.length}</td>
-                    <td className="px-5 py-4 text-[#344054]">{quotaStatus}</td>
-                    <td className="px-5 py-4 font-semibold text-[#17202a]">{remaining}</td>
-                    <td className="px-5 py-4 text-[#344054]">
-                      {dsatCount} ({dsatPercent}%) / цель {quota.dsatTargetPercent}%
-                    </td>
-                    <td className="px-5 py-4 text-[#667085]">
-                      {quota.absenceDays > 0 ? `Отсутствий: ${quota.absenceDays}. ` : ""}
-                      {quota.note ?? ""}
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td className="px-5 py-4 text-[#667085]" colSpan={8}>
-                  Нормы на выбранный период пока не заданы.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            return (
+              <article key={`${quota.assigneeName}:${quota.supportLine ?? ""}`} className="record-card">
+                <div className="record-row">
+                  <div className="min-w-0">
+                    <h3 className="record-title">{quota.assigneeName}</h3>
+                    <p className="record-meta mt-1">Линия: {quota.supportLine ?? "Не указана"}</p>
+                  </div>
+                  <span className={`pill ${remaining > 0 ? "pill--warn" : "pill--ok"}`}>{quotaStatus}</span>
+                </div>
+                <p className="record-meta">
+                  План: {quota.plannedCount} · факт: {actualReviews.length} · осталось: {remaining} · DSAT: {dsatCount} ({dsatPercent}%) / цель {quota.dsatTargetPercent}%
+                </p>
+                {quota.absenceDays > 0 || quota.note ? (
+                  <p className="record-meta compact-text">
+                    {quota.absenceDays > 0 ? `Отсутствий: ${quota.absenceDays}. ` : ""}
+                    {quota.note ?? ""}
+                  </p>
+                ) : null}
+              </article>
+            );
+          })
+        ) : (
+          <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+            Нормы на выбранный период пока не заданы.
+          </div>
+        )}
       </div>
     </section>
   );
@@ -685,31 +659,31 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   });
 
   return (
-    <section className="page-shell">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <section className="page-shell workspace-shell">
+      <div className="workspace-hero workspace-hero--split">
         <div>
-          <p className="text-sm font-medium text-[#667085]">Контроль качества</p>
-          <h1 className="mt-1 text-2xl font-semibold">Аналитика качества</h1>
-          <p className="mt-1 text-sm text-[#667085]">
+          <p className="page-kicker">Контроль качества</p>
+          <h1 className="page-title">Аналитика качества</h1>
+          <p className="page-subtitle">
             {period.label}: {formatPeriod(period)}. Сравнение: {formatPeriod(previousPeriod)}.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="admin-actions xl:justify-end">
           <Link
             href={reportExportHref(period)}
-            className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+            className="action-button"
           >
             CSV
           </Link>
           <Link
             href={reportExportFormatHref(period, "xlsx")}
-            className="rounded border border-[#116466] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+            className="action-button"
           >
             XLSX
           </Link>
           <Link
             href={reportExportFormatHref(period, "pdf")}
-            className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]"
+            className="action-button action-button--primary"
           >
             PDF
           </Link>
@@ -745,7 +719,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         />
       </div>
 
-      <div className="mt-6 grid items-stretch gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+      <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <ChartPanel
           title="Динамика оценки"
           description="Средняя итоговая оценка по дням завершения проверок."

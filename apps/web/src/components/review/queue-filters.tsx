@@ -59,7 +59,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
   ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
 
   return (
-    <form action="/reviews" className="panel mb-5 overflow-hidden">
+    <form action="/reviews" className="panel overflow-hidden">
       <div className="grid gap-3 p-4 lg:grid-cols-[minmax(260px,1fr)_210px_auto] lg:items-end">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Поиск
@@ -67,13 +67,13 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
             name="q"
             defaultValue={filters.q ?? ""}
             placeholder="Клиент, тема, тег или внешний ID"
-            className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+            className="form-control"
           />
         </label>
 
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Статус проверки
-          <select name="status" defaultValue={filters.status} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+          <select name="status" defaultValue={filters.status} className="form-control">
             {reviewQueueStatuses.map((status) => (
               <option key={status} value={status}>
                 {reviewQueueStatusLabels[status]}
@@ -83,10 +83,10 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
         </label>
 
         <div className="flex flex-wrap items-end gap-2 lg:justify-end">
-          <button type="submit" className="min-h-[40px] rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+          <button type="submit" className="action-button action-button--primary">
             Применить
           </button>
-          <Link href="/reviews" className="inline-flex min-h-[40px] items-center rounded border border-[#d7dce5] px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+          <Link href="/reviews" className="action-button">
             Сбросить
           </Link>
         </div>
@@ -112,7 +112,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
         <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-2 lg:grid-cols-4">
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Канал
-            <select name="channel" defaultValue={filters.channel ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="channel" defaultValue={filters.channel ?? ""} className="form-control">
               <option value="">Все</option>
               {Object.entries(channelLabels).map(([channel, label]) => (
                 <option key={channel} value={channel}>
@@ -124,7 +124,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Источник
-            <select name="source" defaultValue={filters.source ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="source" defaultValue={filters.source ?? ""} className="form-control">
               <option value="">Все</option>
               {sources.map((source) => (
                 <option key={source} value={source}>
@@ -136,7 +136,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Оператор
-            <select name="assignee" defaultValue={filters.assignee ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="assignee" defaultValue={filters.assignee ?? ""} className="form-control">
               <option value="">Все</option>
               {assignees.map((assignee) => (
                 <option key={assignee} value={assignee}>
@@ -148,7 +148,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Проверяющий
-            <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="form-control">
               <option value="">Все</option>
               {qaAssignees.map((qaAssignee) => (
                 <option key={qaAssignee} value={qaAssignee}>
@@ -160,7 +160,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Выборка
-            <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="form-control">
               <option value="">Все</option>
               {queueSamplingTypes.map((samplingType) => (
                 <option key={samplingType} value={samplingType}>
@@ -172,7 +172,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             CSAT
-            <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="form-control">
               <option value="">Все</option>
               {queueCsatBuckets.map((csatBucket) => (
                 <option key={csatBucket} value={csatBucket}>
@@ -184,7 +184,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Линия
-            <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="form-control">
               <option value="">Все</option>
               {supportLines.map((supportLine) => (
                 <option key={supportLine} value={supportLine}>
@@ -196,7 +196,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Процесс
-            <select name="process" defaultValue={filters.process ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="process" defaultValue={filters.process ?? ""} className="form-control">
               <option value="">Все</option>
               {queueProcessFilters.map((process) => (
                 <option key={process} value={process}>
@@ -208,7 +208,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Срок
-            <select name="due" defaultValue={filters.due ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="due" defaultValue={filters.due ?? ""} className="form-control">
               <option value="">Все</option>
               <option value="overdue">Просрочено</option>
             </select>
@@ -216,7 +216,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Риск
-            <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+            <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="form-control">
               <option value="">Все</option>
               {riskLevels.map((riskLevel) => (
                 <option key={riskLevel} value={riskLevel}>

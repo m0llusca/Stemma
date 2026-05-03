@@ -44,13 +44,25 @@ export default async function CoachingPage() {
   ]);
 
   return (
-    <section className="page-shell">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-[#667085]">Развитие качества</p>
-        <h1 className="mt-1 text-2xl font-semibold">Обучение и база ошибок</h1>
-        <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">
-          Замечания превращаются в учебные задачи, а повторяющиеся ошибки попадают в базу рекомендаций.
-        </p>
+    <section className="page-shell workspace-shell">
+      <div className="workspace-hero workspace-hero--split">
+        <div className="min-w-0">
+          <p className="page-kicker">Развитие качества</p>
+          <h1 className="page-title">Обучение и база ошибок</h1>
+          <p className="page-subtitle">
+            Замечания превращаются в учебные задачи, а повторяющиеся ошибки попадают в базу рекомендаций.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="record-card">
+            <p className="record-meta">Учебные задачи</p>
+            <p className="record-title">{assignments.length}</p>
+          </div>
+          <div className="record-card">
+            <p className="record-meta">Типовые ошибки</p>
+            <p className="record-title">{knowledgeEntries.length}</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -77,14 +89,14 @@ export default async function CoachingPage() {
                   </span>
                   <div className="flex flex-wrap gap-2 md:justify-end">
                     {assignment.review ? (
-                      <Link href={`/reviews/${assignment.review.conversationId}`} className="rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]">
+                      <Link href={`/reviews/${assignment.review.conversationId}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
                         Проверка
                       </Link>
                     ) : null}
                     <form action={updateTrainingAssignmentStatus}>
                       <input type="hidden" name="id" value={assignment.id} />
                       <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
-                      <button type="submit" className="rounded bg-[#116466] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+                      <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
                         {assignment.status === "done" ? "Переоткрыть" : "Готово"}
                       </button>
                     </form>
@@ -99,22 +111,26 @@ export default async function CoachingPage() {
           </div>
         </section>
 
-        <form action={createKnowledgeEntry} className="panel h-fit overflow-hidden">
-          <div className="border-b border-[#d7dce5] px-5 py-4">
-            <h2 className="text-lg font-semibold">Добавить типовую ошибку</h2>
-          </div>
-          <div className="grid gap-3 p-5">
+        <details className="disclosure-panel panel h-fit overflow-hidden">
+          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">Добавить типовую ошибку</h2>
+              <p className="mt-1 text-sm text-[#667085]">Форма скрыта, пока не нужно пополнить базу.</p>
+            </div>
+            <span className="text-sm font-semibold text-[#0b4f52]">Открыть</span>
+          </summary>
+          <form action={createKnowledgeEntry} className="grid gap-3 p-5">
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Категория
-              <input name="category" required className="rounded border border-[#d7dce5] px-3 py-2" />
+              <input name="category" required className="form-control" />
             </label>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Название
-              <input name="title" required className="rounded border border-[#d7dce5] px-3 py-2" />
+              <input name="title" required className="form-control" />
             </label>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Риск
-              <select name="riskLevel" defaultValue="MEDIUM" className="rounded border border-[#d7dce5] bg-white px-3 py-2">
+              <select name="riskLevel" defaultValue="MEDIUM" className="form-control">
                 {Object.entries(riskLevelLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -124,20 +140,20 @@ export default async function CoachingPage() {
             </label>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Описание
-              <textarea name="description" required rows={3} className="rounded border border-[#d7dce5] px-3 py-2" />
+              <textarea name="description" required rows={3} className="form-control" />
             </label>
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
               Рекомендация
-              <textarea name="recommendation" required rows={3} className="rounded border border-[#d7dce5] px-3 py-2" />
+              <textarea name="recommendation" required rows={3} className="form-control" />
             </label>
-            <button type="submit" className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]">
+            <button type="submit" className="action-button action-button--primary">
               Сохранить
             </button>
-          </div>
-        </form>
+          </form>
+        </details>
       </div>
 
-      <section className="panel mt-6 overflow-hidden">
+      <section className="panel overflow-hidden">
         <div className="border-b border-[#d7dce5] px-5 py-4">
           <h2 className="text-lg font-semibold">База типовых ошибок</h2>
           <p className="mt-1 text-sm text-[#667085]">Используется для рекомендаций, калибровки и обучения операторов.</p>

@@ -60,7 +60,7 @@ const criticalErrorTemplates = [
 const feedbackStatuses = ["new", "feedback_sent", "acknowledged", "appeal", "corrected"] as const;
 const appealStatuses = ["none", "open", "confirmed", "corrected", "calibration"] as const;
 const reanswerStatuses = ["not_needed", "required", "requested", "completed"] as const;
-const fieldClassName = "rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm";
+const fieldClassName = "form-control text-sm";
 const textareaClassName = `${fieldClassName} min-h-[88px] resize-y`;
 
 function criterionStateLabel(criterion: ScorecardCriterion, score?: CriterionScore) {
@@ -170,7 +170,7 @@ export function ReviewPanel({
         </div>
       </div>
 
-      <section className="grid gap-3 border-b border-[#d7dce5] bg-[#fbfcfd] p-5 md:grid-cols-3">
+      <section className="grid gap-3 border-b border-[#d7dce5] bg-[#fafbf8] p-5 md:grid-cols-3">
         <div>
           <p className="text-xs font-semibold uppercase text-[#667085]">Текущий итог</p>
           <div className="mt-2">
@@ -611,14 +611,14 @@ export function ReviewPanel({
         <button
           type="submit"
           formNoValidate
-          className="rounded border border-[#116466] px-4 py-3 text-sm font-semibold text-[#0b4f52] hover:bg-[#eef4f4]"
+          className="action-button"
         >
           Сохранить черновик
         </button>
         <button
           type="submit"
           formAction={finalizeReview}
-          className="rounded bg-[#116466] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b4f52]"
+          className="action-button action-button--primary"
         >
           Завершить проверку
         </button>
