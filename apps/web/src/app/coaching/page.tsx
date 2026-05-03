@@ -45,23 +45,13 @@ export default async function CoachingPage() {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero workspace-hero--split">
+      <div className="workspace-hero">
         <div className="min-w-0">
           <p className="page-kicker">Развитие качества</p>
           <h1 className="page-title">Обучение и база ошибок</h1>
           <p className="page-subtitle">
             Замечания превращаются в учебные задачи, а повторяющиеся ошибки попадают в базу рекомендаций.
           </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="record-card">
-            <p className="record-meta">Учебные задачи</p>
-            <p className="record-title">{assignments.length}</p>
-          </div>
-          <div className="record-card">
-            <p className="record-meta">Типовые ошибки</p>
-            <p className="record-title">{knowledgeEntries.length}</p>
-          </div>
         </div>
       </div>
 

@@ -57,11 +57,93 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
     <form action={bulkUpdateReviewQueue} className="panel overflow-hidden">
       <input type="hidden" name="returnTo" value={returnTo} />
 
-      <details className="disclosure-panel border-b border-[#d7dce5]">
+      <div className="record-list p-5">
+        {conversations.map((conversation) => {
+          const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
+          const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
+          const isOverdue =
+            conversation.reviewDueAt !== null &&
+            conversation.reviewDueAt < new Date() &&
+            conversation.qaStatus !== "FINALIZED";
+          const reviewState = resolveReviewState({
+            qaStatus: conversation.qaStatus,
+            hasDraftReview: Boolean(draftReview),
+            hasFinalizedReview: Boolean(latestFinalizedReview)
+          });
+          const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
+
+          return (
+            <article key={conversation.id} className="record-card record-card--interactive">
+              <div className="record-row">
+                <div className="flex min-w-0 items-start gap-3">
+                  <input
+                    type="checkbox"
+                    name="conversationId"
+                    value={conversation.id}
+                    aria-label={`Выбрать ${conversation.subject}`}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-[#d7dce5]"
+                  />
+                  <div className="min-w-0">
+                    <Link href={`/reviews/${conversation.id}`} className="record-title text-[#0b4f52] hover:underline">
+                      {conversation.subject}
+                    </Link>
+                    <span className="record-meta mt-1 block">
+                      {conversation.customerName} · {conversation.assigneeName ?? "Не назначен"} · {formatMessageCount(conversation.messages.length)}
+                    </span>
+                  </div>
+                </div>
+                <StatusChip tone={isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState)}>
+                  {reviewStateLabels[reviewState]}
+                </StatusChip>
+              </div>
+
+              <div className="signal-row">
+                <StatusChip size="xs">{channelLabels[conversation.channel]}</StatusChip>
+                {conversation.csatBucket === "NEGATIVE" ? (
+                  <StatusChip size="xs" tone={csatTone(conversation.csatBucket)}>
+                    {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
+                    {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
+                  </StatusChip>
+                ) : null}
+                {conversation.samplingType !== "RANDOM" ? (
+                  <StatusChip size="xs" tone={samplingTone(conversation.samplingType)}>
+                    {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
+                  </StatusChip>
+                ) : null}
+                {isOverdue && reviewState !== "finalized" ? <StatusChip size="xs" tone="danger">Просрочено</StatusChip> : null}
+                {conversation.riskHint ? <StatusChip size="xs" tone="warning" title={conversation.riskHint}>Риск</StatusChip> : null}
+              </div>
+
+              <div className="record-row">
+                <p className="record-meta compact-text">
+                  {conversation.externalSource} · проверяющий: {conversation.qaAssigneeName ?? "не назначен"} · срок:{" "}
+                  {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"} · {conversation.samplingReason}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  {latestFinalizedReview?.criticalError ? (
+                    <StatusChip tone="danger">Критическая</StatusChip>
+                  ) : latestFinalizedReview?.needsReanswer ? (
+                    <StatusChip tone="warning">
+                      {reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"}
+                    </StatusChip>
+                  ) : hasAppeal ? (
+                    <StatusChip tone="warning">Апелляция</StatusChip>
+                  ) : (
+                    <span className="record-meta">Без эскалации</span>
+                  )}
+                  <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <details className="disclosure-panel border-t border-[#d7dce5]">
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-[#17202a]">Массовые действия</h2>
-            <p className="mt-1 text-sm text-[#667085]">Отметьте обращения и примените назначение, срок или состояние.</p>
+            <p className="mt-1 text-sm text-[#667085]">Назначение, срок или состояние для отмеченных обращений.</p>
           </div>
           <span className="pill pill--neutral">{conversations.length}</span>
         </summary>
@@ -97,85 +179,6 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           </button>
         </div>
       </details>
-
-      <div className="record-list p-5">
-        {conversations.map((conversation) => {
-          const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
-          const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
-          const isOverdue =
-            conversation.reviewDueAt !== null &&
-            conversation.reviewDueAt < new Date() &&
-            conversation.qaStatus !== "FINALIZED";
-          const reviewState = resolveReviewState({
-            qaStatus: conversation.qaStatus,
-            hasDraftReview: Boolean(draftReview),
-            hasFinalizedReview: Boolean(latestFinalizedReview)
-          });
-          const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
-
-          return (
-            <article key={conversation.id} className="record-card record-card--interactive">
-              <div className="record-row">
-                <label className="flex min-w-0 items-start gap-3">
-                  <input
-                    type="checkbox"
-                    name="conversationId"
-                    value={conversation.id}
-                    aria-label={`Выбрать ${conversation.subject}`}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-[#d7dce5]"
-                  />
-                  <span className="min-w-0">
-                    <Link href={`/reviews/${conversation.id}`} className="record-title text-[#0b4f52] hover:underline">
-                      {conversation.subject}
-                    </Link>
-                    <span className="record-meta mt-1 block">
-                      {conversation.customerName} · {formatMessageCount(conversation.messages.length)} · {conversation.assigneeName ?? "Не назначен"}
-                    </span>
-                  </span>
-                </label>
-                <StatusChip tone={isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState)}>
-                  {reviewStateLabels[reviewState]}
-                </StatusChip>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                <StatusChip size="xs">{channelLabels[conversation.channel]}</StatusChip>
-                <StatusChip size="xs">{conversation.externalSource}</StatusChip>
-                <StatusChip size="xs" tone={csatTone(conversation.csatBucket)}>
-                  {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
-                  {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
-                </StatusChip>
-                <StatusChip size="xs" tone={samplingTone(conversation.samplingType)}>
-                  {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
-                </StatusChip>
-                {isOverdue && reviewState !== "finalized" ? <StatusChip size="xs" tone="danger">Просрочено</StatusChip> : null}
-                {conversation.riskHint ? <StatusChip size="xs" tone="warning" title={conversation.riskHint}>Риск</StatusChip> : null}
-              </div>
-
-              <div className="record-row">
-                <p className="record-meta compact-text">
-                  Проверяющий: {conversation.qaAssigneeName ?? "Не назначен"} · срок:{" "}
-                  {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"} · {conversation.samplingReason}
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  {latestFinalizedReview?.criticalError ? (
-                    <StatusChip tone="danger">Критическая</StatusChip>
-                  ) : latestFinalizedReview?.needsReanswer ? (
-                    <StatusChip tone="warning">
-                      {reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"}
-                    </StatusChip>
-                  ) : hasAppeal ? (
-                    <StatusChip tone="warning">Апелляция</StatusChip>
-                  ) : (
-                    <span className="record-meta">Без эскалации</span>
-                  )}
-                  <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
     </form>
   );
 }

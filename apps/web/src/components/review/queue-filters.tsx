@@ -60,7 +60,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
   return (
     <form action="/reviews" className="panel overflow-hidden">
-      <div className="grid gap-3 p-4 lg:grid-cols-[minmax(260px,1fr)_210px_auto] lg:items-end">
+      <div className="grid gap-3 p-4 lg:grid-cols-[minmax(260px,1fr)_190px_auto] lg:items-end">
         <label className="grid gap-1 text-sm font-medium text-[#344054]">
           Поиск
           <input
@@ -93,11 +93,10 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       </div>
 
       {activeFilters.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
-          <span className="text-xs font-semibold uppercase text-[#667085]">Активно</span>
+        <div className="signal-row border-t border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
           {activeFilters.map((filter) => (
             <StatusChip key={`${filter.label}:${filter.value}`} tone="accent" size="xs">
-              {filter.label}: {filter.value}
+              {filter.value}
             </StatusChip>
           ))}
         </div>
@@ -106,7 +105,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       <details className="disclosure-panel border-t border-[#d7dce5]" open={hasAdvancedFilters}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#344054]">
           <span>{hasAdvancedFilters ? "Дополнительные фильтры применены" : "Дополнительные фильтры"}</span>
-          <span className="text-xs font-semibold uppercase text-[#667085]">Канал, источник, оператор, риск</span>
+          <span className="text-xs font-semibold uppercase text-[#667085]">9 параметров</span>
         </summary>
 
         <div className="grid gap-4 border-t border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-2 lg:grid-cols-4">

@@ -25,17 +25,13 @@ export default async function SelfReviewPage() {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero workspace-hero--split">
+      <div className="workspace-hero">
         <div className="min-w-0">
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Самооценка оператора</h1>
           <p className="page-subtitle">
             Оператор может заранее оценить свои обращения по той же форме. Самооценка не меняет итоговую оценку проверяющего.
           </p>
-        </div>
-        <div className="record-card">
-          <p className="record-meta">Доступно обращений</p>
-          <p className="record-title">{conversations.length}</p>
         </div>
       </div>
 

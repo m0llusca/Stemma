@@ -170,27 +170,22 @@ export function ReviewPanel({
         </div>
       </div>
 
-      <section className="grid gap-3 border-b border-[#d7dce5] bg-[#fafbf8] p-5 md:grid-cols-3">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Текущий итог</p>
-          <div className="mt-2">
+      <section className="border-b border-[#d7dce5] bg-[#fbfcfd] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-[180px] flex-1">
             <ScoreBar value={draftReview?.totalScore} emptyLabel="Еще не сохранен" />
           </div>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Процесс</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="signal-row justify-end">
             <StatusChip tone={draftReview?.criticalError ? "danger" : "neutral"} size="xs">
               {draftReview?.criticalError ? "Критическая" : "Без критической"}
             </StatusChip>
             <StatusChip tone={draftReview?.needsReanswer ? "warning" : "neutral"} size="xs">
               {draftReview?.needsReanswer ? "Нужен переответ" : "Переответ не нужен"}
             </StatusChip>
+            <StatusChip tone={draftFinding?.category ? "accent" : "neutral"} size="xs">
+              {draftFinding?.category ?? "Категория не выбрана"}
+            </StatusChip>
           </div>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase text-[#667085]">Замечание</p>
-          <p className="mt-2 text-sm font-semibold text-[#17202a]">{draftFinding?.category ?? "Категория не выбрана"}</p>
         </div>
       </section>
 
@@ -318,9 +313,12 @@ export function ReviewPanel({
         <StepHeader number={2} title="Итог проверки" detail="Короткий вывод и классификация, без лишней детализации." />
 
         <div className="grid gap-4">
-          <div className="grid gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-            <p className="text-xs font-semibold uppercase text-[#667085]">Шаблоны итогового комментария</p>
-            <div className="grid gap-2">
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
+              <span className="text-sm font-semibold text-[#17202a]">Шаблоны итогового комментария</span>
+              <span className="text-xs font-semibold uppercase text-[#667085]">3 варианта</span>
+            </summary>
+            <div className="grid gap-2 border-t border-[#d7dce5] p-3">
               {summaryTemplates.map((template) => (
                 <div key={template} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2">
                   <span className="text-sm leading-5 text-[#344054]">{template}</span>
@@ -328,7 +326,7 @@ export function ReviewPanel({
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
           <label className="grid gap-1 text-sm font-medium text-[#344054]">
             Итог проверки

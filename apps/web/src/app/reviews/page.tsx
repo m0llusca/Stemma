@@ -2,7 +2,6 @@ import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueSummary } from "@/components/review/queue-summary";
 import { QueueTable } from "@/components/review/queue-table";
-import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
@@ -79,25 +78,11 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero workspace-hero--split">
+      <div className="workspace-hero">
         <div className="min-w-0">
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Очередь проверок</h1>
-          <p className="page-subtitle">Рабочая очередь проверок с быстрым поиском, сохраненными представлениями и компактными карточками обращений.</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-          <Link href="/reviews?status=unreviewed" className="record-card record-card--interactive">
-            <p className="record-meta">В очереди</p>
-            <p className="record-title">{summary.queued}</p>
-          </Link>
-          <Link href="/reviews?due=overdue" className="record-card record-card--interactive">
-            <p className="record-meta">Просрочено</p>
-            <p className="record-title">{summary.overdue}</p>
-          </Link>
-          <Link href="/reviews?status=reviewed" className="record-card record-card--interactive">
-            <p className="record-meta">Завершено</p>
-            <p className="record-title">{summary.reviewed}</p>
-          </Link>
+          <p className="page-subtitle">Поиск, фильтры и список обращений. Вторичные действия раскрываются по необходимости.</p>
         </div>
       </div>
       <QueueSummary {...summary} filtered={conversations.length} />

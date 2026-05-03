@@ -22,7 +22,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
   await expect(page.getByText("Найдено")).toBeVisible();
-  await expect(page.getByText("В очереди").first()).toBeVisible();
+  await expect(page.getByText("Завершено").first()).toBeVisible();
 
   await page.getByLabel("Поиск").fill("Мила");
   await page.getByRole("button", { name: "Применить" }).click();
@@ -91,6 +91,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Что требует внимания" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Дополнительная аналитика" })).toBeVisible();
+  await page.getByText("Дополнительная аналитика").click();
   await expect(page.getByRole("heading", { name: "Источники" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Операторы" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Подробные разрезы" })).toBeVisible();

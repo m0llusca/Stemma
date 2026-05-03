@@ -36,53 +36,67 @@ export function QueueSavedViews({
       id: view.id
     }))
   ];
+  const currentView = allViews.find((view) => currentHref === view.href);
+  const customCount = savedViews.length;
 
   return (
-    <section className="panel overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#d7dce5] bg-white px-4 py-3" aria-label="Быстрые представления очереди">
-        {allViews.map((view, index) => {
-          const isActive = currentHref === view.href;
+    <details className="panel disclosure-panel overflow-hidden">
+      <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-[#17202a]">Быстрые виды</h2>
+          <p className="mt-1 truncate text-sm text-[#667085]">
+            Сейчас: {currentView?.label ?? "Текущий фильтр"}{customCount > 0 ? ` · сохраненных: ${customCount}` : ""}
+          </p>
+        </div>
+        <span className="shrink-0 text-xs font-semibold uppercase text-[#667085]">Открыть</span>
+      </summary>
 
-          return (
-            <span key={view.id ?? `default-${index}-${view.href}`} className="inline-flex items-center gap-1">
-              <Link href={view.href}>
-                <StatusChip tone={isActive ? "accent" : view.tone} size="sm">
-                  {view.label}
-                </StatusChip>
-              </Link>
-              {view.id ? (
-                <form action={deleteSavedQueueView}>
-                  <input type="hidden" name="id" value={view.id} />
-                  <button
-                    type="submit"
-                    title="Удалить представление"
-                    className="rounded px-1 text-xs font-semibold text-[#98a2b3] hover:bg-[#fff4ed] hover:text-[#b54708]"
-                  >
-                    ×
-                  </button>
-                </form>
-              ) : null}
-            </span>
-          );
-        })}
+      <div className="border-t border-[#d7dce5] bg-white">
+        <div className="signal-row px-4 py-3" aria-label="Быстрые представления очереди">
+          {allViews.map((view, index) => {
+            const isActive = currentHref === view.href;
+
+            return (
+              <span key={view.id ?? `default-${index}-${view.href}`} className="inline-flex items-center gap-1">
+                <Link href={view.href}>
+                  <StatusChip tone={isActive ? "accent" : view.tone} size="sm">
+                    {view.label}
+                  </StatusChip>
+                </Link>
+                {view.id ? (
+                  <form action={deleteSavedQueueView}>
+                    <input type="hidden" name="id" value={view.id} />
+                    <button
+                      type="submit"
+                      title="Удалить представление"
+                      className="rounded px-1 text-xs font-semibold text-[#98a2b3] hover:bg-[#fff4ed] hover:text-[#b54708]"
+                    >
+                      ×
+                    </button>
+                  </form>
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+        <form action={createSavedQueueView} className="grid gap-2 border-t border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-[minmax(220px,1fr)_160px_auto] md:items-end">
+          <input type="hidden" name="href" value={currentHref} />
+          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            Сохранить текущий вид
+            <input name="name" placeholder="Например, 2ЛП критические" className="form-control" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-[#344054]">
+            Доступ
+            <select name="scope" defaultValue="private" className="form-control">
+              <option value="private">Только мне</option>
+              <option value="workspace">Всем</option>
+            </select>
+          </label>
+          <button type="submit" className="action-button">
+            Сохранить
+          </button>
+        </form>
       </div>
-      <form action={createSavedQueueView} className="grid gap-2 bg-[#fbfcfd] p-4 md:grid-cols-[minmax(220px,1fr)_160px_auto] md:items-end">
-        <input type="hidden" name="href" value={currentHref} />
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Сохранить текущий вид
-          <input name="name" placeholder="Например, 2ЛП критические" className="form-control" />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[#344054]">
-          Доступ
-          <select name="scope" defaultValue="private" className="form-control">
-            <option value="private">Только мне</option>
-            <option value="workspace">Всем</option>
-          </select>
-        </label>
-        <button type="submit" className="action-button">
-          Сохранить
-        </button>
-      </form>
-    </section>
+    </details>
   );
 }

@@ -35,25 +35,20 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
 
   return (
     <section className="panel p-4">
-      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
+      <div className="grid gap-4 lg:grid-cols-[210px_minmax(0,1fr)] lg:items-center">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[#667085]">Текущий шаг</p>
           <h2 className="mt-1 text-base font-semibold text-[#17202a]">
             Шаг {activeIndex + 1}. {steps[activeIndex].title}
           </h2>
-          <p className="mt-1 text-sm leading-5 text-[#475467]">{steps[activeIndex].detail}</p>
+          <p className="mt-1 truncate text-sm leading-5 text-[#475467]">{steps[activeIndex].detail}</p>
         </div>
 
-        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <ol className="grid gap-2 sm:grid-cols-4">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === activeIndex;
             const isDone = index < activeIndex || isReviewed;
-            const toneClassName = isActive
-              ? "border-[#116466] bg-[#f7fbfa]"
-              : isDone
-                ? "border-[#b9ddd2] bg-white"
-                : "border-[#d7dce5] bg-[#fbfcfd]";
             const badgeClassName = isActive
               ? "bg-[#116466] text-white"
               : isDone
@@ -61,18 +56,20 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
                 : "bg-[#eef4f4] text-[#667085]";
 
             return (
-              <li key={step.title} className={`min-h-[68px] rounded-md border px-3 py-2.5 ${toneClassName}`}>
-                <div className="flex min-w-0 items-start gap-3">
+              <li
+                key={step.title}
+                className={`rounded-md px-2 py-2 ${isActive ? "bg-[#f7fbfa] ring-1 ring-[#116466]" : "bg-transparent"}`}
+              >
+                <div className="flex min-w-0 items-center gap-2">
                   <span
-                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${badgeClassName}`}
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${badgeClassName}`}
                     aria-hidden="true"
                   >
                     <Icon className={iconClassName} />
                   </span>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[#667085]">Шаг {index + 1}</p>
-                    <h3 className="mt-1 text-sm font-semibold text-[#17202a]">{step.title}</h3>
-                    <p className="mt-1 text-xs leading-4 text-[#667085]">{step.detail}</p>
+                    <h3 className="truncate text-sm font-semibold text-[#17202a]">{step.title}</h3>
                   </div>
                 </div>
               </li>

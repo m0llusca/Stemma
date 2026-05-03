@@ -464,7 +464,7 @@ function ProcessSummary({
   ];
 
   return (
-    <section className="panel mt-4 overflow-hidden">
+    <section className="overflow-hidden bg-white">
       <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="border-b border-[#d7dce5] bg-[#fbfcfd] p-4 lg:border-b-0 lg:border-r">
           <p className="text-xs font-semibold uppercase text-[#667085]">Контроль процесса</p>
@@ -738,28 +738,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </ChartPanel>
       </div>
 
-      <div className="mt-5 grid items-stretch gap-5 xl:grid-cols-4">
-        <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
-          <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
-        </ChartPanel>
-        <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
-          <HorizontalBarChart rows={sourceScoreRows} valueSuffix="%" maxValue={100} />
-        </ChartPanel>
-        <ChartPanel
-          title="Профиль рисков"
-          description="Доля замечаний по уровню риска."
-          actionHref={reportReviewHref(period, { riskLevel: "CRITICAL" })}
-          actionLabel="Критические"
-        >
-          <StackedBar segments={riskStackSegments} />
-        </ChartPanel>
-        <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
-          <QuotaProgressBars rows={quotaProgressRows} />
-        </ChartPanel>
-      </div>
-
-      <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
-
       <FocusPanel
         finalizedCount={finalizedCount}
         topRiskRow={topRiskRow}
@@ -767,15 +745,46 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         weakestAssignee={weakestAssignee}
       />
 
-      <div className="mt-6 grid items-start gap-5 xl:grid-cols-2">
-        <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
-        <QuotaTable quotas={quotas} reviews={finalizedReviews} />
-        <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
-        <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
-        <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
-      </div>
+      <details className="panel disclosure-panel overflow-hidden">
+        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold">Дополнительная аналитика</h2>
+            <p className="mt-1 text-sm text-[#667085]">Операторы, источники, риски, нормы и блоки критериев.</p>
+          </div>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
+        </summary>
+        <div className="grid items-stretch gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-4">
+          <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
+            <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
+          </ChartPanel>
+          <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
+            <HorizontalBarChart rows={sourceScoreRows} valueSuffix="%" maxValue={100} />
+          </ChartPanel>
+          <ChartPanel
+            title="Профиль рисков"
+            description="Доля замечаний по уровню риска."
+            actionHref={reportReviewHref(period, { riskLevel: "CRITICAL" })}
+            actionLabel="Критические"
+          >
+            <StackedBar segments={riskStackSegments} />
+          </ChartPanel>
+          <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
+            <QuotaProgressBars rows={quotaProgressRows} />
+          </ChartPanel>
+        </div>
+        <div className="border-t border-[#d7dce5]">
+          <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
+        </div>
+        <div className="grid items-start gap-5 border-t border-[#d7dce5] p-5 xl:grid-cols-2">
+          <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
+          <QuotaTable quotas={quotas} reviews={finalizedReviews} />
+          <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
+          <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
+          <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
+        </div>
+      </details>
 
-      <details className="disclosure-panel mt-6">
+      <details className="disclosure-panel">
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Подробные разрезы</h2>
