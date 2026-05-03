@@ -171,11 +171,11 @@ export function ReviewPanel({
       </div>
 
       <section className="work-section work-section--muted">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-[180px] flex-1">
+        <div className="grid gap-3">
+          <div className="min-w-0">
             <ScoreBar value={draftReview?.totalScore} emptyLabel="Еще не сохранен" />
           </div>
-          <div className="signal-row justify-end">
+          <div className="signal-row">
             <StatusChip tone={draftReview?.criticalError ? "danger" : "neutral"} size="xs">
               {draftReview?.criticalError ? "Критическая" : "Без критической"}
             </StatusChip>
@@ -313,7 +313,7 @@ export function ReviewPanel({
         <StepHeader number={2} title="Итог проверки" detail="Короткий вывод и классификация, без лишней детализации." />
 
         <div className="grid gap-4">
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+          <details className="compact-details">
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
               <span className="text-sm font-semibold text-[#17202a]">Шаблоны итогового комментария</span>
               <span className="text-xs font-semibold uppercase text-[#667085]">3 варианта</span>

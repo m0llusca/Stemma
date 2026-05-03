@@ -82,17 +82,17 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
             Каждая завершенная проверка хранит версию формы оценки. Новая версия не переписывает старые результаты и позволяет сравнивать периоды без смешивания методик.
           </p>
         </div>
-        <div className="grid gap-3 p-5 md:grid-cols-3">
-          <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-            <p className="text-xs font-semibold uppercase text-[#667085]">Активная версия</p>
-            <p className="mt-2 font-semibold text-[#17202a]">{activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет"}</p>
+        <div className="metric-strip m-5">
+          <div className="metric-strip__item">
+            <p className="metric-strip__label">Активная версия</p>
+            <p className="metric-strip__value text-base">{activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет"}</p>
           </div>
-          <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-            <p className="text-xs font-semibold uppercase text-[#667085]">История</p>
-            <p className="mt-2 font-semibold text-[#17202a]">{scorecards.length} версий</p>
+          <div className="metric-strip__item">
+            <p className="metric-strip__label">История</p>
+            <p className="metric-strip__value">{scorecards.length}</p>
           </div>
-          <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
-            <p className="text-xs font-semibold uppercase text-[#667085]">Правило изменения</p>
+          <div className="metric-strip__item">
+            <p className="metric-strip__label">Правило изменения</p>
             <p className="mt-2 text-sm leading-5 text-[#344054]">Изменения выпускаются только новой версией формы.</p>
           </div>
         </div>
@@ -124,51 +124,57 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
         </details>
       ) : null}
 
-      <div className="grid gap-5">
-        {scorecards.map((scorecard) => (
-          <details key={scorecard.id} className="panel disclosure-panel overflow-hidden" open={scorecard.isActive}>
-            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-              <div>
-                <h2 className="text-lg font-semibold">{scorecard.name}</h2>
-                <p className="mt-1 text-sm text-[#667085]">
-                  Версия {scorecard.version} · критериев: {scorecard.criteria.length}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="rounded-md border border-[#d7dce5] px-2 py-1 text-xs font-semibold uppercase text-[#475467]">
-                  {scorecard.isActive ? "Активна" : "Неактивна"}
-                </span>
+      <section className="panel overflow-hidden">
+        <div className="border-b border-[#d7dce5] px-5 py-4">
+          <h2 className="text-lg font-semibold">История форм</h2>
+          <p className="mt-1 text-sm text-[#667085]">Старые версии свернуты и не смешиваются с активной методикой.</p>
+        </div>
+        <div className="record-list px-5">
+          {scorecards.map((scorecard) => (
+            <details key={scorecard.id} className="record-card disclosure-panel" open={scorecard.isActive}>
+              <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="record-title">{scorecard.name}</h3>
+                    <span className={`pill ${scorecard.isActive ? "pill--ok" : "pill--neutral"}`}>
+                      {scorecard.isActive ? "Активна" : "Неактивна"}
+                    </span>
+                  </div>
+                  <p className="record-meta mt-1">
+                    Версия {scorecard.version} · критериев: {scorecard.criteria.length}
+                  </p>
+                </div>
                 <span
-                  className="disclosure-chevron flex h-8 w-8 items-center justify-center rounded-md text-[#0b4f52]"
+                  className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#0b4f52]"
                   aria-hidden="true"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </span>
-              </div>
-            </summary>
-            <div className="border-t border-[#d7dce5]">
-              <div className="record-list p-5">
-                {scorecard.criteria.map((criterion) => (
-                  <article key={criterion.id} className="record-card">
-                    <div className="record-row">
-                      <div className="min-w-0">
-                        <h3 className="record-title">{criterion.label}</h3>
-                        <p className="record-meta mt-1">
-                          {criterion.block} · {criterionKindLabels[criterion.kind]} · ключ: {criterion.key}
-                        </p>
+              </summary>
+              <div className="mt-3 border-t border-[#d7dce5] pt-1">
+                <div className="record-list">
+                  {scorecard.criteria.map((criterion) => (
+                    <article key={criterion.id} className="record-card">
+                      <div className="record-row">
+                        <div className="min-w-0">
+                          <h4 className="record-title">{criterion.label}</h4>
+                          <p className="record-meta mt-1">
+                            {criterion.block} · {criterionKindLabels[criterion.kind]} · ключ: {criterion.key}
+                          </p>
+                        </div>
+                        <span className="pill pill--neutral">Вес {criterion.weight}%</span>
                       </div>
-                      <span className="pill pill--neutral">Вес {criterion.weight}%</span>
-                    </div>
-                    <p className="record-meta">
-                      Порядок: {criterion.order} · обязательный критерий: {criterion.required ? "да" : "нет"}
-                    </p>
-                  </article>
-                ))}
+                      <p className="record-meta">
+                        Порядок: {criterion.order} · обязательный критерий: {criterion.required ? "да" : "нет"}
+                      </p>
+                    </article>
+                  ))}
+                </div>
               </div>
-            </div>
-          </details>
-        ))}
-      </div>
+            </details>
+          ))}
+        </div>
+      </section>
     </section>
   );
 }

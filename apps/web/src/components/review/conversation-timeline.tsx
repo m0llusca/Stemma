@@ -11,12 +11,12 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
   const highlightedMessages = new Set(highlightedMessageIds);
 
   return (
-    <section className="panel p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="panel overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-[#d7dce5] px-5 py-4">
         <h2 className="text-lg font-semibold">Таймлайн диалога</h2>
         <span className="text-sm text-[#667085]">{formatMessageCount(messages.length)}</span>
       </div>
-      <div className="record-list">
+      <div className="record-list px-5">
         {messages.map((message) => {
           const isHighlighted = highlightedMessages.has(message.id);
 
@@ -24,7 +24,7 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
             <article
               key={message.id}
               className={`record-card ${
-                isHighlighted ? "record-card--selected bg-[#eef4f4]" : "bg-[#fbfcfd]"
+                isHighlighted ? "record-card--selected" : ""
               }`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">

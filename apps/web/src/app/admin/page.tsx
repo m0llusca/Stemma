@@ -180,23 +180,23 @@ export default async function AdminHomePage() {
             <SlidersHorizontal size={18} className="text-[#0b4f52]" aria-hidden="true" />
           </div>
         </div>
-        <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="command-list">
         {visibleCards.map((card) => {
           const Icon = card.icon;
 
           return (
-            <Link key={card.href} href={card.href} className="quick-card">
-              <div className="quick-card__top">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#eef4f4] text-[#0b4f52]">
-                  <Icon size={18} aria-hidden="true" />
-                </span>
-                <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
-              </div>
+            <Link key={card.href} href={card.href} className="command-row">
+              <span className="command-row__icon">
+                <Icon size={18} aria-hidden="true" />
+              </span>
               <div className="min-w-0">
-                <h3 className="quick-card__title">{card.title}</h3>
-                <p className="quick-card__copy mt-1">{card.description}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="record-title">{card.title}</h3>
+                  <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
+                </div>
+                <p className="record-meta mt-1">{card.description}</p>
               </div>
-              <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#0b4f52]">
+              <span className="command-row__action text-sm font-semibold text-[#0b4f52]">
                 Открыть <ArrowRight size={14} aria-hidden="true" />
               </span>
             </Link>
@@ -206,8 +206,12 @@ export default async function AdminHomePage() {
       </section>
 
       {quickActions.length > 3 ? (
-        <section className="panel p-4">
-          <div className="admin-actions">
+        <section className="panel overflow-hidden">
+          <div className="border-b border-[#d7dce5] px-5 py-4">
+            <h2 className="text-lg font-semibold">Дополнительные действия</h2>
+            <p className="mt-1 text-sm text-[#667085]">Редкие настройки остаются в один клик, но не спорят с основным списком.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 px-5 py-4">
             {quickActions.slice(3).map((action) => {
               const Icon = action.icon;
               return (

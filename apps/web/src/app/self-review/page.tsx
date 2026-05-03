@@ -40,7 +40,7 @@ export default async function SelfReviewPage() {
           <h2 className="text-lg font-semibold">Мои обращения</h2>
           <p className="mt-1 text-sm text-[#667085]">Сначала видны последние закрытые обращения.</p>
         </div>
-        <div className="record-list p-5">
+        <div className="record-list px-5">
               {conversations.map((conversation) => {
                 const selfReview = conversation.reviews[0];
 

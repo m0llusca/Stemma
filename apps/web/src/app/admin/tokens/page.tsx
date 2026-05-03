@@ -73,21 +73,27 @@ export default async function AdminTokensPage() {
             На страницах интеграций используется плейсхолдер {apiTokenPlaceholder}; реальные значения собраны здесь.
           </p>
         </div>
-        <div className="grid gap-4 p-5 lg:grid-cols-2">
-          <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[#17202a]">Ключ</p>
+        <div className="record-list px-5">
+          <article className="record-card">
+            <div className="record-row">
+              <div className="min-w-0">
+                <h3 className="record-title">Ключ</h3>
+                <p className="record-meta mt-1">Локальное значение для тестовых запросов.</p>
+              </div>
               <CopyButton value={demoApiToken} label="Скопировать ключ" />
             </div>
-            <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054] compact-text">{demoApiToken}</code>
-          </div>
-          <div className="rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[#17202a]">Заголовок Authorization</p>
+            <code className="inline-code-box compact-text">{demoApiToken}</code>
+          </article>
+          <article className="record-card">
+            <div className="record-row">
+              <div className="min-w-0">
+                <h3 className="record-title">Заголовок Authorization</h3>
+                <p className="record-meta mt-1">Готовая строка для своего API и внешних тестов.</p>
+              </div>
               <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
             </div>
-            <code className="block rounded bg-white px-3 py-2 text-xs text-[#344054] compact-text">{authorizationHeader}</code>
-          </div>
+            <code className="inline-code-box compact-text">{authorizationHeader}</code>
+          </article>
         </div>
       </section>
 
@@ -96,7 +102,7 @@ export default async function AdminTokensPage() {
           <h2 className="text-lg font-semibold">Ключи рабочего пространства</h2>
           <p className="mt-1 text-sm text-[#667085]">Статус, права и последняя активность без широкой таблицы.</p>
         </div>
-        <div className="record-list p-5">
+        <div className="record-list px-5">
           {apiTokens.map((apiToken) => {
             const health = tokenHealth(apiToken);
             const healthTone = health.label === "Ошибка" ? "pill--warn" : health.label === "Работает" ? "pill--ok" : "pill--neutral";

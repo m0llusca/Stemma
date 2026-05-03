@@ -35,7 +35,7 @@ export function Surface({
   return (
     <div className={`panel min-w-0 overflow-hidden ${className}`}>
       {title ? (
-        <div className="border-b border-[#d7dce5] bg-[#fbfcfd] px-4 py-3">
+        <div className="border-b border-[#d7dce5] px-5 py-4">
           <SectionHeader title={title} description={description} />
         </div>
       ) : null}

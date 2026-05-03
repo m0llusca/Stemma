@@ -23,6 +23,45 @@ function parseConditions(value: string) {
   }
 }
 
+const samplingRuleTypeLabels: Record<string, string> = {
+  random: "Случайная",
+  csat: "CSAT",
+  new_hire: "Новички",
+  lead_signal: "Сигнал руководителя",
+  manual: "Ручная"
+};
+
+const conditionLabels: Record<string, string> = {
+  channel: "Канал",
+  csatBucket: "CSAT",
+  supportLine: "Линия",
+  tag: "Тег"
+};
+
+function conditionValue(key: string, value: string | string[]): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => conditionValue(key, item)).join(", ");
+  }
+
+  if (key === "channel") {
+    return value in channelLabels ? channelLabels[value as keyof typeof channelLabels] : value;
+  }
+
+  if (key === "csatBucket") {
+    return value in csatBucketLabels ? csatBucketLabels[value as keyof typeof csatBucketLabels] : value;
+  }
+
+  return value;
+}
+
+function formatConditions(conditions: Record<string, string | string[] | undefined>) {
+  const parts = Object.entries(conditions)
+    .filter(([, value]) => Boolean(value))
+    .map(([key, value]) => `${conditionLabels[key] ?? key}: ${conditionValue(key, value as string | string[])}`);
+
+  return parts.join(" · ") || "Без условий";
+}
+
 export default async function SamplingRulesPage({ searchParams }: SamplingRulesPageProps) {
   const params = await searchParams;
   const user = await requireCurrentUserPermission("sampling:manage");
@@ -61,36 +100,36 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
               Активно: {activeRules} · всего: {rules.length}
             </p>
           </div>
-          <div className="grid gap-3 p-5">
+          <div className="record-list px-5">
             {rules.map((rule) => {
               const conditions = parseConditions(rule.conditionsJson);
 
               return (
-                <article key={rule.id} className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center">
+                <article key={rule.id} className="record-card">
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#17202a]">{rule.name}</p>
-                    <p className="mt-1 text-sm text-[#667085]">
-                      {rule.type} · {rule.targetPercent}% · приоритет {rule.priority}
-                    </p>
-                    <p className="mt-2 text-xs text-[#667085]">
-                      {Object.entries(conditions)
-                        .filter(([, value]) => Boolean(value))
-                        .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
-                        .join(" · ") || "Без условий"}
-                    </p>
+                    <div className="record-row">
+                      <div className="min-w-0">
+                        <h3 className="record-title">{rule.name}</h3>
+                        <p className="record-meta mt-1">
+                          {samplingRuleTypeLabels[rule.type] ?? rule.type} · {rule.targetPercent}% · приоритет {rule.priority}
+                        </p>
+                      </div>
+                      <span className={`pill ${rule.isActive ? "pill--ok" : "pill--neutral"}`}>
+                        {rule.isActive ? "Активно" : "Выключено"}
+                      </span>
+                    </div>
+                    <p className="record-meta mt-2">{formatConditions(conditions)}</p>
                   </div>
-                  <span className="w-fit rounded-md bg-white px-2 py-1 text-xs font-semibold uppercase text-[#475467]">
-                    {rule.isActive ? "Активно" : "Выключено"}
-                  </span>
-                  <form action={updateSamplingRuleStatus} className="md:justify-self-end">
-                    <input type="hidden" name="id" value={rule.id} />
-                    <label className="flex items-center gap-2 text-sm text-[#344054]">
+                  <div className="record-row">
+                    <p className="record-meta">Правило применяется автоматически при формировании очереди.</p>
+                    <form action={updateSamplingRuleStatus}>
+                      <input type="hidden" name="id" value={rule.id} />
                       <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
                       <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                         {rule.isActive ? "Выключить" : "Включить"}
                       </button>
-                    </label>
-                  </form>
+                    </form>
+                  </div>
                 </article>
               );
             })}

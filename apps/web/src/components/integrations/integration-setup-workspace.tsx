@@ -40,12 +40,10 @@ type SourceMode = "otrs_family" | "native_helpdesk" | "custom_api";
 type WizardStep = "source" | "access" | "limits" | "preview" | "done";
 type SourceOptionValue = `otrs:${OtrsFamilySource}` | `native:${NativeHelpdeskSource}` | "custom_api";
 
-const fieldClass = "h-10 w-full min-w-0 rounded border border-[#d7dce5] bg-white px-3 py-2 text-sm text-[#17202a]";
-const primaryButtonClass = "rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52]";
-const secondaryButtonClass =
-  "rounded border border-[#d7dce5] bg-white px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-[#eef4f4]";
-const smallButtonClass =
-  "rounded border border-[#d7dce5] bg-white px-3 py-2 text-xs font-semibold text-[#344054] hover:bg-[#eef4f4]";
+const fieldClass = "form-control h-10 w-full text-sm";
+const primaryButtonClass = "action-button action-button--primary";
+const secondaryButtonClass = "action-button";
+const smallButtonClass = "action-button min-h-[34px] px-3 py-2 text-xs";
 
 const sourceModeLabels: Record<SourceMode, string> = {
   otrs_family: "OTRS / Znuny / OTOBO",
@@ -132,7 +130,7 @@ function toPositiveNumber(value: string, fallback: number) {
 
 function TechnicalDetails({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details className="example-disclosure rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+    <details className="example-disclosure compact-details">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#17202a]">
         <span>{title}</span>
         <ChevronDown className="example-chevron shrink-0 text-[#98a2b3]" size={16} aria-hidden="true" />
@@ -161,8 +159,8 @@ function FormField({
 
 function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid min-h-[58px] min-w-0 content-start gap-1 rounded-md bg-white px-3 py-2">
-      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
+    <div className="soft-callout min-h-[58px]">
+      <p className="soft-callout__label">{label}</p>
       <div className="min-w-0 break-words text-sm leading-5 text-[#344054]">{children}</div>
     </div>
   );
@@ -214,7 +212,7 @@ function WizardFrame({
           {currentStepIndex > 0 ? (
             <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase text-[#667085]">
               <span>Источник</span>
-              <span className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-2 py-1 normal-case text-[#0b4f52]">
+              <span className="pill pill--neutral normal-case">
                 {sourceLabel}
               </span>
             </div>
@@ -298,8 +296,8 @@ function SourceChoiceStep({
         </select>
       </FormField>
 
-      <div className="min-w-0 rounded-md border border-[#d7dce5] bg-[#fbfcfd] px-3 py-2">
-        <p className="text-xs font-semibold uppercase text-[#667085]">Что будет настроено</p>
+      <div className="soft-callout">
+        <p className="soft-callout__label">Что будет настроено</p>
         <p className="mt-1 text-sm leading-5 text-[#344054]">{selectedOption.description}</p>
       </div>
     </div>
@@ -403,7 +401,7 @@ function AccessStep({
           <input value={customBaseUrl} onChange={(event) => onCustomBaseUrlChange(event.target.value)} className={fieldClass} />
         </FormField>
       </div>
-      <div className="grid min-h-full content-start gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
+      <div className="soft-callout min-h-full text-sm leading-5 text-[#667085]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={`w-fit rounded-md px-2 py-1 text-xs font-semibold ${apiHealth.className}`}>{apiHealth.label}</span>
           <span className="text-xs font-semibold uppercase text-[#667085]">Свой API</span>
@@ -496,7 +494,7 @@ function LimitsStep({
       </div>
 
       <div className="grid gap-3 text-sm text-[#344054] md:grid-cols-2">
-        <label className="grid min-h-[76px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
+        <label className="soft-callout min-h-[76px] grid-cols-[auto_minmax(0,1fr)] items-start text-sm">
           <input
             type="checkbox"
             checked={dryRun}
@@ -507,7 +505,7 @@ function LimitsStep({
             Сначала пробный запуск: проверить доступ и объем без создания записей в очереди.
           </span>
         </label>
-        <label className="grid min-h-[76px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
+        <label className="soft-callout min-h-[76px] grid-cols-[auto_minmax(0,1fr)] items-start text-sm">
           <input
             type="checkbox"
             checked={deduplicate}
@@ -520,7 +518,7 @@ function LimitsStep({
         </label>
       </div>
 
-      <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
+      <div className="soft-callout text-sm leading-5 text-[#667085]">
         Автоматика не заберет весь архив сразу: каждый запуск ограничен периодом, максимумом тикетов и размером батча.
       </div>
     </div>
@@ -562,7 +560,7 @@ function PreviewStep({
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <SummaryItem label="Источник">
           <span className="font-semibold text-[#17202a]">{sourceLabel}</span>
         </SummaryItem>
@@ -587,7 +585,7 @@ function PreviewStep({
         </SummaryItem>
       </div>
 
-      <div className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+      <div className="soft-callout md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onCheck} className={primaryButtonClass}>
             Проверить подключение
@@ -611,7 +609,7 @@ function PreviewStep({
       </div>
 
       {checked ? (
-        <div className="flex min-w-0 items-start gap-3 rounded-md border border-[#b7dfcb] bg-[#e8f3ef] p-4 text-sm leading-5 text-[#116466]">
+        <div className="soft-callout soft-callout--ok grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#116466]">
           <CheckCircle2 className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
           <div className="min-w-0">
             <p className="font-semibold text-[#17202a]">Подключение проверено</p>
@@ -624,7 +622,7 @@ function PreviewStep({
       ) : null}
 
       {mode === "custom_api" ? (
-        <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm leading-5 text-[#667085]">
+        <div className="soft-callout text-sm leading-5 text-[#667085]">
           Для своего API проверка считается успешной после валидного `Authorization` и первого ответа на импорт диалога.
         </div>
       ) : null}
@@ -635,7 +633,7 @@ function PreviewStep({
 function DoneStep({ checked }: { checked: boolean }) {
   return (
     <div className="grid gap-4">
-      <div className="flex min-w-0 items-start gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm leading-5 text-[#344054]">
+      <div className="soft-callout grid-cols-[auto_minmax(0,1fr)] text-sm leading-5 text-[#344054]">
         <ShieldCheck className="mt-0.5 shrink-0 text-[#116466]" size={20} aria-hidden="true" />
         <div className="min-w-0">
           <p className="font-semibold text-[#17202a]">Настройка готова к первому ограниченному запуску</p>
@@ -740,7 +738,7 @@ function TechnicalDetailsForMode({
 
           <div className="grid gap-3 text-sm leading-5 text-[#667085] md:grid-cols-2">
             {otrsFamilyRequestShapeNotes.map((note) => (
-              <div key={note.title} className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
+              <div key={note.title} className="soft-callout">
                 <p className="font-semibold text-[#17202a]">{note.title}</p>
                 <p className="mt-1">{note.detail}</p>
               </div>
@@ -969,7 +967,7 @@ export function IntegrationSetupWorkspace({
 
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d7dce5] bg-white px-5 py-4">
+      <div className="border-b border-[#d7dce5] px-5 py-4">
         <p className="text-sm font-medium text-[#667085]">Новая интеграция</p>
         <h2 className="mt-1 text-lg font-semibold text-[#17202a]">Мастер подключения источника</h2>
         <p className="mt-1 max-w-3xl text-sm leading-5 text-[#667085]">

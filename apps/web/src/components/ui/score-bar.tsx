@@ -24,7 +24,7 @@ export function ScoreBar({
   compact?: boolean;
 }) {
   if (value == null) {
-    return <span className="text-sm font-medium text-[#667085]">{emptyLabel}</span>;
+    return <span className="whitespace-nowrap text-sm font-medium text-[#667085]">{emptyLabel}</span>;
   }
 
   const score = clampScore(value);

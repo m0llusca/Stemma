@@ -82,9 +82,9 @@ function HeaderChip({
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="min-w-0">
-      <p className="text-xs font-semibold uppercase text-[#667085]">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-[#17202a]">{children}</p>
+    <div className="soft-callout">
+      <p className="soft-callout__label">{label}</p>
+      <p className="soft-callout__value">{children}</p>
     </div>
   );
 }
@@ -180,7 +180,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           </div>
           <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#667085]">Показать</span>
         </summary>
-        <div className="mt-3 grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-3 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
           <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
           <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
@@ -248,7 +248,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             </div>
           </div>
           {latestFinalizedReview.feedbackComment || latestFinalizedReview.positiveNotes ? (
-            <div className="mx-5 mb-5 grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm">
+            <div className="soft-callout mx-5 mb-5 text-sm">
               {latestFinalizedReview.feedbackComment ? (
                 <div>
                   <p className="font-semibold text-[#667085]">Обратная связь</p>
@@ -264,7 +264,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             </div>
           ) : null}
           {latestFinding?.coachingAction ? (
-            <div className="mx-5 mb-5 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm">
+            <div className="soft-callout mx-5 mb-5 text-sm">
               <p className="font-semibold text-[#667085]">Разбор с оператором</p>
               <p className="mt-1 text-[#17202a]">{latestFinding.coachingAction.action}</p>
               <p className="mt-2 text-[#667085]">
@@ -276,12 +276,12 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             </div>
           ) : null}
           {latestFinalizedReview.needsReanswer ? (
-            <div className="mx-5 mb-5 flex items-start gap-3 rounded-md border border-[#fed7aa] bg-[#fffaf5] p-4 text-sm text-[#b54708]">
+            <div className="soft-callout soft-callout--warn mx-5 mb-5 grid-cols-[auto_minmax(0,1fr)] text-sm text-[#b54708]">
               <RotateCcw className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
               <p>Нужен переответ клиенту: проверьте, что руководитель получил сигнал и обращение переоткрыто при необходимости.</p>
             </div>
           ) : null}
-          <div className="mx-5 mb-5 grid gap-4 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+          <div className="soft-callout mx-5 mb-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#17202a]">Обратная связь и апелляция</p>
@@ -340,7 +340,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             {latestFinalizedReview.feedbackEvents.length > 0 ? (
               <div className="grid gap-2 text-sm">
                 {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="rounded-md bg-white px-3 py-2 text-[#344054]">
+                  <div key={event.id} className="inline-code-box text-[#344054]">
                     {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {event.action}
                     {event.comment ? ` · ${event.comment}` : ""}
                   </div>
@@ -365,7 +365,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <ChevronDown className="h-4 w-4" />
             </span>
           </summary>
-          <div className="record-list border-t border-[#d7dce5] p-5">
+          <div className="record-list border-t border-[#d7dce5] px-5">
             {conversation.reviews.map((review) => (
               <article key={review.id} className="record-card">
                 <div className="record-row">

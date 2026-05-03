@@ -62,7 +62,7 @@ export async function AppSidebar() {
           );
         })}
       </nav>
-      <form action={switchCurrentUser} className="mt-6 grid gap-2 rounded-md border border-[#d7dce5] bg-[#fafbf8] p-3">
+      <form action={switchCurrentUser} className="soft-callout mt-6">
         <input type="hidden" name="returnTo" value="/reviews" />
         <label className="grid gap-1 text-xs font-semibold uppercase text-[#667085]">
           Роль

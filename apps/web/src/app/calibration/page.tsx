@@ -204,7 +204,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             <h2 className="text-lg font-semibold">Разбор расхождений: {selectedSession.name}</h2>
             <p className="mt-1 text-sm text-[#667085]">Оценки калибровки не меняют итоговую оценку обращения.</p>
           </div>
-          <div className="record-list p-5">
+          <div className="record-list px-5">
                 {selectedSession.items.map((item) => {
                   const reviews = item.conversation.reviews.filter(
                     (review) =>

@@ -134,17 +134,17 @@ function StatCard({
   tone?: "ok" | "warn" | "error" | "neutral";
 }) {
   const toneClass = {
-    ok: "border-[#b9ddd2] bg-[#f4faf7]",
-    warn: "border-[#fed7aa] bg-[#fffaf5]",
+    ok: "soft-callout--ok",
+    warn: "soft-callout--warn",
     error: "border-[#fecdca] bg-[#fff1f3]",
-    neutral: "border-[#d7dce5] bg-white"
+    neutral: ""
   }[tone];
 
   return (
-    <div className={`stat-card rounded-md border p-4 ${toneClass}`}>
-      <p className="text-sm font-semibold text-[#667085]">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-[#17202a]">{value}</p>
-      <p className="mt-2 text-sm text-[#667085]">{hint}</p>
+    <div className={`soft-callout ${toneClass}`}>
+      <p className="soft-callout__label">{label}</p>
+      <p className="metric-strip__value">{value}</p>
+      <p className="record-meta">{hint}</p>
     </div>
   );
 }
@@ -282,9 +282,9 @@ export default async function AdminSystemPage() {
             <h2 className="text-lg font-semibold">Фоновые задачи</h2>
             <p className="mt-1 text-sm text-[#667085]">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
           </div>
-          <div className="record-list p-5">
+          <div className="record-list px-5">
             {recentJobs.length === 0 ? (
-              <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">Фоновых задач пока нет.</div>
+              <div className="soft-callout text-sm text-[#667085]">Фоновых задач пока нет.</div>
             ) : (
               recentJobs.map((job) => (
                 <article key={job.id} className="record-card">
@@ -325,12 +325,12 @@ export default async function AdminSystemPage() {
               {runtimeStatusLabel(runtime.status)}
             </span>
           </summary>
-          <div className="divide-y divide-[#d7dce5]">
+          <div className="record-list px-5">
             {runtime.checks.map((check) => {
               const Icon = check.status === "ok" ? CheckCircle2 : AlertTriangle;
 
               return (
-                <div key={check.key} className="flex gap-3 p-5">
+                <div key={check.key} className="record-card grid-cols-[auto_minmax(0,1fr)]">
                   <span className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${statusTone(check.status)}`}>
                     <Icon size={17} aria-hidden="true" />
                   </span>
@@ -368,13 +368,13 @@ export default async function AdminSystemPage() {
               </Link>
             </div>
           </div>
-          <div className="divide-y divide-[#d7dce5]">
-            <div className="grid grid-cols-2 gap-3 p-5 text-sm">
-              <StatCard label="Провайдеры" value={providers.length} hint={`Не активны: ${providerWarnings}`} tone={providerWarnings > 0 ? "warn" : "ok"} />
-              <StatCard label="Сессии" value={activeSessions} hint="Активные сейчас" tone="neutral" />
-            </div>
+          <div className="grid grid-cols-2 gap-3 p-5 text-sm">
+            <StatCard label="Провайдеры" value={providers.length} hint={`Не активны: ${providerWarnings}`} tone={providerWarnings > 0 ? "warn" : "ok"} />
+            <StatCard label="Сессии" value={activeSessions} hint="Активные сейчас" tone="neutral" />
+          </div>
+          <div className="record-list px-5">
             {providers.map((provider) => (
-              <article key={provider.id} className="grid gap-3 p-5">
+              <article key={provider.id} className="record-card">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="font-semibold text-[#17202a]">{provider.name}</h3>
@@ -413,12 +413,12 @@ export default async function AdminSystemPage() {
             <StatCard label="Источники" value={integrations.length} hint={`Ошибки: ${integrationErrors}`} tone={integrationErrors > 0 ? "error" : "neutral"} />
             <StatCard label="API-ключи" value={apiTokens.length} hint={`Ошибки: ${apiTokenErrors}`} tone={apiTokenErrors > 0 ? "error" : "ok"} />
           </div>
-          <div className="divide-y divide-[#d7dce5]">
+          <div className="record-list px-5">
             {integrations.length === 0 ? (
-              <div className="p-5 text-sm text-[#667085]">Интеграции еще не настроены.</div>
+              <div className="soft-callout text-sm text-[#667085]">Интеграции еще не настроены.</div>
             ) : (
               integrations.map((integration) => (
-                <article key={integration.id} className="p-5">
+                <article key={integration.id} className="record-card">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-[#17202a]">{integration.displayName}</h3>
@@ -450,12 +450,12 @@ export default async function AdminSystemPage() {
           </div>
           <div className="border-t border-[#d7dce5] px-5 py-4">
             <h3 className="font-semibold text-[#17202a]">Последние импорты</h3>
-            <div className="mt-3 grid gap-3">
+            <div className="record-list mt-3 border-y border-[#d7dce5]">
               {recentRuns.length === 0 ? (
-                <p className="text-sm text-[#667085]">Запусков пока нет.</p>
+                <p className="soft-callout text-sm text-[#667085]">Запусков пока нет.</p>
               ) : (
                 recentRuns.map((run) => (
-                  <div key={run.id} className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3 text-sm">
+                  <div key={run.id} className="record-card text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-[#17202a]">{run.integration?.displayName ?? run.source}</p>
                       <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(run.status)}`}>
@@ -474,7 +474,7 @@ export default async function AdminSystemPage() {
         </div>
       </details>
 
-      <div className="mt-6 rounded-md border border-[#d7dce5] bg-white p-4 text-sm text-[#667085]">
+      <div className="soft-callout mt-6 text-sm text-[#667085]">
         <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
         Для регулярного запуска фоновых задач в продакшене используйте cron-команду{" "}
         <code className="rounded bg-[#f7f8fb] px-1.5 py-0.5 text-xs text-[#344054]">npm run jobs:run</code> или внешний планировщик.

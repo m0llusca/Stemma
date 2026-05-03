@@ -94,7 +94,7 @@ export default async function CoachingPage() {
                 </article>
               ))
             ) : (
-              <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+              <div className="soft-callout text-sm text-[#667085]">
                 Учебных задач пока нет.
               </div>
             )}

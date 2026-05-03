@@ -207,28 +207,40 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {providers.map((provider) => (
-          <Link
-            key={provider.id}
-            href={`/admin/access?provider=${provider.id}`}
-            className={`rounded-md border bg-white p-4 shadow-sm hover:border-[#116466] ${
-              selectedProvider?.id === provider.id ? "border-[#116466] ring-2 ring-[#e8f3ef]" : "border-[#d7dce5]"
-            }`}
-          >
-            <div className="grid gap-3">
+      <section className="panel overflow-hidden">
+        <div className="border-b border-[#d7dce5] px-5 py-4">
+          <h2 className="text-lg font-semibold">Провайдеры входа</h2>
+          <p className="mt-1 text-sm text-[#667085]">Выберите источник авторизации, чтобы ниже открыть настройки и связи групп.</p>
+        </div>
+        <div className="command-list">
+          {providers.map((provider) => (
+            <Link
+              key={provider.id}
+              href={`/admin/access?provider=${provider.id}`}
+              className={`command-row ${selectedProvider?.id === provider.id ? "bg-[#f8faf5]" : ""}`}
+            >
+              <span className="command-row__icon">
+                <ShieldCheck size={18} aria-hidden="true" />
+              </span>
               <div className="min-w-0">
-                <h2 className="font-semibold text-[#17202a]">{provider.name}</h2>
-                <p className="mt-1 text-sm text-[#667085]">{providerTypeLabels[provider.type]}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="record-title">{provider.name}</h3>
+                  <span className={`w-fit whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>
+                    {providerStatusLabel(provider.status)}
+                  </span>
+                </div>
+                <p className="record-meta mt-1">
+                  {providerTypeLabels[provider.type]} · групп: {provider.groupRoleMappings.length} · пользователей:{" "}
+                  {provider._count.externalIdentities}
+                </p>
               </div>
-              <span className={`w-fit whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
-            </div>
-            <p className="mt-3 text-sm text-[#667085]">
-              Групп: {provider.groupRoleMappings.length} · пользователей: {provider._count.externalIdentities}
-            </p>
-          </Link>
-        ))}
-      </div>
+              <span className="command-row__action text-sm font-semibold text-[#0b4f52]">
+                {selectedProvider?.id === provider.id ? "Выбран" : "Открыть"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
         <details className="disclosure-panel panel overflow-hidden" open={openProviderSettings}>
@@ -270,7 +282,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               <ProviderField label="Scopes" name="scopes" defaultValue={selectedProvider?.scopes ?? "openid profile email"} />
             </div>
 
-            <details className="rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+            <details className="compact-details">
               <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#344054]">
                 OIDC/SAML endpoints и расширенная конфигурация
               </summary>
@@ -291,7 +303,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </div>
             </details>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-[#f7f8fb] p-4 text-sm text-[#667085]">
+            <div className="soft-callout text-sm text-[#667085]">
               <div className="min-w-0">
                 <p className="font-semibold text-[#344054]">Callback URL</p>
                 <p className="mt-1 font-mono text-xs compact-text">{callbackPath()}</p>
@@ -319,21 +331,21 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </div>
             <span className="shrink-0 text-sm font-semibold text-[#0b4f52]">Показать</span>
           </summary>
-          <div className="grid gap-3 p-5 text-sm leading-6 text-[#667085]">
-            <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-              <p className="font-semibold text-[#17202a]">Основной путь</p>
-              <p className="mt-1">{guidance.preferred}</p>
-            </div>
-            <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-              <p className="font-semibold text-[#17202a]">On-prem AD</p>
-              <p className="mt-1">{guidance.onPremDirectory}</p>
-            </div>
-            <div className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
-              <p className="font-semibold text-[#17202a]">Роли</p>
-              <p className="mt-1">{guidance.authorization}</p>
-            </div>
+          <div className="record-list px-5 text-sm leading-6 text-[#667085]">
+            <article className="record-card">
+              <h3 className="record-title">Основной путь</h3>
+              <p className="record-meta">{guidance.preferred}</p>
+            </article>
+            <article className="record-card">
+              <h3 className="record-title">On-prem AD</h3>
+              <p className="record-meta">{guidance.onPremDirectory}</p>
+            </article>
+            <article className="record-card">
+              <h3 className="record-title">Роли</h3>
+              <p className="record-meta">{guidance.authorization}</p>
+            </article>
             {selectedProvider && selectedProvider.type !== "DEMO" ? (
-              <form action={queueDirectorySync}>
+              <form action={queueDirectorySync} className="py-4">
                 <input type="hidden" name="providerId" value={selectedProvider.id} />
                 <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
                   <ShieldCheck size={16} aria-hidden="true" />
@@ -352,35 +364,37 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             <p className="mt-1 text-sm text-[#667085]">Маппинг групп AD/Entra в роли приложения. Приоритет меньше — роль применяется раньше.</p>
           </div>
           <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="grid gap-3">
+            <div className="record-list border-y border-[#d7dce5]">
               {selectedProvider.groupRoleMappings.length === 0 ? (
-                <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+                <div className="soft-callout text-sm text-[#667085]">
                   Для выбранного провайдера пока нет групп.
                 </div>
               ) : (
                 selectedProvider.groupRoleMappings.map((mapping) => (
-                  <article key={mapping.id} className="grid gap-3 rounded-md border border-[#d7dce5] bg-white p-4 md:grid-cols-[minmax(0,1fr)_minmax(150px,220px)_100px_auto] md:items-center">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-[#17202a]">{mapping.externalGroupName}</h3>
-                      <p className="mt-1 font-mono text-xs text-[#667085] compact-text">{mapping.externalGroupId}</p>
+                  <article key={mapping.id} className="record-card">
+                    <div className="record-row">
+                      <div className="min-w-0">
+                        <h3 className="record-title">{mapping.externalGroupName}</h3>
+                        <p className="record-meta mt-1 font-mono compact-text">{mapping.externalGroupId}</p>
+                      </div>
+                      <span className="pill pill--neutral">{roleLabels[mapping.role]}</span>
                     </div>
-                    <span className="w-fit max-w-full rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold leading-4 text-[#0b4f52]">
-                      {roleLabels[mapping.role]}
-                    </span>
-                    <p className="text-sm text-[#667085]">Приоритет {mapping.priority}</p>
-                    <form action={toggleGroupRoleMapping}>
-                      <input type="hidden" name="mappingId" value={mapping.id} />
-                      <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
-                      <button type="submit" className={`rounded border px-3 py-2 text-sm font-semibold ${mapping.isActive ? "border-[#d7dce5] text-[#667085] hover:bg-[#f7f8fb]" : "border-[#116466] text-[#0b4f52] hover:bg-[#eef4f4]"}`}>
-                        {mapping.isActive ? "Отключить" : "Включить"}
-                      </button>
-                    </form>
+                    <div className="record-row">
+                      <p className="record-meta">Приоритет {mapping.priority}</p>
+                      <form action={toggleGroupRoleMapping}>
+                        <input type="hidden" name="mappingId" value={mapping.id} />
+                        <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
+                        <button type="submit" className={`action-button min-h-[36px] px-3 py-2 text-sm ${mapping.isActive ? "" : "action-button--primary"}`}>
+                          {mapping.isActive ? "Отключить" : "Включить"}
+                        </button>
+                      </form>
+                    </div>
                   </article>
                 ))
               )}
             </div>
 
-            <details className="disclosure-panel rounded-md border border-[#d7dce5] bg-[#fbfcfd]">
+            <details className="compact-details">
               <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                 <h3 className="font-semibold text-[#17202a]">Добавить группу</h3>
                 <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
@@ -421,9 +435,9 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </div>
           <span className="shrink-0 rounded-md bg-[#eef4f4] px-2 py-1 text-xs font-semibold text-[#0b4f52]">{sessions.length}</span>
         </summary>
-        <div className="record-list p-5">
+        <div className="record-list px-5">
           {sessions.length === 0 ? (
-            <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+            <div className="soft-callout text-sm text-[#667085]">
               Сессий пока нет.
             </div>
           ) : (
@@ -460,7 +474,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         </div>
       </details>
 
-      <div className="mt-6 rounded-md border border-[#d7dce5] bg-white p-4 text-sm text-[#667085]">
+      <div className="soft-callout mt-6 text-sm text-[#667085]">
         <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
         Для входа через выбранный провайдер используйте{" "}
         <code className="rounded bg-[#f7f8fb] px-1.5 py-0.5 text-xs text-[#344054]">

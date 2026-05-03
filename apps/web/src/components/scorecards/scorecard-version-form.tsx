@@ -93,125 +93,117 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-          className="rounded border border-[#d7dce5] bg-white px-3 py-2"
+          className="form-control"
         />
       </label>
 
-      <div className="scroll-area">
-        <table className="table-fixed-copy w-full min-w-[1220px] border-collapse text-left text-sm">
-          <thead className="bg-[#eef4f4] text-xs uppercase text-[#475467]">
-            <tr>
-              <th className="w-24 px-4 py-3 font-semibold">Порядок</th>
-              <th className="px-4 py-3 font-semibold">Ключ</th>
-              <th className="px-4 py-3 font-semibold">Блок</th>
-              <th className="px-4 py-3 font-semibold">Название</th>
-              <th className="px-4 py-3 font-semibold">Тип</th>
-              <th className="w-28 px-4 py-3 font-semibold">Вес</th>
-              <th className="w-32 px-4 py-3 font-semibold">Обязателен</th>
-              <th className="w-28 px-4 py-3 font-semibold">Действия</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#d7dce5]">
-            {criteria.map((criterion, index) => (
-              <tr key={criterion.clientId}>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      title="Поднять"
-                      disabled={index === 0}
-                      onClick={() => setCriteria((current) => moveRow(current, index, index - 1))}
-                      className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:text-[#98a2b3]"
-                    >
-                      <ArrowUp size={15} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      title="Опустить"
-                      disabled={index === criteria.length - 1}
-                      onClick={() => setCriteria((current) => moveRow(current, index, index + 1))}
-                      className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:text-[#98a2b3]"
-                    >
-                      <ArrowDown size={15} aria-hidden="true" />
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    name={`criterion.${index}.key`}
-                    value={criterion.key}
-                    onChange={(event) => updateCriterion(index, { key: normalizeKeySeed(event.target.value) })}
-                    required
-                    pattern="[a-z0-9_]+"
-                    className="w-full rounded border border-[#d7dce5] px-3 py-2 font-mono text-xs"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    name={`criterion.${index}.block`}
-                    value={criterion.block}
-                    onChange={(event) => updateCriterion(index, { block: event.target.value })}
-                    required
-                    className="w-full rounded border border-[#d7dce5] px-3 py-2"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    name={`criterion.${index}.label`}
-                    value={criterion.label}
-                    onChange={(event) => updateCriterion(index, { label: event.target.value })}
-                    required
-                    className="w-full rounded border border-[#d7dce5] px-3 py-2"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <select
-                    name={`criterion.${index}.kind`}
-                    value={criterion.kind}
-                    onChange={(event) => updateCriterion(index, { kind: event.target.value as CriterionKind })}
-                    className="w-full rounded border border-[#d7dce5] bg-white px-3 py-2"
-                  >
-                    <option value="SCALE_1_3">Шкала 1-3</option>
-                    <option value="PASS_FAIL">Зачет/незачет</option>
-                  </select>
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    name={`criterion.${index}.weight`}
-                    value={criterion.weight}
-                    onChange={(event) => updateCriterion(index, { weight: Number(event.target.value) })}
-                    required
-                    type="number"
-                    min="1"
-                    max="100"
-                    className="w-24 rounded border border-[#d7dce5] px-3 py-2"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      name={`criterion.${index}.required`}
-                      type="checkbox"
-                      checked={criterion.required}
-                      onChange={(event) => updateCriterion(index, { required: event.target.checked })}
-                    />
-                    Да
-                  </label>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    title="Удалить"
-                    onClick={() => setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))}
-                    className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#fff4ed]"
-                  >
-                    <Trash2 size={15} aria-hidden="true" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="record-list border-y border-[#d7dce5]">
+        {criteria.map((criterion, index) => (
+          <article key={criterion.clientId} className="record-card">
+            <div className="record-row">
+              <div className="min-w-0">
+                <p className="record-title">Критерий {index + 1}</p>
+                <p className="record-meta mt-1 compact-text">{criterion.label}</p>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  title="Поднять"
+                  disabled={index === 0}
+                  onClick={() => setCriteria((current) => moveRow(current, index, index - 1))}
+                  className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:text-[#98a2b3]"
+                >
+                  <ArrowUp size={15} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  title="Опустить"
+                  disabled={index === criteria.length - 1}
+                  onClick={() => setCriteria((current) => moveRow(current, index, index + 1))}
+                  className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#eef4f4] disabled:cursor-not-allowed disabled:text-[#98a2b3]"
+                >
+                  <ArrowDown size={15} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  title="Удалить"
+                  onClick={() => setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                  className="rounded border border-[#d7dce5] bg-white p-2 text-[#344054] hover:bg-[#fff4ed]"
+                >
+                  <Trash2 size={15} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(150px,0.8fr)_minmax(160px,0.9fr)_minmax(220px,1.2fr)_minmax(140px,0.8fr)_96px_auto] xl:items-end">
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Ключ
+                <input
+                  name={`criterion.${index}.key`}
+                  value={criterion.key}
+                  onChange={(event) => updateCriterion(index, { key: normalizeKeySeed(event.target.value) })}
+                  required
+                  pattern="[a-z0-9_]+"
+                  className="form-control font-mono text-xs"
+                />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Блок
+                <input
+                  name={`criterion.${index}.block`}
+                  value={criterion.block}
+                  onChange={(event) => updateCriterion(index, { block: event.target.value })}
+                  required
+                  className="form-control"
+                />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Название
+                <input
+                  name={`criterion.${index}.label`}
+                  value={criterion.label}
+                  onChange={(event) => updateCriterion(index, { label: event.target.value })}
+                  required
+                  className="form-control"
+                />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Тип
+                <select
+                  name={`criterion.${index}.kind`}
+                  value={criterion.kind}
+                  onChange={(event) => updateCriterion(index, { kind: event.target.value as CriterionKind })}
+                  className="form-control"
+                >
+                  <option value="SCALE_1_3">Шкала 1-3</option>
+                  <option value="PASS_FAIL">Зачет/незачет</option>
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#344054]">
+                Вес
+                <input
+                  name={`criterion.${index}.weight`}
+                  value={criterion.weight}
+                  onChange={(event) => updateCriterion(index, { weight: Number(event.target.value) })}
+                  required
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="form-control"
+                />
+              </label>
+              <label className="flex min-h-[40px] items-center gap-2 text-sm font-medium text-[#344054]">
+                <input
+                  name={`criterion.${index}.required`}
+                  type="checkbox"
+                  checked={criterion.required}
+                  onChange={(event) => updateCriterion(index, { required: event.target.checked })}
+                />
+                Обязателен
+              </label>
+            </div>
+          </article>
+        ))}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -219,16 +211,14 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
           <button
             type="button"
             onClick={addCriterion}
-            className="inline-flex items-center gap-2 rounded border border-[#116466] bg-white px-3 py-2 font-semibold text-[#116466] hover:bg-[#eef4f4]"
+            className="action-button"
           >
             <Plus size={16} aria-hidden="true" />
             Добавить критерий
           </button>
           <span
             aria-live="polite"
-            className={`rounded-md px-3 py-2 font-semibold ${
-              totalWeight === 100 ? "bg-[#eef4f4] text-[#0b4f52]" : "bg-[#fff4ed] text-[#b54708]"
-            }`}
+            className={`pill ${totalWeight === 100 ? "pill--ok" : "pill--warn"}`}
           >
             Сумма весов: {totalWeight}%
           </span>
@@ -236,7 +226,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
         <button
           type="submit"
           disabled={!canSubmit}
-          className="rounded bg-[#116466] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b4f52] disabled:cursor-not-allowed disabled:bg-[#98a2b3]"
+          className="action-button action-button--primary disabled:cursor-not-allowed disabled:border-[#98a2b3] disabled:bg-[#98a2b3]"
         >
           Создать новую версию
         </button>

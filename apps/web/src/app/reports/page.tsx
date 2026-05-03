@@ -318,7 +318,7 @@ function BreakdownTable({
       <div className="border-b border-[#d7dce5] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
       </div>
-      <div className="record-list p-5">
+      <div className="record-list px-5">
         {rows.length > 0 ? (
           rows.map((row) => (
             <article key={row.label} className="record-card">
@@ -332,7 +332,7 @@ function BreakdownTable({
             </article>
           ))
         ) : (
-          <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+          <div className="soft-callout text-sm text-[#667085]">
             Нет завершенных проверок.
           </div>
         )}
@@ -400,7 +400,7 @@ function QuotaTable({
         <h2 className="text-lg font-semibold">Нормы проверок</h2>
         <p className="mt-1 text-sm text-[#667085]">План, факт и доля негативного CSAT по операторам.</p>
       </div>
-      <div className="record-list p-5">
+      <div className="record-list px-5">
         {quotas.length > 0 ? (
           quotas.map((quota) => {
             const actualReviews = reviews.filter(
@@ -440,7 +440,7 @@ function QuotaTable({
             );
           })
         ) : (
-          <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm text-[#667085]">
+          <div className="soft-callout text-sm text-[#667085]">
             Нормы на выбранный период пока не заданы.
           </div>
         )}

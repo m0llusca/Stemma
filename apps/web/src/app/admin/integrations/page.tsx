@@ -8,7 +8,7 @@ import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
-const emptyStateClass = "rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-4 text-sm leading-5 text-[#667085]";
+const emptyStateClass = "soft-callout text-sm leading-5 text-[#667085]";
 
 type AdminIntegrationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

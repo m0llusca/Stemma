@@ -272,9 +272,9 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               Страница {page} · событий найдено: {totalLogs}
             </p>
           </div>
-          <div className="record-list p-5">
+          <div className="record-list px-5">
             {logs.length === 0 ? (
-              <div className="rounded-md border border-dashed border-[#d7dce5] bg-[#fbfcfd] p-5 text-sm text-[#667085]">События не найдены.</div>
+              <div className="soft-callout text-sm text-[#667085]">События не найдены.</div>
             ) : (
               logs.map((log) => (
                 <article key={log.id} className="record-card">
@@ -328,7 +328,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
             </div>
             <span className="pill pill--neutral">{apiTokens.length}</span>
           </summary>
-          <div className="record-list p-5">
+          <div className="record-list px-5">
             {apiTokens.map((token) => (
               <article key={token.id} className="record-card">
                 <div className="record-row">
