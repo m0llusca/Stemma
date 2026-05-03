@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { recordReviewEvent } from "@/lib/review-events";
 
 const qaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
 
@@ -71,7 +72,8 @@ export async function updateConversationWorkflow(formData: FormData) {
       workspaceId: user.workspaceId
     },
     select: {
-      id: true
+      id: true,
+      qaStatus: true
     }
   });
 
@@ -107,6 +109,19 @@ export async function updateConversationWorkflow(formData: FormData) {
       },
       tx
     );
+
+    await recordReviewEvent(tx, {
+      workspaceId: user.workspaceId,
+      conversationId,
+      actorId: user.id,
+      action: "conversation.workflow_updated",
+      fromStatus: conversation.qaStatus,
+      toStatus: qaStatus,
+      metadata: {
+        qaAssigneeId: qaAssignee?.id,
+        reviewDueAt
+      }
+    });
   });
 
   revalidatePath("/reviews");
@@ -171,7 +186,8 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
       workspaceId: user.workspaceId
     },
     select: {
-      id: true
+      id: true,
+      qaStatus: true
     }
   });
   const safeIds = conversations.map((conversation) => conversation.id);
@@ -223,6 +239,23 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
       },
       tx
     );
+
+    if (qaStatus) {
+      for (const conversation of conversations.filter((item) => safeIds.includes(item.id) && item.qaStatus !== qaStatus)) {
+        await recordReviewEvent(tx, {
+          workspaceId: user.workspaceId,
+          conversationId: conversation.id,
+          actorId: user.id,
+          action: "conversation.bulk_workflow_updated",
+          fromStatus: conversation.qaStatus,
+          toStatus: qaStatus,
+          metadata: {
+            qaAssigneeId: qaAssignee?.id,
+            reviewDueAt
+          }
+        });
+      }
+    }
   });
 
   revalidatePath("/reviews");

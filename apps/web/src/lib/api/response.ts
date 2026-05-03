@@ -10,11 +10,11 @@ export type ApiErrorCode =
   | "rate_limited"
   | "internal_error";
 
-export function apiRequestId() {
+export function apiRequestId(): string {
   return randomUUID();
 }
 
-export function apiJson<T>(data: T, status = 200, requestId = apiRequestId()) {
+export function apiJson<T>(data: T, status = 200, requestId: string = apiRequestId()) {
   return NextResponse.json(data, {
     status,
     headers: {
@@ -23,7 +23,7 @@ export function apiJson<T>(data: T, status = 200, requestId = apiRequestId()) {
   });
 }
 
-export function apiError(code: ApiErrorCode, message: string, status: number, requestId = apiRequestId(), details?: unknown) {
+export function apiError(code: ApiErrorCode, message: string, status: number, requestId: string = apiRequestId(), details?: unknown) {
   return apiJson(
     {
       error: {
@@ -36,4 +36,3 @@ export function apiError(code: ApiErrorCode, message: string, status: number, re
     requestId
   );
 }
-

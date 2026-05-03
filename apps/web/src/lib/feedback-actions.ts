@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { canAcknowledgeFeedback, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { recordReviewEvent } from "@/lib/review-events";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -77,6 +78,15 @@ export async function updateReviewFeedback(formData: FormData) {
       },
       tx
     );
+
+    await recordReviewEvent(tx, {
+      workspaceId: user.workspaceId,
+      reviewId: review.id,
+      conversationId: review.conversationId,
+      actorId: user.id,
+      action: `review.feedback.${action}`,
+      metadata: { comment }
+    });
   });
 
   revalidatePath(`/reviews/${review.conversationId}`);
@@ -106,17 +116,31 @@ export async function createTrainingAssignmentFromReview(formData: FormData) {
     select: { id: true }
   });
 
-  await prisma.trainingAssignment.create({
-    data: {
+  await prisma.$transaction(async (tx) => {
+    const assignment = await tx.trainingAssignment.create({
+      data: {
+        workspaceId: user.workspaceId,
+        reviewId: review.id,
+        assigneeId: assignee?.id,
+        assignedById: user.id,
+        assigneeName,
+        title,
+        description,
+        dueAt: dueAt ? new Date(`${dueAt}T12:00:00.000Z`) : undefined
+      }
+    });
+
+    await recordReviewEvent(tx, {
       workspaceId: user.workspaceId,
       reviewId: review.id,
-      assigneeId: assignee?.id,
-      assignedById: user.id,
-      assigneeName,
-      title,
-      description,
-      dueAt: dueAt ? new Date(`${dueAt}T12:00:00.000Z`) : undefined
-    }
+      conversationId: review.conversationId,
+      actorId: user.id,
+      action: "training.assignment_created",
+      metadata: {
+        assignmentId: assignment.id,
+        assigneeName
+      }
+    });
   });
 
   revalidatePath(`/reviews/${review.conversationId}`);

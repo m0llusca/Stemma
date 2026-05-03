@@ -16,7 +16,8 @@ export type Permission =
   | "audit:read"
   | "training:manage"
   | "backend_jobs:manage"
-  | "auth_providers:manage";
+  | "auth_providers:manage"
+  | "privacy:manage";
 
 export type AuthUser = Pick<User, "id" | "workspaceId" | "email" | "name" | "role">;
 
@@ -37,7 +38,8 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "audit:read",
     "training:manage",
     "backend_jobs:manage",
-    "auth_providers:manage"
+    "auth_providers:manage",
+    "privacy:manage"
   ],
   TEAM_LEAD: [
     "reviews:read",
@@ -81,4 +83,3 @@ export function requirePermission(user: AuthUser, permission: Permission) {
 export function getPermissions(role: RoleName) {
   return [...rolePermissions[role]];
 }
-

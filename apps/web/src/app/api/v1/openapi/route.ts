@@ -23,6 +23,14 @@ export async function GET() {
           }
         }
       },
+      "/readiness": {
+        get: {
+          summary: "Readiness diagnostics: runtime config, queues, SSO and integrations",
+          responses: {
+            "200": { description: "Сервис готов или содержит предупреждения" }
+          }
+        }
+      },
       "/me": {
         get: {
           summary: "Текущий пользователь и его разрешения",
@@ -136,6 +144,31 @@ export async function GET() {
           responses: {
             "201": { description: "Обращение импортировано" },
             "409": { description: "Конфликт idempotency key" }
+          }
+        }
+      },
+      "/conversations/{conversationId}/events": {
+        get: {
+          summary: "История событий обращения в контуре проверки",
+          responses: {
+            "200": { description: "Список событий обращения" }
+          }
+        }
+      },
+      "/reviews/{reviewId}/events": {
+        get: {
+          summary: "История событий проверки",
+          responses: {
+            "200": { description: "Список событий проверки" }
+          }
+        }
+      },
+      "/privacy/conversations/{conversationId}/redact": {
+        post: {
+          summary: "Маскирование персональных данных в обращении",
+          responses: {
+            "200": { description: "Обращение замаскировано" },
+            "404": { description: "Обращение не найдено" }
           }
         }
       },

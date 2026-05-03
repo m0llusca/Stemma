@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { recordReviewEvent } from "@/lib/review-events";
 import { calculateReviewScore } from "@/lib/score";
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
@@ -355,6 +356,21 @@ export async function saveReviewDraft(formData: FormData) {
       },
       tx
     );
+
+    await recordReviewEvent(tx, {
+      workspaceId: user.workspaceId,
+      reviewId,
+      conversationId,
+      actorId: user.id,
+      action: "review.draft_saved",
+      fromStatus: existingDraft ? "DRAFT" : null,
+      toStatus: "DRAFT",
+      metadata: {
+        reviewSource,
+        totalScore: reviewTotalScore,
+        criticalError: processFields.criticalError
+      }
+    });
   });
 
   revalidatePath("/reviews");
@@ -470,6 +486,22 @@ export async function finalizeReview(formData: FormData) {
       },
       tx
     );
+
+    await recordReviewEvent(tx, {
+      workspaceId: user.workspaceId,
+      reviewId: review.id,
+      conversationId,
+      actorId: user.id,
+      action: "review.finalized",
+      fromStatus: existingDraft ? "DRAFT" : null,
+      toStatus: "FINALIZED",
+      metadata: {
+        reviewSource,
+        totalScore: reviewTotalScore,
+        criticalError: processFields.criticalError,
+        needsReanswer: processFields.needsReanswer
+      }
+    });
   });
 
   revalidatePath("/reviews");

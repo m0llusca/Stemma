@@ -1,5 +1,6 @@
 import type { BackendJob, BackendJobType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { logBackendEvent } from "@/lib/observability";
 
 export type BackendJobPayload = Record<string, unknown>;
 
@@ -250,12 +251,43 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
     }
 
     try {
+      logBackendEvent({
+        event: "backend_job.started",
+        workspaceId: job.workspaceId,
+        targetType: "backend_job",
+        targetId: job.id,
+        metadata: {
+          type: job.type,
+          workerId
+        }
+      });
       const result = await executeBackendJob(job);
+      logBackendEvent({
+        event: "backend_job.succeeded",
+        workspaceId: job.workspaceId,
+        targetType: "backend_job",
+        targetId: job.id,
+        metadata: {
+          type: job.type
+        }
+      });
       results.push({ jobId: job.id, status: "SUCCEEDED", result });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Неизвестная ошибка фоновой задачи.";
       const shouldRetry = job.attempts < job.maxAttempts;
       const payload = parsePayload(job);
+      logBackendEvent({
+        level: "error",
+        event: "backend_job.failed",
+        workspaceId: job.workspaceId,
+        targetType: "backend_job",
+        targetId: job.id,
+        metadata: {
+          type: job.type,
+          shouldRetry,
+          error: message
+        }
+      });
 
       await prisma.backendJob.update({
         where: { id: job.id },
