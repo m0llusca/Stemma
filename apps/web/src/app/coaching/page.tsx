@@ -82,6 +82,11 @@ export default async function CoachingPage() {
   const doneCount = assignments.filter((assignment) => assignment.status === "done").length;
   const overdueCount = assignments.filter((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)).length;
   const criticalKnowledgeCount = knowledgeEntries.filter((entry) => entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH").length;
+  const nextAssignment =
+    assignments.find((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)) ??
+    assignments.find((assignment) => assignment.status !== "done");
+  const nextConversation = nextAssignment?.review?.conversation;
+  const nextFinding = nextAssignment?.review?.findings[0];
 
   return (
     <section className="page-shell workspace-shell">
@@ -111,6 +116,36 @@ export default async function CoachingPage() {
           </div>
         </div>
       </div>
+
+      {nextAssignment ? (
+        <section className={`learning-next-panel panel ${isOverdue(nextAssignment.dueAt, now) ? "learning-next-panel--urgent" : ""}`}>
+          <div className="learning-next-panel__main">
+            <p className="page-kicker">Следующий разбор</p>
+            <h2>{nextAssignment.title}</h2>
+            <p>{nextAssignment.description}</p>
+            <div className="learning-task__meta">
+              <span>{nextAssignment.assigneeName}</span>
+              <span>{dueText(nextAssignment.dueAt)}</span>
+              {nextConversation ? <span>{nextConversation.externalId}</span> : null}
+              {nextFinding ? <span>{nextFinding.category}</span> : null}
+            </div>
+          </div>
+          <div className="learning-next-panel__actions">
+            {nextConversation ? (
+              <Link href={`/reviews/${nextConversation.id}`} className="action-button">
+                Открыть проверку
+              </Link>
+            ) : null}
+            <form action={updateTrainingAssignmentStatus}>
+              <input type="hidden" name="id" value={nextAssignment.id} />
+              <input type="hidden" name="status" value="done" />
+              <button type="submit" className="action-button action-button--primary">
+                Завершить разбор
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       <section className="training-create-panel panel">
         <div className="learning-section-header">

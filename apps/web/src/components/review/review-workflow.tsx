@@ -44,7 +44,7 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
           <p className="mt-1 truncate text-sm leading-5 text-[#475569]">{steps[activeIndex].detail}</p>
         </div>
 
-        <ol className="workflow-strip__list sm:grid-cols-4">
+        <ol className="workflow-strip__list" aria-label="Шаги проверки">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === activeIndex;
@@ -56,21 +56,13 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
                 : "workflow-step__badge";
 
             return (
-              <li
-                key={step.title}
-                className={`workflow-step ${isActive ? "workflow-step--active" : ""}`}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className={badgeClassName}
-                    aria-hidden="true"
-                  >
-                    <Icon className={iconClassName} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase text-[#64748b]">Шаг {index + 1}</p>
-                    <h3 className="truncate text-sm font-semibold text-[#111827]">{step.title}</h3>
-                  </div>
+              <li key={step.title} className={`workflow-step ${isActive ? "workflow-step--active" : ""}`}>
+                <span className={badgeClassName} aria-hidden="true">
+                  <Icon className={iconClassName} />
+                </span>
+                <div className="workflow-step__copy">
+                  <p>Шаг {index + 1}</p>
+                  <h3>{step.title}</h3>
                 </div>
               </li>
             );

@@ -4,6 +4,7 @@ import { ScoreBar } from "@/components/ui/score-bar";
 import {
   channelLabels,
   csatBucketLabels,
+  appealStatusLabels,
   externalSourceLabel,
   formatMessageCount,
   qaStatusLabels,
@@ -77,6 +78,13 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             hasFinalizedReview: Boolean(latestFinalizedReview)
           });
           const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
+          const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
+          const appealLabel = latestFinalizedReview
+            ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
+            : "";
+          const reanswerLabel = latestFinalizedReview
+            ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
+            : "Переответ";
           const stateTone = isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState);
 
           return (
@@ -122,13 +130,17 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   ) : null}
                   {conversation.riskHint ? <span className="inbox-signal inbox-signal--warn">Риск</span> : null}
                   {latestFinalizedReview?.criticalError ? (
-                    <span className="inbox-signal inbox-signal--danger">Критическая</span>
-                  ) : latestFinalizedReview?.needsReanswer ? (
-                    <span className="inbox-signal inbox-signal--warn">
-                      {reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"}
+                    <span className="inbox-signal inbox-signal--danger">Критическая ошибка</span>
+                  ) : null}
+                  {hasReanswer ? (
+                    <span className="inbox-signal inbox-signal--warn queue-ticket__process">
+                      {reanswerLabel}
                     </span>
-                  ) : hasAppeal ? (
-                    <span className="inbox-signal inbox-signal--warn">Апелляция</span>
+                  ) : null}
+                  {hasAppeal ? (
+                    <span className="inbox-signal inbox-signal--warn queue-ticket__process">
+                      Апелляция: {appealLabel}
+                    </span>
                   ) : null}
                 </div>
               </div>

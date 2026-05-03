@@ -83,9 +83,9 @@ function HeaderChip({
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="soft-callout">
-      <p className="soft-callout__label">{label}</p>
-      <p className="soft-callout__value">{children}</p>
+    <div className="review-detail-item">
+      <p className="review-detail-item__label">{label}</p>
+      <p className="review-detail-item__value">{children}</p>
     </div>
   );
 }
@@ -150,6 +150,10 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   const appealLabel = latestFinalizedReview
     ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
     : "Нет";
+  const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
+  const reanswerLabel = latestFinalizedReview
+    ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? latestFinalizedReview.reanswerStatus
+    : "Нет";
 
   return (
     <section className="page-shell workspace-shell">
@@ -178,6 +182,15 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           {hasAppeal ? (
             <HeaderChip label="Апелляция" icon={MessageSquareWarning} tone={hasOpenAppeal ? "warning" : "active"}>
               {appealLabel}
+            </HeaderChip>
+          ) : null}
+          {hasReanswer ? (
+            <HeaderChip
+              label="Переответ"
+              icon={RotateCcw}
+              tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
+            >
+              {reanswerLabel}
             </HeaderChip>
           ) : null}
         </div>
@@ -213,7 +226,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             </span>
             <ChevronDown className="disclosure-chevron h-4 w-4 text-[#1d3fae]" aria-hidden="true" />
           </summary>
-          <div className="grid gap-3 border-t border-[#d9e0ea] p-4 md:grid-cols-3 xl:grid-cols-6">
+          <div className="review-detail-grid">
             <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
             <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
             <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>

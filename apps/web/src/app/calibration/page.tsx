@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, UsersRound } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, TriangleAlert, UsersRound } from "lucide-react";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -89,6 +89,19 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
   const selectedCompletedCount = new Set(selectedCalibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
   const selectedExpectedCount = selectedItemCount * selectedParticipantCount;
   const selectedProgress = selectedExpectedCount > 0 ? Math.round((selectedCompletedCount / selectedExpectedCount) * 100) : 0;
+  const selectedWaitingCount = Math.max(selectedExpectedCount - selectedCompletedCount, 0);
+  const selectedDisagreementCount =
+    selectedSession?.items.filter((item) => {
+      const reviews = item.conversation.reviews.filter(
+        (review) =>
+          review.reviewSource === "CALIBRATION" &&
+          review.status === "FINALIZED" &&
+          selectedSession.participants.some((participant) => participant.userId === review.reviewerId)
+      );
+      const spread = scoreSpread(reviews.map((review) => Math.round(review.totalScore)));
+
+      return spread != null && spread > 10;
+    }).length ?? 0;
 
   return (
     <section className="page-shell workspace-shell">
@@ -112,6 +125,71 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
           ) : null}
         </div>
       </div>
+
+      {openNewSession ? (
+        <section className="calibration-create-panel panel">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>Новая калибровка</h2>
+              <p>Выберите проверяющих и обращения. После создания участники получат один и тот же набор для оценки.</p>
+            </div>
+            {selectedSession ? (
+              <Link href={`/calibration?session=${selectedSession.id}`} className="action-button">
+                Закрыть форму
+              </Link>
+            ) : null}
+          </div>
+          <form action={createCalibrationSession} className="calibration-create-form">
+            <div className="calibration-create-shell">
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Название
+                <input name="name" required defaultValue="Калибровка недели" className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Срок
+                <input name="dueAt" type="date" className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Заметки
+                <textarea name="notes" rows={2} className="form-control" />
+              </label>
+            </div>
+
+            <div className="calibration-create-columns">
+              <fieldset className="form-stack">
+                <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
+                <div className="calibration-picker-grid">
+                  {qaUsers.map((qaUser) => (
+                    <label key={qaUser.id} className="compact-check-card">
+                      <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
+                      <span>{qaUser.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="form-stack">
+                <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
+                <div className="calibration-picker-grid calibration-picker-grid--scroll">
+                  {conversations.map((conversation) => (
+                    <label key={conversation.id} className="compact-check-card compact-check-card--tall">
+                      <input name="conversationId" type="checkbox" value={conversation.id} />
+                      <span>
+                        <strong>{conversation.externalId}</strong>
+                        {conversation.subject}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <button type="submit" className="action-button action-button--primary">
+              Создать сессию
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       <section className="calibration-workspace" aria-label="Рабочая область калибровки">
         <aside className="calibration-rail panel">
@@ -209,9 +287,25 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   <small>готово</small>
                 </div>
                 <div>
+                  <TriangleAlert size={16} aria-hidden="true" />
+                  <span>{selectedDisagreementCount}</span>
+                  <small>расхождений</small>
+                </div>
+                <div>
                   <CalendarClock size={16} aria-hidden="true" />
                   <span>{selectedSession.dueAt ? selectedSession.dueAt.toLocaleDateString("ru-RU") : "нет"}</span>
                   <small>срок</small>
+                </div>
+              </div>
+
+              <div className="calibration-attention-strip">
+                <div>
+                  <strong>{selectedWaitingCount}</strong>
+                  <span>оценок еще ждут участников</span>
+                </div>
+                <div>
+                  <strong>{selectedDisagreementCount}</strong>
+                  <span>обращений требуют общего решения по правилу</span>
                 </div>
               </div>
 
@@ -274,63 +368,6 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
           )}
         </div>
       </section>
-
-      <details className="panel compact-details" open={openNewSession}>
-        <summary className="disclosure-summary">
-          <span className="flex min-w-0 items-center gap-2">
-            <PlusCircle size={17} aria-hidden="true" />
-            <span className="text-sm font-semibold">Новая калибровка</span>
-          </span>
-          <span className="text-xs font-semibold uppercase text-[#64748b]">Открыть</span>
-        </summary>
-        <form action={createCalibrationSession} className="calibration-create-form border-t border-[#d9e0ea] p-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Название
-              <input name="name" required defaultValue="Калибровка недели" className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
-              Срок
-              <input name="dueAt" type="date" className="form-control" />
-            </label>
-          </div>
-
-          <fieldset className="form-stack">
-            <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
-            <div className="calibration-picker-grid">
-              {qaUsers.map((qaUser) => (
-                <label key={qaUser.id} className="compact-check-card">
-                  <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
-                  <span>{qaUser.name}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="form-stack">
-            <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
-            <div className="calibration-picker-grid">
-              {conversations.map((conversation) => (
-                <label key={conversation.id} className="compact-check-card compact-check-card--tall">
-                  <input name="conversationId" type="checkbox" value={conversation.id} />
-                  <span>
-                    <strong>{conversation.externalId}</strong>
-                    {conversation.subject}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Заметки
-            <textarea name="notes" rows={3} className="form-control" />
-          </label>
-          <button type="submit" className="action-button action-button--primary">
-            Создать сессию
-          </button>
-        </form>
-      </details>
     </section>
   );
 }
