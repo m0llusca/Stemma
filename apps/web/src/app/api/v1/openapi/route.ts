@@ -39,6 +39,71 @@ export async function GET() {
             "200": { description: "Список провайдеров" },
             "403": { description: "Нет прав управления авторизацией" }
           }
+        },
+        post: {
+          summary: "Создать или обновить провайдера SSO/AD",
+          responses: {
+            "201": { description: "Провайдер сохранен" },
+            "400": { description: "Некорректный payload" }
+          }
+        }
+      },
+      "/auth/providers/{providerId}/mappings": {
+        get: {
+          summary: "Маппинги AD/Entra-групп в роли приложения",
+          responses: {
+            "200": { description: "Список маппингов" }
+          }
+        },
+        post: {
+          summary: "Создать или обновить маппинг группы в роль",
+          responses: {
+            "201": { description: "Маппинг сохранен" }
+          }
+        }
+      },
+      "/auth/sessions": {
+        get: {
+          summary: "Активные и исторические пользовательские сессии",
+          responses: {
+            "200": { description: "Список сессий" }
+          }
+        }
+      },
+      "/api-tokens": {
+        get: {
+          summary: "API-токены рабочего пространства",
+          responses: {
+            "200": { description: "Список API-токенов" }
+          }
+        },
+        post: {
+          summary: "Выпустить новый API-токен",
+          responses: {
+            "201": { description: "Токен создан, plainToken возвращается один раз" }
+          }
+        }
+      },
+      "/integrations": {
+        get: {
+          summary: "Интеграции рабочего пространства",
+          responses: {
+            "200": { description: "Список интеграций" }
+          }
+        },
+        post: {
+          summary: "Создать или обновить интеграцию и ее секрет",
+          responses: {
+            "201": { description: "Интеграция сохранена" }
+          }
+        }
+      },
+      "/integrations/{integrationId}/imports": {
+        post: {
+          summary: "Поставить импорт интеграции в очередь",
+          responses: {
+            "202": { description: "IntegrationRun и BackendJob созданы" }
+          }
         }
       },
       "/jobs": {
@@ -56,6 +121,14 @@ export async function GET() {
           }
         }
       },
+      "/jobs/{jobId}": {
+        get: {
+          summary: "Детали фоновой задачи и журнал событий",
+          responses: {
+            "200": { description: "Карточка задачи" }
+          }
+        }
+      },
       "/conversations": {
         post: {
           summary: "Импорт обращения из кастомной системы",
@@ -63,6 +136,14 @@ export async function GET() {
           responses: {
             "201": { description: "Обращение импортировано" },
             "409": { description: "Конфликт idempotency key" }
+          }
+        }
+      },
+      "/reports/snapshots": {
+        get: {
+          summary: "Готовые снимки отчетности",
+          responses: {
+            "200": { description: "Список снимков" }
           }
         }
       }
@@ -78,4 +159,3 @@ export async function GET() {
     }
   });
 }
-

@@ -81,6 +81,7 @@ function parsePayload(job: BackendJob): BackendJobPayload {
 async function runIntegrationImportJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {
   const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
   const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
+  const dryRun = payload.dryRun === true;
 
   if (!integrationId) {
     throw new Error("Для задачи импорта не указан integrationId.");
@@ -89,9 +90,10 @@ async function runIntegrationImportJob(client: JobClient, job: BackendJob, paylo
   await client.integration.update({
     where: { id: integrationId },
     data: {
-      status: "active",
-      lastSyncedAt: new Date(),
-      lastImportAt: new Date(),
+      status: dryRun ? "ready" : "active",
+      lastSyncedAt: dryRun ? undefined : new Date(),
+      lastDryRunAt: dryRun ? new Date() : undefined,
+      lastImportAt: dryRun ? undefined : new Date(),
       lastError: null
     }
   });
@@ -100,9 +102,9 @@ async function runIntegrationImportJob(client: JobClient, job: BackendJob, paylo
     await client.integrationRun.update({
       where: { id: integrationRunId },
       data: {
-        status: "succeeded",
+        status: dryRun ? "dry_run_ok" : "succeeded",
         finishedAt: new Date(),
-        importedCount: Number(payload.requestedLimit ?? 0)
+        importedCount: dryRun ? 0 : Number(payload.requestedLimit ?? 0)
       }
     });
   }
@@ -115,7 +117,8 @@ async function runIntegrationImportJob(client: JobClient, job: BackendJob, paylo
   return {
     integrationId,
     integrationRunId,
-    importedCount: Number(payload.requestedLimit ?? 0)
+    dryRun,
+    importedCount: dryRun ? 0 : Number(payload.requestedLimit ?? 0)
   };
 }
 
@@ -252,6 +255,7 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
     } catch (error) {
       const message = error instanceof Error ? error.message : "Неизвестная ошибка фоновой задачи.";
       const shouldRetry = job.attempts < job.maxAttempts;
+      const payload = parsePayload(job);
 
       await prisma.backendJob.update({
         where: { id: job.id },
@@ -272,6 +276,36 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
           metadata: JSON.stringify({ shouldRetry })
         }
       });
+
+      if (job.type === "INTEGRATION_IMPORT") {
+        const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
+        const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
+
+        if (integrationId) {
+          await prisma.integration.update({
+            where: { id: integrationId },
+            data: {
+              status: shouldRetry ? "queued" : "error",
+              lastError: message
+            }
+          });
+        }
+
+        if (integrationRunId) {
+          await prisma.integrationRun.update({
+            where: { id: integrationRunId },
+            data: {
+              status: shouldRetry ? "retry_scheduled" : "failed",
+              errorCount: {
+                increment: 1
+              },
+              errorMessage: message,
+              finishedAt: shouldRetry ? null : new Date()
+            }
+          });
+        }
+      }
+
       results.push({ jobId: job.id, status: "FAILED", error: message });
     }
   }
