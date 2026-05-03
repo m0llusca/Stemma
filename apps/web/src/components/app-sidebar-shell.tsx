@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpenCheck, ChevronLeft, ChevronRight, ClipboardCheck, Scale, Settings, UserCheck } from "lucide-react";
+import { BarChart3, BookOpenCheck, ChevronsLeft, ChevronsRight, ClipboardCheck, Scale, Settings, UserCheck } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 type SidebarIcon = "reviews" | "self-review" | "calibration" | "coaching" | "reports" | "admin";
@@ -63,15 +63,6 @@ export function AppSidebarShell({
             <div className="truncate text-sm text-slate-400">Ручная проверка</div>
           </div>
         </div>
-        <button
-          type="button"
-          className="app-sidebar__collapse-button"
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
-          title={collapsed ? "Развернуть меню" : "Свернуть меню"}
-        >
-          {collapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
-        </button>
       </div>
       <nav className="app-sidebar__nav grid gap-1" aria-label="Основное меню">
         {items.map((item) => {
@@ -102,6 +93,16 @@ export function AppSidebarShell({
         })}
       </nav>
       <div className="app-sidebar__role">{children}</div>
+      <button
+        type="button"
+        className="app-sidebar__collapse-button"
+        onClick={toggleCollapsed}
+        aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+        title={collapsed ? "Развернуть меню" : "Свернуть меню"}
+      >
+        {collapsed ? <ChevronsRight size={16} aria-hidden="true" /> : <ChevronsLeft size={16} aria-hidden="true" />}
+        <span className="app-sidebar__collapse-label">{collapsed ? "Развернуть" : "Свернуть"}</span>
+      </button>
     </aside>
   );
 }

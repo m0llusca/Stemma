@@ -65,6 +65,52 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
     <form action={bulkUpdateReviewQueue} className="panel overflow-hidden">
       <input type="hidden" name="returnTo" value={returnTo} />
 
+      <details className="queue-bulk-actions">
+        <summary className="queue-bulk-actions__summary">
+          <span>Массовые действия</span>
+          <span className="queue-filterbar__summary-action">
+            <span className="queue-filterbar__summary-closed">Раскрыть</span>
+            <span className="queue-filterbar__summary-open">Скрыть</span>
+            <span className="text-[#64748b]">{conversations.length}</span>
+          </span>
+        </summary>
+        <div className="queue-bulk-actions__body">
+          <label className="queue-bulk-actions__field">
+            <span>Состояние</span>
+            <select name="qaStatus" defaultValue="" className="form-control">
+              <option value="">Не менять</option>
+              {Object.entries(qaStatusLabels).map(([status, label]) => (
+                <option key={status} value={status}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="queue-bulk-actions__field">
+            <span>Проверяющий</span>
+            <select name="qaAssigneeId" defaultValue="" className="form-control">
+              <option value="">Не менять</option>
+              {qaAssignees.map((assignee) => (
+                <option key={assignee.id} value={assignee.id}>
+                  {assignee.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="queue-bulk-actions__field">
+            <span>Срок</span>
+            <input name="reviewDueAt" type="date" className="form-control" />
+          </label>
+          <ValidatedSubmitButton
+            minCheckedNames={["conversationId"]}
+            requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt"]}
+            className="action-button action-button--primary queue-bulk-actions__submit"
+          >
+            Обновить
+          </ValidatedSubmitButton>
+        </div>
+      </details>
+
       <div className="queue-list">
         {conversations.map((conversation) => {
           const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
@@ -157,49 +203,6 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
         })}
       </div>
 
-      <details className="disclosure-panel border-t border-[#d9e0ea]">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-[#111827]">Массовые действия</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Назначение, срок или состояние для отмеченных обращений.</p>
-          </div>
-          <span className="pill pill--neutral">{conversations.length}</span>
-        </summary>
-        <div className="grid gap-3 border-t border-[#d9e0ea] bg-[#f8fafc] p-4 lg:grid-cols-[170px_220px_160px_auto] lg:items-end">
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Состояние
-            <select name="qaStatus" defaultValue="" className="form-control">
-              <option value="">Не менять</option>
-              {Object.entries(qaStatusLabels).map(([status, label]) => (
-                <option key={status} value={status}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Проверяющий
-            <select name="qaAssigneeId" defaultValue="" className="form-control">
-              <option value="">Не менять</option>
-              {qaAssignees.map((assignee) => (
-                <option key={assignee.id} value={assignee.id}>
-                  {assignee.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Срок
-            <input name="reviewDueAt" type="date" className="form-control" />
-          </label>
-          <ValidatedSubmitButton
-            minCheckedNames={["conversationId"]}
-            requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt"]}
-          >
-            Обновить выбранные
-          </ValidatedSubmitButton>
-        </div>
-      </details>
     </form>
   );
 }
