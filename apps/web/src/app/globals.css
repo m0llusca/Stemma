@@ -618,6 +618,63 @@ pre code {
   background: #f8faff;
 }
 
+.calibration-session {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px;
+}
+
+.calibration-session:last-child {
+  border-bottom: 0;
+}
+
+.calibration-session--selected {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.calibration-session__header {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.calibration-session__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.calibration-session__actions form {
+  display: contents;
+}
+
+.calibration-session__actions .action-button {
+  min-width: 116px;
+}
+
+.calibration-participants {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.calibration-participant {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-muted);
+  padding: 10px 12px;
+}
+
 .record-row {
   display: flex;
   min-width: 0;
@@ -1285,6 +1342,7 @@ pre code {
 
   .queue-filterbar__primary,
   .queue-ticket,
+  .calibration-session__header,
   .admin-group-grid {
     grid-template-columns: 1fr;
   }
@@ -1295,6 +1353,10 @@ pre code {
 
   .queue-ticket__aside {
     justify-items: start;
+  }
+
+  .calibration-session__actions {
+    justify-content: flex-start;
   }
 
   .source-choice-summary {

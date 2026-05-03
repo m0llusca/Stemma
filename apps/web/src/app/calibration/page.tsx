@@ -86,7 +86,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             <h2 className="text-lg font-semibold">Сессии калибровки</h2>
             <p className="mt-1 text-sm text-[#64748b]">Активные и последние сессии без лишних карточек.</p>
           </div>
-          <div className="record-list px-5">
+          <div className="record-list">
           {sessions.map((session) => {
             const isSelected = selectedSession?.id === session.id;
             const itemCount = session.items.length;
@@ -103,30 +103,33 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             const expectedCount = itemCount * participantCount;
 
             return (
-              <article key={session.id} className={`record-card ${isSelected ? "record-card--selected" : ""}`}>
-                <div className="record-row">
-                  <div>
-                    <h2 className="text-lg font-semibold">{session.name}</h2>
-                    <p className="mt-1 text-sm text-[#64748b]">
-                      {statusLabel(session.status)} · {itemCount} обращений · {participantCount} участников · {completedCount}/{expectedCount} оценок
-                    </p>
+              <article key={session.id} className={`calibration-session ${isSelected ? "calibration-session--selected" : ""}`}>
+                <div className="calibration-session__header">
+                  <div className="min-w-0">
+                    <h3 className="record-title text-lg">{session.name}</h3>
+                    <div className="signal-row mt-2">
+                      <span className={`pill ${session.status === "completed" ? "pill--ok" : "pill--neutral"}`}>{statusLabel(session.status)}</span>
+                      <span className="pill pill--neutral">{itemCount} обращений</span>
+                      <span className="pill pill--neutral">{participantCount} участников</span>
+                      <span className="pill pill--neutral">{completedCount}/{expectedCount} оценок</span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/calibration?session=${session.id}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
+                  <div className="calibration-session__actions">
+                    <Link href={`/calibration?session=${session.id}`} className="action-button min-h-[38px] px-4 py-2 text-sm">
                       Открыть
                     </Link>
                     {session.status !== "completed" ? (
                       <form action={updateCalibrationSessionStatus}>
                         <input type="hidden" name="id" value={session.id} />
                         <input type="hidden" name="status" value="completed" />
-                        <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
+                        <button type="submit" className="action-button action-button--primary min-h-[38px] px-4 py-2 text-sm">
                           Завершить
                         </button>
                       </form>
                     ) : null}
                   </div>
                 </div>
-                <div className="signal-row">
+                <div className="calibration-participants">
                   {session.participants.map((participant) => {
                     const done = session.items.filter((item) =>
                       item.conversation.reviews.some(
@@ -138,10 +141,14 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                     ).length;
 
                     return (
-                      <div key={participant.id} className="rounded-md bg-[#f8fafc] px-3 py-2">
-                        <p className="font-semibold text-[#111827]">{participant.user.name}</p>
-                        <p className="mt-1 text-xs text-[#64748b]">{roleLabels[participant.user.role]}</p>
-                        <p className="mt-2 text-sm text-[#334155]">{done}/{itemCount} оценок</p>
+                      <div key={participant.id} className="calibration-participant">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#111827]">{participant.user.name}</p>
+                          <p className="mt-0.5 truncate text-xs text-[#64748b]">{roleLabels[participant.user.role]}</p>
+                        </div>
+                        <span className={`pill ${done === itemCount && itemCount > 0 ? "pill--ok" : "pill--neutral"}`}>
+                          {done}/{itemCount}
+                        </span>
                       </div>
                     );
                   })}
