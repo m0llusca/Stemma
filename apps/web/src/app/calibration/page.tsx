@@ -81,7 +81,12 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="grid gap-5">
+        <section className="panel overflow-hidden">
+          <div className="border-b border-[#d7dce5] px-5 py-4">
+            <h2 className="text-lg font-semibold">Сессии калибровки</h2>
+            <p className="mt-1 text-sm text-[#667085]">Активные и последние сессии без лишних карточек.</p>
+          </div>
+          <div className="record-list px-5">
           {sessions.map((session) => {
             const isSelected = selectedSession?.id === session.id;
             const itemCount = session.items.length;
@@ -98,8 +103,8 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             const expectedCount = itemCount * participantCount;
 
             return (
-              <section key={session.id} className={`panel overflow-hidden ${isSelected ? "ring-2 ring-[#116466]" : ""}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d7dce5] px-5 py-4">
+              <article key={session.id} className={`record-card ${isSelected ? "record-card--selected" : ""}`}>
+                <div className="record-row">
                   <div>
                     <h2 className="text-lg font-semibold">{session.name}</h2>
                     <p className="mt-1 text-sm text-[#667085]">
@@ -121,7 +126,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                     ) : null}
                   </div>
                 </div>
-                <div className="grid gap-3 p-5 md:grid-cols-3">
+                <div className="signal-row">
                   {session.participants.map((participant) => {
                     const done = session.items.filter((item) =>
                       item.conversation.reviews.some(
@@ -133,7 +138,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                     ).length;
 
                     return (
-                      <div key={participant.id} className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-3">
+                      <div key={participant.id} className="rounded-md bg-[#f7f8fb] px-3 py-2">
                         <p className="font-semibold text-[#17202a]">{participant.user.name}</p>
                         <p className="mt-1 text-xs text-[#667085]">{roleLabels[participant.user.role]}</p>
                         <p className="mt-2 text-sm text-[#344054]">{done}/{itemCount} оценок</p>
@@ -141,10 +146,11 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                     );
                   })}
                 </div>
-              </section>
+              </article>
             );
           })}
-        </div>
+          </div>
+        </section>
 
         <details className="disclosure-panel panel h-fit overflow-hidden" open={openNewSession}>
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d7dce5] px-5 py-4">
@@ -152,7 +158,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
               <h2 className="text-lg font-semibold">Новая калибровка</h2>
               <p className="mt-1 text-sm text-[#667085]">Выберите обращения и проверяющих.</p>
             </div>
-            <span className="text-sm font-semibold text-[#0b4f52]">Открыть</span>
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
           </summary>
           <form action={createCalibrationSession} className="grid gap-4 p-5">
             <label className="grid gap-1 text-sm font-medium text-[#344054]">

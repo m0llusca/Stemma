@@ -61,10 +61,10 @@ export default async function CoachingPage() {
             <h2 className="text-lg font-semibold">Учебные задачи</h2>
             <p className="mt-1 text-sm text-[#667085]">Разборы по итогам проверок, переответам и апелляциям.</p>
           </div>
-          <div className="grid gap-3 p-5">
+          <div className="grid gap-0">
             {assignments.length > 0 ? (
               assignments.map((assignment) => (
-                <article key={assignment.id} className="grid gap-3 rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-center">
+                <article key={assignment.id} className="task-row md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#17202a]">{assignment.title}</p>
                     <p className="mt-1 text-sm leading-5 text-[#667085]">{assignment.description}</p>
@@ -74,7 +74,7 @@ export default async function CoachingPage() {
                       {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
                     </p>
                   </div>
-                  <span className="w-fit rounded-md bg-white px-2 py-1 text-xs font-semibold uppercase text-[#475467]">
+                  <span className="w-fit rounded-md bg-[#f7f8fb] px-2 py-1 text-xs font-semibold uppercase text-[#475467]">
                     {trainingStatusLabel(assignment.status)}
                   </span>
                   <div className="flex flex-wrap gap-2 md:justify-end">
@@ -107,7 +107,7 @@ export default async function CoachingPage() {
               <h2 className="text-lg font-semibold">Добавить типовую ошибку</h2>
               <p className="mt-1 text-sm text-[#667085]">Форма скрыта, пока не нужно пополнить базу.</p>
             </div>
-            <span className="text-sm font-semibold text-[#0b4f52]">Открыть</span>
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#0b4f52]">Открыть</span>
           </summary>
           <form action={createKnowledgeEntry} className="grid gap-3 p-5">
             <label className="grid gap-1 text-sm font-medium text-[#344054]">
@@ -148,9 +148,9 @@ export default async function CoachingPage() {
           <h2 className="text-lg font-semibold">База типовых ошибок</h2>
           <p className="mt-1 text-sm text-[#667085]">Используется для рекомендаций, калибровки и обучения операторов.</p>
         </div>
-        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="knowledge-grid md:grid-cols-2 xl:grid-cols-3">
           {knowledgeEntries.map((entry) => (
-            <article key={entry.id} className="rounded-md border border-[#d7dce5] bg-[#fbfcfd] p-4">
+            <article key={entry.id} className="knowledge-item">
               <p className="text-xs font-semibold uppercase text-[#667085]">{entry.category} · {riskLevelLabels[entry.riskLevel]}</p>
               <h3 className="mt-2 font-semibold text-[#17202a]">{entry.title}</h3>
               <p className="mt-2 text-sm leading-5 text-[#667085]">{entry.description}</p>

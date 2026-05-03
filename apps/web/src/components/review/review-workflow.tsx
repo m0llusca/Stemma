@@ -34,8 +34,8 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
   ];
 
   return (
-    <section className="panel p-4">
-      <div className="grid gap-4 lg:grid-cols-[210px_minmax(0,1fr)] lg:items-center">
+    <section className="workflow-strip">
+      <div className="grid gap-3 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[#667085]">Текущий шаг</p>
           <h2 className="mt-1 text-base font-semibold text-[#17202a]">
@@ -44,25 +44,25 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
           <p className="mt-1 truncate text-sm leading-5 text-[#475467]">{steps[activeIndex].detail}</p>
         </div>
 
-        <ol className="grid gap-2 sm:grid-cols-4">
+        <ol className="workflow-strip__list sm:grid-cols-4">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === activeIndex;
             const isDone = index < activeIndex || isReviewed;
             const badgeClassName = isActive
-              ? "bg-[#116466] text-white"
+              ? "workflow-step__badge workflow-step__badge--active"
               : isDone
-                ? "bg-[#e8f3ef] text-[#116466]"
-                : "bg-[#eef4f4] text-[#667085]";
+                ? "workflow-step__badge workflow-step__badge--done"
+                : "workflow-step__badge";
 
             return (
               <li
                 key={step.title}
-                className={`rounded-md px-2 py-2 ${isActive ? "bg-[#f7fbfa] ring-1 ring-[#116466]" : "bg-transparent"}`}
+                className={`workflow-step ${isActive ? "workflow-step--active" : ""}`}
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${badgeClassName}`}
+                    className={badgeClassName}
                     aria-hidden="true"
                   >
                     <Icon className={iconClassName} />

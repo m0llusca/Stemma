@@ -91,8 +91,8 @@ function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionSco
 
 function StepHeader({ number, title, detail }: { number: number; title: string; detail: string }) {
   return (
-    <div className="mb-4 flex items-start gap-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#116466] text-sm font-semibold text-white">
+    <div className="step-header">
+      <span className="step-header__number">
         {number}
       </span>
       <div className="min-w-0">
@@ -170,7 +170,7 @@ export function ReviewPanel({
         </div>
       </div>
 
-      <section className="border-b border-[#d7dce5] bg-[#fbfcfd] p-4">
+      <section className="work-section work-section--muted">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-[180px] flex-1">
             <ScoreBar value={draftReview?.totalScore} emptyLabel="Еще не сохранен" />
@@ -189,7 +189,7 @@ export function ReviewPanel({
         </div>
       </section>
 
-      <section className="border-b border-[#d7dce5] bg-[#fbfcfd] p-5">
+      <section className="work-section work-section--muted">
         <StepHeader number={1} title="Оценка по критериям" detail="Заполните только то, что отличается от нормы." />
 
         <div className="space-y-3">
@@ -309,7 +309,7 @@ export function ReviewPanel({
         </div>
       </section>
 
-      <section className="border-b border-[#d7dce5] p-5">
+      <section className="work-section">
         <StepHeader number={2} title="Итог проверки" detail="Короткий вывод и классификация, без лишней детализации." />
 
         <div className="grid gap-4">

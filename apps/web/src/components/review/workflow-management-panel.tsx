@@ -25,7 +25,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
     conversation.qaAssigneeId !== null && !assignees.some((assignee) => assignee.id === conversation.qaAssigneeId);
 
   return (
-    <details className="panel disclosure-panel overflow-hidden">
+    <details className="review-secondary panel disclosure-panel overflow-hidden">
       <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">Управление проверкой</h2>

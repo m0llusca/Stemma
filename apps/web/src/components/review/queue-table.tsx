@@ -1,7 +1,6 @@
 import type { Conversation, Message, Review } from "@prisma/client";
 import Link from "next/link";
 import { ScoreBar } from "@/components/ui/score-bar";
-import { StatusChip } from "@/components/ui/status-chip";
 import {
   channelLabels,
   csatBucketLabels,
@@ -25,22 +24,21 @@ type QueueTableProps = {
 };
 
 function reviewStateTone(state: ReviewState) {
-  if (state === "finalized") return "success";
+  if (state === "finalized") return "good";
   if (state === "reopened") return "warning";
-  if (state === "assigned" || state === "in_progress") return "info";
+  if (state === "assigned" || state === "in_progress") return "warning";
   return "neutral";
 }
 
-function samplingTone(samplingType: string) {
-  if (samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE") return "warning";
-  if (samplingType === "RANDOM") return "neutral";
-  return "info";
+function signalClassName(tone: "neutral" | "good" | "warning" | "danger") {
+  if (tone === "good") return "inbox-signal inbox-signal--good";
+  if (tone === "warning") return "inbox-signal inbox-signal--warn";
+  if (tone === "danger") return "inbox-signal inbox-signal--danger";
+  return "inbox-signal";
 }
 
-function csatTone(csatBucket: string) {
-  if (csatBucket === "NEGATIVE") return "danger";
-  if (csatBucket === "POSITIVE") return "success";
-  return "neutral";
+function samplingIsSignal(samplingType: string) {
+  return samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE";
 }
 
 export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
@@ -57,7 +55,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
     <form action={bulkUpdateReviewQueue} className="panel overflow-hidden">
       <input type="hidden" name="returnTo" value={returnTo} />
 
-      <div className="record-list p-5">
+      <div className="inbox-list">
         {conversations.map((conversation) => {
           const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
           const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
@@ -71,65 +69,66 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             hasFinalizedReview: Boolean(latestFinalizedReview)
           });
           const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
+          const stateTone = isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState);
 
           return (
-            <article key={conversation.id} className="record-card record-card--interactive">
-              <div className="record-row">
-                <div className="flex min-w-0 items-start gap-3">
-                  <input
-                    type="checkbox"
-                    name="conversationId"
-                    value={conversation.id}
-                    aria-label={`Выбрать ${conversation.subject}`}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-[#d7dce5]"
-                  />
-                  <div className="min-w-0">
-                    <Link href={`/reviews/${conversation.id}`} className="record-title text-[#0b4f52] hover:underline">
-                      {conversation.subject}
-                    </Link>
-                    <span className="record-meta mt-1 block">
-                      {conversation.customerName} · {conversation.assigneeName ?? "Не назначен"} · {formatMessageCount(conversation.messages.length)}
-                    </span>
-                  </div>
-                </div>
-                <StatusChip tone={isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState)}>
-                  {reviewStateLabels[reviewState]}
-                </StatusChip>
-              </div>
+            <article key={conversation.id} className="inbox-row">
+              <input
+                type="checkbox"
+                name="conversationId"
+                value={conversation.id}
+                aria-label={`Выбрать ${conversation.subject}`}
+                className="h-4 w-4 shrink-0 rounded border-[#d7dce5]"
+              />
 
-              <div className="signal-row">
-                <StatusChip size="xs">{channelLabels[conversation.channel]}</StatusChip>
-                {conversation.csatBucket === "NEGATIVE" ? (
-                  <StatusChip size="xs" tone={csatTone(conversation.csatBucket)}>
-                    {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
-                    {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
-                  </StatusChip>
-                ) : null}
-                {conversation.samplingType !== "RANDOM" ? (
-                  <StatusChip size="xs" tone={samplingTone(conversation.samplingType)}>
-                    {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
-                  </StatusChip>
-                ) : null}
-                {isOverdue && reviewState !== "finalized" ? <StatusChip size="xs" tone="danger">Просрочено</StatusChip> : null}
-                {conversation.riskHint ? <StatusChip size="xs" tone="warning" title={conversation.riskHint}>Риск</StatusChip> : null}
-              </div>
-
-              <div className="record-row">
-                <p className="record-meta compact-text">
-                  {conversation.externalSource} · проверяющий: {conversation.qaAssigneeName ?? "не назначен"} · срок:{" "}
-                  {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"} · {conversation.samplingReason}
+              <div className="min-w-0">
+                <Link href={`/reviews/${conversation.id}`} className="inbox-title text-[#0b4f52] hover:underline">
+                  {conversation.subject}
+                </Link>
+                <p className="inbox-meta mt-1">
+                  {conversation.customerName} · {conversation.assigneeName ?? "Не назначен"} · {formatMessageCount(conversation.messages.length)}
                 </p>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="signal-row mt-2">
+                  {conversation.csatBucket === "NEGATIVE" ? (
+                    <span className="inbox-signal inbox-signal--warn">
+                      {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
+                      {csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket}
+                    </span>
+                  ) : null}
+                  {samplingIsSignal(conversation.samplingType) ? (
+                    <span className="inbox-signal inbox-signal--warn">
+                      {samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}
+                    </span>
+                  ) : null}
+                  {conversation.riskHint ? <span className="inbox-signal inbox-signal--warn">Риск</span> : null}
+                </div>
+              </div>
+
+              <div className="inbox-row__meta min-w-0">
+                <p className="inbox-meta">
+                  {channelLabels[conversation.channel]} · {conversation.externalSource}
+                </p>
+                <p className="inbox-meta mt-1">
+                  Проверяющий: {conversation.qaAssigneeName ?? "не назначен"}
+                </p>
+                <p className="inbox-meta mt-1">
+                  Срок: {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "нет"}
+                </p>
+              </div>
+
+              <div className="inbox-row__score grid justify-items-end gap-2">
+                <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
+                <div className="flex flex-wrap items-center justify-end gap-3">
                   {latestFinalizedReview?.criticalError ? (
-                    <StatusChip tone="danger">Критическая</StatusChip>
+                    <span className="inbox-signal inbox-signal--danger">Критическая</span>
                   ) : latestFinalizedReview?.needsReanswer ? (
-                    <StatusChip tone="warning">
+                    <span className="inbox-signal inbox-signal--warn">
                       {reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"}
-                    </StatusChip>
+                    </span>
                   ) : hasAppeal ? (
-                    <StatusChip tone="warning">Апелляция</StatusChip>
+                    <span className="inbox-signal inbox-signal--warn">Апелляция</span>
                   ) : (
-                    <span className="record-meta">Без эскалации</span>
+                    <span className="inbox-meta">Без эскалации</span>
                   )}
                   <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
                 </div>

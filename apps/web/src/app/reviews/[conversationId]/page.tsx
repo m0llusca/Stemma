@@ -172,7 +172,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </div>
       </div>
 
-      <details className="disclosure-panel">
+      <details className="review-context disclosure-panel">
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d7dce5] bg-white px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">Детали обращения</h2>
@@ -201,7 +201,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
       {latestFinalizedReview ? (
-        <details className="panel disclosure-panel overflow-hidden">
+        <details className="review-secondary panel disclosure-panel overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Последнее замечание</h2>
@@ -352,7 +352,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       ) : null}
 
       {conversation.reviews.length > 0 ? (
-        <details className="panel disclosure-panel overflow-hidden">
+        <details className="review-secondary panel disclosure-panel overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">История проверок</h2>
@@ -384,7 +384,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         </details>
       ) : null}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+      <div className="review-main grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
         <div className="xl:sticky xl:top-6 xl:max-h-[calc(100vh-48px)] xl:overflow-auto">
           <ReviewPanel
