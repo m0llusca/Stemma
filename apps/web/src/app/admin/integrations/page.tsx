@@ -167,7 +167,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
 
   return (
     <section className="page-shell admin-shell">
-      <div className="admin-hero">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Интеграции</h1>

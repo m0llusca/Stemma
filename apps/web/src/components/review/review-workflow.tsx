@@ -34,7 +34,7 @@ export function ReviewWorkflow({ isReviewed, hasDraftReview, scorecardName }: Re
   ];
 
   return (
-    <section className="workflow-strip">
+    <section className="workflow-strip workflow-strip--focus">
       <div className="grid gap-3 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[#64748b]">Текущий шаг</p>

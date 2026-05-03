@@ -86,6 +86,27 @@ const sourceOptions = [
   description: string;
 }>;
 
+const sourceChoiceGroups = [
+  {
+    mode: "otrs_family" as const,
+    title: "OTRS-family",
+    description: "OTRS Community Edition 6, Znuny, OTOBO и совместимые форки.",
+    options: sourceOptions.filter((option) => option.mode === "otrs_family")
+  },
+  {
+    mode: "native_helpdesk" as const,
+    title: "Готовые helpdesk",
+    description: "Облачные сервисы с готовым адаптером нормализации.",
+    options: sourceOptions.filter((option) => option.mode === "native_helpdesk")
+  },
+  {
+    mode: "custom_api" as const,
+    title: "Своя система",
+    description: "Единый контракт импорта для внутренней разработки.",
+    options: sourceOptions.filter((option) => option.mode === "custom_api")
+  }
+];
+
 const wizardSteps: Array<{ value: WizardStep; label: string; title: string }> = [
   { value: "source", label: "Источник", title: "Шаг 1. Источник" },
   { value: "access", label: "Доступ", title: "Шаг 2. Доступ" },
@@ -259,47 +280,62 @@ function SourceChoiceStep({
   const selectedOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-      <FormField label="Источник">
+    <div className="source-choice-layout">
+      <label className="sr-only">
+        Источник
         <select
           value={sourceValue}
           onChange={(event) => onSourceChange(event.target.value as SourceOptionValue)}
-          className={fieldClass}
         >
-          <optgroup label="OTRS / Znuny / OTOBO">
-            {sourceOptions
-              .filter((option) => option.mode === "otrs_family")
-              .map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-          </optgroup>
-          <optgroup label="Облачные helpdesk">
-            {sourceOptions
-              .filter((option) => option.mode === "native_helpdesk")
-              .map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-          </optgroup>
-          <optgroup label="Другое">
-            {sourceOptions
-              .filter((option) => option.mode === "custom_api")
-              .map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-          </optgroup>
+          {sourceOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
-      </FormField>
+      </label>
+      <div className="source-choice-list">
+        {sourceChoiceGroups.map((group) => (
+          <section key={group.mode} className="source-choice-section">
+            <div className="min-w-0">
+              <p className="source-choice-card__eyebrow">{sourceModeLabels[group.mode]}</p>
+              <h4 className="text-base font-semibold text-[#111827]">{group.title}</h4>
+              <p className="mt-1 text-sm leading-5 text-[#64748b]">{group.description}</p>
+            </div>
+            <div className="source-card-grid">
+              {group.options.map((option) => {
+                const isSelected = option.value === sourceValue;
 
-      <div className="soft-callout">
-        <p className="soft-callout__label">Что будет настроено</p>
-        <p className="mt-1 text-sm leading-5 text-[#334155]">{selectedOption.description}</p>
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => onSourceChange(option.value)}
+                    aria-pressed={isSelected}
+                    className={`source-choice-card ${isSelected ? "source-choice-card--active" : ""}`}
+                  >
+                    <span className="text-sm font-semibold text-[#111827]">{option.label}</span>
+                    <span className="text-sm leading-5 text-[#64748b]">{option.description}</span>
+                    {isSelected ? <span className="pill pill--ok w-fit">Выбрано</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
+
+      <aside className="source-choice-summary">
+        <p className="soft-callout__label">Выбранный сценарий</p>
+        <div>
+          <h4 className="text-base font-semibold text-[#111827]">{selectedOption.label}</h4>
+          <p className="mt-2 text-sm leading-5 text-[#334155]">{selectedOption.description}</p>
+        </div>
+        <div className="soft-callout">
+          <p className="soft-callout__label">Дальше</p>
+          <p className="text-sm leading-5 text-[#334155]">Откроются только поля доступа, лимиты и проверка подключения для выбранного источника.</p>
+        </div>
+      </aside>
     </div>
   );
 }

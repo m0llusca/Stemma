@@ -343,7 +343,7 @@ function BreakdownTable({
 
 function PeriodFilter({ period }: { period: ReportPeriod }) {
   return (
-    <form action="/reports" className="panel grid gap-4 p-4 md:grid-cols-[minmax(180px,240px)_160px_160px_auto] md:items-end">
+    <form action="/reports" className="report-toolbar">
       <label className="grid gap-1 text-sm font-medium text-[#334155]">
         Период
         <select name="period" defaultValue={period.preset} className="form-control">
@@ -661,7 +661,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero workspace-hero--split">
+      <div className="command-center command-center--split">
         <div>
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Аналитика качества</h1>

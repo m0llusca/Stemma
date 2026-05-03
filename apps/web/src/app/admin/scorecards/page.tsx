@@ -56,7 +56,7 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
 
   return (
     <section className="page-shell admin-shell">
-      <div className="admin-hero">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Формы оценки</h1>

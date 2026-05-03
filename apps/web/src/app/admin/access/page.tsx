@@ -182,7 +182,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
 
   return (
     <section className="page-shell admin-shell">
-      <div className="admin-hero">
+      <div className="command-center">
         <div>
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Доступ и SSO</h1>

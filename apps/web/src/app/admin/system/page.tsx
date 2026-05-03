@@ -240,7 +240,7 @@ export default async function AdminSystemPage() {
 
   return (
     <section className="page-shell admin-shell">
-      <div className="admin-hero admin-hero--split">
+      <div className="command-center command-center--split">
         <div>
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Состояние системы</h1>

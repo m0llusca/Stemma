@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Plug, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Plug, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -129,10 +129,34 @@ export default async function AdminHomePage() {
     { href: "/admin/access?section=provider", label: "Настроить SSO", icon: ShieldCheck, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/system", label: "Проверить систему", icon: Activity, roles: ["ADMIN"] as RoleName[] }
   ].filter((action) => canSee(user.role, action.roles));
+  const groupedCards = [
+    {
+      title: "Методология",
+      description: "То, по чему проверяем и как отбираем обращения.",
+      hrefs: ["/admin/scorecards", "/admin/sampling"]
+    },
+    {
+      title: "Подключения",
+      description: "Источники обращений, вход пользователей и API-доступ.",
+      hrefs: ["/admin/integrations", "/admin/access", "/admin/tokens"]
+    },
+    {
+      title: "Контроль",
+      description: "Системные задачи, ошибки и история изменений.",
+      hrefs: ["/admin/system", "/admin/audit"]
+    }
+  ]
+    .map((group) => ({
+      ...group,
+      cards: group.hrefs
+        .map((href) => visibleCards.find((card) => card.href === href))
+        .filter((card): card is AdminCard => Boolean(card))
+    }))
+    .filter((group) => group.cards.length > 0);
 
   return (
     <section className="page-shell admin-shell">
-      <div className="admin-hero admin-hero--split">
+      <div className="command-center command-center--split">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Настройки</h1>
@@ -152,78 +176,55 @@ export default async function AdminHomePage() {
           </div>
         </div>
 
-        <div className="quick-grid">
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <div className="record-card">
-              <p className="record-meta">Форма оценки</p>
-              <p className="record-title">{activeScorecard ? `Версия ${activeScorecard.version}` : "Не настроено"}</p>
-            </div>
-            <div className="record-card">
-              <p className="record-meta">Выборки</p>
-              <p className="record-title">{activeSamplingRules} активных</p>
-            </div>
-            <div className="record-card">
-              <p className="record-meta">Системные ошибки</p>
-              <p className="record-title">{failedJobs}</p>
-            </div>
+        <div className="hero-stat-row">
+          <div className="hero-stat">
+            <p className="hero-stat__label">Форма оценки</p>
+            <p className="hero-stat__value">{activeScorecard ? `Версия ${activeScorecard.version}` : "Не настроено"}</p>
+          </div>
+          <div className="hero-stat">
+            <p className="hero-stat__label">Выборки</p>
+            <p className="hero-stat__value">{activeSamplingRules} активных</p>
+          </div>
+          <div className="hero-stat">
+            <p className="hero-stat__label">Системные ошибки</p>
+            <p className="hero-stat__value">{failedJobs}</p>
           </div>
         </div>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold">Разделы администрирования</h2>
-              <p className="mt-1 text-sm text-[#64748b]">Каждый раздел открывает рабочий экран без промежуточных вложенных меню.</p>
+      <section className="admin-group-grid" aria-label="Разделы администрирования">
+        {groupedCards.map((group) => (
+          <div key={group.title} className="admin-group">
+            <div className="admin-group__header">
+              <h2 className="text-base font-semibold text-[#111827]">{group.title}</h2>
+              <p className="text-sm leading-5 text-[#64748b]">{group.description}</p>
             </div>
-            <SlidersHorizontal size={18} className="text-[#1d3fae]" aria-hidden="true" />
-          </div>
-        </div>
-        <div className="command-list">
-        {visibleCards.map((card) => {
-          const Icon = card.icon;
+            <div className="grid gap-2">
+              {group.cards.map((card) => {
+                const Icon = card.icon;
 
-          return (
-            <Link key={card.href} href={card.href} className="command-row">
-              <span className="command-row__icon">
-                <Icon size={18} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="record-title">{card.title}</h3>
-                  <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
-                </div>
-                <p className="record-meta mt-1">{card.description}</p>
-              </div>
-              <span className="command-row__action text-sm font-semibold text-[#1d3fae]">
-                Открыть <ArrowRight size={14} aria-hidden="true" />
-              </span>
-            </Link>
-          );
-        })}
-        </div>
+                return (
+                  <Link key={card.href} href={card.href} className="admin-tile">
+                    <span className="admin-tile__icon">
+                      <Icon size={18} aria-hidden="true" />
+                    </span>
+                    <span className="admin-tile__body">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="record-title">{card.title}</span>
+                        <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
+                      </span>
+                      <span className="record-meta">{card.description}</span>
+                      <span className="quiet-link inline-flex items-center gap-1">
+                        Открыть <ArrowRight size={13} aria-hidden="true" />
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </section>
-
-      {quickActions.length > 3 ? (
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Дополнительные действия</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Редкие настройки остаются в один клик, но не спорят с основным списком.</p>
-          </div>
-          <div className="flex flex-wrap gap-2 px-5 py-4">
-            {quickActions.slice(3).map((action) => {
-              const Icon = action.icon;
-              return (
-                <Link key={action.href} href={action.href} className="action-button action-button--quiet">
-                  <Icon size={16} aria-hidden="true" />
-                  {action.label}
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
     </section>
   );
 }

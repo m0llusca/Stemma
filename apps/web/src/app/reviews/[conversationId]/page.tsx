@@ -147,7 +147,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Доска проверки</p>
           <h1 className="page-title">{conversation.subject}</h1>

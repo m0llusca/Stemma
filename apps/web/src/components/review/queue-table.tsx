@@ -38,6 +38,13 @@ function signalClassName(tone: "neutral" | "good" | "warning" | "danger") {
   return "inbox-signal";
 }
 
+function ticketClassName(tone: "neutral" | "good" | "warning" | "danger") {
+  if (tone === "good") return "queue-ticket queue-ticket--good";
+  if (tone === "warning") return "queue-ticket queue-ticket--warning";
+  if (tone === "danger") return "queue-ticket queue-ticket--danger";
+  return "queue-ticket";
+}
+
 function samplingIsSignal(samplingType: string) {
   return samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE";
 }
@@ -56,7 +63,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
     <form action={bulkUpdateReviewQueue} className="panel overflow-hidden">
       <input type="hidden" name="returnTo" value={returnTo} />
 
-      <div className="inbox-list">
+      <div className="queue-list">
         {conversations.map((conversation) => {
           const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
           const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
@@ -73,23 +80,35 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           const stateTone = isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState);
 
           return (
-            <article key={conversation.id} className="inbox-row">
+            <article key={conversation.id} className={ticketClassName(stateTone)}>
               <input
                 type="checkbox"
                 name="conversationId"
                 value={conversation.id}
                 aria-label={`Выбрать ${conversation.subject}`}
-                className="h-4 w-4 shrink-0 rounded border-[#d9e0ea]"
+                className="mt-1 h-4 w-4 shrink-0 rounded border-[#d9e0ea]"
               />
 
-              <div className="min-w-0">
-                <Link href={`/reviews/${conversation.id}`} className="inbox-title text-[#1d3fae] hover:underline">
-                  {conversation.subject}
-                </Link>
-                <p className="inbox-meta mt-1">
+              <div className="queue-ticket__main">
+                <div className="queue-ticket__headline">
+                  <Link href={`/reviews/${conversation.id}`} className="queue-ticket__title">
+                    {conversation.subject}
+                  </Link>
+                  <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
+                </div>
+                <p className="queue-ticket__meta">
                   {conversation.customerName} · {conversation.assigneeName ?? "Не назначен"} · {formatMessageCount(conversation.messages.length)}
                 </p>
-                <div className="signal-row mt-2">
+                <div className="queue-ticket__chips">
+                  <span className="pill pill--neutral">
+                    {channelLabels[conversation.channel]} · {externalSourceLabel(conversation.externalSource)}
+                  </span>
+                  <span className={`pill ${isOverdue ? "pill--warn" : "pill--neutral"}`}>
+                    Срок: {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "нет"}
+                  </span>
+                  <span className="pill pill--neutral">
+                    Проверяющий: {conversation.qaAssigneeName ?? "не назначен"}
+                  </span>
                   {conversation.csatBucket === "NEGATIVE" ? (
                     <span className="inbox-signal inbox-signal--warn">
                       {conversation.csatScore ? `${conversation.csatScore} · ` : ""}
@@ -102,24 +121,6 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                     </span>
                   ) : null}
                   {conversation.riskHint ? <span className="inbox-signal inbox-signal--warn">Риск</span> : null}
-                </div>
-              </div>
-
-              <div className="inbox-row__meta min-w-0">
-                <p className="inbox-meta">
-                  {channelLabels[conversation.channel]} · {externalSourceLabel(conversation.externalSource)}
-                </p>
-                <p className="inbox-meta mt-1">
-                  Проверяющий: {conversation.qaAssigneeName ?? "не назначен"}
-                </p>
-                <p className="inbox-meta mt-1">
-                  Срок: {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "нет"}
-                </p>
-              </div>
-
-              <div className="inbox-row__score grid justify-items-end gap-2">
-                <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
-                <div className="flex flex-wrap items-center justify-end gap-3">
                   {latestFinalizedReview?.criticalError ? (
                     <span className="inbox-signal inbox-signal--danger">Критическая</span>
                   ) : latestFinalizedReview?.needsReanswer ? (
@@ -128,11 +129,15 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                     </span>
                   ) : hasAppeal ? (
                     <span className="inbox-signal inbox-signal--warn">Апелляция</span>
-                  ) : (
-                    <span className="inbox-meta">Без эскалации</span>
-                  )}
-                  <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
+                  ) : null}
                 </div>
+              </div>
+
+              <div className="queue-ticket__aside">
+                <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact />
+                <Link href={`/reviews/${conversation.id}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
+                  Открыть
+                </Link>
               </div>
             </article>
           );

@@ -27,7 +27,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       filters.qaAssignee ||
       filters.samplingType ||
       filters.csatBucket ||
-    filters.supportLine ||
+      filters.supportLine ||
     filters.process ||
     filters.due ||
     filters.riskLevel ||
@@ -59,8 +59,8 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
   ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
 
   return (
-    <form action="/reviews" className="panel overflow-hidden">
-      <div className="grid gap-3 p-4 lg:grid-cols-[minmax(260px,1fr)_190px_auto] lg:items-end">
+    <form action="/reviews" className="queue-filterbar">
+      <div className="queue-filterbar__primary">
         <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Поиск
           <input
@@ -93,10 +93,10 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       </div>
 
       {activeFilters.length > 0 ? (
-        <div className="signal-row border-t border-[#d9e0ea] bg-[#f8fafc] px-4 py-3">
+        <div className="queue-filterbar__active">
           {activeFilters.map((filter) => (
             <StatusChip key={`${filter.label}:${filter.value}`} tone="accent" size="xs">
-              {filter.value}
+              {filter.label}: {filter.value}
             </StatusChip>
           ))}
         </div>
@@ -104,7 +104,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
       <details className="disclosure-panel border-t border-[#d9e0ea]" open={hasAdvancedFilters}>
         <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#334155]">
-          <span>{hasAdvancedFilters ? "Дополнительные фильтры применены" : "Дополнительные фильтры"}</span>
+          <span>{hasAdvancedFilters ? "Точные фильтры применены" : "Точные фильтры"}</span>
           <span className="text-xs font-semibold uppercase text-[#64748b]">9 параметров</span>
         </summary>
 

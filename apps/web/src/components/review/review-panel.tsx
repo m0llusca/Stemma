@@ -170,7 +170,7 @@ export function ReviewPanel({
         </div>
       </div>
 
-      <section className="work-section work-section--muted">
+      <section className="review-score-surface">
         <div className="grid gap-3">
           <div className="min-w-0">
             <ScoreBar value={draftReview?.totalScore} emptyLabel="Еще не сохранен" />
@@ -206,7 +206,7 @@ export function ReviewPanel({
                 return (
                   <details
                     key={criterion.id}
-                    className="disclosure-panel overflow-hidden rounded-lg border border-[#d9e0ea] bg-white"
+                    className="criterion-card disclosure-panel"
                     open={shouldOpenCriterion(criterion, draftScore)}
                   >
                     <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
@@ -605,7 +605,7 @@ export function ReviewPanel({
         </div>
       </details>
 
-      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t border-[#d9e0ea] bg-white p-5 shadow-[0_-8px_24px_rgba(23,32,42,0.06)]">
+      <div className="review-actions-bar">
         <button
           type="submit"
           formNoValidate

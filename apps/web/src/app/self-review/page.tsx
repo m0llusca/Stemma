@@ -25,7 +25,7 @@ export default async function SelfReviewPage() {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Самооценка оператора</h1>

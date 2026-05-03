@@ -45,7 +45,7 @@ export default async function CoachingPage() {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="workspace-hero">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Развитие качества</p>
           <h1 className="page-title">Обучение и база ошибок</h1>

@@ -48,7 +48,7 @@ export default async function AdminTokensPage() {
 
   return (
     <section className="page-shell admin-shell">
-      <div className="admin-hero">
+      <div className="command-center">
         <div>
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Ключи API</h1>
