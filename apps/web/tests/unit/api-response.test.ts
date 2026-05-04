@@ -50,4 +50,23 @@ describe("api response helpers", () => {
     expect(response.status).toBe(400);
     expect(response.headers.get("x-request-id")).toBe("req-456");
   });
+
+  it("can attach headers and omit details from v1 errors", async () => {
+    const response = apiError("rate_limited", "Too many requests.", 429, {
+      requestId: "req-789",
+      headers: { "x-ratelimit-limit": "120" },
+      includeDetails: false
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "rate_limited",
+        message: "Too many requests.",
+        requestId: "req-789"
+      }
+    });
+    expect(response.status).toBe(429);
+    expect(response.headers.get("x-request-id")).toBe("req-789");
+    expect(response.headers.get("x-ratelimit-limit")).toBe("120");
+  });
 });

@@ -1,8 +1,8 @@
 import type { Prisma, ReviewSource, ReviewStatus } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination } from "@/lib/api/query";
-import { enforceApiRateLimit } from "@/lib/api/rate-limit";
-import { apiError, apiJson } from "@/lib/api/response";
+import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
+import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 
@@ -38,7 +38,8 @@ function scoreParam(searchParams: URLSearchParams, key: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiToken(request, "reviews:read");
+  const requestId = requestIdFromHeaders(request.headers);
+  const auth = await requireApiToken(request, "reviews:read", { requestId, structuredErrors: true });
 
   if (!auth.ok) {
     return auth.response;
@@ -52,7 +53,11 @@ export async function GET(request: NextRequest) {
 
   if (!rateLimit.ok) {
     await recordApiTokenError(auth.apiTokenId, "Rate limit exceeded.");
-    return apiError("rate_limited", "Превышен лимит запросов API.", 429);
+    return apiError("rate_limited", "Превышен лимит запросов API.", 429, {
+      requestId,
+      headers: rateLimitHeaders(rateLimit),
+      includeDetails: false
+    });
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -63,11 +68,9 @@ export async function GET(request: NextRequest) {
 
   if (!status.ok || !reviewSource.ok || !minScore.ok || !maxScore.ok) {
     await recordApiTokenError(auth.apiTokenId, "Invalid review filters.");
-    return apiError("bad_request", "Некорректные фильтры проверок.", 400, undefined, {
-      status: !status.ok ? status.value : undefined,
-      reviewSource: !reviewSource.ok ? reviewSource.value : undefined,
-      minScore: !minScore.ok ? minScore.value : undefined,
-      maxScore: !maxScore.ok ? maxScore.value : undefined
+    return apiError("bad_request", "Некорректные фильтры проверок.", 400, {
+      requestId,
+      includeDetails: false
     });
   }
 
@@ -173,37 +176,43 @@ export async function GET(request: NextRequest) {
 
   await recordApiTokenSuccess(auth.apiTokenId);
 
-  return apiJson({
-    pagination: paginationMeta({ page, limit, total }),
-    reviews: reviews.map((review) => ({
-      id: review.id,
-      status: review.status,
-      reviewSource: review.reviewSource,
-      rubricVersion: review.rubricVersion,
-      totalScore: review.totalScore,
-      confidence: review.confidence,
-      summary: review.summary,
-      feedbackStatus: review.feedbackStatus,
-      appealStatus: review.appealStatus,
-      criticalError: review.criticalError,
-      criticalCategory: review.criticalCategory,
-      needsReanswer: review.needsReanswer,
-      reanswerStatus: review.reanswerStatus,
-      calibrationStatus: review.calibrationStatus,
-      finalizedAt: review.finalizedAt?.toISOString() ?? null,
-      createdAt: review.createdAt.toISOString(),
-      updatedAt: review.updatedAt.toISOString(),
-      reviewer: review.reviewer,
-      conversation: {
-        ...review.conversation,
-        openedAt: review.conversation.openedAt.toISOString(),
-        closedAt: review.conversation.closedAt?.toISOString() ?? null
-      },
-      counts: {
-        scores: review._count.scores,
-        findings: review._count.findings,
-        events: review._count.events
-      }
-    }))
-  });
+  return apiData(
+    {
+      reviews: reviews.map((review) => ({
+        id: review.id,
+        status: review.status,
+        reviewSource: review.reviewSource,
+        rubricVersion: review.rubricVersion,
+        totalScore: review.totalScore,
+        confidence: review.confidence,
+        summary: review.summary,
+        feedbackStatus: review.feedbackStatus,
+        appealStatus: review.appealStatus,
+        criticalError: review.criticalError,
+        criticalCategory: review.criticalCategory,
+        needsReanswer: review.needsReanswer,
+        reanswerStatus: review.reanswerStatus,
+        calibrationStatus: review.calibrationStatus,
+        finalizedAt: review.finalizedAt?.toISOString() ?? null,
+        createdAt: review.createdAt.toISOString(),
+        updatedAt: review.updatedAt.toISOString(),
+        reviewer: review.reviewer,
+        conversation: {
+          ...review.conversation,
+          openedAt: review.conversation.openedAt.toISOString(),
+          closedAt: review.conversation.closedAt?.toISOString() ?? null
+        },
+        counts: {
+          scores: review._count.scores,
+          findings: review._count.findings,
+          events: review._count.events
+        }
+      }))
+    },
+    {
+      requestId,
+      meta: { pagination: paginationMeta({ page, limit, total }) },
+      headers: rateLimitHeaders(rateLimit)
+    }
+  );
 }

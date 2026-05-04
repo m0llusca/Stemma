@@ -3,8 +3,8 @@ import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { hashRequestBody, readIdempotencyKey, reserveIdempotencyKey, completeIdempotencyKey } from "@/lib/api/idempotency";
 import { firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination } from "@/lib/api/query";
-import { enforceApiRateLimit } from "@/lib/api/rate-limit";
-import { apiError, apiJson } from "@/lib/api/response";
+import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
+import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { upsertCustomConversationAtomic } from "@/lib/conversation-import";
 import { prisma } from "@/lib/db";
@@ -33,7 +33,8 @@ function splitTags(value: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireApiToken(request, "conversations:read");
+  const requestId = requestIdFromHeaders(request.headers);
+  const auth = await requireApiToken(request, "conversations:read", { requestId, structuredErrors: true });
 
   if (!auth.ok) {
     return auth.response;
@@ -47,7 +48,11 @@ export async function GET(request: NextRequest) {
 
   if (!rateLimit.ok) {
     await recordApiTokenError(auth.apiTokenId, "Rate limit exceeded.");
-    return apiError("rate_limited", "Превышен лимит запросов API.", 429);
+    return apiError("rate_limited", "Превышен лимит запросов API.", 429, {
+      requestId,
+      headers: rateLimitHeaders(rateLimit),
+      includeDetails: false
+    });
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -56,9 +61,9 @@ export async function GET(request: NextRequest) {
 
   if (!qaStatus.ok || !channel.ok) {
     await recordApiTokenError(auth.apiTokenId, "Invalid conversation filters.");
-    return apiError("bad_request", "Некорректные фильтры обращений.", 400, undefined, {
-      qaStatus: !qaStatus.ok ? qaStatus.value : undefined,
-      channel: !channel.ok ? channel.value : undefined
+    return apiError("bad_request", "Некорректные фильтры обращений.", 400, {
+      requestId,
+      includeDetails: false
     });
   }
 
@@ -148,55 +153,62 @@ export async function GET(request: NextRequest) {
 
   await recordApiTokenSuccess(auth.apiTokenId);
 
-  return apiJson({
-    pagination: paginationMeta({ page, limit, total }),
-    conversations: conversations.map((conversation) => ({
-      id: conversation.id,
-      externalSource: conversation.externalSource,
-      externalId: conversation.externalId,
-      externalUrl: conversation.externalUrl,
-      channel: conversation.channel,
-      subject: conversation.subject,
-      status: conversation.status,
-      tags: splitTags(conversation.tags),
-      customerName: conversation.customerName,
-      assigneeName: conversation.assigneeName,
-      qaStatus: conversation.qaStatus,
-      qaAssigneeId: conversation.qaAssigneeId,
-      qaAssigneeName: conversation.qaAssigneeName,
-      reviewDueAt: conversation.reviewDueAt?.toISOString() ?? null,
-      samplingReason: conversation.samplingReason,
-      samplingType: conversation.samplingType,
-      csatScore: conversation.csatScore,
-      csatBucket: conversation.csatBucket,
-      supportLine: conversation.supportLine,
-      teamName: conversation.teamName,
-      riskHint: conversation.riskHint,
-      openedAt: conversation.openedAt.toISOString(),
-      closedAt: conversation.closedAt?.toISOString() ?? null,
-      createdAt: conversation.createdAt.toISOString(),
-      updatedAt: conversation.updatedAt.toISOString(),
-      counts: {
-        messages: conversation._count.messages,
-        reviews: conversation._count.reviews
-      },
-      latestReview: conversation.reviews[0]
-        ? {
-            id: conversation.reviews[0].id,
-            status: conversation.reviews[0].status,
-            reviewSource: conversation.reviews[0].reviewSource,
-            totalScore: conversation.reviews[0].totalScore,
-            reviewer: conversation.reviews[0].reviewer,
-            finalizedAt: conversation.reviews[0].finalizedAt?.toISOString() ?? null,
-            createdAt: conversation.reviews[0].createdAt.toISOString()
-          }
-        : null
-    }))
-  });
+  return apiData(
+    {
+      conversations: conversations.map((conversation) => ({
+        id: conversation.id,
+        externalSource: conversation.externalSource,
+        externalId: conversation.externalId,
+        externalUrl: conversation.externalUrl,
+        channel: conversation.channel,
+        subject: conversation.subject,
+        status: conversation.status,
+        tags: splitTags(conversation.tags),
+        customerName: conversation.customerName,
+        assigneeName: conversation.assigneeName,
+        qaStatus: conversation.qaStatus,
+        qaAssigneeId: conversation.qaAssigneeId,
+        qaAssigneeName: conversation.qaAssigneeName,
+        reviewDueAt: conversation.reviewDueAt?.toISOString() ?? null,
+        samplingReason: conversation.samplingReason,
+        samplingType: conversation.samplingType,
+        csatScore: conversation.csatScore,
+        csatBucket: conversation.csatBucket,
+        supportLine: conversation.supportLine,
+        teamName: conversation.teamName,
+        riskHint: conversation.riskHint,
+        openedAt: conversation.openedAt.toISOString(),
+        closedAt: conversation.closedAt?.toISOString() ?? null,
+        createdAt: conversation.createdAt.toISOString(),
+        updatedAt: conversation.updatedAt.toISOString(),
+        counts: {
+          messages: conversation._count.messages,
+          reviews: conversation._count.reviews
+        },
+        latestReview: conversation.reviews[0]
+          ? {
+              id: conversation.reviews[0].id,
+              status: conversation.reviews[0].status,
+              reviewSource: conversation.reviews[0].reviewSource,
+              totalScore: conversation.reviews[0].totalScore,
+              reviewer: conversation.reviews[0].reviewer,
+              finalizedAt: conversation.reviews[0].finalizedAt?.toISOString() ?? null,
+              createdAt: conversation.reviews[0].createdAt.toISOString()
+            }
+          : null
+      }))
+    },
+    {
+      requestId,
+      meta: { pagination: paginationMeta({ page, limit, total }) },
+      headers: rateLimitHeaders(rateLimit)
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireApiToken(request, "conversations:write");
+  const requestId = requestIdFromHeaders(request.headers);
+  const auth = await requireApiToken(request, "conversations:write", { requestId, structuredErrors: true });
 
   if (!auth.ok) {
     return auth.response;
@@ -210,7 +222,11 @@ export async function POST(request: NextRequest) {
 
   if (!rateLimit.ok) {
     await recordApiTokenError(auth.apiTokenId, "Rate limit exceeded.");
-    return apiError("rate_limited", "Превышен лимит запросов API.", 429);
+    return apiError("rate_limited", "Превышен лимит запросов API.", 429, {
+      requestId,
+      headers: rateLimitHeaders(rateLimit),
+      includeDetails: false
+    });
   }
 
   try {
@@ -230,12 +246,19 @@ export async function POST(request: NextRequest) {
 
     if (reserved?.isConflict) {
       await recordApiTokenError(auth.apiTokenId, "Idempotency key conflict.");
-      return apiError("conflict", "Idempotency-Key уже использован для другого запроса.", 409);
+      return apiError("conflict", "Idempotency-Key уже использован для другого запроса.", 409, {
+        requestId,
+        includeDetails: false
+      });
     }
 
     if (reserved?.isReplay) {
       await recordApiTokenSuccess(auth.apiTokenId);
-      return apiJson(JSON.parse(reserved.record.responseBodyJson || "{}"), reserved.record.responseStatus ?? 200);
+      return apiData(JSON.parse(reserved.record.responseBodyJson || "{}"), {
+        status: reserved.record.responseStatus ?? 200,
+        requestId,
+        headers: rateLimitHeaders(rateLimit)
+      });
     }
 
     const conversation = await upsertCustomConversationAtomic(auth.workspaceId, payload);
@@ -250,14 +273,24 @@ export async function POST(request: NextRequest) {
     }
 
     await recordApiTokenSuccess(auth.apiTokenId);
-    return apiJson(responseBody, 201);
+    return apiData(responseBody, {
+      status: 201,
+      requestId,
+      headers: rateLimitHeaders(rateLimit)
+    });
   } catch (error) {
     if (error instanceof ZodError || error instanceof SyntaxError) {
       await recordApiTokenError(auth.apiTokenId, "Invalid custom conversation payload.");
-      return apiError("bad_request", "Некорректный payload обращения.", 400);
+      return apiError("bad_request", "Некорректный payload обращения.", 400, {
+        requestId,
+        includeDetails: false
+      });
     }
 
     await recordApiTokenError(auth.apiTokenId, "Internal server error.");
-    return apiError("internal_error", "Внутренняя ошибка сервера.", 500);
+    return apiError("internal_error", "Внутренняя ошибка сервера.", 500, {
+      requestId,
+      includeDetails: false
+    });
   }
 }

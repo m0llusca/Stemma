@@ -17,6 +17,13 @@ export type ApiResponseOptions = {
   headers?: HeadersInit;
 };
 
+export type ApiErrorOptions = {
+  requestId?: string;
+  details?: unknown;
+  headers?: HeadersInit;
+  includeDetails?: boolean;
+};
+
 function mergeHeaders(headers: HeadersInit | undefined, requestId: string) {
   const merged = new Headers(headers);
   merged.set("x-request-id", requestId);
@@ -56,19 +63,33 @@ export function apiJson<T>(data: T, status = 200, requestId: string = apiRequest
   });
 }
 
-export function apiError(code: ApiErrorCode, message: string, status: number, requestId: string = apiRequestId(), details?: unknown) {
+export function apiError(
+  code: ApiErrorCode,
+  message: string,
+  status: number,
+  requestIdOrOptions: string | ApiErrorOptions | undefined = apiRequestId(),
+  details?: unknown
+) {
+  const options =
+    requestIdOrOptions === undefined
+      ? { requestId: apiRequestId(), details }
+      : typeof requestIdOrOptions === "string"
+        ? { requestId: requestIdOrOptions, details }
+        : requestIdOrOptions;
+  const requestId = options.requestId ?? apiRequestId();
+
   return NextResponse.json(
     {
       error: {
         code,
         message,
-        details: details ?? null,
+        ...(options.includeDetails === false ? {} : { details: options.details ?? null }),
         requestId
       }
     },
     {
       status,
-      headers: mergeHeaders(undefined, requestId)
+      headers: mergeHeaders(options.headers, requestId)
     }
   );
 }
