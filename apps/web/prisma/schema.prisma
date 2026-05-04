@@ -165,6 +165,7 @@ model User {
   updatedAt                   DateTime                 @updatedAt
 
   @@unique([workspaceId, email])
+  @@index([workspaceId, role, name])
 }
 
 model IdentityProvider {
@@ -193,6 +194,7 @@ model IdentityProvider {
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, type])
+  @@index([workspaceId, status])
 }
 
 model ExternalIdentity {
@@ -210,6 +212,7 @@ model ExternalIdentity {
 
   @@unique([providerId, providerSubject])
   @@index([userId])
+  @@index([providerId, email])
 }
 
 model GroupRoleMapping {
@@ -228,6 +231,7 @@ model GroupRoleMapping {
 
   @@unique([workspaceId, externalGroupId, role])
   @@index([workspaceId, isActive])
+  @@index([providerId, isActive])
 }
 
 model AuthSession {
@@ -248,6 +252,7 @@ model AuthSession {
   lastSeenAt       DateTime          @default(now())
 
   @@index([workspaceId, userId])
+  @@index([workspaceId, status, expiresAt])
   @@index([status, expiresAt])
 }
 
@@ -277,6 +282,8 @@ model Integration {
   updatedAt     DateTime               @updatedAt
 
   @@unique([workspaceId, source])
+  @@index([workspaceId, status])
+  @@index([workspaceId, updatedAt])
 }
 
 model IntegrationCredential {
@@ -312,6 +319,7 @@ model ApiToken {
   updatedAt     DateTime       @updatedAt
 
   @@index([workspaceId])
+  @@index([workspaceId, updatedAt])
 }
 
 model ApiRateLimit {
@@ -363,21 +371,32 @@ model Conversation {
 
   @@unique([workspaceId, externalSource, externalId])
   @@index([workspaceId, qaStatus])
+  @@index([workspaceId, openedAt])
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, reviewDueAt])
+  @@index([workspaceId, externalSource])
+  @@index([workspaceId, assigneeName])
+  @@index([workspaceId, qaAssigneeName])
+  @@index([workspaceId, samplingType])
+  @@index([workspaceId, csatBucket])
+  @@index([workspaceId, supportLine])
 }
 
 model Message {
-  id              String          @id @default(cuid())
+  id              String           @id @default(cuid())
   conversationId  String
-  conversation    Conversation    @relation(fields: [conversationId], references: [id])
+  conversation    Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   externalId      String
   participantType ParticipantType
   authorName      String
   body            String
   sentAt          DateTime
-  isPrivate       Boolean         @default(false)
-  createdAt       DateTime        @default(now())
+  isPrivate       Boolean          @default(false)
+  evidenceScores  CriterionScore[] @relation("CriterionScoreEvidenceMessage")
+  createdAt       DateTime         @default(now())
 
   @@unique([conversationId, externalId])
+  @@index([conversationId, sentAt])
 }
 
 model Scorecard {
@@ -392,6 +411,9 @@ model Scorecard {
   calibrationSessions CalibrationSession[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+
+  @@unique([workspaceId, version])
+  @@index([workspaceId, isActive])
 }
 
 model ScorecardCriterion {
@@ -412,45 +434,52 @@ model ScorecardCriterion {
 }
 
 model Review {
-  id                  String                @id @default(cuid())
-  workspaceId         String
-  workspace           Workspace             @relation(fields: [workspaceId], references: [id])
-  conversationId      String
-  conversation        Conversation          @relation(fields: [conversationId], references: [id])
-  reviewerId          String
-  reviewer            User                  @relation(fields: [reviewerId], references: [id])
-  scorecardId         String
-  scorecard           Scorecard             @relation(fields: [scorecardId], references: [id])
-  reviewSource        ReviewSource
-  rubricVersion       Int
-  status              ReviewStatus
-  totalScore          Float
-  confidence          Float?
-  summary             String
-  feedbackComment     String                @default("")
-  positiveNotes       String                @default("")
-  instructionLinks    String                @default("")
-  feedbackStatus      String                @default("new")
-  feedbackAckAt       DateTime?
-  feedbackAckBy       String?
-  appealStatus        String                @default("none")
-  appealDueAt         DateTime?
-  appealResolvedAt    DateTime?
-  criticalError       Boolean               @default(false)
-  criticalCategory    String?
-  needsReanswer       Boolean               @default(false)
-  reanswerStatus      String                @default("not_needed")
-  calibrationStatus   String                @default("none")
-  calibrationNotes    String                @default("")
-  selfReviewNotes     String                @default("")
-  finalizedAt         DateTime?
-  scores              CriterionScore[]
-  findings            Finding[]
-  feedbackEvents      ReviewFeedbackEvent[]
-  trainingAssignments TrainingAssignment[]
-  events              ReviewEvent[]
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  id                   String                   @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace                @relation(fields: [workspaceId], references: [id])
+  conversationId       String
+  conversation         Conversation             @relation(fields: [conversationId], references: [id])
+  reviewerId           String
+  reviewer             User                     @relation(fields: [reviewerId], references: [id])
+  scorecardId          String
+  scorecard            Scorecard                @relation(fields: [scorecardId], references: [id])
+  reviewSource         ReviewSource
+  rubricVersion        Int
+  status               ReviewStatus
+  totalScore           Float
+  confidence           Float?
+  summary              String
+  feedbackComment      String                   @default("")
+  positiveNotes        String                   @default("")
+  instructionLinks     String                   @default("")
+  feedbackStatus       String                   @default("new")
+  feedbackAckAt        DateTime?
+  feedbackAckBy        String?
+  appealStatus         String                   @default("none")
+  appealDueAt          DateTime?
+  appealResolvedAt     DateTime?
+  criticalError        Boolean                  @default(false)
+  criticalCategory     String?
+  needsReanswer        Boolean                  @default(false)
+  reanswerStatus       String                   @default("not_needed")
+  calibrationStatus    String                   @default("none")
+  calibrationNotes     String                   @default("")
+  selfReviewNotes      String                   @default("")
+  finalizedAt          DateTime?
+  scores               CriterionScore[]
+  findings             Finding[]
+  feedbackEvents       ReviewFeedbackEvent[]
+  trainingAssignments  TrainingAssignment[]
+  calibrationBaselines CalibrationSessionItem[] @relation("CalibrationBaselineReview")
+  events               ReviewEvent[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  @@index([workspaceId, status, finalizedAt])
+  @@index([workspaceId, reviewSource, status, createdAt])
+  @@index([workspaceId, reviewerId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([scorecardId])
 }
 
 model ReviewEvent {
@@ -484,8 +513,11 @@ model CriterionScore {
   isNotApplicable   Boolean            @default(false)
   comment           String
   evidenceMessageId String?
+  evidenceMessage   Message?           @relation("CriterionScoreEvidenceMessage", fields: [evidenceMessageId], references: [id], onDelete: SetNull)
 
   @@unique([reviewId, criterionId])
+  @@index([criterionId])
+  @@index([evidenceMessageId])
 }
 
 model Finding {
@@ -499,6 +531,10 @@ model Finding {
   evidenceSummary String
   coachingAction  CoachingAction?
   createdAt       DateTime         @default(now())
+
+  @@index([reviewId, riskLevel])
+  @@index([riskLevel, createdAt])
+  @@index([category])
 }
 
 model CoachingAction {
@@ -511,6 +547,8 @@ model CoachingAction {
   status    String    @default("open")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([status, dueAt])
 }
 
 model ReviewQuota {
@@ -546,6 +584,7 @@ model SavedQueueView {
   updatedAt   DateTime  @updatedAt
 
   @@index([workspaceId, userId])
+  @@index([workspaceId, scope, order])
 }
 
 model CalibrationSession {
@@ -566,6 +605,7 @@ model CalibrationSession {
   updatedAt    DateTime                 @updatedAt
 
   @@index([workspaceId, status])
+  @@index([workspaceId, dueAt])
 }
 
 model CalibrationSessionItem {
@@ -575,9 +615,12 @@ model CalibrationSessionItem {
   conversationId   String
   conversation     Conversation       @relation(fields: [conversationId], references: [id])
   baselineReviewId String?
+  baselineReview   Review?            @relation("CalibrationBaselineReview", fields: [baselineReviewId], references: [id], onDelete: SetNull)
   createdAt        DateTime           @default(now())
 
   @@unique([sessionId, conversationId])
+  @@index([conversationId])
+  @@index([baselineReviewId])
 }
 
 model CalibrationParticipant {
@@ -593,6 +636,7 @@ model CalibrationParticipant {
   updatedAt   DateTime           @updatedAt
 
   @@unique([sessionId, userId])
+  @@index([userId, status])
 }
 
 model ReviewFeedbackEvent {
@@ -606,6 +650,7 @@ model ReviewFeedbackEvent {
   createdAt DateTime @default(now())
 
   @@index([reviewId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model IntegrationRun {
@@ -629,6 +674,8 @@ model IntegrationRun {
 
   @@index([workspaceId, startedAt])
   @@index([workspaceId, source])
+  @@index([workspaceId, status, startedAt])
+  @@index([integrationId, startedAt])
 }
 
 model BackendJob {
@@ -656,7 +703,10 @@ model BackendJob {
   updatedAt    DateTime          @updatedAt
 
   @@index([status, runAfter])
+  @@index([status, lockedAt])
+  @@index([queueName, status, priority, runAfter])
   @@index([workspaceId, status, type])
+  @@index([workspaceId, createdAt])
 }
 
 model BackendJobEvent {
@@ -688,6 +738,7 @@ model IdempotencyKey {
 
   @@unique([workspaceId, key])
   @@index([workspaceId, expiresAt])
+  @@index([workspaceId, status, expiresAt])
 }
 
 model SamplingRule {
@@ -741,6 +792,7 @@ model TrainingAssignment {
   updatedAt    DateTime  @updatedAt
 
   @@index([workspaceId, status])
+  @@index([workspaceId, status, dueAt])
   @@index([workspaceId, assigneeName])
 }
 
@@ -764,6 +816,7 @@ model ReportSnapshot {
 
   @@index([workspaceId, periodStart, periodEnd])
   @@index([workspaceId, status])
+  @@index([workspaceId, createdById, createdAt])
 }
 
 model AuditLog {
@@ -777,4 +830,9 @@ model AuditLog {
   targetId    String
   metadata    String
   createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, action, createdAt])
+  @@index([workspaceId, targetType, targetId])
+  @@index([actorId, createdAt])
 }
