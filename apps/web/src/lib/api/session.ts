@@ -14,6 +14,7 @@ type SessionApiResult =
     };
 
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
+const permissionDeniedMessage = "Недостаточно прав для выполнения операции.";
 
 function originOf(value: string) {
   try {
@@ -66,21 +67,23 @@ export async function requireSessionApi(
     const user = await requireCurrentUserPermission(permission);
     return { ok: true, user };
   } catch (error) {
-    if (error instanceof AuthRequiredError) {
+    if (error instanceof AuthRequiredError || (error instanceof Error && error.name === "AuthRequiredError")) {
       return {
         ok: false,
         response: apiError("unauthorized", error.message, 401, options.requestId)
       };
     }
 
+    if (error instanceof Error && error.message === permissionDeniedMessage) {
+      return {
+        ok: false,
+        response: apiError("forbidden", error.message, 403, options.requestId)
+      };
+    }
+
     return {
       ok: false,
-      response: apiError(
-        "forbidden",
-        error instanceof Error ? error.message : "Недостаточно прав для выполнения операции.",
-        403,
-        options.requestId
-      )
+      response: apiError("internal_error", "Внутренняя ошибка авторизации.", 500, options.requestId)
     };
   }
 }

@@ -2,10 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireSessionApi, verifySameOrigin } from "@/lib/api/session";
 
 const mocks = vi.hoisted(() => ({
+  AuthRequiredError: class AuthRequiredError extends Error {
+    constructor() {
+      super("Нет активной пользовательской сессии.");
+      this.name = "AuthRequiredError";
+    }
+  },
   requireCurrentUserPermission: vi.fn()
 }));
 
 vi.mock("@/lib/current-user", () => ({
+  AuthRequiredError: mocks.AuthRequiredError,
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
 }));
 
@@ -33,10 +40,23 @@ describe("session api guard", () => {
     expect(verifySameOrigin(request("POST", { origin: "https://qc.example.com" }))).toEqual({ ok: true });
   });
 
+  it("allows same-origin referer fallback when origin is absent", () => {
+    expect(verifySameOrigin(request("POST", { referer: "https://qc.example.com/settings/api-tokens" }))).toEqual({
+      ok: true
+    });
+  });
+
   it("blocks cross-origin state-changing requests", () => {
     expect(verifySameOrigin(request("POST", { origin: "https://evil.example.com" }))).toEqual({
       ok: false,
       message: "Cross-origin request blocked."
+    });
+  });
+
+  it("requires origin or referer for state-changing requests", () => {
+    expect(verifySameOrigin(request("POST"))).toEqual({
+      ok: false,
+      message: "Origin header is required."
     });
   });
 
@@ -58,6 +78,69 @@ describe("session api guard", () => {
           code: "forbidden",
           message: "Cross-origin request blocked.",
           requestId: "req-session-1"
+        }
+      });
+    }
+  });
+
+  it("maps auth-required errors to structured unauthorized responses", async () => {
+    mocks.requireCurrentUserPermission.mockRejectedValue(new mocks.AuthRequiredError());
+
+    const result = await requireSessionApi(request("POST", { origin: "https://qc.example.com" }), "api_tokens:manage", {
+      requestId: "req-auth-required"
+    });
+
+    expect(result.ok).toBe(false);
+
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      await expect(result.response.json()).resolves.toMatchObject({
+        error: {
+          code: "unauthorized",
+          message: "Нет активной пользовательской сессии.",
+          requestId: "req-auth-required"
+        }
+      });
+    }
+  });
+
+  it("maps permission denial errors to structured forbidden responses", async () => {
+    mocks.requireCurrentUserPermission.mockRejectedValue(new Error("Недостаточно прав для выполнения операции."));
+
+    const result = await requireSessionApi(request("POST", { origin: "https://qc.example.com" }), "api_tokens:manage", {
+      requestId: "req-permission-denied"
+    });
+
+    expect(result.ok).toBe(false);
+
+    if (!result.ok) {
+      expect(result.response.status).toBe(403);
+      await expect(result.response.json()).resolves.toMatchObject({
+        error: {
+          code: "forbidden",
+          message: "Недостаточно прав для выполнения операции.",
+          requestId: "req-permission-denied"
+        }
+      });
+    }
+  });
+
+  it("maps unexpected auth errors to structured internal errors with a generic message", async () => {
+    mocks.requireCurrentUserPermission.mockRejectedValue(new Error("database password leaked"));
+
+    const result = await requireSessionApi(request("POST", { origin: "https://qc.example.com" }), "api_tokens:manage", {
+      requestId: "req-unexpected-auth-error"
+    });
+
+    expect(result.ok).toBe(false);
+
+    if (!result.ok) {
+      expect(result.response.status).toBe(500);
+      await expect(result.response.json()).resolves.toMatchObject({
+        error: {
+          code: "internal_error",
+          message: "Внутренняя ошибка авторизации.",
+          requestId: "req-unexpected-auth-error"
         }
       });
     }
