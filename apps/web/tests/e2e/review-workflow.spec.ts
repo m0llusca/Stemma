@@ -129,6 +129,17 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Ключи API" })).toBeVisible();
   await expect(page.getByText("Заголовок Authorization")).toBeVisible();
   await expect(page.getByRole("button", { name: "Скопировать заголовок" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Новый рабочий ключ" })).toBeVisible();
+  await page.getByLabel("Название").fill("E2E integration key");
+  await page.getByRole("button", { name: "Создать ключ" }).click();
+  await expect(page.getByText("API-ключ создан")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Скопировать новый ключ" })).toBeVisible();
+  await expect(page.getByTestId("created-api-token-secret")).toHaveText(/^qc_/);
+
+  const createdTokenCard = page.locator(".admin-tile").filter({ hasText: "E2E integration key" });
+  await expect(createdTokenCard.getByText("Готов")).toBeVisible();
+  await createdTokenCard.getByRole("button", { name: "Отозвать" }).click();
+  await expect(createdTokenCard.getByText("Истек")).toBeVisible();
 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Подключить источник" })).toBeVisible();

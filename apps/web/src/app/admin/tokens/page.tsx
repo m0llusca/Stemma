@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { ApiTokenCreateForm } from "@/components/admin/api-token-create-form";
 import { CopyButton } from "@/components/copy-button";
+import { allowedApiScopes } from "@/lib/api-token-service";
+import { revokeApiTokenById } from "@/lib/api-token-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
@@ -22,7 +25,16 @@ function formatScopes(scopes: string) {
     .join(", ");
 }
 
-function tokenHealth(token: { lastSuccessAt: Date | null; lastErrorAt: Date | null; lastError: string | null }) {
+function tokenHealth(token: {
+  expiresAt: Date | null;
+  lastSuccessAt: Date | null;
+  lastErrorAt: Date | null;
+  lastError: string | null;
+}) {
+  if (token.expiresAt && token.expiresAt <= new Date()) {
+    return { label: "Истек", className: "bg-[#fff7ed] text-[#b45309]" };
+  }
+
   if (token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)) {
     return { label: "Ошибка", className: "bg-[#fff7ed] text-[#b45309]" };
   }
@@ -45,6 +57,7 @@ export default async function AdminTokensPage() {
     }
   });
   const authorizationHeader = `Authorization: Bearer ${demoApiToken}`;
+  const now = new Date();
 
   return (
     <section className="page-shell admin-shell">
@@ -66,7 +79,17 @@ export default async function AdminTokensPage() {
         </div>
       </div>
 
-      <section className="admin-group-grid admin-group-grid--two" aria-label="Ключи API">
+      <section className="admin-group-grid admin-group-grid--wide" aria-label="Ключи API">
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Новый рабочий ключ</h2>
+            <p className="text-sm leading-5 text-[#64748b]">
+              Создание идет через backend-сервис, секрет показывается только один раз после выпуска.
+            </p>
+          </div>
+          <ApiTokenCreateForm scopes={allowedApiScopes} />
+        </div>
+
         <div className="admin-group">
           <div className="admin-group__header admin-group__header--compact">
             <h2 className="text-base font-semibold text-[#111827]">Локальная проверка</h2>
@@ -107,7 +130,13 @@ export default async function AdminTokensPage() {
             {apiTokens.length > 0 ? (
               apiTokens.map((apiToken) => {
                 const health = tokenHealth(apiToken);
-                const healthTone = health.label === "Ошибка" ? "pill--warn" : health.label === "Работает" ? "pill--ok" : "pill--neutral";
+                const healthTone =
+                  health.label === "Ошибка" || health.label === "Истек"
+                    ? "pill--warn"
+                    : health.label === "Работает"
+                      ? "pill--ok"
+                      : "pill--neutral";
+                const isExpired = Boolean(apiToken.expiresAt && apiToken.expiresAt <= now);
 
                 return (
                   <div key={apiToken.id} className="admin-tile admin-tile--compact">
@@ -122,11 +151,18 @@ export default async function AdminTokensPage() {
                       <span className="record-meta">
                         Использование: {formatDate(apiToken.lastUsedAt)} · успех: {formatDate(apiToken.lastSuccessAt)}
                       </span>
+                      <span className="record-meta">Истекает: {formatDate(apiToken.expiresAt)}</span>
                       {apiToken.lastError ? (
                         <span className="record-meta compact-text text-[#b91c1c]">
                           Ошибка: {formatDate(apiToken.lastErrorAt)} · {apiToken.lastError}
                         </span>
                       ) : null}
+                      <form action={revokeApiTokenById} className="mt-2">
+                        <input type="hidden" name="tokenId" value={apiToken.id} />
+                        <button type="submit" className="action-button" disabled={isExpired}>
+                          Отозвать
+                        </button>
+                      </form>
                     </div>
                   </div>
                 );

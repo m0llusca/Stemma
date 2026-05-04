@@ -1,32 +1,27 @@
 import { auditLog } from "@/lib/audit";
 import { apiError, apiJson } from "@/lib/api/response";
+import { revokeApiToken } from "@/lib/api-token-service";
 import { requireCurrentUserPermission } from "@/lib/current-user";
-import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(_request: Request, context: { params: Promise<{ tokenId: string }> }) {
   const user = await requireCurrentUserPermission("api_tokens:manage");
   const { tokenId } = await context.params;
-  const token = await prisma.apiToken.findFirst({
-    where: {
-      id: tokenId,
-      workspaceId: user.workspaceId
+  const revoked = await revokeApiToken({
+    workspaceId: user.workspaceId,
+    tokenId
+  }).catch((error: unknown) => {
+    if (error instanceof Error && error.message === "API-токен не найден.") {
+      return null;
     }
+
+    throw error;
   });
 
-  if (!token) {
+  if (!revoked) {
     return apiError("not_found", "API-токен не найден.", 404);
   }
-
-  const revoked = await prisma.apiToken.update({
-    where: { id: token.id },
-    data: {
-      expiresAt: new Date(),
-      lastError: "Token revoked by administrator.",
-      lastErrorAt: new Date()
-    }
-  });
 
   await auditLog({
     workspaceId: user.workspaceId,
@@ -49,4 +44,3 @@ export async function POST(_request: Request, context: { params: Promise<{ token
     }
   });
 }
-

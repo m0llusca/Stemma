@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   prisma: {
     apiToken: {
-      create: vi.fn()
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn()
     }
   }
 }));
@@ -54,5 +56,41 @@ describe("api token service", () => {
       })
     });
   });
-});
 
+  it("revokes only tokens from the current workspace", async () => {
+    const { revokeApiToken } = await import("@/lib/api-token-service");
+    mocks.prisma.apiToken.findFirst.mockResolvedValue({
+      id: "token-1",
+      workspaceId: "workspace-1",
+      name: "Integration",
+      tokenPrefix: "qc_abc..."
+    });
+    mocks.prisma.apiToken.update.mockResolvedValue({
+      id: "token-1",
+      workspaceId: "workspace-1",
+      name: "Integration",
+      tokenPrefix: "qc_abc...",
+      expiresAt: new Date()
+    });
+
+    await revokeApiToken({
+      workspaceId: "workspace-1",
+      tokenId: "token-1"
+    });
+
+    expect(mocks.prisma.apiToken.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "token-1",
+        workspaceId: "workspace-1"
+      }
+    });
+    expect(mocks.prisma.apiToken.update).toHaveBeenCalledWith({
+      where: { id: "token-1" },
+      data: {
+        expiresAt: expect.any(Date),
+        lastError: "Token revoked by administrator.",
+        lastErrorAt: expect.any(Date)
+      }
+    });
+  });
+});

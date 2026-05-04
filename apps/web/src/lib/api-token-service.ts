@@ -58,3 +58,24 @@ export async function createApiToken(input: {
   };
 }
 
+export async function revokeApiToken(input: { workspaceId: string; tokenId: string }) {
+  const token = await prisma.apiToken.findFirst({
+    where: {
+      id: input.tokenId,
+      workspaceId: input.workspaceId
+    }
+  });
+
+  if (!token) {
+    throw new Error("API-токен не найден.");
+  }
+
+  return prisma.apiToken.update({
+    where: { id: token.id },
+    data: {
+      expiresAt: new Date(),
+      lastError: "Token revoked by administrator.",
+      lastErrorAt: new Date()
+    }
+  });
+}
