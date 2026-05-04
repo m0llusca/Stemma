@@ -5,6 +5,12 @@ import { runIntegrationConnector } from "@/lib/integrations/runner";
 import { logBackendEvent } from "@/lib/observability";
 
 export type BackendJobPayload = Record<string, unknown>;
+export const backendJobQueueDefaults = {
+  claimRetries: 3,
+  retryBaseDelayMs: 60_000,
+  staleLockMs: 30 * 60_000,
+  staleRecoveryLimit: 20
+} as const;
 
 type JobClient = Pick<
   Prisma.TransactionClient,
@@ -56,33 +62,138 @@ export async function recordJobEvent(client: JobClient, jobId: string, level: st
   });
 }
 
-export async function claimNextBackendJob(workerId: string) {
-  const nextJob = await prisma.backendJob.findFirst({
-    where: {
-      status: "QUEUED",
-      runAfter: {
-        lte: new Date()
-      }
-    },
-    orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
-  });
+export function nextRetryRunAfter(input: { attempts: number; now?: Date; baseDelayMs?: number }) {
+  const now = input.now ?? new Date();
+  const baseDelayMs = input.baseDelayMs ?? backendJobQueueDefaults.retryBaseDelayMs;
+  const delayMultiplier = Math.max(1, input.attempts);
 
-  if (!nextJob) {
-    return null;
+  return new Date(now.getTime() + baseDelayMs * delayMultiplier);
+}
+
+export async function claimNextBackendJob(workerId: string) {
+  const now = new Date();
+
+  for (let attempt = 0; attempt < backendJobQueueDefaults.claimRetries; attempt += 1) {
+    const nextJob = await prisma.backendJob.findFirst({
+      where: {
+        status: "QUEUED",
+        lockedAt: null,
+        runAfter: {
+          lte: now
+        }
+      },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
+    });
+
+    if (!nextJob) {
+      return null;
+    }
+
+    const claimed = await prisma.backendJob.updateMany({
+      where: {
+        id: nextJob.id,
+        status: "QUEUED",
+        lockedAt: null,
+        runAfter: {
+          lte: now
+        }
+      },
+      data: {
+        status: "RUNNING",
+        attempts: {
+          increment: 1
+        },
+        lockedAt: now,
+        lockedBy: workerId,
+        startedAt: now,
+        finishedAt: null,
+        errorMessage: null
+      }
+    });
+
+    if (claimed.count === 0) {
+      continue;
+    }
+
+    const job = await prisma.backendJob.findUnique({
+      where: { id: nextJob.id }
+    });
+
+    if (job) {
+      return job;
+    }
   }
 
-  return prisma.backendJob.update({
-    where: { id: nextJob.id },
-    data: {
+  return null;
+}
+
+export async function recoverStaleBackendJobs(input: {
+  workerId?: string;
+  now?: Date;
+  staleAfterMs?: number;
+  limit?: number;
+} = {}) {
+  const now = input.now ?? new Date();
+  const staleAfterMs = input.staleAfterMs ?? backendJobQueueDefaults.staleLockMs;
+  const cutoff = new Date(now.getTime() - staleAfterMs);
+  const staleJobs = await prisma.backendJob.findMany({
+    where: {
       status: "RUNNING",
-      attempts: {
-        increment: 1
-      },
-      lockedAt: new Date(),
-      lockedBy: workerId,
-      startedAt: new Date()
-    }
+      lockedAt: {
+        lte: cutoff
+      }
+    },
+    orderBy: [{ lockedAt: "asc" }, { createdAt: "asc" }],
+    take: input.limit ?? backendJobQueueDefaults.staleRecoveryLimit
   });
+  let recoveredCount = 0;
+
+  for (const job of staleJobs) {
+    const shouldRetry = job.attempts < job.maxAttempts;
+    const message = shouldRetry
+      ? "Задача возвращена в очередь после истечения lock."
+      : "Задача помечена как ошибочная после истечения lock и исчерпания попыток.";
+
+    const recovered = await prisma.$transaction(async (tx) => {
+      const result = await tx.backendJob.updateMany({
+        where: {
+          id: job.id,
+          status: "RUNNING",
+          lockedAt: {
+            lte: cutoff
+          }
+        },
+        data: {
+          status: shouldRetry ? "QUEUED" : "FAILED",
+          runAfter: shouldRetry ? now : job.runAfter,
+          finishedAt: shouldRetry ? null : now,
+          lockedAt: null,
+          lockedBy: null,
+          errorMessage: message
+        }
+      });
+
+      if (result.count === 0) {
+        return false;
+      }
+
+      await recordJobEvent(tx, job.id, shouldRetry ? "warn" : "error", message, {
+        previousWorkerId: job.lockedBy,
+        recoveredBy: input.workerId,
+        staleAfterMs,
+        attempts: job.attempts,
+        maxAttempts: job.maxAttempts
+      });
+
+      return true;
+    });
+
+    if (recovered) {
+      recoveredCount += 1;
+    }
+  }
+
+  return { recoveredCount };
 }
 
 function parsePayload(job: BackendJob): BackendJobPayload {
@@ -259,10 +370,17 @@ async function executeBackendJob(job: BackendJob) {
   });
 }
 
-export async function runDueBackendJobs(input: { workerId?: string; limit?: number } = {}) {
+export async function runDueBackendJobs(input: { workerId?: string; limit?: number; recoverStale?: boolean; staleAfterMs?: number } = {}) {
   const workerId = input.workerId ?? `worker-${process.pid}`;
   const limit = input.limit ?? 5;
   const results: Array<{ jobId: string; status: "SUCCEEDED" | "FAILED"; result?: unknown; error?: string }> = [];
+
+  if (input.recoverStale ?? true) {
+    await recoverStaleBackendJobs({
+      workerId,
+      staleAfterMs: input.staleAfterMs
+    });
+  }
 
   for (let index = 0; index < limit; index += 1) {
     const job = await claimNextBackendJob(workerId);
@@ -315,7 +433,7 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
         data: {
           status: shouldRetry ? "QUEUED" : "FAILED",
           errorMessage: message,
-          runAfter: shouldRetry ? new Date(Date.now() + 1000 * 60 * Math.max(1, job.attempts)) : job.runAfter,
+          runAfter: shouldRetry ? nextRetryRunAfter({ attempts: job.attempts }) : job.runAfter,
           finishedAt: shouldRetry ? null : new Date(),
           lockedAt: null,
           lockedBy: null
