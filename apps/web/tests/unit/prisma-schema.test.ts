@@ -8,6 +8,10 @@ const baselineMigration = readFileSync(
   join(process.cwd(), "prisma/migrations/20260504122200_postgresql_baseline/migration.sql"),
   "utf8"
 );
+const guardrailsMigration = readFileSync(
+  join(process.cwd(), "prisma/migrations/20260504123057_add_database_guardrails/migration.sql"),
+  "utf8"
+);
 
 describe("prisma schema database foundations", () => {
   it("uses PostgreSQL as the only Prisma datasource provider", () => {
@@ -59,5 +63,36 @@ describe("prisma schema database foundations", () => {
     for (const index of expectedMigrationIndexes) {
       expect(baselineMigration).toContain(index);
     }
+  });
+
+  it("keeps PostgreSQL guardrails for scores, periods, retries and partial hot paths", () => {
+    const expectedConstraints = [
+      'CONSTRAINT "Conversation_csatScore_range_chk"',
+      'CONSTRAINT "Conversation_closedAt_after_openedAt_chk"',
+      'CONSTRAINT "Review_totalScore_range_chk"',
+      'CONSTRAINT "Review_finalizedAt_required_chk"',
+      'CONSTRAINT "CriterionScore_value_range_chk"',
+      'CONSTRAINT "BackendJob_attempts_range_chk"',
+      'CONSTRAINT "IntegrationRun_finishedAt_after_startedAt_chk"',
+      'CONSTRAINT "ReportSnapshot_period_order_chk"'
+    ];
+
+    for (const constraint of expectedConstraints) {
+      expect(guardrailsMigration).toContain(constraint);
+    }
+
+    const expectedPartialIndexes = [
+      'CREATE INDEX "AuthSession_active_workspace_user_expiresAt_idx"',
+      'CREATE INDEX "BackendJob_runnable_queue_priority_idx"',
+      'CREATE INDEX "IdempotencyKey_in_progress_expiresAt_idx"',
+      'CREATE INDEX "Review_open_appeal_due_idx"',
+      'CREATE INDEX "TrainingAssignment_open_due_idx"'
+    ];
+
+    for (const index of expectedPartialIndexes) {
+      expect(guardrailsMigration).toContain(index);
+    }
+
+    expect(guardrailsMigration).toContain('WHERE "status" = \'QUEUED\' AND "lockedAt" IS NULL');
   });
 });

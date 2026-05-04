@@ -684,6 +684,7 @@ async function main() {
         requestedLimit: 100,
         importedCount: 18,
         errorCount: 0,
+        startedAt: new Date("2026-05-02T11:55:00.000Z"),
         finishedAt: new Date("2026-05-02T12:00:00.000Z")
       },
       {
@@ -697,6 +698,7 @@ async function main() {
         requestedLimit: 50,
         importedCount: 4,
         errorCount: 0,
+        startedAt: new Date("2026-05-02T12:05:00.000Z"),
         finishedAt: new Date("2026-05-02T12:10:00.000Z")
       }
     ]
