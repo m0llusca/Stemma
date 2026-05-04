@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -25,13 +25,26 @@ function optionalValue(value: string | undefined) {
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ providerId: string }> }) {
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { providerId } = await context.params;
   const body = await request.json().catch(() => null);
   const parsed = updateProviderSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры провайдера авторизации.", 400, undefined, parsed.error.flatten());
+    return apiError(
+      "bad_request",
+      "Некорректные параметры провайдера авторизации.",
+      400,
+      requestId,
+      parsed.error.flatten()
+    );
   }
 
   const existingProvider = await prisma.identityProvider.findFirst({
@@ -42,7 +55,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
   });
 
   if (!existingProvider) {
-    return apiError("not_found", "Провайдер авторизации не найден.", 404);
+    return apiError("not_found", "Провайдер авторизации не найден.", 404, requestId);
   }
 
   const provider = await prisma.$transaction(async (tx) => {
@@ -81,14 +94,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
     return result;
   });
 
-  return apiJson({
-    provider: {
-      id: provider.id,
-      type: provider.type,
-      name: provider.name,
-      slug: provider.slug,
-      status: provider.status
-    }
-  });
+  return apiJson(
+    {
+      provider: {
+        id: provider.id,
+        type: provider.type,
+        name: provider.name,
+        slug: provider.slug,
+        status: provider.status
+      }
+    },
+    200,
+    requestId
+  );
 }
-

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { runDueBackendJobs } from "@/lib/jobs/queue";
-import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
+import { logBackendEvent } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,13 @@ const runJobsSchema = z.object({
 
 export async function POST(request: Request) {
   const requestId = requestIdFromHeaders(request.headers);
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const session = await requireSessionApi(request, "backend_jobs:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const body = await request.json().catch(() => ({}));
   const parsed = runJobsSchema.safeParse(body);
 

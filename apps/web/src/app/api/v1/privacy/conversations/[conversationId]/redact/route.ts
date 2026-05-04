@@ -1,6 +1,6 @@
 import { auditLog } from "@/lib/audit";
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 import { redactText, redactedText } from "@/lib/privacy";
 import { recordReviewEvent } from "@/lib/review-events";
@@ -8,7 +8,14 @@ import { recordReviewEvent } from "@/lib/review-events";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, context: { params: Promise<{ conversationId: string }> }) {
-  const user = await requireCurrentUserPermission("privacy:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "privacy:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { conversationId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { reason?: unknown };
   const reason = typeof body.reason === "string" && body.reason.trim() ? body.reason.trim().slice(0, 240) : "Не указана";
@@ -28,7 +35,7 @@ export async function POST(request: Request, context: { params: Promise<{ conver
   });
 
   if (!conversation) {
-    return apiError("not_found", "Обращение не найдено.", 404);
+    return apiError("not_found", "Обращение не найдено.", 404, requestId);
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -82,11 +89,15 @@ export async function POST(request: Request, context: { params: Promise<{ conver
     };
   });
 
-  return apiJson({
-    conversation: {
-      id: conversation.id,
-      redacted: true,
-      redactedMessages: result.redactedMessages
-    }
-  });
+  return apiJson(
+    {
+      conversation: {
+        id: conversation.id,
+        redacted: true,
+        redactedMessages: result.redactedMessages
+      }
+    },
+    200,
+    requestId
+  );
 }

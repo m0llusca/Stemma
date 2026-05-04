@@ -1,12 +1,19 @@
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(_request: Request, context: { params: Promise<{ providerId: string }> }) {
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+export async function POST(request: Request, context: { params: Promise<{ providerId: string }> }) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { providerId } = await context.params;
   const provider = await prisma.identityProvider.findFirst({
     where: {
@@ -21,7 +28,7 @@ export async function POST(_request: Request, context: { params: Promise<{ provi
   });
 
   if (!provider) {
-    return apiError("not_found", "Провайдер авторизации не найден.", 404);
+    return apiError("not_found", "Провайдер авторизации не найден.", 404, requestId);
   }
 
   const job = await enqueueBackendJob({
@@ -45,7 +52,7 @@ export async function POST(_request: Request, context: { params: Promise<{ provi
         status: job.status
       }
     },
-    202
+    202,
+    requestId
   );
 }
-

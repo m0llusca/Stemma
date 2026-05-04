@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { apiError, apiJson } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/queue";
@@ -50,12 +51,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "backend_jobs:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const body = await request.json().catch(() => null);
   const parsed = createJobSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры фоновой задачи.", 400, undefined, parsed.error.flatten());
+    return apiError("bad_request", "Некорректные параметры фоновой задачи.", 400, requestId, parsed.error.flatten());
   }
 
   const job = await enqueueBackendJob({
@@ -77,7 +85,7 @@ export async function POST(request: Request) {
         status: job.status
       }
     },
-    201
+    201,
+    requestId
   );
 }
-

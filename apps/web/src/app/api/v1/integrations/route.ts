@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { apiError, apiJson } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { encryptSecret } from "@/lib/secrets";
@@ -99,12 +100,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await requireCurrentUserPermission("integrations:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "integrations:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const body = await request.json().catch(() => null);
   const parsed = integrationSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры интеграции.", 400, undefined, parsed.error.flatten());
+    return apiError("bad_request", "Некорректные параметры интеграции.", 400, requestId, parsed.error.flatten());
   }
 
   const integration = await prisma.$transaction(async (tx) => {
@@ -194,7 +202,7 @@ export async function POST(request: Request) {
         hasCredential: Boolean(parsed.data.credentialSecret)
       }
     },
-    201
+    201,
+    requestId
   );
 }
-

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { apiError, apiJson } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { allowedApiScopes, createApiToken } from "@/lib/api-token-service";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -48,12 +49,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await requireCurrentUserPermission("api_tokens:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "api_tokens:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const body = await request.json().catch(() => null);
   const parsed = createApiTokenSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры API-токена.", 400, undefined, parsed.error.flatten());
+    return apiError("bad_request", "Некорректные параметры API-токена.", 400, requestId, parsed.error.flatten());
   }
 
   try {
@@ -88,10 +96,15 @@ export async function POST(request: Request) {
         },
         plainToken: created.plainToken
       },
-      201
+      201,
+      requestId
     );
   } catch (error) {
-    return apiError("bad_request", error instanceof Error ? error.message : "Не удалось создать API-токен.", 400);
+    return apiError(
+      "bad_request",
+      error instanceof Error ? error.message : "Не удалось создать API-токен.",
+      400,
+      requestId
+    );
   }
 }
-

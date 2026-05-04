@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { apiError, apiJson } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
@@ -51,13 +52,20 @@ export async function GET(_request: Request, context: { params: Promise<{ provid
 }
 
 export async function POST(request: Request, context: { params: Promise<{ providerId: string }> }) {
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { providerId } = await context.params;
   const body = await request.json().catch(() => null);
   const parsed = mappingSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректный маппинг группы в роль.", 400, undefined, parsed.error.flatten());
+    return apiError("bad_request", "Некорректный маппинг группы в роль.", 400, requestId, parsed.error.flatten());
   }
 
   const provider = await prisma.identityProvider.findFirst({
@@ -69,7 +77,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   });
 
   if (!provider) {
-    return apiError("not_found", "Провайдер авторизации не найден.", 404);
+    return apiError("not_found", "Провайдер авторизации не найден.", 404, requestId);
   }
 
   const mapping = await prisma.$transaction(async (tx) => {
@@ -129,7 +137,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
         isActive: mapping.isActive
       }
     },
-    201
+    201,
+    requestId
   );
 }
-

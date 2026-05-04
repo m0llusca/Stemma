@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { getDirectoryIntegrationGuidance, buildEntraAuthorizationMetadata } from "@/lib/auth/providers";
-import { apiError, apiJson } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
@@ -64,12 +65,25 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const body = await request.json().catch(() => null);
   const parsed = providerSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры провайдера авторизации.", 400, undefined, parsed.error.flatten());
+    return apiError(
+      "bad_request",
+      "Некорректные параметры провайдера авторизации.",
+      400,
+      requestId,
+      parsed.error.flatten()
+    );
   }
 
   const provider = await prisma.$transaction(async (tx) => {
@@ -142,6 +156,7 @@ export async function POST(request: Request) {
         status: provider.status
       }
     },
-    201
+    201,
+    requestId
   );
 }

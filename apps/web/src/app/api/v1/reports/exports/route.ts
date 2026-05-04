@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { enqueueBackendJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +15,19 @@ const exportSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const user = await requireCurrentUserPermission("reports:read");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "reports:read", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const body = await request.json().catch(() => null);
   const parsed = exportSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры экспорта отчета.", 400, undefined, parsed.error.flatten());
+    return apiError("bad_request", "Некорректные параметры экспорта отчета.", 400, requestId, parsed.error.flatten());
   }
 
   const job = await enqueueBackendJob({
@@ -40,7 +47,7 @@ export async function POST(request: Request) {
         status: job.status
       }
     },
-    202
+    202,
+    requestId
   );
 }
-

@@ -1,12 +1,19 @@
 import { auditLog } from "@/lib/audit";
-import { apiError, apiJson } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { revokeApiToken } from "@/lib/api-token-service";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(_request: Request, context: { params: Promise<{ tokenId: string }> }) {
-  const user = await requireCurrentUserPermission("api_tokens:manage");
+export async function POST(request: Request, context: { params: Promise<{ tokenId: string }> }) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "api_tokens:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { tokenId } = await context.params;
   const revoked = await revokeApiToken({
     workspaceId: user.workspaceId,
@@ -20,7 +27,7 @@ export async function POST(_request: Request, context: { params: Promise<{ token
   });
 
   if (!revoked) {
-    return apiError("not_found", "API-токен не найден.", 404);
+    return apiError("not_found", "API-токен не найден.", 404, requestId);
   }
 
   await auditLog({
@@ -35,12 +42,16 @@ export async function POST(_request: Request, context: { params: Promise<{ token
     }
   });
 
-  return apiJson({
-    token: {
-      id: revoked.id,
-      name: revoked.name,
-      tokenPrefix: revoked.tokenPrefix,
-      expiresAt: revoked.expiresAt?.toISOString() ?? null
-    }
-  });
+  return apiJson(
+    {
+      token: {
+        id: revoked.id,
+        name: revoked.name,
+        tokenPrefix: revoked.tokenPrefix,
+        expiresAt: revoked.expiresAt?.toISOString() ?? null
+      }
+    },
+    200,
+    requestId
+  );
 }

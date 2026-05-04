@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { queueIntegrationImportJob } from "@/lib/integration-import-service";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +12,20 @@ const importSchema = z.object({
 });
 
 export async function POST(request: Request, context: { params: Promise<{ integrationId: string }> }) {
-  const user = await requireCurrentUserPermission("integrations:manage");
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "integrations:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { integrationId } = await context.params;
   const body = await request.json().catch(() => ({}));
   const parsed = importSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("bad_request", "Некорректные параметры запуска импорта.", 400, undefined, parsed.error.flatten());
+    return apiError("bad_request", "Некорректные параметры запуска импорта.", 400, requestId, parsed.error.flatten());
   }
 
   const result = await queueIntegrationImportJob({
@@ -37,7 +44,7 @@ export async function POST(request: Request, context: { params: Promise<{ integr
   });
 
   if (!result) {
-    return apiError("not_found", "Интеграция не найдена.", 404);
+    return apiError("not_found", "Интеграция не найдена.", 404, requestId);
   }
 
   return apiJson(
@@ -52,6 +59,7 @@ export async function POST(request: Request, context: { params: Promise<{ integr
         status: result.job.status
       }
     },
-    202
+    202,
+    requestId
   );
 }
