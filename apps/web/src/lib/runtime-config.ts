@@ -27,11 +27,11 @@ export function getRuntimeConfigDiagnostics() {
     },
     {
       key: "production_database",
-      status: isProduction && provider !== "postgresql" ? "warn" : "ok",
+      status: provider === "postgresql" ? "ok" : "error",
       message:
-        isProduction && provider !== "postgresql"
-          ? "Для production рекомендуется PostgreSQL, текущий DATABASE_URL не похож на PostgreSQL."
-          : "Провайдер БД допустим для текущего окружения."
+        provider === "postgresql"
+          ? "DATABASE_URL указывает на PostgreSQL."
+          : "DATABASE_URL должен указывать на PostgreSQL."
     },
     {
       key: "secret_key",
@@ -58,4 +58,3 @@ export function getRuntimeConfigDiagnostics() {
     checks
   };
 }
-

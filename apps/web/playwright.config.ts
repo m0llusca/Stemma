@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const defaultDatabaseUrl = "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public";
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? defaultDatabaseUrl;
+
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
@@ -18,8 +21,7 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command:
-      "node -e \"require('node:fs').closeSync(require('node:fs').openSync('prisma/dev.db', 'a'))\" && cross-env DATABASE_URL=file:./dev.db prisma migrate deploy && npm run db:seed && cross-env DATABASE_URL=file:./dev.db npm run dev",
+    command: "npm run db:deploy && npm run db:seed && npm run dev",
     url: "http://localhost:3000",
     timeout: 120_000,
     reuseExistingServer: !process.env.CI
