@@ -180,6 +180,15 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(znunyIntegrationCard.getByRole("button", { name: "Запланировать импорт" })).toBeVisible();
   await znunyIntegrationCard.getByRole("button", { name: "Запланировать импорт" }).click();
   await expect(znunyIntegrationCard.getByText("Импорт поставлен в backend-очередь")).toBeVisible();
+  await page.reload();
+  await expect(znunyIntegrationCard.getByText("В очереди").first()).toBeVisible();
+  await expect(znunyIntegrationCard.getByRole("link", { name: /Backend job/ }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Запустить очередь сейчас" }).click();
+  await expect(page.getByText(/Запущено задач:/)).toBeVisible({ timeout: 45_000 });
+  await page.reload();
+  await expect(page.getByText(/Повтор запланирован|Dry-run готов|Импорт готов|Ошибка/).first()).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole("link", { name: /Backend job/ }).first()).toBeVisible();
 
   await page.getByRole("heading", { name: "Подключить источник" }).click();
   await page.getByLabel("Источник").selectOption("custom_api");

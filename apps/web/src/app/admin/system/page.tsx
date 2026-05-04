@@ -1,9 +1,10 @@
-import type { BackendJobStatus, IdentityProviderType } from "@prisma/client";
+import type { IdentityProviderType } from "@prisma/client";
 import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
+import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync, queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 
@@ -53,18 +54,6 @@ function providerStatusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-function importRunStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    ready: "Готово",
-    active: "Активно",
-    queued: "В очереди",
-    error: "Ошибка",
-    draft: "Черновик"
-  };
-
-  return labels[status] ?? status;
-}
-
 function providerTypeLabel(type: IdentityProviderType) {
   const labels: Record<IdentityProviderType, string> = {
     DEMO: "Демо",
@@ -75,41 +64,6 @@ function providerTypeLabel(type: IdentityProviderType) {
   };
 
   return labels[type];
-}
-
-function jobStatusLabel(status: BackendJobStatus) {
-  const labels: Record<BackendJobStatus, string> = {
-    QUEUED: "В очереди",
-    RUNNING: "Выполняется",
-    SUCCEEDED: "Готово",
-    FAILED: "Ошибка",
-    CANCELLED: "Отменено"
-  };
-
-  return labels[status];
-}
-
-function jobTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    DIRECTORY_SYNC: "Синхронизация каталога",
-    INTEGRATION_IMPORT: "Импорт обращений",
-    REPORT_EXPORT: "Экспорт отчета",
-    RETENTION_CLEANUP: "Очистка данных"
-  };
-
-  return labels[type] ?? type;
-}
-
-function queueNameLabel(queueName: string) {
-  const labels: Record<string, string> = {
-    default: "Общая очередь",
-    directory: "Каталог пользователей",
-    integrations: "Интеграции",
-    maintenance: "Обслуживание",
-    reports: "Отчеты"
-  };
-
-  return labels[queueName] ?? queueName;
 }
 
 function environmentLabel(environment: string) {
@@ -286,31 +240,31 @@ export default async function AdminSystemPage() {
             {recentJobs.length === 0 ? (
               <div className="soft-callout text-sm text-[#64748b]">Фоновых задач пока нет.</div>
             ) : (
-              recentJobs.map((job) => (
-                <article key={job.id} className="record-card">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(job.status)}`}>
-                        {jobStatusLabel(job.status)}
-                      </span>
-                      <h3 className="font-semibold text-[#111827]">{jobTypeLabel(job.type)}</h3>
+              recentJobs.map((job) => {
+                const status = backendJobStatusView(job.status);
+
+                return (
+                  <article key={job.id} className="record-card">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${status.badgeClass}`}>{status.label}</span>
+                        <h3 className="font-semibold text-[#111827]">{backendJobTypeLabel(job.type)}</h3>
+                      </div>
+                      <p className="mt-1 text-sm text-[#64748b]">
+                        {queueNameLabel(job.queueName)} · попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
+                      </p>
+                      {job.events[0] ? <p className="mt-2 text-sm text-[#64748b]">{job.events[0].message}</p> : null}
+                      {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[#b91c1c]">{job.errorMessage}</p> : null}
                     </div>
-                    <p className="mt-1 text-sm text-[#64748b]">
-                      {queueNameLabel(job.queueName)} · попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
-                    </p>
-                    {job.events[0] ? (
-                      <p className="mt-2 text-sm text-[#64748b]">{job.events[0].message}</p>
-                    ) : null}
-                    {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[#b91c1c]">{job.errorMessage}</p> : null}
-                  </div>
-                  <div className="record-row">
-                    <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
-                    <Link href={`/admin/system/jobs/${job.id}`} className="text-sm font-semibold text-[#1d3fae] hover:underline">
-                      Детали задачи
-                    </Link>
-                  </div>
-                </article>
-              ))
+                    <div className="record-row">
+                      <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
+                      <Link href={`/admin/system/jobs/${job.id}`} className="text-sm font-semibold text-[#1d3fae] hover:underline">
+                        Детали задачи
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </div>
         </section>
@@ -454,19 +408,21 @@ export default async function AdminSystemPage() {
               {recentRuns.length === 0 ? (
                 <p className="soft-callout text-sm text-[#64748b]">Запусков пока нет.</p>
               ) : (
-                recentRuns.map((run) => (
-                  <div key={run.id} className="record-card text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-[#111827]">{run.integration?.displayName ?? run.source}</p>
-                      <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(run.status)}`}>
-                        {importRunStatusLabel(run.status)}
-                      </span>
+                recentRuns.map((run) => {
+                  const status = integrationRunStatusView(run.status);
+
+                  return (
+                    <div key={run.id} className="record-card text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold text-[#111827]">{run.integration?.displayName ?? run.source}</p>
+                        <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${status.badgeClass}`}>{status.label}</span>
+                      </div>
+                      <p className="mt-2 text-[#64748b]">
+                        {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
+                      </p>
                     </div>
-                    <p className="mt-2 text-[#64748b]">
-                      {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

@@ -6,6 +6,7 @@ import { auditLog } from "@/lib/audit";
 import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { queueIntegrationImportJob } from "@/lib/integration-import-service";
+import { runDueBackendJobs } from "@/lib/jobs/queue";
 import { encryptSecret } from "@/lib/secrets";
 
 export type IntegrationActionState = {
@@ -19,6 +20,14 @@ export type IntegrationImportActionState = {
   message: string;
   runId?: string;
   jobId?: string;
+} | null;
+
+export type IntegrationQueueRunActionState = {
+  ok: boolean;
+  message: string;
+  processed: number;
+  succeeded: number;
+  failed: number;
 } | null;
 
 function stringField(formData: FormData, key: string) {
@@ -390,6 +399,70 @@ export async function queueIntegrationImportState(
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Не удалось запланировать импорт."
+    };
+  }
+}
+
+export async function runIntegrationQueueState(
+  _state: IntegrationQueueRunActionState,
+  formData: FormData
+): Promise<IntegrationQueueRunActionState> {
+  try {
+    const user = await getCurrentUser();
+
+    if (!canManageIntegrations(user.role)) {
+      return {
+        ok: false,
+        message: "Нет прав на управление интеграциями.",
+        processed: 0,
+        succeeded: 0,
+        failed: 0
+      };
+    }
+
+    const limit = numberField(formData, "limit", 5);
+    const results = await runDueBackendJobs({
+      limit,
+      queueName: "integrations",
+      workerId: `ui-integrations-${user.id.slice(0, 8)}`
+    });
+    const succeeded = results.filter((result) => result.status === "SUCCEEDED").length;
+    const failed = results.filter((result) => result.status === "FAILED").length;
+
+    await auditLog({
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      action: "backend_jobs.run_from_integrations_ui",
+      targetType: "backend_job",
+      targetId: "integrations",
+      metadata: {
+        limit,
+        processed: results.length,
+        succeeded,
+        failed
+      }
+    });
+
+    revalidatePath("/admin/integrations");
+    revalidatePath("/admin/system");
+
+    return {
+      ok: true,
+      message:
+        results.length === 0
+          ? "В очереди интеграций нет задач для запуска."
+          : `Запущено задач: ${results.length}. Успешно: ${succeeded}. С ошибками: ${failed}.`,
+      processed: results.length,
+      succeeded,
+      failed
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Не удалось запустить очередь интеграций.",
+      processed: 0,
+      succeeded: 0,
+      failed: 0
     };
   }
 }

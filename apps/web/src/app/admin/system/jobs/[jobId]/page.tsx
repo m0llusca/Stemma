@@ -1,9 +1,9 @@
-import type { BackendJobStatus } from "@prisma/client";
 import { ArrowLeft, Ban, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
 import { cancelQueuedBackendJob, runQueuedBackendJobs } from "@/lib/system-actions";
 
 export const dynamic = "force-dynamic";
@@ -22,36 +22,6 @@ function parseJson(value: string) {
   } catch {
     return value || "{}";
   }
-}
-
-function jobStatusLabel(status: BackendJobStatus) {
-  const labels: Record<BackendJobStatus, string> = {
-    QUEUED: "В очереди",
-    RUNNING: "Выполняется",
-    SUCCEEDED: "Готово",
-    FAILED: "Ошибка",
-    CANCELLED: "Отменено"
-  };
-
-  return labels[status];
-}
-
-function jobTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    DIRECTORY_SYNC: "Синхронизация каталога",
-    INTEGRATION_IMPORT: "Импорт обращений",
-    REPORT_EXPORT: "Экспорт отчета",
-    RETENTION_CLEANUP: "Очистка данных"
-  };
-
-  return labels[type] ?? type;
-}
-
-function statusTone(status: BackendJobStatus) {
-  if (status === "SUCCEEDED") return "pill--ok";
-  if (status === "FAILED") return "pill--warn";
-  if (status === "RUNNING" || status === "QUEUED") return "pill--neutral";
-  return "pill--neutral";
 }
 
 export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
@@ -79,14 +49,16 @@ export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
     notFound();
   }
 
+  const jobStatus = backendJobStatusView(job.status);
+
   return (
     <section className="page-shell admin-shell">
       <div className="command-center command-center--split">
         <div className="min-w-0">
           <p className="page-kicker">Фоновые задачи</p>
-          <h1 className="page-title">{jobTypeLabel(job.type)}</h1>
+          <h1 className="page-title">{backendJobTypeLabel(job.type)}</h1>
           <p className="page-subtitle">
-            Очередь {job.queueName}, попытка {job.attempts}/{job.maxAttempts}, создано {formatDate(job.createdAt)}.
+            Очередь {queueNameLabel(job.queueName)}, попытка {job.attempts}/{job.maxAttempts}, создано {formatDate(job.createdAt)}.
           </p>
         </div>
         <div className="admin-actions xl:justify-end">
@@ -117,7 +89,7 @@ export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
         <section className="panel overflow-hidden">
           <div className="border-b border-[#d9e0ea] px-5 py-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`pill ${statusTone(job.status)}`}>{jobStatusLabel(job.status)}</span>
+              <span className={`pill ${jobStatus.pillClass}`}>{jobStatus.label}</span>
               <h2 className="text-lg font-semibold">Сводка</h2>
             </div>
           </div>

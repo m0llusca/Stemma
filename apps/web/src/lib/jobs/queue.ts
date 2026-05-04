@@ -70,7 +70,7 @@ export function nextRetryRunAfter(input: { attempts: number; now?: Date; baseDel
   return new Date(now.getTime() + baseDelayMs * delayMultiplier);
 }
 
-export async function claimNextBackendJob(workerId: string) {
+export async function claimNextBackendJob(workerId: string, filters: { queueName?: string } = {}) {
   const now = new Date();
 
   for (let attempt = 0; attempt < backendJobQueueDefaults.claimRetries; attempt += 1) {
@@ -78,6 +78,7 @@ export async function claimNextBackendJob(workerId: string) {
       where: {
         status: "QUEUED",
         lockedAt: null,
+        ...(filters.queueName ? { queueName: filters.queueName } : {}),
         runAfter: {
           lte: now
         }
@@ -370,7 +371,7 @@ async function executeBackendJob(job: BackendJob) {
   });
 }
 
-export async function runDueBackendJobs(input: { workerId?: string; limit?: number; recoverStale?: boolean; staleAfterMs?: number } = {}) {
+export async function runDueBackendJobs(input: { workerId?: string; limit?: number; recoverStale?: boolean; staleAfterMs?: number; queueName?: string } = {}) {
   const workerId = input.workerId ?? `worker-${process.pid}`;
   const limit = input.limit ?? 5;
   const results: Array<{ jobId: string; status: "SUCCEEDED" | "FAILED"; result?: unknown; error?: string }> = [];
@@ -383,7 +384,9 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
   }
 
   for (let index = 0; index < limit; index += 1) {
-    const job = await claimNextBackendJob(workerId);
+    const job = await claimNextBackendJob(workerId, {
+      queueName: input.queueName
+    });
 
     if (!job) {
       break;
