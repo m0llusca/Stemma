@@ -23,6 +23,17 @@ describe("api token auth", () => {
     vi.clearAllMocks();
   });
 
+  it("keeps the legacy unauthorized error body by default", async () => {
+    const auth = await requireApiToken(request(), "conversations:read");
+
+    expect(auth.ok).toBe(false);
+
+    if (!auth.ok) {
+      await expect(auth.response.json()).resolves.toEqual({ error: "API token is required." });
+      expect(auth.response.status).toBe(401);
+    }
+  });
+
   it("returns a structured unauthorized error with request id", async () => {
     const auth = await requireApiToken(request({ "x-request-id": "req-auth-1" }), "conversations:read", {
       structuredErrors: true
