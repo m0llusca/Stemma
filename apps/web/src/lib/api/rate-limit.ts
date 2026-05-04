@@ -3,11 +3,13 @@ import { prisma } from "@/lib/db";
 export type RateLimitResult =
   | {
       ok: true;
+      limit: number;
       remaining: number;
       resetAt: Date;
     }
   | {
       ok: false;
+      limit: number;
       remaining: 0;
       resetAt: Date;
     };
@@ -55,13 +57,22 @@ export async function enforceApiRateLimit(input: {
   return bucket.requestCount <= limit
     ? {
         ok: true,
+        limit,
         remaining,
         resetAt
       }
     : {
         ok: false,
+        limit,
         remaining: 0,
         resetAt
       };
 }
 
+export function rateLimitHeaders(result: RateLimitResult) {
+  return {
+    "x-ratelimit-limit": String(result.limit),
+    "x-ratelimit-remaining": String(result.remaining),
+    "x-ratelimit-reset": result.resetAt.toISOString()
+  };
+}

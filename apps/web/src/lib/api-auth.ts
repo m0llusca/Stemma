@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { prisma } from "@/lib/db";
 
 export type ApiScope =
@@ -23,6 +24,11 @@ type ApiAuthResult =
       ok: false;
       response: NextResponse;
     };
+
+type RequireApiTokenOptions = {
+  requestId?: string;
+  structuredErrors?: boolean;
+};
 
 export function hashApiToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
@@ -53,13 +59,26 @@ function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function requireApiToken(request: NextRequest, requiredScope: ApiScope): Promise<ApiAuthResult> {
+function authErrorResponse(request: NextRequest, message: string, status: 401 | 403, options: RequireApiTokenOptions) {
+  if (!options.structuredErrors) {
+    return errorResponse(message, status);
+  }
+
+  const requestId = options.requestId ?? requestIdFromHeaders(request.headers);
+  return apiError(status === 401 ? "unauthorized" : "forbidden", message, status, requestId);
+}
+
+export async function requireApiToken(
+  request: NextRequest,
+  requiredScope: ApiScope,
+  options: RequireApiTokenOptions = {}
+): Promise<ApiAuthResult> {
   const token = readApiToken(request);
 
   if (!token) {
     return {
       ok: false,
-      response: errorResponse("API token is required.", 401)
+      response: authErrorResponse(request, "API token is required.", 401, options)
     };
   }
 
@@ -78,14 +97,14 @@ export async function requireApiToken(request: NextRequest, requiredScope: ApiSc
   if (!apiToken || (apiToken.expiresAt && apiToken.expiresAt < new Date())) {
     return {
       ok: false,
-      response: errorResponse("API token is invalid or expired.", 401)
+      response: authErrorResponse(request, "API token is invalid or expired.", 401, options)
     };
   }
 
   if (!hasScope(apiToken.scopes, requiredScope)) {
     return {
       ok: false,
-      response: errorResponse("API token does not have the required scope.", 403)
+      response: authErrorResponse(request, "API token does not have the required scope.", 403, options)
     };
   }
 
