@@ -2,15 +2,8 @@ import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueSummary } from "@/components/review/queue-summary";
 import { QueueTable } from "@/components/review/queue-table";
-import { requireCurrentUserPermission } from "@/lib/current-user";
-import { prisma } from "@/lib/db";
-import {
-  getReviewQueue,
-  getReviewQueueFilterOptions,
-  getReviewQueueSummary,
-  parseReviewQueueFilters,
-  type ReviewQueueSearchParams
-} from "@/lib/review-repository";
+import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
+import type { ReviewQueueSearchParams } from "@/lib/review-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -18,63 +11,8 @@ type ReviewsPageProps = {
   searchParams: Promise<ReviewQueueSearchParams>;
 };
 
-function reviewQueueHref(params: ReviewQueueSearchParams) {
-  const urlSearchParams = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(params)) {
-    const values = Array.isArray(value) ? value : [value];
-
-    for (const item of values) {
-      if (item) {
-        urlSearchParams.append(key, item);
-      }
-    }
-  }
-
-  const query = urlSearchParams.toString();
-
-  return query ? `/reviews?${query}` : "/reviews";
-}
-
 export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
-  const user = await requireCurrentUserPermission("reviews:read");
-  const rawParams = await searchParams;
-  const filters = parseReviewQueueFilters(rawParams);
-  const effectiveFilters = user.role === "SUPPORT_AGENT" ? { ...filters, assignee: user.name } : filters;
-  const currentHref = reviewQueueHref(rawParams);
-  const [conversations, summary, filterOptions, qaAssignees, savedViews] = await Promise.all([
-    getReviewQueue(user.workspaceId, effectiveFilters),
-    getReviewQueueSummary(user.workspaceId),
-    getReviewQueueFilterOptions(user.workspaceId),
-    prisma.user.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        role: {
-          in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
-        }
-      },
-      orderBy: {
-        name: "asc"
-      },
-      select: {
-        id: true,
-        name: true
-      }
-    }),
-    prisma.savedQueueView.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        OR: [{ userId: user.id }, { scope: "workspace" }]
-      },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        href: true,
-        scope: true
-      }
-    })
-  ]);
+  const data = await getReviewQueuePageData(await searchParams);
 
   return (
     <section className="page-shell workspace-shell">
@@ -85,19 +23,19 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           <p className="page-subtitle">Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия по намерению.</p>
         </div>
       </div>
-      <QueueSummary {...summary} filtered={conversations.length} />
+      <QueueSummary {...data.summary} filtered={data.conversations.length} />
       <section className="queue-controls panel">
-        <QueueSavedViews currentAssigneeName={user.name} currentHref={currentHref} savedViews={savedViews} />
+        <QueueSavedViews currentAssigneeName={data.currentAssigneeName} currentHref={data.currentHref} savedViews={data.savedViews} />
         <QueueFilters
-          filters={filters}
-          sources={filterOptions.sources}
-          assignees={filterOptions.assignees}
-          qaAssignees={filterOptions.qaAssignees}
-          supportLines={filterOptions.supportLines}
+          filters={data.filters}
+          sources={data.filterOptions.sources}
+          assignees={data.filterOptions.assignees}
+          qaAssignees={data.filterOptions.qaAssignees}
+          supportLines={data.filterOptions.supportLines}
         />
       </section>
       <div className="grid min-w-0 gap-3">
-        <QueueTable conversations={conversations} qaAssignees={qaAssignees} returnTo={currentHref} />
+        <QueueTable conversations={data.conversations} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
       </div>
     </section>
   );

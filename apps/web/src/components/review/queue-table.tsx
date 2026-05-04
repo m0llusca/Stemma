@@ -1,7 +1,7 @@
-import type { Conversation, Message, Review } from "@prisma/client";
 import Link from "next/link";
 import { ScoreBar } from "@/components/ui/score-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import type { ReviewQueueAssigneeDto, ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import {
   channelLabels,
   csatBucketLabels,
@@ -15,14 +15,9 @@ import {
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 
-type QueueConversation = Conversation & {
-  messages: Message[];
-  reviews: Review[];
-};
-
 type QueueTableProps = {
-  conversations: QueueConversation[];
-  qaAssignees: Array<{ id: string; name: string }>;
+  conversations: ReviewQueueConversationDto[];
+  qaAssignees: ReviewQueueAssigneeDto[];
   returnTo: string;
 };
 
@@ -115,9 +110,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
         {conversations.map((conversation) => {
           const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
           const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
+          const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
           const isOverdue =
-            conversation.reviewDueAt !== null &&
-            conversation.reviewDueAt < new Date() &&
+            reviewDueAt !== null &&
+            reviewDueAt < new Date() &&
             conversation.qaStatus !== "FINALIZED";
           const reviewState = resolveReviewState({
             qaStatus: conversation.qaStatus,
@@ -136,10 +132,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           const contextItems = [
             conversation.customerName,
             conversation.assigneeName ?? "Не назначен",
-            formatMessageCount(conversation.messages.length),
+            formatMessageCount(conversation.messageCount),
             channelLabels[conversation.channel],
             externalSourceLabel(conversation.externalSource),
-            `срок ${conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "не задан"}`,
+            `срок ${reviewDueAt ? reviewDueAt.toLocaleDateString("ru-RU") : "не задан"}`,
             `проверяющий: ${conversation.qaAssigneeName ?? "не назначен"}`
           ];
           const signalItems = [

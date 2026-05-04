@@ -1,5 +1,23 @@
 import type { ConversationChannel, Prisma, QaStatus, RiskLevel } from "@prisma/client";
+import type {
+  ReviewQueueConversationDto,
+  ReviewQueueDueFilter,
+  ReviewQueueFilterOptionsDto,
+  ReviewQueueFilters,
+  ReviewQueueProcessFilter,
+  ReviewQueueSearchParams,
+  ReviewQueueStatus,
+  ReviewQueueSummaryDto
+} from "@/lib/contracts/review-queue";
 import { prisma } from "@/lib/db";
+
+export type {
+  ReviewQueueDueFilter,
+  ReviewQueueFilters,
+  ReviewQueueProcessFilter,
+  ReviewQueueSearchParams,
+  ReviewQueueStatus
+} from "@/lib/contracts/review-queue";
 
 export const reviewQueueStatuses = ["all", "unreviewed", "reviewed"] as const;
 export const qaQueueStatuses = ["all", "QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const;
@@ -11,30 +29,6 @@ export const queueDueFilters = ["overdue"] as const;
 const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
 const conversationQaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
 const findingRiskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const satisfies readonly RiskLevel[];
-
-export type ReviewQueueStatus = (typeof reviewQueueStatuses)[number];
-export type ReviewQueueProcessFilter = (typeof queueProcessFilters)[number];
-export type ReviewQueueDueFilter = (typeof queueDueFilters)[number];
-
-export type ReviewQueueFilters = {
-  q?: string;
-  status: ReviewQueueStatus;
-  channel?: ConversationChannel;
-  qaStatus?: QaStatus;
-  source?: string;
-  assignee?: string;
-  qaAssignee?: string;
-  samplingType?: string;
-  csatBucket?: string;
-  supportLine?: string;
-  process?: ReviewQueueProcessFilter;
-  due?: ReviewQueueDueFilter;
-  riskLevel?: RiskLevel;
-  finalizedFrom?: Date;
-  finalizedTo?: Date;
-};
-
-export type ReviewQueueSearchParams = Record<string, string | string[] | undefined>;
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -244,23 +238,64 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
   return { AND: and };
 }
 
-export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFilters) {
-  return prisma.conversation.findMany({
+export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFilters): Promise<ReviewQueueConversationDto[]> {
+  const conversations = await prisma.conversation.findMany({
     where: buildReviewQueueWhere(workspaceId, filters),
-    include: {
-      messages: {
-        orderBy: { sentAt: "asc" }
+    select: {
+      id: true,
+      subject: true,
+      customerName: true,
+      assigneeName: true,
+      channel: true,
+      externalSource: true,
+      reviewDueAt: true,
+      qaStatus: true,
+      qaAssigneeName: true,
+      csatBucket: true,
+      samplingType: true,
+      riskHint: true,
+      _count: {
+        select: {
+          messages: true
+        }
       },
       reviews: {
         orderBy: { createdAt: "desc" },
-        take: 4
+        take: 4,
+        select: {
+          id: true,
+          status: true,
+          reviewSource: true,
+          totalScore: true,
+          criticalError: true,
+          needsReanswer: true,
+          appealStatus: true,
+          reanswerStatus: true
+        }
       }
     },
     orderBy: { openedAt: "desc" }
   });
+
+  return conversations.map((conversation) => ({
+    id: conversation.id,
+    subject: conversation.subject,
+    customerName: conversation.customerName,
+    assigneeName: conversation.assigneeName,
+    messageCount: conversation._count.messages,
+    channel: conversation.channel,
+    externalSource: conversation.externalSource,
+    reviewDueAt: conversation.reviewDueAt?.toISOString() ?? null,
+    qaStatus: conversation.qaStatus,
+    qaAssigneeName: conversation.qaAssigneeName,
+    csatBucket: conversation.csatBucket,
+    samplingType: conversation.samplingType,
+    riskHint: conversation.riskHint,
+    reviews: conversation.reviews
+  }));
 }
 
-export async function getReviewQueueSummary(workspaceId: string) {
+export async function getReviewQueueSummary(workspaceId: string): Promise<ReviewQueueSummaryDto> {
   const [total, queued, inWork, drafts, reviewed, overdue] = await Promise.all([
     prisma.conversation.count({
       where: { workspaceId }
@@ -325,7 +360,7 @@ export async function getReviewQueueSummary(workspaceId: string) {
   };
 }
 
-export async function getReviewQueueFilterOptions(workspaceId: string) {
+export async function getReviewQueueFilterOptions(workspaceId: string): Promise<ReviewQueueFilterOptionsDto> {
   const [sourceRows, assigneeRows, qaAssigneeRows, supportLineRows] = await Promise.all([
     prisma.conversation.findMany({
       where: { workspaceId },
