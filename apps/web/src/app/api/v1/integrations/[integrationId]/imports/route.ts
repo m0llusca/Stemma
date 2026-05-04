@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { auditLog } from "@/lib/audit";
 import { apiError, apiJson } from "@/lib/api/response";
 import { requireCurrentUserPermission } from "@/lib/current-user";
-import { prisma } from "@/lib/db";
+import { queueIntegrationImportJob } from "@/lib/integration-import-service";
 
 export const dynamic = "force-dynamic";
 
@@ -22,80 +21,24 @@ export async function POST(request: Request, context: { params: Promise<{ integr
     return apiError("bad_request", "Некорректные параметры запуска импорта.", 400, undefined, parsed.error.flatten());
   }
 
-  const integration = await prisma.integration.findFirst({
-    where: {
-      id: integrationId,
-      workspaceId: user.workspaceId
+  const result = await queueIntegrationImportJob({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    integrationId,
+    dryRun: parsed.data.dryRun ?? false,
+    requestedLimit: parsed.data.requestedLimit,
+    runAfter: parsed.data.runAfter ? new Date(parsed.data.runAfter) : undefined
+  }).catch((error: unknown) => {
+    if (error instanceof Error && error.message === "Интеграция не найдена.") {
+      return null;
     }
+
+    throw error;
   });
 
-  if (!integration) {
+  if (!result) {
     return apiError("not_found", "Интеграция не найдена.", 404);
   }
-
-  const requestedLimit = parsed.data.requestedLimit ?? integration.importLimit;
-  const result = await prisma.$transaction(async (tx) => {
-    const run = await tx.integrationRun.create({
-      data: {
-        workspaceId: user.workspaceId,
-        integrationId: integration.id,
-        actorId: user.id,
-        source: integration.source,
-        mode: integration.type,
-        status: parsed.data.dryRun ? "dry_run_queued" : "queued",
-        dryRun: parsed.data.dryRun ?? false,
-        requestedLimit
-      }
-    });
-    const job = await tx.backendJob.create({
-      data: {
-        workspaceId: user.workspaceId,
-        type: "INTEGRATION_IMPORT",
-        status: "QUEUED",
-        queueName: "integrations",
-        priority: 50,
-        runAfter: parsed.data.runAfter ? new Date(parsed.data.runAfter) : new Date(),
-        createdById: user.id,
-        payloadJson: JSON.stringify({
-          integrationId: integration.id,
-          integrationRunId: run.id,
-          source: integration.source,
-          mode: integration.type,
-          requestedLimit,
-          dryRun: parsed.data.dryRun ?? false
-        })
-      }
-    });
-
-    await tx.integration.update({
-      where: { id: integration.id },
-      data: {
-        status: "queued",
-        lastImportAt: new Date(),
-        lastError: null
-      }
-    });
-
-    await auditLog(
-      {
-        workspaceId: user.workspaceId,
-        actorId: user.id,
-        action: "integration.import_queued",
-        targetType: "integration",
-        targetId: integration.id,
-        metadata: {
-          source: integration.source,
-          runId: run.id,
-          jobId: job.id,
-          dryRun: run.dryRun,
-          requestedLimit
-        }
-      },
-      tx
-    );
-
-    return { run, job };
-  });
 
   return apiJson(
     {
@@ -112,4 +55,3 @@ export async function POST(request: Request, context: { params: Promise<{ integr
     202
   );
 }
-

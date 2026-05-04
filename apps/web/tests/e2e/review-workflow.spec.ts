@@ -176,6 +176,11 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Запасной JSON-запрос" })).toBeVisible();
 
   await page.goto("/admin/integrations");
+  const znunyIntegrationCard = page.locator(".admin-tile").filter({ hasText: "Znuny" }).first();
+  await expect(znunyIntegrationCard.getByRole("button", { name: "Запланировать импорт" })).toBeVisible();
+  await znunyIntegrationCard.getByRole("button", { name: "Запланировать импорт" }).click();
+  await expect(znunyIntegrationCard.getByText("Импорт поставлен в backend-очередь")).toBeVisible();
+
   await page.getByRole("heading", { name: "Подключить источник" }).click();
   await page.getByLabel("Источник").selectOption("custom_api");
   await page.getByRole("button", { name: "Далее" }).click();

@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationSetupWorkspace } from "@/components/integrations/integration-setup-workspace";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { queueIntegrationImport } from "@/lib/integration-actions";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -169,10 +169,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                     <span className="record-meta">
                       {integration.importLimit} тикетов · батч {integration.batchSize} · {formatDate(integration.lastImportAt ?? integration.lastDryRunAt)}
                     </span>
-                    <form action={queueIntegrationImport} className="mt-1">
-                      <input type="hidden" name="integrationId" value={integration.id} />
-                      <button type="submit" className="quiet-link text-sm">Запланировать импорт</button>
-                    </form>
+                    <IntegrationImportQueueForm integrationId={integration.id} />
                   </div>
                 </div>
               ))
