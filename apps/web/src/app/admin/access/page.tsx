@@ -183,6 +183,9 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
       ? buildEntraAuthorizationMetadata(selectedProvider)
       : null;
   const guidance = getDirectoryIntegrationGuidance();
+  const selectedProviderLoginPath = `/auth/login?provider=${encodeURIComponent(
+    selectedProvider?.slug ?? "microsoft-entra-id"
+  )}&workspaceId=${encodeURIComponent(selectedProvider?.workspaceId ?? user.workspaceId)}&returnTo=/reviews`;
 
   return (
     <section className="page-shell admin-shell">
@@ -195,10 +198,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </p>
         </div>
         <div className="admin-actions">
-          <Link
-            href={`/auth/login?provider=${selectedProvider?.slug ?? "microsoft-entra-id"}&returnTo=/reviews`}
-            className="action-button action-button--primary"
-          >
+          <Link href={selectedProviderLoginPath} className="action-button action-button--primary">
             <KeyRound size={16} aria-hidden="true" />
             Проверить вход
           </Link>
@@ -482,7 +482,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
         Для входа через выбранный провайдер используйте{" "}
         <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">
-          /auth/login?provider={selectedProvider?.slug ?? "microsoft-entra-id"}
+          {selectedProviderLoginPath}
         </code>
         .
       </div>

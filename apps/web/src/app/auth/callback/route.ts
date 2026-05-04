@@ -28,8 +28,9 @@ function safeReturnTo(value: string | undefined) {
 }
 
 function errorRedirect(request: NextRequest, message: string) {
-  const url = new URL("/reviews", request.nextUrl.origin);
+  const url = new URL("/auth/login", request.nextUrl.origin);
   url.searchParams.set("authError", message);
+  url.searchParams.set("returnTo", safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value));
   const response = NextResponse.redirect(url);
   clearOidcCookies(response);
   return response;

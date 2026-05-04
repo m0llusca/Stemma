@@ -11,6 +11,20 @@ test.beforeEach(() => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
 });
 
+test("shows standard login with SSO as a separate option", async ({ page }) => {
+  await page.goto("/auth/login?returnTo=/reviews");
+
+  await expect(page.getByRole("heading", { name: "Вход в систему" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Вход по учетной записи" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "SSO" })).toBeVisible();
+  await expect(page.getByText("Microsoft Entra ID / Active Directory")).toBeVisible();
+  await expect(page.getByRole("button", { name: "SSO недоступен" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await expect(page).toHaveURL(/\/reviews$/);
+  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
+});
+
 test("completes the seeded refund request review workflow", async ({ page }) => {
   await page.goto("/reviews");
 

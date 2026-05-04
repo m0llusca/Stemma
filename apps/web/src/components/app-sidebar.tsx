@@ -1,6 +1,6 @@
 import type { RoleName } from "@prisma/client";
 import { AppSidebarShell, type SidebarNavItem } from "@/components/app-sidebar-shell";
-import { getCurrentUser, getWorkspaceUsers } from "@/lib/current-user";
+import { AuthRequiredError, getCurrentUser, getWorkspaceUsers } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -19,7 +19,18 @@ function canSeeNavItem(role: RoleName, roles: string[]) {
 }
 
 export async function AppSidebar() {
-  const currentUser = await getCurrentUser();
+  const currentUser = await getCurrentUser().catch((error: unknown) => {
+    if (error instanceof AuthRequiredError) {
+      return null;
+    }
+
+    throw error;
+  });
+
+  if (!currentUser) {
+    return null;
+  }
+
   const [users, openAppealCount] = await Promise.all([
     getWorkspaceUsers(currentUser.workspaceId),
     prisma.conversation.count({

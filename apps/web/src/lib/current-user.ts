@@ -6,6 +6,13 @@ import { prisma } from "@/lib/db";
 
 export const currentUserCookieName = "qc_current_user_id";
 
+export class AuthRequiredError extends Error {
+  constructor() {
+    super("Нет активной пользовательской сессии.");
+    this.name = "AuthRequiredError";
+  }
+}
+
 export function isDemoAuthEnabled() {
   return process.env.NODE_ENV !== "production" || process.env.QC_DEMO_AUTH === "enabled";
 }
@@ -19,7 +26,7 @@ export async function getCurrentUser() {
   }
 
   if (!isDemoAuthEnabled()) {
-    throw new Error("Нет активной пользовательской сессии.");
+    throw new AuthRequiredError();
   }
 
   const requestedUserId = cookieStore.get(currentUserCookieName)?.value;

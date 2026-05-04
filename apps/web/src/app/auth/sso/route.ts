@@ -20,8 +20,9 @@ function safeReturnTo(value: string | null) {
 }
 
 function authErrorRedirect(request: NextRequest, message: string) {
-  const url = new URL("/reviews", request.nextUrl.origin);
+  const url = new URL("/auth/login", request.nextUrl.origin);
   url.searchParams.set("authError", message);
+  url.searchParams.set("returnTo", safeReturnTo(request.nextUrl.searchParams.get("returnTo")));
   return NextResponse.redirect(url);
 }
 
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     where: {
       slug: providerSlug,
       ...(workspaceId ? { workspaceId } : {}),
+      status: "active",
       type: {
         in: ["MICROSOFT_ENTRA_ID", "OIDC"]
       }
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "asc" }
   });
 
-  if (!provider || provider.status !== "active") {
+  if (!provider) {
     return authErrorRedirect(request, "SSO-провайдер не настроен или отключен.");
   }
 
@@ -75,4 +77,3 @@ export async function GET(request: NextRequest) {
     return authErrorRedirect(request, error instanceof Error ? error.message : "Не удалось начать SSO-вход.");
   }
 }
-
