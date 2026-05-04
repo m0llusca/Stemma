@@ -40,10 +40,10 @@ function tokenHealth(token: {
   }
 
   if (token.lastSuccessAt) {
-    return { label: "Работает", className: "bg-[#edf2ff] text-[#3157d5]" };
+    return { label: "Работает", className: "bg-[#ecfdf5] text-[#15803d]" };
   }
 
-  return { label: "Готов", className: "bg-[#edf2ff] text-[#1d3fae]" };
+  return { label: "Готов", className: "bg-[#ecfdf5] text-[#15803d]" };
 }
 
 export default async function AdminTokensPage() {
@@ -133,7 +133,7 @@ export default async function AdminTokensPage() {
                 const healthTone =
                   health.label === "Ошибка" || health.label === "Истек"
                     ? "pill--warn"
-                    : health.label === "Работает"
+                    : health.label === "Работает" || health.label === "Готов"
                       ? "pill--ok"
                       : "pill--neutral";
                 const isExpired = Boolean(apiToken.expiresAt && apiToken.expiresAt <= now);

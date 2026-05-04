@@ -68,7 +68,16 @@ export async function getValidAuthSession(token: string | undefined): Promise<
         role: import("@prisma/client").RoleName;
         supportLine: string | null;
         teamName: string | null;
-        workspace: { id: string; name: string; createdAt: Date; updatedAt: Date };
+        workspace: {
+          id: string;
+          name: string;
+          uiTheme: string;
+          uiDensity: string;
+          uiCorners: string;
+          uiContrast: string;
+          createdAt: Date;
+          updatedAt: Date;
+        };
       };
     })
   | null
@@ -123,4 +132,3 @@ export async function revokeAuthSession(token: string | undefined) {
     }
   });
 }
-

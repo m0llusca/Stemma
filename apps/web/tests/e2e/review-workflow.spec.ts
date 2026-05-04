@@ -30,7 +30,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
   await expect(page.getByText("Найдено")).toBeVisible();
-  await expect(page.getByText("Завершено").first()).toBeVisible();
+  await expect(page.getByText(/завершено/i).first()).toBeVisible();
 
   await page.getByLabel("Поиск").fill("Мила");
   await page.getByRole("button", { name: "Применить" }).click();
@@ -101,14 +101,15 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Что требует внимания" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Дополнительная аналитика" })).toBeVisible();
-  await page.getByText("Дополнительная аналитика").click();
+  await page.getByRole("link", { name: /Исполнение/ }).click();
+  await expect(page.getByRole("heading", { name: "По источникам" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "По операторам" })).toBeVisible();
+  await page.getByRole("link", { name: /Процесс/ }).click();
+  await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
+  await page.getByRole("link", { name: /Разрезы/ }).click();
   await expect(page.getByRole("heading", { name: "Источники" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Операторы" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Подробные разрезы" })).toBeVisible();
-  await page.getByText("Подробные разрезы").click();
   await expect(page.getByRole("heading", { name: "Риски" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
 
   await page.goto("/calibration");
   await expect(page.getByRole("heading", { name: "Калибровка", exact: true })).toBeVisible();
@@ -142,28 +143,29 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(createdTokenCard.getByText("Истек")).toBeVisible();
 
   await page.goto("/admin/integrations");
+  const setupPanel = page.locator("#connect");
   await expect(page.getByRole("heading", { name: "Подключить источник" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).not.toBeVisible();
   await page.getByRole("heading", { name: "Подключить источник" }).click();
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Шаг 1. Источник" })).toBeVisible();
-  await expect(page.getByLabel("Источник")).toHaveValue("otrs:znuny");
+  await expect(setupPanel.getByLabel("Система-источник")).toHaveValue("otrs:znuny");
   await expect(page.getByRole("heading", { name: "Тестовый импорт TicketGet" })).not.toBeVisible();
 
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
   await expect(page.getByText("Источник", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Znuny", { exact: true }).first()).toBeVisible();
-  await expect(page.getByLabel("Base URL")).toHaveValue("https://support.example.com/znuny");
-  await expect(page.getByLabel("Платформа")).not.toBeVisible();
-  await expect(page.getByLabel("TicketID для проверки")).toHaveValue("42");
+  await expect(setupPanel.getByLabel("Base URL")).toHaveValue("https://support.example.com/znuny");
+  await expect(setupPanel.getByLabel("Платформа")).not.toBeVisible();
+  await expect(setupPanel.getByLabel("TicketID для проверки")).toHaveValue("42");
   await expect(page.getByRole("button", { name: "Далее" })).toBeDisabled();
-  await page.getByLabel("Password").fill("demo-secret");
+  await setupPanel.getByLabel("Password").fill("demo-secret");
 
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 3. Лимиты" })).toBeVisible();
-  await expect(page.getByLabel("Максимум тикетов")).toHaveValue("100");
-  await expect(page.getByLabel("Размер батча")).toHaveValue("25");
+  await expect(setupPanel.getByLabel("Максимум тикетов")).toHaveValue("100");
+  await expect(setupPanel.getByLabel("Размер батча")).toHaveValue("25");
 
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 4. Проверка" })).toBeVisible();
@@ -191,21 +193,33 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("link", { name: /Backend job/ }).first()).toBeVisible();
 
   await page.getByRole("heading", { name: "Подключить источник" }).click();
-  await page.getByLabel("Источник").selectOption("custom_api");
+  await setupPanel.getByLabel("Система-источник").selectOption("custom_api");
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
-  await expect(page.getByLabel("Название системы")).toHaveValue("Внутренний helpdesk");
+  await expect(setupPanel.getByLabel("Название системы")).toHaveValue("Внутренний helpdesk");
   await expect(page.locator("#connect").getByRole("link", { name: "API-доступ" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Покрытие адаптеров" })).not.toBeVisible();
 
   await page.goto("/admin/integrations");
   await page.getByRole("heading", { name: "Подключить источник" }).click();
-  await page.getByLabel("Источник").selectOption("native:zendesk");
+  await setupPanel.getByLabel("Система-источник").selectOption("native:zendesk");
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
   await expect(page.getByText("Zendesk", { exact: true }).first()).toBeVisible();
-  await expect(page.getByLabel("Выбранный сервис")).not.toBeVisible();
+  await expect(setupPanel.getByLabel("Выбранный сервис")).not.toBeVisible();
   await page.getByText("Сопоставление готового адаптера").click();
   await expect(page.getByText("/api/integrations/native-helpdesks/conversations")).toBeVisible();
   await expect(page.getByRole("button", { name: "Импортировать в очередь" })).not.toBeVisible();
+
+  await page.goto("/admin/integrations");
+  await expect(page.getByRole("heading", { name: "Ручная проверка payload" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "OTRS-family TicketGet payload" })).not.toBeVisible();
+  await page.getByRole("heading", { name: "Ручная проверка payload" }).click();
+  await expect(page.getByRole("heading", { name: "OTRS-family TicketGet payload" })).toBeVisible();
+
+  const otrsPayloadLab = page.getByRole("heading", { name: "OTRS-family TicketGet payload" }).locator("xpath=ancestor::section[1]");
+  await expect(otrsPayloadLab.getByText("1 тикет(ов), 2 сообщени(й)")).toBeVisible();
+  await otrsPayloadLab.getByRole("button", { name: "Импортировать в очередь" }).click();
+  await expect(page).toHaveURL(/\/reviews\?source=znuny&q=42/);
+  await expect(page.getByRole("link", { name: "Клиент просит возврат после задержки доставки" })).toBeVisible();
 });

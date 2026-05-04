@@ -69,7 +69,7 @@ export default async function SelfReviewPage() {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split">
+      <div className="command-center command-center--split command-center--metrics">
         <div className="min-w-0">
           <p className="page-kicker">Обратная связь</p>
           <h1 className="page-title">Моя обратная связь</h1>

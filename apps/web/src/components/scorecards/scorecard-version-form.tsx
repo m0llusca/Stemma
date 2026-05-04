@@ -122,7 +122,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   title="Поднять"
                   disabled={index === 0}
                   onClick={() => setCriteria((current) => moveRow(current, index, index - 1))}
-                  className="rounded border border-[#d9e0ea] bg-white p-2 text-[#334155] hover:bg-[#edf2ff] disabled:cursor-not-allowed disabled:text-[#94a3b8]"
+                  className="icon-action-button"
                 >
                   <ArrowUp size={15} aria-hidden="true" />
                 </button>
@@ -131,7 +131,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   title="Опустить"
                   disabled={index === criteria.length - 1}
                   onClick={() => setCriteria((current) => moveRow(current, index, index + 1))}
-                  className="rounded border border-[#d9e0ea] bg-white p-2 text-[#334155] hover:bg-[#edf2ff] disabled:cursor-not-allowed disabled:text-[#94a3b8]"
+                  className="icon-action-button"
                 >
                   <ArrowDown size={15} aria-hidden="true" />
                 </button>
@@ -139,7 +139,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   type="button"
                   title="Удалить"
                   onClick={() => setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))}
-                  className="rounded border border-[#d9e0ea] bg-white p-2 text-[#334155] hover:bg-[#fff7ed]"
+                  className="icon-action-button icon-action-button--danger"
                 >
                   <Trash2 size={15} aria-hidden="true" />
                 </button>

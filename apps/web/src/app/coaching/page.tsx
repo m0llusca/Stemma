@@ -94,7 +94,7 @@ export default async function CoachingPage() {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split">
+      <div className="command-center command-center--split command-center--metrics">
         <div className="min-w-0">
           <p className="page-kicker">Развитие качества</p>
           <h1 className="page-title">Обучение</h1>
@@ -295,10 +295,10 @@ export default async function CoachingPage() {
           </div>
 
           <details className="compact-details knowledge-create-details">
-            <summary className="disclosure-summary border-t border-[#d9e0ea]">
-              <span className="flex min-w-0 items-center gap-2">
+            <summary className="disclosure-summary knowledge-create-summary">
+              <span className="action-button knowledge-create-summary__button">
                 <PlusCircle size={17} aria-hidden="true" />
-                <span className="text-sm font-semibold">Добавить типовую ошибку</span>
+                <span>Добавить типовую ошибку</span>
               </span>
             </summary>
             <form action={createKnowledgeEntry} className="form-stack border-t border-[#d9e0ea] p-4">

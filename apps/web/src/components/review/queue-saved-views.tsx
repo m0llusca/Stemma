@@ -71,7 +71,7 @@ export function QueueSavedViews({
                     <button
                       type="submit"
                       title="Удалить представление"
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-semibold text-[#94a3b8] hover:bg-[#fff7ed] hover:text-[#b45309]"
+                      className="icon-action-button icon-action-button--danger h-7 w-7 text-sm"
                     >
                       ×
                     </button>

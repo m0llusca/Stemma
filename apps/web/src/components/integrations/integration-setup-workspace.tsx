@@ -845,7 +845,7 @@ function TechnicalDetailsForMode({
                 href={profile.docsUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded border border-[#d9e0ea] bg-white px-3 py-2 text-xs font-semibold text-[#1d3fae] hover:bg-[#edf2ff]"
+                className="action-button action-button--small"
               >
                 {profile.shortLabel}
               </a>
@@ -977,13 +977,15 @@ function TechnicalDetailsForMode({
 
 export function IntegrationSetupWorkspace({
   apiTokenCount,
-  apiHealth
+  apiHealth,
+  embedded = false
 }: {
   apiTokenCount: number;
   apiHealth: {
     label: string;
     className: string;
   };
+  embedded?: boolean;
 }) {
   const [step, setStep] = useState<WizardStep>("source");
   const [mode, setMode] = useState<SourceMode>("otrs_family");
@@ -1105,9 +1107,13 @@ export function IntegrationSetupWorkspace({
     resetCheck();
   }
 
+  const workspaceClassName = embedded
+    ? "integration-setup-workspace integration-setup-workspace--embedded"
+    : "integration-setup-workspace panel";
+
   return (
-    <section className="panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+    <section className={workspaceClassName}>
+      <div className="integration-setup-workspace__header">
         <p className="text-sm font-medium text-[#64748b]">Пошаговая настройка</p>
         <h2 className="mt-1 text-lg font-semibold text-[#111827]">Мастер подключения источника</h2>
         <p className="mt-1 max-w-3xl text-sm leading-5 text-[#64748b]">
@@ -1115,7 +1121,7 @@ export function IntegrationSetupWorkspace({
         </p>
       </div>
 
-      <div className="grid gap-5 p-5">
+      <div className="integration-setup-workspace__body">
         <WizardFrame
           currentStepIndex={safeStepIndex}
           title={currentStep.title}

@@ -106,7 +106,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Калибровка</h1>
@@ -114,83 +114,71 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило.
           </p>
         </div>
-        <div className="admin-actions">
-          <Link href="/calibration?new=1" className="action-button action-button--primary">
-            <PlusCircle size={16} aria-hidden="true" />
-            Новая сессия
-          </Link>
-          {selectedSession ? (
-            <Link href={`/calibration?session=${selectedSession.id}`} className="action-button">
-              Текущая
-            </Link>
-          ) : null}
-        </div>
       </div>
 
-      {openNewSession ? (
-        <section className="calibration-create-panel panel">
-          <div className="learning-section-header">
+      <details className="calibration-create-panel" open={openNewSession}>
+        <summary className="training-create-summary calibration-create-summary">
+          <span className="action-button action-button--primary training-create-summary__button calibration-create-summary__button">
+            <PlusCircle size={18} aria-hidden="true" />
+            Новая сессия
+          </span>
+        </summary>
+        <form action={createCalibrationSession} className="calibration-create-form">
+          <div className="learning-section-header calibration-create-form__header">
             <div className="min-w-0">
               <h2>Новая калибровка</h2>
               <p>Выберите проверяющих и обращения. После создания участники получат один и тот же набор для оценки.</p>
             </div>
-            {selectedSession ? (
-              <Link href={`/calibration?session=${selectedSession.id}`} className="action-button">
-                Закрыть форму
-              </Link>
-            ) : null}
           </div>
-          <form action={createCalibrationSession} className="calibration-create-form">
-            <div className="calibration-create-shell">
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Название
-                <input name="name" required defaultValue="Калибровка недели" className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Срок
-                <input name="dueAt" type="date" className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Заметки
-                <textarea name="notes" rows={2} className="form-control" />
-              </label>
-            </div>
+          <div className="calibration-create-shell">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Название
+              <input name="name" required defaultValue="Калибровка недели" className="form-control" />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Срок
+              <input name="dueAt" type="date" className="form-control" />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Заметки
+              <textarea name="notes" rows={2} className="form-control" />
+            </label>
+          </div>
 
-            <div className="calibration-create-columns">
-              <fieldset className="form-stack">
-                <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
-                <div className="calibration-picker-grid">
-                  {qaUsers.map((qaUser) => (
-                    <label key={qaUser.id} className="compact-check-card">
-                      <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
-                      <span>{qaUser.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+          <div className="calibration-create-columns">
+            <fieldset className="form-stack">
+              <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
+              <div className="calibration-picker-grid">
+                {qaUsers.map((qaUser) => (
+                  <label key={qaUser.id} className="compact-check-card">
+                    <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
+                    <span>{qaUser.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
-              <fieldset className="form-stack">
-                <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
-                <div className="calibration-picker-grid calibration-picker-grid--scroll">
-                  {conversations.map((conversation) => (
-                    <label key={conversation.id} className="compact-check-card compact-check-card--tall">
-                      <input name="conversationId" type="checkbox" value={conversation.id} />
-                      <span>
-                        <strong>{conversation.externalId}</strong>
-                        {conversation.subject}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
+            <fieldset className="form-stack">
+              <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
+              <div className="calibration-picker-grid calibration-picker-grid--scroll">
+                {conversations.map((conversation) => (
+                  <label key={conversation.id} className="compact-check-card compact-check-card--tall">
+                    <input name="conversationId" type="checkbox" value={conversation.id} />
+                    <span>
+                      <strong>{conversation.externalId}</strong>
+                      {conversation.subject}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
 
-            <ValidatedSubmitButton minCheckedNames={["participantId", "conversationId"]}>
-              Создать сессию
-            </ValidatedSubmitButton>
-          </form>
-        </section>
-      ) : null}
+          <ValidatedSubmitButton minCheckedNames={["participantId", "conversationId"]}>
+            Создать сессию
+          </ValidatedSubmitButton>
+        </form>
+      </details>
 
       <section className="calibration-workspace" aria-label="Рабочая область калибровки">
         <aside className="calibration-rail panel">
@@ -206,17 +194,6 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
               const isSelected = selectedSession?.id === session.id;
               const itemCount = session.items.length;
               const participantCount = session.participants.length;
-              const calibrationReviews = session.items.flatMap((item) =>
-                item.conversation.reviews.filter(
-                  (review) =>
-                    review.reviewSource === "CALIBRATION" &&
-                    review.status === "FINALIZED" &&
-                    session.participants.some((participant) => participant.userId === review.reviewerId)
-                )
-              );
-              const completedCount = new Set(calibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
-              const expectedCount = itemCount * participantCount;
-              const progress = expectedCount > 0 ? Math.round((completedCount / expectedCount) * 100) : 0;
 
               return (
                 <Link
@@ -227,9 +204,6 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   <span className={`pill ${statusClassName(session.status)}`}>{statusLabel(session.status)}</span>
                   <h3>{session.name}</h3>
                   <p>{itemCount} обращений · {participantCount} участников</p>
-                  <div className="mini-progress" aria-label={`Готовность ${progress}%`}>
-                    <span style={{ width: `${progress}%` }} />
-                  </div>
                 </Link>
               );
             })}

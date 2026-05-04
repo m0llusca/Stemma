@@ -41,7 +41,7 @@ export function CopyButton({
     <button
       type="button"
       onClick={copyValue}
-      className={`inline-flex items-center gap-2 rounded border border-[#d9e0ea] bg-white px-3 py-2 text-xs font-semibold text-[#334155] hover:bg-[#edf2ff] ${className}`}
+      className={`action-button action-button--small ${className}`}
     >
       {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
       {copied ? copiedLabel : label}

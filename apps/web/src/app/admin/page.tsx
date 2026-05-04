@@ -1,8 +1,9 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Plug, ShieldCheck } from "lucide-react";
+import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,11 @@ function canSee(role: RoleName, roles: RoleName[]) {
 
 export default async function AdminHomePage() {
   const user = await requireCurrentUserPermission("audit:read");
-  const [activeScorecard, activeSamplingRules, integrations, providerWarnings, failedJobs, recentAuditLogs, apiTokens] = await Promise.all([
+  const [workspace, activeScorecard, activeSamplingRules, integrations, providerWarnings, failedJobs, recentAuditLogs, apiTokens] = await Promise.all([
+    prisma.workspace.findUnique({
+      where: { id: user.workspaceId },
+      select: { uiTheme: true, uiDensity: true }
+    }),
     prisma.scorecard.findFirst({
       where: { workspaceId: user.workspaceId, isActive: true },
       select: { version: true }
@@ -56,6 +61,8 @@ export default async function AdminHomePage() {
       where: { workspaceId: user.workspaceId }
     })
   ]);
+  const currentTheme = getUiThemeOption(workspace?.uiTheme);
+  const currentDensity = getUiDensityOption(workspace?.uiDensity);
   const cards: AdminCard[] = [
     {
       href: "/admin/scorecards",
@@ -112,6 +119,15 @@ export default async function AdminHomePage() {
       tone: apiTokens > 0 ? "ok" : "neutral"
     },
     {
+      href: "/admin/appearance",
+      title: "Внешний вид",
+      description: "Темы, плотность, радиусы, контраст и единый стиль интерфейса.",
+      icon: Palette,
+      roles: ["ADMIN"],
+      metric: `${currentTheme.label} · ${currentDensity.label}`,
+      tone: "ok"
+    },
+    {
       href: "/admin/audit",
       title: "Журнал действий",
       description: "История изменений и админских операций.",
@@ -143,7 +159,7 @@ export default async function AdminHomePage() {
     {
       title: "Контроль",
       description: "Системные задачи, ошибки и история изменений.",
-      hrefs: ["/admin/system", "/admin/audit"]
+      hrefs: ["/admin/system", "/admin/appearance", "/admin/audit"]
     }
   ]
     .map((group) => ({

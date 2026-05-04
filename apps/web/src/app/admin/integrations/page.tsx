@@ -2,6 +2,8 @@ import Link from "next/link";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
 import { IntegrationSetupWorkspace } from "@/components/integrations/integration-setup-workspace";
+import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
+import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -38,9 +40,9 @@ function formatScopes(scopes: string) {
 
 function badgeClass(tone: "ok" | "warn" | "neutral") {
   const classes = {
-    ok: "bg-[#edf2ff] text-[#3157d5]",
+    ok: "bg-[#ecfdf5] text-[#15803d]",
     warn: "bg-[#fff7ed] text-[#b45309]",
-    neutral: "bg-[#edf2ff] text-[#1d3fae]"
+    neutral: "bg-[#f8fafc] text-[#334155]"
   };
 
   return classes[tone];
@@ -61,7 +63,7 @@ function customApiHealth(
     return { label: "Работает", className: badgeClass("ok") };
   }
 
-  return { label: "Готов", className: badgeClass("neutral") };
+  return { label: "Готов", className: badgeClass("ok") };
 }
 
 function queueHref(source: string, externalIds: string[]) {
@@ -184,16 +186,51 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
         </div>
       </div>
 
-      <details id="connect" className="disclosure-panel" open={shouldOpenSetup}>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
+      <details id="connect" className="disclosure-panel integration-disclosure integration-setup-disclosure" open={shouldOpenSetup}>
+        <summary className="disclosure-summary integration-disclosure__summary">
           <div>
             <h2 className="text-lg font-semibold">Подключить источник</h2>
             <p className="mt-1 text-sm text-[#64748b]">Пошаговая настройка скрыта до момента, когда она действительно нужна.</p>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
+          <span className="integration-disclosure__action" aria-hidden="true">
+            <span className="integration-disclosure__action-closed">Открыть</span>
+            <span className="integration-disclosure__action-open">Скрыть</span>
+          </span>
         </summary>
-        <div className="mt-4">
-          <IntegrationSetupWorkspace apiTokenCount={apiTokens.length} apiHealth={apiHealth} />
+        <IntegrationSetupWorkspace apiTokenCount={apiTokens.length} apiHealth={apiHealth} embedded />
+      </details>
+
+      <details className="disclosure-panel integration-disclosure integration-payload-disclosure mt-6">
+        <summary className="disclosure-summary integration-disclosure__summary">
+          <div>
+            <h2 className="text-lg font-semibold">Ручная проверка payload</h2>
+            <p className="mt-1 text-sm text-[#64748b]">Быстрый импорт JSON через те же server actions, которые использует очередь проверок.</p>
+          </div>
+          <span className="integration-disclosure__action" aria-hidden="true">
+            <span className="integration-disclosure__action-closed">Открыть</span>
+            <span className="integration-disclosure__action-open">Скрыть</span>
+          </span>
+        </summary>
+        <div className="integration-payload-disclosure__body">
+          <section className="integration-payload-section">
+            <div className="integration-payload-section__header">
+              <h3 className="text-base font-semibold text-[#111827]">OTRS-family TicketGet payload</h3>
+              <p className="mt-1 text-sm leading-5 text-[#64748b]">Вставьте ответ TicketGet, проверьте нормализацию и отправьте тикет в review queue.</p>
+            </div>
+            <div className="integration-payload-section__body">
+              <OtrsImportTester />
+            </div>
+          </section>
+
+          <section className="integration-payload-section">
+            <div className="integration-payload-section__header">
+              <h3 className="text-base font-semibold text-[#111827]">Native helpdesk payload</h3>
+              <p className="mt-1 text-sm leading-5 text-[#64748b]">Zendesk, Freshdesk, Intercom и HubSpot используют общий нормализатор импорта.</p>
+            </div>
+            <div className="integration-payload-section__body">
+              <NativeHelpdeskImportTester />
+            </div>
+          </section>
         </div>
       </details>
 
@@ -309,7 +346,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                   <span className="admin-tile__body">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="record-title record-title--tight">{apiToken.name}</span>
-                      <span className={`pill ${apiToken.lastError ? "pill--warn" : "pill--neutral"}`}>
+                      <span className={`pill ${apiToken.lastError ? "pill--warn" : "pill--ok"}`}>
                         {apiToken.lastError ? "Ошибка" : "Готов"}
                       </span>
                     </span>

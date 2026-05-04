@@ -58,7 +58,7 @@ export async function AppSidebar() {
 
   return (
     <AppSidebarShell items={visibleItems}>
-      <form action={switchCurrentUser} className="soft-callout mt-6">
+      <form action={switchCurrentUser} className="soft-callout">
         <input type="hidden" name="returnTo" value="/reviews" />
         <label className="grid gap-1 text-xs font-semibold uppercase text-slate-400">
           Роль
@@ -75,7 +75,7 @@ export async function AppSidebar() {
           </select>
           <span className="text-xs font-medium normal-case text-slate-400">{roleLabels[currentUser.role]}</span>
         </label>
-        <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
+        <button type="submit" className="app-sidebar__role-submit action-button min-h-[36px] px-3 py-2 text-sm">
           Переключить
         </button>
       </form>

@@ -113,6 +113,10 @@ enum ReportSnapshotStatus {
 model Workspace {
   id                  String                  @id @default(cuid())
   name                String
+  uiTheme             String                  @default("graphite")
+  uiDensity           String                  @default("comfortable")
+  uiCorners           String                  @default("medium")
+  uiContrast          String                  @default("standard")
   users               User[]
   identityProviders   IdentityProvider[]
   groupRoleMappings   GroupRoleMapping[]

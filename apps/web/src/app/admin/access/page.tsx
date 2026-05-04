@@ -58,7 +58,7 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (status === "active" || status === "ACTIVE") {
-    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#3157d5]";
+    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#15803d]";
   }
 
   if (status === "draft") {

@@ -20,7 +20,7 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (["ok", "active", "SUCCEEDED", "READY"].includes(status)) {
-    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#3157d5]";
+    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#15803d]";
   }
 
   if (["warn", "queued", "RUNNING", "QUEUED", "draft"].includes(status)) {

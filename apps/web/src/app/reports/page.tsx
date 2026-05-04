@@ -43,6 +43,24 @@ type ReportsPageProps = {
 };
 
 type ReviewForReport = Awaited<ReturnType<typeof loadFinalizedReviews>>[number];
+type ReportView = "overview" | "performance" | "process" | "details";
+
+const reportViews = [
+  { id: "overview", label: "Обзор", description: "Главные метрики и тренд" },
+  { id: "performance", label: "Исполнение", description: "Операторы, источники и нормы" },
+  { id: "process", label: "Процесс", description: "Переответы, апелляции и риски" },
+  { id: "details", label: "Разрезы", description: "Все таблицы для разбора" }
+] satisfies Array<{ id: ReportView; label: string; description: string }>;
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function resolveReportView(params: Record<string, string | string[] | undefined>): ReportView {
+  const view = firstParam(params.view);
+
+  return reportViews.some((item) => item.id === view) ? (view as ReportView) : "overview";
+}
 
 function formatAverageScore(value: number | null | undefined) {
   if (value == null) {
@@ -70,19 +88,6 @@ function addCountGroup(groups: Map<string, number>, label: string) {
   groups.set(label, (groups.get(label) ?? 0) + 1);
 }
 
-function formatDelta(current: number | null, previous: number | null, suffix = "") {
-  if (current == null || previous == null) {
-    return "Нет сравнения";
-  }
-
-  const delta = Math.round(current - previous);
-  if (delta === 0) {
-    return `Без изменений${suffix}`;
-  }
-
-  return `${delta > 0 ? "+" : ""}${delta}${suffix}`;
-}
-
 function formatPeriod(period: ReportPeriod) {
   return `${reportPeriodDateLabel(period.start)} - ${reportPeriodDateLabel(period.end)}`;
 }
@@ -105,6 +110,17 @@ function reportExportFormatHref(period: ReportPeriod, format: "xlsx" | "pdf") {
   });
 
   return `/reports/export/${format}?${params.toString()}`;
+}
+
+function reportViewHref(period: ReportPeriod, view: ReportView) {
+  const params = new URLSearchParams({
+    period: period.preset,
+    start: reportDateInputValue(period.start),
+    end: reportDateInputValue(period.end),
+    view
+  });
+
+  return `/reports?${params.toString()}`;
 }
 
 function reportReviewHref(period: ReportPeriod, extras: Record<string, string> = {}) {
@@ -341,9 +357,10 @@ function BreakdownTable({
   );
 }
 
-function PeriodFilter({ period }: { period: ReportPeriod }) {
+function PeriodFilter({ period, view }: { period: ReportPeriod; view: ReportView }) {
   return (
     <form action="/reports" className="report-toolbar">
+      <input type="hidden" name="view" value={view} />
       <label className="grid gap-1 text-sm font-medium text-[#334155]">
         Период
         <select name="period" defaultValue={period.preset} className="form-control">
@@ -377,6 +394,28 @@ function PeriodFilter({ period }: { period: ReportPeriod }) {
         Показать
       </button>
     </form>
+  );
+}
+
+function ReportViewSelector({ period, view }: { period: ReportPeriod; view: ReportView }) {
+  return (
+    <nav className="report-view-selector" aria-label="Режим аналитики">
+      {reportViews.map((item) => {
+        const isActive = item.id === view;
+
+        return (
+          <Link
+            key={item.id}
+            href={reportViewHref(period, item.id)}
+            className={`report-view-selector__item ${isActive ? "report-view-selector__item--active" : ""}`}
+            aria-current={isActive ? "page" : undefined}
+          >
+            <span>{item.label}</span>
+            <small>{item.description}</small>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -465,7 +504,7 @@ function ProcessSummary({
   ];
 
   return (
-    <section className="overflow-hidden bg-white">
+    <section className="panel process-summary overflow-hidden">
       <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="border-b border-[#d9e0ea] bg-[#f8fafc] p-4 lg:border-b-0 lg:border-r">
           <p className="text-xs font-semibold uppercase text-[#64748b]">Контроль процесса</p>
@@ -529,7 +568,7 @@ function FocusPanel({
   ];
 
   return (
-    <section className="panel mt-6 overflow-hidden">
+    <section className="panel focus-panel overflow-hidden">
       <div className="border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">Что требует внимания</h2>
         <p className="mt-1 text-sm text-[#64748b]">Короткая сводка для руководителя без лишних разрезов.</p>
@@ -552,6 +591,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const user = await requireCurrentUserPermission("reports:read");
   const period = resolveReportPeriod(params);
   const previousPeriod = resolvePreviousReportPeriod(period);
+  const reportView = resolveReportView(params);
 
   const [finalizedReviews, previousReviews, highRiskFindings, coachingBacklog, quotas] = await Promise.all([
     loadFinalizedReviews(user.workspaceId, period),
@@ -644,6 +684,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const distributionRows = scoreDistributionRows(finalizedReviews);
   const operatorScoreRows = averageScoreChartRows(assigneeRows);
   const sourceScoreRows = averageScoreChartRows(sourceRows);
+  const blockScoreChartRows = averageScoreChartRows(blockScoreRows, 8);
   const riskStackSegments = riskSegments(riskGroups);
   const quotaProgressRows = quotas.map((quota) => {
     const actualReviews = finalizedReviews.filter(
@@ -691,13 +732,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </div>
       </div>
 
-      <PeriodFilter period={period} />
+      <PeriodFilter period={period} view={reportView} />
+      <ReportViewSelector period={period} view={reportView} />
 
       <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Средняя оценка"
           value={formatAverageScore(averageScore)}
-          helper={`К прошлому периоду: ${formatDelta(averageScore, previousAverageScore, " п.п.")}`}
+          helper="К прошлому периоду"
+          comparison={{ current: averageScore, previous: previousAverageScore, unit: " п.п." }}
           icon={<CheckCircle2 size={18} aria-hidden="true" />}
         />
         <MetricCard
@@ -720,41 +763,38 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         />
       </div>
 
-      <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-        <ChartPanel
-          title="Динамика оценки"
-          description="Средняя итоговая оценка по дням завершения проверок."
-          actionHref={reportReviewHref(period)}
-          actionLabel="Проверки"
-        >
-          <SparklineChart points={trendRows} />
-        </ChartPanel>
-        <ChartPanel
-          title="Распределение оценок"
-          description="Сколько проверок попало в каждый диапазон."
-          actionHref={reportReviewHref(period)}
-          actionLabel="Список"
-        >
-          <ScoreDistribution rows={distributionRows} />
-        </ChartPanel>
-      </div>
-
-      <FocusPanel
-        finalizedCount={finalizedCount}
-        topRiskRow={topRiskRow}
-        topCategoryRow={topCategoryRow}
-        weakestAssignee={weakestAssignee}
-      />
-
-      <details className="panel disclosure-panel overflow-hidden">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold">Дополнительная аналитика</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Операторы, источники, риски, нормы и блоки критериев.</p>
+      {reportView === "overview" ? (
+        <>
+          <div className="reports-main-grid">
+            <ChartPanel
+              title="Динамика оценки"
+              description="Средняя итоговая оценка по дням завершения проверок."
+              actionHref={reportReviewHref(period)}
+              actionLabel="Проверки"
+            >
+              <SparklineChart points={trendRows} />
+            </ChartPanel>
+            <ChartPanel
+              title="Распределение оценок"
+              description="Сколько проверок попало в каждый диапазон."
+              actionHref={reportReviewHref(period)}
+              actionLabel="Список"
+            >
+              <ScoreDistribution rows={distributionRows} />
+            </ChartPanel>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#64748b]">Показать</span>
-        </summary>
-        <div className="grid items-stretch gap-5 border-t border-[#d9e0ea] p-5 xl:grid-cols-4">
+
+          <FocusPanel
+            finalizedCount={finalizedCount}
+            topRiskRow={topRiskRow}
+            topCategoryRow={topCategoryRow}
+            weakestAssignee={weakestAssignee}
+          />
+        </>
+      ) : null}
+
+      {reportView === "performance" ? (
+        <div className="reports-panel-grid reports-panel-grid--four">
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
             <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
           </ChartPanel>
@@ -762,48 +802,54 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <HorizontalBarChart rows={sourceScoreRows} valueSuffix="%" maxValue={100} />
           </ChartPanel>
           <ChartPanel
-            title="Профиль рисков"
-            description="Доля замечаний по уровню риска."
-            actionHref={reportReviewHref(period, { riskLevel: "CRITICAL" })}
-            actionLabel="Критические"
+            title="Блоки критериев"
+            description="Где чаще всего проседает оценка."
+            actionHref={reportReviewHref(period)}
+            actionLabel="Критерии"
           >
-            <StackedBar segments={riskStackSegments} />
+            <HorizontalBarChart rows={blockScoreChartRows} valueSuffix="%" maxValue={100} />
           </ChartPanel>
           <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
             <QuotaProgressBars rows={quotaProgressRows} />
           </ChartPanel>
         </div>
-        <div className="border-t border-[#d9e0ea]">
+      ) : null}
+
+      {reportView === "process" ? (
+        <>
           <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
-        </div>
-        <div className="grid items-start gap-5 border-t border-[#d9e0ea] p-5 xl:grid-cols-2">
+          <div className="reports-panel-grid reports-panel-grid--three">
+            <ChartPanel
+              title="Профиль рисков"
+              description="Доля замечаний по уровню риска."
+              actionHref={reportReviewHref(period, { riskLevel: "CRITICAL" })}
+              actionLabel="Критические"
+            >
+              <StackedBar segments={riskStackSegments} />
+            </ChartPanel>
+            <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
+            <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
+          </div>
+          <div className="reports-panel-grid reports-panel-grid--three">
+            <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
+            <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
+            <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
+          </div>
+        </>
+      ) : null}
+
+      {reportView === "details" ? (
+        <div className="reports-table-grid">
           <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
           <QuotaTable quotas={quotas} reviews={finalizedReviews} />
           <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
           <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
           <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
-        </div>
-      </details>
-
-      <details className="disclosure-panel">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold">Подробные разрезы</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Выборка, CSAT, обратная связь, апелляции, риски и категории.</p>
-          </div>
-          <span className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase text-[#64748b]">Показать</span>
-        </summary>
-        <div className="mt-5 grid items-start gap-5 xl:grid-cols-2">
           <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
           <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
-          <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
-          <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
-          <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
-          <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
           <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
-          <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
         </div>
-      </details>
+      ) : null}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { QueueAdvancedFilters } from "@/components/review/queue-advanced-filters";
 import { StatusChip } from "@/components/ui/status-chip";
 import {
   channelLabels,
@@ -21,20 +21,22 @@ type QueueFiltersProps = {
 };
 
 export function QueueFilters({ filters, sources, assignees, qaAssignees, supportLines }: QueueFiltersProps) {
-  const hasAdvancedFilters = Boolean(
-    filters.channel ||
-      filters.source ||
-      filters.assignee ||
-      filters.qaAssignee ||
-      filters.samplingType ||
-      filters.csatBucket ||
-      filters.supportLine ||
-    filters.process ||
-    filters.due ||
-    filters.riskLevel ||
-    filters.finalizedFrom ||
+  const advancedFilterValues = [
+    filters.channel,
+    filters.source,
+    filters.assignee,
+    filters.qaAssignee,
+    filters.samplingType,
+    filters.csatBucket,
+    filters.supportLine,
+    filters.process,
+    filters.due,
+    filters.riskLevel,
+    filters.finalizedFrom,
     filters.finalizedTo
-  );
+  ];
+  const activeAdvancedFilterCount = advancedFilterValues.filter(Boolean).length;
+  const hasAdvancedFilters = activeAdvancedFilterCount > 0;
   const processLabels = {
     critical: "Критические ошибки",
     reanswer: "Переответы",
@@ -83,14 +85,138 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           </select>
         </label>
 
-        <div className="flex flex-wrap items-end gap-2 lg:justify-end">
-          <button type="submit" className="action-button action-button--primary">
-            Применить
-          </button>
-          <Link href="/reviews" className="action-button">
-            Сбросить
-          </Link>
-        </div>
+        <QueueAdvancedFilters
+          activeCount={activeAdvancedFilterCount}
+          defaultOpen={hasAdvancedFilters}
+          actions={
+            <div className="queue-filterbar__actions">
+              <button type="submit" className="action-button action-button--primary">
+                Применить
+              </button>
+              <Link href="/reviews" className="action-button">
+                Сбросить
+              </Link>
+            </div>
+          }
+        >
+          <div className="queue-filterbar__advanced-grid">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Канал
+              <select name="channel" defaultValue={filters.channel ?? ""} className="form-control">
+                <option value="">Все</option>
+                {Object.entries(channelLabels).map(([channel, label]) => (
+                  <option key={channel} value={channel}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Источник
+              <select name="source" defaultValue={filters.source ?? ""} className="form-control">
+                <option value="">Все</option>
+                {sources.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Оператор
+              <select name="assignee" defaultValue={filters.assignee ?? ""} className="form-control">
+                <option value="">Все</option>
+                {assignees.map((assignee) => (
+                  <option key={assignee} value={assignee}>
+                    {assignee}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Проверяющий
+              <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="form-control">
+                <option value="">Все</option>
+                {qaAssignees.map((qaAssignee) => (
+                  <option key={qaAssignee} value={qaAssignee}>
+                    {qaAssignee}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Выборка
+              <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="form-control">
+                <option value="">Все</option>
+                {queueSamplingTypes.map((samplingType) => (
+                  <option key={samplingType} value={samplingType}>
+                    {samplingTypeLabels[samplingType]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              CSAT
+              <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="form-control">
+                <option value="">Все</option>
+                {queueCsatBuckets.map((csatBucket) => (
+                  <option key={csatBucket} value={csatBucket}>
+                    {csatBucketLabels[csatBucket]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Линия
+              <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="form-control">
+                <option value="">Все</option>
+                {supportLines.map((supportLine) => (
+                  <option key={supportLine} value={supportLine}>
+                    {supportLine}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Процесс
+              <select name="process" defaultValue={filters.process ?? ""} className="form-control">
+                <option value="">Все</option>
+                {queueProcessFilters.map((process) => (
+                  <option key={process} value={process}>
+                    {processLabels[process]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Срок
+              <select name="due" defaultValue={filters.due ?? ""} className="form-control">
+                <option value="">Все</option>
+                <option value="overdue">Просрочено</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Риск
+              <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="form-control">
+                <option value="">Все</option>
+                {riskLevels.map((riskLevel) => (
+                  <option key={riskLevel} value={riskLevel}>
+                    {riskLevelLabels[riskLevel]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </QueueAdvancedFilters>
       </div>
 
       {activeFilters.length > 0 ? (
@@ -102,136 +228,6 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           ))}
         </div>
       ) : null}
-
-      <details className="disclosure-panel border-t border-[#d9e0ea]" open={hasAdvancedFilters}>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[#334155]">
-          <span>{hasAdvancedFilters ? "Точные фильтры применены" : "Точные фильтры"}</span>
-          <span className="queue-filterbar__summary-action queue-filterbar__summary-action--chevron">
-            <span className="queue-filterbar__summary-closed">Раскрыть</span>
-            <span className="queue-filterbar__summary-open">Скрыть</span>
-            <span className="text-[#64748b]">10 параметров</span>
-            <ChevronDown className="queue-filterbar__chevron" size={15} aria-hidden="true" />
-          </span>
-        </summary>
-
-        <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4 md:grid-cols-2 lg:grid-cols-4">
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Канал
-            <select name="channel" defaultValue={filters.channel ?? ""} className="form-control">
-              <option value="">Все</option>
-              {Object.entries(channelLabels).map(([channel, label]) => (
-                <option key={channel} value={channel}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Источник
-            <select name="source" defaultValue={filters.source ?? ""} className="form-control">
-              <option value="">Все</option>
-              {sources.map((source) => (
-                <option key={source} value={source}>
-                  {source}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Оператор
-            <select name="assignee" defaultValue={filters.assignee ?? ""} className="form-control">
-              <option value="">Все</option>
-              {assignees.map((assignee) => (
-                <option key={assignee} value={assignee}>
-                  {assignee}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Проверяющий
-            <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="form-control">
-              <option value="">Все</option>
-              {qaAssignees.map((qaAssignee) => (
-                <option key={qaAssignee} value={qaAssignee}>
-                  {qaAssignee}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Выборка
-            <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="form-control">
-              <option value="">Все</option>
-              {queueSamplingTypes.map((samplingType) => (
-                <option key={samplingType} value={samplingType}>
-                  {samplingTypeLabels[samplingType]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            CSAT
-            <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="form-control">
-              <option value="">Все</option>
-              {queueCsatBuckets.map((csatBucket) => (
-                <option key={csatBucket} value={csatBucket}>
-                  {csatBucketLabels[csatBucket]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Линия
-            <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="form-control">
-              <option value="">Все</option>
-              {supportLines.map((supportLine) => (
-                <option key={supportLine} value={supportLine}>
-                  {supportLine}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Процесс
-            <select name="process" defaultValue={filters.process ?? ""} className="form-control">
-              <option value="">Все</option>
-              {queueProcessFilters.map((process) => (
-                <option key={process} value={process}>
-                  {processLabels[process]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Срок
-            <select name="due" defaultValue={filters.due ?? ""} className="form-control">
-              <option value="">Все</option>
-              <option value="overdue">Просрочено</option>
-            </select>
-          </label>
-
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
-            Риск
-            <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="form-control">
-              <option value="">Все</option>
-              {riskLevels.map((riskLevel) => (
-                <option key={riskLevel} value={riskLevel}>
-                  {riskLevelLabels[riskLevel]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </details>
     </form>
   );
 }

@@ -57,14 +57,14 @@ export function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="panel overflow-hidden">
-      <div className="flex items-start justify-between gap-3 border-b border-[#d9e0ea] px-5 py-4">
-        <div>
+    <section className="panel chart-panel overflow-hidden">
+      <div className="chart-panel__header">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">{title}</h2>
           {description ? <p className="mt-1 text-sm text-[#64748b]">{description}</p> : null}
         </div>
         {actionHref ? (
-          <Link href={actionHref} className="flex min-h-7 shrink-0 items-center rounded-md px-2 text-xs font-semibold uppercase text-[#1d3fae] hover:bg-[#edf2ff]">
+          <Link href={actionHref} className="chart-panel__action">
             {actionLabel}
           </Link>
         ) : null}
