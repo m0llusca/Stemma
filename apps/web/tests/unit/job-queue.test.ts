@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
+      groupBy: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn()
     },
@@ -238,5 +239,52 @@ describe("backend job queue", () => {
         baseDelayMs: 60_000
       }).toISOString()
     ).toBe("2026-05-04T08:03:00.000Z");
+  });
+
+  it("summarizes queue metrics by status", async () => {
+    const { getBackendQueueMetrics } = await import("@/lib/jobs/queue");
+    mocks.prisma.backendJob.groupBy.mockResolvedValue([
+      { queueName: "integrations", status: "QUEUED", _count: { _all: 2 } },
+      { queueName: "integrations", status: "FAILED", _count: { _all: 1 } }
+    ]);
+
+    await expect(getBackendQueueMetrics("workspace-1")).resolves.toEqual([
+      { queueName: "integrations", status: "QUEUED", count: 2 },
+      { queueName: "integrations", status: "FAILED", count: 1 }
+    ]);
+  });
+
+  it("requeues failed jobs and records an event", async () => {
+    const { requeueBackendJob } = await import("@/lib/jobs/queue");
+    mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.prisma.backendJob.findFirst.mockResolvedValue({
+      id: "job-1",
+      workspaceId: "workspace-1",
+      status: "FAILED"
+    });
+    mocks.prisma.backendJob.update.mockResolvedValue({ id: "job-1", status: "QUEUED" });
+    mocks.prisma.backendJobEvent.create.mockResolvedValue({});
+
+    await expect(
+      requeueBackendJob({
+        workspaceId: "workspace-1",
+        jobId: "job-1",
+        actorId: "user-1"
+      })
+    ).resolves.toEqual({ id: "job-1", status: "QUEUED" });
+
+    expect(mocks.prisma.backendJob.update).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: {
+        status: "QUEUED",
+        attempts: 0,
+        runAfter: expect.any(Date),
+        lockedAt: null,
+        lockedBy: null,
+        startedAt: null,
+        finishedAt: null,
+        errorMessage: null
+      }
+    });
   });
 });

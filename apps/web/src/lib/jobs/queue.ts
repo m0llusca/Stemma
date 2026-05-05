@@ -1,4 +1,4 @@
-import type { BackendJob, BackendJobType, Prisma } from "@prisma/client";
+import type { BackendJob, BackendJobStatus, BackendJobType, Prisma } from "@prisma/client";
 import { syncDirectoryProvider } from "@/lib/auth/directory-sync";
 import { prisma } from "@/lib/db";
 import { runIntegrationConnector } from "@/lib/integrations/runner";
@@ -51,6 +51,21 @@ export async function enqueueBackendJob(input: {
   });
 }
 
+export async function getBackendQueueMetrics(workspaceId: string): Promise<Array<{ queueName: string; status: BackendJobStatus; count: number }>> {
+  const rows = await prisma.backendJob.groupBy({
+    by: ["queueName", "status"],
+    where: { workspaceId },
+    _count: { _all: true },
+    orderBy: [{ queueName: "asc" }, { status: "asc" }]
+  });
+
+  return rows.map((row) => ({
+    queueName: row.queueName,
+    status: row.status,
+    count: row._count._all
+  }));
+}
+
 export async function recordJobEvent(client: JobClient, jobId: string, level: string, message: string, metadata: unknown = {}) {
   await client.backendJobEvent.create({
     data: {
@@ -68,6 +83,42 @@ export function nextRetryRunAfter(input: { attempts: number; now?: Date; baseDel
   const delayMultiplier = Math.max(1, input.attempts);
 
   return new Date(now.getTime() + baseDelayMs * delayMultiplier);
+}
+
+export async function requeueBackendJob(input: { workspaceId: string; jobId: string; actorId: string }) {
+  return prisma.$transaction(async (tx) => {
+    const job = await tx.backendJob.findFirst({
+      where: {
+        id: input.jobId,
+        workspaceId: input.workspaceId,
+        status: "FAILED"
+      }
+    });
+
+    if (!job) {
+      throw new Error("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
+    }
+
+    const updated = await tx.backendJob.update({
+      where: { id: job.id },
+      data: {
+        status: "QUEUED",
+        attempts: 0,
+        runAfter: new Date(),
+        lockedAt: null,
+        lockedBy: null,
+        startedAt: null,
+        finishedAt: null,
+        errorMessage: null
+      }
+    });
+
+    await recordJobEvent(tx, job.id, "warn", "Задача возвращена в очередь администратором.", {
+      actorId: input.actorId
+    });
+
+    return updated;
+  });
 }
 
 export async function claimNextBackendJob(workerId: string, filters: { queueName?: string } = {}) {
