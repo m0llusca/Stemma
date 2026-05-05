@@ -19,5 +19,5 @@ This message disappears once the first observation lands.
 
 - Web app lives in `apps/web`.
 - Use `npm install` from `apps/web` before running app commands.
-- Local database is SQLite via Prisma at `apps/web/prisma/dev.db`.
+- Local database is PostgreSQL via Docker Compose at `localhost:55432`; Prisma schema and migrations live in `apps/web/prisma`.
 - Primary commands: `npm run dev`, `npm run test`, `npm run test:e2e`, `npm run typecheck`.

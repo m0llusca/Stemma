@@ -42,7 +42,7 @@ Create or modify these backend units:
 - Modify: `apps/web/src/lib/api/response.ts`
 - Test: `apps/web/tests/unit/api-response.test.ts`
 
-- [ ] **Step 1: Write failing tests for standardized responses**
+- [x] **Step 1: Write failing tests for standardized responses**
 
 Create `apps/web/tests/unit/api-response.test.ts`:
 
@@ -102,7 +102,7 @@ describe("api response helpers", () => {
 });
 ```
 
-- [ ] **Step 2: Run the new test and verify it fails**
+- [x] **Step 2: Run the new test and verify it fails**
 
 Run:
 
@@ -113,7 +113,7 @@ npm run test -- tests/unit/api-response.test.ts
 
 Expected: FAIL because `apiData` and `requestIdFromHeaders` are not exported from `@/lib/api/response`.
 
-- [ ] **Step 3: Implement standardized helpers while preserving legacy `apiJson`**
+- [x] **Step 3: Implement standardized helpers while preserving legacy `apiJson`**
 
 Replace `apps/web/src/lib/api/response.ts` with:
 
@@ -194,7 +194,7 @@ export function apiError(code: ApiErrorCode, message: string, status: number, re
 }
 ```
 
-- [ ] **Step 4: Run response helper tests**
+- [x] **Step 4: Run response helper tests**
 
 Run:
 
@@ -205,7 +205,7 @@ npm run test -- tests/unit/api-response.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Run existing API helper tests**
+- [x] **Step 5: Run existing API helper tests**
 
 Run:
 
@@ -216,7 +216,7 @@ npm run test -- tests/unit/api-query.test.ts tests/api/conversations.test.ts
 
 Expected: PASS. The legacy `apiJson` helper still returns unwrapped bodies, so existing routes are not broken by this task.
 
-- [ ] **Step 6: Commit response helper changes**
+- [x] **Step 6: Commit response helper changes**
 
 Run:
 
@@ -234,7 +234,7 @@ git commit -m "add standardized api response helpers"
 - Test: `apps/web/tests/unit/api-rate-limit.test.ts`
 - Test: `apps/web/tests/unit/api-auth.test.ts`
 
-- [ ] **Step 1: Write failing rate limit helper tests**
+- [x] **Step 1: Write failing rate limit helper tests**
 
 Create `apps/web/tests/unit/api-rate-limit.test.ts`:
 
@@ -293,7 +293,7 @@ describe("api rate limit helpers", () => {
 });
 ```
 
-- [ ] **Step 2: Write failing API token auth tests**
+- [x] **Step 2: Write failing API token auth tests**
 
 Create `apps/web/tests/unit/api-auth.test.ts`:
 
@@ -366,7 +366,7 @@ describe("api token auth", () => {
 });
 ```
 
-- [ ] **Step 3: Run new tests and verify they fail**
+- [x] **Step 3: Run new tests and verify they fail**
 
 Run:
 
@@ -377,7 +377,7 @@ npm run test -- tests/unit/api-rate-limit.test.ts tests/unit/api-auth.test.ts
 
 Expected: FAIL because rate limit metadata, `rateLimitHeaders`, and `structuredErrors` are not implemented.
 
-- [ ] **Step 4: Add rate limit metadata and headers**
+- [x] **Step 4: Add rate limit metadata and headers**
 
 Update `apps/web/src/lib/api/rate-limit.ts`:
 
@@ -462,7 +462,7 @@ export function rateLimitHeaders(result: Pick<RateLimitResult, "limit" | "remain
 }
 ```
 
-- [ ] **Step 5: Add structured API token auth errors**
+- [x] **Step 5: Add structured API token auth errors**
 
 Modify `apps/web/src/lib/api-auth.ts`:
 
@@ -609,7 +609,7 @@ export async function recordApiTokenError(apiTokenId: string, error: string) {
 }
 ```
 
-- [ ] **Step 6: Run auth and rate limit tests**
+- [x] **Step 6: Run auth and rate limit tests**
 
 Run:
 
@@ -620,7 +620,7 @@ npm run test -- tests/unit/api-rate-limit.test.ts tests/unit/api-auth.test.ts te
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit auth and rate limit changes**
+- [x] **Step 7: Commit auth and rate limit changes**
 
 Run:
 
@@ -639,7 +639,7 @@ git commit -m "standardize api auth and rate limit metadata"
 - Modify: `apps/web/src/app/api/v1/reviews/[reviewId]/route.ts`
 - Test: `apps/web/tests/api/v1-contract.test.ts`
 
-- [ ] **Step 1: Write failing contract tests for public API routes**
+- [x] **Step 1: Write failing contract tests for public API routes**
 
 Create `apps/web/tests/api/v1-contract.test.ts`:
 
@@ -738,7 +738,7 @@ describe("v1 public API contract", () => {
 });
 ```
 
-- [ ] **Step 2: Run contract test and verify it fails**
+- [x] **Step 2: Run contract test and verify it fails**
 
 Run:
 
@@ -749,7 +749,7 @@ npm run test -- tests/api/v1-contract.test.ts
 
 Expected: FAIL because route success bodies are not wrapped under `data`/`meta`, and rate-limit headers are not forwarded.
 
-- [ ] **Step 3: Update `GET /api/v1/conversations` response handling**
+- [x] **Step 3: Update `GET /api/v1/conversations` response handling**
 
 In `apps/web/src/app/api/v1/conversations/route.ts`:
 
@@ -815,7 +815,7 @@ return apiData(
 );
 ```
 
-- [ ] **Step 4: Update `POST /api/v1/conversations` response handling**
+- [x] **Step 4: Update `POST /api/v1/conversations` response handling**
 
 In the same file:
 
@@ -834,7 +834,7 @@ return apiData(responseBody, {
 
 - Pass `requestId` into conflict, validation, rate limit, and internal error responses.
 
-- [ ] **Step 5: Update conversation detail, reviews list, and review detail routes**
+- [x] **Step 5: Update conversation detail, reviews list, and review detail routes**
 
 Apply the same pattern to:
 
@@ -850,7 +850,7 @@ return apiData({ reviews: serializedReviews }, { requestId, meta: { pagination }
 return apiData({ review: serializedReview }, { requestId, headers: rateLimitHeaders(rateLimit) });
 ```
 
-- [ ] **Step 6: Run public API contract tests**
+- [x] **Step 6: Run public API contract tests**
 
 Run:
 
@@ -861,7 +861,7 @@ npm run test -- tests/api/v1-contract.test.ts tests/api/conversations.test.ts
 
 Expected: PASS after updating `tests/api/conversations.test.ts` expectations for any `/api/v1` assertions affected by structured responses. Legacy `/api/...` assertions should remain unchanged.
 
-- [ ] **Step 7: Commit public API contract migration**
+- [x] **Step 7: Commit public API contract migration**
 
 Run:
 
@@ -890,7 +890,7 @@ git commit -m "standardize public v1 api contract"
 - Modify: `apps/web/src/app/api/v1/reports/exports/route.ts`
 - Test: `apps/web/tests/unit/api-session.test.ts`
 
-- [ ] **Step 1: Write failing CSRF/session guard tests**
+- [x] **Step 1: Write failing CSRF/session guard tests**
 
 Create `apps/web/tests/unit/api-session.test.ts`:
 
@@ -962,7 +962,7 @@ describe("session api guard", () => {
 });
 ```
 
-- [ ] **Step 2: Run session guard test and verify it fails**
+- [x] **Step 2: Run session guard test and verify it fails**
 
 Run:
 
@@ -973,7 +973,7 @@ npm run test -- tests/unit/api-session.test.ts
 
 Expected: FAIL because `@/lib/api/session` does not exist.
 
-- [ ] **Step 3: Implement session API guard**
+- [x] **Step 3: Implement session API guard**
 
 Create `apps/web/src/lib/api/session.ts`:
 
@@ -1059,7 +1059,7 @@ export async function requireSessionApi(request: Request, permission: Permission
 }
 ```
 
-- [ ] **Step 4: Migrate session-auth mutation routes**
+- [x] **Step 4: Migrate session-auth mutation routes**
 
 For every mutation route listed in this task:
 
@@ -1084,7 +1084,7 @@ For route handlers that currently receive `_request: Request`, rename it to `req
 
 Pass `requestId` into every `apiError` and `apiData` call in modified files.
 
-- [ ] **Step 5: Run focused session tests**
+- [x] **Step 5: Run focused session tests**
 
 Run:
 
@@ -1095,7 +1095,7 @@ npm run test -- tests/unit/api-session.test.ts tests/unit/auth-entry.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Run API route typecheck**
+- [x] **Step 6: Run API route typecheck**
 
 Run:
 
@@ -1106,7 +1106,7 @@ npm run typecheck
 
 Expected: PASS. If a route context type fails, keep Next.js App Router signatures unchanged and only rename the request variable.
 
-- [ ] **Step 7: Commit session guard changes**
+- [x] **Step 7: Commit session guard changes**
 
 Run:
 
@@ -1125,7 +1125,7 @@ git commit -m "add csrf guard for session api mutations"
 - Modify: `apps/web/src/app/auth/logout/route.ts`
 - Test: `apps/web/tests/unit/auth-cookies.test.ts`
 
-- [ ] **Step 1: Write failing cookie policy tests**
+- [x] **Step 1: Write failing cookie policy tests**
 
 Create `apps/web/tests/unit/auth-cookies.test.ts`:
 
@@ -1172,7 +1172,7 @@ describe("auth cookie policy", () => {
 });
 ```
 
-- [ ] **Step 2: Run cookie tests and verify failure**
+- [x] **Step 2: Run cookie tests and verify failure**
 
 Run:
 
@@ -1183,7 +1183,7 @@ npm run test -- tests/unit/auth-cookies.test.ts
 
 Expected: FAIL because `@/lib/auth/cookies` does not exist.
 
-- [ ] **Step 3: Implement shared cookie policy**
+- [x] **Step 3: Implement shared cookie policy**
 
 Create `apps/web/src/lib/auth/cookies.ts`:
 
@@ -1216,7 +1216,7 @@ export function expiredCookieOptions(): Partial<ResponseCookie> {
 }
 ```
 
-- [ ] **Step 4: Replace inline cookie options**
+- [x] **Step 4: Replace inline cookie options**
 
 Update:
 
@@ -1230,7 +1230,7 @@ Use these imports:
 import { authCookieOptions, expiredCookieOptions, oidcFlowCookieOptions } from "@/lib/auth/cookies";
 ```
 
-- [ ] **Step 5: Run auth tests**
+- [x] **Step 5: Run auth tests**
 
 Run:
 
@@ -1241,7 +1241,7 @@ npm run test -- tests/unit/auth-cookies.test.ts tests/unit/oidc.test.ts tests/un
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit cookie policy changes**
+- [x] **Step 6: Commit cookie policy changes**
 
 Run:
 
@@ -1258,7 +1258,7 @@ git commit -m "share secure auth cookie policy"
 - Modify: `apps/web/src/app/api/v1/openapi/route.ts`
 - Test: `apps/web/tests/unit/openapi.test.ts`
 
-- [ ] **Step 1: Write failing OpenAPI contract tests**
+- [x] **Step 1: Write failing OpenAPI contract tests**
 
 Create `apps/web/tests/unit/openapi.test.ts`:
 
@@ -1318,7 +1318,7 @@ describe("openapi document", () => {
 });
 ```
 
-- [ ] **Step 2: Run OpenAPI tests and verify failure**
+- [x] **Step 2: Run OpenAPI tests and verify failure**
 
 Run:
 
@@ -1329,7 +1329,7 @@ npm run test -- tests/unit/openapi.test.ts
 
 Expected: FAIL because `@/lib/api/openapi` does not exist.
 
-- [ ] **Step 3: Create OpenAPI contract module**
+- [x] **Step 3: Create OpenAPI contract module**
 
 Create `apps/web/src/lib/api/openapi.ts` with:
 
@@ -1402,7 +1402,7 @@ export function buildOpenApiDocument() {
 }
 ```
 
-- [ ] **Step 4: Serve OpenAPI from the module**
+- [x] **Step 4: Serve OpenAPI from the module**
 
 Replace `apps/web/src/app/api/v1/openapi/route.ts` with:
 
@@ -1417,7 +1417,7 @@ export async function GET() {
 }
 ```
 
-- [ ] **Step 5: Run OpenAPI tests**
+- [x] **Step 5: Run OpenAPI tests**
 
 Run:
 
@@ -1428,7 +1428,7 @@ npm run test -- tests/unit/openapi.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit OpenAPI module**
+- [x] **Step 6: Commit OpenAPI module**
 
 Run:
 
@@ -1446,7 +1446,7 @@ git commit -m "move openapi document into contract module"
 - Create: `apps/web/src/app/api/v1/jobs/[jobId]/requeue/route.ts`
 - Test: `apps/web/tests/unit/job-queue.test.ts`
 
-- [ ] **Step 1: Add failing queue operation tests**
+- [x] **Step 1: Add failing queue operation tests**
 
 Append to `apps/web/tests/unit/job-queue.test.ts`:
 
@@ -1508,7 +1508,7 @@ update: vi.fn()
 
 inside `backendJob`, if those functions are not already present.
 
-- [ ] **Step 2: Run job queue tests and verify failure**
+- [x] **Step 2: Run job queue tests and verify failure**
 
 Run:
 
@@ -1519,7 +1519,7 @@ npm run test -- tests/unit/job-queue.test.ts
 
 Expected: FAIL because `getBackendQueueMetrics` and `requeueBackendJob` are not implemented.
 
-- [ ] **Step 3: Implement queue metrics and requeue**
+- [x] **Step 3: Implement queue metrics and requeue**
 
 Add to `apps/web/src/lib/jobs/queue.ts`:
 
@@ -1576,7 +1576,7 @@ export async function requeueBackendJob(input: { workspaceId: string; jobId: str
 }
 ```
 
-- [ ] **Step 4: Add requeue route**
+- [x] **Step 4: Add requeue route**
 
 Create `apps/web/src/app/api/v1/jobs/[jobId]/requeue/route.ts`:
 
@@ -1623,7 +1623,7 @@ export async function POST(request: Request, context: { params: Promise<{ jobId:
 }
 ```
 
-- [ ] **Step 5: Add worker loop flags**
+- [x] **Step 5: Add worker loop flags**
 
 Replace `apps/web/src/scripts/run-jobs.ts` with:
 
@@ -1675,7 +1675,7 @@ main().catch((error) => {
 });
 ```
 
-- [ ] **Step 6: Run job tests and typecheck**
+- [x] **Step 6: Run job tests and typecheck**
 
 Run:
 
@@ -1687,7 +1687,7 @@ npm run typecheck
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit jobs reliability changes**
+- [x] **Step 7: Commit jobs reliability changes**
 
 Run:
 
@@ -1705,7 +1705,7 @@ git commit -m "improve backend job operations"
 - Modify: `apps/web/src/app/api/v1/reports/exports/route.ts`
 - Test: `apps/web/tests/api/admin-mutations-audit.test.ts`
 
-- [ ] **Step 1: Write failing audit tests for mutation routes without persistent audit events**
+- [x] **Step 1: Write failing audit tests for mutation routes without persistent audit events**
 
 Create `apps/web/tests/api/admin-mutations-audit.test.ts`:
 
@@ -1832,7 +1832,7 @@ describe("admin mutation audit events", () => {
 });
 ```
 
-- [ ] **Step 2: Run audit route tests and verify failure**
+- [x] **Step 2: Run audit route tests and verify failure**
 
 Run:
 
@@ -1843,7 +1843,7 @@ npm run test -- tests/api/admin-mutations-audit.test.ts
 
 Expected: FAIL because these routes do not write the asserted audit events.
 
-- [ ] **Step 3: Audit report export queueing**
+- [x] **Step 3: Audit report export queueing**
 
 In `apps/web/src/app/api/v1/reports/exports/route.ts`:
 
@@ -1866,7 +1866,7 @@ await auditLog({
 });
 ```
 
-- [ ] **Step 4: Audit backend job creation**
+- [x] **Step 4: Audit backend job creation**
 
 In `apps/web/src/app/api/v1/jobs/route.ts`, after `enqueueBackendJob`, add:
 
@@ -1884,7 +1884,7 @@ await auditLog({
 });
 ```
 
-- [ ] **Step 5: Audit manual backend job runner requests**
+- [x] **Step 5: Audit manual backend job runner requests**
 
 In `apps/web/src/app/api/v1/jobs/run/route.ts`, after `runDueBackendJobs(parsed.data)`, add:
 
@@ -1904,7 +1904,7 @@ await auditLog({
 
 Keep the existing `logBackendEvent` call so the request is visible in logs as well as persistent audit history.
 
-- [ ] **Step 6: Run audit tests**
+- [x] **Step 6: Run audit tests**
 
 Run:
 
@@ -1915,7 +1915,7 @@ npm run test -- tests/api/admin-mutations-audit.test.ts tests/unit/audit.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit audit gap changes**
+- [x] **Step 7: Commit audit gap changes**
 
 Run:
 
@@ -1931,7 +1931,7 @@ git commit -m "audit backend mutation operations"
 - Modify: `AGENTS.md`
 - Modify: `docs/superpowers/plans/2026-05-04-backend-foundation-hardening.md`
 
-- [ ] **Step 1: Update project notes**
+- [x] **Step 1: Update project notes**
 
 In `AGENTS.md`, replace:
 
@@ -1945,7 +1945,7 @@ with:
 - Local database is PostgreSQL via Docker Compose at `localhost:55432`; Prisma schema and migrations live in `apps/web/prisma`.
 ```
 
-- [ ] **Step 2: Run complete verification**
+- [x] **Step 2: Run complete verification**
 
 Run:
 
@@ -1964,7 +1964,7 @@ Expected:
 - `npm run build` exits `0`.
 - `npm run test:e2e` exits `0` when the PostgreSQL service from `compose.yaml` is healthy on `localhost:55432`.
 
-- [ ] **Step 3: Confirm route inventory**
+- [x] **Step 3: Confirm route inventory**
 
 Run:
 
@@ -1979,7 +1979,7 @@ Expected: output includes the new route:
 apps/web/src/app/api/v1/jobs/[jobId]/requeue/route.ts
 ```
 
-- [ ] **Step 4: Commit documentation and plan progress**
+- [x] **Step 4: Commit documentation and plan progress**
 
 Run:
 
