@@ -29,18 +29,6 @@ export async function POST(request: Request) {
   }
 
   const results = await runDueBackendJobs(parsed.data);
-  await auditLog({
-    workspaceId: user.workspaceId,
-    actorId: user.id,
-    action: "backend_jobs.run_requested",
-    targetType: "backend_jobs",
-    targetId: parsed.data.workerId ?? "manual",
-    metadata: {
-      processed: results.length,
-      workerId: parsed.data.workerId ?? null
-    }
-  });
-
   logBackendEvent({
     requestId,
     event: "backend_jobs.run_requested",
@@ -50,6 +38,31 @@ export async function POST(request: Request) {
       processed: results.length
     }
   });
+
+  try {
+    await auditLog({
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      action: "backend_jobs.run_requested",
+      targetType: "backend_jobs",
+      targetId: parsed.data.workerId ?? "manual",
+      metadata: {
+        processed: results.length,
+        workerId: parsed.data.workerId ?? null
+      }
+    });
+  } catch (error) {
+    logBackendEvent({
+      level: "error",
+      requestId,
+      event: "backend_jobs.run_audit_failed",
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      metadata: {
+        message: error instanceof Error ? error.message : "Unknown audit logging error"
+      }
+    });
+  }
 
   return apiJson(
     {

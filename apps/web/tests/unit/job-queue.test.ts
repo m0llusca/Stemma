@@ -77,6 +77,41 @@ describe("backend job queue", () => {
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
   });
 
+  it("enqueues jobs through a provided transaction client", async () => {
+    const { enqueueBackendJob } = await import("@/lib/jobs/queue");
+    const tx = {
+      backendJob: {
+        create: vi.fn().mockResolvedValue(backendJob())
+      }
+    } as unknown as NonNullable<Parameters<typeof enqueueBackendJob>[1]>;
+
+    await expect(
+      enqueueBackendJob(
+        {
+          workspaceId: "workspace-1",
+          type: "REPORT_EXPORT",
+          payload: { reportId: "report-1" },
+          createdById: "user-1"
+        },
+        tx
+      )
+    ).resolves.toEqual(backendJob());
+
+    expect(tx.backendJob.create).toHaveBeenCalledWith({
+      data: {
+        workspaceId: "workspace-1",
+        type: "REPORT_EXPORT",
+        payloadJson: JSON.stringify({ reportId: "report-1" }),
+        queueName: "default",
+        priority: 100,
+        runAfter: expect.any(Date),
+        maxAttempts: 3,
+        createdById: "user-1"
+      }
+    });
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
   it("claims the next queued job with a guarded update", async () => {
     const queuedJob = backendJob();
     const runningJob = backendJob({

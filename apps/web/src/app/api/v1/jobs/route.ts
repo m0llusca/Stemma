@@ -67,27 +67,37 @@ export async function POST(request: Request) {
     return apiError("bad_request", "Некорректные параметры фоновой задачи.", 400, requestId, parsed.error.flatten());
   }
 
-  const job = await enqueueBackendJob({
-    workspaceId: user.workspaceId,
-    type: parsed.data.type,
-    payload: parsed.data.payload,
-    queueName: parsed.data.queueName,
-    priority: parsed.data.priority,
-    runAfter: parsed.data.runAfter ? new Date(parsed.data.runAfter) : undefined,
-    maxAttempts: parsed.data.maxAttempts,
-    createdById: user.id
-  });
+  const job = await prisma.$transaction(async (tx) => {
+    const created = await enqueueBackendJob(
+      {
+        workspaceId: user.workspaceId,
+        type: parsed.data.type,
+        payload: parsed.data.payload,
+        queueName: parsed.data.queueName,
+        priority: parsed.data.priority,
+        runAfter: parsed.data.runAfter ? new Date(parsed.data.runAfter) : undefined,
+        maxAttempts: parsed.data.maxAttempts,
+        createdById: user.id
+      },
+      tx
+    );
 
-  await auditLog({
-    workspaceId: user.workspaceId,
-    actorId: user.id,
-    action: "backend_job.created",
-    targetType: "backend_job",
-    targetId: job.id,
-    metadata: {
-      type: job.type,
-      status: job.status
-    }
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "backend_job.created",
+        targetType: "backend_job",
+        targetId: created.id,
+        metadata: {
+          type: created.type,
+          status: created.status
+        }
+      },
+      tx
+    );
+
+    return created;
   });
 
   return apiJson(

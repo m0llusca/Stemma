@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
+import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
@@ -31,26 +32,36 @@ export async function POST(request: Request) {
     return apiError("bad_request", "Некорректные параметры экспорта отчета.", 400, requestId, parsed.error.flatten());
   }
 
-  const job = await enqueueBackendJob({
-    workspaceId: user.workspaceId,
-    type: "REPORT_EXPORT",
-    queueName: "reports",
-    priority: 80,
-    createdById: user.id,
-    payload: parsed.data
-  });
+  const job = await prisma.$transaction(async (tx) => {
+    const created = await enqueueBackendJob(
+      {
+        workspaceId: user.workspaceId,
+        type: "REPORT_EXPORT",
+        queueName: "reports",
+        priority: 80,
+        createdById: user.id,
+        payload: parsed.data
+      },
+      tx
+    );
 
-  await auditLog({
-    workspaceId: user.workspaceId,
-    actorId: user.id,
-    action: "report_export.queued",
-    targetType: "backend_job",
-    targetId: job.id,
-    metadata: {
-      format: parsed.data.format ?? null,
-      periodStart: parsed.data.periodStart,
-      periodEnd: parsed.data.periodEnd
-    }
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "report_export.queued",
+        targetType: "backend_job",
+        targetId: created.id,
+        metadata: {
+          format: parsed.data.format ?? null,
+          periodStart: parsed.data.periodStart,
+          periodEnd: parsed.data.periodEnd
+        }
+      },
+      tx
+    );
+
+    return created;
   });
 
   return apiJson(

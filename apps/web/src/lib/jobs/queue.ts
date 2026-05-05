@@ -35,6 +35,8 @@ type JobClient = Pick<
   | "reportSnapshot"
 >;
 
+type EnqueueJobClient = Pick<Prisma.TransactionClient, "backendJob">;
+
 export async function enqueueBackendJob(input: {
   workspaceId: string;
   type: BackendJobType;
@@ -44,8 +46,8 @@ export async function enqueueBackendJob(input: {
   runAfter?: Date;
   maxAttempts?: number;
   createdById?: string;
-}) {
-  return prisma.backendJob.create({
+}, client: EnqueueJobClient = prisma) {
+  return client.backendJob.create({
     data: {
       workspaceId: input.workspaceId,
       type: input.type,
