@@ -26,6 +26,7 @@ export function oidcFlowCookieOptions(): AuthCookieOptions {
 
 export function demoUserCookieOptions(maxAge: number): AuthCookieOptions {
   return {
+    httpOnly: true,
     sameSite: "lax",
     secure: isProduction(),
     path: "/",

@@ -36,6 +36,7 @@ describe("auth cookie policy", () => {
     vi.stubEnv("NODE_ENV", "production");
 
     expect(demoUserCookieOptions(60)).toEqual({
+      httpOnly: true,
       sameSite: "lax",
       secure: true,
       path: "/",
