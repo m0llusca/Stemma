@@ -39,6 +39,24 @@ describe("job requeue API", () => {
     });
   });
 
+  it("returns the legacy successful response shape", async () => {
+    const { POST } = await import("@/app/api/v1/jobs/[jobId]/requeue/route");
+    mocks.requeueBackendJob.mockResolvedValue({
+      id: "job-1",
+      status: "QUEUED"
+    });
+
+    const response = await POST(request(), { params: Promise.resolve({ jobId: "job-1" }) });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      job: {
+        id: "job-1",
+        status: "QUEUED"
+      }
+    });
+  });
+
   it("maps requeue conflict errors to 409", async () => {
     const { POST } = await import("@/app/api/v1/jobs/[jobId]/requeue/route");
     mocks.requeueBackendJob.mockRejectedValue(new mocks.BackendJobRequeueConflictError(conflictMessage));

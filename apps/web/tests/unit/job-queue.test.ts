@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
     backendJobEvent: {
       create: vi.fn()
     },
+    auditLog: {
+      create: vi.fn()
+    },
     integration: {
       updateMany: vi.fn()
     },
@@ -293,8 +296,9 @@ describe("backend job queue", () => {
     const { requeueBackendJob } = await import("@/lib/jobs/queue");
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
-    mocks.prisma.backendJob.findUnique.mockResolvedValue({ id: "job-1", status: "QUEUED" });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue({ id: "job-1", type: "REPORT_EXPORT", status: "QUEUED" });
     mocks.prisma.backendJobEvent.create.mockResolvedValue({});
+    mocks.prisma.auditLog.create.mockResolvedValue({});
 
     await expect(
       requeueBackendJob({
@@ -302,7 +306,7 @@ describe("backend job queue", () => {
         jobId: "job-1",
         actorId: "user-1"
       })
-    ).resolves.toEqual({ id: "job-1", status: "QUEUED" });
+    ).resolves.toEqual({ id: "job-1", type: "REPORT_EXPORT", status: "QUEUED" });
 
     expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledWith({
       where: {
@@ -321,6 +325,12 @@ describe("backend job queue", () => {
         errorMessage: null
       }
     });
+    expect(mocks.prisma.backendJob.findUnique.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.prisma.auditLog.create.mock.invocationCallOrder[0]
+    );
+    expect(mocks.prisma.backendJobEvent.create.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.prisma.auditLog.create.mock.invocationCallOrder[0]
+    );
     expect(mocks.prisma.backendJobEvent.create).toHaveBeenCalledWith({
       data: {
         jobId: "job-1",
@@ -329,9 +339,22 @@ describe("backend job queue", () => {
         metadata: JSON.stringify({ actorId: "user-1" })
       }
     });
+    expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        action: "backend_job.requeued",
+        targetType: "backend_job",
+        targetId: "job-1",
+        metadata: JSON.stringify({
+          type: "REPORT_EXPORT",
+          status: "QUEUED"
+        })
+      }
+    });
   });
 
-  it("does not record a requeue event when the guarded update does not change a job", async () => {
+  it("does not record a requeue event or audit log when the guarded update does not change a job", async () => {
     const { requeueBackendJob } = await import("@/lib/jobs/queue");
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 0 });
@@ -346,5 +369,6 @@ describe("backend job queue", () => {
 
     expect(mocks.prisma.backendJob.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.backendJobEvent.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.auditLog.create).not.toHaveBeenCalled();
   });
 });

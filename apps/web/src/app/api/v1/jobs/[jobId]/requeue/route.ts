@@ -1,4 +1,4 @@
-import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { BackendJobRequeueConflictError, requeueBackendJob } from "@/lib/jobs/queue";
 
@@ -22,14 +22,15 @@ export async function POST(request: Request, context: { params: Promise<{ jobId:
       actorId: user.id
     });
 
-    return apiData(
+    return apiJson(
       {
         job: {
           id: job.id,
           status: job.status
         }
       },
-      { requestId }
+      200,
+      requestId
     );
   } catch (error) {
     if (error instanceof BackendJobRequeueConflictError) {

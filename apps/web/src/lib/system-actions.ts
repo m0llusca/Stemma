@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/audit";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
+import { logBackendEvent } from "@/lib/observability";
 
 function numberField(formData: FormData, key: string, fallback: number, max: number) {
   const value = formData.get(key);
@@ -26,17 +27,39 @@ export async function runQueuedBackendJobs(formData: FormData) {
     workerId: `ui-${user.id.slice(0, 8)}`
   });
 
-  await auditLog({
+  logBackendEvent({
+    event: "backend_jobs.run_from_ui",
     workspaceId: user.workspaceId,
     actorId: user.id,
-    action: "backend_jobs.run_from_ui",
-    targetType: "backend_job",
-    targetId: "batch",
     metadata: {
       limit,
       processed: results.length
     }
   });
+
+  try {
+    await auditLog({
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      action: "backend_jobs.run_from_ui",
+      targetType: "backend_job",
+      targetId: "batch",
+      metadata: {
+        limit,
+        processed: results.length
+      }
+    });
+  } catch (error) {
+    logBackendEvent({
+      level: "error",
+      event: "backend_jobs.run_from_ui_audit_failed",
+      workspaceId: user.workspaceId,
+      actorId: user.id,
+      metadata: {
+        message: error instanceof Error ? error.message : "Unknown audit logging error"
+      }
+    });
+  }
 
   revalidatePath("/admin/system");
 }

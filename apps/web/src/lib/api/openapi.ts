@@ -1,4 +1,8 @@
 export function buildOpenApiDocument() {
+  const bearerSecurity = [{ bearerApiToken: [] }];
+  const sessionSecurity = [{ sessionCookie: [] }];
+  const noSecurity: [] = [];
+
   return {
     openapi: "3.1.0",
     info: {
@@ -7,11 +11,10 @@ export function buildOpenApiDocument() {
       description: "Backend API для ручного контроля качества ответов поддержки."
     },
     servers: [{ url: "/api/v1" }],
-    security: [{ bearerApiToken: [] }],
     paths: {
       "/health": {
         get: {
-          security: [],
+          security: noSecurity,
           summary: "Проверка состояния backend и базы данных",
           responses: {
             "200": { description: "Сервис работает" },
@@ -19,8 +22,18 @@ export function buildOpenApiDocument() {
           }
         }
       },
+      "/openapi": {
+        get: {
+          security: noSecurity,
+          summary: "OpenAPI document for the public and admin API surface",
+          responses: {
+            "200": { description: "OpenAPI 3.1 документ" }
+          }
+        }
+      },
       "/readiness": {
         get: {
+          security: sessionSecurity,
           summary: "Readiness diagnostics: runtime config, queues, SSO and integrations",
           responses: {
             "200": { description: "Сервис готов или содержит предупреждения" }
@@ -29,6 +42,7 @@ export function buildOpenApiDocument() {
       },
       "/me": {
         get: {
+          security: sessionSecurity,
           summary: "Текущий пользователь и его разрешения",
           responses: {
             "200": { description: "Профиль текущего пользователя" },
@@ -38,6 +52,7 @@ export function buildOpenApiDocument() {
       },
       "/auth/providers": {
         get: {
+          security: sessionSecurity,
           summary: "Провайдеры авторизации workspace и рекомендации AD/Entra",
           responses: {
             "200": { description: "Список провайдеров" },
@@ -45,6 +60,7 @@ export function buildOpenApiDocument() {
           }
         },
         post: {
+          security: sessionSecurity,
           summary: "Создать или обновить провайдера SSO/AD",
           responses: {
             "201": { description: "Провайдер сохранен" },
@@ -52,44 +68,90 @@ export function buildOpenApiDocument() {
           }
         }
       },
+      "/auth/providers/{providerId}": {
+        patch: {
+          security: sessionSecurity,
+          summary: "Обновить настройки провайдера SSO/AD",
+          responses: {
+            "200": { description: "Провайдер обновлен" },
+            "404": { description: "Провайдер не найден" }
+          }
+        }
+      },
       "/auth/providers/{providerId}/mappings": {
         get: {
+          security: sessionSecurity,
           summary: "Маппинги AD/Entra-групп в роли приложения",
           responses: {
             "200": { description: "Список маппингов" }
           }
         },
         post: {
+          security: sessionSecurity,
           summary: "Создать или обновить маппинг группы в роль",
           responses: {
             "201": { description: "Маппинг сохранен" }
           }
         }
       },
+      "/auth/providers/{providerId}/sync": {
+        post: {
+          security: sessionSecurity,
+          summary: "Поставить синхронизацию провайдера авторизации в очередь",
+          responses: {
+            "202": { description: "Задача синхронизации создана" },
+            "404": { description: "Провайдер не найден" }
+          }
+        }
+      },
       "/auth/sessions": {
         get: {
+          security: sessionSecurity,
           summary: "Активные и исторические пользовательские сессии",
           responses: {
             "200": { description: "Список сессий" }
           }
         }
       },
+      "/auth/sessions/{sessionId}/revoke": {
+        post: {
+          security: sessionSecurity,
+          summary: "Отозвать пользовательскую сессию",
+          responses: {
+            "200": { description: "Сессия отозвана" },
+            "404": { description: "Сессия не найдена" }
+          }
+        }
+      },
       "/api-tokens": {
         get: {
+          security: sessionSecurity,
           summary: "API-токены рабочего пространства",
           responses: {
             "200": { description: "Список API-токенов" }
           }
         },
         post: {
+          security: sessionSecurity,
           summary: "Выпустить новый API-токен",
           responses: {
             "201": { description: "Токен создан, plainToken возвращается один раз" }
           }
         }
       },
+      "/api-tokens/{tokenId}/revoke": {
+        post: {
+          security: sessionSecurity,
+          summary: "Отозвать API-токен workspace",
+          responses: {
+            "200": { description: "Токен отозван" },
+            "404": { description: "Токен не найден" }
+          }
+        }
+      },
       "/audit-logs": {
         get: {
+          security: sessionSecurity,
           summary: "Журнал действий workspace с фильтрами и пагинацией",
           parameters: [
             { name: "action", in: "query", required: false },
@@ -109,12 +171,14 @@ export function buildOpenApiDocument() {
       },
       "/integrations": {
         get: {
+          security: sessionSecurity,
           summary: "Интеграции рабочего пространства",
           responses: {
             "200": { description: "Список интеграций" }
           }
         },
         post: {
+          security: sessionSecurity,
           summary: "Создать или обновить интеграцию и ее секрет",
           responses: {
             "201": { description: "Интеграция сохранена" }
@@ -123,6 +187,7 @@ export function buildOpenApiDocument() {
       },
       "/integrations/{integrationId}/imports": {
         post: {
+          security: sessionSecurity,
           summary: "Поставить импорт интеграции в очередь",
           responses: {
             "202": { description: "IntegrationRun и BackendJob созданы" }
@@ -131,12 +196,14 @@ export function buildOpenApiDocument() {
       },
       "/jobs": {
         get: {
+          security: sessionSecurity,
           summary: "Фоновые задачи workspace",
           responses: {
             "200": { description: "Список задач" }
           }
         },
         post: {
+          security: sessionSecurity,
           summary: "Создать фоновую задачу",
           responses: {
             "201": { description: "Задача создана" },
@@ -146,14 +213,46 @@ export function buildOpenApiDocument() {
       },
       "/jobs/{jobId}": {
         get: {
+          security: sessionSecurity,
           summary: "Детали фоновой задачи и журнал событий",
           responses: {
             "200": { description: "Карточка задачи" }
           }
         }
       },
+      "/jobs/run": {
+        post: {
+          security: sessionSecurity,
+          summary: "Запустить доступные фоновые задачи вручную",
+          responses: {
+            "200": { description: "Задачи обработаны" },
+            "400": { description: "Некорректные параметры запуска" }
+          }
+        }
+      },
+      "/jobs/{jobId}/cancel": {
+        post: {
+          security: sessionSecurity,
+          summary: "Отменить задачу в очереди",
+          responses: {
+            "200": { description: "Задача отменена" },
+            "409": { description: "Задачу нельзя отменить" }
+          }
+        }
+      },
+      "/jobs/{jobId}/requeue": {
+        post: {
+          security: sessionSecurity,
+          summary: "Вернуть ошибочную задачу в очередь",
+          responses: {
+            "200": { description: "Задача возвращена в очередь" },
+            "409": { description: "Задачу нельзя вернуть в очередь" }
+          }
+        }
+      },
       "/conversations": {
         get: {
+          security: bearerSecurity,
           summary: "Список обращений workspace с фильтрами и пагинацией",
           parameters: [
             { name: "q", in: "query", required: false },
@@ -174,6 +273,7 @@ export function buildOpenApiDocument() {
           }
         },
         post: {
+          security: bearerSecurity,
           summary: "Импорт обращения из кастомной системы",
           parameters: [{ name: "Idempotency-Key", in: "header", required: false }],
           responses: {
@@ -184,6 +284,7 @@ export function buildOpenApiDocument() {
       },
       "/reviews": {
         get: {
+          security: bearerSecurity,
           summary: "Список проверок workspace с фильтрами и пагинацией",
           parameters: [
             { name: "q", in: "query", required: false },
@@ -207,6 +308,7 @@ export function buildOpenApiDocument() {
       },
       "/conversations/{conversationId}": {
         get: {
+          security: bearerSecurity,
           summary: "Детали обращения, сообщения и последние проверки",
           parameters: [
             { name: "conversationId", in: "path", required: true },
@@ -220,6 +322,7 @@ export function buildOpenApiDocument() {
       },
       "/conversations/{conversationId}/events": {
         get: {
+          security: sessionSecurity,
           summary: "История событий обращения в контуре проверки",
           responses: {
             "200": { description: "Список событий обращения" }
@@ -228,6 +331,7 @@ export function buildOpenApiDocument() {
       },
       "/reviews/{reviewId}": {
         get: {
+          security: bearerSecurity,
           summary: "Детали проверки, критерии, находки, обратная связь и события",
           responses: {
             "200": { description: "Карточка проверки" },
@@ -237,6 +341,7 @@ export function buildOpenApiDocument() {
       },
       "/reviews/{reviewId}/events": {
         get: {
+          security: sessionSecurity,
           summary: "История событий проверки",
           responses: {
             "200": { description: "Список событий проверки" }
@@ -245,6 +350,7 @@ export function buildOpenApiDocument() {
       },
       "/privacy/conversations/{conversationId}/redact": {
         post: {
+          security: sessionSecurity,
           summary: "Маскирование персональных данных в обращении",
           responses: {
             "200": { description: "Обращение замаскировано" },
@@ -254,9 +360,20 @@ export function buildOpenApiDocument() {
       },
       "/reports/snapshots": {
         get: {
+          security: sessionSecurity,
           summary: "Готовые снимки отчетности",
           responses: {
             "200": { description: "Список снимков" }
+          }
+        }
+      },
+      "/reports/exports": {
+        post: {
+          security: sessionSecurity,
+          summary: "Поставить экспорт отчета в очередь",
+          responses: {
+            "202": { description: "Задача экспорта создана" },
+            "400": { description: "Некорректный период или формат" }
           }
         }
       }
@@ -267,6 +384,12 @@ export function buildOpenApiDocument() {
           type: "http",
           scheme: "bearer",
           description: "API-токен workspace. Для UI используется серверная сессия."
+        },
+        sessionCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "qc_session",
+          description: "Сессионная cookie администратора UI."
         }
       },
       schemas: {

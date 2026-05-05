@@ -6,6 +6,24 @@ describe("openapi contract", () => {
     const document = buildOpenApiDocument();
 
     expect(document.openapi).toBe("3.1.0");
+    expect(document).not.toHaveProperty("security");
+    expect(document.components.securitySchemes).toEqual({
+      bearerApiToken: {
+        type: "http",
+        scheme: "bearer",
+        description: "API-токен workspace. Для UI используется серверная сессия."
+      },
+      sessionCookie: {
+        type: "apiKey",
+        in: "cookie",
+        name: "qc_session",
+        description: "Сессионная cookie администратора UI."
+      }
+    });
+    expect(document.paths["/health"].get.security).toEqual([]);
+    expect(document.paths["/openapi"].get.security).toEqual([]);
+    expect(document.paths["/conversations"].get.security).toEqual([{ bearerApiToken: [] }]);
+    expect(document.paths["/jobs/run"].post.security).toEqual([{ sessionCookie: [] }]);
     expect(document.components.schemas.ApiError).toEqual({
       type: "object",
       required: ["error"],
@@ -40,6 +58,14 @@ describe("openapi contract", () => {
         "/reviews/{reviewId}",
         "/integrations",
         "/jobs",
+        "/auth/providers/{providerId}",
+        "/auth/providers/{providerId}/sync",
+        "/auth/sessions/{sessionId}/revoke",
+        "/api-tokens/{tokenId}/revoke",
+        "/jobs/run",
+        "/jobs/{jobId}/cancel",
+        "/jobs/{jobId}/requeue",
+        "/reports/exports",
         "/api-tokens",
         "/audit-logs"
       ])

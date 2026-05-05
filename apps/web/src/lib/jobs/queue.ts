@@ -1,4 +1,5 @@
 import type { BackendJob, BackendJobStatus, BackendJobType, Prisma } from "@prisma/client";
+import { auditLog } from "@/lib/audit";
 import { syncDirectoryProvider } from "@/lib/auth/directory-sync";
 import { prisma } from "@/lib/db";
 import { runIntegrationConnector } from "@/lib/integrations/runner";
@@ -33,6 +34,7 @@ type JobClient = Pick<
   | "idempotencyKey"
   | "apiRateLimit"
   | "reportSnapshot"
+  | "auditLog"
 >;
 
 type EnqueueJobClient = Pick<Prisma.TransactionClient, "backendJob">;
@@ -130,6 +132,21 @@ export async function requeueBackendJob(input: { workspaceId: string; jobId: str
     await recordJobEvent(tx, updated.id, "warn", "Задача возвращена в очередь администратором.", {
       actorId: input.actorId
     });
+
+    await auditLog(
+      {
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: "backend_job.requeued",
+        targetType: "backend_job",
+        targetId: updated.id,
+        metadata: {
+          type: updated.type,
+          status: updated.status
+        }
+      },
+      tx
+    );
 
     return updated;
   });
