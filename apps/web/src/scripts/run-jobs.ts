@@ -14,7 +14,7 @@ type WorkerOptions = {
 function numberArg(args: string[], name: string, defaultValue: number) {
   const value = Number(args.find((arg) => arg.startsWith(`--${name}=`))?.split("=")[1]);
 
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : defaultValue;
+  return Number.isInteger(value) && value > 0 ? value : defaultValue;
 }
 
 function stringArg(args: string[], name: string) {

@@ -87,20 +87,12 @@ export function nextRetryRunAfter(input: { attempts: number; now?: Date; baseDel
 
 export async function requeueBackendJob(input: { workspaceId: string; jobId: string; actorId: string }) {
   return prisma.$transaction(async (tx) => {
-    const job = await tx.backendJob.findFirst({
+    const requeued = await tx.backendJob.updateMany({
       where: {
         id: input.jobId,
         workspaceId: input.workspaceId,
         status: "FAILED"
-      }
-    });
-
-    if (!job) {
-      throw new Error("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
-    }
-
-    const updated = await tx.backendJob.update({
-      where: { id: job.id },
+      },
       data: {
         status: "QUEUED",
         attempts: 0,
@@ -113,7 +105,19 @@ export async function requeueBackendJob(input: { workspaceId: string; jobId: str
       }
     });
 
-    await recordJobEvent(tx, job.id, "warn", "Задача возвращена в очередь администратором.", {
+    if (requeued.count === 0) {
+      throw new Error("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
+    }
+
+    const updated = await tx.backendJob.findUnique({
+      where: { id: input.jobId }
+    });
+
+    if (!updated) {
+      throw new Error("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
+    }
+
+    await recordJobEvent(tx, updated.id, "warn", "Задача возвращена в очередь администратором.", {
       actorId: input.actorId
     });
 

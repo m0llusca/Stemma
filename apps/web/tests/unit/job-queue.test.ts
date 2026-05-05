@@ -257,12 +257,8 @@ describe("backend job queue", () => {
   it("requeues failed jobs and records an event", async () => {
     const { requeueBackendJob } = await import("@/lib/jobs/queue");
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
-    mocks.prisma.backendJob.findFirst.mockResolvedValue({
-      id: "job-1",
-      workspaceId: "workspace-1",
-      status: "FAILED"
-    });
-    mocks.prisma.backendJob.update.mockResolvedValue({ id: "job-1", status: "QUEUED" });
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue({ id: "job-1", status: "QUEUED" });
     mocks.prisma.backendJobEvent.create.mockResolvedValue({});
 
     await expect(
@@ -273,8 +269,12 @@ describe("backend job queue", () => {
       })
     ).resolves.toEqual({ id: "job-1", status: "QUEUED" });
 
-    expect(mocks.prisma.backendJob.update).toHaveBeenCalledWith({
-      where: { id: "job-1" },
+    expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "job-1",
+        workspaceId: "workspace-1",
+        status: "FAILED"
+      },
       data: {
         status: "QUEUED",
         attempts: 0,
@@ -286,5 +286,30 @@ describe("backend job queue", () => {
         errorMessage: null
       }
     });
+    expect(mocks.prisma.backendJobEvent.create).toHaveBeenCalledWith({
+      data: {
+        jobId: "job-1",
+        level: "warn",
+        message: "Задача возвращена в очередь администратором.",
+        metadata: JSON.stringify({ actorId: "user-1" })
+      }
+    });
+  });
+
+  it("does not record a requeue event when the guarded update does not change a job", async () => {
+    const { requeueBackendJob } = await import("@/lib/jobs/queue");
+    mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      requeueBackendJob({
+        workspaceId: "workspace-1",
+        jobId: "job-1",
+        actorId: "user-1"
+      })
+    ).rejects.toThrow("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
+
+    expect(mocks.prisma.backendJob.findUnique).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJobEvent.create).not.toHaveBeenCalled();
   });
 });

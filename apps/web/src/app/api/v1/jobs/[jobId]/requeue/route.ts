@@ -1,4 +1,3 @@
-import { auditLog } from "@/lib/audit";
 import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requeueBackendJob } from "@/lib/jobs/queue";
@@ -21,17 +20,6 @@ export async function POST(request: Request, context: { params: Promise<{ jobId:
       workspaceId: user.workspaceId,
       jobId,
       actorId: user.id
-    });
-
-    await auditLog({
-      workspaceId: user.workspaceId,
-      actorId: user.id,
-      action: "backend_job.requeued",
-      targetType: "backend_job",
-      targetId: job.id,
-      metadata: {
-        status: job.status
-      }
     });
 
     return apiData(
