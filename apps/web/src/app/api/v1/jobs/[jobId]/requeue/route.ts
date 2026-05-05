@@ -1,6 +1,6 @@
 import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
-import { requeueBackendJob } from "@/lib/jobs/queue";
+import { BackendJobRequeueConflictError, requeueBackendJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +32,10 @@ export async function POST(request: Request, context: { params: Promise<{ jobId:
       { requestId }
     );
   } catch (error) {
-    return apiError(
-      "conflict",
-      error instanceof Error ? error.message : "Не удалось вернуть задачу в очередь.",
-      409,
-      requestId
-    );
+    if (error instanceof BackendJobRequeueConflictError) {
+      return apiError("conflict", error.message, 409, requestId);
+    }
+
+    return apiError("internal_error", "Внутренняя ошибка сервера.", 500, requestId);
   }
 }

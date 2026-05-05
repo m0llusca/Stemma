@@ -11,6 +11,14 @@ export const backendJobQueueDefaults = {
   staleLockMs: 30 * 60_000,
   staleRecoveryLimit: 20
 } as const;
+const requeueConflictMessage = "Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.";
+
+export class BackendJobRequeueConflictError extends Error {
+  constructor() {
+    super(requeueConflictMessage);
+    this.name = "BackendJobRequeueConflictError";
+  }
+}
 
 type JobClient = Pick<
   Prisma.TransactionClient,
@@ -106,7 +114,7 @@ export async function requeueBackendJob(input: { workspaceId: string; jobId: str
     });
 
     if (requeued.count === 0) {
-      throw new Error("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
+      throw new BackendJobRequeueConflictError();
     }
 
     const updated = await tx.backendJob.findUnique({
@@ -114,7 +122,7 @@ export async function requeueBackendJob(input: { workspaceId: string; jobId: str
     });
 
     if (!updated) {
-      throw new Error("Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.");
+      throw new BackendJobRequeueConflictError();
     }
 
     await recordJobEvent(tx, updated.id, "warn", "Задача возвращена в очередь администратором.", {

@@ -432,8 +432,9 @@ export default async function AdminSystemPage() {
 
       <div className="soft-callout mt-6 text-sm text-[#64748b]">
         <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
-        Для регулярного запуска фоновых задач в продакшене используйте cron-команду{" "}
-        <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run</code> или внешний планировщик.
+        Для cron-запуска фоновых задач используйте{" "}
+        <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run -- --once</code>.
+        Команда <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run</code> запускает постоянный worker.
       </div>
     </section>
   );
