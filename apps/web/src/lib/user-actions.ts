@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { authCookieOptions, demoUserCookieOptions } from "@/lib/auth/cookies";
 import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { currentUserCookieName, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -45,18 +46,8 @@ export async function switchCurrentUser(formData: FormData) {
     userAgent: headerStore.get("user-agent")
   });
   const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 12
-  });
-  cookieStore.set(currentUserCookieName, user.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30
-  });
+  cookieStore.set(sessionCookieName, token, authCookieOptions(60 * 60 * 12));
+  cookieStore.set(currentUserCookieName, user.id, demoUserCookieOptions(60 * 60 * 24 * 30));
 
   revalidatePath("/");
   redirect(returnTo);

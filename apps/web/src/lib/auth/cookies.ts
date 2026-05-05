@@ -1,10 +1,16 @@
-import type { ResponseCookie } from "next/dist/compiled/@edge-runtime/cookies";
+export type AuthCookieOptions = {
+  httpOnly?: boolean;
+  sameSite?: "lax" | "strict" | "none";
+  secure?: boolean;
+  path?: string;
+  maxAge?: number;
+};
 
 function isProduction() {
   return process.env.NODE_ENV === "production";
 }
 
-export function authCookieOptions(maxAge: number): Partial<ResponseCookie> {
+export function authCookieOptions(maxAge: number): AuthCookieOptions {
   return {
     httpOnly: true,
     sameSite: "lax",
@@ -14,11 +20,20 @@ export function authCookieOptions(maxAge: number): Partial<ResponseCookie> {
   };
 }
 
-export function oidcFlowCookieOptions(): Partial<ResponseCookie> {
+export function oidcFlowCookieOptions(): AuthCookieOptions {
   return authCookieOptions(60 * 10);
 }
 
-export function expiredCookieOptions(): Partial<ResponseCookie> {
+export function demoUserCookieOptions(maxAge: number): AuthCookieOptions {
+  return {
+    sameSite: "lax",
+    secure: isProduction(),
+    path: "/",
+    maxAge
+  };
+}
+
+export function expiredCookieOptions(): AuthCookieOptions {
   return {
     path: "/",
     maxAge: 0

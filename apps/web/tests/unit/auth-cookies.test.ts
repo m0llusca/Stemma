@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authCookieOptions, expiredCookieOptions, oidcFlowCookieOptions } from "@/lib/auth/cookies";
+import { authCookieOptions, demoUserCookieOptions, expiredCookieOptions, oidcFlowCookieOptions } from "@/lib/auth/cookies";
 
 describe("auth cookie policy", () => {
   afterEach(() => {
@@ -29,6 +29,18 @@ describe("auth cookie policy", () => {
     vi.stubEnv("NODE_ENV", "development");
 
     expect(authCookieOptions(60).secure).toBe(false);
+    expect(demoUserCookieOptions(60).secure).toBe(false);
+  });
+
+  it("keeps demo user cookies readable while using secure in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(demoUserCookieOptions(60)).toEqual({
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 60
+    });
   });
 
   it("expires cookies with path and max age", () => {
