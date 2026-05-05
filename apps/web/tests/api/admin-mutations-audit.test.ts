@@ -205,6 +205,29 @@ describe("admin backend mutation audit logging", () => {
     });
   });
 
+  it("audits manual backend job runner requests without a workerId as manual", async () => {
+    const { POST } = await import("@/app/api/v1/jobs/run/route");
+
+    const response = await POST(
+      jsonRequest("/api/v1/jobs/run", {
+        limit: 5
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.auditLog).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      actorId: "user-1",
+      action: "backend_jobs.run_requested",
+      targetType: "backend_jobs",
+      targetId: "manual",
+      metadata: {
+        processed: 2,
+        workerId: null
+      }
+    });
+  });
+
   it("does not audit manual backend job runner requests if running jobs fails", async () => {
     const { POST } = await import("@/app/api/v1/jobs/run/route");
     mocks.runDueBackendJobs.mockRejectedValue(new Error("worker failed"));
