@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -75,6 +76,18 @@ export async function POST(request: Request) {
     runAfter: parsed.data.runAfter ? new Date(parsed.data.runAfter) : undefined,
     maxAttempts: parsed.data.maxAttempts,
     createdById: user.id
+  });
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "backend_job.created",
+    targetType: "backend_job",
+    targetId: job.id,
+    metadata: {
+      type: job.type,
+      status: job.status
+    }
   });
 
   return apiJson(

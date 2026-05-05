@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { enqueueBackendJob } from "@/lib/jobs/queue";
@@ -37,6 +38,19 @@ export async function POST(request: Request) {
     priority: 80,
     createdById: user.id,
     payload: parsed.data
+  });
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "report_export.queued",
+    targetType: "backend_job",
+    targetId: job.id,
+    metadata: {
+      format: parsed.data.format ?? null,
+      periodStart: parsed.data.periodStart,
+      periodEnd: parsed.data.periodEnd
+    }
   });
 
   return apiJson(
