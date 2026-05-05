@@ -62,6 +62,7 @@ describe("api response helpers", () => {
       error: {
         code: "rate_limited",
         message: "Too many requests.",
+        details: null,
         requestId: "req-789"
       }
     });

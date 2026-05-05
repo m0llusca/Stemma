@@ -85,6 +85,7 @@ describe("public v1 API contract", () => {
       error: {
         code: "bad_request",
         message: "Некорректные фильтры проверок.",
+        details: null,
         requestId: "req-v1-1"
       }
     });

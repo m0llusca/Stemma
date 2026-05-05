@@ -83,7 +83,7 @@ export function apiError(
       error: {
         code,
         message,
-        ...(options.includeDetails === false ? {} : { details: options.details ?? null }),
+        details: options.includeDetails === false ? null : (options.details ?? null),
         requestId
       }
     },

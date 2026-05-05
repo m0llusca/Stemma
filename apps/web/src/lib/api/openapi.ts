@@ -265,7 +265,8 @@ export function buildOpenApiDocument() {
       securitySchemes: {
         bearerApiToken: {
           type: "http",
-          scheme: "bearer"
+          scheme: "bearer",
+          description: "API-токен workspace. Для UI используется серверная сессия."
         }
       },
       schemas: {
