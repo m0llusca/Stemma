@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authCookieOptions, expiredCookieOptions } from "@/lib/auth/cookies";
 import {
   exchangeAuthorizationCode,
   oidcNonceCookieName,
@@ -16,10 +17,7 @@ export const dynamic = "force-dynamic";
 
 function clearOidcCookies(response: NextResponse) {
   for (const name of [oidcStateCookieName, oidcVerifierCookieName, oidcNonceCookieName, oidcProviderCookieName, oidcReturnToCookieName]) {
-    response.cookies.set(name, "", {
-      path: "/",
-      maxAge: 0
-    });
+    response.cookies.set(name, "", expiredCookieOptions());
   }
 }
 
@@ -84,12 +82,7 @@ export async function GET(request: NextRequest) {
     });
     const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
 
-    response.cookies.set(sessionCookieName, authSession.token, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 12
-    });
+    response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
     clearOidcCookies(response);
 
     return response;

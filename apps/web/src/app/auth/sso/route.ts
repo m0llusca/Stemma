@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { oidcFlowCookieOptions } from "@/lib/auth/cookies";
 import {
   buildAuthorizationUrl,
   createOidcNonce,
@@ -59,12 +60,7 @@ export async function GET(request: NextRequest) {
       codeChallenge: createPkceChallenge(codeVerifier)
     });
     const response = NextResponse.redirect(authorizationUrl);
-    const cookieOptions = {
-      httpOnly: true,
-      sameSite: "lax" as const,
-      path: "/",
-      maxAge: 60 * 10
-    };
+    const cookieOptions = oidcFlowCookieOptions();
 
     response.cookies.set(oidcStateCookieName, state, cookieOptions);
     response.cookies.set(oidcVerifierCookieName, codeVerifier, cookieOptions);
