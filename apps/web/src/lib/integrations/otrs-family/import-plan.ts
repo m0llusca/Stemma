@@ -15,6 +15,14 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 type OtrsPreviewMode = "manual_ticket_ids" | "ticket_search";
+type ConversationImportClient = {
+  conversation: {
+    upsert: (...args: any[]) => unknown;
+  };
+  message: {
+    upsert: (...args: any[]) => unknown;
+  };
+};
 
 type PreviewDb = {
   integrationDiagnosticRun: {
@@ -54,7 +62,7 @@ type ImportDb = {
   integration: {
     update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
   };
-};
+} & ConversationImportClient;
 
 type OtrsPreviewIntegration = {
   id: string;
@@ -98,7 +106,7 @@ export type ImportSelectedOtrsRunItemsInput = {
   importer?: (
     workspaceId: string,
     payload: CustomConversationInput,
-    client: unknown
+    client: ConversationImportClient
   ) => Promise<ImportedConversation>;
 };
 
@@ -179,7 +187,10 @@ export async function createOtrsPreviewItems(input: CreateOtrsPreviewItemsInput)
 
 export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunItemsInput) {
   const db = input.db ?? prisma;
-  const importer = input.importer ?? ((workspaceId: string, payload: CustomConversationInput) => upsertCustomConversation(workspaceId, payload));
+  const importer =
+    input.importer ??
+    ((workspaceId: string, payload: CustomConversationInput, client: ConversationImportClient) =>
+      upsertCustomConversation(workspaceId, payload, client as NonNullable<Parameters<typeof upsertCustomConversation>[2]>));
   const run = await db.integrationRun.findFirst({
     where: {
       id: input.integrationRunId,
@@ -221,6 +232,26 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   });
   let importedCount = 0;
   let errorCount = 0;
+  let lastSuccessfulExternalId: string | undefined;
+
+  if (selectedItems.length === 0) {
+    await db.integrationRun.update({
+      where: { id: input.integrationRunId },
+      data: {
+        status: "no_selection",
+        dryRun: true,
+        importedCount: 0,
+        errorCount: 0,
+        errorMessage: "No preview items were selected for import.",
+        finishedAt: new Date()
+      }
+    });
+
+    return {
+      importedCount: 0,
+      errorCount: 0
+    };
+  }
 
   for (const item of selectedItems) {
     try {
@@ -228,6 +259,7 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
       const imported = await importer(input.workspaceId, conversation, db);
 
       importedCount += 1;
+      lastSuccessfulExternalId = imported.externalId || conversation.externalId;
       await db.integrationRunItem.update({
         where: { id: String(item.id) },
         data: {
@@ -256,25 +288,31 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   }
 
   const finishedAt = new Date();
+  const status = importedCount > 0 ? "imported" : "failed";
+  const errorMessage = importedCount > 0 ? null : "All selected preview items failed to import.";
 
   await db.integrationRun.update({
     where: { id: input.integrationRunId },
     data: {
-      status: "imported",
+      status,
       dryRun: false,
       importedCount,
       errorCount,
+      errorMessage,
       finishedAt
     }
   });
-  await db.integration.update({
-    where: { id: input.integrationId },
-    data: {
-      lastImportAt: finishedAt,
-      lastSyncedAt: finishedAt,
-      syncCursor: input.integrationRunId
-    }
-  });
+
+  if (lastSuccessfulExternalId) {
+    await db.integration.update({
+      where: { id: input.integrationId },
+      data: {
+        lastImportAt: finishedAt,
+        lastSyncedAt: finishedAt,
+        syncCursor: lastSuccessfulExternalId
+      }
+    });
+  }
 
   return {
     importedCount,

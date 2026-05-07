@@ -74,6 +74,8 @@ function createFakeDb(existingExternalIds: string[] = []) {
     diagnosticRuns: [] as Array<Record<string, unknown>>,
     runs: [] as Array<Record<string, unknown>>,
     items: [] as Array<Record<string, unknown>>,
+    conversations: [] as Array<Record<string, unknown>>,
+    messages: [] as Array<Record<string, unknown>>,
     integrationUpdates: [] as Array<Record<string, unknown>>
   };
   let diagnosticRunCount = 0;
@@ -168,6 +170,43 @@ function createFakeDb(existingExternalIds: string[] = []) {
       findUnique: vi.fn(async ({ where }) => {
         const externalId = where.workspaceId_externalSource_externalId.externalId;
         return existingExternalIds.includes(externalId) ? { id: `existing-${externalId}` } : null;
+      }),
+      upsert: vi.fn(async ({ where, create, update }) => {
+        const externalId = where.workspaceId_externalSource_externalId.externalId;
+        const existing = state.conversations.find((conversationRow) => conversationRow.externalId === externalId);
+
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+
+        const row = {
+          id: `conversation-${externalId}`,
+          ...create
+        };
+        state.conversations.push(row);
+        return row;
+      })
+    },
+    message: {
+      upsert: vi.fn(async ({ where, create, update }) => {
+        const externalId = where.conversationId_externalId.externalId;
+        const conversationId = where.conversationId_externalId.conversationId;
+        const existing = state.messages.find(
+          (messageRow) => messageRow.conversationId === conversationId && messageRow.externalId === externalId
+        );
+
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+
+        const row = {
+          id: `message-${conversationId}-${externalId}`,
+          ...create
+        };
+        state.messages.push(row);
+        return row;
       })
     },
     integration: {
@@ -420,10 +459,150 @@ describe("OTRS-family preview/import planning", () => {
     expect(state.integrationUpdates[0]).toMatchObject({
       lastImportAt: expect.any(Date),
       lastSyncedAt: expect.any(Date),
-      syncCursor: "run-1"
+      syncCursor: "401"
     });
     expect(result).toEqual({
       importedCount: 1,
+      errorCount: 1
+    });
+  });
+
+  it("default importer uses the injected db boundary for conversation and message upserts", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "501",
+      status: "previewed",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("501"))
+    });
+
+    await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"]
+    });
+
+    expect(db.conversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId_externalSource_externalId: {
+            workspaceId: "workspace-1",
+            externalSource: "otrs",
+            externalId: "501"
+          }
+        }
+      })
+    );
+    expect(db.message.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          conversationId_externalId: {
+            conversationId: "conversation-501",
+            externalId: "501-1"
+          }
+        }
+      })
+    );
+    expect(state.items.find((item) => item.id === "item-1")).toMatchObject({
+      conversationId: "conversation-501",
+      status: "imported"
+    });
+  });
+
+  it("empty selected import does not advance integration sync state or claim import success", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["missing-item"]
+    });
+
+    expect(state.integrationUpdates).toEqual([]);
+    expect(state.runs[0]).toMatchObject({
+      importedCount: 0,
+      errorCount: 0,
+      status: "no_selection",
+      dryRun: true,
+      errorMessage: "No preview items were selected for import.",
+      finishedAt: expect.any(Date)
+    });
+    expect(result).toEqual({
+      importedCount: 0,
+      errorCount: 0
+    });
+  });
+
+  it("all-failed selected import does not advance integration sync state", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "601",
+      status: "previewed",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("601"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      importer: vi.fn(async () => {
+        throw new Error("all failed");
+      })
+    });
+
+    expect(state.integrationUpdates).toEqual([]);
+    expect(state.items[0]).toMatchObject({
+      status: "failed"
+    });
+    expect(state.runs[0]).toMatchObject({
+      importedCount: 0,
+      errorCount: 1,
+      status: "failed",
+      dryRun: false,
+      errorMessage: "All selected preview items failed to import.",
+      finishedAt: expect.any(Date)
+    });
+    expect(result).toEqual({
+      importedCount: 0,
       errorCount: 1
     });
   });
