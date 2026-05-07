@@ -257,7 +257,6 @@ Update schema around `Integration` and `IntegrationCredential`:
 model Integration {
   // existing fields
   credentials    IntegrationCredential[]
-  diagnosticRuns IntegrationDiagnosticRun[]
   runs           IntegrationRun[]
 }
 
@@ -280,6 +279,8 @@ model IntegrationCredential {
   @@index([workspaceId, kind])
 }
 ```
+
+Task 3 owns `IntegrationDiagnosticRun`, so do not add `diagnosticRuns` in Task 2.
 
 Create migration with:
 
