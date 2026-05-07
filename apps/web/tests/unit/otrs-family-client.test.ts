@@ -389,7 +389,9 @@ describe("OTRS-family HTTP client", () => {
       ',\\"accessToken\\":\\"raw-access-token\\"',
       ',\\"apiToken\\":\\"raw-api-token\\"',
       ',\\"clientSecret\\":\\"raw-client-secret\\"',
-      ',\\"authorization\\":\\"Bearer raw-auth-token\\"'
+      ',\\"authorization\\":\\"Bearer raw-auth-token\\"',
+      ',\\"Secret\\":\\"raw-secret-value\\"',
+      ',\\"caBundle\\":\\"raw-ca-material\\"'
     ].join("");
     const httpErrorClient = createOtrsHttpClient({
       config,
@@ -438,7 +440,35 @@ describe("OTRS-family HTTP client", () => {
       expect(detail).not.toContain("raw-api-token");
       expect(detail).not.toContain("raw-client-secret");
       expect(detail).not.toContain("raw-auth-token");
+      expect(detail).not.toContain("raw-secret-value");
+      expect(detail).not.toContain("raw-ca-material");
     }
+  });
+
+  it("redacts query-style auth fragments with whitespace inside values", async () => {
+    const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+    const client = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async () => ({
+        statusCode: 500,
+        body: [
+          "https://support.example.com/otrs?Authorization=Bearer raw-auth-token&Queue=Raw",
+          "Password=raw password#done"
+        ].join("\n")
+      })
+    });
+
+    const error = await expectConnectorError(() =>
+      client.requestJson(buildTicketSearchRequest({ config, baseUrl, userLogin, password, filters: { Queue: "Raw" } }))
+    );
+    const detail = JSON.stringify(error.redactedDetail);
+
+    expect(error.code).toBe("ticket_search_failed");
+    expect(detail).not.toContain("raw-auth-token");
+    expect(detail).not.toContain("raw password");
   });
 
   it("maps operation HTTP failures to operation-specific codes", async () => {
@@ -508,7 +538,8 @@ describe("OTRS-family HTTP client", () => {
             "Authorization: Bearer raw-auth-token",
             "Password: raw-password-value",
             "SessionID: raw-session-value",
-            "apiToken: raw-api-token"
+            "apiToken: raw-api-token",
+            "caBundle: raw-ca-material"
           ].join("\n")
         );
       }
@@ -524,6 +555,7 @@ describe("OTRS-family HTTP client", () => {
     expect(detail).not.toContain("raw-password-value");
     expect(detail).not.toContain("raw-session-value");
     expect(detail).not.toContain("raw-api-token");
+    expect(detail).not.toContain("raw-ca-material");
   });
 
   it("maps timeout, invalid JSON, and oversized responses", async () => {

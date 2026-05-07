@@ -38,7 +38,7 @@ const redactedValue = "[REDACTED]";
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 5_000_000;
 const sensitiveAuthFragmentKeyPattern =
-  "Authorization|UserLogin|Password|SessionID|token|bearerToken|accessToken|apiToken|clientSecret";
+  "Authorization|UserLogin|Password|SessionID|token|bearerToken|accessToken|apiToken|clientSecret|secret|caBundle";
 const tlsErrorCodes = new Set([
   "CERT_HAS_EXPIRED",
   "DEPTH_ZERO_SELF_SIGNED_CERT",
@@ -519,7 +519,7 @@ function redactUrlCredentials(value: string) {
 
 function redactAuthFragments(value: string) {
   const queryFragmentPattern = new RegExp(
-    `((?:^|[?&#;\\s])(?:${sensitiveAuthFragmentKeyPattern})=)[^&#;\\s]+`,
+    `((?:^|[?&#;\\s])(?:${sensitiveAuthFragmentKeyPattern})=)[^&#;\\r\\n]+`,
     "gi"
   );
   const headerFragmentPattern = new RegExp(
