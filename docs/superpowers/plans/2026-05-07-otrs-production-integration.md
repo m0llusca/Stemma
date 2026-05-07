@@ -492,7 +492,7 @@ Expected: schema test, generation, and typecheck exit `0`.
 - Create: `apps/web/src/lib/integrations/otrs-family/requests.ts`
 - Test: `apps/web/tests/unit/otrs-family-client.test.ts`
 
-- [ ] **Step 1: Write failing client tests**
+- [x] **Step 1: Write failing client tests**
 
 Cover:
 
@@ -515,7 +515,7 @@ npm run test -- tests/unit/otrs-family-client.test.ts
 
 Expected: FAIL because client/request modules do not exist.
 
-- [ ] **Step 2: Implement error taxonomy**
+- [x] **Step 2: Implement error taxonomy**
 
 `errors.ts` exports `OtrsConnectorErrorCode`:
 
@@ -537,7 +537,7 @@ type OtrsConnectorErrorCode =
 
 Also export `OtrsConnectorError` with `code`, `safeMessage`, `redactedDetail`, and optional `remediationHint`.
 
-- [ ] **Step 3: Implement request builders**
+- [x] **Step 3: Implement request builders**
 
 `requests.ts` exports:
 
@@ -548,7 +548,7 @@ Also export `OtrsConnectorError` with `code`, `safeMessage`, `redactedDetail`, a
 
 TicketSearch for OTRS CE 6 must use POST JSON by default. TicketGet must use GET query by default. Both functions must respect route overrides only after config parsing has accepted them.
 
-- [ ] **Step 4: Implement production HTTP client**
+- [x] **Step 4: Implement production HTTP client**
 
 `client.ts` exports:
 
@@ -561,7 +561,7 @@ Use Node `http`/`https` modules when a CA bundle is present so `ca` can be passe
 
 Do not support `rejectUnauthorized: false`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 
