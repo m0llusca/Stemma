@@ -343,7 +343,7 @@ Expected: tests and typecheck exit `0`, and generated Prisma types expose `crede
 - Modify: `apps/web/prisma/seed.ts`
 - Test: `apps/web/tests/unit/prisma-schema.test.ts`
 
-- [ ] **Step 1: Write failing schema tests**
+- [x] **Step 1: Write failing schema tests**
 
 Extend `prisma-schema.test.ts` to assert:
 
@@ -362,7 +362,7 @@ npm run test -- tests/unit/prisma-schema.test.ts
 
 Expected: FAIL before schema/migration changes.
 
-- [ ] **Step 2: Add Prisma models**
+- [x] **Step 2: Add Prisma models**
 
 Add relation arrays to `Workspace`, `Integration`, `IntegrationRun`, `Conversation`, and `User` as needed.
 
@@ -446,7 +446,7 @@ ON "IntegrationRunItem"("integrationRunId", "externalId")
 WHERE "integrationRunId" IS NOT NULL;
 ```
 
-- [ ] **Step 3: Create and inspect migration**
+- [x] **Step 3: Create and inspect migration**
 
 Run:
 
@@ -457,7 +457,7 @@ npm run db:migrate -- --name add_integration_diagnostics
 
 Expected: migration creates all three tables, indexes, and foreign keys. Add the partial unique index manually if Prisma does not generate it.
 
-- [ ] **Step 4: Update seed cleanup**
+- [x] **Step 4: Update seed cleanup**
 
 Delete in dependency order:
 
@@ -468,7 +468,7 @@ Delete in dependency order:
 5. `integrationCredential`;
 6. `integration`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 
