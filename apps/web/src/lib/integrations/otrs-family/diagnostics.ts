@@ -248,12 +248,15 @@ export async function runOtrsDiagnostics(input: RunOtrsDiagnosticsInput) {
     const start = Date.now();
     config = parseOtrsConnectorConfig(input.integration.configJson);
     const baseUrl = requireBaseUrl(input.integration.baseUrl);
-    redactedEndpoint = redactOtrsUrl(
-      buildOtrsWebServiceBaseUrl({
-        baseUrl,
-        basePath: config.basePath,
-        webServiceName: config.webServiceName
-      })
+    redactedEndpoint = sanitizeDiagnosticString(
+      redactOtrsUrl(
+        buildOtrsWebServiceBaseUrl({
+          baseUrl,
+          basePath: config.basePath,
+          webServiceName: config.webServiceName
+        })
+      ),
+      redactionSecrets
     );
     await record({
       key: "config",
@@ -282,17 +285,18 @@ export async function runOtrsDiagnostics(input: RunOtrsDiagnosticsInput) {
     return finishRun();
   }
 
-  const password = input.password?.trim();
+  const password = input.password ?? "";
+  const passwordMissing = password.trim().length === 0;
   const userLogin = input.userLogin?.trim();
   const baseUrl = input.integration.baseUrl?.trim() ?? "";
   const protocol = protocolForBaseUrl(baseUrl);
 
-  if (!password || !userLogin) {
+  if (passwordMissing || !userLogin) {
     await record({
       key: "tls",
       status: "skipped",
       detail: {
-        reason: password ? "user_login_missing" : "auth_password_missing"
+        reason: passwordMissing ? "auth_password_missing" : "user_login_missing"
       }
     });
   } else if (protocol === "https:") {
@@ -337,7 +341,7 @@ export async function runOtrsDiagnostics(input: RunOtrsDiagnosticsInput) {
     });
   }
 
-  if (!firstRequest && password && userLogin) {
+  if (!firstRequest && !passwordMissing && userLogin) {
     firstRequest = await executeFirstRequest({ input, config, baseUrl, userLogin, password });
   }
 
@@ -365,12 +369,12 @@ export async function runOtrsDiagnostics(input: RunOtrsDiagnosticsInput) {
     }
   });
 
-  if (!password || !userLogin) {
+  if (passwordMissing || !userLogin) {
     const diagnosticError = new OtrsConnectorError({
       code: "secret_missing",
       safeMessage: "OTRS auth_password secret is missing.",
       redactedDetail: {
-        missing: password ? "user_login" : "auth_password"
+        missing: passwordMissing ? "auth_password" : "user_login"
       },
       remediationHint: "Save the OTRS API user password in the auth_password credential slot."
     });
@@ -640,7 +644,7 @@ export async function runOtrsDiagnostics(input: RunOtrsDiagnosticsInput) {
         status,
         finishedAt: new Date(),
         summaryJson: JSON.stringify(sanitizeDiagnosticJson(summary, redactionSecrets)),
-        redactedEndpoint,
+        redactedEndpoint: redactedEndpoint ? sanitizeDiagnosticString(redactedEndpoint, redactionSecrets) : null,
         errorCode: finalError?.code ?? null,
         errorMessage: finalError?.message ? String(sanitizeDiagnosticJson(finalError.message, redactionSecrets)) : null
       }
@@ -817,6 +821,10 @@ function serializeUnknownError(error: unknown) {
 
 function sanitizeDiagnosticJson(value: unknown, secrets: readonly string[] = []): unknown {
   return replaceKnownSecrets(redactOtrsPayload(value), secrets);
+}
+
+function sanitizeDiagnosticString(value: string, secrets: readonly string[] = []) {
+  return String(sanitizeDiagnosticJson(value, secrets));
 }
 
 function replaceKnownSecrets(value: unknown, secrets: readonly string[]): unknown {

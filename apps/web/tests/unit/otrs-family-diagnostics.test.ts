@@ -305,6 +305,65 @@ describe("OTRS-family diagnostics", () => {
     });
   });
 
+  it("sends the saved password value unchanged when it contains surrounding whitespace", async () => {
+    const tx = createFakeTx();
+    const savedPassword = "  whitespace-password  ";
+    const requests: unknown[] = [];
+    const client = {
+      requestJson: vi.fn(async (request) => {
+        requests.push(request);
+        const body = request.body as { Password?: string } | undefined;
+        const requestPassword = body?.Password ?? new URL(request.url).searchParams.get("Password") ?? undefined;
+
+        if (requestPassword !== savedPassword) {
+          throw new OtrsConnectorError({
+            code: "auth_failed",
+            safeMessage: "Password was not sent exactly as saved.",
+            redactedDetail: {
+              Password: requestPassword
+            }
+          });
+        }
+
+        return requests.length === 1 ? { TicketID: ["42"] } : ticketGetPayload("42", 1);
+      })
+    };
+
+    await runOtrsDiagnostics(createRunInput(tx, client, { password: savedPassword }));
+
+    expect(finalRunUpdate(tx).data.status).toBe("succeeded");
+    expect(client.requestJson).toHaveBeenCalled();
+    expect((requests[0] as { body?: { Password?: string } }).body?.Password).toBe(savedPassword);
+    expect(finalRunUpdate(tx).data.errorCode).toBeNull();
+  });
+
+  it("redacts known secrets from persisted run endpoint and all persisted JSON", async () => {
+    const tx = createFakeTx();
+    const endpointSecret = password;
+    const fakeClient = createFakeClient([{ TicketID: ["42"] }, ticketGetPayload("42", 1)]);
+
+    await runOtrsDiagnostics(
+      createRunInput(tx, fakeClient.client, {
+        integration: {
+          id: integrationId,
+          workspaceId,
+          source: "otrs",
+          displayName: "Production OTRS",
+          type: "otrs_family",
+          baseUrl: `https://support.example.com/${endpointSecret}/otrs`,
+          configJson: JSON.stringify({
+            ...buildDefaultOtrsConnectorConfig("otrs_ce_6"),
+            webServiceName: `${endpointSecret}-GenericTicketConnectorREST`
+          })
+        }
+      })
+    );
+
+    expect(finalRunUpdate(tx).data.status).toBe("succeeded");
+    expect(finalRunUpdate(tx).data.redactedEndpoint).not.toContain(endpointSecret);
+    expect(allPersistedJson(tx)).not.toContain(endpointSecret);
+  });
+
   it("service persists a failed diagnostic instead of throwing before persistence when auth_password is missing", async () => {
     const tx = createFakeTx();
     tx.integration.findFirst.mockResolvedValue({
