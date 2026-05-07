@@ -183,8 +183,25 @@ async function nodeTransport(request: OtrsTransportRequest): Promise<OtrsTranspo
     const parsedUrl = new URL(request.url);
     const isHttps = parsedUrl.protocol === "https:";
     const body = request.body;
+    let settled = false;
     const headers: Record<string, string | number> = {
       ...request.headers
+    };
+    const settleResolve = (response: OtrsTransportResponse) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      resolve(response);
+    };
+    const settleReject = (error: unknown) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      reject(error);
     };
 
     if (body !== undefined && headers["content-length"] === undefined && headers["Content-Length"] === undefined) {
@@ -205,22 +222,20 @@ async function nodeTransport(request: OtrsTransportRequest): Promise<OtrsTranspo
       (response) => {
         const chunks: Buffer[] = [];
         let responseBytes = 0;
-        let settled = false;
 
         response.on("data", (chunk: Buffer | string) => {
           const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
           responseBytes += buffer.byteLength;
 
           if (responseBytes > request.maxResponseBytes) {
-            settled = true;
             const error = Object.assign(new Error("OTRS response exceeded the configured size limit."), {
               code: "OTRS_RESPONSE_TOO_LARGE",
               responseBytes,
               maxResponseBytes: request.maxResponseBytes
             });
+            settleReject(error);
             req.destroy(error);
             response.destroy(error);
-            reject(error);
             return;
           }
 
@@ -231,18 +246,29 @@ async function nodeTransport(request: OtrsTransportRequest): Promise<OtrsTranspo
             return;
           }
 
-          resolve({
+          settleResolve({
             statusCode: response.statusCode ?? 0,
             headers: response.headers,
             body: Buffer.concat(chunks)
           });
         });
+        response.on("error", settleReject);
+        response.on("aborted", () => {
+          settleReject(Object.assign(new Error("OTRS response stream was aborted."), { code: "ECONNRESET" }));
+        });
+        response.on("close", () => {
+          if (!response.complete) {
+            settleReject(Object.assign(new Error("OTRS response stream closed before completion."), { code: "ECONNRESET" }));
+          }
+        });
       }
     );
 
-    req.on("error", reject);
+    req.on("error", settleReject);
     req.setTimeout(request.timeoutMs, () => {
-      req.destroy(Object.assign(new Error("OTRS request timed out."), { code: "ETIMEDOUT" }));
+      const error = Object.assign(new Error("OTRS request timed out."), { code: "ETIMEDOUT" });
+      settleReject(error);
+      req.destroy(error);
     });
 
     if (body !== undefined) {

@@ -1,3 +1,4 @@
+import http from "node:http";
 import { buildDefaultOtrsConnectorConfig, parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import {
   createOtrsHttpClient,
@@ -13,6 +14,7 @@ import { describe, expect, it } from "vitest";
 const baseUrl = "https://support.example.com/otrs";
 const userLogin = "qa_api";
 const password = "super-secret";
+const testTimeoutMs = 1500;
 
 function createRecordingClient(responseBody: unknown = { Success: 1 }) {
   const requests: OtrsTransportRequest[] = [];
@@ -49,6 +51,47 @@ async function expectConnectorError(action: () => Promise<unknown>) {
   throw new Error("Expected OtrsConnectorError");
 }
 
+async function withHttpServer<T>(
+  handler: http.RequestListener,
+  run: (input: { baseUrl: string }) => Promise<T>
+): Promise<T> {
+  const server = http.createServer(handler);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+
+    const address = server.address();
+
+    if (!address || typeof address === "string") {
+      throw new Error("Expected local HTTP server address.");
+    }
+
+    return await run({ baseUrl: `http://127.0.0.1:${address.port}/otrs` });
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
+function withTestTimeout<T>(promise: Promise<T>, timeoutMs = testTimeoutMs): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new Error(`Test operation timed out after ${timeoutMs}ms.`)), timeoutMs);
+    })
+  ]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
+}
+
 describe("OTRS-family HTTP client", () => {
   it("builds TicketSearch as default OTRS CE 6 POST JSON with auth, filters, and limit", async () => {
     const { client, config, requests } = createRecordingClient({ TicketID: ["1", "2"] });
@@ -78,6 +121,124 @@ describe("OTRS-family HTTP client", () => {
       StateType: "Open",
       Limit: 25
     });
+  });
+
+  it("honors a POST route override with post_json serialization", async () => {
+    const requests: OtrsTransportRequest[] = [];
+    const config = parseOtrsConnectorConfig({
+      product: "otrs_ce_6",
+      advanced: {
+        routeOverridesEnabled: true
+      },
+      routes: {
+        ticketSearchPath: "/CustomTicketSearch",
+        ticketSearchMethod: "POST"
+      },
+      requestMode: {
+        ticketSearch: "post_json"
+      }
+    });
+    const client = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async (request) => {
+        requests.push(request);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ TicketID: ["42"] })
+        };
+      }
+    });
+
+    await client.requestJson(
+      buildTicketSearchRequest({
+        config,
+        baseUrl,
+        userLogin,
+        password,
+        filters: {
+          Queue: "Raw"
+        }
+      })
+    );
+
+    expect(requests[0].method).toBe("POST");
+    expect(requests[0].url).toBe(`${baseUrl}/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/CustomTicketSearch`);
+    expect(JSON.parse(requests[0].body ?? "")).toMatchObject({
+      UserLogin: userLogin,
+      Password: password,
+      Queue: "Raw"
+    });
+  });
+
+  it("builds default OTOBO TicketSearch as GET query", async () => {
+    const requests: OtrsTransportRequest[] = [];
+    const config = buildDefaultOtrsConnectorConfig("otobo");
+    const client = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async (request) => {
+        requests.push(request);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ TicketID: ["42"] })
+        };
+      }
+    });
+
+    await client.requestJson(
+      buildTicketSearchRequest({
+        config,
+        baseUrl,
+        userLogin,
+        password,
+        filters: {
+          Queue: "Raw"
+        },
+        limit: 10
+      })
+    );
+
+    expect(requests[0].method).toBe("GET");
+    expect(requests[0].body).toBeUndefined();
+
+    const url = new URL(requests[0].url);
+    expect(url.pathname).toBe("/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketSearch");
+    expect(url.searchParams.get("UserLogin")).toBe(userLogin);
+    expect(url.searchParams.get("Password")).toBe(password);
+    expect(url.searchParams.get("Queue")).toBe("Raw");
+    expect(url.searchParams.get("Limit")).toBe("10");
+  });
+
+  it("rejects unsupported route method and serialization mode combinations safely", () => {
+    const config = parseOtrsConnectorConfig({
+      product: "otrs_ce_6",
+      advanced: {
+        routeOverridesEnabled: true
+      },
+      routes: {
+        ticketSearchMethod: "GET"
+      },
+      requestMode: {
+        ticketSearch: "post_json"
+      }
+    });
+
+    expect(() =>
+      buildTicketSearchRequest({
+        config,
+        baseUrl,
+        userLogin,
+        password,
+        filters: {
+          Queue: "Raw"
+        }
+      })
+    ).toThrow(/unsupported/i);
   });
 
   it("builds TicketGet as default OTRS CE 6 GET query with auth, articles, and attachment metadata only", async () => {
@@ -323,6 +484,124 @@ describe("OTRS-family HTTP client", () => {
         )
       )
     ).toMatchObject({ code: "response_too_large" });
+  });
+
+  it("uses the real Node transport for successful JSON responses", async () => {
+    await withHttpServer(
+      (request, response) => {
+        expect(request.method).toBe("POST");
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ Success: 1, TicketID: ["42"] }));
+      },
+      async ({ baseUrl: localBaseUrl }) => {
+        const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+        const client = createOtrsHttpClient({
+          config,
+          baseUrl: localBaseUrl,
+          userLogin,
+          password
+        });
+
+        await expect(
+          client.requestJson(
+            buildTicketSearchRequest({
+              config,
+              baseUrl: localBaseUrl,
+              userLogin,
+              password,
+              filters: {
+                Queue: "Raw"
+              }
+            })
+          )
+        ).resolves.toEqual({ Success: 1, TicketID: ["42"] });
+      }
+    );
+  });
+
+  it("maps oversized streaming responses from the real Node transport", async () => {
+    await withHttpServer(
+      (_request, response) => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.write('{"payload":"');
+        response.write("x".repeat(128));
+        response.end('"}');
+      },
+      async ({ baseUrl: localBaseUrl }) => {
+        const config = parseOtrsConnectorConfig({
+          product: "otrs_ce_6",
+          limits: {
+            maxResponseBytes: 32
+          }
+        });
+        const client = createOtrsHttpClient({
+          config,
+          baseUrl: localBaseUrl,
+          userLogin,
+          password
+        });
+
+        await expect(
+          expectConnectorError(() =>
+            withTestTimeout(
+              client.requestJson(
+                buildTicketSearchRequest({
+                  config,
+                  baseUrl: localBaseUrl,
+                  userLogin,
+                  password,
+                  filters: {
+                    Queue: "Raw"
+                  }
+                })
+              )
+            )
+          )
+        ).resolves.toMatchObject({ code: "response_too_large" });
+      }
+    );
+  });
+
+  it("maps premature response close from the real Node transport without hanging", async () => {
+    await withHttpServer(
+      (_request, response) => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.write('{"Success":');
+        response.destroy();
+      },
+      async ({ baseUrl: localBaseUrl }) => {
+        const config = parseOtrsConnectorConfig({
+          product: "otrs_ce_6",
+          limits: {
+            requestTimeoutMs: 1000
+          }
+        });
+        const client = createOtrsHttpClient({
+          config,
+          baseUrl: localBaseUrl,
+          userLogin,
+          password
+        });
+
+        const error = await expectConnectorError(() =>
+          withTestTimeout(
+            client.requestJson(
+              buildTicketSearchRequest({
+                config,
+                baseUrl: localBaseUrl,
+                userLogin,
+                password,
+                filters: {
+                  Queue: "Raw"
+                }
+              })
+            )
+          )
+        );
+
+        expect(["webservice_unreachable", "timeout"]).toContain(error.code);
+      }
+    );
   });
 
   it("parses TicketSearch response identifiers as strings", () => {

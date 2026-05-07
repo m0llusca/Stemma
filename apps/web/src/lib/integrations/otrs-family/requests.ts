@@ -2,6 +2,7 @@ import {
   buildOtrsWebServiceBaseUrl,
   type OtrsConnectorConfig
 } from "@/lib/integrations/otrs-family/config";
+import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 
 export type OtrsOperation = "TicketSearch" | "TicketGet";
 export type OtrsHttpMethod = "GET" | "POST";
@@ -65,6 +66,7 @@ export function buildTicketSearchRequest(input: TicketSearchRequestInput): OtrsO
   return buildOperationRequest({
     config: input.config,
     operation: "TicketSearch",
+    method: input.config.routes.ticketSearchMethod,
     mode: input.config.requestMode.ticketSearch,
     url,
     payload
@@ -95,6 +97,7 @@ export function buildTicketGetRequest(input: TicketGetRequestInput): OtrsOperati
   return buildOperationRequest({
     config: input.config,
     operation: "TicketGet",
+    method: input.config.routes.ticketGetMethod,
     mode: input.config.requestMode.ticketGet,
     url,
     payload
@@ -136,6 +139,7 @@ export function parseTicketSearchResponse(payload: unknown): string[] {
 function buildOperationRequest(input: {
   config: OtrsConnectorConfig;
   operation: OtrsOperation;
+  method: OtrsHttpMethod;
   mode: "post_json" | "get_query";
   url: string;
   payload: Record<string, unknown>;
@@ -146,10 +150,10 @@ function buildOperationRequest(input: {
     maxResponseBytes: input.config.limits.maxResponseBytes
   } as const;
 
-  if (input.mode === "get_query") {
+  if (input.mode === "get_query" && input.method === "GET") {
     return {
       ...baseRequest,
-      method: "GET",
+      method: input.method,
       url: appendQueryParams(input.url, input.payload),
       headers: {
         accept: "application/json"
@@ -157,16 +161,28 @@ function buildOperationRequest(input: {
     };
   }
 
-  return {
-    ...baseRequest,
-    method: "POST",
-    url: input.url,
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json"
-    },
-    body: input.payload
-  };
+  if (input.mode === "post_json" && input.method === "POST") {
+    return {
+      ...baseRequest,
+      method: input.method,
+      url: input.url,
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json"
+      },
+      body: input.payload
+    };
+  }
+
+  throw new OtrsConnectorError({
+    code: "config_invalid",
+    safeMessage: `Unsupported OTRS ${input.operation} route method and request mode combination.`,
+    redactedDetail: {
+      operation: input.operation,
+      method: input.method,
+      requestMode: input.mode
+    }
+  });
 }
 
 function resolveUrlConfigInput(input: UrlConfigInput) {
