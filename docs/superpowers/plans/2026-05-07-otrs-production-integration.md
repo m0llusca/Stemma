@@ -585,7 +585,7 @@ Expected: client tests and typecheck exit `0`.
 - Modify: `apps/web/src/lib/integrations/otrs-family/service.ts`
 - Test: `apps/web/tests/unit/otrs-family-diagnostics.test.ts`
 
-- [ ] **Step 1: Write failing diagnostics tests**
+- [x] **Step 1: Write failing diagnostics tests**
 
 Tests must use a fake OTRS client and fake Prisma transaction client. Cover:
 
@@ -605,7 +605,7 @@ npm run test -- tests/unit/otrs-family-diagnostics.test.ts
 
 Expected: FAIL before diagnostics service exists.
 
-- [ ] **Step 2: Implement diagnostics runner**
+- [x] **Step 2: Implement diagnostics runner**
 
 `diagnostics.ts` exports:
 
@@ -625,7 +625,7 @@ Implementation notes:
 - `normalize`: call OTRS normalization wrapper from Task 6 if present, or current normalizer during this task.
 - `db_dry_run`: validate mapping and duplicate state.
 
-- [ ] **Step 3: Add service entrypoint**
+- [x] **Step 3: Add service entrypoint**
 
 `service.ts` exports `runOtrsConnectorDiagnostics({ workspaceId, integrationId, actorId, manualTicketId? })`.
 
@@ -638,7 +638,7 @@ It must load:
 
 Missing password must create a failed diagnostic run with `secret_missing`, not throw before persistence.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run:
 
