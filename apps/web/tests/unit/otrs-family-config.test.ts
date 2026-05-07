@@ -105,6 +105,35 @@ describe("OTRS-family connector config", () => {
     }
   );
 
+  it.each(["Token", "accessToken", "apiToken", "bearerToken", "clientSecret", "secret", "passwordHash", "authorization"])(
+    "rejects secret-looking key %s anywhere inside config JSON",
+    (secretKey) => {
+      expect(() =>
+        parseOtrsConnectorConfig({
+          product: "otrs_ce_6",
+          nested: {
+            [secretKey]: "secret-value"
+          }
+        })
+      ).toThrow(/must not contain secrets/i);
+    }
+  );
+
+  it("allows safe secret references in typed config", () => {
+    expect(
+      parseOtrsConnectorConfig({
+        product: "otrs_ce_6",
+        tls: {
+          caBundleSecretId: "secret_ca_bundle",
+          caFingerprint: "AA:BB"
+        }
+      }).tls
+    ).toEqual({
+      caBundleSecretId: "secret_ca_bundle",
+      caFingerprint: "AA:BB"
+    });
+  });
+
   it.each([
     "UserLogin=qa_api&Password=secret",
     "?SessionID=abc123",
@@ -129,6 +158,82 @@ describe("OTRS-family connector config", () => {
         webServiceName: "GenericTicketConnectorREST"
       })
     ).toBe("https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST");
+  });
+
+  it("builds the WebService base URL from full app baseUrl without appending basePath", () => {
+    expect(
+      buildOtrsWebServiceBaseUrl({
+        baseUrl: "https://support.example.com/otrs/",
+        basePath: "/otrs",
+        webServiceName: "GenericTicketConnectorREST"
+      })
+    ).toBe("https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST");
+  });
+
+  it("normalizes trailing slashes for origin and baseUrl contracts", () => {
+    expect(
+      buildOtrsWebServiceBaseUrl({
+        origin: "https://support.example.com/",
+        basePath: "/otrs/",
+        webServiceName: "GenericTicketConnectorREST"
+      })
+    ).toBe("https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST");
+    expect(
+      buildOtrsWebServiceBaseUrl({
+        baseUrl: "https://support.example.com/otrs/",
+        webServiceName: "GenericTicketConnectorREST"
+      })
+    ).toBe("https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST");
+  });
+
+  it("derives request modes from final route methods", () => {
+    expect(buildDefaultOtrsConnectorConfig("otobo").requestMode.ticketSearch).toBe("get_query");
+    expect(
+      parseOtrsConnectorConfig({
+        product: "otrs_ce_6",
+        advanced: {
+          routeOverridesEnabled: true
+        },
+        routes: {
+          ticketSearchMethod: "GET",
+          ticketGetMethod: "POST"
+        }
+      }).requestMode
+    ).toEqual({
+      ticketSearch: "get_query",
+      ticketGet: "post_json"
+    });
+  });
+
+  it("preserves explicit request modes over derived route method defaults", () => {
+    expect(
+      parseOtrsConnectorConfig({
+        product: "otobo",
+        requestMode: {
+          ticketSearch: "post_json"
+        }
+      }).requestMode
+    ).toEqual({
+      ticketSearch: "post_json",
+      ticketGet: "get_query"
+    });
+  });
+
+  it("strips unknown route keys from parsed config", () => {
+    expect(
+      parseOtrsConnectorConfig({
+        product: "otrs_ce_6",
+        routes: {
+          ticketSearchPath: "/Ticket",
+          customRouteKey: "/Unexpected"
+        }
+      }).routes
+    ).toEqual({
+      ticketSearchPath: "/Ticket",
+      ticketGetPath: "/Ticket/{TicketID}",
+      ticketSearchMethod: "POST",
+      ticketGetMethod: "GET"
+    });
   });
 
   it("clamps limits to safe maximums", () => {

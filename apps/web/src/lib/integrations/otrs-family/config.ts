@@ -7,7 +7,7 @@ const maxManualTicketIdLimit = 50;
 const maxBatchSize = 50;
 const maxResponseBytes = 10_000_000;
 
-const forbiddenConfigKeys = new Set(["password", "Password", "sessionId", "SessionID", "token", "caBundle"]);
+const allowedSecretReferenceKeys = new Set(["caBundleSecretId"]);
 const rawAuthQueryPattern = /(?:^|[?&#;])(?:UserLogin|Password|password|SessionID|sessionId|token)=/;
 
 const productSchema = z.enum(["otrs_ce_6", "znuny_lts", "otobo"]);
@@ -27,8 +27,7 @@ const routesInputSchema = z
     ticketGetPath: pathSchema.optional(),
     ticketSearchMethod: methodSchema.optional(),
     ticketGetMethod: methodSchema.optional()
-  })
-  .passthrough();
+  });
 
 const limitsInputSchema = z
   .object({
@@ -125,8 +124,8 @@ const rawConfigSchema = z
       basePath: normalizePath(value.basePath ?? profile.basePath),
       routes,
       requestMode: {
-        ticketSearch: value.requestMode?.ticketSearch ?? "post_json",
-        ticketGet: value.requestMode?.ticketGet ?? "get_query"
+        ticketSearch: value.requestMode?.ticketSearch ?? requestModeForMethod(routes.ticketSearchMethod),
+        ticketGet: value.requestMode?.ticketGet ?? requestModeForMethod(routes.ticketGetMethod)
       },
       articlePolicy: {
         importAllArticles: value.articlePolicy?.importAllArticles ?? true,
@@ -180,7 +179,9 @@ export function assertNoOtrsSecretsInConfig(value: unknown) {
 }
 
 export function buildOtrsWebServiceBaseUrl(input: { origin?: string; baseUrl?: string; basePath?: string; webServiceName: string }) {
-  const root = `${stripTrailingSlash(input.origin ?? input.baseUrl ?? "")}${normalizePath(input.basePath ?? "")}`;
+  const root = input.baseUrl
+    ? stripTrailingSlash(input.baseUrl)
+    : `${stripTrailingSlash(input.origin ?? "")}${normalizePath(input.basePath ?? "")}`;
   return `${stripTrailingSlash(root)}/nph-genericinterface.pl/Webservice/${encodeURIComponent(input.webServiceName)}`;
 }
 
@@ -241,7 +242,7 @@ function findForbiddenConfigPath(value: unknown, path: string[] = []): string | 
   for (const [key, nestedValue] of Object.entries(value)) {
     const keyPath = [...path, key].join(".");
 
-    if (forbiddenConfigKeys.has(key)) {
+    if (isForbiddenConfigKey(key)) {
       return keyPath;
     }
 
@@ -253,6 +254,18 @@ function findForbiddenConfigPath(value: unknown, path: string[] = []): string | 
   }
 
   return undefined;
+}
+
+function isForbiddenConfigKey(key: string) {
+  if (allowedSecretReferenceKeys.has(key)) {
+    return false;
+  }
+
+  return /(password|token|secret|authorization|sessionid|cabundle)/i.test(key);
+}
+
+function requestModeForMethod(method: "GET" | "POST") {
+  return method === "POST" ? "post_json" : "get_query";
 }
 
 function clampLimit(value: number, max: number) {
