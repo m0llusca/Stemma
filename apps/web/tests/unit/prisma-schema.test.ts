@@ -1,17 +1,22 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
 const migrationLock = readFileSync(join(process.cwd(), "prisma/migrations/migration_lock.toml"), "utf8");
+const migrationsDir = join(process.cwd(), "prisma/migrations");
 const baselineMigration = readFileSync(
-  join(process.cwd(), "prisma/migrations/20260504122200_postgresql_baseline/migration.sql"),
+  join(migrationsDir, "20260504122200_postgresql_baseline/migration.sql"),
   "utf8"
 );
 const guardrailsMigration = readFileSync(
-  join(process.cwd(), "prisma/migrations/20260504123057_add_database_guardrails/migration.sql"),
+  join(migrationsDir, "20260504123057_add_database_guardrails/migration.sql"),
   "utf8"
 );
+const credentialKindsMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_add_integration_credential_kinds"));
+const credentialKindsMigration = credentialKindsMigrationName
+  ? readFileSync(join(migrationsDir, credentialKindsMigrationName, "migration.sql"), "utf8")
+  : "";
 
 describe("prisma schema database foundations", () => {
   it("uses PostgreSQL as the only Prisma datasource provider", () => {
@@ -94,5 +99,31 @@ describe("prisma schema database foundations", () => {
     }
 
     expect(guardrailsMigration).toContain('WHERE "status" = \'QUEUED\' AND "lockedAt" IS NULL');
+  });
+
+  it("stores integration credentials as one secret slot per kind", () => {
+    const integrationModel = schema.match(/model Integration \{[\s\S]*?\n\}/)?.[0] ?? "";
+    const credentialModel = schema.match(/model IntegrationCredential \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+    expect(integrationModel).toMatch(/credentials\s+IntegrationCredential\[]/);
+    expect(integrationModel).not.toContain("credential    IntegrationCredential?");
+    expect(credentialModel).toContain('kind            String      @default("auth_password")');
+    expect(credentialModel).toContain("fingerprint     String?");
+    expect(credentialModel).toContain("@@unique([integrationId, kind])");
+    expect(credentialModel).toContain("@@index([workspaceId, kind])");
+    expect(credentialModel).not.toMatch(/integrationId\s+String\s+@unique/);
+  });
+
+  it("migrates integration credential uniqueness from integration to integration and kind", () => {
+    expect(credentialKindsMigrationName).toMatch(/^\d+_add_integration_credential_kinds$/);
+    expect(credentialKindsMigration).toContain('ALTER TABLE "IntegrationCredential" ADD COLUMN "kind" TEXT NOT NULL DEFAULT \'auth_password\'');
+    expect(credentialKindsMigration).toContain('ALTER TABLE "IntegrationCredential" ADD COLUMN "fingerprint" TEXT');
+    expect(credentialKindsMigration).toContain('DROP INDEX "IntegrationCredential_integrationId_key"');
+    expect(credentialKindsMigration).toContain(
+      'CREATE UNIQUE INDEX "IntegrationCredential_integrationId_kind_key" ON "IntegrationCredential"("integrationId", "kind")'
+    );
+    expect(credentialKindsMigration).toContain(
+      'CREATE INDEX "IntegrationCredential_workspaceId_kind_idx" ON "IntegrationCredential"("workspaceId", "kind")'
+    );
   });
 });

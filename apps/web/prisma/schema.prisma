@@ -280,7 +280,7 @@ model Integration {
   lastDryRunAt  DateTime?
   lastImportAt  DateTime?
   lastError     String?
-  credential    IntegrationCredential?
+  credentials   IntegrationCredential[]
   runs          IntegrationRun[]
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
@@ -293,16 +293,20 @@ model Integration {
 model IntegrationCredential {
   id              String      @id @default(cuid())
   workspaceId     String
-  integrationId   String      @unique
+  integrationId   String
   integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  kind            String      @default("auth_password")
   authMode        String
   encryptedSecret String
   keyVersion      String      @default("local-dev")
+  fingerprint     String?
   lastRotatedAt   DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
+  @@unique([integrationId, kind])
   @@index([workspaceId])
+  @@index([workspaceId, kind])
 }
 
 model ApiToken {

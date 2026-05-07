@@ -17,11 +17,11 @@ import {
   normalizeNativeHelpdeskPayload,
   type NativeHelpdeskSource
 } from "@/lib/normalizers/native-helpdesk";
-import { decryptSecret } from "@/lib/secrets";
+import { decryptIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 type IntegrationWithCredential = Integration & {
-  credential: IntegrationCredential | null;
+  credentials: IntegrationCredential[];
 };
 
 type IntegrationConfig = {
@@ -66,8 +66,8 @@ function requireText(value: string | null | undefined, message: string) {
   return normalized;
 }
 
-function optionalCredentialSecret(credential: IntegrationCredential | null) {
-  return credential ? decryptSecret(credential.encryptedSecret) : undefined;
+function optionalCredentialSecret(credentials: IntegrationCredential[]) {
+  return decryptIntegrationSecretSlot(credentials, "auth_password");
 }
 
 function requestedLimit(value: unknown, fallback: number) {
@@ -135,7 +135,7 @@ async function loadOtrsFamilyConversations(integration: IntegrationWithCredentia
   const baseUrl = requireText(integration.baseUrl, "Для OTRS/Znuny укажите Base URL.");
   const ticketId = requireText(config.ticketId, "Для OTRS/Znuny укажите TicketID для проверки или первого импорта.");
   const userLogin = requireText(config.userLogin, "Для OTRS/Znuny укажите UserLogin.");
-  const password = requireText(optionalCredentialSecret(integration.credential), "Для OTRS/Znuny сохраните пароль или API-секрет.");
+  const password = requireText(optionalCredentialSecret(integration.credentials), "Для OTRS/Znuny сохраните пароль или API-секрет.");
   const ticketGetUrl = otrsFamilyTicketGetUrl(profile, ticketId, baseUrl);
   const url = otrsFamilyUrlWithQuery(
     ticketGetUrl,
@@ -216,7 +216,7 @@ async function loadNativeHelpdeskConversations(integration: IntegrationWithCrede
 
   const baseUrl = requireText(integration.baseUrl, "Для helpdesk-адаптера укажите Base URL.");
   const ticketId = requireText(config.ticketId, "Для helpdesk-адаптера укажите ID обращения для проверки или первого импорта.");
-  const token = requireText(optionalCredentialSecret(integration.credential), "Для helpdesk-адаптера сохраните API-ключ или секрет приложения.");
+  const token = requireText(optionalCredentialSecret(integration.credentials), "Для helpdesk-адаптера сохраните API-ключ или секрет приложения.");
   const payload = await loadNativeHelpdeskPayload(source, baseUrl, ticketId, token);
   const conversations = normalizeNativeHelpdeskPayload(payload, {
     source,
@@ -233,7 +233,7 @@ async function loadNativeHelpdeskConversations(integration: IntegrationWithCrede
 
 async function loadCustomApiConversations(integration: IntegrationWithCredential, limit: number) {
   const baseUrl = requireText(integration.baseUrl, "Для своего API укажите Base URL источника.");
-  const token = optionalCredentialSecret(integration.credential);
+  const token = optionalCredentialSecret(integration.credentials);
   const payload = await fetchJson(externalSourceUrl(baseUrl, `/conversations?limit=${encodeURIComponent(String(limit))}`), {
     headers: bearerHeaders(token)
   });
@@ -273,7 +273,7 @@ export async function runIntegrationConnector(input: {
       workspaceId: input.workspaceId
     },
     include: {
-      credential: true
+      credentials: true
     }
   });
 

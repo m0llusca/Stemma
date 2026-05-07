@@ -6,8 +6,8 @@ import { auditLog } from "@/lib/audit";
 import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { queueIntegrationImportJob } from "@/lib/integration-import-service";
+import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { runDueBackendJobs } from "@/lib/jobs/queue";
-import { encryptSecret } from "@/lib/secrets";
 
 export type IntegrationActionState = {
   ok: boolean;
@@ -89,6 +89,7 @@ function readIntegrationSetup(formData: FormData) {
   const userLogin = stringField(formData, "userLogin");
   const password = stringField(formData, "password");
   const nativeToken = stringField(formData, "nativeToken");
+  const caBundle = stringField(formData, "caBundle");
   const queueFilter = stringField(formData, "queueFilter");
   const statusFilter = stringField(formData, "statusFilter");
   const dryRun = booleanField(formData, "dryRun", true);
@@ -110,6 +111,7 @@ function readIntegrationSetup(formData: FormData) {
     dryRun,
     deduplicate,
     credentialSecret,
+    caBundle: mode === "otrs_family" ? caBundle : "",
     config: {
       setupVersion: 1,
       source,
@@ -170,25 +172,40 @@ async function upsertIntegrationSetup(
   });
 
   if (setup.credentialSecret) {
-    await tx.integrationCredential.upsert({
-      where: {
-        integrationId: integration.id
-      },
-      create: {
-        workspaceId,
-        integrationId: integration.id,
-        authMode: setup.mode === "otrs_family" ? "user_password" : "bearer_token",
-        encryptedSecret: encryptSecret(setup.credentialSecret),
-        keyVersion: "v1",
-        lastRotatedAt: new Date()
-      },
-      update: {
-        authMode: setup.mode === "otrs_family" ? "user_password" : "bearer_token",
-        encryptedSecret: encryptSecret(setup.credentialSecret),
-        keyVersion: "v1",
-        lastRotatedAt: new Date()
+    await upsertIntegrationSecretSlot(tx, {
+      workspaceId,
+      integrationId: integration.id,
+      kind: "auth_password",
+      authMode: setup.mode === "otrs_family" ? "user_password" : "bearer_token",
+      secret: setup.credentialSecret
+    });
+  }
+
+  if (setup.caBundle) {
+    const caBundleSlot = await upsertIntegrationSecretSlot(tx, {
+      workspaceId,
+      integrationId: integration.id,
+      kind: "ca_bundle",
+      authMode: "tls_ca_bundle",
+      secret: setup.caBundle
+    });
+    const configJson = JSON.stringify({
+      ...setup.config,
+      tls: {
+        caBundleSecretId: caBundleSlot.id,
+        caFingerprint: caBundleSlot.fingerprint
       }
     });
+
+    await tx.integration.update({
+      where: { id: integration.id },
+      data: { configJson }
+    });
+
+    return {
+      ...integration,
+      configJson
+    };
   }
 
   return integration;

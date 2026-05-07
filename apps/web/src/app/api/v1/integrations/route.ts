@@ -4,7 +4,7 @@ import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { encryptSecret } from "@/lib/secrets";
+import { summarizeIntegrationSecretSlots, upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,8 @@ const integrationSchema = z.object({
   dateRangeDays: z.number().int().min(1).max(365).optional(),
   schedule: z.string().trim().max(120).optional().or(z.literal("")),
   config: z.record(z.unknown()).optional(),
-  credentialSecret: z.string().min(1).optional()
+  credentialSecret: z.string().min(1).optional(),
+  caBundle: z.string().min(1).optional()
 });
 
 function optionalString(value: string | undefined) {
@@ -41,12 +42,14 @@ export async function GET() {
     where: { workspaceId: user.workspaceId },
     orderBy: [{ updatedAt: "desc" }],
     include: {
-      credential: {
+      credentials: {
         select: {
           id: true,
+          kind: true,
           authMode: true,
-          keyVersion: true,
+          fingerprint: true,
           lastRotatedAt: true,
+          createdAt: true,
           updatedAt: true
         }
       },
@@ -58,44 +61,43 @@ export async function GET() {
   });
 
   return apiJson({
-    integrations: integrations.map((integration) => ({
-      id: integration.id,
-      source: integration.source,
-      displayName: integration.displayName,
-      type: integration.type,
-      status: integration.status,
-      baseUrl: integration.baseUrl,
-      authMode: integration.authMode,
-      importLimit: integration.importLimit,
-      batchSize: integration.batchSize,
-      dateRangeDays: integration.dateRangeDays,
-      schedule: integration.schedule,
-      syncCursor: integration.syncCursor,
-      lastSyncedAt: integration.lastSyncedAt?.toISOString() ?? null,
-      lastImportAt: integration.lastImportAt?.toISOString() ?? null,
-      lastError: integration.lastError,
-      config: parseJson(integration.configJson),
-      hasCredential: Boolean(integration.credential),
-      credential: integration.credential
-        ? {
-            authMode: integration.credential.authMode,
-            keyVersion: integration.credential.keyVersion,
-            lastRotatedAt: integration.credential.lastRotatedAt?.toISOString() ?? null,
-            updatedAt: integration.credential.updatedAt.toISOString()
-          }
-        : null,
-      runs: integration.runs.map((run) => ({
-        id: run.id,
-        status: run.status,
-        mode: run.mode,
-        dryRun: run.dryRun,
-        requestedLimit: run.requestedLimit,
-        importedCount: run.importedCount,
-        errorCount: run.errorCount,
-        startedAt: run.startedAt.toISOString(),
-        finishedAt: run.finishedAt?.toISOString() ?? null
-      }))
-    }))
+    integrations: integrations.map((integration) => {
+      const credentialSummaries = summarizeIntegrationSecretSlots(integration.credentials);
+
+      return {
+        id: integration.id,
+        source: integration.source,
+        displayName: integration.displayName,
+        type: integration.type,
+        status: integration.status,
+        baseUrl: integration.baseUrl,
+        authMode: integration.authMode,
+        importLimit: integration.importLimit,
+        batchSize: integration.batchSize,
+        dateRangeDays: integration.dateRangeDays,
+        schedule: integration.schedule,
+        syncCursor: integration.syncCursor,
+        lastSyncedAt: integration.lastSyncedAt?.toISOString() ?? null,
+        lastImportAt: integration.lastImportAt?.toISOString() ?? null,
+        lastError: integration.lastError,
+        config: parseJson(integration.configJson),
+        hasCredential: credentialSummaries.some((credential) => credential.kind === "auth_password"),
+        hasCaBundle: credentialSummaries.some((credential) => credential.kind === "ca_bundle"),
+        credentials: credentialSummaries,
+        credential: credentialSummaries.find((credential) => credential.kind === "auth_password") ?? null,
+        runs: integration.runs.map((run) => ({
+          id: run.id,
+          status: run.status,
+          mode: run.mode,
+          dryRun: run.dryRun,
+          requestedLimit: run.requestedLimit,
+          importedCount: run.importedCount,
+          errorCount: run.errorCount,
+          startedAt: run.startedAt.toISOString(),
+          finishedAt: run.finishedAt?.toISOString() ?? null
+        }))
+      };
+    })
   });
 }
 
@@ -153,21 +155,36 @@ export async function POST(request: Request) {
     });
 
     if (parsed.data.credentialSecret) {
-      await tx.integrationCredential.upsert({
-        where: { integrationId: result.id },
-        create: {
-          workspaceId: user.workspaceId,
-          integrationId: result.id,
-          authMode: parsed.data.authMode ?? result.authMode,
-          encryptedSecret: encryptSecret(parsed.data.credentialSecret),
-          keyVersion: "v1",
-          lastRotatedAt: new Date()
-        },
-        update: {
-          authMode: parsed.data.authMode ?? result.authMode,
-          encryptedSecret: encryptSecret(parsed.data.credentialSecret),
-          keyVersion: "v1",
-          lastRotatedAt: new Date()
+      await upsertIntegrationSecretSlot(tx, {
+        workspaceId: user.workspaceId,
+        integrationId: result.id,
+        kind: "auth_password",
+        authMode: parsed.data.authMode ?? result.authMode,
+        secret: parsed.data.credentialSecret
+      });
+    }
+
+    if (parsed.data.caBundle) {
+      const caBundleSlot = await upsertIntegrationSecretSlot(tx, {
+        workspaceId: user.workspaceId,
+        integrationId: result.id,
+        kind: "ca_bundle",
+        authMode: "tls_ca_bundle",
+        secret: parsed.data.caBundle
+      });
+      const config = parsed.data.config ?? {};
+
+      await tx.integration.update({
+        where: { id: result.id },
+        data: {
+          configJson: JSON.stringify({
+            ...config,
+            tls: {
+              ...(typeof config.tls === "object" && config.tls && !Array.isArray(config.tls) ? config.tls : {}),
+              caBundleSecretId: caBundleSlot.id,
+              caFingerprint: caBundleSlot.fingerprint
+            }
+          })
         }
       });
     }
@@ -199,7 +216,8 @@ export async function POST(request: Request) {
         source: integration.source,
         displayName: integration.displayName,
         status: integration.status,
-        hasCredential: Boolean(parsed.data.credentialSecret)
+        hasCredential: Boolean(parsed.data.credentialSecret),
+        hasCaBundle: Boolean(parsed.data.caBundle)
       }
     },
     201,
