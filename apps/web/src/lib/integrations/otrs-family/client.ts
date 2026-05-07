@@ -519,6 +519,9 @@ function redactAuthFragments(value: string) {
   return value.replace(
     /((?:^|[?&#;\s])(?:UserLogin|Password|SessionID|token|Token|authorization|Authorization|bearerToken|accessToken|apiToken|clientSecret)=)[^&#;\s]+/g,
     `$1${redactedValue}`
+  ).replace(
+    /((?:^|[\r\n\s])(?:Authorization|UserLogin|Password|SessionID|token|bearerToken|accessToken|apiToken|clientSecret)\s*:\s*)[^\r\n]+/gi,
+    `$1${redactedValue}`
   );
 }
 

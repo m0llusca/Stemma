@@ -431,6 +431,38 @@ describe("OTRS-family HTTP client", () => {
     expect(JSON.stringify(error.redactedDetail)).not.toContain("secret-ca");
   });
 
+  it("redacts colon-style auth header fragments from transport errors", async () => {
+    const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+    const client = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async () => {
+        throw new Error(
+          [
+            "upstream rejected request",
+            "Authorization: Bearer raw-auth-token",
+            "Password: raw-password-value",
+            "SessionID: raw-session-value",
+            "apiToken: raw-api-token"
+          ].join("\n")
+        );
+      }
+    });
+
+    const error = await expectConnectorError(() =>
+      client.requestJson(buildTicketSearchRequest({ config, baseUrl, userLogin, password, filters: { Queue: "Raw" } }))
+    );
+    const detail = JSON.stringify(error.redactedDetail);
+
+    expect(error.code).toBe("webservice_unreachable");
+    expect(detail).not.toContain("raw-auth-token");
+    expect(detail).not.toContain("raw-password-value");
+    expect(detail).not.toContain("raw-session-value");
+    expect(detail).not.toContain("raw-api-token");
+  });
+
   it("maps timeout, invalid JSON, and oversized responses", async () => {
     const timeoutConfig = buildDefaultOtrsConnectorConfig("otrs_ce_6");
     const timeoutClient = createOtrsHttpClient({
