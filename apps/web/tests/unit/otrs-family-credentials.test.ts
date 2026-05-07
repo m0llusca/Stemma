@@ -3,9 +3,11 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { decryptSecret } from "@/lib/secrets";
 import {
+  applyCaBundleCredentialReference,
   decryptIntegrationSecretSlot,
   fingerprintSecret,
   getIntegrationSecretSlots,
+  sanitizeIntegrationCredentialConfig,
   summarizeIntegrationSecretSlots,
   upsertIntegrationSecretSlot
 } from "@/lib/integrations/otrs-family/credentials";
@@ -190,5 +192,52 @@ describe("OTRS-family credential slots", () => {
     ]);
     expect(JSON.stringify(summarizeIntegrationSecretSlots(slots))).not.toContain("encryptedSecret");
     expect(JSON.stringify(summarizeIntegrationSecretSlots(slots))).not.toContain("encrypted-ca");
+  });
+
+  it("sanitizes API config so CA bundle PEM is never serialized", () => {
+    const rawConfig = {
+      sourceLabel: "Support",
+      caBundle: caPemWithWindowsLines,
+      tls: {
+        mode: "custom_ca",
+        verifyPeer: true,
+        caBundle: caPemWithWindowsLines,
+        caBundlePem: caPemWithWindowsLines,
+        caCertificate: caPemWithWindowsLines,
+        notes: "safe"
+      },
+      nested: {
+        certificatePem: caPemWithWindowsLines,
+        safeUrl: "https://support.example.com",
+        array: [caPemWithWindowsLines, "safe"]
+      }
+    };
+
+    const sanitized = sanitizeIntegrationCredentialConfig(rawConfig);
+    const stored = applyCaBundleCredentialReference(sanitized, {
+      id: "credential-ca",
+      fingerprint: "fingerprint-123"
+    });
+    const serialized = JSON.stringify(stored);
+
+    expect(stored).toEqual({
+      sourceLabel: "Support",
+      tls: {
+        mode: "custom_ca",
+        verifyPeer: true,
+        notes: "safe",
+        caBundleSecretId: "credential-ca",
+        caFingerprint: "fingerprint-123"
+      },
+      nested: {
+        safeUrl: "https://support.example.com",
+        array: ["safe"]
+      }
+    });
+    expect(serialized).not.toContain("BEGIN CERTIFICATE");
+    expect(serialized).not.toContain("MIIFakeCertificate");
+    expect(serialized).not.toContain("caBundlePem");
+    expect(serialized).not.toContain("caCertificate");
+    expect(serialized).not.toContain("certificatePem");
   });
 });

@@ -21,6 +21,8 @@ type SecretSlotSummaryInput = Pick<
   "id" | "kind" | "authMode" | "fingerprint" | "lastRotatedAt" | "createdAt" | "updatedAt"
 >;
 
+type CaBundleReference = Pick<IntegrationCredential, "id" | "fingerprint">;
+
 export async function upsertIntegrationSecretSlot(
   tx: IntegrationCredentialUpsertClient,
   input: {
@@ -96,6 +98,24 @@ export function summarizeIntegrationSecretSlots(slots: SecretSlotSummaryInput[])
   }));
 }
 
+export function sanitizeIntegrationCredentialConfig(value: Record<string, unknown> = {}) {
+  return sanitizeConfigObject(value);
+}
+
+export function applyCaBundleCredentialReference(config: Record<string, unknown>, caBundleSlot: CaBundleReference) {
+  const sanitizedConfig = sanitizeIntegrationCredentialConfig(config);
+  const sanitizedTls = objectRecord(sanitizedConfig.tls) ?? {};
+
+  return {
+    ...sanitizedConfig,
+    tls: {
+      ...sanitizedTls,
+      caBundleSecretId: caBundleSlot.id,
+      caFingerprint: caBundleSlot.fingerprint
+    }
+  };
+}
+
 function normalizePemText(value: string) {
   const lines = value
     .replace(/\r\n?/g, "\n")
@@ -111,4 +131,52 @@ function normalizePemText(value: string) {
   }
 
   return lines.join("\n");
+}
+
+function sanitizeConfigObject(value: Record<string, unknown>) {
+  const sanitized: Record<string, unknown> = {};
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (isUnsafeConfigKey(key)) {
+      continue;
+    }
+
+    const sanitizedValue = sanitizeConfigValue(nestedValue);
+
+    if (sanitizedValue !== undefined) {
+      sanitized[key] = sanitizedValue;
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeConfigValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return isPemText(value) ? undefined : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeConfigValue).filter((item) => item !== undefined);
+  }
+
+  const record = objectRecord(value);
+
+  if (record) {
+    return sanitizeConfigObject(record);
+  }
+
+  return value;
+}
+
+function objectRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function isUnsafeConfigKey(key: string) {
+  return /^(caBundle|caBundlePem|caCertificate|caCertificatePem|certificatePem|pem)$/i.test(key);
+}
+
+function isPemText(value: string) {
+  return /-----BEGIN [A-Z0-9 ]+-----/.test(value);
 }

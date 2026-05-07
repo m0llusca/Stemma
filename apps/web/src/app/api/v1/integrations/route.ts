@@ -4,7 +4,12 @@ import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { summarizeIntegrationSecretSlots, upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
+import {
+  applyCaBundleCredentialReference,
+  sanitizeIntegrationCredentialConfig,
+  summarizeIntegrationSecretSlots,
+  upsertIntegrationSecretSlot
+} from "@/lib/integrations/otrs-family/credentials";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +122,8 @@ export async function POST(request: Request) {
     return apiError("bad_request", "Некорректные параметры интеграции.", 400, requestId, parsed.error.flatten());
   }
 
+  const sanitizedConfig = sanitizeIntegrationCredentialConfig(parsed.data.config ?? {});
+
   const integration = await prisma.$transaction(async (tx) => {
     const result = await tx.integration.upsert({
       where: {
@@ -137,7 +144,7 @@ export async function POST(request: Request) {
         batchSize: parsed.data.batchSize ?? 25,
         dateRangeDays: parsed.data.dateRangeDays ?? 30,
         schedule: optionalString(parsed.data.schedule),
-        configJson: JSON.stringify(parsed.data.config ?? {})
+        configJson: JSON.stringify(sanitizedConfig)
       },
       update: {
         displayName: parsed.data.displayName,
@@ -149,7 +156,7 @@ export async function POST(request: Request) {
         batchSize: parsed.data.batchSize ?? 25,
         dateRangeDays: parsed.data.dateRangeDays ?? 30,
         schedule: optionalString(parsed.data.schedule),
-        configJson: JSON.stringify(parsed.data.config ?? {}),
+        configJson: JSON.stringify(sanitizedConfig),
         lastError: null
       }
     });
@@ -172,19 +179,11 @@ export async function POST(request: Request) {
         authMode: "tls_ca_bundle",
         secret: parsed.data.caBundle
       });
-      const config = parsed.data.config ?? {};
 
       await tx.integration.update({
         where: { id: result.id },
         data: {
-          configJson: JSON.stringify({
-            ...config,
-            tls: {
-              ...(typeof config.tls === "object" && config.tls && !Array.isArray(config.tls) ? config.tls : {}),
-              caBundleSecretId: caBundleSlot.id,
-              caFingerprint: caBundleSlot.fingerprint
-            }
-          })
+          configJson: JSON.stringify(applyCaBundleCredentialReference(sanitizedConfig, caBundleSlot))
         }
       });
     }
