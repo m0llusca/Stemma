@@ -1,4 +1,14 @@
 import type { CustomConversationInput, CustomMessageInput } from "@/lib/validation/custom-api";
+import {
+  otrsFamilyApiProfiles,
+  otrsFamilyProfileForSource,
+  otrsFamilySourceOptions,
+  type OtrsFamilyApiProfile,
+  type OtrsFamilySource
+} from "@/lib/integrations/otrs-family/profiles";
+
+export { otrsFamilyApiProfiles, otrsFamilyProfileForSource, otrsFamilySourceOptions };
+export type { OtrsFamilyApiProfile, OtrsFamilySource };
 
 type OtrsScalar = string | number | boolean | null | undefined;
 type OtrsRequestValue = string | number | boolean | Array<string | number | boolean>;
@@ -21,89 +31,6 @@ type OtrsFamilyTicketGetFlatRequest = Record<
   | "GetAttachmentContents",
   string | number
 >;
-
-export type OtrsFamilySource = "otrs" | "znuny" | "otobo" | "otrs_family";
-
-export const otrsFamilySourceOptions = [
-  { value: "znuny", label: "Znuny" },
-  { value: "otrs", label: "OTRS CE 6" },
-  { value: "otobo", label: "OTOBO" },
-  { value: "otrs_family", label: "OTRS-family fallback" }
-] as const satisfies ReadonlyArray<{ value: OtrsFamilySource; label: string }>;
-
-export const otrsFamilyApiProfiles = [
-  {
-    source: "otrs",
-    label: "OTRS Community Edition 6",
-    shortLabel: "OTRS CE 6",
-    basePath: "/otrs",
-    exampleBaseUrl: "https://support.example.com/otrs",
-    webService: "GenericTicketConnectorREST",
-    auth: "UserLogin + Password или SessionID",
-    ticketGetMethod: "GET",
-    ticketGetPath: "/Ticket/{TicketID}",
-    ticketSearchMethod: "GET",
-    ticketSearchPath: "/Ticket",
-    ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
-    docsUrl: "https://otrscommunityedition.com/doc/manual/admin/6.0/en/html/genericinterface.html",
-    note: "В стандартном REST-примере OTRS CE 6 TicketGet идет GET на /Ticket/{TicketID}; имя Web Service и route могут отличаться после ручной настройки."
-  },
-  {
-    source: "znuny",
-    label: "Znuny LTS",
-    shortLabel: "Znuny",
-    basePath: "/znuny",
-    exampleBaseUrl: "https://support.example.com/znuny",
-    webService: "GenericTicketConnectorREST",
-    auth: "UserLogin + Password или SessionID",
-    ticketGetMethod: "GET",
-    ticketGetPath: "/Ticket/{TicketID}",
-    ticketSearchMethod: "POST",
-    ticketSearchPath: "/Ticket/Search",
-    ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
-    docsUrl: "https://doc.znuny.org/znuny/admin/webservices/examples/GenericTicketConnectorREST/index.html",
-    note: "Ready2Adopt GenericTicketConnectorREST в Znuny показывает TicketGet через GET /Ticket/<ticket_id>; base path обычно /znuny."
-  },
-  {
-    source: "otobo",
-    label: "OTOBO",
-    shortLabel: "OTOBO",
-    basePath: "/otobo",
-    exampleBaseUrl: "https://support.example.com/otobo",
-    webService: "GenericTicketConnectorREST",
-    auth: "UserLogin + Password или SessionID",
-    ticketGetMethod: "GET",
-    ticketGetPath: "/TicketGet",
-    ticketSearchMethod: "GET",
-    ticketSearchPath: "/TicketSearch",
-    ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>",
-    docsUrl: "https://otobo-docs.softoft.de/en/administration/automation/rest-api",
-    note: "В OTOBO web service создается в админке, поэтому часто встречается GET /TicketGet?TicketID=... вместо /Ticket/{TicketID}."
-  }
-] as const satisfies ReadonlyArray<{
-  source: Exclude<OtrsFamilySource, "otrs_family">;
-  label: string;
-  shortLabel: string;
-  basePath: string;
-  exampleBaseUrl: string;
-  webService: string;
-  auth: string;
-  ticketGetMethod: "GET";
-  ticketGetPath: string;
-  ticketSearchMethod: "GET" | "POST";
-  ticketSearchPath: string;
-  ticketZoomPath: string;
-  docsUrl: string;
-  note: string;
-}>;
-
-export type OtrsFamilyApiProfile = (typeof otrsFamilyApiProfiles)[number];
-
-const genericOtrsFamilyProfile: OtrsFamilyApiProfile = otrsFamilyApiProfiles[1];
-
-export function otrsFamilyProfileForSource(source: OtrsFamilySource): OtrsFamilyApiProfile {
-  return otrsFamilyApiProfiles.find((profile) => profile.source === source) ?? genericOtrsFamilyProfile;
-}
 
 function normalizeBaseUrl(value: string | undefined, profile: OtrsFamilyApiProfile) {
   return (value?.trim() || profile.exampleBaseUrl).replace(/\/$/, "");
