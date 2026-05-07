@@ -5,6 +5,7 @@ import {
   normalizeOtrsFamilyTicket,
   normalizeOtrsFamilyTicketGetResponse,
   otrsFamilyApiProfiles,
+  otrsFamilyProfileForSource,
   otrsFamilyTicketGetUrl,
   otrsFamilyTicketSearchUrl,
   otrsFamilyUrlWithQuery,
@@ -125,9 +126,11 @@ describe("OTRS-family normalizer", () => {
   });
 
   it("documents separate API profile URLs for OTRS CE, Znuny and OTOBO", () => {
+    const otrsProfile = otrsFamilyApiProfiles.find((profile) => profile.source === "otrs");
     const znunyProfile = otrsFamilyApiProfiles.find((profile) => profile.source === "znuny");
 
     expect(otrsFamilyApiProfiles.map((profile) => profile.source)).toEqual(["otrs", "znuny", "otobo"]);
+    expect(otrsProfile?.ticketSearchMethod).toBe("POST");
     expect(otrsFamilyApiProfiles.map((profile) => otrsFamilyTicketGetUrl(profile, "42"))).toEqual([
       "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
       "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
@@ -137,6 +140,17 @@ describe("OTRS-family normalizer", () => {
     expect(otrsFamilyTicketSearchUrl(znunyProfile!)).toBe(
       "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/Search"
     );
+  });
+
+  it("resolves the OTRS-family fallback profile through OTRS CE 6 defaults", () => {
+    expect(otrsFamilyProfileForSource("otrs_family")).toMatchObject({
+      source: "otrs",
+      label: "OTRS Community Edition 6",
+      basePath: "/otrs",
+      webService: "GenericTicketConnectorREST",
+      ticketSearchMethod: "POST",
+      ticketSearchPath: "/Ticket"
+    });
   });
 
   it("builds TicketSearch and TicketGet API examples", () => {

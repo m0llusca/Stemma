@@ -59,7 +59,7 @@ export const otrsFamilyApiProfiles = [
     auth: "UserLogin + Password или SessionID",
     ticketGetMethod: otrsFamilyProfiles.otrs_ce_6.ticketGetMethod,
     ticketGetPath: otrsFamilyProfiles.otrs_ce_6.ticketGetPath,
-    ticketSearchMethod: "GET",
+    ticketSearchMethod: otrsFamilyProfiles.otrs_ce_6.ticketSearchMethod,
     ticketSearchPath: otrsFamilyProfiles.otrs_ce_6.ticketSearchPath,
     ticketZoomPath: otrsFamilyProfiles.otrs_ce_6.ticketZoomPath,
     docsUrl: "https://otrscommunityedition.com/doc/manual/admin/6.0/en/html/genericinterface.html",
@@ -116,7 +116,7 @@ export const otrsFamilyApiProfiles = [
 
 export type OtrsFamilyApiProfile = (typeof otrsFamilyApiProfiles)[number];
 
-const genericOtrsFamilyProfile: OtrsFamilyApiProfile = otrsFamilyApiProfiles[1];
+const genericOtrsFamilyProfile: OtrsFamilyApiProfile = otrsFamilyApiProfiles[0];
 
 export function otrsFamilyProfileForSource(source: OtrsFamilySource): OtrsFamilyApiProfile {
   return otrsFamilyApiProfiles.find((profile) => profile.source === source) ?? genericOtrsFamilyProfile;
