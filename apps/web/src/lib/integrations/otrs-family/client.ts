@@ -410,7 +410,7 @@ function safeJsonParse(value: string) {
 
 function redactPayloadValue(value: unknown): unknown {
   if (typeof value === "string") {
-    return redactString(value);
+    return redactString(redactJsonString(value));
   }
 
   if (!value || typeof value !== "object") {
@@ -459,6 +459,26 @@ function replaceKnownSecrets(value: unknown, secrets: string[]): unknown {
 
 function redactString(value: string) {
   return redactAuthFragments(redactUrlCredentials(redactPemBlocks(value)));
+}
+
+function redactJsonString(value: string) {
+  const trimmed = value.trim();
+
+  if (!isJsonLikeString(trimmed)) {
+    return value;
+  }
+
+  const parsed = safeJsonParse(trimmed);
+
+  if (parsed === undefined) {
+    return value;
+  }
+
+  return JSON.stringify(redactPayloadValue(parsed));
+}
+
+function isJsonLikeString(value: string) {
+  return (value.startsWith("{") && value.endsWith("}")) || (value.startsWith("[") && value.endsWith("]"));
 }
 
 function redactPemBlocks(value: string) {

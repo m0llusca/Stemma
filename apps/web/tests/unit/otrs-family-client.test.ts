@@ -163,6 +163,60 @@ describe("OTRS-family HTTP client", () => {
     expect(JSON.stringify(error.redactedDetail)).not.toContain(userLogin);
   });
 
+  it("redacts sensitive keys inside JSON error body strings", async () => {
+    const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+    const sensitiveBody = JSON.stringify({
+      Error: "bad login",
+      SessionID: "raw-session-id",
+      token: "raw-token-value",
+      Password: password,
+      UserLogin: userLogin,
+      nested: {
+        apiToken: "raw-api-token"
+      }
+    });
+    const authClient = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async () => ({
+        statusCode: 401,
+        body: sensitiveBody
+      })
+    });
+    const failureClient = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async () => ({
+        statusCode: 500,
+        body: sensitiveBody
+      })
+    });
+
+    const authError = await expectConnectorError(() =>
+      authClient.requestJson(buildTicketSearchRequest({ config, baseUrl, userLogin, password, filters: { Queue: "Raw" } }))
+    );
+    const failureError = await expectConnectorError(() =>
+      failureClient.requestJson(buildTicketSearchRequest({ config, baseUrl, userLogin, password, filters: { Queue: "Raw" } }))
+    );
+
+    expect(authError.code).toBe("auth_failed");
+    expect(failureError.code).toBe("ticket_search_failed");
+
+    for (const error of [authError, failureError]) {
+      const detail = JSON.stringify(error.redactedDetail);
+
+      expect(detail).not.toContain("raw-session-id");
+      expect(detail).not.toContain("raw-token-value");
+      expect(detail).not.toContain("raw-api-token");
+      expect(detail).not.toContain(password);
+      expect(detail).not.toContain(userLogin);
+    }
+  });
+
   it("maps operation HTTP failures to operation-specific codes", async () => {
     const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
     const client = createOtrsHttpClient({
