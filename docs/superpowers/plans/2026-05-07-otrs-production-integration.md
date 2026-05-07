@@ -663,7 +663,7 @@ Expected: diagnostics tests and typecheck exit `0`.
 - Test: `apps/web/tests/unit/otrs-family-import-plan.test.ts`
 - Test: `apps/web/tests/unit/otrs-family-normalizer.test.ts`
 
-- [ ] **Step 1: Write failing preview/import-plan tests**
+- [x] **Step 1: Write failing preview/import-plan tests**
 
 Cover:
 
@@ -685,7 +685,7 @@ npm run test -- tests/unit/otrs-family-import-plan.test.ts tests/unit/otrs-famil
 
 Expected: FAIL before import-plan modules exist.
 
-- [ ] **Step 2: Implement attachment mapping**
+- [x] **Step 2: Implement attachment mapping**
 
 `attachments.ts` exports:
 
@@ -699,7 +699,7 @@ Rules:
 - drop `Content`, `ContentAlternative`, base64 fields, and any binary-like payload;
 - produce a warning if a payload contained attachment content that was intentionally discarded.
 
-- [ ] **Step 3: Implement normalization wrapper**
+- [x] **Step 3: Implement normalization wrapper**
 
 `normalization.ts` wraps current `normalizeOtrsFamilyTicket` and returns:
 
@@ -717,7 +717,7 @@ Rules:
 
 Do not change the existing `Conversation`/`Message` schema in this task.
 
-- [ ] **Step 4: Implement preview/import plan**
+- [x] **Step 4: Implement preview/import plan**
 
 `import-plan.ts` exports:
 
@@ -739,7 +739,7 @@ Selected import:
 - updates `IntegrationRun.importedCount`, `errorCount`, `finishedAt`;
 - updates `Integration.lastImportAt`, `lastSyncedAt`, and `syncCursor`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 

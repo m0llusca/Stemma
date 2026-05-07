@@ -9,8 +9,16 @@ import {
   otrsFamilyTicketGetUrl,
   otrsFamilyTicketSearchUrl,
   otrsFamilyUrlWithQuery,
+  type OtrsFamilyArticle,
+  type OtrsFamilyTicket,
   type OtrsFamilyTicketGetResponse
 } from "@/lib/normalizers/otrs-family";
+import {
+  buildOtrsAttachmentExternalUrl,
+  extractOtrsAttachmentMetadata,
+  summarizeAttachmentWarnings
+} from "@/lib/integrations/otrs-family/attachments";
+import { normalizeOtrsFamilyTicketForImport } from "@/lib/integrations/otrs-family/normalization";
 import { customConversationSchema } from "@/lib/validation/custom-api";
 import { describe, expect, it } from "vitest";
 
@@ -185,5 +193,114 @@ describe("OTRS-family normalizer", () => {
     expect(
       otrsFamilyUrlWithQuery(otrsFamilyTicketGetUrl(otrsProfile, "42"), buildOtrsFamilyTicketGetQueryParams(otrsProfile))
     ).toContain("/Ticket/42?UserLogin=qa_api&Password=%3CPASSWORD%3E");
+  });
+
+  it("wraps normalization with article, private article and attachment stats", () => {
+    const ticketWithAttachment = {
+      TicketID: "42",
+      TicketNumber: "202604250001",
+      Title: "Возврат после задержки доставки",
+      State: "open",
+      Created: "2026-04-25 10:00:00",
+      Article: [
+        {
+          ArticleID: "101",
+          SenderType: "customer",
+          From: "mila@example.com",
+          Body: "Нужен возврат.",
+          Created: "2026-04-25 10:01:00",
+          IsVisibleForCustomer: 1,
+          Attachment: {
+            AttachmentID: "1",
+            Filename: "receipt.pdf",
+            ContentType: "application/pdf",
+            Filesize: 2048,
+            Content: "JVBERi0xLjQKbase64"
+          }
+        },
+        {
+          ArticleID: "102",
+          SenderType: "agent",
+          From: "agent.ivan",
+          Body: "Внутренняя заметка.",
+          Created: "2026-04-25 10:02:00",
+          IsVisibleForCustomer: 0
+        }
+      ]
+    } as unknown as OtrsFamilyTicket;
+    const result = normalizeOtrsFamilyTicketForImport(
+      ticketWithAttachment,
+      {
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs"
+      }
+    );
+
+    expect(() => customConversationSchema.parse(result.conversation)).not.toThrow();
+    expect(result.stats).toEqual({
+      articleCount: 2,
+      privateArticleCount: 1,
+      attachmentCount: 1
+    });
+    expect(result.conversation.messages.map((message) => message.isPrivate)).toEqual([false, true]);
+    expect(result.warnings).toEqual([
+      expect.objectContaining({
+        code: "attachment_content_discarded",
+        detail: expect.objectContaining({
+          articleId: "101",
+          attachmentId: "1",
+          filename: "receipt.pdf"
+        })
+      })
+    ]);
+    expect(JSON.stringify(result)).not.toContain("JVBERi0xLjQKbase64");
+    expect(JSON.stringify(result)).not.toContain("ContentAlternative");
+  });
+
+  it("extracts external attachment metadata without storing attachment payloads", () => {
+    const article = {
+      ArticleID: "101",
+      Attachment: [
+        {
+          AttachmentID: "1",
+          Filename: "receipt.pdf",
+          ContentType: "application/pdf",
+          Filesize: "2048",
+          Content: "JVBERi0xLjQKbase64",
+          ContentAlternative: "binary-shadow",
+          Base64Content: "secret-base64"
+        }
+      ]
+    } as unknown as OtrsFamilyArticle;
+
+    const metadata = extractOtrsAttachmentMetadata({ TicketID: "42" }, article);
+    const warnings = summarizeAttachmentWarnings(metadata);
+
+    expect(metadata).toEqual([
+      {
+        ticketId: "42",
+        articleId: "101",
+        attachmentId: "1",
+        filename: "receipt.pdf",
+        contentType: "application/pdf",
+        size: 2048,
+        contentDiscarded: true
+      }
+    ]);
+    expect(buildOtrsAttachmentExternalUrl({ baseUrl: "https://support.example.com/otrs/", ticketId: "42", articleId: "101", attachmentId: "1" })).toBe(
+      "https://support.example.com/otrs/index.pl?Action=AgentTicketAttachment;TicketID=42;ArticleID=101;FileID=1"
+    );
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        code: "attachment_content_discarded",
+        detail: expect.objectContaining({
+          articleId: "101",
+          attachmentId: "1"
+        })
+      })
+    ]);
+    expect(JSON.stringify(metadata)).not.toContain("JVBERi0xLjQKbase64");
+    expect(JSON.stringify(metadata)).not.toContain("secret-base64");
+    expect(JSON.stringify(warnings)).not.toContain("binary-shadow");
   });
 });
