@@ -116,6 +116,26 @@ export function applyCaBundleCredentialReference(config: Record<string, unknown>
   };
 }
 
+export function preserveCaBundleCredentialReference(
+  config: Record<string, unknown>,
+  existingConfig: unknown,
+  caBundleSlot: CaBundleReference
+) {
+  const sanitizedConfig = sanitizeIntegrationCredentialConfig(config);
+  const sanitizedExistingConfig = sanitizeIntegrationCredentialConfig(existingConfig);
+  const sanitizedTls = objectRecord(sanitizedConfig.tls) ?? {};
+  const existingTls = objectRecord(sanitizedExistingConfig.tls) ?? {};
+
+  return {
+    ...sanitizedConfig,
+    tls: {
+      ...sanitizedTls,
+      caBundleSecretId: safeString(existingTls.caBundleSecretId) ?? caBundleSlot.id,
+      caFingerprint: safeString(existingTls.caFingerprint) ?? caBundleSlot.fingerprint
+    }
+  };
+}
+
 function normalizePemText(value: string) {
   const lines = value
     .replace(/\r\n?/g, "\n")
@@ -179,4 +199,8 @@ function isUnsafeConfigKey(key: string) {
 
 function isPemText(value: string) {
   return /-----BEGIN [A-Z0-9 ]+-----/.test(value);
+}
+
+function safeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
 }

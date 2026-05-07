@@ -84,11 +84,11 @@ async function fetchJson(url: string, init: RequestInit = {}) {
     },
     signal: AbortSignal.timeout(15000)
   });
-  const text = await response.text();
-
   if (!response.ok) {
     throw new Error(`Источник вернул HTTP ${response.status}: ${response.statusText || "Ошибка upstream-источника."}`);
   }
+
+  const text = await response.text();
 
   try {
     return text ? (JSON.parse(text) as unknown) : {};

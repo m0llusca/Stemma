@@ -309,6 +309,109 @@ describe("OTRS-family credential slots", () => {
     }
   });
 
+  it("preserves existing CA bundle references on API metadata updates without a new CA bundle", async () => {
+    const caSlot = credential({
+      id: "credential-ca",
+      kind: "ca_bundle",
+      authMode: "tls_ca_bundle",
+      fingerprint: "slot-fingerprint"
+    });
+    const tx = {
+      integration: {
+        findUnique: vi.fn().mockResolvedValue({
+          configJson: JSON.stringify({
+            tls: {
+              caBundleSecretId: "credential-ca",
+              caFingerprint: "existing-fingerprint"
+            }
+          }),
+          credentials: [
+            {
+              id: caSlot.id,
+              kind: caSlot.kind,
+              fingerprint: caSlot.fingerprint
+            }
+          ]
+        }),
+        upsert: vi.fn().mockResolvedValue({
+          id: "integration-1",
+          source: "otrs",
+          displayName: "OTRS",
+          status: "ready",
+          authMode: "token"
+        })
+      },
+      integrationCredential: {
+        findMany: vi.fn().mockResolvedValue([caSlot])
+      }
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback) => callback(tx))
+    };
+    const auditLog = vi.fn();
+
+    vi.resetModules();
+    vi.doMock("@/lib/db", () => ({ prisma }));
+    vi.doMock("@/lib/audit", () => ({ auditLog }));
+    vi.doMock("@/lib/api/session", () => ({
+      requireSessionApi: vi.fn().mockResolvedValue({
+        ok: true,
+        user: {
+          id: "user-1",
+          workspaceId: "workspace-1"
+        }
+      })
+    }));
+
+    try {
+      const { POST } = await import("@/app/api/v1/integrations/route");
+      const response = await POST(
+        new Request("http://localhost/api/v1/integrations", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            source: "otrs",
+            displayName: "OTRS",
+            type: "otrs_family",
+            config: {
+              sourceLabel: "Updated OTRS",
+              tls: {
+                mode: "custom_ca",
+                caBundle: caPemWithWindowsLines
+              }
+            }
+          })
+        })
+      );
+      const body = await response.json();
+      const upsertArgs = tx.integration.upsert.mock.calls[0][0];
+      const storedUpdateConfig = JSON.parse(upsertArgs.update.configJson);
+      const storedCreateConfig = JSON.parse(upsertArgs.create.configJson);
+      const serialized = JSON.stringify(storedUpdateConfig);
+
+      expect(storedUpdateConfig).toEqual({
+        sourceLabel: "Updated OTRS",
+        tls: {
+          mode: "custom_ca",
+          caBundleSecretId: "credential-ca",
+          caFingerprint: "existing-fingerprint"
+        }
+      });
+      expect(storedCreateConfig).toEqual(storedUpdateConfig);
+      expect(serialized).not.toContain("BEGIN CERTIFICATE");
+      expect(serialized).not.toContain("MIIFakeCertificate");
+      expect(body.integration).toMatchObject({
+        id: "integration-1",
+        hasCaBundle: true
+      });
+    } finally {
+      vi.doUnmock("@/lib/db");
+      vi.doUnmock("@/lib/audit");
+      vi.doUnmock("@/lib/api/session");
+      vi.resetModules();
+    }
+  });
+
   it("does not include failed upstream response bodies in runner errors", async () => {
     const leakedBody =
       "GET /otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST?UserLogin=qa_api&Password=super-secret";

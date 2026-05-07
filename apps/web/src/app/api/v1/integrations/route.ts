@@ -6,6 +6,7 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   applyCaBundleCredentialReference,
+  preserveCaBundleCredentialReference,
   sanitizeIntegrationCredentialConfig,
   summarizeIntegrationSecretSlots,
   upsertIntegrationSecretSlot
@@ -125,6 +126,30 @@ export async function POST(request: Request) {
   const sanitizedConfig = sanitizeIntegrationCredentialConfig(parsed.data.config ?? {});
 
   const saved = await prisma.$transaction(async (tx) => {
+    const existing = await tx.integration.findUnique({
+      where: {
+        workspaceId_source: {
+          workspaceId: user.workspaceId,
+          source: parsed.data.source
+        }
+      },
+      select: {
+        configJson: true,
+        credentials: {
+          select: {
+            id: true,
+            kind: true,
+            fingerprint: true
+          }
+        }
+      }
+    });
+    const existingCaBundleSlot = existing?.credentials.find((credential) => credential.kind === "ca_bundle");
+    const configForWrite =
+      !parsed.data.caBundle && existingCaBundleSlot
+        ? preserveCaBundleCredentialReference(sanitizedConfig, parseJson(existing?.configJson ?? "{}"), existingCaBundleSlot)
+        : sanitizedConfig;
+
     const result = await tx.integration.upsert({
       where: {
         workspaceId_source: {
@@ -144,7 +169,7 @@ export async function POST(request: Request) {
         batchSize: parsed.data.batchSize ?? 25,
         dateRangeDays: parsed.data.dateRangeDays ?? 30,
         schedule: optionalString(parsed.data.schedule),
-        configJson: JSON.stringify(sanitizedConfig)
+        configJson: JSON.stringify(configForWrite)
       },
       update: {
         displayName: parsed.data.displayName,
@@ -156,7 +181,7 @@ export async function POST(request: Request) {
         batchSize: parsed.data.batchSize ?? 25,
         dateRangeDays: parsed.data.dateRangeDays ?? 30,
         schedule: optionalString(parsed.data.schedule),
-        configJson: JSON.stringify(sanitizedConfig),
+        configJson: JSON.stringify(configForWrite),
         lastError: null
       }
     });
