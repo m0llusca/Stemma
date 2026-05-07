@@ -20,6 +20,9 @@ async function main() {
   await prisma.groupRoleMapping.deleteMany();
   await prisma.externalIdentity.deleteMany();
   await prisma.identityProvider.deleteMany();
+  await prisma.integrationRunItem.deleteMany();
+  await prisma.integrationDiagnosticStep.deleteMany();
+  await prisma.integrationDiagnosticRun.deleteMany();
   await prisma.integrationRun.deleteMany();
   await prisma.integrationCredential.deleteMany();
   await prisma.savedQueueView.deleteMany();

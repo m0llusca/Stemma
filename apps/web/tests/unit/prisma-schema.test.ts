@@ -17,6 +17,14 @@ const credentialKindsMigrationName = readdirSync(migrationsDir).find((name) => n
 const credentialKindsMigration = credentialKindsMigrationName
   ? readFileSync(join(migrationsDir, credentialKindsMigrationName, "migration.sql"), "utf8")
   : "";
+const diagnosticsMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_add_integration_diagnostics"));
+const diagnosticsMigration = diagnosticsMigrationName
+  ? readFileSync(join(migrationsDir, diagnosticsMigrationName, "migration.sql"), "utf8")
+  : "";
+
+function modelBlock(name: string) {
+  return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
+}
 
 describe("prisma schema database foundations", () => {
   it("uses PostgreSQL as the only Prisma datasource provider", () => {
@@ -125,5 +133,105 @@ describe("prisma schema database foundations", () => {
     expect(credentialKindsMigration).toContain(
       'CREATE INDEX "IntegrationCredential_workspaceId_kind_idx" ON "IntegrationCredential"("workspaceId", "kind")'
     );
+  });
+
+  it("stores integration diagnostic runs, steps, and item-level import outcomes", () => {
+    const workspaceModel = modelBlock("Workspace");
+    const userModel = modelBlock("User");
+    const integrationModel = modelBlock("Integration");
+    const integrationRunModel = modelBlock("IntegrationRun");
+    const conversationModel = modelBlock("Conversation");
+    const diagnosticRunModel = modelBlock("IntegrationDiagnosticRun");
+    const diagnosticStepModel = modelBlock("IntegrationDiagnosticStep");
+    const runItemModel = modelBlock("IntegrationRunItem");
+
+    expect(diagnosticRunModel).not.toBe("");
+    expect(diagnosticStepModel).not.toBe("");
+    expect(runItemModel).not.toBe("");
+
+    expect(workspaceModel).toMatch(/integrationDiagnosticRuns\s+IntegrationDiagnosticRun\[]/);
+    expect(workspaceModel).toMatch(/integrationRunItems\s+IntegrationRunItem\[]/);
+    expect(userModel).toMatch(/integrationDiagnosticRuns\s+IntegrationDiagnosticRun\[]/);
+    expect(integrationModel).toMatch(/diagnosticRuns\s+IntegrationDiagnosticRun\[]/);
+    expect(integrationRunModel).toMatch(/items\s+IntegrationRunItem\[]/);
+    expect(conversationModel).toMatch(/integrationRunItems\s+IntegrationRunItem\[]/);
+
+    expect(diagnosticRunModel).toContain("@@index([workspaceId, startedAt])");
+    expect(diagnosticRunModel).toContain("@@index([workspaceId, status, startedAt])");
+    expect(diagnosticRunModel).toContain("@@index([integrationId, startedAt])");
+    expect(diagnosticRunModel).toMatch(/actor\s+User\?\s+@relation\(fields: \[actorId], references: \[id], onDelete: SetNull\)/);
+
+    expect(diagnosticStepModel).toMatch(
+      /diagnosticRun\s+IntegrationDiagnosticRun\s+@relation\(fields: \[diagnosticRunId], references: \[id], onDelete: Cascade\)/
+    );
+    expect(diagnosticStepModel).toContain("@@index([diagnosticRunId, createdAt])");
+    expect(diagnosticStepModel).toContain("@@index([diagnosticRunId, key])");
+
+    expect(runItemModel).toMatch(
+      /integrationRun\s+IntegrationRun\?\s+@relation\(fields: \[integrationRunId], references: \[id], onDelete: SetNull\)/
+    );
+    expect(runItemModel).toMatch(
+      /diagnosticRun\s+IntegrationDiagnosticRun\?\s+@relation\(fields: \[diagnosticRunId], references: \[id], onDelete: SetNull\)/
+    );
+    expect(runItemModel).toMatch(
+      /conversation\s+Conversation\?\s+@relation\(fields: \[conversationId], references: \[id], onDelete: SetNull\)/
+    );
+    expect(runItemModel).toContain("@@index([workspaceId, createdAt])");
+    expect(runItemModel).toContain("@@index([workspaceId, status, createdAt])");
+    expect(runItemModel).toContain("@@index([integrationRunId, status])");
+    expect(runItemModel).toContain("@@index([diagnosticRunId, status])");
+    expect(runItemModel).toContain("@@index([conversationId])");
+  });
+
+  it("migrates integration diagnostics with foreign keys, hot-path indexes, and partial run item idempotency", () => {
+    expect(diagnosticsMigrationName).toMatch(/^\d+_add_integration_diagnostics$/);
+
+    const expectedTables = [
+      'CREATE TABLE "IntegrationDiagnosticRun"',
+      'CREATE TABLE "IntegrationDiagnosticStep"',
+      'CREATE TABLE "IntegrationRunItem"'
+    ];
+
+    for (const table of expectedTables) {
+      expect(diagnosticsMigration).toContain(table);
+    }
+
+    const expectedForeignKeys = [
+      'ALTER TABLE "IntegrationDiagnosticRun" ADD CONSTRAINT "IntegrationDiagnosticRun_workspaceId_fkey"',
+      'ALTER TABLE "IntegrationDiagnosticRun" ADD CONSTRAINT "IntegrationDiagnosticRun_integrationId_fkey"',
+      'ALTER TABLE "IntegrationDiagnosticRun" ADD CONSTRAINT "IntegrationDiagnosticRun_actorId_fkey"',
+      'ALTER TABLE "IntegrationDiagnosticStep" ADD CONSTRAINT "IntegrationDiagnosticStep_diagnosticRunId_fkey"',
+      'ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_workspaceId_fkey"',
+      'ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_integrationRunId_fkey"',
+      'ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_diagnosticRunId_fkey"',
+      'ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_conversationId_fkey"'
+    ];
+
+    for (const foreignKey of expectedForeignKeys) {
+      expect(diagnosticsMigration).toContain(foreignKey);
+    }
+
+    const expectedIndexes = [
+      'CREATE INDEX "IntegrationDiagnosticRun_workspaceId_startedAt_idx"',
+      'CREATE INDEX "IntegrationDiagnosticRun_workspaceId_status_startedAt_idx"',
+      'CREATE INDEX "IntegrationDiagnosticRun_integrationId_startedAt_idx"',
+      'CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_createdAt_idx"',
+      'CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_key_idx"',
+      'CREATE INDEX "IntegrationRunItem_workspaceId_createdAt_idx"',
+      'CREATE INDEX "IntegrationRunItem_workspaceId_status_createdAt_idx"',
+      'CREATE INDEX "IntegrationRunItem_integrationRunId_status_idx"',
+      'CREATE INDEX "IntegrationRunItem_diagnosticRunId_status_idx"',
+      'CREATE INDEX "IntegrationRunItem_conversationId_idx"'
+    ];
+
+    for (const index of expectedIndexes) {
+      expect(diagnosticsMigration).toContain(index);
+    }
+
+    expect(diagnosticsMigration).toContain(
+      'CREATE UNIQUE INDEX "IntegrationRunItem_integrationRunId_externalId_key"'
+    );
+    expect(diagnosticsMigration).toContain('ON "IntegrationRunItem"("integrationRunId", "externalId")');
+    expect(diagnosticsMigration).toContain('WHERE "integrationRunId" IS NOT NULL');
   });
 });
