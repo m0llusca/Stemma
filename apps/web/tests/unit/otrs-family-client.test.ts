@@ -378,6 +378,69 @@ describe("OTRS-family HTTP client", () => {
     }
   });
 
+  it("redacts sensitive keys inside malformed JSON-like error body strings", async () => {
+    const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+    const malformedSensitiveBody = [
+      '{\\"SessionID\\":\\"raw-session-id\\"',
+      ',\\"UserLogin\\":\\"raw-user-login\\"',
+      ',\\"Password\\":\\"raw-password-value\\"',
+      ',\\"token\\":\\"raw-token-value\\"',
+      ',\\"bearerToken\\":\\"raw-bearer-token\\"',
+      ',\\"accessToken\\":\\"raw-access-token\\"',
+      ',\\"apiToken\\":\\"raw-api-token\\"',
+      ',\\"clientSecret\\":\\"raw-client-secret\\"',
+      ',\\"authorization\\":\\"Bearer raw-auth-token\\"'
+    ].join("");
+    const httpErrorClient = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async () => ({
+        statusCode: 500,
+        body: malformedSensitiveBody
+      })
+    });
+    const invalidJsonClient = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async () => ({
+        statusCode: 200,
+        body: malformedSensitiveBody
+      })
+    });
+
+    const httpError = await expectConnectorError(() =>
+      httpErrorClient.requestJson(
+        buildTicketSearchRequest({ config, baseUrl, userLogin, password, filters: { Queue: "Raw" } })
+      )
+    );
+    const invalidJsonError = await expectConnectorError(() =>
+      invalidJsonClient.requestJson(
+        buildTicketSearchRequest({ config, baseUrl, userLogin, password, filters: { Queue: "Raw" } })
+      )
+    );
+
+    expect(httpError.code).toBe("ticket_search_failed");
+    expect(invalidJsonError.code).toBe("invalid_json");
+
+    for (const error of [httpError, invalidJsonError]) {
+      const detail = JSON.stringify(error.redactedDetail);
+
+      expect(detail).not.toContain("raw-session-id");
+      expect(detail).not.toContain("raw-user-login");
+      expect(detail).not.toContain("raw-password-value");
+      expect(detail).not.toContain("raw-token-value");
+      expect(detail).not.toContain("raw-bearer-token");
+      expect(detail).not.toContain("raw-access-token");
+      expect(detail).not.toContain("raw-api-token");
+      expect(detail).not.toContain("raw-client-secret");
+      expect(detail).not.toContain("raw-auth-token");
+    }
+  });
+
   it("maps operation HTTP failures to operation-specific codes", async () => {
     const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
     const client = createOtrsHttpClient({

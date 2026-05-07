@@ -37,6 +37,8 @@ type RequestJsonRuntime = {
 const redactedValue = "[REDACTED]";
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 5_000_000;
+const sensitiveAuthFragmentKeyPattern =
+  "Authorization|UserLogin|Password|SessionID|token|bearerToken|accessToken|apiToken|clientSecret";
 const tlsErrorCodes = new Set([
   "CERT_HAS_EXPIRED",
   "DEPTH_ZERO_SELF_SIGNED_CERT",
@@ -516,13 +518,23 @@ function redactUrlCredentials(value: string) {
 }
 
 function redactAuthFragments(value: string) {
-  return value.replace(
-    /((?:^|[?&#;\s])(?:UserLogin|Password|SessionID|token|Token|authorization|Authorization|bearerToken|accessToken|apiToken|clientSecret)=)[^&#;\s]+/g,
-    `$1${redactedValue}`
-  ).replace(
-    /((?:^|[\r\n\s])(?:Authorization|UserLogin|Password|SessionID|token|bearerToken|accessToken|apiToken|clientSecret)\s*:\s*)[^\r\n]+/gi,
-    `$1${redactedValue}`
+  const queryFragmentPattern = new RegExp(
+    `((?:^|[?&#;\\s])(?:${sensitiveAuthFragmentKeyPattern})=)[^&#;\\s]+`,
+    "gi"
   );
+  const headerFragmentPattern = new RegExp(
+    `((?:^|[\\r\\n\\s])(?:${sensitiveAuthFragmentKeyPattern})\\s*:\\s*)[^\\r\\n]+`,
+    "gi"
+  );
+  const quotedFragmentPattern = new RegExp(
+    `((?:^|[\\s{\\[,])(?:\\\\?["'])?(?:${sensitiveAuthFragmentKeyPattern})(?:\\\\?["'])?\\s*(?::|=)\\s*(?:\\\\?["'])?)[^\\\\"',}\\]\\r\\n]+`,
+    "gi"
+  );
+
+  return value
+    .replace(queryFragmentPattern, `$1${redactedValue}`)
+    .replace(headerFragmentPattern, `$1${redactedValue}`)
+    .replace(quotedFragmentPattern, `$1${redactedValue}`);
 }
 
 function isSensitiveKey(key: string) {
