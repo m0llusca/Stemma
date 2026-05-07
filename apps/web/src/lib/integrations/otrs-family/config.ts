@@ -5,10 +5,12 @@ const defaultProduct = "otrs_ce_6" satisfies OtrsProduct;
 const maxSearchLimit = 100;
 const maxManualTicketIdLimit = 50;
 const maxBatchSize = 50;
+const maxRequestTimeoutMs = 60_000;
 const maxResponseBytes = 10_000_000;
 
 const allowedSecretReferenceKeys = new Set(["caBundleSecretId"]);
-const rawAuthQueryPattern = /(?:^|[?&#;])(?:UserLogin|Password|password|SessionID|sessionId|token)=/;
+const rawAuthQueryPattern =
+  /(?:^|[?&#;])(?:userlogin|password|sessionid|token|bearertoken|accesstoken|apitoken|clientsecret|authorization)=/i;
 
 const productSchema = z.enum(["otrs_ce_6", "znuny_lts", "otobo"]);
 const methodSchema = z.enum(["GET", "POST"]);
@@ -138,7 +140,7 @@ const rawConfigSchema = z
         searchLimit: clampLimit(value.limits?.searchLimit ?? 50, maxSearchLimit),
         manualTicketIdLimit: clampLimit(value.limits?.manualTicketIdLimit ?? 20, maxManualTicketIdLimit),
         batchSize: clampLimit(value.limits?.batchSize ?? 25, maxBatchSize),
-        requestTimeoutMs: value.limits?.requestTimeoutMs ?? 15000,
+        requestTimeoutMs: clampLimit(value.limits?.requestTimeoutMs ?? 15000, maxRequestTimeoutMs),
         maxResponseBytes: clampLimit(value.limits?.maxResponseBytes ?? 5_000_000, maxResponseBytes)
       },
       tls: {

@@ -150,6 +150,31 @@ describe("OTRS-family connector config", () => {
     ).toThrow(/must not contain secrets/i);
   });
 
+  it.each([
+    "?Token=abc123",
+    "?TOKEN=abc123",
+    "?Authorization=Bearer%20x",
+    "?authorization=Bearer%20x",
+    "?userLogin=qa_api",
+    "?password=secret",
+    "?sessionId=abc123",
+    "?bearerToken=abc123",
+    "?accessToken=abc123",
+    "?apiToken=abc123",
+    "?clientSecret=abc123",
+    "Token=abc123",
+    "Authorization=Bearer%20x"
+  ])("rejects raw auth query fragments inside config JSON: %s", (value) => {
+    expect(() =>
+      parseOtrsConnectorConfig({
+        product: "otrs_ce_6",
+        metadata: {
+          example: value
+        }
+      })
+    ).toThrow(/must not contain secrets/i);
+  });
+
   it("builds the final GenericInterface WebService base URL", () => {
     expect(
       buildOtrsWebServiceBaseUrl({
@@ -243,6 +268,7 @@ describe("OTRS-family connector config", () => {
         searchLimit: 500,
         manualTicketIdLimit: 500,
         batchSize: 500,
+        requestTimeoutMs: 120000,
         maxResponseBytes: 50000000
       }
     });
@@ -251,6 +277,7 @@ describe("OTRS-family connector config", () => {
       searchLimit: 100,
       manualTicketIdLimit: 50,
       batchSize: 50,
+      requestTimeoutMs: 60000,
       maxResponseBytes: 10000000
     });
   });
