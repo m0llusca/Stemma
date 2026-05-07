@@ -101,7 +101,7 @@ Add test and live-smoke support:
 - Modify: `apps/web/src/lib/normalizers/otrs-family.ts`
 - Test: `apps/web/tests/unit/otrs-family-config.test.ts`
 
-- [ ] **Step 1: Write failing config/profile tests**
+- [x] **Step 1: Write failing config/profile tests**
 
 Add tests that prove:
 
@@ -121,7 +121,7 @@ npm run test -- tests/unit/otrs-family-config.test.ts
 
 Expected: FAIL because `@/lib/integrations/otrs-family/config` and `profiles` do not exist.
 
-- [ ] **Step 2: Implement `profiles.ts`**
+- [x] **Step 2: Implement `profiles.ts`**
 
 Move profile-oriented data out of the normalizer without breaking old imports. Keep OTRS CE 6 first:
 
@@ -144,7 +144,7 @@ export const otrsFamilyProfiles = {
 
 Compatibility profiles for `znuny_lts` and `otobo` may remain in the same file, but all defaults used by the production connector must resolve through `otrs_ce_6`.
 
-- [ ] **Step 3: Implement `config.ts`**
+- [x] **Step 3: Implement `config.ts`**
 
 Use Zod and export:
 
@@ -198,11 +198,11 @@ The parsed config shape must match the approved spec:
 }
 ```
 
-- [ ] **Step 4: Re-export existing normalizer profile APIs**
+- [x] **Step 4: Re-export existing normalizer profile APIs**
 
 Keep existing imports working by making `apps/web/src/lib/normalizers/otrs-family.ts` re-export or delegate profile helpers. Existing tests in `tests/unit/otrs-family-normalizer.test.ts` must continue to pass.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 
