@@ -230,7 +230,7 @@ Expected: both tests and typecheck exit `0`.
 - Test: `apps/web/tests/unit/otrs-family-credentials.test.ts`
 - Test: `apps/web/tests/unit/prisma-schema.test.ts`
 
-- [ ] **Step 1: Write failing credential tests**
+- [x] **Step 1: Write failing credential tests**
 
 Cover:
 
@@ -249,7 +249,7 @@ npm run test -- tests/unit/otrs-family-credentials.test.ts tests/unit/prisma-sch
 
 Expected: FAIL because `kind` and credential slot helpers do not exist.
 
-- [ ] **Step 2: Change Prisma relation from one credential to many**
+- [x] **Step 2: Change Prisma relation from one credential to many**
 
 Update schema around `Integration` and `IntegrationCredential`:
 
@@ -297,7 +297,7 @@ Expected migration behavior:
 - create unique index on `(integrationId, kind)`;
 - existing rows become `auth_password`.
 
-- [ ] **Step 3: Add credential helper module**
+- [x] **Step 3: Add credential helper module**
 
 Implement `credentials.ts` exports:
 
@@ -310,7 +310,7 @@ Implement `credentials.ts` exports:
 
 Use existing `encryptSecret` and `decryptSecret`. Do not log decrypted values.
 
-- [ ] **Step 4: Update existing credential call sites**
+- [x] **Step 4: Update existing credential call sites**
 
 Replace singular `credential` usage with `credentials`:
 
@@ -319,7 +319,7 @@ Replace singular `credential` usage with `credentials`:
 - `api/v1/integrations/route.ts`: keep backward `hasCredential` and add `credentials` summary array;
 - `seed.ts`: deletion order remains valid.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 
