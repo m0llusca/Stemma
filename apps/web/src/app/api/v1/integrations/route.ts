@@ -85,7 +85,7 @@ export async function GET() {
         lastSyncedAt: integration.lastSyncedAt?.toISOString() ?? null,
         lastImportAt: integration.lastImportAt?.toISOString() ?? null,
         lastError: integration.lastError,
-        config: parseJson(integration.configJson),
+        config: sanitizeIntegrationCredentialConfig(parseJson(integration.configJson)),
         hasCredential: credentialSummaries.some((credential) => credential.kind === "auth_password"),
         hasCaBundle: credentialSummaries.some((credential) => credential.kind === "ca_bundle"),
         credentials: credentialSummaries,
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
 
   const sanitizedConfig = sanitizeIntegrationCredentialConfig(parsed.data.config ?? {});
 
-  const integration = await prisma.$transaction(async (tx) => {
+  const saved = await prisma.$transaction(async (tx) => {
     const result = await tx.integration.upsert({
       where: {
         workspaceId_source: {
@@ -205,18 +205,28 @@ export async function POST(request: Request) {
       tx
     );
 
-    return result;
+    const credentialSummaries = summarizeIntegrationSecretSlots(
+      await tx.integrationCredential.findMany({
+        where: { integrationId: result.id },
+        orderBy: [{ kind: "asc" }]
+      })
+    );
+
+    return {
+      integration: result,
+      credentialSummaries
+    };
   });
 
   return apiJson(
     {
       integration: {
-        id: integration.id,
-        source: integration.source,
-        displayName: integration.displayName,
-        status: integration.status,
-        hasCredential: Boolean(parsed.data.credentialSecret),
-        hasCaBundle: Boolean(parsed.data.caBundle)
+        id: saved.integration.id,
+        source: saved.integration.source,
+        displayName: saved.integration.displayName,
+        status: saved.integration.status,
+        hasCredential: saved.credentialSummaries.some((credential) => credential.kind === "auth_password"),
+        hasCaBundle: saved.credentialSummaries.some((credential) => credential.kind === "ca_bundle")
       }
     },
     201,

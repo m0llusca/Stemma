@@ -240,4 +240,132 @@ describe("OTRS-family credential slots", () => {
     expect(serialized).not.toContain("caCertificate");
     expect(serialized).not.toContain("certificatePem");
   });
+
+  it("redacts legacy PEM-bearing configJson from the integrations API response", async () => {
+    const prisma = {
+      integration: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "integration-1",
+            source: "otrs",
+            displayName: "OTRS",
+            type: "otrs_family",
+            status: "ready",
+            baseUrl: "https://support.example.com",
+            authMode: "token",
+            importLimit: 100,
+            batchSize: 25,
+            dateRangeDays: 30,
+            schedule: null,
+            syncCursor: null,
+            lastSyncedAt: null,
+            lastImportAt: null,
+            lastError: null,
+            configJson: JSON.stringify({
+              tls: {
+                mode: "custom_ca",
+                caBundle: caPemWithWindowsLines,
+                caFingerprint: "fingerprint-123"
+              },
+              caBundle: caPemWithWindowsLines
+            }),
+            credentials: [],
+            runs: []
+          }
+        ])
+      }
+    };
+
+    vi.resetModules();
+    vi.doMock("@/lib/db", () => ({ prisma }));
+    vi.doMock("@/lib/current-user", () => ({
+      requireCurrentUserPermission: vi.fn().mockResolvedValue({
+        id: "user-1",
+        workspaceId: "workspace-1",
+        role: "ADMIN"
+      })
+    }));
+
+    try {
+      const { GET } = await import("@/app/api/v1/integrations/route");
+      const response = await GET();
+      const body = await response.json();
+      const serialized = JSON.stringify(body);
+      const configSerialized = JSON.stringify(body.integrations[0].config);
+
+      expect(body.integrations[0].config).toEqual({
+        tls: {
+          mode: "custom_ca",
+          caFingerprint: "fingerprint-123"
+        }
+      });
+      expect(serialized).not.toContain("BEGIN CERTIFICATE");
+      expect(serialized).not.toContain("MIIFakeCertificate");
+      expect(configSerialized).not.toContain("caBundle");
+    } finally {
+      vi.doUnmock("@/lib/db");
+      vi.doUnmock("@/lib/current-user");
+      vi.resetModules();
+    }
+  });
+
+  it("does not include failed upstream response bodies in runner errors", async () => {
+    const leakedBody =
+      "GET /otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST?UserLogin=qa_api&Password=super-secret";
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(leakedBody, { status: 502, statusText: "Bad Gateway" })));
+    const now = new Date("2026-05-07T10:00:00.000Z");
+    const client = {
+      integration: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "integration-1",
+          workspaceId: "workspace-1",
+          source: "custom",
+          displayName: "Custom API",
+          type: "custom_api",
+          status: "ready",
+          baseUrl: "https://support.example.com",
+          configJson: "{}",
+          authMode: "token",
+          importLimit: 100,
+          batchSize: 25,
+          dateRangeDays: 30,
+          schedule: null,
+          syncCursor: null,
+          lastSyncedAt: null,
+          lastDryRunAt: null,
+          lastImportAt: null,
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+          credentials: []
+        })
+      }
+    };
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const { runIntegrationConnector } = await import("@/lib/integrations/runner");
+
+      await expect(
+        runIntegrationConnector({
+          workspaceId: "workspace-1",
+          integrationId: "integration-1",
+          dryRun: true,
+          client: client as never
+        })
+      ).rejects.toThrow("Источник вернул HTTP 502: Bad Gateway");
+
+      await expect(
+        runIntegrationConnector({
+          workspaceId: "workspace-1",
+          integrationId: "integration-1",
+          dryRun: true,
+          client: client as never
+        })
+      ).rejects.not.toThrow(/Password|super-secret|UserLogin|GenericTicketConnectorREST/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

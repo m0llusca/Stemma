@@ -87,7 +87,7 @@ async function fetchJson(url: string, init: RequestInit = {}) {
   const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(`Источник вернул HTTP ${response.status}: ${text.slice(0, 240) || response.statusText}`);
+    throw new Error(`Источник вернул HTTP ${response.status}: ${response.statusText || "Ошибка upstream-источника."}`);
   }
 
   try {

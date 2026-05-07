@@ -98,8 +98,8 @@ export function summarizeIntegrationSecretSlots(slots: SecretSlotSummaryInput[])
   }));
 }
 
-export function sanitizeIntegrationCredentialConfig(value: Record<string, unknown> = {}) {
-  return sanitizeConfigObject(value);
+export function sanitizeIntegrationCredentialConfig(value: unknown = {}) {
+  return sanitizeConfigObject(objectRecord(value) ?? {});
 }
 
 export function applyCaBundleCredentialReference(config: Record<string, unknown>, caBundleSlot: CaBundleReference) {
