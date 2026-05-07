@@ -245,11 +245,13 @@ describe("OTRS-family normalizer", () => {
     expect(result.conversation.messages.map((message) => message.isPrivate)).toEqual([false, true]);
     expect(result.warnings).toEqual([
       expect.objectContaining({
-        code: "attachment_content_discarded",
+        code: "attachment_external_link",
         detail: expect.objectContaining({
           articleId: "101",
           attachmentId: "1",
-          filename: "receipt.pdf"
+          filename: "receipt.pdf",
+          contentDiscarded: true,
+          externalUrl: "https://support.example.com/otrs/index.pl?Action=AgentTicketAttachment;TicketID=42;ArticleID=101;FileID=1"
         })
       })
     ]);
@@ -274,7 +276,9 @@ describe("OTRS-family normalizer", () => {
     } as unknown as OtrsFamilyArticle;
 
     const metadata = extractOtrsAttachmentMetadata({ TicketID: "42" }, article);
-    const warnings = summarizeAttachmentWarnings(metadata);
+    const warnings = summarizeAttachmentWarnings(metadata, {
+      baseUrl: "https://support.example.com/otrs/"
+    });
 
     expect(metadata).toEqual([
       {
@@ -292,15 +296,63 @@ describe("OTRS-family normalizer", () => {
     );
     expect(warnings).toEqual([
       expect.objectContaining({
-        code: "attachment_content_discarded",
+        code: "attachment_external_link",
         detail: expect.objectContaining({
           articleId: "101",
-          attachmentId: "1"
+          attachmentId: "1",
+          contentDiscarded: true,
+          externalUrl: "https://support.example.com/otrs/index.pl?Action=AgentTicketAttachment;TicketID=42;ArticleID=101;FileID=1"
         })
       })
     ]);
     expect(JSON.stringify(metadata)).not.toContain("JVBERi0xLjQKbase64");
     expect(JSON.stringify(metadata)).not.toContain("secret-base64");
     expect(JSON.stringify(warnings)).not.toContain("binary-shadow");
+  });
+
+  it("warns with an external link for metadata-only attachments", () => {
+    const ticket = {
+      TicketID: "42",
+      Title: "Attachment metadata only",
+      State: "open",
+      Created: "2026-04-25 10:00:00",
+      Article: {
+        ArticleID: "101",
+        SenderType: "customer",
+        From: "mila@example.com",
+        Body: "See receipt.",
+        Created: "2026-04-25 10:01:00",
+        IsVisibleForCustomer: 1,
+        Attachment: {
+          AttachmentID: "1",
+          Filename: "receipt.pdf",
+          ContentType: "application/pdf",
+          Filesize: "2048"
+        }
+      }
+    } as unknown as OtrsFamilyTicket;
+
+    const result = normalizeOtrsFamilyTicketForImport(ticket, {
+      source: "otrs",
+      baseUrl: "https://support.example.com/otrs/"
+    });
+
+    expect(result.stats.attachmentCount).toBe(1);
+    expect(result.warnings).toEqual([
+      {
+        code: "attachment_external_link",
+        message: "Attachment is retained as external OTRS metadata; file content is not imported.",
+        detail: {
+          ticketId: "42",
+          articleId: "101",
+          attachmentId: "1",
+          filename: "receipt.pdf",
+          contentType: "application/pdf",
+          size: 2048,
+          contentDiscarded: false,
+          externalUrl: "https://support.example.com/otrs/index.pl?Action=AgentTicketAttachment;TicketID=42;ArticleID=101;FileID=1"
+        }
+      }
+    ]);
   });
 });

@@ -16,7 +16,8 @@ export type OtrsAttachmentWarning = {
   detail?: Record<string, unknown>;
 };
 
-const attachmentContentKeyPattern = /(content|contentalternative|base64|binary|payload|body|data)/i;
+const attachmentContentKeyPattern = /^(content|contentalternative|body|data)$/i;
+const attachmentBinaryKeyPattern = /(base64|binary|payload)/i;
 
 export function extractOtrsAttachmentMetadata(ticket: OtrsFamilyTicket, article: OtrsFamilyArticle): OtrsAttachmentMetadata[] {
   return arrayValue(attachmentContainer(article)).map((attachment) => {
@@ -53,21 +54,26 @@ export function buildOtrsAttachmentExternalUrl(input: {
   return `${baseUrl}/index.pl?${params}`;
 }
 
-export function summarizeAttachmentWarnings(metadata: OtrsAttachmentMetadata[]): OtrsAttachmentWarning[] {
-  return metadata
-    .filter((attachment) => attachment.contentDiscarded)
-    .map((attachment) => ({
-      code: "attachment_content_discarded",
-      message: "Attachment content was discarded; only external attachment metadata is retained for import preview.",
-      detail: compactRecord({
-        ticketId: attachment.ticketId,
-        articleId: attachment.articleId,
-        attachmentId: attachment.attachmentId,
-        filename: attachment.filename,
-        contentType: attachment.contentType,
-        size: attachment.size
-      })
-    }));
+export function summarizeAttachmentWarnings(
+  metadata: OtrsAttachmentMetadata[],
+  options: {
+    baseUrl?: string;
+  } = {}
+): OtrsAttachmentWarning[] {
+  return metadata.map((attachment) => ({
+    code: "attachment_external_link",
+    message: "Attachment is retained as external OTRS metadata; file content is not imported.",
+    detail: compactRecord({
+      ticketId: attachment.ticketId,
+      articleId: attachment.articleId,
+      attachmentId: attachment.attachmentId,
+      filename: attachment.filename,
+      contentType: attachment.contentType,
+      size: attachment.size,
+      contentDiscarded: attachment.contentDiscarded,
+      externalUrl: attachmentExternalUrl(attachment, options.baseUrl)
+    })
+  }));
 }
 
 function attachmentContainer(article: OtrsFamilyArticle) {
@@ -111,9 +117,25 @@ function numberValue(value: unknown) {
 }
 
 function hasDiscardedContent(record: Record<string, unknown>) {
-  return Object.entries(record).some(([key, value]) => attachmentContentKeyPattern.test(key) && value !== undefined && value !== null);
+  return Object.entries(record).some(
+    ([key, value]) =>
+      (attachmentContentKeyPattern.test(key) || attachmentBinaryKeyPattern.test(key)) && value !== undefined && value !== null
+  );
 }
 
 function compactRecord(record: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
+}
+
+function attachmentExternalUrl(attachment: OtrsAttachmentMetadata, baseUrl: string | undefined) {
+  if (!baseUrl || !attachment.ticketId || !attachment.articleId || !attachment.attachmentId) {
+    return undefined;
+  }
+
+  return buildOtrsAttachmentExternalUrl({
+    baseUrl,
+    ticketId: attachment.ticketId,
+    articleId: attachment.articleId,
+    attachmentId: attachment.attachmentId
+  });
 }

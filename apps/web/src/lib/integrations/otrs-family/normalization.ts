@@ -38,7 +38,9 @@ export function normalizeOtrsFamilyTicketForImport(
       privateArticleCount: articles.filter((article) => !isVisibleForCustomer(article.IsVisibleForCustomer)).length,
       attachmentCount: attachmentMetadata.length
     },
-    warnings: summarizeAttachmentWarnings(attachmentMetadata)
+    warnings: summarizeAttachmentWarnings(attachmentMetadata, {
+      baseUrl: options.baseUrl
+    })
   };
 }
 
