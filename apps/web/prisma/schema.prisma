@@ -721,14 +721,17 @@ model IntegrationDiagnosticStep {
   diagnosticRunId String
   diagnosticRun   IntegrationDiagnosticRun @relation(fields: [diagnosticRunId], references: [id], onDelete: Cascade)
   key             String
+  position        Int
   status          String
   durationMs      Int                      @default(0)
   detailJson      String                   @default("{}")
   remediationHint String?
   createdAt       DateTime                 @default(now())
 
+  @@unique([diagnosticRunId, position])
+  @@unique([diagnosticRunId, key])
   @@index([diagnosticRunId, createdAt])
-  @@index([diagnosticRunId, key])
+  @@index([diagnosticRunId, position])
 }
 
 model IntegrationRunItem {

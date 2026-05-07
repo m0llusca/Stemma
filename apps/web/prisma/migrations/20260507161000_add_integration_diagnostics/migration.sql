@@ -21,6 +21,7 @@ CREATE TABLE "IntegrationDiagnosticStep" (
     "id" TEXT NOT NULL,
     "diagnosticRunId" TEXT NOT NULL,
     "key" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
     "status" TEXT NOT NULL,
     "durationMs" INTEGER NOT NULL DEFAULT 0,
     "detailJson" TEXT NOT NULL DEFAULT '{}',
@@ -65,7 +66,13 @@ CREATE INDEX "IntegrationDiagnosticRun_integrationId_startedAt_idx" ON "Integrat
 CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_createdAt_idx" ON "IntegrationDiagnosticStep"("diagnosticRunId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_key_idx" ON "IntegrationDiagnosticStep"("diagnosticRunId", "key");
+CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_position_idx" ON "IntegrationDiagnosticStep"("diagnosticRunId", "position");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "IntegrationDiagnosticStep_diagnosticRunId_position_key" ON "IntegrationDiagnosticStep"("diagnosticRunId", "position");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "IntegrationDiagnosticStep_diagnosticRunId_key_key" ON "IntegrationDiagnosticStep"("diagnosticRunId", "key");
 
 -- CreateIndex
 CREATE INDEX "IntegrationRunItem_workspaceId_createdAt_idx" ON "IntegrationRunItem"("workspaceId", "createdAt");
@@ -86,6 +93,21 @@ CREATE INDEX "IntegrationRunItem_conversationId_idx" ON "IntegrationRunItem"("co
 CREATE UNIQUE INDEX "IntegrationRunItem_integrationRunId_externalId_key"
 ON "IntegrationRunItem"("integrationRunId", "externalId")
 WHERE "integrationRunId" IS NOT NULL;
+
+-- AddCheckConstraint
+ALTER TABLE "IntegrationDiagnosticRun" ADD CONSTRAINT "IntegrationDiagnosticRun_finishedAt_after_startedAt_chk" CHECK ("finishedAt" IS NULL OR "finishedAt" >= "startedAt");
+
+-- AddCheckConstraint
+ALTER TABLE "IntegrationDiagnosticStep" ADD CONSTRAINT "IntegrationDiagnosticStep_durationMs_nonnegative_chk" CHECK ("durationMs" >= 0);
+
+-- AddCheckConstraint
+ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_articleCount_nonnegative_chk" CHECK ("articleCount" >= 0);
+
+-- AddCheckConstraint
+ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_privateArticleCount_nonnegative_chk" CHECK ("privateArticleCount" >= 0);
+
+-- AddCheckConstraint
+ALTER TABLE "IntegrationRunItem" ADD CONSTRAINT "IntegrationRunItem_attachmentCount_nonnegative_chk" CHECK ("attachmentCount" >= 0);
 
 -- AddForeignKey
 ALTER TABLE "IntegrationDiagnosticRun" ADD CONSTRAINT "IntegrationDiagnosticRun_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

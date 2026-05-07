@@ -164,8 +164,11 @@ describe("prisma schema database foundations", () => {
     expect(diagnosticStepModel).toMatch(
       /diagnosticRun\s+IntegrationDiagnosticRun\s+@relation\(fields: \[diagnosticRunId], references: \[id], onDelete: Cascade\)/
     );
+    expect(diagnosticStepModel).toContain("position        Int");
     expect(diagnosticStepModel).toContain("@@index([diagnosticRunId, createdAt])");
-    expect(diagnosticStepModel).toContain("@@index([diagnosticRunId, key])");
+    expect(diagnosticStepModel).toContain("@@index([diagnosticRunId, position])");
+    expect(diagnosticStepModel).toContain("@@unique([diagnosticRunId, position])");
+    expect(diagnosticStepModel).toContain("@@unique([diagnosticRunId, key])");
 
     expect(runItemModel).toMatch(
       /integrationRun\s+IntegrationRun\?\s+@relation\(fields: \[integrationRunId], references: \[id], onDelete: SetNull\)/
@@ -185,6 +188,7 @@ describe("prisma schema database foundations", () => {
 
   it("migrates integration diagnostics with foreign keys, hot-path indexes, and partial run item idempotency", () => {
     expect(diagnosticsMigrationName).toMatch(/^\d+_add_integration_diagnostics$/);
+    expect(diagnosticsMigrationName?.localeCompare(credentialKindsMigrationName ?? "")).toBeGreaterThan(0);
 
     const expectedTables = [
       'CREATE TABLE "IntegrationDiagnosticRun"',
@@ -216,7 +220,7 @@ describe("prisma schema database foundations", () => {
       'CREATE INDEX "IntegrationDiagnosticRun_workspaceId_status_startedAt_idx"',
       'CREATE INDEX "IntegrationDiagnosticRun_integrationId_startedAt_idx"',
       'CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_createdAt_idx"',
-      'CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_key_idx"',
+      'CREATE INDEX "IntegrationDiagnosticStep_diagnosticRunId_position_idx"',
       'CREATE INDEX "IntegrationRunItem_workspaceId_createdAt_idx"',
       'CREATE INDEX "IntegrationRunItem_workspaceId_status_createdAt_idx"',
       'CREATE INDEX "IntegrationRunItem_integrationRunId_status_idx"',
@@ -228,10 +232,34 @@ describe("prisma schema database foundations", () => {
       expect(diagnosticsMigration).toContain(index);
     }
 
+    const expectedUniqueIndexes = [
+      'CREATE UNIQUE INDEX "IntegrationDiagnosticStep_diagnosticRunId_position_key"',
+      'CREATE UNIQUE INDEX "IntegrationDiagnosticStep_diagnosticRunId_key_key"',
+      'CREATE UNIQUE INDEX "IntegrationRunItem_integrationRunId_externalId_key"'
+    ];
+
+    for (const index of expectedUniqueIndexes) {
+      expect(diagnosticsMigration).toContain(index);
+    }
+
     expect(diagnosticsMigration).toContain(
       'CREATE UNIQUE INDEX "IntegrationRunItem_integrationRunId_externalId_key"'
     );
     expect(diagnosticsMigration).toContain('ON "IntegrationRunItem"("integrationRunId", "externalId")');
     expect(diagnosticsMigration).toContain('WHERE "integrationRunId" IS NOT NULL');
+  });
+
+  it("migrates integration diagnostics with database guardrails for durations, counts, and run timing", () => {
+    const expectedConstraints = [
+      'CONSTRAINT "IntegrationDiagnosticRun_finishedAt_after_startedAt_chk" CHECK ("finishedAt" IS NULL OR "finishedAt" >= "startedAt")',
+      'CONSTRAINT "IntegrationDiagnosticStep_durationMs_nonnegative_chk" CHECK ("durationMs" >= 0)',
+      'CONSTRAINT "IntegrationRunItem_articleCount_nonnegative_chk" CHECK ("articleCount" >= 0)',
+      'CONSTRAINT "IntegrationRunItem_privateArticleCount_nonnegative_chk" CHECK ("privateArticleCount" >= 0)',
+      'CONSTRAINT "IntegrationRunItem_attachmentCount_nonnegative_chk" CHECK ("attachmentCount" >= 0)'
+    ];
+
+    for (const constraint of expectedConstraints) {
+      expect(diagnosticsMigration).toContain(constraint);
+    }
   });
 });
