@@ -1,3 +1,8 @@
+import {
+  createOtrsGenericInterfaceServer,
+  type OtrsGenericInterfaceServer
+} from "../fixtures/otrs-genericinterface-server";
+import { createOtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import { buildDefaultOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import {
@@ -117,7 +122,11 @@ function createFakeClient(responses: unknown[]) {
   };
 }
 
-function createRunInput(tx: FakeTx, client: ReturnType<typeof createFakeClient>["client"], overrides = {}) {
+function createRunInput(
+  tx: FakeTx,
+  client: NonNullable<Parameters<typeof runOtrsDiagnostics>[0]["client"]>,
+  overrides = {}
+) {
   return {
     tx,
     workspaceId,
@@ -162,7 +171,119 @@ function allPersistedJson(tx: FakeTx) {
   });
 }
 
+async function withOtrsGenericInterfaceServer<T>(
+  options: Parameters<typeof createOtrsGenericInterfaceServer>[0],
+  run: (server: OtrsGenericInterfaceServer) => Promise<T>
+) {
+  const server = await createOtrsGenericInterfaceServer(options);
+
+  try {
+    return await run(server);
+  } finally {
+    await server.close();
+  }
+}
+
 describe("OTRS-family diagnostics", () => {
+  it("runs the success diagnostic path through the real OTRS GenericInterface HTTP client", async () => {
+    await withOtrsGenericInterfaceServer({ ticketIds: ["101"] }, async (server) => {
+      const tx = createFakeTx();
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      await runOtrsDiagnostics(
+        createRunInput(tx, client, {
+          integration: {
+            id: integrationId,
+            workspaceId,
+            source: "otrs",
+            displayName: "Production OTRS",
+            type: "otrs_family",
+            baseUrl: server.baseUrl,
+            configJson: JSON.stringify(config)
+          }
+        })
+      );
+
+      expect(server.requests.map((request) => request.operation)).toEqual(["TicketSearch", "TicketGet"]);
+      expect(server.requests[0]).toMatchObject({
+        method: "POST",
+        pathname: "/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket"
+      });
+      expect(server.requests[1]).toMatchObject({
+        method: "GET",
+        ticketId: "101"
+      });
+      expect(finalRunUpdate(tx).data.status).toBe("succeeded");
+
+      const summary = JSON.parse(String(finalRunUpdate(tx).data.summaryJson));
+      expect(summary).toMatchObject({
+        searchedTicketIds: ["101"],
+        fetchedTicketIds: ["101"],
+        articleCountsByTicketId: {
+          "101": 2
+        },
+        normalizedConversationCount: 1,
+        duplicateCount: 0
+      });
+    });
+  });
+
+  it("runs the auth failure diagnostic path through the real OTRS GenericInterface HTTP client", async () => {
+    await withOtrsGenericInterfaceServer({ mode: "auth_failure" }, async (server) => {
+      const tx = createFakeTx();
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      await runOtrsDiagnostics(
+        createRunInput(tx, client, {
+          integration: {
+            id: integrationId,
+            workspaceId,
+            source: "otrs",
+            displayName: "Production OTRS",
+            type: "otrs_family",
+            baseUrl: server.baseUrl,
+            configJson: JSON.stringify(config)
+          }
+        })
+      );
+
+      expect(server.requests.map((request) => request.operation)).toEqual(["TicketSearch"]);
+      expect(
+        tx.steps.map((step) => {
+          const record = step as { key: string; status: string };
+          return [record.key, record.status];
+        })
+      ).toEqual([
+        ["config", "succeeded"],
+        ["tls", "succeeded"],
+        ["webservice", "succeeded"],
+        ["auth", "failed"],
+        ["ticket_search", "skipped"],
+        ["ticket_get", "skipped"],
+        ["normalize", "skipped"],
+        ["db_dry_run", "skipped"]
+      ]);
+      expect(finalRunUpdate(tx).data).toMatchObject({
+        status: "failed",
+        errorCode: "auth_failed"
+      });
+      expect(allPersistedJson(tx)).not.toContain(password);
+      expect(allPersistedJson(tx)).not.toContain(userLogin);
+    });
+  });
+
   it("starts a run as running, persists ordered steps, and finishes succeeded with a ticket summary", async () => {
     const tx = createFakeTx();
     const fakeClient = createFakeClient([{ TicketID: ["42"] }, ticketGetPayload("42", 2) ]);

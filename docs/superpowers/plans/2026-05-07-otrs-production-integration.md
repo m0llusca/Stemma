@@ -946,7 +946,7 @@ git commit -m "add otrs integration cockpit ui"
 - Add or modify: `apps/web/tests/unit/otrs-family-diagnostics.test.ts`
 - Add or modify: `apps/web/tests/unit/otrs-family-import-plan.test.ts`
 
-- [ ] **Step 1: Build stub fixture server**
+- [x] **Step 1: Build stub fixture server**
 
 The fixture server must expose OTRS-like routes:
 
@@ -964,7 +964,7 @@ It must support modes:
 - oversized response;
 - TicketGet with attachments containing base64 content.
 
-- [ ] **Step 2: Add contract tests through real HTTP**
+- [x] **Step 2: Add contract tests through real HTTP**
 
 Use the actual client/service against the local stub server. Cover:
 
@@ -984,7 +984,7 @@ npm run test -- tests/unit/otrs-family-client.test.ts tests/unit/otrs-family-dia
 
 Expected: all tests exit `0` and no test needs a live OTRS instance.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/web/tests/fixtures apps/web/tests/unit docs/superpowers/plans/2026-05-07-otrs-production-integration.md

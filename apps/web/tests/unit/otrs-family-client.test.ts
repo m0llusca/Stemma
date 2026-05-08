@@ -1,4 +1,9 @@
 import http from "node:http";
+import {
+  createOtrsGenericInterfaceServer,
+  type OtrsGenericInterfaceServer,
+  type OtrsGenericInterfaceServerMode
+} from "../fixtures/otrs-genericinterface-server";
 import { buildDefaultOtrsConnectorConfig, parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import {
   createOtrsHttpClient,
@@ -90,6 +95,19 @@ function withTestTimeout<T>(promise: Promise<T>, timeoutMs = testTimeoutMs): Pro
       clearTimeout(timeout);
     }
   });
+}
+
+async function withOtrsGenericInterfaceServer<T>(
+  options: Parameters<typeof createOtrsGenericInterfaceServer>[0],
+  run: (server: OtrsGenericInterfaceServer) => Promise<T>
+) {
+  const server = await createOtrsGenericInterfaceServer(options);
+
+  try {
+    return await run(server);
+  } finally {
+    await server.close();
+  }
 }
 
 describe("OTRS-family HTTP client", () => {
@@ -613,80 +631,185 @@ describe("OTRS-family HTTP client", () => {
     ).toMatchObject({ code: "response_too_large" });
   });
 
-  it("uses the real Node transport for successful JSON responses", async () => {
-    await withHttpServer(
-      (request, response) => {
-        expect(request.method).toBe("POST");
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({ Success: 1, TicketID: ["42"] }));
+  it("uses the real Node transport against the OTRS GenericInterface stub", async () => {
+    await withOtrsGenericInterfaceServer({ expectedAuth: { userLogin, password }, ticketIds: ["42"] }, async (server) => {
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      await expect(
+        client.requestJson(
+          buildTicketSearchRequest({
+            config,
+            baseUrl: server.baseUrl,
+            userLogin,
+            password,
+            filters: {
+              Queue: "Raw"
+            }
+          })
+        )
+      ).resolves.toEqual({ Success: 1, TicketID: ["42"] });
+      expect(server.requests).toHaveLength(1);
+      expect(server.requests[0]).toMatchObject({
+        method: "POST",
+        operation: "TicketSearch",
+        pathname: "/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket",
+        bodyJson: {
+          UserLogin: userLogin,
+          Password: password,
+          Queue: "Raw",
+          Limit: 50
+        }
+      });
+    });
+  });
+
+  it("maps OTRS GenericInterface stub failure modes through the real Node transport", async () => {
+    const cases: Array<{
+      mode: OtrsGenericInterfaceServerMode;
+      expectedCode: string;
+      config?: ReturnType<typeof buildDefaultOtrsConnectorConfig>;
+      delayMs?: number;
+      oversizedBytes?: number;
+    }> = [
+      { mode: "auth_failure", expectedCode: "auth_failed" },
+      { mode: "invalid_json", expectedCode: "invalid_json" },
+      {
+        mode: "delayed_timeout",
+        expectedCode: "timeout",
+        delayMs: 75,
+        config: parseOtrsConnectorConfig({ product: "otrs_ce_6", limits: { requestTimeoutMs: 10 } })
       },
-      async ({ baseUrl: localBaseUrl }) => {
-        const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
-        const client = createOtrsHttpClient({
+      {
+        mode: "oversized_response",
+        expectedCode: "response_too_large",
+        oversizedBytes: 128,
+        config: parseOtrsConnectorConfig({ product: "otrs_ce_6", limits: { maxResponseBytes: 32 } })
+      }
+    ];
+
+    for (const testCase of cases) {
+      await withOtrsGenericInterfaceServer(
+        { mode: testCase.mode, delayMs: testCase.delayMs, oversizedBytes: testCase.oversizedBytes },
+        async (server) => {
+          const config = testCase.config ?? buildDefaultOtrsConnectorConfig("otrs_ce_6");
+          const client = createOtrsHttpClient({
+            config,
+            baseUrl: server.baseUrl,
+            userLogin,
+            password
+          });
+
+          await expect(
+            expectConnectorError(() =>
+              withTestTimeout(
+                client.requestJson(
+                  buildTicketSearchRequest({
+                    config,
+                    baseUrl: server.baseUrl,
+                    userLogin,
+                    password,
+                    filters: {
+                      Queue: "Raw"
+                    }
+                  })
+                )
+              )
+            )
+          ).resolves.toMatchObject({ code: testCase.expectedCode });
+        }
+      );
+    }
+  });
+
+  it("exposes malformed OTRS response modes from the GenericInterface stub", async () => {
+    await withOtrsGenericInterfaceServer({ ticketSearchMode: "malformed_ticket_search" }, async (server) => {
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      const response = await client.requestJson(
+        buildTicketSearchRequest({
           config,
-          baseUrl: localBaseUrl,
+          baseUrl: server.baseUrl,
           userLogin,
           password
-        });
+        })
+      );
 
-        await expect(
-          client.requestJson(
-            buildTicketSearchRequest({
-              config,
-              baseUrl: localBaseUrl,
-              userLogin,
-              password,
-              filters: {
-                Queue: "Raw"
-              }
-            })
-          )
-        ).resolves.toEqual({ Success: 1, TicketID: ["42"] });
-      }
-    );
+      expect(parseTicketSearchResponse(response)).toEqual([]);
+    });
+
+    await withOtrsGenericInterfaceServer({ ticketGetMode: "malformed_ticket_get" }, async (server) => {
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      await expect(
+        client.requestJson(
+          buildTicketGetRequest({
+            config,
+            baseUrl: server.baseUrl,
+            userLogin,
+            password,
+            ticketId: "42"
+          })
+        )
+      ).resolves.toEqual({
+        Success: 1,
+        Ticket: {
+          NotATicket: true
+        }
+      });
+    });
   });
 
   it("maps oversized streaming responses from the real Node transport", async () => {
-    await withHttpServer(
-      (_request, response) => {
-        response.writeHead(200, { "content-type": "application/json" });
-        response.write('{"payload":"');
-        response.write("x".repeat(128));
-        response.end('"}');
-      },
-      async ({ baseUrl: localBaseUrl }) => {
-        const config = parseOtrsConnectorConfig({
-          product: "otrs_ce_6",
-          limits: {
-            maxResponseBytes: 32
-          }
-        });
-        const client = createOtrsHttpClient({
-          config,
-          baseUrl: localBaseUrl,
-          userLogin,
-          password
-        });
+    await withOtrsGenericInterfaceServer({ mode: "oversized_response", oversizedBytes: 128 }, async (server) => {
+      const config = parseOtrsConnectorConfig({
+        product: "otrs_ce_6",
+        limits: {
+          maxResponseBytes: 32
+        }
+      });
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
 
-        await expect(
-          expectConnectorError(() =>
-            withTestTimeout(
-              client.requestJson(
-                buildTicketSearchRequest({
-                  config,
-                  baseUrl: localBaseUrl,
-                  userLogin,
-                  password,
-                  filters: {
-                    Queue: "Raw"
-                  }
-                })
-              )
+      await expect(
+        expectConnectorError(() =>
+          withTestTimeout(
+            client.requestJson(
+              buildTicketSearchRequest({
+                config,
+                baseUrl: server.baseUrl,
+                userLogin,
+                password,
+                filters: {
+                  Queue: "Raw"
+                }
+              })
             )
           )
-        ).resolves.toMatchObject({ code: "response_too_large" });
-      }
-    );
+        )
+      ).resolves.toMatchObject({ code: "response_too_large" });
+    });
   });
 
   it("maps premature response close from the real Node transport without hanging", async () => {

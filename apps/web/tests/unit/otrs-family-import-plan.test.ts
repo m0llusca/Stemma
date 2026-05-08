@@ -1,3 +1,9 @@
+import {
+  createOtrsGenericInterfaceServer,
+  type OtrsGenericInterfaceServer
+} from "../fixtures/otrs-genericinterface-server";
+import { otrsFixtureAttachmentBase64 } from "../fixtures/otrs-ticket-fixtures";
+import { createOtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import { buildDefaultOtrsConnectorConfig, type OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import {
   createOtrsPreviewItems,
@@ -220,9 +226,175 @@ function createFakeDb(existingExternalIds: string[] = []) {
   return { db, state };
 }
 
+async function withOtrsGenericInterfaceServer<T>(
+  options: Parameters<typeof createOtrsGenericInterfaceServer>[0],
+  run: (server: OtrsGenericInterfaceServer) => Promise<T>
+) {
+  const server = await createOtrsGenericInterfaceServer(options);
+
+  try {
+    return await run(server);
+  } finally {
+    await server.close();
+  }
+}
+
+function createRealOtrsClient(config: OtrsConnectorConfig, server: OtrsGenericInterfaceServer) {
+  return createOtrsHttpClient({
+    config,
+    baseUrl: server.baseUrl,
+    userLogin: "qa_api",
+    password: "secret"
+  });
+}
+
 describe("OTRS-family preview/import planning", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("TicketSearch preview runs through the real OTRS GenericInterface HTTP client", async () => {
+    await withOtrsGenericInterfaceServer({ ticketIds: ["101", "102", "103"] }, async (server) => {
+      const { db, state } = createFakeDb();
+      const config = configWithLimits({ searchLimit: 2 });
+      const client = createRealOtrsClient(config, server);
+
+      await createOtrsPreviewRun({
+        db,
+        client,
+        workspaceId: "workspace-1",
+        integration: {
+          id: "integration-1",
+          source: "otrs",
+          baseUrl: server.baseUrl,
+          config
+        },
+        userLogin: "qa_api",
+        password: "secret",
+        mode: "ticket_search",
+        filters: {
+          Queue: "Support::Contracts"
+        }
+      });
+
+      expect(server.requests.map((request) => request.operation)).toEqual(["TicketSearch", "TicketGet", "TicketGet"]);
+      expect(state.items.map((item) => item.externalId)).toEqual(["101", "102"]);
+      expect(state.items.map((item) => item.status)).toEqual(["previewed", "previewed"]);
+      expect(state.diagnosticRuns[0]).toMatchObject({
+        status: "succeeded",
+        mode: "ticket_search"
+      });
+    });
+  });
+
+  it("manual TicketID preview runs through the real OTRS GenericInterface HTTP client", async () => {
+    await withOtrsGenericInterfaceServer({}, async (server) => {
+      const { db, state } = createFakeDb();
+      const config = configWithLimits({ manualTicketIdLimit: 2 });
+      const client = createRealOtrsClient(config, server);
+
+      await createOtrsPreviewRun({
+        db,
+        client,
+        workspaceId: "workspace-1",
+        integration: {
+          id: "integration-1",
+          source: "otrs",
+          baseUrl: server.baseUrl,
+          config
+        },
+        actorId: "user-1",
+        userLogin: "qa_api",
+        password: "secret",
+        mode: "manual_ticket_ids",
+        manualTicketIds: ["101", "102", "103"]
+      });
+
+      expect(server.requests.map((request) => [request.operation, request.ticketId])).toEqual([
+        ["TicketGet", "101"],
+        ["TicketGet", "102"]
+      ]);
+      expect(state.runs[0]).toMatchObject({
+        dryRun: true,
+        status: "previewed",
+        mode: "manual_ticket_ids",
+        requestedLimit: 2
+      });
+      expect(state.items.map((item) => item.externalId)).toEqual(["101", "102"]);
+    });
+  });
+
+  it("selected import from a real OTRS preview writes conversations and discards attachment base64", async () => {
+    await withOtrsGenericInterfaceServer(
+      { ticketIds: ["101"], ticketGetMode: "ticket_get_attachments_base64" },
+      async (server) => {
+        const { db, state } = createFakeDb();
+        const config = configWithLimits({ searchLimit: 1 });
+        const client = createRealOtrsClient(config, server);
+
+        const preview = await createOtrsPreviewRun({
+          db,
+          client,
+          workspaceId: "workspace-1",
+          integration: {
+            id: "integration-1",
+            source: "otrs",
+            baseUrl: server.baseUrl,
+            config
+          },
+          userLogin: "qa_api",
+          password: "secret",
+          mode: "ticket_search",
+          filters: {
+            Queue: "Support::Contracts"
+          }
+        });
+
+        expect(preview.items).toHaveLength(1);
+        expect(JSON.stringify(state)).not.toContain(otrsFixtureAttachmentBase64);
+        expect(JSON.parse(String(state.items[0].warningsJson))).toEqual([
+          expect.objectContaining({
+            code: "attachment_external_link",
+            detail: expect.objectContaining({
+              contentDiscarded: true,
+              filename: "ticket-101.txt"
+            })
+          })
+        ]);
+
+        const result = await importSelectedOtrsRunItems({
+          db,
+          workspaceId: "workspace-1",
+          integrationId: "integration-1",
+          integrationRunId: String(preview.run.id),
+          selectedItemIds: [String(preview.items[0].id)]
+        });
+
+        expect(result).toEqual({
+          importedCount: 1,
+          errorCount: 0
+        });
+        expect(state.conversations).toHaveLength(1);
+        expect(state.messages).toHaveLength(2);
+        expect(state.conversations[0]).toMatchObject({
+          externalSource: "otrs",
+          externalId: "101",
+          subject: "Fixture ticket 101"
+        });
+        expect(state.items[0]).toMatchObject({
+          conversationId: "conversation-101",
+          status: "imported",
+          attachmentCount: 1
+        });
+        expect(state.runs[0]).toMatchObject({
+          importedCount: 1,
+          errorCount: 0,
+          status: "imported",
+          dryRun: false
+        });
+        expect(JSON.stringify(state)).not.toContain(otrsFixtureAttachmentBase64);
+      }
+    );
   });
 
   it("manual TicketID preview fetches each ID up to the configured manual limit", async () => {
