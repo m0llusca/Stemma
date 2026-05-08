@@ -145,9 +145,14 @@ describe("OTRS-family credential slots", () => {
       }
     };
 
-    await expect(getIntegrationSecretSlots(client, "integration-1")).resolves.toEqual([credential({ kind: "auth_password" })]);
+    await expect(getIntegrationSecretSlots(client, { workspaceId: "workspace-1", integrationId: "integration-1" })).resolves.toEqual([
+      credential({ kind: "auth_password" })
+    ]);
     expect(client.integrationCredential.findMany).toHaveBeenCalledWith({
-      where: { integrationId: "integration-1" },
+      where: {
+        workspaceId: "workspace-1",
+        integrationId: "integration-1"
+      },
       orderBy: [{ kind: "asc" }]
     });
   });

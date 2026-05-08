@@ -1134,7 +1134,7 @@ Expected: typecheck exits `0`; live smoke script fails closed without env.
 - Modify: `AGENTS.md` only if new durable local commands are introduced
 - Modify tests touched by previous tasks only for final fixes
 
-- [ ] **Step 1: Run full local verification**
+- [x] **Step 1: Run full local verification**
 
 Run:
 
@@ -1159,7 +1159,17 @@ Expected:
 
 If `verify_no_pending_changes` creates an empty migration or errors because the database is already current, remove the empty migration before committing and document the actual output in the final task notes.
 
-- [ ] **Step 2: Production-readiness self-review**
+Task 12 local verification results on 2026-05-08:
+
+- `npm run db:up`: failed before Postgres startup because Docker was unavailable: `failed to connect to the docker API at unix:///Users/dubrsky/.docker/run/docker.sock`.
+- `npm run db:migrate -- --name verify_no_pending_changes`: failed before drift checks because `DATABASE_URL` was not set (`P1012`). No empty migration was created.
+- `npm run db:seed`: failed before DB writes because `DATABASE_URL` was not set.
+- `npm run typecheck`: passed, exit `0`.
+- `npm run test`: passed, 40 files / 229 tests, exit `0`.
+- `npm run test:e2e`: failed during Playwright `webServer` startup with `Schema engine error`; the configured web server is `npm run db:deploy && npm run db:seed && npm run dev`, so this remains blocked by local database/Docker availability.
+- `npm run build`: passed, exit `0`.
+
+- [x] **Step 2: Production-readiness self-review**
 
 Review these invariants in code:
 
@@ -1171,7 +1181,16 @@ Review these invariants in code:
 - old custom/native integration queue tests still pass;
 - manual payload import still works.
 
-- [ ] **Step 3: Update docs**
+Task 12 self-review results:
+
+- Confirmed decrypted OTRS password and CA contents are not returned in API responses or UI props; diagnostics and connector errors redact known secrets and PEM blocks before persistence.
+- Tightened OTRS credential slot loading and API credential summary refreshes to include `workspaceId` in Prisma filters.
+- Confirmed OTRS attachment payload content is discarded; only external-link metadata and discard warnings are persisted.
+- Confirmed OTRS live request builders carry timeout and response-size limits into the Node transport, with tests covering timeout and oversized responses.
+- Confirmed selected import validates integration, preview run, and selected preview items by `workspaceId`, and the worker re-checks the preview run and selected items by `workspaceId`.
+- Confirmed old custom/native/manual import coverage is included in the passing Vitest suite, including `tests/api/conversations.test.ts`, `tests/unit/integration-import-service.test.ts`, and `tests/unit/job-queue.test.ts`.
+
+- [x] **Step 3: Update docs**
 
 Update docs with final file paths and commands:
 
@@ -1179,7 +1198,7 @@ Update docs with final file paths and commands:
 - this plan's completed checkboxes if execution is happening inline;
 - spec corrections only if implementation changed an approved decision.
 
-- [ ] **Step 4: Commit final hardening**
+- [x] **Step 4: Commit final hardening**
 
 Run:
 

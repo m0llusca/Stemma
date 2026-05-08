@@ -123,10 +123,10 @@ This boundary prevents OTRS legacy behavior from bloating the generic integratio
   connector: "otrs_family",
   configVersion: 1,
   product: "otrs_ce_6",
-  webServiceName: "Ticket",
+  webServiceName: "GenericTicketConnectorREST",
   basePath: "/otrs",
   routes: {
-    ticketSearchPath: "/Ticket/search",
+    ticketSearchPath: "/Ticket",
     ticketGetPath: "/Ticket/{TicketID}",
     ticketSearchMethod: "POST",
     ticketGetMethod: "GET"
@@ -453,7 +453,7 @@ Playwright path:
 
 Real OTRS CE 6 smoke test is opt-in only:
 
-- `OTRS_LIVE_TEST=1`;
+- `OTRS_LIVE_SMOKE=1`;
 - live Base URL, UserLogin, password, CA material, and test TicketIDs from protected env/secrets;
 - default mode is read-only diagnostics and preview;
 - selected import requires a second explicit flag, `OTRS_LIVE_IMPORT=1`, and must target an isolated workspace/test queue;

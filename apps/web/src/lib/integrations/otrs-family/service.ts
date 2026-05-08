@@ -77,7 +77,10 @@ export async function runOtrsConnectorDiagnostics(input: RunOtrsConnectorDiagnos
     throw new Error("OTRS integration was not found in the requested workspace.");
   }
 
-  const secretSlots = await getIntegrationSecretSlots(db, integration.id);
+  const secretSlots = await getIntegrationSecretSlots(db, {
+    workspaceId: input.workspaceId,
+    integrationId: integration.id
+  });
   const authPassword = decryptIntegrationSecretSlot(secretSlots, "auth_password");
   const caBundle = decryptIntegrationSecretSlot(secretSlots, "ca_bundle");
   const diagnosticClient = input.client ?? createDiagnosticClient(integration, authPassword, caBundle);
@@ -112,7 +115,10 @@ export async function createOtrsPreview(input: CreateOtrsPreviewInput) {
     throw new Error("OTRS integration was not found in the requested workspace.");
   }
 
-  const secretSlots = await getIntegrationSecretSlots(db, integration.id);
+  const secretSlots = await getIntegrationSecretSlots(db, {
+    workspaceId: input.workspaceId,
+    integrationId: integration.id
+  });
   const config = parseOtrsConnectorConfig(integration.configJson);
   const userLogin = parseUserLogin(integration.configJson);
   const password = decryptIntegrationSecretSlot(secretSlots, "auth_password");

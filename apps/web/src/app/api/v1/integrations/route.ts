@@ -232,7 +232,10 @@ export async function POST(request: Request) {
 
     const credentialSummaries = summarizeIntegrationSecretSlots(
       await tx.integrationCredential.findMany({
-        where: { integrationId: result.id },
+        where: {
+          workspaceId: user.workspaceId,
+          integrationId: result.id
+        },
         orderBy: [{ kind: "asc" }]
       })
     );

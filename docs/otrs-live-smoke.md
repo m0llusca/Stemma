@@ -76,6 +76,24 @@ OTRS_LIVE_WORKSPACE_ID=workspace-id \
 npm run test:otrs:live
 ```
 
+## Repository Paths And Verification
+
+The harness entrypoint is `apps/web/src/scripts/otrs-live-smoke.ts`. The npm command is defined in `apps/web/package.json` as `npm run test:otrs:live`, and the protected manual workflow is `.github/workflows/otrs-live-smoke.yml`.
+
+Full local verification for the OTRS integration runs from `apps/web`:
+
+```bash
+npm run db:up
+npm run db:migrate -- --name verify_no_pending_changes
+npm run db:seed
+npm run typecheck
+npm run test
+npm run test:e2e
+npm run build
+```
+
+The database and Playwright E2E steps require local Docker/Postgres availability. If Docker is not running, `npm run db:up` fails before Postgres starts and Playwright cannot start its configured `npm run db:deploy && npm run db:seed && npm run dev` web server.
+
 ## CI Safety
 
 CI must run this workflow only with protected secrets and a protected environment. Do not add `push`, `pull_request`, `schedule`, or cron triggers. Store the OTRS password, base URL, optional CA PEM, database URL, and import workspace ID in protected GitHub environment secrets or equivalent secret storage.

@@ -68,9 +68,18 @@ export async function upsertIntegrationSecretSlot(
   });
 }
 
-export function getIntegrationSecretSlots(client: IntegrationCredentialFindClient, integrationId: string) {
+export function getIntegrationSecretSlots(
+  client: IntegrationCredentialFindClient,
+  input: {
+    workspaceId: string;
+    integrationId: string;
+  }
+) {
   return client.integrationCredential.findMany({
-    where: { integrationId },
+    where: {
+      workspaceId: input.workspaceId,
+      integrationId: input.integrationId
+    },
     orderBy: [{ kind: "asc" }]
   });
 }
