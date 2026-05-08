@@ -61,11 +61,11 @@ function SearchPreviewButton() {
   );
 }
 
-function ImportSelectedButton() {
+function ImportSelectedButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
+    <button type="submit" className="action-button action-button--primary" disabled={pending || disabled}>
       <UploadCloud size={16} aria-hidden="true" />
       {pending ? "Ставим в очередь" : "Импортировать выбранные"}
     </button>
@@ -142,7 +142,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
                   {latestPreviewRun.status} · {formatDate(latestPreviewRun.startedAt)} · limit {latestPreviewRun.requestedLimit}
                 </p>
               </div>
-              <ImportSelectedButton />
+              <ImportSelectedButton disabled={previewedItems.length === 0} />
             </div>
 
             <div className="scroll-area">

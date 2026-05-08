@@ -52,6 +52,9 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
     },
     include: {
       credentials: {
+        where: {
+          workspaceId
+        },
         select: {
           id: true,
           kind: true,
@@ -66,6 +69,9 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
         }
       },
       diagnosticRuns: {
+        where: {
+          workspaceId
+        },
         orderBy: {
           startedAt: "desc"
         },
@@ -79,6 +85,9 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
         }
       },
       runs: {
+        where: {
+          workspaceId
+        },
         orderBy: {
           startedAt: "desc"
         },
@@ -90,6 +99,9 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
             }
           },
           items: {
+            where: {
+              workspaceId
+            },
             orderBy: {
               createdAt: "asc"
             },
@@ -97,6 +109,7 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
               conversation: {
                 select: {
                   id: true,
+                  workspaceId: true,
                   subject: true
                 }
               }
@@ -158,6 +171,49 @@ function toPreviewRun(run: LoadedIntegration["runs"][number] | undefined) {
       conversationId: item.conversationId
     }))
   };
+}
+
+function toRunHistoryRuns(runs: LoadedIntegration["runs"], workspaceId: string) {
+  return runs.map((run) => ({
+    id: run.id,
+    status: run.status,
+    mode: run.mode,
+    dryRun: run.dryRun,
+    requestedLimit: run.requestedLimit,
+    importedCount: run.importedCount,
+    errorCount: run.errorCount,
+    errorMessage: run.errorMessage,
+    startedAt: run.startedAt,
+    finishedAt: run.finishedAt,
+    actor: run.actor,
+    items: run.items.map((item) => ({
+      id: item.id,
+      externalId: item.externalId,
+      ticketNumber: item.ticketNumber,
+      status: item.status,
+      articleCount: item.articleCount,
+      privateArticleCount: item.privateArticleCount,
+      attachmentCount: item.attachmentCount,
+      conversationId: item.conversation?.workspaceId === workspaceId ? item.conversationId : null,
+      conversation:
+        item.conversation?.workspaceId === workspaceId
+          ? {
+              id: item.conversation.id,
+              subject: item.conversation.subject
+            }
+          : null
+    }))
+  }));
+}
+
+function idPayloadFilters(ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+  return uniqueIds.map((id) => ({
+    payloadJson: {
+      contains: id
+    }
+  }));
 }
 
 function NonOtrsIntegrationSummary({
@@ -233,23 +289,27 @@ export default async function IntegrationDetailsPage({ params }: IntegrationDeta
     notFound();
   }
 
-  const jobs = await prisma.backendJob.findMany({
-    where: {
-      workspaceId: user.workspaceId,
-      type: "INTEGRATION_IMPORT"
-    },
-    orderBy: [{ createdAt: "desc" }],
-    take: 80,
-    select: {
-      id: true,
-      status: true,
-      payloadJson: true,
-      createdAt: true,
-      runAfter: true,
-      attempts: true,
-      maxAttempts: true
-    }
-  });
+  const jobFilters = idPayloadFilters([integration.id, ...integration.runs.map((run) => run.id)]);
+  const jobs =
+    jobFilters.length > 0
+      ? await prisma.backendJob.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            type: "INTEGRATION_IMPORT",
+            OR: jobFilters
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            payloadJson: true,
+            createdAt: true,
+            runAfter: true,
+            attempts: true,
+            maxAttempts: true
+          }
+        })
+      : [];
   const relatedJobs = jobs.filter((job) => parsePayloadJson(job.payloadJson).integrationId === integration.id);
   const jobByRunId = new Map<string, {
     id: string;
@@ -400,7 +460,7 @@ function OtrsDetailCockpit({
         <OtrsPreviewPanel integrationId={integration.id} latestPreviewRun={toPreviewRun(latestPreviewRun)} />
       </div>
 
-      <OtrsRunHistory runs={integration.runs} jobsByRunId={jobByRunId} />
+      <OtrsRunHistory runs={toRunHistoryRuns(integration.runs, integration.workspaceId)} jobsByRunId={jobByRunId} />
 
       <details className="disclosure-panel panel overflow-hidden">
         <summary className="disclosure-summary cursor-pointer list-none border-b border-[#d9e0ea] px-5 py-4">

@@ -56,9 +56,19 @@ function integrationJobsByIntegrationId<TJob extends { payloadJson: string }>(jo
   return jobsByIntegrationId;
 }
 
+function idPayloadFilters(ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+  return uniqueIds.map((id) => ({
+    payloadJson: {
+      contains: id
+    }
+  }));
+}
+
 export default async function AdminIntegrationsPage() {
   const user = await requireCurrentUserPermission("integrations:manage");
-  const [integrations, recentRuns, integrationJobs] = await Promise.all([
+  const [integrations, recentRuns, recentIntegrationJobs] = await Promise.all([
     prisma.integration.findMany({
       where: {
         workspaceId: user.workspaceId
@@ -68,6 +78,9 @@ export default async function AdminIntegrationsPage() {
       },
       include: {
         runs: {
+          where: {
+            workspaceId: user.workspaceId
+          },
           orderBy: {
             startedAt: "desc"
           },
@@ -82,6 +95,9 @@ export default async function AdminIntegrationsPage() {
           }
         },
         diagnosticRuns: {
+          where: {
+            workspaceId: user.workspaceId
+          },
           orderBy: {
             startedAt: "desc"
           },
@@ -95,8 +111,17 @@ export default async function AdminIntegrationsPage() {
       },
       include: {
         actor: true,
-        integration: true,
+        integration: {
+          select: {
+            id: true,
+            workspaceId: true,
+            displayName: true
+          }
+        },
         items: {
+          where: {
+            workspaceId: user.workspaceId
+          },
           select: {
             id: true,
             status: true
@@ -114,7 +139,7 @@ export default async function AdminIntegrationsPage() {
         type: "INTEGRATION_IMPORT"
       },
       orderBy: [{ createdAt: "desc" }],
-      take: 40,
+      take: 5,
       select: {
         id: true,
         status: true,
@@ -126,8 +151,34 @@ export default async function AdminIntegrationsPage() {
       }
     })
   ]);
-  const integrationJobByRunId = integrationJobsByRunId(integrationJobs);
-  const integrationJobByIntegrationId = integrationJobsByIntegrationId(integrationJobs);
+  const displayedRunIds = [
+    ...integrations.flatMap((integration) => integration.runs.map((run) => run.id)),
+    ...recentRuns.map((run) => run.id)
+  ];
+  const displayedIntegrationIds = integrations.map((integration) => integration.id);
+  const linkedJobFilters = idPayloadFilters([...displayedRunIds, ...displayedIntegrationIds]);
+  const linkedIntegrationJobs =
+    linkedJobFilters.length > 0
+      ? await prisma.backendJob.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            type: "INTEGRATION_IMPORT",
+            OR: linkedJobFilters
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            payloadJson: true,
+            createdAt: true,
+            runAfter: true,
+            attempts: true,
+            maxAttempts: true
+          }
+        })
+      : [];
+  const integrationJobByRunId = integrationJobsByRunId(linkedIntegrationJobs);
+  const integrationJobByIntegrationId = integrationJobsByIntegrationId(linkedIntegrationJobs);
   const activeSources = integrations.filter((integration) => ["active", "ready", "queued"].includes(integration.status));
   const diagnosticRuns = integrations.flatMap((integration) =>
     integration.diagnosticRuns.map((run) => ({
@@ -272,7 +323,7 @@ export default async function AdminIntegrationsPage() {
                     <span className="admin-tile__icon admin-tile__icon--plain">{run.dryRun ? "P" : "I"}</span>
                     <span className="admin-tile__body">
                       <span className="flex flex-wrap items-center gap-2">
-                        {run.integration ? (
+                        {run.integration && run.integration.workspaceId === user.workspaceId ? (
                           <Link href={`/admin/integrations/${run.integration.id}`} className="record-title record-title--tight hover:underline">
                             {run.integration.displayName}
                           </Link>
@@ -308,8 +359,8 @@ export default async function AdminIntegrationsPage() {
             <p className="text-sm leading-5 text-[#64748b]">Очередь интеграционного runner без raw payload.</p>
           </div>
           <div className="grid gap-2">
-            {integrationJobs.length > 0 ? (
-              integrationJobs.slice(0, 5).map((job) => {
+            {recentIntegrationJobs.length > 0 ? (
+              recentIntegrationJobs.map((job) => {
                 const status = backendJobStatusView(job.status);
                 const payload = parsePayloadJson(job.payloadJson);
                 const runId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;

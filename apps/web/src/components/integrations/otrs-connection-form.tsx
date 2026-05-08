@@ -60,7 +60,6 @@ function routeConfigJson(
   routeOverridesEnabled: boolean
 ) {
   return JSON.stringify({
-    requestMode: config.requestMode,
     articlePolicy: config.articlePolicy,
     attachmentPolicy: config.attachmentPolicy,
     advanced: {

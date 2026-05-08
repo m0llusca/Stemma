@@ -31,7 +31,7 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await expect(page.getByText("Zendesk", { exact: true }).first()).toBeVisible();
 
   await page.goto("/admin/integrations");
-  await page.locator(".admin-tile").filter({ hasText: "Znuny / OTRS / OTOBO" }).getByRole("link", { name: "Открыть cockpit" }).click();
+  await page.getByRole("link", { name: "Znuny / OTRS / OTOBO" }).click();
   await expect(page).toHaveURL(/\/admin\/integrations\/[^/]+$/);
   await expect(page.getByRole("heading", { name: "Znuny / OTRS / OTOBO" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "WebService checklist" })).toBeVisible();
@@ -53,4 +53,9 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   const visibleText = await page.locator("body").innerText();
   expect(visibleText).not.toContain(savedPassword);
   expect(visibleText).not.toContain("e2e-ca-must-not-render");
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
+  await expect(page.getByLabel("Пароль или API-секрет")).toHaveValue("");
+  await expect(page.getByLabel("CA bundle PEM")).toHaveValue("");
 });
