@@ -19,8 +19,8 @@ function normalizeBaseUrl(value: string) {
 }
 
 export function OtrsSetupWizard() {
-  const [source, setSource] = useState<OtrsFamilySource>("znuny");
-  const [baseUrl, setBaseUrl] = useState<string>(otrsFamilyProfileForSource("znuny").exampleBaseUrl);
+  const [source, setSource] = useState<OtrsFamilySource>("otrs");
+  const [baseUrl, setBaseUrl] = useState<string>(otrsFamilyProfileForSource("otrs").exampleBaseUrl);
   const [userLogin, setUserLogin] = useState("agent_login");
   const [password, setPassword] = useState("");
   const [ticketId, setTicketId] = useState("42");
@@ -67,9 +67,9 @@ export function OtrsSetupWizard() {
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d9e0ea] px-5 py-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[#64748b]">Preflight</p>
-          <h3 className="mt-1 text-base font-semibold text-[#111827]">Мастер подключения OTRS/Znuny</h3>
+          <h3 className="mt-1 text-base font-semibold text-[#111827]">Мастер подключения OTRS CE 6/Znuny</h3>
           <p className="mt-1 max-w-2xl text-sm leading-5 text-[#64748b]">
-            Собирает URL, авторизацию и форму TicketGet для быстрой проверки перед импортом в QC.
+            Собирает URL, авторизацию и форму TicketGet для быстрой проверки перед сохранением источника в cockpit.
           </p>
         </div>
         <span className="pill pill--neutral">

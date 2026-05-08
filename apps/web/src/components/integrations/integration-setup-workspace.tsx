@@ -682,6 +682,14 @@ function DoneStep({ checked, saveState }: { checked: boolean; saveState: Integra
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
+        {saveState?.ok && saveState.integrationId ? (
+          <Link href={`/admin/integrations/${saveState.integrationId}`} className={primaryButtonClass}>
+            Открыть cockpit
+          </Link>
+        ) : null}
+        <Link href="/admin/integrations" className={secondaryButtonClass}>
+          К интеграциям
+        </Link>
         <Link href="/reviews" className={secondaryButtonClass}>
           Открыть очередь
         </Link>

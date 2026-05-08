@@ -856,7 +856,7 @@ Expected: facade tests and typecheck exit `0`.
 - Create: `apps/web/src/components/integrations/otrs-run-history.tsx`
 - Test: `apps/web/tests/e2e/otrs-integration-cockpit.spec.ts`
 
-- [ ] **Step 1: Add failing E2E skeleton**
+- [x] **Step 1: Add failing E2E skeleton**
 
 Create an E2E test that expects:
 
@@ -874,7 +874,7 @@ npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts
 
 Expected: FAIL because routes/components do not exist yet.
 
-- [ ] **Step 2: Refactor overview and new setup route**
+- [x] **Step 2: Refactor overview and new setup route**
 
 `/admin/integrations` becomes a dense operations overview:
 
@@ -886,7 +886,7 @@ Expected: FAIL because routes/components do not exist yet.
 
 `/admin/integrations/new` hosts the setup wizard. Keep current custom API and native helpdesk setup reachable.
 
-- [ ] **Step 3: Build OTRS detail cockpit**
+- [x] **Step 3: Build OTRS detail cockpit**
 
 `/admin/integrations/[integrationId]` loads:
 
@@ -904,11 +904,13 @@ Render:
 - `OtrsPreviewPanel`: manual TicketID textarea, TicketSearch filters, preview table, selected import button;
 - `OtrsRunHistory`: runs, items, imported conversation links to `/reviews`.
 
-- [ ] **Step 4: Preserve manual payload tester as legacy tool**
+- [x] **Step 4: Preserve manual payload tester as legacy tool**
 
 Keep `OtrsImportTester` behind a collapsed "Ручная проверка payload" section. Label it as legacy/manual JSON path and keep the existing server action unchanged.
 
 - [ ] **Step 5: Verify responsive UI**
+
+Implementation note: `npm run typecheck` exits `0`. E2E is written but local execution is blocked in this environment because Docker/Postgres is unavailable; `DATABASE_URL=postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public npm run db:deploy` reaches Prisma and then fails with `Schema engine error`, and `docker ps` cannot connect to `/Users/dubrsky/.docker/run/docker.sock`.
 
 Run:
 
