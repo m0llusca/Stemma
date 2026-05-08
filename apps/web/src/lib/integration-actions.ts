@@ -105,6 +105,12 @@ function formStringList(formData: FormData, key: string) {
   return Array.from(new Set(values));
 }
 
+function rawFormStringList(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .flatMap((value) => (typeof value === "string" ? splitStringList(value) : []));
+}
+
 function revalidateIntegrationAdminPaths(integrationId: string) {
   revalidatePath("/admin/integrations");
   revalidatePath(`/admin/integrations/${integrationId}`);
@@ -750,7 +756,7 @@ export async function queueSelectedOtrsImportAction(formData: FormData) {
     actorId: user.id,
     integrationId,
     integrationRunId,
-    integrationRunItemIds: formStringList(formData, "integrationRunItemIds")
+    integrationRunItemIds: rawFormStringList(formData, "integrationRunItemIds")
   });
 
   revalidateIntegrationAdminPaths(integrationId);

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
     prisma,
     queueSelectedOtrsImportJob: vi.fn(),
     revalidatePath: vi.fn(),
+    requireSessionApi: vi.fn(),
     runOtrsConnectorDiagnostics: vi.fn(),
     upsertIntegrationSecretSlot: vi.fn()
   };
@@ -34,6 +35,10 @@ vi.mock("@/lib/audit", () => ({
 vi.mock("@/lib/current-user", () => ({
   canManageIntegrations: mocks.canManageIntegrations,
   getCurrentUser: mocks.getCurrentUser
+}));
+
+vi.mock("@/lib/api/session", () => ({
+  requireSessionApi: mocks.requireSessionApi
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -86,6 +91,10 @@ describe("OTRS integration actions", () => {
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.getCurrentUser.mockResolvedValue(authorizedUser());
     mocks.canManageIntegrations.mockReturnValue(true);
+    mocks.requireSessionApi.mockResolvedValue({
+      ok: true,
+      user: authorizedUser()
+    });
     mocks.prisma.integration.findUnique.mockResolvedValue(null);
     mocks.prisma.integration.upsert.mockResolvedValue({
       id: "integration-1",
@@ -284,6 +293,83 @@ describe("OTRS integration actions", () => {
       integrationId: "integration-1",
       integrationRunId: "run-1",
       integrationRunItemIds: ["item-1"]
+    });
+  });
+
+  it("does not deduplicate selected OTRS item IDs before calling the queue service", async () => {
+    const { queueSelectedOtrsImportAction } = await import("@/lib/integration-actions");
+    const formData = new FormData();
+    formData.set("integrationId", "integration-1");
+    formData.set("integrationRunId", "run-1");
+    formData.append("integrationRunItemIds", "item-1");
+    formData.append("integrationRunItemIds", "item-1");
+    mocks.queueSelectedOtrsImportJob.mockRejectedValue(new Error("Список обращений для импорта содержит дубликаты."));
+
+    await expect(queueSelectedOtrsImportAction(formData)).rejects.toThrow("Список обращений для импорта содержит дубликаты.");
+
+    expect(mocks.queueSelectedOtrsImportJob).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      actorId: "user-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      integrationRunItemIds: ["item-1", "item-1"]
+    });
+  });
+
+  it("returns 400 from the selected OTRS import API for duplicate and invalid selections", async () => {
+    const { POST } = await import("@/app/api/v1/integrations/[integrationId]/import/route");
+    const context = { params: Promise.resolve({ integrationId: "integration-1" }) };
+
+    mocks.queueSelectedOtrsImportJob.mockRejectedValueOnce(new Error("Список обращений для импорта содержит дубликаты."));
+    const duplicateResponse = await POST(
+      new Request("https://qc.example.test/api/v1/integrations/integration-1/import", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-duplicate"
+        },
+        body: JSON.stringify({
+          integrationRunId: "run-1",
+          integrationRunItemIds: ["item-1", "item-1"]
+        })
+      }),
+      context
+    );
+    const duplicateBody = await duplicateResponse.json();
+
+    expect(duplicateResponse.status).toBe(400);
+    expect(duplicateResponse.headers.get("x-request-id")).toBe("request-duplicate");
+    expect(duplicateBody.error).toMatchObject({
+      code: "bad_request",
+      message: "Список обращений для импорта содержит дубликаты.",
+      requestId: "request-duplicate"
+    });
+
+    mocks.queueSelectedOtrsImportJob.mockRejectedValueOnce(
+      new Error("Выбранные обращения должны быть previewed-строками указанного preview-run.")
+    );
+    const invalidResponse = await POST(
+      new Request("https://qc.example.test/api/v1/integrations/integration-1/import", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-invalid"
+        },
+        body: JSON.stringify({
+          integrationRunId: "run-1",
+          integrationRunItemIds: ["item-foreign"]
+        })
+      }),
+      context
+    );
+    const invalidBody = await invalidResponse.json();
+
+    expect(invalidResponse.status).toBe(400);
+    expect(invalidResponse.headers.get("x-request-id")).toBe("request-invalid");
+    expect(invalidBody.error).toMatchObject({
+      code: "bad_request",
+      message: "Выбранные обращения должны быть previewed-строками указанного preview-run.",
+      requestId: "request-invalid"
     });
   });
 });
