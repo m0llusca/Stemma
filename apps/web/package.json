@@ -18,7 +18,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
-    "jobs:run": "tsx src/scripts/run-jobs.ts"
+    "jobs:run": "tsx src/scripts/run-jobs.ts",
+    "test:otrs:live": "tsx src/scripts/otrs-live-smoke.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

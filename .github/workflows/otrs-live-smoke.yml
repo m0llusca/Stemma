@@ -1,0 +1,56 @@
+name: OTRS Live Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    name: OTRS live smoke
+    runs-on: ubuntu-latest
+    environment: otrs-live
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      OTRS_BASE_URL: ${{ secrets.OTRS_BASE_URL }}
+      OTRS_WEBSERVICE_NAME: ${{ vars.OTRS_WEBSERVICE_NAME }}
+      OTRS_USER_LOGIN: ${{ secrets.OTRS_USER_LOGIN }}
+      OTRS_PASSWORD: ${{ secrets.OTRS_PASSWORD }}
+      OTRS_TEST_TICKET_ID: ${{ vars.OTRS_TEST_TICKET_ID }}
+      OTRS_SEARCH_QUEUE: ${{ vars.OTRS_SEARCH_QUEUE }}
+      OTRS_SEARCH_STATE_TYPE: ${{ vars.OTRS_SEARCH_STATE_TYPE }}
+      OTRS_LIVE_IMPORT: ${{ vars.OTRS_LIVE_IMPORT || '0' }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      OTRS_LIVE_WORKSPACE_ID: ${{ secrets.OTRS_LIVE_WORKSPACE_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Write CA bundle
+        env:
+          OTRS_CA_BUNDLE_PEM: ${{ secrets.OTRS_CA_BUNDLE_PEM }}
+        run: |
+          if [ -n "${OTRS_CA_BUNDLE_PEM:-}" ]; then
+            printf '%s\n' "$OTRS_CA_BUNDLE_PEM" > "$RUNNER_TEMP/otrs-ca-bundle.pem"
+          fi
+
+      - name: Run live smoke
+        run: |
+          if [ -s "$RUNNER_TEMP/otrs-ca-bundle.pem" ]; then
+            export OTRS_CA_BUNDLE_PATH="$RUNNER_TEMP/otrs-ca-bundle.pem"
+          fi
+          OTRS_LIVE_SMOKE=1 npm run test:otrs:live

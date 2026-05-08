@@ -1044,7 +1044,7 @@ git commit -m "cover otrs cockpit with e2e stub flow"
 - Create: `docs/otrs-live-smoke.md`
 - Create: `.github/workflows/otrs-live-smoke.yml`
 
-- [ ] **Step 1: Add live smoke script**
+- [x] **Step 1: Add live smoke script**
 
 The script must refuse to run unless `OTRS_LIVE_SMOKE=1`.
 
@@ -1072,7 +1072,7 @@ Behavior:
 - exit non-zero on failed diagnostics or failed preview;
 - run selected import only when `OTRS_LIVE_IMPORT=1`.
 
-- [ ] **Step 2: Add package script**
+- [x] **Step 2: Add package script**
 
 Add:
 
@@ -1080,7 +1080,7 @@ Add:
 "test:otrs:live": "tsx src/scripts/otrs-live-smoke.ts"
 ```
 
-- [ ] **Step 3: Add docs**
+- [x] **Step 3: Add docs**
 
 `docs/otrs-live-smoke.md` must include:
 
@@ -1091,7 +1091,7 @@ Add:
 - exact command for selected import smoke;
 - warning that CI must use protected secrets/environment.
 
-- [ ] **Step 4: Add gated GitHub workflow**
+- [x] **Step 4: Add gated GitHub workflow**
 
 Create a manual-only workflow:
 
@@ -1103,7 +1103,7 @@ Create a manual-only workflow:
 
 If this repository is not hosted on GitHub Actions, the workflow file remains harmless documentation of the protected job shape.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 
