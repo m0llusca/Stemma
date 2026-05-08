@@ -1,7 +1,7 @@
 "use client";
 
 import { Save } from "lucide-react";
-import { useActionState, useMemo } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { type OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { otrsFamilyProfiles } from "@/lib/integrations/otrs-family/profiles";
@@ -49,23 +49,46 @@ function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleString("ru-RU") : "Нет данных";
 }
 
-function routeConfigJson(config: OtrsConnectorConfig) {
+function routeConfigJson(
+  config: OtrsConnectorConfig,
+  routes: {
+    ticketSearchPath: string;
+    ticketGetPath: string;
+    ticketSearchMethod: "GET" | "POST";
+    ticketGetMethod: "GET" | "POST";
+  },
+  routeOverridesEnabled: boolean
+) {
   return JSON.stringify({
     requestMode: config.requestMode,
     articlePolicy: config.articlePolicy,
     attachmentPolicy: config.attachmentPolicy,
-    advanced: config.advanced,
-    ...(config.advanced.routeOverridesEnabled ? { routes: config.routes } : {})
+    advanced: {
+      ...config.advanced,
+      routeOverridesEnabled
+    },
+    ...(routeOverridesEnabled ? { routes } : {})
   });
 }
 
 export function OtrsConnectionForm({ integration, config, userLogin, credentials }: OtrsConnectionFormProps) {
   const [state, formAction] = useActionState(saveOtrsIntegrationConfigurationState, initialState);
+  const [routeOverridesEnabled, setRouteOverridesEnabled] = useState(config.advanced.routeOverridesEnabled);
+  const [ticketSearchMethod, setTicketSearchMethod] = useState<"GET" | "POST">(config.routes.ticketSearchMethod);
+  const [ticketGetMethod, setTicketGetMethod] = useState<"GET" | "POST">(config.routes.ticketGetMethod);
+  const [ticketSearchPath, setTicketSearchPath] = useState(config.routes.ticketSearchPath);
+  const [ticketGetPath, setTicketGetPath] = useState(config.routes.ticketGetPath);
   const products = Object.values(otrsFamilyProfiles);
   const credentialByKind = useMemo(() => new Map(credentials.map((credential) => [credential.kind, credential])), [credentials]);
   const passwordSlot = credentialByKind.get("auth_password");
   const caSlot = credentialByKind.get("ca_bundle");
   const defaultUserLogin = userLogin || "agent_login";
+  const routes = {
+    ticketSearchPath,
+    ticketGetPath,
+    ticketSearchMethod,
+    ticketGetMethod
+  };
 
   return (
     <section className="panel overflow-hidden">
@@ -78,7 +101,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
 
       <form action={formAction} className="grid gap-5 p-4">
         <input type="hidden" name="source" value={integration.source} />
-        <input type="hidden" name="configJson" value={routeConfigJson(config)} />
+        <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled)} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
@@ -173,27 +196,69 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
             <label className="soft-callout grid-cols-[auto_minmax(0,1fr)] items-start text-sm text-[#334155]">
               <input
                 type="checkbox"
-                name="routeOverridesEnabled"
-                value="true"
-                defaultChecked={config.advanced.routeOverridesEnabled}
+                checked={routeOverridesEnabled}
+                onChange={(event) => setRouteOverridesEnabled(event.target.checked)}
                 className="mt-1"
-                disabled
               />
-              <span>Текущий флаг хранится в configJson. Изменение маршрутов выполняйте через API или миграцию профиля.</span>
+              <span>
+                Включить route overrides. Используйте только если GenericInterface WebService создан с нестандартными маршрутами.
+              </span>
             </label>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="soft-callout">
-                <p className="soft-callout__label">TicketSearch</p>
-                <p className="font-mono text-xs">
-                  {config.routes.ticketSearchMethod} {config.routes.ticketSearchPath}
-                </p>
-              </div>
-              <div className="soft-callout">
-                <p className="soft-callout__label">TicketGet</p>
-                <p className="font-mono text-xs">
-                  {config.routes.ticketGetMethod} {config.routes.ticketGetPath}
-                </p>
-              </div>
+            <div className="grid gap-3 xl:grid-cols-2">
+              <fieldset className="soft-callout grid gap-3">
+                <legend className="soft-callout__label">TicketSearch route</legend>
+                <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                    Method
+                    <select
+                      value={ticketSearchMethod}
+                      onChange={(event) => setTicketSearchMethod(event.target.value as "GET" | "POST")}
+                      disabled={!routeOverridesEnabled}
+                      className={fieldClass}
+                    >
+                      <option value="POST">POST</option>
+                      <option value="GET">GET</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                    Path
+                    <input
+                      value={ticketSearchPath}
+                      onChange={(event) => setTicketSearchPath(event.target.value)}
+                      disabled={!routeOverridesEnabled}
+                      placeholder="/Ticket/Search"
+                      className={`${fieldClass} font-mono text-xs`}
+                    />
+                  </label>
+                </div>
+              </fieldset>
+              <fieldset className="soft-callout grid gap-3">
+                <legend className="soft-callout__label">TicketGet route</legend>
+                <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                    Method
+                    <select
+                      value={ticketGetMethod}
+                      onChange={(event) => setTicketGetMethod(event.target.value as "GET" | "POST")}
+                      disabled={!routeOverridesEnabled}
+                      className={fieldClass}
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                    Path
+                    <input
+                      value={ticketGetPath}
+                      onChange={(event) => setTicketGetPath(event.target.value)}
+                      disabled={!routeOverridesEnabled}
+                      placeholder="/Ticket/{TicketID}"
+                      className={`${fieldClass} font-mono text-xs`}
+                    />
+                  </label>
+                </div>
+              </fieldset>
             </div>
           </div>
         </details>
