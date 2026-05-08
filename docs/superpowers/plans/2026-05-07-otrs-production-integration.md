@@ -998,7 +998,7 @@ git commit -m "add otrs genericinterface contract tests"
 - Modify: `apps/web/tests/e2e/otrs-integration-cockpit.spec.ts`
 - Modify: `apps/web/playwright.config.ts` only if the test needs deterministic env wiring
 
-- [ ] **Step 1: Extend E2E to full stub workflow**
+- [x] **Step 1: Extend E2E to full stub workflow**
 
 The test should:
 
@@ -1026,7 +1026,9 @@ npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts
 
 Expected: E2E exits `0` against local Postgres and stub OTRS.
 
-- [ ] **Step 3: Commit**
+Blocked locally on 2026-05-08 because Docker/Postgres is unavailable at `/Users/dubrsky/.docker/run/docker.sock`; `npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts` exits before assertions while Playwright starts the Prisma-backed web server.
+
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/web/tests/e2e/otrs-integration-cockpit.spec.ts apps/web/playwright.config.ts docs/superpowers/plans/2026-05-07-otrs-production-integration.md

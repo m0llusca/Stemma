@@ -1,10 +1,32 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import {
+  createOtrsGenericInterfaceServer,
+  type OtrsGenericInterfaceServer
+} from "../fixtures/otrs-genericinterface-server";
+import {
+  otrsFixturePassword,
+  otrsFixtureTicketIds,
+  otrsFixtureUserLogin
+} from "../fixtures/otrs-ticket-fixtures";
 
 test.setTimeout(120_000);
 
-test.beforeAll(() => {
+let otrsServer: OtrsGenericInterfaceServer | undefined;
+
+test.beforeAll(async () => {
   execFileSync("npm", ["run", "db:deploy"], { cwd: process.cwd(), stdio: "inherit" });
+  otrsServer = await createOtrsGenericInterfaceServer({
+    expectedAuth: {
+      userLogin: otrsFixtureUserLogin,
+      password: otrsFixturePassword
+    },
+    ticketIds: [otrsFixtureTicketIds[0]]
+  });
+});
+
+test.afterAll(async () => {
+  await otrsServer?.close();
 });
 
 test.beforeEach(() => {
@@ -58,4 +80,75 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
   await expect(page.getByLabel("Пароль или API-секрет")).toHaveValue("");
   await expect(page.getByLabel("CA bundle PEM")).toHaveValue("");
+});
+
+test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterface stub", async ({ page }) => {
+  if (!otrsServer) {
+    throw new Error("OTRS GenericInterface stub server was not started.");
+  }
+
+  const ticketId = otrsFixtureTicketIds[0];
+  const expectedSubject = `Fixture ticket ${ticketId}`;
+
+  await page.goto("/admin/integrations/new");
+  await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
+  await page.getByLabel("Система-источник").selectOption("otrs:otrs");
+
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 2. Доступ" })).toBeVisible();
+  await page.getByLabel("Base URL").fill(otrsServer.baseUrl);
+  await page.getByLabel("UserLogin").fill(otrsFixtureUserLogin);
+  await page.getByLabel("Password").fill(otrsFixturePassword);
+  await page.getByLabel("TicketID для проверки").fill(ticketId);
+
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 3. Лимиты" })).toBeVisible();
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByRole("heading", { name: "Шаг 4. Проверка" })).toBeVisible();
+  await page.getByRole("button", { name: "Проверить подключение" }).click();
+  await expect(page.getByText("Проверка поставлена в очередь")).toBeVisible();
+
+  await page.getByRole("button", { name: "Сохранить настройку" }).click();
+  await expect(page.getByText("Настройка сохранена. Источник появился в списке подключений.")).toBeVisible();
+  await page.getByRole("link", { name: "Открыть cockpit" }).click();
+
+  await expect(page).toHaveURL(/\/admin\/integrations\/[^/]+$/);
+  await expect(page.getByRole("heading", { name: "OTRS CE 6" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
+  await page.getByLabel("Product profile").selectOption("otrs_ce_6");
+  await page.getByLabel("Base URL").fill(otrsServer.baseUrl);
+  await page.getByLabel("UserLogin").fill(otrsFixtureUserLogin);
+  await page.getByRole("button", { name: "Сохранить OTRS" }).click();
+  await expect(page.getByText("Настройка OTRS сохранена.")).toBeVisible();
+
+  const diagnosticsPanel = page.getByRole("heading", { name: "Диагностика" }).locator("xpath=ancestor::section[1]");
+  await diagnosticsPanel.getByLabel("Manual TicketID для TicketGet").fill(ticketId);
+  await diagnosticsPanel.getByRole("button", { name: "Запустить диагностику" }).click();
+  await expect(diagnosticsPanel.getByText("Диагностика OTRS выполнена. Статус: succeeded.")).toBeVisible();
+
+  for (const step of ["config", "tls", "webservice", "auth", "ticket_get", "normalize", "db_dry_run"]) {
+    await expect(diagnosticsPanel.locator("tbody tr").filter({ hasText: step }).getByText("succeeded")).toBeVisible();
+  }
+  await expect(diagnosticsPanel.locator("tbody tr").filter({ hasText: "ticket_search" }).getByText("skipped")).toBeVisible();
+
+  const previewPanel = page.getByRole("heading", { name: "Preview / импорт" }).locator("xpath=ancestor::section[1]");
+  await previewPanel.getByLabel("Manual TicketID").fill(ticketId);
+  await previewPanel.getByRole("button", { name: "Preview TicketID" }).click();
+  await expect(previewPanel.getByText("Preview OTRS создан. Строк: 1.")).toBeVisible();
+  await expect(previewPanel.getByText(ticketId, { exact: true })).toBeVisible();
+
+  const previewItem = previewPanel.getByRole("checkbox", { name: `Выбрать ${ticketId}` });
+  await expect(previewItem).toBeChecked();
+  await previewItem.uncheck();
+  await previewItem.check();
+  await previewPanel.getByRole("button", { name: "Импортировать выбранные" }).click();
+  await expect(previewPanel.getByText("Выбранные OTRS-обращения поставлены в backend-очередь.")).toBeVisible();
+
+  await page.goto("/admin/integrations");
+  await page.getByRole("button", { name: "Запустить очередь сейчас" }).click();
+  await expect(page.getByText(/Запущено задач: \d+\. Успешно: \d+\. С ошибками: 0\./)).toBeVisible({ timeout: 45_000 });
+
+  await page.goto(`/reviews?source=otrs&q=${ticketId}`);
+  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
+  await expect(page.getByRole("link", { name: expectedSubject })).toBeVisible();
 });
