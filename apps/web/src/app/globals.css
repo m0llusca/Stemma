@@ -3397,6 +3397,7 @@ a.quiet-link:hover {
   background: var(--panel-tint);
 }
 
+.appearance-choice-card--selected,
 .appearance-choice-card:has(input:checked) {
   border-color: var(--control-selected-border);
   background: var(--control-selected-bg);
@@ -3485,6 +3486,37 @@ a.quiet-link:hover {
   gap: 10px 14px;
   border-top: 1px solid var(--border);
   padding-top: 16px;
+}
+
+.appearance-save-status {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--panel-muted);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+  padding: 7px 11px;
+}
+
+.appearance-save-status--saving {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.appearance-save-status--saved {
+  border-color: #bbf7d0;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.appearance-save-status--error {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: var(--danger);
 }
 
 .report-toolbar {
