@@ -768,7 +768,7 @@ Expected: preview/import tests and typecheck exit `0`.
 - Test: `apps/web/tests/unit/integration-import-service.test.ts`
 - Test: `apps/web/tests/unit/job-queue.test.ts`
 
-- [ ] **Step 1: Write failing facade tests**
+- [x] **Step 1: Write failing facade tests**
 
 Cover:
 
@@ -787,7 +787,7 @@ npm run test -- tests/unit/integration-actions-otrs.test.ts tests/unit/integrati
 
 Expected: FAIL before new action/API/job wiring.
 
-- [ ] **Step 2: Add server actions**
+- [x] **Step 2: Add server actions**
 
 In `integration-actions.ts`, add:
 
@@ -804,7 +804,7 @@ Every action must:
 - write audit logs with redacted metadata;
 - `revalidatePath("/admin/integrations")` and `revalidatePath("/admin/integrations/<id>")`.
 
-- [ ] **Step 3: Add API routes**
+- [x] **Step 3: Add API routes**
 
 Expose API equivalents for scripted testing:
 
@@ -814,7 +814,7 @@ Expose API equivalents for scripted testing:
 
 Use `requireSessionApi`, standardized API errors, request IDs, and the same service layer as server actions.
 
-- [ ] **Step 4: Update job payload handling**
+- [x] **Step 4: Update job payload handling**
 
 Do not overload legacy dry-run payloads. Add explicit operation dispatch:
 
@@ -826,7 +826,7 @@ type IntegrationJobOperation =
 
 Old queued jobs without `operation` must behave as `legacy_connector_run`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run:
 

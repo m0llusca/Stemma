@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => {
       update: vi.fn()
     },
     integrationRun: {
-      create: vi.fn()
+      create: vi.fn(),
+      findFirst: vi.fn()
     },
     backendJob: {
       create: vi.fn()
@@ -129,5 +130,73 @@ describe("integration import service", () => {
         integrationId: "other-workspace-integration"
       })
     ).rejects.toThrow("Интеграция не найдена.");
+  });
+
+  it("queues a selected OTRS import job with explicit operation payload", async () => {
+    const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "otrs",
+      type: "otrs_family",
+      importLimit: 25
+    });
+    mocks.prisma.integrationRun.findFirst.mockResolvedValue({
+      id: "run-1",
+      status: "previewed",
+      requestedLimit: 1,
+      dryRun: true
+    });
+    mocks.prisma.backendJob.create.mockResolvedValue({
+      id: "job-1",
+      status: "QUEUED"
+    });
+    mocks.prisma.integration.update.mockResolvedValue({});
+
+    const result = await queueSelectedOtrsImportJob({
+      workspaceId: "workspace-1",
+      actorId: "user-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      integrationRunItemIds: ["item-1"]
+    });
+
+    expect(mocks.prisma.backendJob.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "workspace-1",
+        type: "INTEGRATION_IMPORT",
+        status: "QUEUED",
+        queueName: "integrations",
+        priority: 50,
+        createdById: "user-1",
+        payloadJson: JSON.stringify({
+          operation: "otrs_selected_import",
+          integrationId: "integration-1",
+          integrationRunId: "run-1",
+          integrationRunItemIds: ["item-1"]
+        })
+      })
+    });
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "integration.otrs_selected_import_queued",
+        targetId: "integration-1",
+        metadata: expect.objectContaining({
+          operation: "otrs_selected_import",
+          integrationRunItemIds: ["item-1"]
+        })
+      }),
+      mocks.prisma
+    );
+    expect(result).toMatchObject({
+      run: {
+        id: "run-1",
+        status: "queued"
+      },
+      job: {
+        id: "job-1",
+        status: "QUEUED"
+      }
+    });
   });
 });

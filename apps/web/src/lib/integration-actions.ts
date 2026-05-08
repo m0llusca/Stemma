@@ -2,11 +2,14 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { queueIntegrationImportJob } from "@/lib/integration-import-service";
+import { queueIntegrationImportJob, queueSelectedOtrsImportJob } from "@/lib/integration-import-service";
+import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
+import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
 import { runDueBackendJobs } from "@/lib/jobs/queue";
 
 export type IntegrationActionState = {
@@ -20,6 +23,23 @@ export type IntegrationImportActionState = {
   message: string;
   runId?: string;
   jobId?: string;
+} | null;
+
+export type OtrsDiagnosticsActionState = {
+  ok: boolean;
+  message: string;
+  integrationId?: string;
+  diagnosticRunId?: string;
+  status?: string;
+} | null;
+
+export type OtrsPreviewActionState = {
+  ok: boolean;
+  message: string;
+  integrationId?: string;
+  diagnosticRunId?: string;
+  runId?: string;
+  itemCount?: number;
 } | null;
 
 export type IntegrationQueueRunActionState = {
@@ -53,6 +73,41 @@ function booleanField(formData: FormData, key: string, fallback = false) {
 
 function optionalString(value: string) {
   return value || null;
+}
+
+function jsonField(formData: FormData, key: string, fallback: Record<string, unknown> = {}) {
+  const value = stringField(formData, key);
+
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : fallback;
+  } catch {
+    throw new Error(`${key} должен быть валидным JSON-объектом.`);
+  }
+}
+
+function splitStringList(value: string) {
+  return value
+    .split(/[\s,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formStringList(formData: FormData, key: string) {
+  const values = formData
+    .getAll(key)
+    .flatMap((value) => (typeof value === "string" ? splitStringList(value) : []));
+
+  return Array.from(new Set(values));
+}
+
+function revalidateIntegrationAdminPaths(integrationId: string) {
+  revalidatePath("/admin/integrations");
+  revalidatePath(`/admin/integrations/${integrationId}`);
 }
 
 function validateBaseUrl(baseUrl: string, mode: string) {
@@ -126,6 +181,96 @@ function readIntegrationSetup(formData: FormData) {
       dryRun,
       deduplicate,
       updatedFrom: "ui_setup_wizard"
+    }
+  };
+}
+
+const otrsSourceSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(80)
+  .regex(/^[a-z0-9_-]+$/);
+
+function readOtrsIntegrationSetup(formData: FormData) {
+  const source = otrsSourceSchema.parse(stringField(formData, "source") || "otrs");
+  const displayName = stringField(formData, "displayName") || stringField(formData, "sourceLabel") || "OTRS";
+  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), "otrs_family");
+  const product = stringField(formData, "product") || "otrs_ce_6";
+  const userLogin = stringField(formData, "userLogin");
+  const password = stringField(formData, "password");
+  const caBundle = stringField(formData, "caBundle");
+  const rawConfig = jsonField(formData, "configJson", {});
+  const configInput: Record<string, unknown> = {
+    ...rawConfig,
+    product,
+    ...(stringField(formData, "webServiceName") ? { webServiceName: stringField(formData, "webServiceName") } : {}),
+    ...(stringField(formData, "basePath") ? { basePath: stringField(formData, "basePath") } : {}),
+    limits: {
+      ...(rawConfig.limits && typeof rawConfig.limits === "object" && !Array.isArray(rawConfig.limits) ? rawConfig.limits : {}),
+      searchLimit: numberField(formData, "searchLimit", 50),
+      manualTicketIdLimit: numberField(formData, "manualTicketIdLimit", 20),
+      batchSize: numberField(formData, "batchSize", 25),
+      requestTimeoutMs: numberField(formData, "requestTimeoutMs", 15000),
+      maxResponseBytes: numberField(formData, "maxResponseBytes", 5_000_000)
+    }
+  };
+  const parsedConfig = parseOtrsConnectorConfig(configInput);
+
+  if (!userLogin) {
+    throw new Error("Укажите UserLogin для OTRS.");
+  }
+
+  return {
+    source,
+    displayName,
+    baseUrl,
+    userLogin,
+    password,
+    caBundle,
+    importLimit: numberField(formData, "importLimit", parsedConfig.limits.searchLimit),
+    batchSize: numberField(formData, "batchSize", parsedConfig.limits.batchSize),
+    dateRangeDays: numberField(formData, "dateRangeDays", 30),
+    config: {
+      ...parsedConfig,
+      userLogin
+    }
+  };
+}
+
+function mergeExistingCaBundleReference(
+  config: ReturnType<typeof readOtrsIntegrationSetup>["config"],
+  existingConfigJson: string | undefined,
+  existingCaBundleSlot: { id: string; fingerprint: string | null } | undefined
+) {
+  if (!existingCaBundleSlot) {
+    return config;
+  }
+
+  let existingTls: Record<string, unknown> = {};
+
+  try {
+    const existing = JSON.parse(existingConfigJson ?? "{}") as unknown;
+    existingTls =
+      existing && typeof existing === "object" && !Array.isArray(existing) && "tls" in existing
+        ? ((existing as { tls?: unknown }).tls as Record<string, unknown>) ?? {}
+        : {};
+  } catch {
+    existingTls = {};
+  }
+
+  return {
+    ...config,
+    tls: {
+      ...config.tls,
+      caBundleSecretId:
+        typeof existingTls.caBundleSecretId === "string" && existingTls.caBundleSecretId.trim()
+          ? existingTls.caBundleSecretId
+          : existingCaBundleSlot.id,
+      caFingerprint:
+        typeof existingTls.caFingerprint === "string" && existingTls.caFingerprint.trim()
+          ? existingTls.caFingerprint
+          : existingCaBundleSlot.fingerprint
     }
   };
 }
@@ -345,6 +490,274 @@ export async function recordIntegrationDryRun(formData: FormData) {
   };
 }
 
+export async function saveOtrsIntegrationConfiguration(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
+  const setup = readOtrsIntegrationSetup(formData);
+  const integration = await prisma.$transaction(async (tx) => {
+    const existing = await tx.integration.findUnique({
+      where: {
+        workspaceId_source: {
+          workspaceId: user.workspaceId,
+          source: setup.source
+        }
+      },
+      select: {
+        status: true,
+        configJson: true,
+        credentials: {
+          select: {
+            id: true,
+            kind: true,
+            fingerprint: true
+          }
+        }
+      }
+    });
+    const existingCaBundleSlot = existing?.credentials.find((credential) => credential.kind === "ca_bundle");
+    const initialConfig = !setup.caBundle
+      ? mergeExistingCaBundleReference(setup.config, existing?.configJson, existingCaBundleSlot)
+      : setup.config;
+    const saved = await tx.integration.upsert({
+      where: {
+        workspaceId_source: {
+          workspaceId: user.workspaceId,
+          source: setup.source
+        }
+      },
+      create: {
+        workspaceId: user.workspaceId,
+        source: setup.source,
+        displayName: setup.displayName,
+        type: "otrs_family",
+        status: existing?.status === "queued" ? "queued" : "ready",
+        baseUrl: setup.baseUrl,
+        authMode: "user_password",
+        importLimit: setup.importLimit,
+        batchSize: setup.batchSize,
+        dateRangeDays: setup.dateRangeDays,
+        configJson: JSON.stringify(initialConfig)
+      },
+      update: {
+        displayName: setup.displayName,
+        type: "otrs_family",
+        status: existing?.status === "queued" ? "queued" : "ready",
+        baseUrl: setup.baseUrl,
+        authMode: "user_password",
+        importLimit: setup.importLimit,
+        batchSize: setup.batchSize,
+        dateRangeDays: setup.dateRangeDays,
+        configJson: JSON.stringify(initialConfig),
+        lastError: null
+      }
+    });
+    let finalConfig = initialConfig;
+
+    if (setup.password) {
+      await upsertIntegrationSecretSlot(tx, {
+        workspaceId: user.workspaceId,
+        integrationId: saved.id,
+        kind: "auth_password",
+        authMode: "user_password",
+        secret: setup.password
+      });
+    }
+
+    if (setup.caBundle) {
+      const caBundleSlot = await upsertIntegrationSecretSlot(tx, {
+        workspaceId: user.workspaceId,
+        integrationId: saved.id,
+        kind: "ca_bundle",
+        authMode: "tls_ca_bundle",
+        secret: setup.caBundle
+      });
+      finalConfig = {
+        ...setup.config,
+        tls: {
+          ...setup.config.tls,
+          caBundleSecretId: caBundleSlot.id,
+          caFingerprint: caBundleSlot.fingerprint
+        }
+      };
+
+      await tx.integration.update({
+        where: { id: saved.id },
+        data: {
+          configJson: JSON.stringify(finalConfig)
+        }
+      });
+    }
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "integration.otrs_configuration_saved",
+        targetType: "integration",
+        targetId: saved.id,
+        metadata: {
+          source: setup.source,
+          displayName: setup.displayName,
+          baseUrl: setup.baseUrl,
+          product: finalConfig.product,
+          webServiceName: finalConfig.webServiceName,
+          hasCredential: Boolean(setup.password),
+          hasCaBundle: Boolean(setup.caBundle)
+        }
+      },
+      tx
+    );
+
+    return {
+      ...saved,
+      configJson: JSON.stringify(finalConfig)
+    };
+  });
+
+  revalidateIntegrationAdminPaths(integration.id);
+
+  return { integrationId: integration.id };
+}
+
+export async function runOtrsDiagnosticsAction(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
+  const integrationId = stringField(formData, "integrationId");
+  const manualTicketId = stringField(formData, "manualTicketId") || null;
+
+  if (!integrationId) {
+    throw new Error("Укажите интеграцию OTRS.");
+  }
+
+  const diagnosticRun = await runOtrsConnectorDiagnostics({
+    workspaceId: user.workspaceId,
+    integrationId,
+    actorId: user.id,
+    manualTicketId
+  });
+  const diagnosticRunId = String((diagnosticRun as { id?: unknown }).id ?? "");
+  const status = String((diagnosticRun as { status?: unknown }).status ?? "unknown");
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "integration.otrs_diagnostics_run",
+    targetType: "integration",
+    targetId: integrationId,
+    metadata: {
+      diagnosticRunId,
+      status,
+      hasManualTicketId: Boolean(manualTicketId)
+    }
+  });
+
+  revalidateIntegrationAdminPaths(integrationId);
+
+  return {
+    integrationId,
+    diagnosticRunId,
+    status,
+    diagnosticRun
+  };
+}
+
+export async function createOtrsPreviewAction(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
+  const integrationId = stringField(formData, "integrationId");
+  const mode = stringField(formData, "mode") || "manual_ticket_ids";
+
+  if (!integrationId) {
+    throw new Error("Укажите интеграцию OTRS.");
+  }
+
+  const preview =
+    mode === "manual_ticket_ids"
+      ? await createOtrsPreview({
+          workspaceId: user.workspaceId,
+          integrationId,
+          actorId: user.id,
+          mode,
+          manualTicketIds: formStringList(formData, "manualTicketIds")
+        })
+      : mode === "ticket_search"
+        ? await createOtrsPreview({
+            workspaceId: user.workspaceId,
+            integrationId,
+            actorId: user.id,
+            mode,
+            filters: jsonField(formData, "filtersJson", {})
+          })
+        : null;
+
+  if (!preview) {
+    throw new Error("Некорректный режим preview для OTRS.");
+  }
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "integration.otrs_preview_created",
+    targetType: "integration",
+    targetId: integrationId,
+    metadata: {
+      mode,
+      diagnosticRunId: String((preview.diagnosticRun as { id?: unknown }).id ?? ""),
+      integrationRunId: String((preview.run as { id?: unknown }).id ?? ""),
+      itemCount: preview.items.length
+    }
+  });
+
+  revalidateIntegrationAdminPaths(integrationId);
+
+  return {
+    integrationId,
+    diagnosticRunId: String((preview.diagnosticRun as { id?: unknown }).id ?? ""),
+    runId: String((preview.run as { id?: unknown }).id ?? ""),
+    itemCount: preview.items.length,
+    preview
+  };
+}
+
+export async function queueSelectedOtrsImportAction(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
+  const integrationId = stringField(formData, "integrationId");
+  const integrationRunId = stringField(formData, "integrationRunId");
+
+  if (!integrationId || !integrationRunId) {
+    throw new Error("Укажите preview-run OTRS для импорта.");
+  }
+
+  const result = await queueSelectedOtrsImportJob({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    integrationId,
+    integrationRunId,
+    integrationRunItemIds: formStringList(formData, "integrationRunItemIds")
+  });
+
+  revalidateIntegrationAdminPaths(integrationId);
+
+  return result;
+}
+
 export async function saveIntegrationConfigurationState(_state: IntegrationActionState, formData: FormData): Promise<IntegrationActionState> {
   try {
     const result = await saveIntegrationConfiguration(formData);
@@ -379,6 +792,71 @@ export async function recordIntegrationDryRunState(_state: IntegrationActionStat
   }
 }
 
+export async function saveOtrsIntegrationConfigurationState(
+  _state: IntegrationActionState,
+  formData: FormData
+): Promise<IntegrationActionState> {
+  try {
+    const result = await saveOtrsIntegrationConfiguration(formData);
+
+    return {
+      ok: true,
+      message: "Настройка OTRS сохранена.",
+      integrationId: result.integrationId
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Не удалось сохранить настройку OTRS."
+    };
+  }
+}
+
+export async function runOtrsDiagnosticsActionState(
+  _state: OtrsDiagnosticsActionState,
+  formData: FormData
+): Promise<OtrsDiagnosticsActionState> {
+  try {
+    const result = await runOtrsDiagnosticsAction(formData);
+
+    return {
+      ok: true,
+      message: "Диагностика OTRS выполнена.",
+      integrationId: result.integrationId,
+      diagnosticRunId: result.diagnosticRunId,
+      status: result.status
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Не удалось выполнить диагностику OTRS."
+    };
+  }
+}
+
+export async function createOtrsPreviewActionState(
+  _state: OtrsPreviewActionState,
+  formData: FormData
+): Promise<OtrsPreviewActionState> {
+  try {
+    const result = await createOtrsPreviewAction(formData);
+
+    return {
+      ok: true,
+      message: "Preview OTRS создан.",
+      integrationId: result.integrationId,
+      diagnosticRunId: result.diagnosticRunId,
+      runId: result.runId,
+      itemCount: result.itemCount
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Не удалось создать preview OTRS."
+    };
+  }
+}
+
 export async function queueIntegrationImport(formData: FormData) {
   const user = await getCurrentUser();
 
@@ -397,6 +875,27 @@ export async function queueIntegrationImport(formData: FormData) {
   revalidatePath("/admin/system");
 
   return result;
+}
+
+export async function queueSelectedOtrsImportActionState(
+  _state: IntegrationImportActionState,
+  formData: FormData
+): Promise<IntegrationImportActionState> {
+  try {
+    const result = await queueSelectedOtrsImportAction(formData);
+
+    return {
+      ok: true,
+      message: "Выбранные OTRS-обращения поставлены в backend-очередь.",
+      runId: result.run.id,
+      jobId: result.job.id
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Не удалось запланировать выборочный OTRS-импорт."
+    };
+  }
 }
 
 export async function queueIntegrationImportState(

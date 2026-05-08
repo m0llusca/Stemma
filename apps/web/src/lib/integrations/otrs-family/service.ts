@@ -7,6 +7,7 @@ import {
   getIntegrationSecretSlots
 } from "@/lib/integrations/otrs-family/credentials";
 import { runOtrsDiagnostics } from "@/lib/integrations/otrs-family/diagnostics";
+import { createOtrsPreviewRun, type CreateOtrsPreviewRunInput } from "@/lib/integrations/otrs-family/import-plan";
 
 type DiagnosticsServiceDb = {
   integration: {
@@ -41,6 +42,25 @@ export type RunOtrsConnectorDiagnosticsInput = {
   client?: Pick<OtrsHttpClient, "requestJson">;
 };
 
+type PreviewServiceDb = DiagnosticsServiceDb & NonNullable<CreateOtrsPreviewRunInput["db"]>;
+
+export type CreateOtrsPreviewInput = {
+  workspaceId: string;
+  integrationId: string;
+  actorId?: string | null;
+  db?: PreviewServiceDb;
+  client?: Pick<OtrsHttpClient, "requestJson">;
+} & (
+  | {
+      mode: "manual_ticket_ids";
+      manualTicketIds: Array<string | number>;
+    }
+  | {
+      mode: "ticket_search";
+      filters?: Record<string, unknown>;
+    }
+);
+
 export async function runOtrsConnectorDiagnostics(input: RunOtrsConnectorDiagnosticsInput) {
   const db = input.db ?? prisma;
   const integration = await db.integration.findFirst({
@@ -74,6 +94,77 @@ export async function runOtrsConnectorDiagnostics(input: RunOtrsConnectorDiagnos
     caBundle,
     client: diagnosticClient
   });
+}
+
+export async function createOtrsPreview(input: CreateOtrsPreviewInput) {
+  const db = input.db ?? prisma;
+  const integration = await db.integration.findFirst({
+    where: {
+      id: input.integrationId,
+      workspaceId: input.workspaceId
+    },
+    include: {
+      credentials: true
+    }
+  });
+
+  if (!integration) {
+    throw new Error("OTRS integration was not found in the requested workspace.");
+  }
+
+  const secretSlots = await getIntegrationSecretSlots(db, integration.id);
+  const config = parseOtrsConnectorConfig(integration.configJson);
+  const userLogin = parseUserLogin(integration.configJson);
+  const password = decryptIntegrationSecretSlot(secretSlots, "auth_password");
+  const caBundle = decryptIntegrationSecretSlot(secretSlots, "ca_bundle");
+
+  if (!integration.baseUrl) {
+    throw new Error("OTRS integration base URL is not configured.");
+  }
+
+  if (!userLogin) {
+    throw new Error("OTRS integration user login is not configured.");
+  }
+
+  if (!password) {
+    throw new Error("OTRS integration auth secret is not configured.");
+  }
+
+  const client =
+    input.client ??
+    createOtrsHttpClient({
+      config,
+      baseUrl: integration.baseUrl,
+      userLogin,
+      password,
+      caBundle
+    });
+  const common = {
+    db,
+    client,
+    workspaceId: input.workspaceId,
+    integration: {
+      id: integration.id,
+      source: integration.source,
+      baseUrl: integration.baseUrl,
+      config
+    },
+    actorId: input.actorId,
+    userLogin,
+    password
+  };
+
+  return input.mode === "manual_ticket_ids"
+    ? createOtrsPreviewRun({
+        ...common,
+        mode: input.mode,
+        manualTicketIds: input.manualTicketIds
+      })
+    : createOtrsPreviewRun({
+        ...common,
+        mode: input.mode,
+        filters: input.filters
+      });
 }
 
 function createDiagnosticClient(

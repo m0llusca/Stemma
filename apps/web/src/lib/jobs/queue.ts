@@ -2,7 +2,8 @@ import type { BackendJob, BackendJobStatus, BackendJobType, Prisma } from "@pris
 import { auditLog } from "@/lib/audit";
 import { syncDirectoryProvider } from "@/lib/auth/directory-sync";
 import { prisma } from "@/lib/db";
-import { runIntegrationConnector } from "@/lib/integrations/runner";
+import type { IntegrationJobOperation } from "@/lib/integration-import-service";
+import { runIntegrationConnector, runSelectedOtrsImportConnector } from "@/lib/integrations/runner";
 import { logBackendEvent } from "@/lib/observability";
 
 export type BackendJobPayload = Record<string, unknown>;
@@ -288,7 +289,15 @@ function parsePayload(job: BackendJob): BackendJobPayload {
   }
 }
 
-async function runIntegrationImportJob(job: BackendJob, payload: BackendJobPayload) {
+function integrationJobOperation(payload: BackendJobPayload): IntegrationJobOperation {
+  return payload.operation === "otrs_selected_import" ? "otrs_selected_import" : "legacy_connector_run";
+}
+
+function stringArrayPayload(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+async function runLegacyIntegrationImportJob(job: BackendJob, payload: BackendJobPayload) {
   const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
   const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
   const dryRun = payload.dryRun === true;
@@ -326,6 +335,60 @@ async function runIntegrationImportJob(job: BackendJob, payload: BackendJobPaylo
     integrationRunId,
     ...result
   };
+}
+
+async function runSelectedOtrsImportJob(job: BackendJob, payload: BackendJobPayload) {
+  const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
+  const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
+  const selectedItemIds = stringArrayPayload(payload.integrationRunItemIds);
+
+  if (!integrationId) {
+    throw new Error("Для выборочного OTRS-импорта не указан integrationId.");
+  }
+
+  if (!integrationRunId) {
+    throw new Error("Для выборочного OTRS-импорта не указан integrationRunId.");
+  }
+
+  if (selectedItemIds.length === 0) {
+    throw new Error("Для выборочного OTRS-импорта не указаны integrationRunItemIds.");
+  }
+
+  const result = await runSelectedOtrsImportConnector({
+    workspaceId: job.workspaceId,
+    integrationId,
+    integrationRunId,
+    selectedItemIds
+  });
+
+  await prisma.backendJobEvent.create({
+    data: {
+      jobId: job.id,
+      level: "info",
+      message: "Выборочный OTRS-импорт выполнен.",
+      metadata: JSON.stringify({
+        operation: "otrs_selected_import",
+        integrationId,
+        integrationRunId,
+        selectedCount: selectedItemIds.length,
+        importedCount: result.importedCount,
+        errorCount: result.errorCount
+      })
+    }
+  });
+
+  return {
+    integrationId,
+    integrationRunId,
+    selectedCount: selectedItemIds.length,
+    ...result
+  };
+}
+
+async function runIntegrationImportJob(job: BackendJob, payload: BackendJobPayload) {
+  return integrationJobOperation(payload) === "otrs_selected_import"
+    ? runSelectedOtrsImportJob(job, payload)
+    : runLegacyIntegrationImportJob(job, payload);
 }
 
 async function runReportExportJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {

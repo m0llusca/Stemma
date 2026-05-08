@@ -1,6 +1,7 @@
 import type { Integration, IntegrationCredential, Prisma } from "@prisma/client";
 import { upsertCustomConversation } from "@/lib/conversation-import";
 import { prisma } from "@/lib/db";
+import { importSelectedOtrsRunItems } from "@/lib/integrations/otrs-family/import-plan";
 import {
   buildOtrsFamilyTicketGetQueryParams,
   extractOtrsFamilyTickets,
@@ -45,6 +46,12 @@ export type IntegrationRunResult = {
   importedCount: number;
   checkedCount: number;
   externalIds: string[];
+};
+
+export type SelectedOtrsImportRunResult = {
+  operation: "otrs_selected_import";
+  importedCount: number;
+  errorCount: number;
 };
 
 function parseConfig(value: string): IntegrationConfig {
@@ -324,5 +331,20 @@ export async function runIntegrationConnector(input: {
     importedCount: input.dryRun ? 0 : conversations.length,
     checkedCount: conversations.length,
     externalIds
+  };
+}
+
+export async function runSelectedOtrsImportConnector(input: {
+  workspaceId: string;
+  integrationId: string;
+  integrationRunId: string;
+  selectedItemIds: string[];
+}): Promise<SelectedOtrsImportRunResult> {
+  const result = await importSelectedOtrsRunItems(input);
+
+  return {
+    operation: "otrs_selected_import",
+    importedCount: result.importedCount,
+    errorCount: result.errorCount
   };
 }

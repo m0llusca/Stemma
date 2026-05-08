@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   },
   logBackendEvent: vi.fn(),
   runIntegrationConnector: vi.fn(),
+  runSelectedOtrsImportConnector: vi.fn(),
   syncDirectoryProvider: vi.fn()
 }));
 
@@ -40,7 +41,8 @@ vi.mock("@/lib/observability", () => ({
 }));
 
 vi.mock("@/lib/integrations/runner", () => ({
-  runIntegrationConnector: mocks.runIntegrationConnector
+  runIntegrationConnector: mocks.runIntegrationConnector,
+  runSelectedOtrsImportConnector: mocks.runSelectedOtrsImportConnector
 }));
 
 vi.mock("@/lib/auth/directory-sync", () => ({
@@ -370,5 +372,104 @@ describe("backend job queue", () => {
     expect(mocks.prisma.backendJob.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.backendJobEvent.create).not.toHaveBeenCalled();
     expect(mocks.prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("dispatches explicit selected OTRS imports to the OTRS selected import service", async () => {
+    const { runDueBackendJobs } = await import("@/lib/jobs/queue");
+    const queuedJob = backendJob({
+      type: "INTEGRATION_IMPORT",
+      queueName: "integrations",
+      payloadJson: JSON.stringify({
+        operation: "otrs_selected_import",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        integrationRunItemIds: ["item-1"]
+      })
+    });
+    const runningJob = backendJob({
+      ...queuedJob,
+      status: "RUNNING",
+      attempts: 1,
+      lockedAt: new Date("2026-05-04T08:01:00.000Z"),
+      lockedBy: "worker-a",
+      startedAt: new Date("2026-05-04T08:01:00.000Z")
+    });
+    mocks.prisma.backendJob.findFirst.mockReset();
+    mocks.prisma.backendJob.findUnique.mockReset();
+    mocks.prisma.backendJob.updateMany.mockReset();
+    mocks.prisma.backendJob.findMany.mockResolvedValue([]);
+    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(queuedJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.runSelectedOtrsImportConnector.mockResolvedValue({
+      importedCount: 1,
+      errorCount: 0
+    });
+    mocks.prisma.backendJob.update.mockResolvedValue({});
+
+    await expect(runDueBackendJobs({ workerId: "worker-a", queueName: "integrations", limit: 1 })).resolves.toEqual([
+      {
+        jobId: "job-1",
+        status: "SUCCEEDED",
+        result: undefined
+      }
+    ]);
+
+    expect(mocks.runSelectedOtrsImportConnector).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"]
+    });
+    expect(mocks.runIntegrationConnector).not.toHaveBeenCalled();
+  });
+
+  it("keeps old INTEGRATION_IMPORT payloads on the legacy connector runner", async () => {
+    const { runDueBackendJobs } = await import("@/lib/jobs/queue");
+    const queuedJob = backendJob({
+      type: "INTEGRATION_IMPORT",
+      queueName: "integrations",
+      payloadJson: JSON.stringify({
+        integrationId: "native-integration",
+        integrationRunId: "native-run",
+        requestedLimit: 10,
+        dryRun: true
+      })
+    });
+    const runningJob = backendJob({
+      ...queuedJob,
+      status: "RUNNING",
+      attempts: 1,
+      lockedAt: new Date("2026-05-04T08:01:00.000Z"),
+      lockedBy: "worker-a",
+      startedAt: new Date("2026-05-04T08:01:00.000Z")
+    });
+    mocks.prisma.backendJob.findFirst.mockReset();
+    mocks.prisma.backendJob.findUnique.mockReset();
+    mocks.prisma.backendJob.updateMany.mockReset();
+    mocks.prisma.backendJob.findMany.mockResolvedValue([]);
+    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(queuedJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.runIntegrationConnector.mockResolvedValue({
+      source: "zendesk",
+      mode: "native_helpdesk",
+      dryRun: true,
+      importedCount: 0,
+      checkedCount: 1,
+      externalIds: ["ticket-1"]
+    });
+    mocks.prisma.backendJob.update.mockResolvedValue({});
+
+    await runDueBackendJobs({ workerId: "worker-a", queueName: "integrations", limit: 1 });
+
+    expect(mocks.runIntegrationConnector).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      integrationId: "native-integration",
+      integrationRunId: "native-run",
+      requestedLimit: 10,
+      dryRun: true
+    });
+    expect(mocks.runSelectedOtrsImportConnector).not.toHaveBeenCalled();
   });
 });

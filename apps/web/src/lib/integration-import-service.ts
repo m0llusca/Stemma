@@ -14,6 +14,8 @@ export type QueuedIntegrationImport = {
   };
 };
 
+export type IntegrationJobOperation = "legacy_connector_run" | "otrs_selected_import";
+
 export async function queueIntegrationImportJob(input: {
   workspaceId: string;
   actorId: string;
@@ -106,6 +108,110 @@ export async function queueIntegrationImportJob(input: {
         status: run.status,
         requestedLimit: run.requestedLimit,
         dryRun: run.dryRun
+      },
+      job: {
+        id: job.id,
+        status: job.status
+      }
+    };
+  });
+}
+
+export async function queueSelectedOtrsImportJob(input: {
+  workspaceId: string;
+  actorId: string;
+  integrationId: string;
+  integrationRunId: string;
+  integrationRunItemIds: string[];
+  runAfter?: Date;
+  priority?: number;
+}): Promise<QueuedIntegrationImport> {
+  const integrationRunItemIds = Array.from(new Set(input.integrationRunItemIds.map((item) => item.trim()).filter(Boolean)));
+
+  if (integrationRunItemIds.length === 0) {
+    throw new Error("Выберите обращения для импорта.");
+  }
+
+  const integration = await prisma.integration.findFirst({
+    where: {
+      id: input.integrationId,
+      workspaceId: input.workspaceId
+    }
+  });
+
+  if (!integration) {
+    throw new Error("Интеграция не найдена.");
+  }
+
+  if (integration.type !== "otrs_family") {
+    throw new Error("Выборочный импорт поддерживается только для OTRS-family интеграций.");
+  }
+
+  const run = await prisma.integrationRun.findFirst({
+    where: {
+      id: input.integrationRunId,
+      workspaceId: input.workspaceId,
+      integrationId: integration.id
+    }
+  });
+
+  if (!run) {
+    throw new Error("Preview-run интеграции не найден.");
+  }
+
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const job = await tx.backendJob.create({
+      data: {
+        workspaceId: input.workspaceId,
+        type: "INTEGRATION_IMPORT",
+        status: "QUEUED",
+        queueName: "integrations",
+        priority: input.priority ?? 50,
+        runAfter: input.runAfter ?? now,
+        createdById: input.actorId,
+        payloadJson: JSON.stringify({
+          operation: "otrs_selected_import" satisfies IntegrationJobOperation,
+          integrationId: integration.id,
+          integrationRunId: run.id,
+          integrationRunItemIds
+        })
+      }
+    });
+
+    await tx.integration.update({
+      where: { id: integration.id },
+      data: {
+        status: "queued",
+        lastError: null
+      }
+    });
+
+    await auditLog(
+      {
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: "integration.otrs_selected_import_queued",
+        targetType: "integration",
+        targetId: integration.id,
+        metadata: {
+          operation: "otrs_selected_import",
+          source: integration.source,
+          runId: run.id,
+          jobId: job.id,
+          integrationRunItemIds
+        }
+      },
+      tx
+    );
+
+    return {
+      run: {
+        id: run.id,
+        status: "queued",
+        requestedLimit: integrationRunItemIds.length,
+        dryRun: false
       },
       job: {
         id: job.id,
