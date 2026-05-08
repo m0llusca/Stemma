@@ -11,7 +11,7 @@ import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import { normalizeOtrsFamilyTicketGetResponseForImport } from "@/lib/integrations/otrs-family/normalization";
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
 
-type SmokeStepStatus = "succeeded" | "failed" | "skipped";
+type SmokeStepStatus = "succeeded" | "warning" | "failed" | "skipped";
 
 type SmokeStep = {
   key: string;
@@ -46,6 +46,29 @@ type PreviewResult = {
   conversations: Array<ReturnType<typeof normalizeOtrsFamilyTicketGetResponseForImport>[number]["conversation"]>;
 };
 
+type DiagnosticResult = {
+  status: "succeeded" | "warning" | "failed";
+  mode: PreviewResult["mode"];
+  searchedTicketIds: string[];
+  fetchedTicketId?: string;
+  normalizedConversationCount: number;
+  duplicateCount?: number;
+  steps: SmokeStep[];
+};
+
+type DiagnosticRequestState =
+  | {
+      operation: "ticket_search";
+      result?: unknown;
+      error?: unknown;
+    }
+  | {
+      operation: "ticket_get";
+      ticketId: string;
+      result?: unknown;
+      error?: unknown;
+    };
+
 const redactedValue = "[REDACTED]";
 
 async function main() {
@@ -55,29 +78,34 @@ async function main() {
 
   const steps: SmokeStep[] = [];
   const runtime = await recordStep(steps, "config", buildRuntime);
+  const diagnostics = await runDiagnostics(runtime);
   let preview: PreviewResult | undefined;
   let importResult: unknown = {
     status: "skipped",
-    reason: "preview_failed"
+    reason: diagnostics.status === "failed" ? "diagnostics_failed" : "preview_failed"
   };
   let finalError: unknown;
 
-  try {
-    preview = await runPreview(runtime, steps);
-  } catch (error) {
-    finalError = error;
-  }
-
-  if (preview) {
+  if (diagnostics.status === "failed") {
+    finalError = new Error("OTRS live smoke diagnostics failed.");
+  } else {
     try {
-      importResult = await runSelectedImport(preview, steps);
+      preview = await runPreview(runtime, steps);
     } catch (error) {
       finalError = error;
+    }
+
+    if (preview) {
+      try {
+        importResult = await runSelectedImport(preview, steps);
+      } catch (error) {
+        finalError = error;
+      }
     }
   }
 
   const failedStep = steps.find((step) => step.status === "failed");
-  const failed = Boolean(failedStep || finalError);
+  const failed = Boolean(failedStep || diagnostics.status === "failed" || finalError);
   const summary = redactSummary(
     {
       status: failed ? "failed" : "succeeded",
@@ -89,6 +117,7 @@ async function main() {
       webServiceName: runtime.config.webServiceName,
       liveImportRequested: process.env.OTRS_LIVE_IMPORT === "1",
       caBundle: runtime.caBundleMetadata,
+      diagnostics,
       preview: preview
         ? {
             mode: preview.mode,
@@ -142,6 +171,370 @@ async function buildRuntime(): Promise<SmokeRuntime> {
     caBundle,
     caBundleMetadata
   };
+}
+
+async function runDiagnostics(runtime: SmokeRuntime): Promise<DiagnosticResult> {
+  const diagnosticSteps: SmokeStep[] = [];
+  const client = createOtrsHttpClient({
+    config: runtime.config,
+    baseUrl: runtime.baseUrl,
+    userLogin: runtime.userLogin,
+    password: runtime.password,
+    caBundle: runtime.caBundle
+  });
+  const mode: PreviewResult["mode"] = process.env.OTRS_TEST_TICKET_ID?.trim() ? "manual_ticket_id" : "ticket_search";
+  const context: Pick<DiagnosticResult, "mode" | "searchedTicketIds" | "normalizedConversationCount"> & {
+    fetchedTicketId?: string;
+    duplicateCount?: number;
+  } = {
+    mode,
+    searchedTicketIds: [],
+    normalizedConversationCount: 0
+  };
+  let firstRequest: DiagnosticRequestState | undefined;
+  let normalizedConversations: PreviewResult["conversations"] = [];
+
+  await recordDiagnosticStep(diagnosticSteps, "config", async () => ({
+    status: "succeeded",
+    detail: {
+      product: runtime.config.product,
+      endpoint: buildOtrsWebServiceBaseUrl({
+        baseUrl: runtime.baseUrl,
+        webServiceName: runtime.config.webServiceName
+      }),
+      webServiceName: runtime.config.webServiceName,
+      requestTimeoutMs: runtime.config.limits.requestTimeoutMs,
+      maxResponseBytes: runtime.config.limits.maxResponseBytes
+    }
+  }));
+
+  if (isHttps(runtime.baseUrl)) {
+    await recordDiagnosticStep(diagnosticSteps, "tls", async () => {
+      firstRequest = await executeDiagnosticFirstRequest(runtime, client);
+
+      if (isConnectorErrorCode(firstRequest.error, "tls_failed")) {
+        return {
+          status: "failed",
+          detail: serializeError(firstRequest.error)
+        };
+      }
+
+      return {
+        status: "succeeded",
+        detail: {
+          protocol: "https",
+          caBundleConfigured: Boolean(runtime.caBundle),
+          firstRequestOperation: firstRequest.operation
+        }
+      };
+    });
+  } else {
+    await recordDiagnosticStep(diagnosticSteps, "tls", async () => ({
+      status: "succeeded",
+      detail: {
+        protocol: protocolForBaseUrl(runtime.baseUrl) || "unknown",
+        caBundleConfigured: false
+      }
+    }));
+  }
+
+  if (hasFailed(diagnosticSteps)) {
+    return finishDiagnostics(context, diagnosticSteps);
+  }
+
+  await recordDiagnosticStep(diagnosticSteps, "webservice", async () => {
+    firstRequest ??= await executeDiagnosticFirstRequest(runtime, client);
+
+    if (isConnectorErrorCode(firstRequest.error, "webservice_unreachable") || isConnectorErrorCode(firstRequest.error, "timeout")) {
+      return {
+        status: "failed",
+        detail: serializeError(firstRequest.error)
+      };
+    }
+
+    return {
+      status: "succeeded",
+      detail: {
+        endpoint: buildOtrsWebServiceBaseUrl({
+          baseUrl: runtime.baseUrl,
+          webServiceName: runtime.config.webServiceName
+        }),
+        firstRequestOperation: firstRequest.operation
+      }
+    };
+  });
+
+  if (hasFailed(diagnosticSteps)) {
+    return finishDiagnostics(context, diagnosticSteps);
+  }
+
+  await recordDiagnosticStep(diagnosticSteps, "auth", async () => {
+    firstRequest ??= await executeDiagnosticFirstRequest(runtime, client);
+
+    if (isConnectorErrorCode(firstRequest.error, "auth_failed")) {
+      return {
+        status: "failed",
+        detail: serializeError(firstRequest.error)
+      };
+    }
+
+    return {
+      status: "succeeded",
+      detail: {
+        authenticated: firstRequest.error ? "not_rejected" : true,
+        firstRequestOperation: firstRequest.operation
+      }
+    };
+  });
+
+  if (hasFailed(diagnosticSteps)) {
+    return finishDiagnostics(context, diagnosticSteps);
+  }
+
+  if (mode === "manual_ticket_id") {
+    diagnosticSteps.push({
+      key: "ticket_search",
+      status: "skipped",
+      detail: {
+        reason: "manual_ticket_id_supplied"
+      }
+    });
+  } else {
+    await recordDiagnosticStep(diagnosticSteps, "ticket_search", async () => {
+      const searchRequest =
+        firstRequest?.operation === "ticket_search" ? firstRequest : await executeTicketSearchRequest(runtime, client);
+
+      if (searchRequest.error) {
+        return {
+          status: "failed",
+          detail: serializeError(searchRequest.error)
+        };
+      }
+
+      context.searchedTicketIds = parseTicketSearchResponse(searchRequest.result).slice(0, 1);
+
+      return {
+        status: context.searchedTicketIds.length > 0 ? "succeeded" : "failed",
+        detail: {
+          limit: 1,
+          filters: ticketSearchFilters(),
+          ticketIds: context.searchedTicketIds,
+          reason: context.searchedTicketIds.length > 0 ? undefined : "no_ticket_id"
+        }
+      };
+    });
+  }
+
+  if (hasFailed(diagnosticSteps)) {
+    return finishDiagnostics(context, diagnosticSteps);
+  }
+
+  const targetTicketId = process.env.OTRS_TEST_TICKET_ID?.trim() || context.searchedTicketIds[0];
+
+  await recordDiagnosticStep(diagnosticSteps, "ticket_get", async () => {
+    if (!targetTicketId) {
+      return {
+        status: "failed",
+        detail: {
+          reason: "no_ticket_id"
+        }
+      };
+    }
+
+    const getRequest =
+      firstRequest?.operation === "ticket_get" && firstRequest.ticketId === targetTicketId
+        ? firstRequest
+        : await executeTicketGetRequest(runtime, client, targetTicketId);
+
+    if (getRequest.error) {
+      return {
+        status: "failed",
+        detail: serializeError(getRequest.error)
+      };
+    }
+
+    const normalized = normalizePreview(mode, context.searchedTicketIds, targetTicketId, getRequest.result, runtime.baseUrl);
+    context.fetchedTicketId = targetTicketId;
+    normalizedConversations = normalized.conversations;
+
+    return {
+      status: "succeeded",
+      detail: {
+        ticketId: targetTicketId
+      }
+    };
+  });
+
+  if (hasFailed(diagnosticSteps)) {
+    return finishDiagnostics(context, diagnosticSteps);
+  }
+
+  await recordDiagnosticStep(diagnosticSteps, "normalize", async () => {
+    if (normalizedConversations.length === 0) {
+      return {
+        status: "failed",
+        detail: {
+          reason: "no_normalized_conversation"
+        }
+      };
+    }
+
+    context.normalizedConversationCount = normalizedConversations.length;
+
+    return {
+      status: "succeeded",
+      detail: {
+        conversationCount: normalizedConversations.length,
+        externalIds: normalizedConversations.map((conversation) => conversation.externalId),
+        articleCountsByExternalId: Object.fromEntries(
+          normalizedConversations.map((conversation) => [conversation.externalId, conversation.messages.length])
+        )
+      }
+    };
+  });
+
+  if (hasFailed(diagnosticSteps)) {
+    return finishDiagnostics(context, diagnosticSteps);
+  }
+
+  await recordDiagnosticStep(diagnosticSteps, "db_dry_run", async () => {
+    if (!process.env.DATABASE_URL?.trim()) {
+      return {
+        status: "skipped",
+        detail: {
+          reason: "DATABASE_URL is not set"
+        }
+      };
+    }
+
+    const workspaceId = process.env.OTRS_LIVE_WORKSPACE_ID?.trim();
+
+    if (!workspaceId) {
+      return {
+        status: "skipped",
+        detail: {
+          reason: "OTRS_LIVE_WORKSPACE_ID is not set"
+        }
+      };
+    }
+
+    const { prisma } = await import("@/lib/db");
+
+    try {
+      const duplicates = [];
+
+      for (const conversation of normalizedConversations) {
+        const duplicate = await prisma.conversation.findUnique({
+          where: {
+            workspaceId_externalSource_externalId: {
+              workspaceId,
+              externalSource: conversation.externalSource,
+              externalId: conversation.externalId
+            }
+          },
+          select: {
+            id: true
+          }
+        });
+
+        if (duplicate) {
+          duplicates.push({
+            externalSource: conversation.externalSource,
+            externalId: conversation.externalId,
+            conversationId: duplicate.id
+          });
+        }
+      }
+
+      context.duplicateCount = duplicates.length;
+
+      return {
+        status: duplicates.length > 0 ? "warning" : "succeeded",
+        detail: {
+          checkedCount: normalizedConversations.length,
+          duplicateCount: duplicates.length,
+          duplicates
+        }
+      };
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  return finishDiagnostics(context, diagnosticSteps);
+}
+
+async function executeDiagnosticFirstRequest(
+  runtime: SmokeRuntime,
+  client: ReturnType<typeof createOtrsHttpClient>
+): Promise<DiagnosticRequestState> {
+  const manualTicketId = process.env.OTRS_TEST_TICKET_ID?.trim();
+
+  if (manualTicketId) {
+    return executeTicketGetRequest(runtime, client, manualTicketId);
+  }
+
+  return executeTicketSearchRequest(runtime, client);
+}
+
+async function executeTicketSearchRequest(
+  runtime: SmokeRuntime,
+  client: ReturnType<typeof createOtrsHttpClient>
+): Promise<Extract<DiagnosticRequestState, { operation: "ticket_search" }>> {
+  try {
+    const result = await client.requestJson(
+      buildTicketSearchRequest({
+        config: runtime.config,
+        baseUrl: runtime.baseUrl,
+        userLogin: runtime.userLogin,
+        password: runtime.password,
+        filters: ticketSearchFilters(),
+        limit: 1
+      })
+    );
+
+    return {
+      operation: "ticket_search",
+      result
+    };
+  } catch (error) {
+    return {
+      operation: "ticket_search",
+      error
+    };
+  }
+}
+
+async function executeTicketGetRequest(
+  runtime: SmokeRuntime,
+  client: ReturnType<typeof createOtrsHttpClient>,
+  ticketId: string
+): Promise<Extract<DiagnosticRequestState, { operation: "ticket_get" }>> {
+  try {
+    const result = await client.requestJson(
+      buildTicketGetRequest({
+        config: runtime.config,
+        baseUrl: runtime.baseUrl,
+        userLogin: runtime.userLogin,
+        password: runtime.password,
+        ticketId,
+        allArticles: true,
+        includeAttachments: true
+      })
+    );
+
+    return {
+      operation: "ticket_get",
+      ticketId,
+      result
+    };
+  } catch (error) {
+    return {
+      operation: "ticket_get",
+      ticketId,
+      error
+    };
+  }
 }
 
 async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<PreviewResult> {
@@ -280,6 +673,31 @@ async function recordStep<T>(steps: SmokeStep[], key: string, fn: () => Promise<
   }
 }
 
+async function recordDiagnosticStep(
+  steps: SmokeStep[],
+  key: string,
+  fn: () => Promise<{ status: SmokeStepStatus; detail?: unknown }> | { status: SmokeStepStatus; detail?: unknown }
+) {
+  const startedAt = Date.now();
+
+  try {
+    const result = await fn();
+    steps.push({
+      key,
+      status: result.status,
+      detail: result.detail,
+      durationMs: Date.now() - startedAt
+    });
+  } catch (error) {
+    steps.push({
+      key,
+      status: "failed",
+      durationMs: Date.now() - startedAt,
+      detail: serializeError(error)
+    });
+  }
+}
+
 function normalizePreview(
   mode: PreviewResult["mode"],
   searchedTicketIds: string[],
@@ -316,6 +734,28 @@ function normalizePreview(
   };
 }
 
+function finishDiagnostics(
+  context: Pick<DiagnosticResult, "mode" | "searchedTicketIds" | "normalizedConversationCount"> & {
+    fetchedTicketId?: string;
+    duplicateCount?: number;
+  },
+  steps: SmokeStep[]
+): DiagnosticResult {
+  return {
+    status: hasFailed(steps) ? "failed" : steps.some((step) => step.status === "warning") ? "warning" : "succeeded",
+    mode: context.mode,
+    searchedTicketIds: context.searchedTicketIds,
+    fetchedTicketId: context.fetchedTicketId,
+    normalizedConversationCount: context.normalizedConversationCount,
+    duplicateCount: context.duplicateCount,
+    steps
+  };
+}
+
+function hasFailed(steps: SmokeStep[]) {
+  return steps.some((step) => step.status === "failed");
+}
+
 function ticketSearchFilters() {
   const filters: Record<string, unknown> = {};
   const queue = process.env.OTRS_SEARCH_QUEUE?.trim();
@@ -330,6 +770,22 @@ function ticketSearchFilters() {
   }
 
   return filters;
+}
+
+function isHttps(baseUrl: string) {
+  return protocolForBaseUrl(baseUrl) === "https";
+}
+
+function protocolForBaseUrl(baseUrl: string) {
+  try {
+    return new URL(baseUrl).protocol.replace(/:$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function isConnectorErrorCode(error: unknown, code: OtrsConnectorError["code"]): error is OtrsConnectorError {
+  return error instanceof OtrsConnectorError && error.code === code;
 }
 
 function requiredEnv(name: string) {
