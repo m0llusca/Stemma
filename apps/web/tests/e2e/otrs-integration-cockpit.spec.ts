@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   createOtrsGenericInterfaceServer,
   type OtrsGenericInterfaceServer
@@ -32,6 +32,12 @@ test.afterAll(async () => {
 test.beforeEach(() => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
 });
+
+async function runIntegrationsQueueFromOverview(page: Page) {
+  await page.goto("/admin/integrations");
+  await page.getByRole("button", { name: "Запустить очередь сейчас" }).click();
+  await expect(page.getByText("Запущено задач: 1. Успешно: 1. С ошибками: 0.")).toBeVisible({ timeout: 45_000 });
+}
 
 test("splits integrations overview, setup, and OTRS cockpit without exposing secrets", async ({ page }) => {
   await page.goto("/admin/integrations");
@@ -113,6 +119,11 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await page.getByRole("link", { name: "Открыть cockpit" }).click();
 
   await expect(page).toHaveURL(/\/admin\/integrations\/[^/]+$/);
+  const cockpitUrl = page.url();
+
+  await runIntegrationsQueueFromOverview(page);
+  await page.goto(cockpitUrl);
+
   await expect(page.getByRole("heading", { name: "OTRS CE 6" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
   await page.getByLabel("Product profile").selectOption("otrs_ce_6");
@@ -144,9 +155,7 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await previewPanel.getByRole("button", { name: "Импортировать выбранные" }).click();
   await expect(previewPanel.getByText("Выбранные OTRS-обращения поставлены в backend-очередь.")).toBeVisible();
 
-  await page.goto("/admin/integrations");
-  await page.getByRole("button", { name: "Запустить очередь сейчас" }).click();
-  await expect(page.getByText(/Запущено задач: \d+\. Успешно: \d+\. С ошибками: 0\./)).toBeVisible({ timeout: 45_000 });
+  await runIntegrationsQueueFromOverview(page);
 
   await page.goto(`/reviews?source=otrs&q=${ticketId}`);
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
