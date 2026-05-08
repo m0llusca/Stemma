@@ -56,6 +56,10 @@ export async function POST(request: Request, context: { params: Promise<{ integr
       return apiError("not_found", "Интеграция или preview-run не найдены.", 404, requestId);
     }
 
+    if (error instanceof Error && /уже поставлен|недоступен/i.test(error.message)) {
+      return apiError("conflict", error.message, 409, requestId);
+    }
+
     if (error instanceof Error && /Выберите|дубликаты|previewed-строками|поддерживается/i.test(error.message)) {
       return apiError("bad_request", error.message, 400, requestId);
     }

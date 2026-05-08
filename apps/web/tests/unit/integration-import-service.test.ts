@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => {
     integrationRun: {
       create: vi.fn(),
       findFirst: vi.fn(),
-      update: vi.fn()
+      update: vi.fn(),
+      updateMany: vi.fn()
     },
     integrationRunItem: {
       findMany: vi.fn()
@@ -152,12 +153,7 @@ describe("integration import service", () => {
       dryRun: true
     });
     mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1" }]);
-    mocks.prisma.integrationRun.update.mockResolvedValue({
-      id: "run-1",
-      status: "queued",
-      requestedLimit: 1,
-      dryRun: false
-    });
+    mocks.prisma.integrationRun.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.backendJob.create.mockResolvedValue({
       id: "job-1",
       status: "QUEUED"
@@ -185,8 +181,13 @@ describe("integration import service", () => {
         id: true
       }
     });
-    expect(mocks.prisma.integrationRun.update).toHaveBeenCalledWith({
-      where: { id: "run-1" },
+    expect(mocks.prisma.integrationRun.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "run-1",
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        status: "previewed"
+      },
       data: {
         status: "queued",
         dryRun: false,
@@ -195,6 +196,9 @@ describe("integration import service", () => {
         finishedAt: null
       }
     });
+    expect(mocks.prisma.integrationRun.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.prisma.backendJob.create.mock.invocationCallOrder[0]
+    );
     expect(mocks.prisma.backendJob.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         workspaceId: "workspace-1",
@@ -293,6 +297,67 @@ describe("integration import service", () => {
       }
     });
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
-    expect(mocks.prisma.integrationRun.update).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects selected OTRS import when the preview run was already claimed and creates no duplicate job", async () => {
+    const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "otrs",
+      type: "otrs_family",
+      importLimit: 25
+    });
+    mocks.prisma.integrationRun.findFirst.mockResolvedValue({
+      id: "run-1",
+      status: "queued",
+      requestedLimit: 1,
+      dryRun: false
+    });
+    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1" }]);
+    mocks.prisma.integrationRun.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      queueSelectedOtrsImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        integrationRunItemIds: ["item-1"]
+      })
+    ).rejects.toThrow("Preview-run уже поставлен в очередь или больше недоступен для выборочного импорта.");
+
+    expect(mocks.prisma.integrationRunItem.findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        id: {
+          in: ["item-1"]
+        },
+        status: "previewed"
+      },
+      select: {
+        id: true
+      }
+    });
+    expect(mocks.prisma.integrationRun.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "run-1",
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        status: "previewed"
+      },
+      data: {
+        status: "queued",
+        dryRun: false,
+        requestedLimit: 1,
+        errorMessage: null,
+        finishedAt: null
+      }
+    });
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.integration.update).not.toHaveBeenCalled();
+    expect(mocks.auditLog).not.toHaveBeenCalled();
   });
 });

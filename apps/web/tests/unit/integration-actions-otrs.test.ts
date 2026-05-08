@@ -372,4 +372,35 @@ describe("OTRS integration actions", () => {
       requestId: "request-invalid"
     });
   });
+
+  it("returns 409 from the selected OTRS import API when the preview run is already queued", async () => {
+    const { POST } = await import("@/app/api/v1/integrations/[integrationId]/import/route");
+    mocks.queueSelectedOtrsImportJob.mockRejectedValueOnce(
+      new Error("Preview-run уже поставлен в очередь или больше недоступен для выборочного импорта.")
+    );
+
+    const response = await POST(
+      new Request("https://qc.example.test/api/v1/integrations/integration-1/import", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-conflict"
+        },
+        body: JSON.stringify({
+          integrationRunId: "run-1",
+          integrationRunItemIds: ["item-1"]
+        })
+      }),
+      { params: Promise.resolve({ integrationId: "integration-1" }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("x-request-id")).toBe("request-conflict");
+    expect(body.error).toMatchObject({
+      code: "conflict",
+      message: "Preview-run уже поставлен в очередь или больше недоступен для выборочного импорта.",
+      requestId: "request-conflict"
+    });
+  });
 });

@@ -186,6 +186,26 @@ export async function queueSelectedOtrsImportJob(input: {
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
+    const claimedRun = await tx.integrationRun.updateMany({
+      where: {
+        id: run.id,
+        workspaceId: input.workspaceId,
+        integrationId: integration.id,
+        status: "previewed"
+      },
+      data: {
+        status: "queued",
+        dryRun: false,
+        requestedLimit: integrationRunItemIds.length,
+        errorMessage: null,
+        finishedAt: null
+      }
+    });
+
+    if (claimedRun.count === 0) {
+      throw new Error("Preview-run уже поставлен в очередь или больше недоступен для выборочного импорта.");
+    }
+
     const job = await tx.backendJob.create({
       data: {
         workspaceId: input.workspaceId,
@@ -201,17 +221,6 @@ export async function queueSelectedOtrsImportJob(input: {
           integrationRunId: run.id,
           integrationRunItemIds
         })
-      }
-    });
-
-    const updatedRun = await tx.integrationRun.update({
-      where: { id: run.id },
-      data: {
-        status: "queued",
-        dryRun: false,
-        requestedLimit: integrationRunItemIds.length,
-        errorMessage: null,
-        finishedAt: null
       }
     });
 
@@ -243,10 +252,10 @@ export async function queueSelectedOtrsImportJob(input: {
 
     return {
       run: {
-        id: updatedRun.id,
-        status: updatedRun.status,
-        requestedLimit: updatedRun.requestedLimit,
-        dryRun: updatedRun.dryRun
+        id: run.id,
+        status: "queued",
+        requestedLimit: integrationRunItemIds.length,
+        dryRun: false
       },
       job: {
         id: job.id,
