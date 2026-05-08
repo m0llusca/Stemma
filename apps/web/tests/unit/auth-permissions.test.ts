@@ -7,8 +7,8 @@ describe("auth permissions", () => {
     expect(hasPermission("ADMIN", "auth_providers:manage")).toBe(true);
   });
 
-  it("keeps support agents scoped to self-review, feedback and training", () => {
-    expect(getPermissions("SUPPORT_AGENT")).toEqual(["feedback:acknowledge", "self_review:write", "training:manage"]);
+  it("allows support agents to read their scoped review queue plus self-review, feedback and training", () => {
+    expect(getPermissions("SUPPORT_AGENT")).toEqual(["reviews:read", "feedback:acknowledge", "self_review:write", "training:manage"]);
     expect(hasPermission("SUPPORT_AGENT", "integrations:manage")).toBe(false);
     expect(hasPermission("SUPPORT_AGENT", "reports:read")).toBe(false);
   });
@@ -28,4 +28,3 @@ describe("auth permissions", () => {
     ).toThrow("Недостаточно прав для выполнения операции.");
   });
 });
-
