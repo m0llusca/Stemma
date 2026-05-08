@@ -126,10 +126,15 @@ export async function queueSelectedOtrsImportJob(input: {
   runAfter?: Date;
   priority?: number;
 }): Promise<QueuedIntegrationImport> {
-  const integrationRunItemIds = Array.from(new Set(input.integrationRunItemIds.map((item) => item.trim()).filter(Boolean)));
+  const requestedIntegrationRunItemIds = input.integrationRunItemIds.map((item) => item.trim()).filter(Boolean);
+  const integrationRunItemIds = Array.from(new Set(requestedIntegrationRunItemIds));
 
   if (integrationRunItemIds.length === 0) {
     throw new Error("Выберите обращения для импорта.");
+  }
+
+  if (integrationRunItemIds.length !== requestedIntegrationRunItemIds.length) {
+    throw new Error("Список обращений для импорта содержит дубликаты.");
   }
 
   const integration = await prisma.integration.findFirst({
@@ -159,6 +164,25 @@ export async function queueSelectedOtrsImportJob(input: {
     throw new Error("Preview-run интеграции не найден.");
   }
 
+  const validItems = await prisma.integrationRunItem.findMany({
+    where: {
+      workspaceId: input.workspaceId,
+      integrationRunId: run.id,
+      id: {
+        in: integrationRunItemIds
+      },
+      status: "previewed"
+    },
+    select: {
+      id: true
+    }
+  });
+  const validItemIds = new Set(validItems.map((item) => item.id));
+
+  if (validItemIds.size !== integrationRunItemIds.length || integrationRunItemIds.some((itemId) => !validItemIds.has(itemId))) {
+    throw new Error("Выбранные обращения должны быть previewed-строками указанного preview-run.");
+  }
+
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
@@ -177,6 +201,17 @@ export async function queueSelectedOtrsImportJob(input: {
           integrationRunId: run.id,
           integrationRunItemIds
         })
+      }
+    });
+
+    const updatedRun = await tx.integrationRun.update({
+      where: { id: run.id },
+      data: {
+        status: "queued",
+        dryRun: false,
+        requestedLimit: integrationRunItemIds.length,
+        errorMessage: null,
+        finishedAt: null
       }
     });
 
@@ -208,10 +243,10 @@ export async function queueSelectedOtrsImportJob(input: {
 
     return {
       run: {
-        id: run.id,
-        status: "queued",
-        requestedLimit: integrationRunItemIds.length,
-        dryRun: false
+        id: updatedRun.id,
+        status: updatedRun.status,
+        requestedLimit: updatedRun.requestedLimit,
+        dryRun: updatedRun.dryRun
       },
       job: {
         id: job.id,

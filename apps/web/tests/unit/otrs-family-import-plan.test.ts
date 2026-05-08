@@ -457,6 +457,8 @@ describe("OTRS-family preview/import planning", () => {
       finishedAt: expect.any(Date)
     });
     expect(state.integrationUpdates[0]).toMatchObject({
+      status: "active",
+      lastError: null,
       lastImportAt: expect.any(Date),
       lastSyncedAt: expect.any(Date),
       syncCursor: "401"
@@ -542,7 +544,12 @@ describe("OTRS-family preview/import planning", () => {
       selectedItemIds: ["missing-item"]
     });
 
-    expect(state.integrationUpdates).toEqual([]);
+    expect(state.integrationUpdates).toEqual([
+      {
+        status: "ready",
+        lastError: null
+      }
+    ]);
     expect(state.runs[0]).toMatchObject({
       importedCount: 0,
       errorCount: 0,
@@ -589,7 +596,12 @@ describe("OTRS-family preview/import planning", () => {
       })
     });
 
-    expect(state.integrationUpdates).toEqual([]);
+    expect(state.integrationUpdates).toEqual([
+      {
+        status: "error",
+        lastError: "All selected preview items failed to import."
+      }
+    ]);
     expect(state.items[0]).toMatchObject({
       status: "failed"
     });

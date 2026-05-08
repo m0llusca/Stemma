@@ -9,7 +9,11 @@ const mocks = vi.hoisted(() => {
     },
     integrationRun: {
       create: vi.fn(),
-      findFirst: vi.fn()
+      findFirst: vi.fn(),
+      update: vi.fn()
+    },
+    integrationRunItem: {
+      findMany: vi.fn()
     },
     backendJob: {
       create: vi.fn()
@@ -147,6 +151,13 @@ describe("integration import service", () => {
       requestedLimit: 1,
       dryRun: true
     });
+    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1" }]);
+    mocks.prisma.integrationRun.update.mockResolvedValue({
+      id: "run-1",
+      status: "queued",
+      requestedLimit: 1,
+      dryRun: false
+    });
     mocks.prisma.backendJob.create.mockResolvedValue({
       id: "job-1",
       status: "QUEUED"
@@ -161,6 +172,29 @@ describe("integration import service", () => {
       integrationRunItemIds: ["item-1"]
     });
 
+    expect(mocks.prisma.integrationRunItem.findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        id: {
+          in: ["item-1"]
+        },
+        status: "previewed"
+      },
+      select: {
+        id: true
+      }
+    });
+    expect(mocks.prisma.integrationRun.update).toHaveBeenCalledWith({
+      where: { id: "run-1" },
+      data: {
+        status: "queued",
+        dryRun: false,
+        requestedLimit: 1,
+        errorMessage: null,
+        finishedAt: null
+      }
+    });
     expect(mocks.prisma.backendJob.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         workspaceId: "workspace-1",
@@ -191,12 +225,74 @@ describe("integration import service", () => {
     expect(result).toMatchObject({
       run: {
         id: "run-1",
-        status: "queued"
+        status: "queued",
+        requestedLimit: 1,
+        dryRun: false
       },
       job: {
         id: "job-1",
         status: "QUEUED"
       }
     });
+  });
+
+  it("rejects duplicate selected OTRS preview item ids before queueing", async () => {
+    const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
+
+    await expect(
+      queueSelectedOtrsImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        integrationRunItemIds: ["item-1", "item-1"]
+      })
+    ).rejects.toThrow("Список обращений для импорта содержит дубликаты.");
+
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects selected OTRS item ids that are missing, foreign, or not previewed", async () => {
+    const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "otrs",
+      type: "otrs_family",
+      importLimit: 25
+    });
+    mocks.prisma.integrationRun.findFirst.mockResolvedValue({
+      id: "run-1",
+      status: "previewed",
+      requestedLimit: 3,
+      dryRun: true
+    });
+    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-valid" }]);
+
+    await expect(
+      queueSelectedOtrsImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        integrationRunItemIds: ["item-valid", "item-foreign", "item-non-previewed"]
+      })
+    ).rejects.toThrow("Выбранные обращения должны быть previewed-строками указанного preview-run.");
+
+    expect(mocks.prisma.integrationRunItem.findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        id: {
+          in: ["item-valid", "item-foreign", "item-non-previewed"]
+        },
+        status: "previewed"
+      },
+      select: {
+        id: true
+      }
+    });
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.update).not.toHaveBeenCalled();
   });
 });

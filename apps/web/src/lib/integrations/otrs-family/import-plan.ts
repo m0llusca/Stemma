@@ -235,6 +235,8 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   let lastSuccessfulExternalId: string | undefined;
 
   if (selectedItems.length === 0) {
+    const finishedAt = new Date();
+
     await db.integrationRun.update({
       where: { id: input.integrationRunId },
       data: {
@@ -243,7 +245,15 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
         importedCount: 0,
         errorCount: 0,
         errorMessage: "No preview items were selected for import.",
-        finishedAt: new Date()
+        finishedAt
+      }
+    });
+
+    await db.integration.update({
+      where: { id: input.integrationId },
+      data: {
+        status: "ready",
+        lastError: null
       }
     });
 
@@ -290,6 +300,7 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   const finishedAt = new Date();
   const status = importedCount > 0 ? "imported" : "failed";
   const errorMessage = importedCount > 0 ? null : "All selected preview items failed to import.";
+  const integrationStatus = importedCount > 0 ? "active" : "error";
 
   await db.integrationRun.update({
     where: { id: input.integrationRunId },
@@ -307,9 +318,19 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     await db.integration.update({
       where: { id: input.integrationId },
       data: {
+        status: integrationStatus,
+        lastError: null,
         lastImportAt: finishedAt,
         lastSyncedAt: finishedAt,
         syncCursor: lastSuccessfulExternalId
+      }
+    });
+  } else {
+    await db.integration.update({
+      where: { id: input.integrationId },
+      data: {
+        status: integrationStatus,
+        lastError: errorMessage
       }
     });
   }
