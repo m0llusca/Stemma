@@ -16,7 +16,7 @@ import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
-import { canManageReviewWorkflow, requireCurrentUserPermission } from "@/lib/current-user";
+import { canManageReviewWorkflow, canManageTraining, canSaveReviewDraft, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   channelLabels,
@@ -100,25 +100,31 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   const reviewSource =
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const returnTo = singleParam(rawSearchParams.returnTo);
+  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
+  const canEvaluateReview = canSaveReviewDraft(user.role);
+  const canManageWorkflow = canManageReviewWorkflow(user.role);
+  const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
   const [conversation, scorecard, qaAssignees] = await Promise.all([
-    getConversationForReview(user.workspaceId, conversationId),
-    getActiveScorecard(user.workspaceId),
-    prisma.user.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        role: {
-          in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
-        }
-      },
-      orderBy: {
-        name: "asc"
-      },
-      select: {
-        id: true,
-        name: true,
-        role: true
-      }
-    })
+    getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
+    canEvaluateReview ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
+    canManageWorkflow
+      ? prisma.user.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            role: {
+              in: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+            }
+          },
+          orderBy: {
+            name: "asc"
+          },
+          select: {
+            id: true,
+            name: true,
+            role: true
+          }
+        })
+      : Promise.resolve([])
   ]);
 
   if (!conversation) {
@@ -143,7 +149,6 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         .filter((messageId): messageId is string => Boolean(messageId)) ?? []
     )
   );
-  const canManageWorkflow = canManageReviewWorkflow(user.role);
   const scoreLabel = scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено";
   const hasAppeal = latestFinalizedReview ? latestFinalizedReview.appealStatus !== "none" : false;
   const hasOpenAppeal = latestFinalizedReview?.appealStatus === "open";
@@ -230,34 +235,56 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               Руководитель должен принять решение и зафиксировать итог.
             </p>
           </div>
-          <div className="appeal-alert__actions">
-            <form action={updateReviewFeedback}>
-              <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-              <input type="hidden" name="action" value="appeal_confirmed" />
-              <button type="submit" className="action-button">Оценка верна</button>
-            </form>
-            <form action={updateReviewFeedback}>
-              <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-              <input type="hidden" name="action" value="appeal_corrected" />
-              <button type="submit" className="action-button action-button--primary">Нужна корректировка</button>
-            </form>
-          </div>
+          {canManageWorkflow ? (
+            <div className="appeal-alert__actions">
+              <form action={updateReviewFeedback}>
+                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                <input type="hidden" name="action" value="appeal_confirmed" />
+                <button type="submit" className="action-button">Оценка верна</button>
+              </form>
+              <form action={updateReviewFeedback}>
+                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                <input type="hidden" name="action" value="appeal_corrected" />
+                <button type="submit" className="action-button action-button--primary">Нужна корректировка</button>
+              </form>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
       <div className="review-main">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
-        <div className="review-panel-column">
-          <ReviewPanel
-            conversationId={conversation.id}
-            messages={conversation.messages}
-            scorecard={scorecard}
-            draftReview={currentDraftReview}
-            reviewSource={reviewSource}
-            returnTo={returnTo}
-            title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
-          />
-        </div>
+        {canEvaluateReview && scorecard ? (
+          <div className="review-panel-column">
+            <ReviewPanel
+              conversationId={conversation.id}
+              messages={conversation.messages}
+              scorecard={scorecard}
+              draftReview={currentDraftReview}
+              reviewSource={reviewSource}
+              returnTo={returnTo}
+              title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
+            />
+          </div>
+        ) : (
+          <aside className="review-panel-column">
+            <section className="panel overflow-hidden">
+              <div className="border-b border-[#d9e0ea] px-5 py-4">
+                <h2 className="text-lg font-semibold">Итог проверки</h2>
+                <p className="mt-1 text-sm text-[#64748b]">Оператор видит только собственное обращение и финальную обратную связь.</p>
+              </div>
+              <div className="grid gap-3 p-5 text-sm">
+                <DetailItem label="Оценка">{scoreLabel}</DetailItem>
+                <DetailItem label="Обратная связь">
+                  {latestFinalizedReview
+                    ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
+                    : "Пока нет финальной проверки"}
+                </DetailItem>
+                <DetailItem label="Апелляция">{appealLabel}</DetailItem>
+              </div>
+            </section>
+          </aside>
+        )}
       </div>
 
       {latestFinalizedReview ? (
@@ -378,23 +405,25 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
                 ) : null}
               </div>
             </div>
-            <form action={createTrainingAssignmentFromReview} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end">
-              <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-              <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Учебная задача
-                <input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Описание
-                <input name="description" required defaultValue={latestFinalizedReview.summary} className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Срок
-                <input name="dueAt" type="date" className="form-control" />
-              </label>
-              <ValidatedSubmitButton className="action-button">Создать</ValidatedSubmitButton>
-            </form>
+            {canCreateTrainingAssignment ? (
+              <form action={createTrainingAssignmentFromReview} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end">
+                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  Учебная задача
+                  <input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  Описание
+                  <input name="description" required defaultValue={latestFinalizedReview.summary} className="form-control" />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  Срок
+                  <input name="dueAt" type="date" className="form-control" />
+                </label>
+                <ValidatedSubmitButton className="action-button">Создать</ValidatedSubmitButton>
+              </form>
+            ) : null}
             {latestFinalizedReview.feedbackEvents.length > 0 ? (
               <div className="grid gap-2 text-sm">
                 {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
@@ -411,7 +440,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
 
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
-      {conversation.reviews.length > 0 ? (
+      {canEvaluateReview && conversation.reviews.length > 0 ? (
         <details className="review-secondary panel disclosure-panel overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>

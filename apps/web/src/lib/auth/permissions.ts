@@ -69,7 +69,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "training:manage"
   ],
   SUPPORT_AGENT: ["reviews:read", "feedback:acknowledge", "self_review:write", "training:manage"],
-  VIEWER: ["reviews:read", "reports:read"]
+  VIEWER: []
 };
 
 export function hasPermission(role: RoleName, permission: Permission) {

@@ -30,13 +30,14 @@ function reviewQueueHref(params: ReviewQueueSearchParams) {
 export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams): Promise<ReviewQueuePageData> {
   const user = await requireCurrentUserPermission("reviews:read");
   const filters = parseReviewQueueFilters(rawParams);
-  const effectiveFilters = user.role === "SUPPORT_AGENT" ? { ...filters, assignee: user.name } : filters;
+  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
+  const effectiveFilters = supportAgentScope ? { ...filters, assignee: user.name } : filters;
   const currentHref = reviewQueueHref(rawParams);
 
   const [conversations, summary, filterOptions, qaAssignees, savedViews] = await Promise.all([
-    getReviewQueue(user.workspaceId, effectiveFilters),
-    getReviewQueueSummary(user.workspaceId),
-    getReviewQueueFilterOptions(user.workspaceId),
+    getReviewQueue(user.workspaceId, effectiveFilters, supportAgentScope),
+    getReviewQueueSummary(user.workspaceId, supportAgentScope),
+    getReviewQueueFilterOptions(user.workspaceId, supportAgentScope),
     prisma.user.findMany({
       where: {
         workspaceId: user.workspaceId,

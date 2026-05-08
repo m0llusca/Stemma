@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const mappingSchema = z.object({
   externalGroupId: z.string().trim().min(1).max(240),
   externalGroupName: z.string().trim().min(1).max(240),
-  role: z.enum(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"]),
+  role: z.enum(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"]),
   priority: z.number().int().min(1).max(1000).optional(),
   isActive: z.boolean().optional()
 });

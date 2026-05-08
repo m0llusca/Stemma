@@ -41,7 +41,7 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
   { value: "ACTIVE_DIRECTORY_LDAPS", label: "Active Directory LDAPS" }
 ];
 
-const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"];
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;

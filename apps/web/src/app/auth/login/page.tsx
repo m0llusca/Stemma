@@ -47,6 +47,17 @@ function providerSelectionHref(input: { provider: string; workspaceId: string; r
   return `/auth/login?${params.toString()}`;
 }
 
+function demoUserOptionLabel(user: {
+  name: string;
+  role: keyof typeof roleLabels;
+  workspace: { name: string };
+}) {
+  const roleLabel = roleLabels[user.role];
+  const identity = user.name === roleLabel ? roleLabel : `${user.name} · ${roleLabel}`;
+
+  return `${identity} · ${user.workspace.name}`;
+}
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const returnTo = safeReturnTo(firstParam(params.returnTo));
@@ -83,6 +94,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     }),
     isDemoAuthEnabled()
       ? prisma.user.findMany({
+          where: {
+            role: {
+              not: "VIEWER"
+            }
+          },
           orderBy: [{ workspaceId: "asc" }, { role: "asc" }, { name: "asc" }],
           select: {
             id: true,
@@ -147,7 +163,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   <select name="userId" className="form-control">
                     {demoUsers.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.name} · {roleLabels[user.role]} · {user.workspace.name}
+                        {demoUserOptionLabel(user)}
                       </option>
                     ))}
                   </select>

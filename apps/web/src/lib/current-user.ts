@@ -64,7 +64,12 @@ export async function requireCurrentUserPermission(permission: Permission) {
 
 export async function getWorkspaceUsers(workspaceId: string) {
   return prisma.user.findMany({
-    where: { workspaceId },
+    where: {
+      workspaceId,
+      role: {
+        not: "VIEWER"
+      }
+    },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
       id: true,

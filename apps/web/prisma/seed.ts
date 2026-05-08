@@ -129,15 +129,6 @@ async function main() {
     }
   });
 
-  const viewer = await prisma.user.create({
-    data: {
-      workspaceId: workspace.id,
-      email: "viewer@example.com",
-      name: "Наблюдатель",
-      role: "VIEWER"
-    }
-  });
-
   await prisma.externalIdentity.createMany({
     data: [
       {
@@ -167,13 +158,6 @@ async function main() {
         providerSubject: "demo-agent",
         email: supportAgent.email,
         displayName: supportAgent.name
-      },
-      {
-        userId: viewer.id,
-        providerId: demoProvider.id,
-        providerSubject: "demo-viewer",
-        email: viewer.email,
-        displayName: viewer.name
       }
     ]
   });
@@ -211,14 +195,6 @@ async function main() {
         externalGroupName: "Support_Agents",
         role: "SUPPORT_AGENT",
         priority: 40
-      },
-      {
-        workspaceId: workspace.id,
-        providerId: entraProvider.id,
-        externalGroupId: "QC_Viewers",
-        externalGroupName: "QC_Viewers",
-        role: "VIEWER",
-        priority: 50
       }
     ]
   });
@@ -862,7 +838,6 @@ async function main() {
         analystId: analyst.id,
         teamLeadId: teamLead.id,
         supportAgentId: supportAgent.id,
-        viewerId: viewer.id,
         scorecardId: scorecard.id,
         conversationId: conversation.id,
         apiTokenId: apiToken.id,

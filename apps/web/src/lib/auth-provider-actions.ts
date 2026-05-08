@@ -8,8 +8,9 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 const providerTypes = ["MICROSOFT_ENTRA_ID", "ACTIVE_DIRECTORY_LDAPS", "OIDC", "SAML"] as const satisfies readonly IdentityProviderType[];
-const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] as const satisfies readonly RoleName[];
+const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] as const satisfies readonly RoleName[];
 type ConfigurableProviderType = (typeof providerTypes)[number];
+type ConfigurableRole = (typeof roles)[number];
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -29,11 +30,11 @@ function providerTypeField(value: string) {
 }
 
 function roleField(value: string) {
-  if (!roles.includes(value as RoleName)) {
+  if (!roles.includes(value as ConfigurableRole)) {
     throw new Error("Некорректная роль для группы.");
   }
 
-  return value as RoleName;
+  return value as ConfigurableRole;
 }
 
 function priorityField(formData: FormData) {

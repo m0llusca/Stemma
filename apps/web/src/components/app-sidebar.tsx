@@ -6,11 +6,11 @@ import { roleLabels } from "@/lib/labels";
 import { switchCurrentUser } from "@/lib/user-actions";
 
 const navItems = [
-  { href: "/reviews", label: "Проверки", icon: "reviews", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] },
+  { href: "/reviews", label: "Проверки", icon: "reviews", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
   { href: "/self-review", label: "Моя обратная связь", icon: "self-review", roles: ["SUPPORT_AGENT"] },
   { href: "/calibration", label: "Калибровка", icon: "calibration", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
   { href: "/coaching", label: "Обучение", icon: "coaching", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
-  { href: "/reports", label: "Аналитика", icon: "reports", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "VIEWER"] },
+  { href: "/reports", label: "Аналитика", icon: "reports", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
   { href: "/admin", label: "Настройки", icon: "admin", roles: ["ADMIN", "TEAM_LEAD"] }
 ] satisfies Array<SidebarNavItem & { roles: string[] }>;
 

@@ -41,7 +41,7 @@ export const roleLabels: Record<RoleName, string> = {
   TEAM_LEAD: "Руководитель контроля качества",
   QA_ANALYST: "Проверяющий",
   SUPPORT_AGENT: "Оператор",
-  VIEWER: "Наблюдатель"
+  VIEWER: "Без доступа"
 };
 
 export const criterionKindLabels: Record<CriterionKind, string> = {

@@ -15,7 +15,15 @@ function stringField(formData: FormData, key: string) {
 async function loadReviewForAction(reviewId: string, workspaceId: string) {
   const review = await prisma.review.findFirst({
     where: { id: reviewId, workspaceId },
-    select: { id: true, conversationId: true }
+    select: {
+      id: true,
+      conversationId: true,
+      conversation: {
+        select: {
+          assigneeName: true
+        }
+      }
+    }
   });
 
   if (!review) {
@@ -23,6 +31,16 @@ async function loadReviewForAction(reviewId: string, workspaceId: string) {
   }
 
   return review;
+}
+
+function assertFeedbackScope(input: {
+  userRole: string;
+  userName: string;
+  conversationAssigneeName: string | null;
+}) {
+  if (input.userRole === "SUPPORT_AGENT" && input.conversationAssigneeName !== input.userName) {
+    throw new Error("Нет прав на работу с обратной связью по чужому обращению.");
+  }
 }
 
 export async function updateReviewFeedback(formData: FormData) {
@@ -36,6 +54,11 @@ export async function updateReviewFeedback(formData: FormData) {
   const action = stringField(formData, "action");
   const comment = stringField(formData, "comment");
   const review = await loadReviewForAction(reviewId, user.workspaceId);
+  assertFeedbackScope({
+    userRole: user.role,
+    userName: user.name,
+    conversationAssigneeName: review.conversation.assigneeName
+  });
   const now = new Date();
 
   const patches: Record<string, Prisma.ReviewUpdateInput> = {
@@ -97,7 +120,7 @@ export async function updateReviewFeedback(formData: FormData) {
 export async function createTrainingAssignmentFromReview(formData: FormData) {
   const user = await getCurrentUser();
 
-  if (!canManageTraining(user.role)) {
+  if (!canManageTraining(user.role) || user.role === "SUPPORT_AGENT") {
     throw new Error("Нет прав на создание учебных задач.");
   }
 

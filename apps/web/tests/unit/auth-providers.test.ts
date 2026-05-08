@@ -32,7 +32,7 @@ describe("auth provider helpers", () => {
   it("prefers app roles over raw group mappings", async () => {
     const role = await resolveRoleFromExternalClaims("workspace-1", "provider-1", {
       appRoles: ["QC.Admin"],
-      groups: ["QC_Viewers"]
+      groups: ["Support_Agents"]
     });
 
     expect(role).toBe("ADMIN");
@@ -42,11 +42,11 @@ describe("auth provider helpers", () => {
   it("falls back to active group mappings when app roles are absent", async () => {
     mocks.prisma.groupRoleMapping.findMany.mockResolvedValueOnce([
       { role: "QA_ANALYST", priority: 30 },
-      { role: "VIEWER", priority: 50 }
+      { role: "SUPPORT_AGENT", priority: 50 }
     ]);
 
     const role = await resolveRoleFromExternalClaims("workspace-1", "provider-1", {
-      groups: ["QC_Analysts", "QC_Viewers"]
+      groups: ["QC_Analysts", "Support_Agents"]
     });
 
     expect(role).toBe("QA_ANALYST");
@@ -54,11 +54,15 @@ describe("auth provider helpers", () => {
       where: {
         workspaceId: "workspace-1",
         isActive: true,
-        externalGroupId: { in: ["QC_Analysts", "QC_Viewers"] },
+        externalGroupId: { in: ["QC_Analysts", "Support_Agents"] },
         providerId: "provider-1"
       },
       orderBy: [{ priority: "asc" }]
     });
+  });
+
+  it("uses support agent as the least-privileged fallback role", async () => {
+    await expect(resolveRoleFromExternalClaims("workspace-1", "provider-1", {})).resolves.toBe("SUPPORT_AGENT");
   });
 
   it("documents the preferred AD/Entra integration pattern", () => {
@@ -68,4 +72,3 @@ describe("auth provider helpers", () => {
     });
   });
 });
-

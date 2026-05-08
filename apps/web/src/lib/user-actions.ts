@@ -24,7 +24,7 @@ export async function switchCurrentUser(formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, workspaceId: true }
+    select: { id: true, workspaceId: true, role: true }
   });
 
   if (!user) {
@@ -49,6 +49,8 @@ export async function switchCurrentUser(formData: FormData) {
   cookieStore.set(sessionCookieName, token, authCookieOptions(60 * 60 * 12));
   cookieStore.set(currentUserCookieName, user.id, demoUserCookieOptions(60 * 60 * 24 * 30));
 
+  const resolvedReturnTo = user.role === "SUPPORT_AGENT" && (returnTo === "/" || returnTo === "/reviews") ? "/self-review" : returnTo;
+
   revalidatePath("/");
-  redirect(returnTo);
+  redirect(resolvedReturnTo);
 }

@@ -6,7 +6,7 @@ export type ExternalRoleClaims = {
   groups?: string[];
 };
 
-const roleOrder: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+const roleOrder: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"];
 
 function roleFromAppRole(value: string): RoleName | null {
   const normalized = value.trim().toUpperCase().replace(/[.\s-]+/g, "_");
@@ -15,8 +15,6 @@ function roleFromAppRole(value: string): RoleName | null {
   if (normalized === "TEAM_LEAD" || normalized === "QC_TEAM_LEAD") return "TEAM_LEAD";
   if (normalized === "QA_ANALYST" || normalized === "QC_ANALYST") return "QA_ANALYST";
   if (normalized === "SUPPORT_AGENT") return "SUPPORT_AGENT";
-  if (normalized === "VIEWER" || normalized === "QC_VIEWER") return "VIEWER";
-
   return null;
 }
 
@@ -28,7 +26,7 @@ export async function resolveRoleFromExternalClaims(workspaceId: string, provide
   }
 
   if (!claims.groups?.length) {
-    return "VIEWER";
+    return "SUPPORT_AGENT";
   }
 
   const mappings = await prisma.groupRoleMapping.findMany({
@@ -44,7 +42,7 @@ export async function resolveRoleFromExternalClaims(workspaceId: string, provide
   });
 
   const mappedRoles = new Set(mappings.map((mapping) => mapping.role));
-  return roleOrder.find((role) => mappedRoles.has(role)) ?? "VIEWER";
+  return roleOrder.find((role) => mappedRoles.has(role)) ?? "SUPPORT_AGENT";
 }
 
 export function buildEntraAuthorizationMetadata(provider: Pick<IdentityProvider, "tenantId" | "clientId" | "authorizationUrl" | "tokenUrl" | "jwksUrl" | "scopes">) {
@@ -68,4 +66,3 @@ export function getDirectoryIntegrationGuidance() {
     fallback: "LDAPS использовать только для закрытых on-prem установок с TLS и сервисной учетной записью"
   };
 }
-

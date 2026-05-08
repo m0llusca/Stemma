@@ -19,9 +19,9 @@ describe("auth permissions", () => {
         {
           id: "user-1",
           workspaceId: "workspace-1",
-          email: "viewer@example.com",
-          name: "Наблюдатель",
-          role: "VIEWER"
+          email: "agent@example.com",
+          name: "Оператор",
+          role: "SUPPORT_AGENT"
         },
         "scorecards:manage"
       )

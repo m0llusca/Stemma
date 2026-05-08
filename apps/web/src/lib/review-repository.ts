@@ -30,6 +30,10 @@ const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const s
 const conversationQaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
 const findingRiskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const satisfies readonly RiskLevel[];
 
+type ReviewQueueScope = {
+  assigneeName?: string;
+};
+
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -90,8 +94,19 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
   };
 }
 
-function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters): Prisma.ConversationWhereInput {
+function scopedConversationWhere(workspaceId: string, scope?: ReviewQueueScope): Prisma.ConversationWhereInput {
+  return {
+    workspaceId,
+    ...(scope?.assigneeName ? { assigneeName: scope.assigneeName } : {})
+  };
+}
+
+function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters, scope?: ReviewQueueScope): Prisma.ConversationWhereInput {
   const and: Prisma.ConversationWhereInput[] = [{ workspaceId }];
+
+  if (scope?.assigneeName) {
+    and.push({ assigneeName: scope.assigneeName });
+  }
 
   if (filters.q) {
     and.push({
@@ -238,9 +253,9 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters)
   return { AND: and };
 }
 
-export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFilters): Promise<ReviewQueueConversationDto[]> {
+export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFilters, scope?: ReviewQueueScope): Promise<ReviewQueueConversationDto[]> {
   const conversations = await prisma.conversation.findMany({
-    where: buildReviewQueueWhere(workspaceId, filters),
+    where: buildReviewQueueWhere(workspaceId, filters, scope),
     select: {
       id: true,
       subject: true,
@@ -295,20 +310,21 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
   }));
 }
 
-export async function getReviewQueueSummary(workspaceId: string): Promise<ReviewQueueSummaryDto> {
+export async function getReviewQueueSummary(workspaceId: string, scope?: ReviewQueueScope): Promise<ReviewQueueSummaryDto> {
+  const baseWhere = scopedConversationWhere(workspaceId, scope);
   const [total, queued, inWork, drafts, reviewed, overdue] = await Promise.all([
     prisma.conversation.count({
-      where: { workspaceId }
+      where: baseWhere
     }),
     prisma.conversation.count({
       where: {
-        workspaceId,
+        ...baseWhere,
         qaStatus: "QUEUED"
       }
     }),
     prisma.conversation.count({
       where: {
-        workspaceId,
+        ...baseWhere,
         qaStatus: {
           in: ["ASSIGNED", "IN_PROGRESS", "REOPENED"]
         }
@@ -316,7 +332,7 @@ export async function getReviewQueueSummary(workspaceId: string): Promise<Review
     }),
     prisma.conversation.count({
       where: {
-        workspaceId,
+        ...baseWhere,
         reviews: {
           some: {
             reviewSource: "HUMAN",
@@ -327,7 +343,7 @@ export async function getReviewQueueSummary(workspaceId: string): Promise<Review
     }),
     prisma.conversation.count({
       where: {
-        workspaceId,
+        ...baseWhere,
         qaStatus: "FINALIZED",
         reviews: {
           some: {
@@ -339,7 +355,7 @@ export async function getReviewQueueSummary(workspaceId: string): Promise<Review
     }),
     prisma.conversation.count({
       where: {
-        workspaceId,
+        ...baseWhere,
         reviewDueAt: {
           lt: new Date()
         },
@@ -360,10 +376,11 @@ export async function getReviewQueueSummary(workspaceId: string): Promise<Review
   };
 }
 
-export async function getReviewQueueFilterOptions(workspaceId: string): Promise<ReviewQueueFilterOptionsDto> {
+export async function getReviewQueueFilterOptions(workspaceId: string, scope?: ReviewQueueScope): Promise<ReviewQueueFilterOptionsDto> {
+  const baseWhere = scopedConversationWhere(workspaceId, scope);
   const [sourceRows, assigneeRows, qaAssigneeRows, supportLineRows] = await Promise.all([
     prisma.conversation.findMany({
-      where: { workspaceId },
+      where: baseWhere,
       distinct: ["externalSource"],
       select: {
         externalSource: true
@@ -373,12 +390,14 @@ export async function getReviewQueueFilterOptions(workspaceId: string): Promise<
       }
     }),
     prisma.conversation.findMany({
-      where: {
-        workspaceId,
-        assigneeName: {
-          not: null
-        }
-      },
+      where: scope?.assigneeName
+        ? baseWhere
+        : {
+            ...baseWhere,
+            assigneeName: {
+              not: null
+            }
+          },
       distinct: ["assigneeName"],
       select: {
         assigneeName: true
@@ -389,7 +408,7 @@ export async function getReviewQueueFilterOptions(workspaceId: string): Promise<
     }),
     prisma.conversation.findMany({
       where: {
-        workspaceId,
+        ...baseWhere,
         qaAssigneeName: {
           not: null
         }
@@ -404,7 +423,7 @@ export async function getReviewQueueFilterOptions(workspaceId: string): Promise<
     }),
     prisma.conversation.findMany({
       where: {
-        workspaceId,
+        ...baseWhere,
         supportLine: {
           not: null
         }
@@ -433,11 +452,11 @@ export async function getReviewQueueFilterOptions(workspaceId: string): Promise<
   };
 }
 
-export async function getConversationForReview(workspaceId: string, conversationId: string) {
+export async function getConversationForReview(workspaceId: string, conversationId: string, scope?: ReviewQueueScope) {
   return prisma.conversation.findFirst({
     where: {
       id: conversationId,
-      workspaceId
+      ...scopedConversationWhere(workspaceId, scope)
     },
     include: {
       messages: {
