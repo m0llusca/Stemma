@@ -641,7 +641,6 @@ async function runSelectedImport(preview: PreviewResult, steps: SmokeStep[]) {
 
       return {
         status: "imported",
-        workspaceId,
         importedCount: imported.length,
         externalIds: imported.map((conversation) => conversation.externalId)
       };
@@ -807,7 +806,8 @@ function redactSummary(value: unknown, runtime: SmokeRuntime) {
     runtime.userLogin,
     runtime.password,
     runtime.caBundle,
-    runtime.caBundleMetadata?.sha256
+    runtime.caBundleMetadata?.sha256,
+    process.env.OTRS_LIVE_WORKSPACE_ID
   ]);
 
   return redactUrls(redacted);
@@ -819,7 +819,7 @@ function serializeError(error: unknown) {
       name: error.name,
       code: error.code,
       message: error.safeMessage,
-      detail: error.redactedDetail,
+      detail: sanitizeConnectorErrorDetail(error.redactedDetail),
       remediationHint: error.remediationHint
     };
   }
@@ -834,6 +834,86 @@ function serializeError(error: unknown) {
   return {
     message: String(error)
   };
+}
+
+function sanitizeConnectorErrorDetail(value: unknown) {
+  const detail: Record<string, unknown> = {};
+
+  collectSafeErrorDetail(value, detail);
+
+  return Object.keys(detail).length > 0 ? detail : undefined;
+}
+
+function collectSafeErrorDetail(value: unknown, output: Record<string, unknown>) {
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectSafeErrorDetail(item, output);
+    }
+    return;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const normalizedKey = key.toLowerCase();
+
+    if (isUnsafeConnectorErrorDetailKey(normalizedKey)) {
+      continue;
+    }
+
+    if (normalizedKey === "url" || normalizedKey === "endpoint") {
+      if (typeof nestedValue === "string") {
+        output[key] = redactOtrsUrl(nestedValue);
+      }
+      continue;
+    }
+
+    if (isSafeConnectorErrorDetailKey(normalizedKey) && isSafePrimitive(nestedValue)) {
+      output[key] = nestedValue;
+      continue;
+    }
+
+    collectSafeErrorDetail(nestedValue, output);
+  }
+}
+
+function isUnsafeConnectorErrorDetailKey(key: string) {
+  return [
+    "authorization",
+    "body",
+    "cabundle",
+    "headers",
+    "password",
+    "payload",
+    "requestbody",
+    "responsebody",
+    "sessionid",
+    "token",
+    "userlogin"
+  ].includes(key);
+}
+
+function isSafeConnectorErrorDetailKey(key: string) {
+  return [
+    "operation",
+    "method",
+    "status",
+    "statuscode",
+    "code",
+    "responsebytes",
+    "maxresponsebytes",
+    "bytes",
+    "maxbytes",
+    "limit",
+    "timeoutms",
+    "requesttimeoutms"
+  ].includes(key);
+}
+
+function isSafePrimitive(value: unknown): value is string | number | boolean | null {
+  return value === null || ["string", "number", "boolean"].includes(typeof value);
 }
 
 function replaceKnownSecrets(value: unknown, secrets: Array<string | undefined>): unknown {
