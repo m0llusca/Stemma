@@ -1408,8 +1408,9 @@ pre code {
 }
 
 .command-center--metrics {
-  --metric-card-width: clamp(168px, 10.75vw, 220px);
-  grid-template-columns: minmax(0, 1fr) max-content;
+  --metric-card-width: clamp(148px, 9vw, 210px);
+  --metric-column-max: calc((var(--metric-card-width) * 4) + 24px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(45%, var(--metric-column-max)));
 }
 
 .command-center--split > .admin-actions {
@@ -3742,14 +3743,15 @@ a.quiet-link:hover {
 }
 
 .command-center--metrics .learning-metrics {
-  justify-self: end;
-  width: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--metric-card-width)), 1fr));
+  justify-self: stretch;
+  width: 100%;
   max-width: 100%;
-  flex-wrap: nowrap;
 }
 
 .command-center--metrics .learning-metric {
-  flex: 0 0 var(--metric-card-width);
+  min-width: 0;
 }
 
 @media (max-width: 1200px) {
@@ -3760,11 +3762,11 @@ a.quiet-link:hover {
   .command-center--metrics .learning-metrics {
     justify-self: stretch;
     width: 100%;
-    flex-wrap: wrap;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--metric-card-width)), 1fr));
   }
 
   .command-center--metrics .learning-metric {
-    flex: 1 1 min(100%, var(--metric-card-width));
+    min-width: 0;
   }
 }
 
