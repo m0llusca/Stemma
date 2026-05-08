@@ -1,5 +1,6 @@
 import http from "node:http";
 import {
+  createOtrsFixtureTicket,
   createOtrsFixtureTickets,
   createOtrsTicketGetFixtureResponse,
   otrsFixturePassword,
@@ -56,6 +57,7 @@ export async function createOtrsGenericInterfaceServer(
   options: OtrsGenericInterfaceServerOptions = {}
 ): Promise<OtrsGenericInterfaceServer> {
   const requests: OtrsGenericInterfaceRequest[] = [];
+  const timers = new Set<ReturnType<typeof setTimeout>>();
   const server = http.createServer(async (request, response) => {
     const requestRecord = await readRequest(request);
     requests.push(requestRecord);
@@ -68,7 +70,20 @@ export async function createOtrsGenericInterfaceServer(
     const mode = modeForOperation(requestRecord.operation, options);
 
     if (mode === "delayed_timeout") {
-      setTimeout(() => writeSuccessResponse(response, requestRecord, options), options.delayMs ?? 250);
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+
+        if (response.writableEnded || response.destroyed) {
+          return;
+        }
+
+        writeSuccessResponse(response, requestRecord, options);
+      }, options.delayMs ?? 250);
+
+      if (typeof timer === "object" && timer && "unref" in timer && typeof timer.unref === "function") {
+        timer.unref();
+      }
+      timers.add(timer);
       return;
     }
 
@@ -140,7 +155,7 @@ export async function createOtrsGenericInterfaceServer(
     baseUrl: `${origin}${basePath}`,
     basePath,
     requests,
-    close: () => closeServer(server)
+    close: () => closeServer(server, timers)
   };
 }
 
@@ -200,13 +215,47 @@ function writeSuccessResponse(
   }
 
   const includeAttachmentContent = modeForOperation("TicketGet", options) === "ticket_get_attachments_base64";
-  const tickets = createOtrsFixtureTickets({ includeAttachmentContent });
-  const ticket = tickets[request.ticketId ?? ""] ?? tickets[otrsFixtureTicketIds[0]];
+  const ticket = ticketForId(request.ticketId, options, includeAttachmentContent);
+
+  if (!ticket) {
+    writeJson(response, 200, {
+      Success: 1,
+      Ticket: []
+    });
+    return;
+  }
 
   writeJson(response, 200, createOtrsTicketGetFixtureResponse(ticket));
 }
 
+function ticketForId(
+  ticketId: string | undefined,
+  options: OtrsGenericInterfaceServerOptions,
+  includeAttachmentContent: boolean
+) {
+  if (!ticketId) {
+    return undefined;
+  }
+
+  const customTicketIds = options.ticketIds?.map(String);
+
+  if (customTicketIds) {
+    return customTicketIds.includes(ticketId)
+      ? createOtrsFixtureTicket(ticketId, {
+          includeAttachmentContent
+        })
+      : undefined;
+  }
+
+  const tickets = createOtrsFixtureTickets({ includeAttachmentContent });
+  return tickets[ticketId];
+}
+
 function writeJson(response: http.ServerResponse, statusCode: number, payload: unknown) {
+  if (response.writableEnded || response.destroyed) {
+    return;
+  }
+
   response.writeHead(statusCode, { "content-type": "application/json" });
   response.end(JSON.stringify(payload));
 }
@@ -256,7 +305,13 @@ function authValue(request: OtrsGenericInterfaceRequest, key: "UserLogin" | "Pas
   return request.query[key];
 }
 
-function closeServer(server: http.Server) {
+function closeServer(server: http.Server, timers?: Set<ReturnType<typeof setTimeout>>) {
+  for (const timer of timers ?? []) {
+    clearTimeout(timer);
+  }
+
+  timers?.clear();
+
   return new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });

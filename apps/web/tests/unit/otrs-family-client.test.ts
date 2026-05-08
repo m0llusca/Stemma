@@ -669,6 +669,72 @@ describe("OTRS-family HTTP client", () => {
     });
   });
 
+  it("backs custom TicketSearch IDs with matching TicketGet fixture tickets", async () => {
+    await withOtrsGenericInterfaceServer({ ticketIds: ["909"] }, async (server) => {
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      const searchResponse = await client.requestJson(
+        buildTicketSearchRequest({
+          config,
+          baseUrl: server.baseUrl,
+          userLogin,
+          password
+        })
+      );
+      const getResponse = await client.requestJson(
+        buildTicketGetRequest({
+          config,
+          baseUrl: server.baseUrl,
+          userLogin,
+          password,
+          ticketId: "909"
+        })
+      );
+
+      expect(parseTicketSearchResponse(searchResponse)).toEqual(["909"]);
+      expect(getResponse).toMatchObject({
+        Success: 1,
+        Ticket: {
+          TicketID: "909",
+          Title: "Fixture ticket 909"
+        }
+      });
+    });
+  });
+
+  it("returns an empty TicketGet payload for unknown fixture ticket IDs", async () => {
+    await withOtrsGenericInterfaceServer({ ticketIds: ["909"] }, async (server) => {
+      const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+      const client = createOtrsHttpClient({
+        config,
+        baseUrl: server.baseUrl,
+        userLogin,
+        password
+      });
+
+      await expect(
+        client.requestJson(
+          buildTicketGetRequest({
+            config,
+            baseUrl: server.baseUrl,
+            userLogin,
+            password,
+            ticketId: "101"
+          })
+        )
+      ).resolves.toEqual({
+        Success: 1,
+        Ticket: []
+      });
+    });
+  });
+
   it("maps OTRS GenericInterface stub failure modes through the real Node transport", async () => {
     const cases: Array<{
       mode: OtrsGenericInterfaceServerMode;
@@ -777,7 +843,7 @@ describe("OTRS-family HTTP client", () => {
     });
   });
 
-  it("maps oversized streaming responses from the real Node transport", async () => {
+  it("maps oversized fixture responses from the real Node transport", async () => {
     await withOtrsGenericInterfaceServer({ mode: "oversized_response", oversizedBytes: 128 }, async (server) => {
       const config = parseOtrsConnectorConfig({
         product: "otrs_ce_6",
