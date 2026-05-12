@@ -57,6 +57,23 @@ OTRS_LIVE_IMPORT=0 \
 npm run test:otrs:live
 ```
 
+SessionCreate-based smoke for a WebService where `TicketSearch` requires `SessionID`:
+
+```bash
+cd apps/web
+OTRS_LIVE_SMOKE=1 \
+OTRS_BASE_URL=https://otrs.fsa.gov.ru/otrs \
+OTRS_WEBSERVICE_NAME=api \
+OTRS_USER_LOGIN=agent_login \
+OTRS_PASSWORD=change-me-in-protected-secret-store \
+OTRS_TICKET_SEARCH_AUTH=session \
+OTRS_TICKET_SEARCH_METHOD=POST \
+OTRS_TICKET_SEARCH_PATH=/TicketSearch \
+OTRS_SESSION_CREATE_PATH=/Session \
+OTRS_LIVE_IMPORT=0 \
+npm run test:otrs:live
+```
+
 ## Selected Import Smoke
 
 Selected import is opt-in and persists the normalized preview into the configured workspace. It requires `OTRS_LIVE_IMPORT=1`, `DATABASE_URL`, and `OTRS_LIVE_WORKSPACE_ID`.

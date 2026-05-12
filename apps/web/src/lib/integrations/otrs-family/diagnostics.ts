@@ -2,6 +2,7 @@ import { buildOtrsWebServiceBaseUrl, parseOtrsConnectorConfig, type OtrsConnecto
 import { redactOtrsPayload, redactOtrsUrl, type OtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import { OtrsConnectorError, type OtrsConnectorErrorCode } from "@/lib/integrations/otrs-family/errors";
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
+import { sessionIdForOperation } from "@/lib/integrations/otrs-family/session-auth";
 import {
   normalizeOtrsFamilyTicketGetResponse,
   type OtrsFamilySource,
@@ -674,12 +675,22 @@ async function executeTicketSearch(
   password: string
 ): Promise<Extract<FirstRequestState, { operation: "ticket_search" }>> {
   try {
-    const result = await requireClient(input.client).requestJson(
+    const client = requireClient(input.client);
+    const sessionId = await sessionIdForOperation({
+      client,
+      config,
+      baseUrl,
+      userLogin: userLogin ?? "",
+      password,
+      operation: "ticketSearch"
+    });
+    const result = await client.requestJson(
       buildTicketSearchRequest({
         config,
         baseUrl,
         userLogin: userLogin ?? "",
         password,
+        sessionId,
         limit: 1
       })
     );
@@ -705,12 +716,22 @@ async function executeTicketGet(
   ticketId: string
 ): Promise<Extract<FirstRequestState, { operation: "ticket_get" }>> {
   try {
-    const result = await requireClient(input.client).requestJson(
+    const client = requireClient(input.client);
+    const sessionId = await sessionIdForOperation({
+      client,
+      config,
+      baseUrl,
+      userLogin: userLogin ?? "",
+      password,
+      operation: "ticketGet"
+    });
+    const result = await client.requestJson(
       buildTicketGetRequest({
         config,
         baseUrl,
         userLogin: userLogin ?? "",
         password,
+        sessionId,
         ticketId,
         includeAttachments: false
       })

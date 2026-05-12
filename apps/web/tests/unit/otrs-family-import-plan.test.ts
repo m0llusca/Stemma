@@ -517,6 +517,68 @@ describe("OTRS-family preview/import planning", () => {
     });
   });
 
+  it("TicketSearch preview can authenticate through SessionCreate", async () => {
+    const { db, state } = createFakeDb();
+    const config: OtrsConnectorConfig = {
+      ...configWithLimits({ searchLimit: 2 }),
+      auth: {
+        ticketSearch: "session",
+        ticketGet: "credentials",
+        sessionCreatePath: "/Session",
+        sessionCreateMethod: "POST"
+      },
+      advanced: {
+        routeOverridesEnabled: true
+      },
+      routes: {
+        ...baseConfig.routes,
+        ticketSearchPath: "/TicketSearch"
+      }
+    };
+    const client = {
+      requestJson: vi.fn(async (request: OtrsOperationRequest) => {
+        if (request.operation === "SessionCreate") {
+          return { SessionID: "session-1" };
+        }
+
+        if (request.operation === "TicketSearch") {
+          return { TicketID: ["201", "202"] };
+        }
+
+        return ticket(request.url.includes("/202") ? "202" : "201");
+      })
+    };
+
+    await createOtrsPreviewRun({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config
+      },
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "ticket_search",
+      filters: {
+        Queue: "Raw"
+      }
+    });
+
+    expect(client.requestJson.mock.calls.map(([request]) => request.operation)).toEqual([
+      "SessionCreate",
+      "TicketSearch",
+      "TicketGet",
+      "TicketGet"
+    ]);
+    expect(client.requestJson.mock.calls[1][0].body).toMatchObject({
+      SessionID: "session-1"
+    });
+    expect(state.items.map((item) => item.externalId)).toEqual(["201", "202"]);
+  });
+
   it("deduplicates TicketSearch results before fetching and creating run items", async () => {
     const { db, state } = createFakeDb();
     const client = {

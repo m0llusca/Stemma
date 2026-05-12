@@ -57,9 +57,11 @@ function routeConfigJson(
     ticketSearchMethod: "GET" | "POST";
     ticketGetMethod: "GET" | "POST";
   },
-  routeOverridesEnabled: boolean
+  routeOverridesEnabled: boolean,
+  auth: OtrsConnectorConfig["auth"]
 ) {
   return JSON.stringify({
+    auth,
     articlePolicy: config.articlePolicy,
     attachmentPolicy: config.attachmentPolicy,
     advanced: {
@@ -77,6 +79,9 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
   const [ticketGetMethod, setTicketGetMethod] = useState<"GET" | "POST">(config.routes.ticketGetMethod);
   const [ticketSearchPath, setTicketSearchPath] = useState(config.routes.ticketSearchPath);
   const [ticketGetPath, setTicketGetPath] = useState(config.routes.ticketGetPath);
+  const [ticketSearchAuth, setTicketSearchAuth] = useState<"credentials" | "session">(config.auth.ticketSearch);
+  const [ticketGetAuth, setTicketGetAuth] = useState<"credentials" | "session">(config.auth.ticketGet);
+  const [sessionCreatePath, setSessionCreatePath] = useState(config.auth.sessionCreatePath);
   const products = Object.values(otrsFamilyProfiles);
   const credentialByKind = useMemo(() => new Map(credentials.map((credential) => [credential.kind, credential])), [credentials]);
   const passwordSlot = credentialByKind.get("auth_password");
@@ -87,6 +92,13 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
     ticketGetPath,
     ticketSearchMethod,
     ticketGetMethod
+  };
+  const auth = {
+    ...config.auth,
+    ticketSearch: ticketSearchAuth,
+    ticketGet: ticketGetAuth,
+    sessionCreatePath,
+    sessionCreateMethod: "POST" as const
   };
 
   return (
@@ -100,7 +112,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
 
       <form action={formAction} className="grid gap-5 p-4">
         <input type="hidden" name="source" value={integration.source} />
-        <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled)} />
+        <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth)} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
@@ -163,6 +175,40 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
           <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
             Период, дней
             <input name="dateRangeDays" type="number" min="1" max="365" defaultValue={integration.dateRangeDays} className={fieldClass} />
+          </label>
+        </div>
+
+        <div className="soft-callout grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]">
+          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+            SessionCreate path
+            <input
+              value={sessionCreatePath}
+              onChange={(event) => setSessionCreatePath(event.target.value)}
+              placeholder="/Session"
+              className={`${fieldClass} font-mono text-xs`}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+            TicketSearch auth
+            <select
+              value={ticketSearchAuth}
+              onChange={(event) => setTicketSearchAuth(event.target.value as "credentials" | "session")}
+              className={fieldClass}
+            >
+              <option value="credentials">UserLogin + Password</option>
+              <option value="session">SessionCreate + SessionID</option>
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+            TicketGet auth
+            <select
+              value={ticketGetAuth}
+              onChange={(event) => setTicketGetAuth(event.target.value as "credentials" | "session")}
+              className={fieldClass}
+            >
+              <option value="credentials">UserLogin + Password</option>
+              <option value="session">SessionCreate + SessionID</option>
+            </select>
           </label>
         </div>
 

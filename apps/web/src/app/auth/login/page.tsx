@@ -6,7 +6,7 @@ import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
-import { switchCurrentUser } from "@/lib/user-actions";
+import { signInWithLocalCredentials, switchCurrentUser } from "@/lib/user-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -155,30 +155,42 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 </div>
               </div>
             </div>
+            <form action={signInWithLocalCredentials} className="grid gap-3 p-5">
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Логин
+                <input name="login" autoComplete="username" required className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                Пароль
+                <input name="password" type="password" autoComplete="current-password" required className="form-control" />
+              </label>
+              <button type="submit" className="action-button action-button--primary">
+                Войти
+              </button>
+            </form>
+
             {demoUsers.length > 0 ? (
-              <form action={switchCurrentUser} className="grid gap-3 p-5">
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                  Пользователь
-                  <select name="userId" className="form-control">
-                    {demoUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {demoUserOptionLabel(user)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit" className="action-button action-button--primary">
-                  Войти
-                </button>
-              </form>
-            ) : (
-              <div className="grid gap-3 p-5">
-                <div className="rounded-lg border border-dashed border-[#d9e0ea] p-5 text-sm text-[#64748b]">
-                  Локальный вход для этой среды не настроен.
-                </div>
-              </div>
-            )}
+              <details className="border-t border-[#d9e0ea]">
+                <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-[#334155]">Демо-вход</summary>
+                <form action={switchCurrentUser} className="grid gap-3 border-t border-[#d9e0ea] p-5">
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                    Пользователь
+                    <select name="userId" className="form-control">
+                      {demoUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {demoUserOptionLabel(user)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit" className="action-button">
+                    Войти в демо-режиме
+                  </button>
+                </form>
+              </details>
+            ) : null}
           </section>
 
           <section className="panel overflow-hidden">

@@ -4,6 +4,7 @@ import { customConversationSchema, type CustomConversationInput } from "@/lib/va
 import type { OtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import type { OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
+import { createOtrsSession, operationUsesSessionAuth } from "@/lib/integrations/otrs-family/session-auth";
 import { normalizeOtrsFamilyTicketForImport } from "@/lib/integrations/otrs-family/normalization";
 import {
   buildIntegrationSyncState,
@@ -192,11 +193,12 @@ export async function createOtrsPreviewRun(input: CreateOtrsPreviewRunInput) {
 
 export async function createOtrsPreviewItems(input: CreateOtrsPreviewItemsInput) {
   const db = input.db ?? prisma;
-  const ticketIds = await previewTicketIds(input);
+  const sessionId = await previewSessionId(input);
+  const ticketIds = await previewTicketIds(input, sessionId);
   const items: JsonRecord[] = [];
 
   for (const ticketId of ticketIds) {
-    items.push(await createPreviewItemForTicketId({ ...input, db, ticketId }));
+    items.push(await createPreviewItemForTicketId({ ...input, db, ticketId, sessionId }));
   }
 
   return items;
@@ -405,7 +407,25 @@ async function updateEnabledIntegration(
   }
 }
 
-async function previewTicketIds(input: CreateOtrsPreviewItemsInput) {
+async function previewSessionId(input: CreateOtrsPreviewItemsInput) {
+  const config = input.integration.config;
+  const needsTicketSearchSession = input.mode === "ticket_search" && operationUsesSessionAuth(config, "ticketSearch");
+  const needsTicketGetSession = operationUsesSessionAuth(config, "ticketGet");
+
+  if (!needsTicketSearchSession && !needsTicketGetSession) {
+    return undefined;
+  }
+
+  return createOtrsSession({
+    client: input.client,
+    config,
+    baseUrl: input.integration.baseUrl ?? undefined,
+    userLogin: input.userLogin,
+    password: input.password
+  });
+}
+
+async function previewTicketIds(input: CreateOtrsPreviewItemsInput, sessionId?: string) {
   if (input.mode === "manual_ticket_ids") {
     return uniqueTicketIds(input.manualTicketIds).slice(0, input.integration.config.limits.manualTicketIdLimit);
   }
@@ -416,6 +436,7 @@ async function previewTicketIds(input: CreateOtrsPreviewItemsInput) {
       baseUrl: input.integration.baseUrl ?? undefined,
       userLogin: input.userLogin,
       password: input.password,
+      sessionId,
       filters: input.filters,
       limit: input.integration.config.limits.searchLimit
     })
@@ -451,7 +472,7 @@ function previewRunProgress(items: JsonRecord[]) {
   };
 }
 
-async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput & { db: PreviewDb; ticketId: string }) {
+async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput & { db: PreviewDb; ticketId: string; sessionId?: string }) {
   try {
     const ticketPayload = await input.client.requestJson(
       buildTicketGetRequest({
@@ -459,6 +480,7 @@ async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput &
         baseUrl: input.integration.baseUrl ?? undefined,
         userLogin: input.userLogin,
         password: input.password,
+        sessionId: operationUsesSessionAuth(input.integration.config, "ticketGet") ? input.sessionId : undefined,
         ticketId: input.ticketId,
         allArticles: true,
         includeAttachments: true

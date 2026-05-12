@@ -13,7 +13,13 @@ import {
   type OtrsTransportRequest
 } from "@/lib/integrations/otrs-family/client";
 import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
-import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
+import {
+  buildSessionCreateRequest,
+  buildTicketGetRequest,
+  buildTicketSearchRequest,
+  parseSessionCreateResponse,
+  parseTicketSearchResponse
+} from "@/lib/integrations/otrs-family/requests";
 import { describe, expect, it } from "vitest";
 
 const baseUrl = "https://support.example.com/otrs";
@@ -138,6 +144,71 @@ describe("OTRS-family HTTP client", () => {
       Queue: "Support::Refunds",
       StateType: "Open",
       Limit: 25
+    });
+  });
+
+  it("builds SessionCreate and then session-authenticated TicketSearch requests", async () => {
+    const requests: OtrsTransportRequest[] = [];
+    const config = parseOtrsConnectorConfig({
+      product: "otrs_ce_6",
+      auth: {
+        ticketSearch: "session"
+      },
+      advanced: {
+        routeOverridesEnabled: true
+      },
+      routes: {
+        ticketSearchPath: "/TicketSearch"
+      }
+    });
+    const client = createOtrsHttpClient({
+      config,
+      baseUrl,
+      userLogin,
+      password,
+      transport: async (request) => {
+        requests.push(request);
+        return {
+          statusCode: 200,
+          body: request.operation === "SessionCreate" ? JSON.stringify({ SessionID: "sid-1" }) : JSON.stringify({ TicketID: ["42"] })
+        };
+      }
+    });
+
+    const sessionResponse = await client.requestJson(
+      buildSessionCreateRequest({
+        config,
+        baseUrl,
+        userLogin,
+        password
+      })
+    );
+    const sessionId = parseSessionCreateResponse(sessionResponse);
+
+    await client.requestJson(
+      buildTicketSearchRequest({
+        config,
+        baseUrl,
+        userLogin,
+        password,
+        sessionId,
+        filters: {
+          Queue: "Raw"
+        }
+      })
+    );
+
+    expect(requests.map((request) => request.operation)).toEqual(["SessionCreate", "TicketSearch"]);
+    expect(requests[0].url).toBe(`${baseUrl}/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Session`);
+    expect(JSON.parse(requests[0].body ?? "")).toEqual({
+      UserLogin: userLogin,
+      Password: password
+    });
+    expect(requests[1].url).toBe(`${baseUrl}/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketSearch`);
+    expect(JSON.parse(requests[1].body ?? "")).toEqual({
+      SessionID: "sid-1",
+      Queue: "Raw",
+      Limit: 50
     });
   });
 

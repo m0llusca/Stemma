@@ -27,6 +27,12 @@ describe("OTRS-family connector config", () => {
         ticketSearch: "post_json",
         ticketGet: "get_query"
       },
+      auth: {
+        ticketSearch: "credentials",
+        ticketGet: "credentials",
+        sessionCreatePath: "/Session",
+        sessionCreateMethod: "POST"
+      },
       articlePolicy: {
         importAllArticles: true,
         preservePrivateFlag: true
@@ -86,6 +92,24 @@ describe("OTRS-family connector config", () => {
       ticketGetPath: "/CustomGet/{TicketID}",
       ticketSearchMethod: "GET",
       ticketGetMethod: "POST"
+    });
+  });
+
+  it("supports SessionCreate based auth per operation without storing a SessionID", () => {
+    expect(
+      parseOtrsConnectorConfig({
+        product: "otrs_ce_6",
+        auth: {
+          ticketSearch: "session",
+          ticketGet: "credentials",
+          sessionCreatePath: "/Session"
+        }
+      }).auth
+    ).toEqual({
+      ticketSearch: "session",
+      ticketGet: "credentials",
+      sessionCreatePath: "/Session",
+      sessionCreateMethod: "POST"
     });
   });
 

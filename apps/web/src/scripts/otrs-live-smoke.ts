@@ -10,6 +10,7 @@ import {
 import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import { normalizeOtrsFamilyTicketGetResponseForImport } from "@/lib/integrations/otrs-family/normalization";
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
+import { sessionIdForOperation } from "@/lib/integrations/otrs-family/session-auth";
 
 type SmokeStepStatus = "succeeded" | "warning" | "failed" | "skipped";
 
@@ -149,9 +150,32 @@ async function buildRuntime(): Promise<SmokeRuntime> {
   const userLogin = requiredEnv("OTRS_USER_LOGIN");
   const password = requiredEnv("OTRS_PASSWORD");
   const defaultConfig = buildDefaultOtrsConnectorConfig();
+  const routeOverridesEnabled = Boolean(
+    process.env.OTRS_TICKET_SEARCH_PATH?.trim() ||
+      process.env.OTRS_TICKET_GET_PATH?.trim() ||
+      process.env.OTRS_TICKET_SEARCH_METHOD?.trim() ||
+      process.env.OTRS_TICKET_GET_METHOD?.trim()
+  );
   const config = parseOtrsConnectorConfig({
     ...defaultConfig,
-    webServiceName: process.env.OTRS_WEBSERVICE_NAME?.trim() || defaultConfig.webServiceName
+    webServiceName: process.env.OTRS_WEBSERVICE_NAME?.trim() || defaultConfig.webServiceName,
+    advanced: {
+      ...defaultConfig.advanced,
+      routeOverridesEnabled: defaultConfig.advanced.routeOverridesEnabled || routeOverridesEnabled
+    },
+    routes: {
+      ...defaultConfig.routes,
+      ...(process.env.OTRS_TICKET_SEARCH_PATH?.trim() ? { ticketSearchPath: process.env.OTRS_TICKET_SEARCH_PATH.trim() } : {}),
+      ...(process.env.OTRS_TICKET_GET_PATH?.trim() ? { ticketGetPath: process.env.OTRS_TICKET_GET_PATH.trim() } : {}),
+      ...(parseMethodEnv("OTRS_TICKET_SEARCH_METHOD") ? { ticketSearchMethod: parseMethodEnv("OTRS_TICKET_SEARCH_METHOD") } : {}),
+      ...(parseMethodEnv("OTRS_TICKET_GET_METHOD") ? { ticketGetMethod: parseMethodEnv("OTRS_TICKET_GET_METHOD") } : {})
+    },
+    auth: {
+      ...defaultConfig.auth,
+      ticketSearch: parseAuthEnv("OTRS_TICKET_SEARCH_AUTH", defaultConfig.auth.ticketSearch),
+      ticketGet: parseAuthEnv("OTRS_TICKET_GET_AUTH", defaultConfig.auth.ticketGet),
+      sessionCreatePath: process.env.OTRS_SESSION_CREATE_PATH?.trim() || defaultConfig.auth.sessionCreatePath
+    }
   });
   const caBundlePath = process.env.OTRS_CA_BUNDLE_PATH?.trim();
   const caBundle = caBundlePath ? await readFile(caBundlePath, "utf8") : undefined;
@@ -482,12 +506,21 @@ async function executeTicketSearchRequest(
   client: ReturnType<typeof createOtrsHttpClient>
 ): Promise<Extract<DiagnosticRequestState, { operation: "ticket_search" }>> {
   try {
+    const sessionId = await sessionIdForOperation({
+      client,
+      config: runtime.config,
+      baseUrl: runtime.baseUrl,
+      userLogin: runtime.userLogin,
+      password: runtime.password,
+      operation: "ticketSearch"
+    });
     const result = await client.requestJson(
       buildTicketSearchRequest({
         config: runtime.config,
         baseUrl: runtime.baseUrl,
         userLogin: runtime.userLogin,
         password: runtime.password,
+        sessionId,
         filters: ticketSearchFilters(),
         limit: 1
       })
@@ -511,12 +544,21 @@ async function executeTicketGetRequest(
   ticketId: string
 ): Promise<Extract<DiagnosticRequestState, { operation: "ticket_get" }>> {
   try {
+    const sessionId = await sessionIdForOperation({
+      client,
+      config: runtime.config,
+      baseUrl: runtime.baseUrl,
+      userLogin: runtime.userLogin,
+      password: runtime.password,
+      operation: "ticketGet"
+    });
     const result = await client.requestJson(
       buildTicketGetRequest({
         config: runtime.config,
         baseUrl: runtime.baseUrl,
         userLogin: runtime.userLogin,
         password: runtime.password,
+        sessionId,
         ticketId,
         allArticles: true,
         includeAttachments: true
@@ -548,6 +590,14 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
   const manualTicketId = process.env.OTRS_TEST_TICKET_ID?.trim();
 
   if (manualTicketId) {
+    const sessionId = await sessionIdForOperation({
+      client,
+      config: runtime.config,
+      baseUrl: runtime.baseUrl,
+      userLogin: runtime.userLogin,
+      password: runtime.password,
+      operation: "ticketGet"
+    });
     const payload = await recordStep(steps, "ticket_get", () =>
       client.requestJson(
         buildTicketGetRequest({
@@ -555,6 +605,7 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
           baseUrl: runtime.baseUrl,
           userLogin: runtime.userLogin,
           password: runtime.password,
+          sessionId,
           ticketId: manualTicketId,
           allArticles: true,
           includeAttachments: true
@@ -568,6 +619,14 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
   }
 
   const filters = ticketSearchFilters();
+  const searchSessionId = await sessionIdForOperation({
+    client,
+    config: runtime.config,
+    baseUrl: runtime.baseUrl,
+    userLogin: runtime.userLogin,
+    password: runtime.password,
+    operation: "ticketSearch"
+  });
   const searchPayload = await recordStep(steps, "ticket_search", () =>
     client.requestJson(
       buildTicketSearchRequest({
@@ -575,6 +634,7 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
         baseUrl: runtime.baseUrl,
         userLogin: runtime.userLogin,
         password: runtime.password,
+        sessionId: searchSessionId,
         filters,
         limit: 1
       })
@@ -587,6 +647,15 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
   }
 
   const ticketId = ticketIds[0];
+  const getSessionId = await sessionIdForOperation({
+    client,
+    config: runtime.config,
+    baseUrl: runtime.baseUrl,
+    userLogin: runtime.userLogin,
+    password: runtime.password,
+    operation: "ticketGet",
+    existingSessionId: searchSessionId
+  });
   const getPayload = await recordStep(steps, "ticket_get", () =>
     client.requestJson(
       buildTicketGetRequest({
@@ -594,6 +663,7 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
         baseUrl: runtime.baseUrl,
         userLogin: runtime.userLogin,
         password: runtime.password,
+        sessionId: getSessionId,
         ticketId,
         allArticles: true,
         includeAttachments: true
@@ -795,6 +865,34 @@ function requiredEnv(name: string) {
   }
 
   return value;
+}
+
+function parseAuthEnv(name: string, fallback: "credentials" | "session") {
+  const value = process.env[name]?.trim().toLowerCase();
+
+  if (!value) {
+    return fallback;
+  }
+
+  if (value === "credentials" || value === "session") {
+    return value;
+  }
+
+  throw new Error(`${name} must be credentials or session.`);
+}
+
+function parseMethodEnv(name: string) {
+  const value = process.env[name]?.trim().toUpperCase();
+
+  if (!value) {
+    return undefined;
+  }
+
+  if (value === "GET" || value === "POST") {
+    return value;
+  }
+
+  throw new Error(`${name} must be GET or POST.`);
 }
 
 function normalizePem(value: string) {

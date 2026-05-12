@@ -122,6 +122,7 @@ model Workspace {
   identityProviders         IdentityProvider[]
   groupRoleMappings         GroupRoleMapping[]
   authSessions              AuthSession[]
+  localCredentials          LocalCredential[]
   backendJobs               BackendJob[]
   idempotencyKeys           IdempotencyKey[]
   reportSnapshots           ReportSnapshot[]
@@ -158,6 +159,7 @@ model User {
   teamName                    String?
   externalIdentities          ExternalIdentity[]
   authSessions                AuthSession[]
+  localCredential             LocalCredential?
   createdBackendJobs          BackendJob[]               @relation("BackendJobCreatedBy")
   reportSnapshots             ReportSnapshot[]           @relation("ReportSnapshotCreatedBy")
   reviewEvents                ReviewEvent[]
@@ -176,6 +178,24 @@ model User {
 
   @@unique([workspaceId, email])
   @@index([workspaceId, role, name])
+}
+
+model LocalCredential {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  login        String
+  passwordHash String
+  passwordSalt String
+  keyVersion   String    @default("scrypt-v1")
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([workspaceId, login])
+  @@index([workspaceId])
 }
 
 model IdentityProvider {

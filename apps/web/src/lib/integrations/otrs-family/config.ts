@@ -15,6 +15,7 @@ const rawAuthQueryPattern =
 const productSchema = z.enum(["otrs_ce_6", "znuny_lts", "otobo"]);
 const methodSchema = z.enum(["GET", "POST"]);
 const pathSchema = z.string().trim().min(1).regex(/^\//);
+const authFlowSchema = z.enum(["credentials", "session"]);
 const optionalTrimmedStringSchema = z
   .string()
   .trim()
@@ -53,6 +54,15 @@ const rawConfigSchema = z
       .object({
         ticketSearch: z.enum(["post_json", "get_query"]).optional(),
         ticketGet: z.enum(["get_query", "post_json"]).optional()
+      })
+      .passthrough()
+      .optional(),
+    auth: z
+      .object({
+        ticketSearch: authFlowSchema.optional(),
+        ticketGet: authFlowSchema.optional(),
+        sessionCreatePath: pathSchema.optional(),
+        sessionCreateMethod: z.literal("POST").optional()
       })
       .passthrough()
       .optional(),
@@ -128,6 +138,12 @@ const rawConfigSchema = z
       requestMode: {
         ticketSearch: value.requestMode?.ticketSearch ?? requestModeForMethod(routes.ticketSearchMethod),
         ticketGet: value.requestMode?.ticketGet ?? requestModeForMethod(routes.ticketGetMethod)
+      },
+      auth: {
+        ticketSearch: value.auth?.ticketSearch ?? "credentials",
+        ticketGet: value.auth?.ticketGet ?? "credentials",
+        sessionCreatePath: normalizePath(value.auth?.sessionCreatePath ?? "/Session"),
+        sessionCreateMethod: value.auth?.sessionCreateMethod ?? "POST"
       },
       articlePolicy: {
         importAllArticles: value.articlePolicy?.importAllArticles ?? true,

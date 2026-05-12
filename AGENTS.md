@@ -1,68 +1,76 @@
 <claude-mem-context>
 # Memory Context
 
-# [qc_app] recent context, 2026-05-12 10:00am GMT+3
+# [qc_app] recent context, 2026-05-12 10:50am GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (19,359t read) | 3,955,428t work | 100% savings
+Stats: 50 obs (19,428t read) | 248,449t work | 92% savings
 
-### May 9, 2026
-1758 7:02p 🔵 qc_app working tree spans 29 modified files plus 22 new feature files for QC review and integration revamp
-1759 " 🟣 Integration runner now writes results inside a transaction with sync-state ledger and disabled-row guard
-1760 " 🟣 OTRS selected-import path now reads integration, guards disabled status, and persists sync-state checkpoint
-1761 " 🟣 Integration import service refuses disabled integrations and queues atomically
-1762 " 🟣 Backend job runner adds WEBHOOK_INGEST type that delegates to ingestWebhookEvent
-1763 " 🟣 Conversation import now applies workspace sampling rules in-transaction
-1764 " 🟣 GET /api/v1/integrations now returns capability metadata, sync state, and richer run history
-1765 " 🟣 Review actions enforce SELF_REVIEW scope, REOPENED-cycle review lookup, and process-field stripping
-1766 " 🟣 Review workflow policy centralizes QA status transitions with FINALIZED evidence requirement
-1767 " 🟣 updateConversationWorkflow and bulkUpdateReviewQueue now run conditional updateMany guarded by assertQaWorkflowTransition
-1768 " 🟣 Review feedback transitions gated by assertFeedbackTransition lifecycle module
-1769 " 🟣 Inbound webhook ingestion verifies signatures, dedupes by idempotency key, and updates integration sync state
-1770 " 🟣 Review detail page supports CALIBRATION and SELF_REVIEW review-source modes
-1771 " 🟣 Self-review permission is now a distinct role capability
-1772 " 🟣 Review queue and conversation reads partition reviews by current QA cycle
-1773 " 🟣 Self-review page surfaces operator feedback queue and training assignments scoped to the assignee
-1774 " 🔵 App sidebar surfaces open-appeal count from finalized HUMAN reviews
-1775 " 🟣 Review lifecycle tests assert REOPENED-cycle isolation and forged-field stripping
-1777 " ✅ Final e2e re-run started for follow-up fixes
-1778 " ✅ e2e suite progressing through all 4 specs after follow-up fixes
-1779 " ✅ Final e2e re-run passes 4/4 after all follow-up review fixes
-1780 7:03p 🔵 Mapped remaining "finalized HUMAN review" call sites that bypass the qaStatus cycle filter
-1781 " 🔴 Cycle filter (qaStatus="FINALIZED") propagated to self-review, calibration, and coaching pages
-1782 " ✅ Full unit suite still green and rebuild started after cycle-filter propagation
-1783 7:04p ✅ Production build re-completes after self-review/calibration/coaching cycle filter
-1784 " ✅ Final e2e re-run progressing on OTRS cockpit specs
-1785 " ✅ Final e2e re-run passes 4/4 after cycle filter expansion to self-review/calibration/coaching
-1786 " 🔵 Final working tree status: 33 modified + 22 new files, no commit
-1788 7:06p 🔴 QA review workflow lifecycle hardened against duplicate finalization, stale cycles, and races
 ### May 12, 2026
-1789 9:56a 🔵 QC app working tree shows webhook and review-lifecycle workstream in flight
-1790 " 🔵 Active branch codex/production-state-hardening drives webhook, audit, and review-lifecycle hardening
-1791 9:57a 🔵 OTRS production integration plan has one remaining open step — local E2E verification
-1792 " 🔵 OTRS cockpit E2E blocked locally because Docker/Postgres socket is unavailable
-1793 " ✅ Explorer subagent dispatched to audit remaining plan items
-1794 " 🟣 OTRS cockpit E2E verification step closed — full Playwright suite green
-1795 9:58a 🔵 qc_app dirty tree spans webhooks, sampling, review lifecycle, and OTRS integration
-1796 " 🔵 All active superpowers plan checklists now fully complete
-1797 " 🔵 OTRS production integration plan fully checked, including local E2E verification
-1798 " 🔵 Legacy MVP plan still shows 59 unchecked steps but is historically completed
-1799 " ✅ OTRS plan now reflects E2E verification; remaining uncommitted work targets webhooks and review lifecycle
-1800 " 🔵 Explorer subagent surfaced two reconciliation items before handoff
-1803 " 🔵 AGENTS.md "stale" notes are actually the claude-mem context block, not freeform plan status
-1801 " 🔵 qc_app on codex/production-state-hardening branch with sizable uncommitted hardening work
-1802 " ⚖️ No actionable plan items remain after OTRS finalization in qc_app
-1804 " 🔵 Stale Docker-blocked note at OTRS plan line 913 and conflict with checked "Commit final hardening" step
-1805 9:59a ✅ Stale OTRS E2E notes reconciled in AGENTS.md and OTRS plan
-1806 " ✅ OTRS plan "Commit final hardening" step unchecked pending explicit commit request
-1807 " 🔵 One more stale Docker-blocked note remains at OTRS plan line 1169
-1808 " ✅ OTRS plan Task 12 verification log replaced with 2026-05-12 green run summary
-1809 10:00a ✅ OTRS plan and AGENTS.md fully reconciled; one open task remains by design
+1849 10:24a ✅ OTRS client: SessionCreate failures classified as auth_failed
+1850 10:25a 🟣 OTRS diagnostics now performs SessionCreate handshake before TicketSearch/TicketGet when configured
+1851 10:26a 🟣 OTRS import-plan: reuse a single SessionID across TicketSearch and preview TicketGet calls
+1852 10:28a 🟣 OTRS connection form UI: per-operation auth flow selectors and SessionCreate path field added
+1853 10:29a 🟣 OTRS webservice checklist UI now reflects SessionCreate operation and per-op auth modes
+1854 " 🟣 OTRS family capabilities advertise session_create auth mode alongside user_password and tls_ca_bundle
+1855 10:31a 🔵 OTRS config canonical defaults test does not yet include the new auth section
+1856 " 🔴 Vitest run surfaces one diagnostics test failure (deriveDiagnosticStatus) plus malformed test file
+1857 " 🟣 OTRS test coverage extended: config defaults include auth, new SessionCreate→TicketSearch integration test
+1858 10:32a 🟣 OTRS diagnostics test: end-to-end SessionCreate → TicketSearch → TicketGet pipeline test added
+1859 " 🔴 All five OTRS-family test suites pass after schema and feature additions
+1860 " 🟣 OTRS import-plan test: SessionCreate authenticates TicketSearch in preview flow
+1861 " 🔴 Test body assertions corrected: OtrsOperationRequest.body is already an object, not a JSON string
+1862 " 🔵 saveOtrsIntegrationConfiguration persists configJson with userLogin, limits, tls, and no secrets
+1863 10:33a 🔴 Full OTRS test + typecheck suite green: 102 tests pass, no TS errors
+1864 10:34a 🟣 OTRS live-smoke script: env-driven config overrides and session-flow support
+1865 " 🟣 OTRS live-smoke env parsers added: parseAuthEnv and parseMethodEnv
+1866 " 🟣 OTRS live-smoke docs: SessionCreate-based recipe documented
+1867 " 🔴 Final OTRS test + typecheck pass after live-smoke script and docs updates
+1868 10:35a 🟣 Live OTRS smoke test against production otrs.fsa.gov.ru succeeded end-to-end
+1869 " ✅ Production Next.js build passes after OTRS session-flow feature work
+1870 " ✅ OTRS session-flow change set: 15 files modified, 1 new file
+1871 10:36a 🔵 Diff stat confirms feature scope: +572/-50 lines across 15 files plus 1 new module
+1872 " 🔄 OTRS import-plan: previewSessionId no longer creates session when only TicketSearch needs it in manual mode
+1873 " 🔴 Import-plan test suite + typecheck pass after previewSessionId refinement
+1874 " ✅ Final production build re-verified after previewSessionId refinement
+1875 10:37a 🔵 Final OTRS config schema layout confirmed
+1876 " 🔵 Final landed code for requests.ts, session-auth.ts, and otrs-connection-form.tsx confirmed
+1877 " 🔵 Final OTRS diagnostics + import-plan + live-smoke landed code confirmed
+1878 10:38a 🔵 Docker daemon not running on dev workstation
+1879 " ✅ Docker Desktop started: client/server 29.4.2 ready
+1880 " ✅ Local Postgres container started via compose
+1881 " 🔵 Zsh refused to assign to "status" variable in shell script
+1882 " 🔵 Local Postgres healthy and Prisma schema is up to date
+1883 " 🔵 qc_app-postgres-1 confirmed running postgres:16-alpine on host port 55432
+1884 10:39a ✅ Local dev environment ready: Next.js dev server on :3000 plus seeded Postgres
+1885 " 🔵 Dev server responds with 307 redirect from / to /reviews
+1886 10:40a 🔵 App auth uses identity providers (DEMO + Microsoft/AD/OIDC/SAML), no local password column on User
+1887 10:41a 🔵 Auth session model: opaque session token cookie qc_session with 12h TTL, no password verification on local login
+1888 " 🔵 Prisma User and IdentityProvider models confirmed: no password column, federated identity tables
+1889 10:42a 🔵 Auth middleware (proxy.ts), cookie config, and current-user resolution mapped
+1890 " 🟣 Prisma schema: new LocalCredential model adds password-based auth support
+1891 " 🟣 Local-credentials password helper module added (scrypt-based)
+1892 10:43a 🟣 Local credentials: Prisma migration SQL and signInWithLocalCredentials server action added
+1893 " 🟣 Login page UI updated: primary local username+password form, demo dropdown collapsed under details
+1894 " ✅ Prisma migration applied: LocalCredential table added to local Postgres
+1895 " 🔴 tsx inline import failed: local-credentials module did not expose hashLocalPassword via the file-relative path
+1896 10:44a 🟣 Local admin user created: dubrovskyrk@local.qc with password-based login
+1897 " 🔵 Dev server traffic log shows app served pages including /reviews, /calibration, /auth/logout, and /auth/login
+1898 10:50a 🔵 User asks what is needed to test OTRS integration
+S477 Prerequisites for real-world testing of OTRS integration, plus local auth setup via LocalCredential (May 12 at 10:50 AM)
+**Investigated**: The primary session addressed what is required to actually test the OTRS integration end-to-end, and worked on local authentication using a new `LocalCredential` Prisma model and a new login form.
 
-Access 3955k tokens of past work via get_observations([IDs]) or mem-search skill.
+**Learned**: The project has an OTRS integration component that is ready (or near ready) for real validation, and authentication is being handled locally via a Prisma `LocalCredential` model consumed by a Next.js app.
+
+**Completed**: A user record was created in the database to support local login. The new `LocalCredential` Prisma model and a corresponding new login form have been wired into the codebase.
+
+**Next Steps**: Restart the dev server so Next.js and Prisma Client pick up the new `LocalCredential` model and the new login form, then proceed toward exercising the OTRS integration with real credentials/instance.
+
+
+Access 248k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
 
 # Project Notes

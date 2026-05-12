@@ -4,7 +4,7 @@ import {
 } from "@/lib/integrations/otrs-family/config";
 import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 
-export type OtrsOperation = "TicketSearch" | "TicketGet";
+export type OtrsOperation = "SessionCreate" | "TicketSearch" | "TicketGet";
 export type OtrsHttpMethod = "GET" | "POST";
 
 export type OtrsOperationRequest = {
@@ -34,7 +34,10 @@ type BaseRequestInput = AuthInput & {
   config: OtrsConnectorConfig;
   baseUrl?: string;
   origin?: string;
+  sessionId?: string;
 };
+
+export type SessionCreateRequestInput = BaseRequestInput;
 
 export type TicketSearchRequestInput = BaseRequestInput & {
   filters?: Record<string, unknown>;
@@ -47,10 +50,33 @@ export type TicketGetRequestInput = BaseRequestInput & {
   includeAttachments?: boolean;
 };
 
-export function buildTicketSearchRequest(input: TicketSearchRequestInput): OtrsOperationRequest {
+export function buildSessionCreateRequest(input: SessionCreateRequestInput): OtrsOperationRequest {
   const payload = stripUndefinedValues({
     UserLogin: input.userLogin,
-    Password: input.password,
+    Password: input.password
+  });
+  const url = buildOtrsOperationUrl(
+    {
+      config: input.config,
+      baseUrl: input.baseUrl,
+      origin: input.origin
+    },
+    "SessionCreate"
+  );
+
+  return buildOperationRequest({
+    config: input.config,
+    operation: "SessionCreate",
+    method: input.config.auth.sessionCreateMethod,
+    mode: "post_json",
+    url,
+    payload
+  });
+}
+
+export function buildTicketSearchRequest(input: TicketSearchRequestInput): OtrsOperationRequest {
+  const payload = stripUndefinedValues({
+    ...buildOperationAuthPayload(input, "ticketSearch"),
     ...(input.filters ?? {}),
     Limit: input.limit ?? valueAsNumber(input.filters?.Limit) ?? input.config.limits.searchLimit
   });
@@ -77,8 +103,7 @@ export function buildTicketGetRequest(input: TicketGetRequestInput): OtrsOperati
   const routePath = input.config.routes.ticketGetPath;
   const ticketIdIsInPath = hasTicketIdPlaceholder(routePath);
   const payload = stripUndefinedValues({
-    UserLogin: input.userLogin,
-    Password: input.password,
+    ...buildOperationAuthPayload(input, "ticketGet"),
     ...(ticketIdIsInPath ? {} : { TicketID: String(input.ticketId) }),
     AllArticles: booleanFlag(input.allArticles ?? input.config.articlePolicy.importAllArticles),
     Attachments: booleanFlag(input.includeAttachments ?? true),
@@ -112,9 +137,29 @@ export function buildOtrsOperationUrl(input: UrlConfigInput, operation: OtrsOper
     basePath: config.basePath,
     webServiceName: config.webServiceName
   });
-  const routePath = operation === "TicketSearch" ? config.routes.ticketSearchPath : config.routes.ticketGetPath;
+  const routePath =
+    operation === "SessionCreate"
+      ? config.auth.sessionCreatePath
+      : operation === "TicketSearch"
+        ? config.routes.ticketSearchPath
+        : config.routes.ticketGetPath;
 
   return `${stripTrailingSlash(serviceBaseUrl)}${buildRoutePath(routePath, ticketId)}`;
+}
+
+export function parseSessionCreateResponse(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+
+  const sessionId = (payload as Record<string, unknown>).SessionID;
+
+  if (typeof sessionId === "string" || typeof sessionId === "number") {
+    const normalized = String(sessionId).trim();
+    return normalized || undefined;
+  }
+
+  return undefined;
 }
 
 export function parseTicketSearchResponse(payload: unknown): string[] {
@@ -183,6 +228,32 @@ function buildOperationRequest(input: {
       requestMode: input.mode
     }
   });
+}
+
+function buildOperationAuthPayload(input: BaseRequestInput, operation: "ticketSearch" | "ticketGet") {
+  if (input.config.auth[operation] !== "session") {
+    return {
+      UserLogin: input.userLogin,
+      Password: input.password
+    };
+  }
+
+  const sessionId = input.sessionId?.trim();
+
+  if (!sessionId) {
+    throw new OtrsConnectorError({
+      code: "config_invalid",
+      safeMessage: "OTRS SessionID is required for the configured operation auth flow.",
+      redactedDetail: {
+        operation,
+        auth: "session"
+      }
+    });
+  }
+
+  return {
+    SessionID: sessionId
+  };
 }
 
 function resolveUrlConfigInput(input: UrlConfigInput) {

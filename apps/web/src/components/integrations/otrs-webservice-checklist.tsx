@@ -14,7 +14,18 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
     basePath: config.basePath,
     webServiceName: config.webServiceName
   });
+  const usesSession = config.auth.ticketSearch === "session" || config.auth.ticketGet === "session";
   const operations = [
+    ...(usesSession
+      ? [
+          {
+            name: "SessionCreate",
+            method: config.auth.sessionCreateMethod,
+            route: config.auth.sessionCreatePath,
+            required: "Создание SessionID для операций, где выбран session-flow."
+          }
+        ]
+      : []),
     {
       name: "TicketSearch",
       method: config.routes.ticketSearchMethod,
@@ -52,6 +63,20 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
             <p className="soft-callout__label">Route overrides</p>
             <p className="record-title record-title--tight">
               {config.advanced.routeOverridesEnabled ? "Включены" : "Профильные маршруты"}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="soft-callout">
+            <p className="soft-callout__label">TicketSearch auth</p>
+            <p className="record-title record-title--tight">
+              {config.auth.ticketSearch === "session" ? "SessionCreate + SessionID" : "UserLogin + Password"}
+            </p>
+          </div>
+          <div className="soft-callout">
+            <p className="soft-callout__label">TicketGet auth</p>
+            <p className="record-title record-title--tight">
+              {config.auth.ticketGet === "session" ? "SessionCreate + SessionID" : "UserLogin + Password"}
             </p>
           </div>
         </div>

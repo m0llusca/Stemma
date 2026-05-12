@@ -234,6 +234,53 @@ describe("OTRS-family diagnostics", () => {
     });
   });
 
+  it("runs TicketSearch diagnostics through SessionCreate when configured", async () => {
+    const tx = createFakeTx();
+    const config = {
+      ...buildDefaultOtrsConnectorConfig("otrs_ce_6"),
+      auth: {
+        ticketSearch: "session" as const,
+        ticketGet: "credentials" as const,
+        sessionCreatePath: "/Session",
+        sessionCreateMethod: "POST" as const
+      },
+      advanced: {
+        routeOverridesEnabled: true
+      },
+      routes: {
+        ticketSearchPath: "/TicketSearch",
+        ticketGetPath: "/Ticket/{TicketID}",
+        ticketSearchMethod: "POST" as const,
+        ticketGetMethod: "GET" as const
+      }
+    };
+    const { client, requests } = createFakeClient([{ SessionID: "session-1" }, { TicketID: ["102"] }, ticketGetPayload("102")]);
+
+    await runOtrsDiagnostics(
+      createRunInput(tx, client, {
+        integration: {
+          id: integrationId,
+          workspaceId,
+          source: "otrs",
+          displayName: "Production OTRS",
+          type: "otrs_family",
+          baseUrl,
+          configJson: JSON.stringify(config)
+        }
+      })
+    );
+
+    expect(requests.map((request) => (request as { operation: string }).operation)).toEqual([
+      "SessionCreate",
+      "TicketSearch",
+      "TicketGet"
+    ]);
+    expect((requests[1] as { body?: unknown }).body).toMatchObject({
+      SessionID: "session-1"
+    });
+    expect(finalRunUpdate(tx).data.status).toBe("succeeded");
+  });
+
   it("runs the auth failure diagnostic path through the real OTRS GenericInterface HTTP client", async () => {
     await withOtrsGenericInterfaceServer({ mode: "auth_failure" }, async (server) => {
       const tx = createFakeTx();

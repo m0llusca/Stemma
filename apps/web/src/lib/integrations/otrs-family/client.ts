@@ -383,6 +383,10 @@ function buildConnectorError(input: {
 }
 
 function operationFailureCode(operation: OtrsOperationRequest["operation"]): OtrsConnectorErrorCode {
+  if (operation === "SessionCreate") {
+    return "auth_failed";
+  }
+
   return operation === "TicketSearch" ? "ticket_search_failed" : "ticket_get_failed";
 }
 
