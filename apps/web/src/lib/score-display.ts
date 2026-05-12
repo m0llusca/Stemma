@@ -1,11 +1,15 @@
 export const qualityScoreUnit = "points" as const;
 
 export function clampQualityScore(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 export function qualityScorePointWord(value: number) {
-  const absolute = Math.abs(value);
+  const absolute = Math.abs(clampQualityScore(value));
   const lastTwo = absolute % 100;
   const last = absolute % 10;
 
@@ -28,7 +32,7 @@ export function formatQualityScore(
   value: number | null | undefined,
   emptyLabel = "Нет оценки"
 ) {
-  if (value == null) {
+  if (value == null || !Number.isFinite(value)) {
     return emptyLabel;
   }
 
@@ -37,7 +41,7 @@ export function formatQualityScore(
 }
 
 export function formatQualityScoreDelta(value: number | null | undefined) {
-  if (value == null) {
+  if (value == null || !Number.isFinite(value)) {
     return "0 п.";
   }
 
