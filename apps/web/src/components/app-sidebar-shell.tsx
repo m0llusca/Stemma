@@ -104,14 +104,12 @@ export function AppSidebarShell({
       </nav>
       <div className="app-sidebar__footer">
         <div className="app-sidebar__role">{children}</div>
-        <Link
-          href="/auth/logout"
-          className="app-sidebar__footer-action"
-          title={collapsed ? "Выйти" : undefined}
-        >
-          <LogOut size={16} aria-hidden="true" />
-          <span className="app-sidebar__footer-label">Выйти</span>
-        </Link>
+        <form action="/auth/logout" method="post" className="app-sidebar__logout-form">
+          <button type="submit" className="app-sidebar__footer-action" title={collapsed ? "Выйти" : undefined}>
+            <LogOut size={16} aria-hidden="true" />
+            <span className="app-sidebar__footer-label">Выйти</span>
+          </button>
+        </form>
         <button
           type="button"
           className="app-sidebar__collapse-button"

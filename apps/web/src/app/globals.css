@@ -869,6 +869,11 @@ pre code {
   min-width: 0;
 }
 
+.app-sidebar__logout-form {
+  display: grid;
+  min-width: 0;
+}
+
 .app-sidebar__footer-action {
   display: inline-flex;
   min-height: 52px;
@@ -880,8 +885,10 @@ pre code {
   border-radius: var(--radius-control);
   background: rgba(255, 255, 255, 0.055);
   color: #cbd5e1 !important;
+  cursor: pointer;
   font-size: 13px;
   font-weight: 760;
+  padding: 0 10px;
   transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
