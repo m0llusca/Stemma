@@ -16,4 +16,19 @@ describe("ScoreBar", () => {
 
     expect(screen.getByText("Еще не сохранен")).toBeInTheDocument();
   });
+
+  it("hides the visual track from assistive technologies", () => {
+    const { container } = render(<ScoreBar value={72} label="Оценка" />);
+
+    expect(container.querySelector("[aria-hidden='true']")).toBeInTheDocument();
+  });
+
+  it("clamps visual width above 100 points", () => {
+    const { container } = render(<ScoreBar value={140} label="Оценка" />);
+    const track = container.querySelector("[aria-hidden='true']");
+    const fill = track?.firstElementChild;
+
+    expect(screen.getByText("Оценка: 100 баллов")).toBeInTheDocument();
+    expect(fill).toHaveStyle({ width: "100%" });
+  });
 });

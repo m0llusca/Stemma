@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ScoreBar } from "@/components/ui/score-bar";
 
 export type ChartDatum = {
   label: string;
@@ -20,6 +19,27 @@ function clampPercent(value: number) {
 
 function formatPercent(value: number) {
   return `${Math.round(value)}%`;
+}
+
+function PercentProgressBar({ value, label }: { value: number; label: string }) {
+  const percent = clampPercent(value);
+  const roundedPercent = Math.round(percent);
+
+  return (
+    <div className="grid min-w-[104px] max-w-[154px] gap-1">
+      <span className="text-sm font-semibold text-[#111827]">{formatPercent(percent)}</span>
+      <div
+        aria-label={`${label}: ${formatPercent(percent)}`}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={roundedPercent}
+        className="h-1.5 overflow-hidden rounded-full bg-[#e2e8f0]"
+        role="progressbar"
+      >
+        <div className="h-full rounded-full bg-[#3157d5]" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
 }
 
 function chartPath(points: ChartDatum[], width: number, height: number) {
@@ -241,7 +261,7 @@ export function QuotaProgressBars({
                 {row.actual} из {row.planned}
               </p>
             </div>
-            <ScoreBar value={percent} compact />
+            <PercentProgressBar value={percent} label={row.label} />
           </div>
         );
       })}
