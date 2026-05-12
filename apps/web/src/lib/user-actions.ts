@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { demoUserByIdWhere } from "@/lib/auth/demo-users";
 import { normalizeLocalLogin, verifyLocalPassword } from "@/lib/auth/local-credentials";
 import { authCookieOptions, demoUserCookieOptions } from "@/lib/auth/cookies";
 import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
@@ -87,20 +88,20 @@ export async function switchCurrentUser(formData: FormData) {
   const userId = stringField(formData, "userId");
   const returnTo = stringField(formData, "returnTo") || "/reviews";
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+  const user = await prisma.user.findFirst({
+    where: demoUserByIdWhere(userId),
     select: { id: true, workspaceId: true, role: true }
   });
 
   if (!user) {
-    throw new Error("Пользователь не найден.");
+    throw new Error("Демо-пользователь не найден.");
   }
 
   const demoProvider = await prisma.identityProvider.findFirst({
     where: {
       workspaceId: user.workspaceId,
       type: "DEMO",
-      slug: "demo"
+      status: "active"
     },
     select: { id: true }
   });

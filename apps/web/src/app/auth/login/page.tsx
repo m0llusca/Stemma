@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldCheck, UserRoundCheck } from "lucide-react";
+import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -94,12 +95,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     }),
     isDemoAuthEnabled()
       ? prisma.user.findMany({
-          where: {
-            role: {
-              not: "VIEWER"
-            }
-          },
-          orderBy: [{ workspaceId: "asc" }, { role: "asc" }, { name: "asc" }],
+          where: demoLoginUserWhere,
+          orderBy: demoLoginUserOrderBy,
           select: {
             id: true,
             name: true,
