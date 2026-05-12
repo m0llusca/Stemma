@@ -122,8 +122,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const loggedOut = firstParam(params.loggedOut) === "1";
 
   return (
-    <section className="page-shell">
-      <div className="mx-auto grid min-h-screen w-full max-w-5xl content-center gap-5 py-10">
+    <section className="page-shell auth-shell">
+      <div className="auth-login-shell">
         <div className="command-center">
           <div>
             <p className="page-kicker">Авторизация</p>

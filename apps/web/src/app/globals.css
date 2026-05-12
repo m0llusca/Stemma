@@ -635,6 +635,14 @@ pre code {
   grid-template-columns: 84px minmax(0, 1fr);
 }
 
+.page:has(.auth-shell) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page:has(.auth-shell) > main {
+  grid-column: 1 / -1;
+}
+
 .page > main {
   min-width: 0;
 }
@@ -643,6 +651,20 @@ pre code {
   min-width: 0;
   max-width: 100%;
   padding: var(--page-shell-padding);
+}
+
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  align-items: center;
+  padding: clamp(24px, 5vw, 56px);
+}
+
+.auth-login-shell {
+  display: grid;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  gap: 20px;
 }
 
 .app-sidebar {
