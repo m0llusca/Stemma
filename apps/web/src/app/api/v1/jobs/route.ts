@@ -9,7 +9,7 @@ import { enqueueBackendJob } from "@/lib/jobs/queue";
 export const dynamic = "force-dynamic";
 
 const createJobSchema = z.object({
-  type: z.enum(["INTEGRATION_IMPORT", "REPORT_EXPORT", "DIRECTORY_SYNC", "RETENTION_CLEANUP"]),
+  type: z.enum(["INTEGRATION_IMPORT", "REPORT_EXPORT", "DIRECTORY_SYNC", "RETENTION_CLEANUP", "WEBHOOK_INGEST"]),
   payload: z.record(z.unknown()).optional(),
   queueName: z.string().trim().min(1).max(80).optional(),
   priority: z.number().int().min(1).max(1000).optional(),

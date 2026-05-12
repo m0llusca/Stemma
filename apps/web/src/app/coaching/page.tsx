@@ -69,7 +69,14 @@ export default async function CoachingPage() {
       select: { id: true, name: true, supportLine: true, teamName: true }
     }),
     prisma.review.findMany({
-      where: { workspaceId: user.workspaceId, status: "FINALIZED", reviewSource: "HUMAN" },
+      where: {
+        workspaceId: user.workspaceId,
+        status: "FINALIZED",
+        reviewSource: "HUMAN",
+        conversation: {
+          qaStatus: "FINALIZED"
+        }
+      },
       include: {
         conversation: true,
         findings: true

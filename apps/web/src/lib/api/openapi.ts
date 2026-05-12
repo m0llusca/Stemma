@@ -185,12 +185,87 @@ export function buildOpenApiDocument() {
           }
         }
       },
+      "/integrations/catalog": {
+        get: {
+          security: sessionSecurity,
+          summary: "Каталог поддерживаемых коннекторов, capability manifest и webhook events",
+          responses: {
+            "200": { description: "Connector capability catalog" }
+          }
+        }
+      },
       "/integrations/{integrationId}/imports": {
         post: {
           security: sessionSecurity,
           summary: "Поставить импорт интеграции в очередь",
           responses: {
             "202": { description: "IntegrationRun и BackendJob созданы" }
+          }
+        }
+      },
+      "/webhook-endpoints": {
+        get: {
+          security: sessionSecurity,
+          summary: "Webhook endpoints рабочего пространства",
+          responses: {
+            "200": {
+              description: "Список inbound webhook endpoints",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["webhookEndpoints"],
+                    properties: {
+                      webhookEndpoints: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/WebhookEndpoint" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        post: {
+          security: sessionSecurity,
+          summary: "Создать inbound webhook endpoint и вернуть секрет один раз",
+          responses: {
+            "201": {
+              description: "Endpoint создан, secret возвращается один раз",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["webhookEndpoint"],
+                    properties: {
+                      webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpointWithSecret" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Некорректный payload" },
+            "404": { description: "Интеграция не найдена" }
+          }
+        }
+      },
+      "/webhooks/{endpointId}": {
+        post: {
+          security: noSecurity,
+          summary: "Принять подписанный inbound webhook payload",
+          parameters: [
+            { name: "endpointId", in: "path", required: true },
+            { name: "Idempotency-Key", in: "header", required: true },
+            { name: "X-QC-Webhook-Timestamp", in: "header", required: true },
+            { name: "X-QC-Webhook-Signature", in: "header", required: true }
+          ],
+          responses: {
+            "202": { description: "Webhook принят и обработан" },
+            "200": { description: "Дубликат уже принятого webhook" },
+            "401": { description: "Некорректная подпись" },
+            "413": { description: "Webhook payload слишком большой" },
+            "409": { description: "Конфликт idempotency key" }
           }
         }
       },
@@ -420,6 +495,65 @@ export function buildOpenApiDocument() {
             hasNextPage: { type: "boolean" },
             hasPreviousPage: { type: "boolean" }
           }
+        },
+        IntegrationCapability: {
+          type: "object",
+          required: ["source", "displayName", "type", "authModes", "operations", "supportedEvents", "setupStatus", "readiness"],
+          properties: {
+            source: { type: "string" },
+            displayName: { type: "string" },
+            type: { type: "string" },
+            authModes: { type: "array", items: { type: "string" } },
+            operations: { type: "array", items: { type: "string" } },
+            supportedEvents: { type: "array", items: { type: "string" } },
+            requiredSecrets: { type: "array", items: { type: "string" } },
+            docsHref: { type: "string" },
+            setupStatus: { type: "string", enum: ["available", "preview", "planned"] },
+            readiness: { type: "string" }
+          }
+        },
+        WebhookEndpoint: {
+          type: "object",
+          required: [
+            "id",
+            "integrationId",
+            "source",
+            "name",
+            "status",
+            "acceptedEvents",
+            "secretPrefix",
+            "signingAlgorithm",
+            "lastReceivedAt",
+            "lastError",
+            "createdAt",
+            "updatedAt"
+          ],
+          properties: {
+            id: { type: "string" },
+            integrationId: { type: ["string", "null"] },
+            source: { type: "string" },
+            name: { type: "string" },
+            status: { type: "string" },
+            acceptedEvents: { type: "array", items: { type: "string" } },
+            secretPrefix: { type: "string" },
+            signingAlgorithm: { type: "string" },
+            lastReceivedAt: { type: ["string", "null"], format: "date-time" },
+            lastError: { type: ["string", "null"] },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" }
+          }
+        },
+        WebhookEndpointWithSecret: {
+          allOf: [
+            { $ref: "#/components/schemas/WebhookEndpoint" },
+            {
+              type: "object",
+              required: ["secret"],
+              properties: {
+                secret: { type: "string" }
+              }
+            }
+          ]
         }
       }
     }

@@ -6,6 +6,7 @@ import { auditLog } from "@/lib/audit";
 import { canAcknowledgeFeedback, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { recordReviewEvent } from "@/lib/review-events";
+import { assertFeedbackTransition, reviewFeedbackTransitionStatuses } from "@/lib/review-lifecycle";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -18,6 +19,10 @@ async function loadReviewForAction(reviewId: string, workspaceId: string) {
     select: {
       id: true,
       conversationId: true,
+      status: true,
+      feedbackStatus: true,
+      appealStatus: true,
+      reanswerStatus: true,
       conversation: {
         select: {
           assigneeName: true
@@ -59,6 +64,15 @@ export async function updateReviewFeedback(formData: FormData) {
     userName: user.name,
     conversationAssigneeName: review.conversation.assigneeName
   });
+  const transition = {
+    action,
+    reviewStatus: review.status,
+    feedbackStatus: review.feedbackStatus,
+    appealStatus: review.appealStatus,
+    reanswerStatus: review.reanswerStatus
+  };
+  assertFeedbackTransition(transition);
+  const eventStatuses = reviewFeedbackTransitionStatuses(transition);
   const now = new Date();
 
   const patches: Record<string, Prisma.ReviewUpdateInput> = {
@@ -108,6 +122,8 @@ export async function updateReviewFeedback(formData: FormData) {
       conversationId: review.conversationId,
       actorId: user.id,
       action: `review.feedback.${action}`,
+      fromStatus: eventStatuses.fromStatus,
+      toStatus: eventStatuses.toStatus,
       metadata: { comment }
     });
   });

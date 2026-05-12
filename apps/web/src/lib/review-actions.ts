@@ -7,13 +7,21 @@ import { auditLog } from "@/lib/audit";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { recordReviewEvent } from "@/lib/review-events";
+import {
+  ReviewLifecycleTransitionError,
+  assertReviewCanFinalize,
+  assertReviewCanSaveDraft,
+  assertSelfReviewScope
+} from "@/lib/review-lifecycle";
+import {
+  assertConditionalWorkflowWrite,
+  assertHumanReviewFinalizeTransition,
+  assertQaWorkflowTransition
+} from "@/lib/review-workflow-policy";
 import { calculateReviewScore } from "@/lib/score";
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
-const feedbackStatuses = ["new", "feedback_sent", "acknowledged", "appeal", "corrected"] as const;
-const appealStatuses = ["none", "open", "confirmed", "corrected", "calibration"] as const;
-const reanswerStatuses = ["not_needed", "required", "requested", "completed"] as const;
 const reviewSources = ["HUMAN", "AI", "CALIBRATION", "SELF_REVIEW"] as const satisfies readonly ReviewSource[];
 
 type ReviewScorecard = Scorecard & { criteria: ScorecardCriterion[] };
@@ -87,20 +95,6 @@ function optionalRiskLevel(formData: FormData): RiskLevel | undefined {
   return value as RiskLevel;
 }
 
-function optionalStatus<T extends readonly string[]>(formData: FormData, key: string, values: T, fallback: T[number]) {
-  const value = optionalString(formData, key);
-
-  if (value === undefined) {
-    return fallback;
-  }
-
-  if (!values.includes(value as T[number])) {
-    throw new Error(`Некорректный статус: ${key}`);
-  }
-
-  return value as T[number];
-}
-
 function reviewSourceField(formData: FormData): ReviewSource {
   const value = optionalString(formData, "reviewSource") ?? "HUMAN";
 
@@ -114,22 +108,19 @@ function reviewSourceField(formData: FormData): ReviewSource {
 function reviewProcessFields(formData: FormData, summary: string) {
   const criticalError = formData.get("criticalError") === "on";
   const needsReanswer = formData.get("needsReanswer") === "on";
-  const appealStatus = optionalStatus(formData, "appealStatus", appealStatuses, "none");
 
   return {
     feedbackComment: optionalString(formData, "feedbackComment") ?? summary,
     positiveNotes: optionalString(formData, "positiveNotes") ?? "",
     instructionLinks: optionalString(formData, "instructionLinks") ?? "",
-    feedbackStatus: optionalStatus(formData, "feedbackStatus", feedbackStatuses, "new"),
-    appealStatus,
-    appealDueAt: appealStatus === "none" ? null : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    feedbackStatus: "new",
+    appealStatus: "none",
+    appealDueAt: null,
     criticalError,
     criticalCategory: criticalError ? optionalString(formData, "criticalCategory") ?? "Критическая ошибка" : null,
     needsReanswer,
-    reanswerStatus: needsReanswer
-      ? optionalStatus(formData, "reanswerStatus", reanswerStatuses, "required")
-      : "not_needed",
-    calibrationStatus: appealStatus === "calibration" ? "queued" : "none",
+    reanswerStatus: needsReanswer ? "required" : "not_needed",
+    calibrationStatus: "none",
     calibrationNotes: optionalString(formData, "calibrationNotes") ?? ""
   };
 }
@@ -143,6 +134,8 @@ async function loadReviewContext(workspaceId: string, conversationId: string, sc
       },
       select: {
         id: true,
+        assigneeName: true,
+        qaStatus: true,
         qaAssigneeId: true,
         qaAssigneeName: true,
         messages: {
@@ -214,25 +207,69 @@ function buildCriterionScores(scorecard: ReviewScorecard, formData: FormData, va
   });
 }
 
-async function findCurrentDraft(
+async function findCurrentReview(
   tx: Prisma.TransactionClient,
   workspaceId: string,
   conversationId: string,
   reviewerId: string,
-  reviewSource: ReviewSource
+  reviewSource: ReviewSource,
+  latestReopenedAt: Date | null
 ) {
+  const where: Prisma.ReviewWhereInput = {
+    workspaceId,
+    conversationId,
+    reviewerId,
+    reviewSource
+  };
+
+  if (latestReopenedAt) {
+    where.OR = [
+      { createdAt: { gt: latestReopenedAt } },
+      { finalizedAt: { gt: latestReopenedAt } }
+    ];
+  }
+
   return tx.review.findFirst({
+    where,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+}
+
+async function findLatestReopenedAt(tx: Prisma.TransactionClient, workspaceId: string, conversationId: string) {
+  const event = await tx.reviewEvent.findFirst({
     where: {
       workspaceId,
       conversationId,
-      reviewerId,
-      reviewSource,
-      status: "DRAFT"
+      toStatus: "REOPENED"
     },
-    select: {
-      id: true
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true }
+  });
+
+  return event?.createdAt ?? null;
+}
+
+async function assertCurrentReviewStillWritable(
+  tx: Prisma.TransactionClient,
+  review: { id: string; status: "DRAFT" | "FINALIZED" }
+) {
+  const result = await tx.review.updateMany({
+    where: {
+      id: review.id,
+      status: review.status
+    },
+    data: {
+      status: review.status
     }
   });
+
+  if (result.count !== 1) {
+    throw new ReviewLifecycleTransitionError("Проверка изменилась. Обновите страницу и повторите действие.");
+  }
 }
 
 export async function saveReviewDraft(formData: FormData) {
@@ -247,6 +284,12 @@ export async function saveReviewDraft(formData: FormData) {
     throw new Error("Нет прав на сохранение черновиков.");
   }
   const { conversation, scorecard } = await loadReviewContext(user.workspaceId, conversationId, scorecardId);
+  assertSelfReviewScope({
+    reviewSource,
+    userRole: user.role,
+    userName: user.name,
+    conversationAssigneeName: conversation.assigneeName
+  });
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
@@ -283,15 +326,41 @@ export async function saveReviewDraft(formData: FormData) {
       : undefined;
 
   await prisma.$transaction(async (tx) => {
-    const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id, reviewSource);
+    const currentConversation = await tx.conversation.findFirst({
+      where: {
+        id: conversationId,
+        workspaceId: user.workspaceId
+      },
+      select: {
+        id: true,
+        qaStatus: true,
+        qaAssigneeId: true,
+        qaAssigneeName: true
+      }
+    });
+
+    if (!currentConversation) {
+      throw new Error("Диалог не найден в текущем рабочем пространстве.");
+    }
+
+    const latestReopenedAt = await findLatestReopenedAt(tx, user.workspaceId, conversationId);
+    const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt);
+    assertReviewCanSaveDraft(existingReview?.status ?? null);
+    if (reviewSource === "HUMAN") {
+      assertQaWorkflowTransition({
+        fromStatus: currentConversation.qaStatus,
+        toStatus: "IN_PROGRESS"
+      });
+    }
     let reviewId: string;
 
-    if (existingDraft) {
-      await tx.criterionScore.deleteMany({ where: { reviewId: existingDraft.id } });
-      await tx.finding.deleteMany({ where: { reviewId: existingDraft.id } });
+    if (existingReview) {
+      await assertCurrentReviewStillWritable(tx, existingReview);
+      await tx.criterionScore.deleteMany({ where: { reviewId: existingReview.id } });
+      await tx.finding.deleteMany({ where: { reviewId: existingReview.id } });
 
       const review = await tx.review.update({
-        where: { id: existingDraft.id },
+        where: { id: existingReview.id },
         data: {
           scorecardId: scorecard.id,
           reviewSource,
@@ -331,14 +400,19 @@ export async function saveReviewDraft(formData: FormData) {
     }
 
     if (reviewSource === "HUMAN") {
-      await tx.conversation.update({
-        where: { id: conversationId },
+      const updateResult = await tx.conversation.updateMany({
+        where: {
+          id: conversationId,
+          workspaceId: user.workspaceId,
+          qaStatus: currentConversation.qaStatus
+        },
         data: {
           qaStatus: "IN_PROGRESS",
-          qaAssigneeId: conversation.qaAssigneeId ?? user.id,
-          qaAssigneeName: conversation.qaAssigneeName ?? user.name
+          qaAssigneeId: currentConversation.qaAssigneeId ?? user.id,
+          qaAssigneeName: currentConversation.qaAssigneeName ?? user.name
         }
       });
+      assertConditionalWorkflowWrite(updateResult.count);
     }
 
     await auditLog(
@@ -363,7 +437,7 @@ export async function saveReviewDraft(formData: FormData) {
       conversationId,
       actorId: user.id,
       action: "review.draft_saved",
-      fromStatus: existingDraft ? "DRAFT" : null,
+      fromStatus: existingReview?.status ?? null,
       toStatus: "DRAFT",
       metadata: {
         reviewSource,
@@ -390,6 +464,12 @@ export async function finalizeReview(formData: FormData) {
     throw new Error("Нет прав на завершение проверок.");
   }
   const { conversation, scorecard } = await loadReviewContext(user.workspaceId, conversationId, scorecardId);
+  assertSelfReviewScope({
+    reviewSource,
+    userRole: user.role,
+    userName: user.name,
+    conversationAssigneeName: conversation.assigneeName
+  });
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const coachingAction = optionalString(formData, "coachingAction");
   const coachingAssignee = optionalString(formData, "coachingAssignee");
@@ -404,11 +484,34 @@ export async function finalizeReview(formData: FormData) {
   const findingRiskLevel = processFields.criticalError ? "CRITICAL" : riskLevel;
 
   await prisma.$transaction(async (tx) => {
-    const existingDraft = await findCurrentDraft(tx, user.workspaceId, conversationId, user.id, reviewSource);
+    const currentConversation = await tx.conversation.findFirst({
+      where: {
+        id: conversationId,
+        workspaceId: user.workspaceId
+      },
+      select: {
+        id: true,
+        qaStatus: true,
+        qaAssigneeId: true,
+        qaAssigneeName: true
+      }
+    });
 
-    if (existingDraft) {
-      await tx.criterionScore.deleteMany({ where: { reviewId: existingDraft.id } });
-      await tx.finding.deleteMany({ where: { reviewId: existingDraft.id } });
+    if (!currentConversation) {
+      throw new Error("Диалог не найден в текущем рабочем пространстве.");
+    }
+
+    const latestReopenedAt = await findLatestReopenedAt(tx, user.workspaceId, conversationId);
+    const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt);
+    assertReviewCanFinalize(existingReview?.status ?? null);
+    if (reviewSource === "HUMAN") {
+      assertHumanReviewFinalizeTransition({ fromStatus: currentConversation.qaStatus });
+    }
+
+    if (existingReview) {
+      await assertCurrentReviewStillWritable(tx, existingReview);
+      await tx.criterionScore.deleteMany({ where: { reviewId: existingReview.id } });
+      await tx.finding.deleteMany({ where: { reviewId: existingReview.id } });
     }
 
     const reviewData = {
@@ -444,9 +547,9 @@ export async function finalizeReview(formData: FormData) {
       }
     };
 
-    const review = existingDraft
+    const review = existingReview
       ? await tx.review.update({
-          where: { id: existingDraft.id },
+          where: { id: existingReview.id },
           data: reviewData
         })
       : await tx.review.create({
@@ -459,14 +562,19 @@ export async function finalizeReview(formData: FormData) {
         });
 
     if (reviewSource === "HUMAN") {
-      await tx.conversation.update({
-        where: { id: conversationId },
+      const updateResult = await tx.conversation.updateMany({
+        where: {
+          id: conversationId,
+          workspaceId: user.workspaceId,
+          qaStatus: currentConversation.qaStatus
+        },
         data: {
           qaStatus: "FINALIZED",
-          qaAssigneeId: conversation.qaAssigneeId ?? user.id,
-          qaAssigneeName: conversation.qaAssigneeName ?? user.name
+          qaAssigneeId: currentConversation.qaAssigneeId ?? user.id,
+          qaAssigneeName: currentConversation.qaAssigneeName ?? user.name
         }
       });
+      assertConditionalWorkflowWrite(updateResult.count);
     }
 
     await auditLog(
@@ -493,7 +601,7 @@ export async function finalizeReview(formData: FormData) {
       conversationId,
       actorId: user.id,
       action: "review.finalized",
-      fromStatus: existingDraft ? "DRAFT" : null,
+      fromStatus: existingReview?.status ?? null,
       toStatus: "FINALIZED",
       metadata: {
         reviewSource,

@@ -20,10 +20,12 @@ describe("api token service", () => {
   });
 
   it("normalizes scopes and rejects unknown values", async () => {
-    const { normalizeApiScopes } = await import("@/lib/api-token-service");
+    const { allowedApiScopes, normalizeApiScopes } = await import("@/lib/api-token-service");
 
     expect(normalizeApiScopes(["reviews:read", "reviews:read", "reports:read"])).toBe("reviews:read,reports:read");
     expect(normalizeApiScopes(["all", "reviews:read"])).toBe("all");
+    expect(allowedApiScopes).not.toContain("webhooks:write");
+    expect(() => normalizeApiScopes(["webhooks:write"])).toThrow("Некорректный scope API-токена");
     expect(() => normalizeApiScopes(["unknown:scope"])).toThrow("Некорректный scope API-токена");
   });
 

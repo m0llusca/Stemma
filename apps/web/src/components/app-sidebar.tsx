@@ -37,6 +37,7 @@ export async function AppSidebar() {
       where: {
         workspaceId: currentUser.workspaceId,
         ...(currentUser.role === "SUPPORT_AGENT" ? { assigneeName: currentUser.name } : {}),
+        qaStatus: "FINALIZED",
         reviews: {
           some: {
             reviewSource: "HUMAN",

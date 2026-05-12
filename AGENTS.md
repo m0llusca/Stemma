@@ -1,67 +1,68 @@
 <claude-mem-context>
 # Memory Context
 
-# [qc_app] recent context, 2026-05-08 5:35pm GMT+3
+# [qc_app] recent context, 2026-05-12 10:00am GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (21,239t read) | 1,032,509t work | 98% savings
+Stats: 50 obs (19,359t read) | 3,955,428t work | 100% savings
 
-### May 8, 2026
-1428 5:09p 🔵 Working tree state and health endpoint snapshot
-1429 5:12p 🔵 Active branch is codex/otrs-remaining-tasks
-1430 " ✅ Committed demo role access fixes on codex/otrs-remaining-tasks
-1431 5:18p 🔵 Seed script defines workspace, identity providers, users, and group mappings
-1432 5:19p 🔵 Permissions matrix and review-page authorization model
-1433 " 🔵 Review/feedback action layer enforces canSaveReviewDraft, canFinalizeReview, canAcknowledgeFeedback
-1434 5:20p 🔵 Review draft/finalize action lifecycle and admin access page
-1435 " 🔄 Review queue repository accepts a SUPPORT_AGENT scope for tighter row-level filtering
-1436 5:21p 🔵 Review detail page footer renders history list
-1437 " ✅ Review detail page now adapts UI by viewer role
-1438 " ✅ Feedback actions enforce assignee scope and tighter training-assignment guard
-1439 " ✅ Removed VIEWER seed user and QC_Viewers group mapping
-1440 " ✅ VIEWER role removed from admin/access mappings and identity provider role resolution
-1441 5:22p ✅ Sidebar nav and unit tests updated to drop VIEWER references
-1442 " 🟣 Added test asserting SUPPORT_AGENT is least-privileged fallback role
-1443 " ✅ VIEWER role permissions emptied to fully decommission the role
-1444 " 🔴 Fixed TS2345 from narrowed roles tuple in auth-provider-actions
-1445 5:23p ✅ Database reseeded without VIEWER user
-1446 " 🔵 Reseeded workspace contains only four users with new IDs
-1447 " 🔵 Smoke test reveals queue HTML still leaks other assignee names for SUPPORT_AGENT
-1448 " 🔵 Confirmed source of leak: assignee filter dropdown still shows other agents
-1449 5:24p 🔴 Fixed assignee filter dropdown leak for SUPPORT_AGENT
-1450 " 🔵 Auth tests still green after assignee scope fix
-1451 " ✅ Comprehensive role-scope smoke harness launched
-1452 5:25p 🔵 Full role-scope smoke test passes all assertions
-1453 " 🔵 Pre-commit changeset summary on codex/otrs-remaining-tasks
-1454 " 🔵 Frontend skill bundles for in-app Browser plugin and frontend-testing-debugging
-1455 5:26p 🔵 Browser plugin opens login page; Next.js literal triggers false framework-error positive
-1456 " 🔵 Login page DOM tree confirms 4-role demo selector and embedded sidebar
-1457 " 🔵 Operator login flow visually verified through Browser plugin
-1458 " 🔵 Operator review detail page renders read-only summary correctly
-1459 5:27p 🔵 Operator direct-link 404 confirmed visually
-1460 " 🔵 Visual screenshot confirms operator review-detail UI layout
-1461 " 🔄 Indented appeal alert action block under canManageWorkflow guard
-1462 5:28p 🔵 Residual VIEWER references audit complete
-1463 " ✅ Removed VIEWER from auth provider mappings API zod schema
-1464 " 🔵 auth-provider-actions saveGroupRoleMapping uses ConfigurableRole alias
-1465 " 🔵 Final state: 4 roles in DB, all VIEWER references gated/inert
-1466 5:29p ✅ Renamed VIEWER label from "Наблюдатель" to "Без доступа"
-1467 " 🔵 Final code-state confirmation across page-data, feedback, and login
-1468 " 🔵 Final sidebar navItems definition reflects four-role model
-1469 " ✅ Removed SUPPORT_AGENT from /reviews sidebar gate; redirect operators to /self-review on login
-1470 5:30p 🔵 Typecheck and tests still green after sidebar/redirect change
-1471 " 🔵 Operator UI verified after sidebar/redirect changes
-1472 " 🔵 Operator login redirect to /self-review confirmed end-to-end
-1473 " 🔵 current-user.ts capability helper map and demo fallback
-1474 5:31p ✅ Excluded VIEWER users from login dropdown and workspace user list
-1475 " 🔵 Final all-green run after VIEWER row exclusion
-1476 " 🔵 Final 18-file pre-commit changeset
-1477 5:32p 🔵 Final source confirmation: switchCurrentUser, sidebar navItems, getWorkspaceUsers
+### May 9, 2026
+1758 7:02p 🔵 qc_app working tree spans 29 modified files plus 22 new feature files for QC review and integration revamp
+1759 " 🟣 Integration runner now writes results inside a transaction with sync-state ledger and disabled-row guard
+1760 " 🟣 OTRS selected-import path now reads integration, guards disabled status, and persists sync-state checkpoint
+1761 " 🟣 Integration import service refuses disabled integrations and queues atomically
+1762 " 🟣 Backend job runner adds WEBHOOK_INGEST type that delegates to ingestWebhookEvent
+1763 " 🟣 Conversation import now applies workspace sampling rules in-transaction
+1764 " 🟣 GET /api/v1/integrations now returns capability metadata, sync state, and richer run history
+1765 " 🟣 Review actions enforce SELF_REVIEW scope, REOPENED-cycle review lookup, and process-field stripping
+1766 " 🟣 Review workflow policy centralizes QA status transitions with FINALIZED evidence requirement
+1767 " 🟣 updateConversationWorkflow and bulkUpdateReviewQueue now run conditional updateMany guarded by assertQaWorkflowTransition
+1768 " 🟣 Review feedback transitions gated by assertFeedbackTransition lifecycle module
+1769 " 🟣 Inbound webhook ingestion verifies signatures, dedupes by idempotency key, and updates integration sync state
+1770 " 🟣 Review detail page supports CALIBRATION and SELF_REVIEW review-source modes
+1771 " 🟣 Self-review permission is now a distinct role capability
+1772 " 🟣 Review queue and conversation reads partition reviews by current QA cycle
+1773 " 🟣 Self-review page surfaces operator feedback queue and training assignments scoped to the assignee
+1774 " 🔵 App sidebar surfaces open-appeal count from finalized HUMAN reviews
+1775 " 🟣 Review lifecycle tests assert REOPENED-cycle isolation and forged-field stripping
+1777 " ✅ Final e2e re-run started for follow-up fixes
+1778 " ✅ e2e suite progressing through all 4 specs after follow-up fixes
+1779 " ✅ Final e2e re-run passes 4/4 after all follow-up review fixes
+1780 7:03p 🔵 Mapped remaining "finalized HUMAN review" call sites that bypass the qaStatus cycle filter
+1781 " 🔴 Cycle filter (qaStatus="FINALIZED") propagated to self-review, calibration, and coaching pages
+1782 " ✅ Full unit suite still green and rebuild started after cycle-filter propagation
+1783 7:04p ✅ Production build re-completes after self-review/calibration/coaching cycle filter
+1784 " ✅ Final e2e re-run progressing on OTRS cockpit specs
+1785 " ✅ Final e2e re-run passes 4/4 after cycle filter expansion to self-review/calibration/coaching
+1786 " 🔵 Final working tree status: 33 modified + 22 new files, no commit
+1788 7:06p 🔴 QA review workflow lifecycle hardened against duplicate finalization, stale cycles, and races
+### May 12, 2026
+1789 9:56a 🔵 QC app working tree shows webhook and review-lifecycle workstream in flight
+1790 " 🔵 Active branch codex/production-state-hardening drives webhook, audit, and review-lifecycle hardening
+1791 9:57a 🔵 OTRS production integration plan has one remaining open step — local E2E verification
+1792 " 🔵 OTRS cockpit E2E blocked locally because Docker/Postgres socket is unavailable
+1793 " ✅ Explorer subagent dispatched to audit remaining plan items
+1794 " 🟣 OTRS cockpit E2E verification step closed — full Playwright suite green
+1795 9:58a 🔵 qc_app dirty tree spans webhooks, sampling, review lifecycle, and OTRS integration
+1796 " 🔵 All active superpowers plan checklists now fully complete
+1797 " 🔵 OTRS production integration plan fully checked, including local E2E verification
+1798 " 🔵 Legacy MVP plan still shows 59 unchecked steps but is historically completed
+1799 " ✅ OTRS plan now reflects E2E verification; remaining uncommitted work targets webhooks and review lifecycle
+1800 " 🔵 Explorer subagent surfaced two reconciliation items before handoff
+1803 " 🔵 AGENTS.md "stale" notes are actually the claude-mem context block, not freeform plan status
+1801 " 🔵 qc_app on codex/production-state-hardening branch with sizable uncommitted hardening work
+1802 " ⚖️ No actionable plan items remain after OTRS finalization in qc_app
+1804 " 🔵 Stale Docker-blocked note at OTRS plan line 913 and conflict with checked "Commit final hardening" step
+1805 9:59a ✅ Stale OTRS E2E notes reconciled in AGENTS.md and OTRS plan
+1806 " ✅ OTRS plan "Commit final hardening" step unchecked pending explicit commit request
+1807 " 🔵 One more stale Docker-blocked note remains at OTRS plan line 1169
+1808 " ✅ OTRS plan Task 12 verification log replaced with 2026-05-12 green run summary
+1809 10:00a ✅ OTRS plan and AGENTS.md fully reconciled; one open task remains by design
 
-Access 1033k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 3955k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
 
 # Project Notes

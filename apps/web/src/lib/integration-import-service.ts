@@ -16,6 +16,12 @@ export type QueuedIntegrationImport = {
 
 export type IntegrationJobOperation = "legacy_connector_run" | "otrs_selected_import";
 
+function assertIntegrationEnabled(integration: { status?: string | null }) {
+  if (integration.status === "disabled") {
+    throw new Error("Интеграция отключена.");
+  }
+}
+
 export async function queueIntegrationImportJob(input: {
   workspaceId: string;
   actorId: string;
@@ -35,6 +41,7 @@ export async function queueIntegrationImportJob(input: {
   if (!integration) {
     throw new Error("Интеграция не найдена.");
   }
+  assertIntegrationEnabled(integration);
 
   const dryRun = input.dryRun ?? false;
   const requestedLimit = input.requestedLimit ?? integration.importLimit;
@@ -75,14 +82,21 @@ export async function queueIntegrationImportJob(input: {
       }
     });
 
-    await tx.integration.update({
-      where: { id: integration.id },
+    const queuedIntegration = await tx.integration.updateMany({
+      where: {
+        id: integration.id,
+        workspaceId: input.workspaceId,
+        status: { not: "disabled" }
+      },
       data: {
         status: "queued",
         ...(dryRun ? { lastDryRunAt: now } : { lastImportAt: now }),
         lastError: null
       }
     });
+    if (queuedIntegration.count !== 1) {
+      throw new Error("Интеграция отключена.");
+    }
 
     await auditLog(
       {
@@ -147,6 +161,7 @@ export async function queueSelectedOtrsImportJob(input: {
   if (!integration) {
     throw new Error("Интеграция не найдена.");
   }
+  assertIntegrationEnabled(integration);
 
   if (integration.type !== "otrs_family") {
     throw new Error("Выборочный импорт поддерживается только для OTRS-family интеграций.");
@@ -224,13 +239,20 @@ export async function queueSelectedOtrsImportJob(input: {
       }
     });
 
-    await tx.integration.update({
-      where: { id: integration.id },
+    const queuedIntegration = await tx.integration.updateMany({
+      where: {
+        id: integration.id,
+        workspaceId: input.workspaceId,
+        status: { not: "disabled" }
+      },
       data: {
         status: "queued",
         lastError: null
       }
     });
+    if (queuedIntegration.count !== 1) {
+      throw new Error("Интеграция отключена.");
+    }
 
     await auditLog(
       {

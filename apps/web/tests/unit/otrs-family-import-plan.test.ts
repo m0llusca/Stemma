@@ -80,6 +80,7 @@ function createFakeDb(existingExternalIds: string[] = []) {
     diagnosticRuns: [] as Array<Record<string, unknown>>,
     runs: [] as Array<Record<string, unknown>>,
     items: [] as Array<Record<string, unknown>>,
+    integrations: [{ id: "integration-1", workspaceId: "workspace-1", status: "ready" }] as Array<Record<string, unknown>>,
     conversations: [] as Array<Record<string, unknown>>,
     messages: [] as Array<Record<string, unknown>>,
     integrationUpdates: [] as Array<Record<string, unknown>>
@@ -97,8 +98,14 @@ function createFakeDb(existingExternalIds: string[] = []) {
       return false;
     }
 
-    if (where.status !== undefined && item.status !== where.status) {
-      return false;
+    if (where.status !== undefined) {
+      if (typeof where.status === "object" && where.status !== null && "not" in where.status) {
+        if (item.status === where.status.not) {
+          return false;
+        }
+      } else if (item.status !== where.status) {
+        return false;
+      }
     }
 
     if (where.id && typeof where.id === "object" && "in" in where.id) {
@@ -216,9 +223,14 @@ function createFakeDb(existingExternalIds: string[] = []) {
       })
     },
     integration: {
-      update: vi.fn(async ({ data }) => {
-        state.integrationUpdates.push(data);
-        return data;
+      findFirst: vi.fn(async ({ where }) => state.integrations.find((integration) => matchesWhere(integration, where)) ?? null),
+      updateMany: vi.fn(async ({ where, data }) => {
+        const rows = state.integrations.filter((integration) => matchesWhere(integration, where));
+        rows.forEach((row) => Object.assign(row, data));
+        if (rows.length > 0) {
+          state.integrationUpdates.push(data);
+        }
+        return { count: rows.length };
       })
     }
   };
@@ -436,6 +448,37 @@ describe("OTRS-family preview/import planning", () => {
     expect(state.items.map((item) => item.status)).toEqual(["previewed", "previewed"]);
   });
 
+  it("deduplicates manual TicketID preview before fetching and creating run items", async () => {
+    const { db, state } = createFakeDb();
+    const client = {
+      requestJson: vi.fn(async (request: OtrsOperationRequest) => ticket(request.url.includes("/102") ? "102" : "101"))
+    };
+
+    await createOtrsPreviewRun({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config: configWithLimits({ manualTicketIdLimit: 5 })
+      },
+      actorId: "user-1",
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "manual_ticket_ids",
+      manualTicketIds: ["101", 101, "102"]
+    });
+
+    expect(client.requestJson).toHaveBeenCalledTimes(2);
+    expect(client.requestJson.mock.calls.map(([request]) => request.url)).toEqual([
+      "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/101?UserLogin=qa_api&Password=secret&AllArticles=1&Attachments=1&GetAttachmentContents=0",
+      "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/102?UserLogin=qa_api&Password=secret&AllArticles=1&Attachments=1&GetAttachmentContents=0"
+    ]);
+    expect(state.items.map((item) => item.externalId)).toEqual(["101", "102"]);
+  });
+
   it("TicketSearch preview fetches IDs returned by search up to the configured search limit", async () => {
     const { db, state } = createFakeDb();
     const client = {
@@ -471,6 +514,78 @@ describe("OTRS-family preview/import planning", () => {
     expect(state.diagnosticRuns[0]).toMatchObject({
       status: "succeeded",
       mode: "ticket_search"
+    });
+  });
+
+  it("deduplicates TicketSearch results before fetching and creating run items", async () => {
+    const { db, state } = createFakeDb();
+    const client = {
+      requestJson: vi.fn(async (request: OtrsOperationRequest) => {
+        if (request.operation === "TicketSearch") {
+          return { TicketID: ["201", "201", "202"] };
+        }
+
+        return ticket(request.url.includes("/202") ? "202" : "201");
+      })
+    };
+
+    await createOtrsPreviewRun({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config: configWithLimits({ searchLimit: 5 })
+      },
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "ticket_search",
+      filters: {
+        Queue: "Raw"
+      }
+    });
+
+    expect(client.requestJson.mock.calls.map(([request]) => request.operation)).toEqual(["TicketSearch", "TicketGet", "TicketGet"]);
+    expect(state.items.map((item) => item.externalId)).toEqual(["201", "202"]);
+  });
+
+  it("updates preview run progress after creating preview items", async () => {
+    const { db, state } = createFakeDb();
+    const client = {
+      requestJson: vi.fn(async (request: OtrsOperationRequest) => {
+        if (request.url.includes("/702")) {
+          return { Success: 1, Ticket: [] };
+        }
+
+        return ticket("701");
+      })
+    };
+
+    await createOtrsPreviewRun({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config: configWithLimits({ manualTicketIdLimit: 5 })
+      },
+      actorId: "user-1",
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "manual_ticket_ids",
+      manualTicketIds: ["701", "702"]
+    });
+
+    expect(state.items.map((item) => item.status)).toEqual(["previewed", "skipped"]);
+    expect(state.runs[0]).toMatchObject({
+      checkedCount: 2,
+      importedCount: 0,
+      skippedCount: 1,
+      errorCount: 1
     });
   });
 
@@ -639,6 +754,46 @@ describe("OTRS-family preview/import planning", () => {
       importedCount: 1,
       errorCount: 1
     });
+  });
+
+  it("rejects selected import for disabled integrations before claiming preview rows", async () => {
+    const { db, state } = createFakeDb();
+    state.integrations[0].status = "disabled";
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "451",
+      status: "previewed",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("451"))
+    });
+
+    await expect(
+      importSelectedOtrsRunItems({
+        db,
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        selectedItemIds: ["item-1"]
+      })
+    ).rejects.toThrow("Интеграция отключена.");
+
+    expect(db.integrationRunItem.updateMany).not.toHaveBeenCalled();
+    expect(state.items[0]).toMatchObject({
+      id: "item-1",
+      status: "previewed"
+    });
+    expect(state.integrationUpdates).toEqual([]);
   });
 
   it("default importer uses the injected db boundary for conversation and message upserts", async () => {

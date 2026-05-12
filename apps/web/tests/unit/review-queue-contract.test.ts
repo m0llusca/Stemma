@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   prisma: {
     conversation: {
-      findMany: vi.fn()
+      findMany: vi.fn(),
+      findFirst: vi.fn()
     }
   }
 }));
@@ -27,7 +28,7 @@ describe("review queue frontend/backend contract", () => {
         channel: "CHAT",
         externalSource: "custom_api",
         reviewDueAt: new Date("2026-05-05T12:00:00.000Z"),
-        qaStatus: "ASSIGNED",
+        qaStatus: "FINALIZED",
         qaAssigneeName: "Проверяющий",
         csatBucket: "NEGATIVE",
         samplingType: "DSAT",
@@ -73,7 +74,7 @@ describe("review queue frontend/backend contract", () => {
         channel: "CHAT",
         externalSource: "custom_api",
         reviewDueAt: "2026-05-05T12:00:00.000Z",
-        qaStatus: "ASSIGNED",
+        qaStatus: "FINALIZED",
         qaAssigneeName: "Проверяющий",
         csatBucket: "NEGATIVE",
         samplingType: "DSAT",
@@ -92,5 +93,135 @@ describe("review queue frontend/backend contract", () => {
         ]
       }
     ]);
+  });
+
+  it("does not expose finalized HUMAN reviews from a previous reopened cycle", async () => {
+    mocks.prisma.conversation.findMany.mockResolvedValue([
+      {
+        id: "conversation-1",
+        subject: "Повторная проверка",
+        customerName: "Мила Петрова",
+        assigneeName: "Иван Петров",
+        channel: "CHAT",
+        externalSource: "custom_api",
+        reviewDueAt: null,
+        qaStatus: "REOPENED",
+        qaAssigneeName: "Проверяющий",
+        csatBucket: "NEGATIVE",
+        samplingType: "DSAT",
+        riskHint: null,
+        _count: {
+          messages: 3
+        },
+        reviews: [
+          {
+            id: "old-finalized-review",
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            totalScore: 92,
+            criticalError: true,
+            needsReanswer: true,
+            appealStatus: "open",
+            reanswerStatus: "requested"
+          },
+          {
+            id: "current-draft-review",
+            status: "DRAFT",
+            reviewSource: "HUMAN",
+            totalScore: 70,
+            criticalError: false,
+            needsReanswer: false,
+            appealStatus: "none",
+            reanswerStatus: "not_needed"
+          }
+        ]
+      }
+    ]);
+
+    const { getReviewQueue } = await import("@/lib/review-repository");
+    const conversations = await getReviewQueue("workspace-1", { status: "all" });
+
+    expect(conversations[0].reviews).toEqual([
+      expect.objectContaining({
+        id: "current-draft-review",
+        status: "DRAFT"
+      })
+    ]);
+  });
+
+  it("filters previous-cycle finalized HUMAN reviews from the review detail repository", async () => {
+    mocks.prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      workspaceId: "workspace-1",
+      qaStatus: "REOPENED",
+      messages: [],
+      reviews: [
+        {
+          id: "old-finalized-review",
+          status: "FINALIZED",
+          reviewSource: "HUMAN"
+        },
+        {
+          id: "current-draft-review",
+          status: "DRAFT",
+          reviewSource: "HUMAN"
+        }
+      ]
+    });
+
+    const { getConversationForReview } = await import("@/lib/review-repository");
+    const conversation = await getConversationForReview("workspace-1", "conversation-1");
+
+    expect(conversation?.reviews).toEqual([
+      expect.objectContaining({
+        id: "current-draft-review",
+        status: "DRAFT"
+      })
+    ]);
+  });
+
+  it("keeps reviewed and unreviewed filters scoped to the active QA cycle", async () => {
+    mocks.prisma.conversation.findMany.mockResolvedValue([]);
+    const { getReviewQueue } = await import("@/lib/review-repository");
+
+    await getReviewQueue("workspace-1", { status: "reviewed" });
+    await getReviewQueue("workspace-1", { status: "unreviewed" });
+
+    expect(mocks.prisma.conversation.findMany.mock.calls[0][0].where.AND).toEqual(
+      expect.arrayContaining([
+        { workspaceId: "workspace-1" },
+        { qaStatus: "FINALIZED" },
+        {
+          reviews: {
+            some: {
+              reviewSource: "HUMAN",
+              status: "FINALIZED"
+            }
+          }
+        }
+      ])
+    );
+    expect(mocks.prisma.conversation.findMany.mock.calls[1][0].where.AND).toEqual(
+      expect.arrayContaining([
+        { workspaceId: "workspace-1" },
+        {
+          OR: [
+            {
+              qaStatus: {
+                not: "FINALIZED"
+              }
+            },
+            {
+              reviews: {
+                none: {
+                  reviewSource: "HUMAN",
+                  status: "FINALIZED"
+                }
+              }
+            }
+          ]
+        }
+      ])
+    );
   });
 });

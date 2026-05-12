@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => {
     $transaction: vi.fn(),
     integration: {
       findFirst: vi.fn(),
-      update: vi.fn()
+      update: vi.fn(),
+      updateMany: vi.fn()
     },
     integrationRun: {
       create: vi.fn(),
@@ -60,7 +61,7 @@ describe("integration import service", () => {
       id: "job-1",
       status: "QUEUED"
     });
-    mocks.prisma.integration.update.mockResolvedValue({});
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await queueIntegrationImportJob({
       workspaceId: "workspace-1",
@@ -97,8 +98,12 @@ describe("integration import service", () => {
         payloadJson: expect.stringContaining('"integrationRunId":"run-1"')
       })
     });
-    expect(mocks.prisma.integration.update).toHaveBeenCalledWith({
-      where: { id: "integration-1" },
+    expect(mocks.prisma.integration.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "integration-1",
+        workspaceId: "workspace-1",
+        status: { not: "disabled" }
+      },
       data: expect.objectContaining({
         status: "queued",
         lastImportAt: expect.any(Date),
@@ -137,6 +142,29 @@ describe("integration import service", () => {
     ).rejects.toThrow("Интеграция не найдена.");
   });
 
+  it("rejects disabled integrations before queueing connector imports", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "disabled",
+      importLimit: 25
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Интеграция отключена.");
+
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
   it("queues a selected OTRS import job with explicit operation payload", async () => {
     const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
     mocks.prisma.integration.findFirst.mockResolvedValue({
@@ -158,7 +186,7 @@ describe("integration import service", () => {
       id: "job-1",
       status: "QUEUED"
     });
-    mocks.prisma.integration.update.mockResolvedValue({});
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await queueSelectedOtrsImportJob({
       workspaceId: "workspace-1",
@@ -214,6 +242,17 @@ describe("integration import service", () => {
           integrationRunItemIds: ["item-1"]
         })
       })
+    });
+    expect(mocks.prisma.integration.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "integration-1",
+        workspaceId: "workspace-1",
+        status: { not: "disabled" }
+      },
+      data: {
+        status: "queued",
+        lastError: null
+      }
     });
     expect(mocks.auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -300,6 +339,31 @@ describe("integration import service", () => {
     expect(mocks.prisma.integrationRun.updateMany).not.toHaveBeenCalled();
   });
 
+  it("rejects disabled OTRS integrations before queueing selected imports", async () => {
+    const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "otrs",
+      type: "otrs_family",
+      status: "disabled",
+      importLimit: 25
+    });
+
+    await expect(
+      queueSelectedOtrsImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        integrationRunItemIds: ["item-1"]
+      })
+    ).rejects.toThrow("Интеграция отключена.");
+
+    expect(mocks.prisma.integrationRun.findFirst).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
   it("rejects selected OTRS import when the preview run was already claimed and creates no duplicate job", async () => {
     const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
     mocks.prisma.integration.findFirst.mockResolvedValue({
@@ -357,7 +421,7 @@ describe("integration import service", () => {
       }
     });
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
-    expect(mocks.prisma.integration.update).not.toHaveBeenCalled();
+    expect(mocks.prisma.integration.updateMany).not.toHaveBeenCalled();
     expect(mocks.auditLog).not.toHaveBeenCalled();
   });
 });

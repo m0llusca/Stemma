@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import type { IntegrationJobOperation } from "@/lib/integration-import-service";
 import { runIntegrationConnector, runSelectedOtrsImportConnector } from "@/lib/integrations/runner";
 import { logBackendEvent } from "@/lib/observability";
+import { ingestWebhookEvent } from "@/lib/webhooks/inbound";
 
 export type BackendJobPayload = Record<string, unknown>;
 export const backendJobQueueDefaults = {
@@ -471,6 +472,25 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
   };
 }
 
+async function runWebhookIngestJob(job: BackendJob, payload: BackendJobPayload) {
+  const endpointId = typeof payload.endpointId === "string" ? payload.endpointId : null;
+  const rawBody = typeof payload.rawBody === "string" ? payload.rawBody : null;
+  const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey : null;
+
+  if (!endpointId || !rawBody || !idempotencyKey) {
+    throw new Error("Для webhook ingest задачи нужны endpointId, rawBody и idempotencyKey.");
+  }
+
+  return ingestWebhookEvent({
+    endpointId,
+    workspaceId: job.workspaceId,
+    rawBody,
+    idempotencyKey,
+    timestamp: typeof payload.timestamp === "string" ? payload.timestamp : null,
+    signature: typeof payload.signature === "string" ? payload.signature : null
+  });
+}
+
 async function executeBackendJob(job: BackendJob) {
   const payload = parsePayload(job);
 
@@ -489,6 +509,8 @@ async function executeBackendJob(job: BackendJob) {
   const result =
     job.type === "INTEGRATION_IMPORT"
       ? await runIntegrationImportJob(job, payload)
+      : job.type === "WEBHOOK_INGEST"
+        ? await runWebhookIngestJob(job, payload)
       : await prisma.$transaction(async (tx) =>
           job.type === "REPORT_EXPORT"
             ? runReportExportJob(tx, job, payload)
@@ -561,8 +583,9 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
       results.push({ jobId: job.id, status: "SUCCEEDED", result });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Неизвестная ошибка фоновой задачи.";
-      const shouldRetry = job.attempts < job.maxAttempts;
       const payload = parsePayload(job);
+      const isDisabledIntegrationFailure = job.type === "INTEGRATION_IMPORT" && message === "Интеграция отключена.";
+      const shouldRetry = !isDisabledIntegrationFailure && job.attempts < job.maxAttempts;
       logBackendEvent({
         level: "error",
         event: "backend_job.failed",
@@ -604,7 +627,8 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
           await prisma.integration.updateMany({
             where: {
               id: integrationId,
-              workspaceId: job.workspaceId
+              workspaceId: job.workspaceId,
+              status: { not: "disabled" }
             },
             data: {
               status: shouldRetry ? "queued" : "error",

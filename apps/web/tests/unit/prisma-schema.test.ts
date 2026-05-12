@@ -21,6 +21,14 @@ const diagnosticsMigrationName = readdirSync(migrationsDir).find((name) => name.
 const diagnosticsMigration = diagnosticsMigrationName
   ? readFileSync(join(migrationsDir, diagnosticsMigrationName, "migration.sql"), "utf8")
   : "";
+const syncStateMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_add_integration_sync_state"));
+const syncStateMigration = syncStateMigrationName
+  ? readFileSync(join(migrationsDir, syncStateMigrationName, "migration.sql"), "utf8")
+  : "";
+const webhookIngestMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_add_webhook_ingest"));
+const webhookIngestMigration = webhookIngestMigrationName
+  ? readFileSync(join(migrationsDir, webhookIngestMigrationName, "migration.sql"), "utf8")
+  : "";
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -261,5 +269,66 @@ describe("prisma schema database foundations", () => {
     for (const constraint of expectedConstraints) {
       expect(diagnosticsMigration).toContain(constraint);
     }
+  });
+
+  it("stores structured integration sync state and run progress", () => {
+    const integrationModel = modelBlock("Integration");
+    const integrationRunModel = modelBlock("IntegrationRun");
+
+    expect(integrationModel).toMatch(/syncStateJson\s+String\s+@default\("\{\}"\)/);
+    expect(integrationRunModel).toContain("checkedCount   Int                  @default(0)");
+    expect(integrationRunModel).toContain("skippedCount   Int                  @default(0)");
+    expect(integrationRunModel).toContain('cursorJson     String               @default("{}")');
+    expect(integrationRunModel).toContain('checkpointJson String               @default("{}")');
+  });
+
+  it("migrates structured integration sync state with nonnegative progress guardrails", () => {
+    expect(syncStateMigrationName).toMatch(/^\d+_add_integration_sync_state$/);
+    expect(syncStateMigrationName?.localeCompare(diagnosticsMigrationName ?? "")).toBeGreaterThan(0);
+    expect(syncStateMigration).toContain('ALTER TABLE "Integration"');
+    expect(syncStateMigration).toContain('ADD COLUMN "syncStateJson" TEXT NOT NULL DEFAULT \'{}\'');
+    expect(syncStateMigration).toContain('ADD COLUMN "checkedCount" INTEGER NOT NULL DEFAULT 0');
+    expect(syncStateMigration).toContain('ADD COLUMN "skippedCount" INTEGER NOT NULL DEFAULT 0');
+    expect(syncStateMigration).toContain('ADD COLUMN "cursorJson" TEXT NOT NULL DEFAULT \'{}\'');
+    expect(syncStateMigration).toContain('ADD COLUMN "checkpointJson" TEXT NOT NULL DEFAULT \'{}\'');
+    expect(syncStateMigration).toContain('CONSTRAINT "IntegrationRun_checkedCount_nonnegative_chk"');
+    expect(syncStateMigration).toContain('CONSTRAINT "IntegrationRun_skippedCount_nonnegative_chk"');
+  });
+
+  it("stores inbound webhook endpoints and ingest events with idempotency", () => {
+    const workspaceModel = modelBlock("Workspace");
+    const integrationModel = modelBlock("Integration");
+    const integrationRunModel = modelBlock("IntegrationRun");
+    const conversationModel = modelBlock("Conversation");
+    const endpointModel = modelBlock("WebhookEndpoint");
+    const eventModel = modelBlock("WebhookIngestEvent");
+
+    expect(schema).toContain("WEBHOOK_INGEST");
+    expect(workspaceModel).toMatch(/webhookEndpoints\s+WebhookEndpoint\[]/);
+    expect(workspaceModel).toMatch(/webhookIngestEvents\s+WebhookIngestEvent\[]/);
+    expect(integrationModel).toMatch(/webhookEndpoints\s+WebhookEndpoint\[]/);
+    expect(integrationRunModel).toMatch(/webhookEvents\s+WebhookIngestEvent\[]/);
+    expect(conversationModel).toMatch(/webhookIngestEvents\s+WebhookIngestEvent\[]/);
+
+    expect(endpointModel).toContain("encryptedSecret");
+    expect(endpointModel).toMatch(/signingAlgorithm\s+String\s+@default\("hmac_sha256"\)/);
+    expect(endpointModel).toContain("@@index([workspaceId, status])");
+    expect(endpointModel).toContain("@@index([workspaceId, integrationId])");
+    expect(eventModel).toMatch(/signatureVerified\s+Boolean\s+@default\(false\)/);
+    expect(eventModel).toContain("@@unique([endpointId, idempotencyKey])");
+    expect(eventModel).toContain("@@index([workspaceId, status, receivedAt])");
+  });
+
+  it("migrates inbound webhook ingest tables, indexes, and guardrails", () => {
+    expect(webhookIngestMigrationName).toMatch(/^\d+_add_webhook_ingest$/);
+    expect(webhookIngestMigrationName?.localeCompare(syncStateMigrationName ?? "")).toBeGreaterThan(0);
+    expect(webhookIngestMigration).toContain("ALTER TYPE \"BackendJobType\" ADD VALUE 'WEBHOOK_INGEST'");
+    expect(webhookIngestMigration).toContain('CREATE TABLE "WebhookEndpoint"');
+    expect(webhookIngestMigration).toContain('CREATE TABLE "WebhookIngestEvent"');
+    expect(webhookIngestMigration).toContain('CREATE UNIQUE INDEX "WebhookIngestEvent_endpointId_idempotencyKey_key"');
+    expect(webhookIngestMigration).toContain('CONSTRAINT "WebhookEndpoint_status_chk"');
+    expect(webhookIngestMigration).toContain('CONSTRAINT "WebhookIngestEvent_status_chk"');
+    expect(webhookIngestMigration).toContain('ALTER TABLE "WebhookEndpoint" ADD CONSTRAINT "WebhookEndpoint_workspaceId_fkey"');
+    expect(webhookIngestMigration).toContain('ALTER TABLE "WebhookIngestEvent" ADD CONSTRAINT "WebhookIngestEvent_endpointId_fkey"');
   });
 });

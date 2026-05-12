@@ -1,5 +1,5 @@
 import type { Integration, IntegrationCredential, Prisma } from "@prisma/client";
-import { upsertCustomConversation } from "@/lib/conversation-import";
+import { upsertCustomConversation, type ImportedConversation } from "@/lib/conversation-import";
 import { prisma } from "@/lib/db";
 import { importSelectedOtrsRunItems } from "@/lib/integrations/otrs-family/import-plan";
 import {
@@ -19,11 +19,17 @@ import {
   type NativeHelpdeskSource
 } from "@/lib/normalizers/native-helpdesk";
 import { decryptIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
+import {
+  buildIntegrationSyncState,
+  integrationRunCursorPayload,
+  serializeIntegrationSyncState
+} from "@/lib/integrations/sync-state";
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 type IntegrationWithCredential = Integration & {
   credentials: IntegrationCredential[];
 };
+type IntegrationRunItemClient = Pick<Prisma.TransactionClient, "integrationRunItem">;
 
 type IntegrationConfig = {
   source?: string;
@@ -71,6 +77,12 @@ function requireText(value: string | null | undefined, message: string) {
   }
 
   return normalized;
+}
+
+function assertIntegrationEnabled(integration: Pick<Integration, "status">) {
+  if (integration.status === "disabled") {
+    throw new Error("Интеграция отключена.");
+  }
 }
 
 function optionalCredentialSecret(credentials: IntegrationCredential[]) {
@@ -265,6 +277,124 @@ async function loadIntegrationConversations(integration: IntegrationWithCredenti
   return loadCustomApiConversations(integration, limit);
 }
 
+async function recordConnectorRunItem(input: {
+  db: IntegrationRunItemClient;
+  workspaceId: string;
+  integrationRunId: string;
+  conversation: CustomConversationInput;
+  status: "previewed" | "imported";
+  importedConversation?: ImportedConversation;
+}) {
+  const existing = await input.db.integrationRunItem.findFirst({
+    where: {
+      workspaceId: input.workspaceId,
+      integrationRunId: input.integrationRunId,
+      externalId: input.conversation.externalId
+    },
+    select: { id: true }
+  });
+  const data = {
+    workspaceId: input.workspaceId,
+    integrationRunId: input.integrationRunId,
+    externalId: input.conversation.externalId,
+    ticketNumber: input.conversation.externalId,
+    status: input.status,
+    articleCount: input.conversation.messages.length,
+    privateArticleCount: input.conversation.messages.filter((message) => message.isPrivate).length,
+    attachmentCount: 0,
+    warningsJson: "[]",
+    errorsJson: "[]",
+    conversationId: input.importedConversation?.id ?? null,
+    normalizedPreviewJson: JSON.stringify(input.conversation)
+  };
+
+  if (existing) {
+    await input.db.integrationRunItem.update({
+      where: { id: existing.id },
+      data
+    });
+    return;
+  }
+
+  await input.db.integrationRunItem.create({ data });
+}
+
+async function writeConnectorRunResult(input: {
+  db: Prisma.TransactionClient;
+  workspaceId: string;
+  integration: IntegrationWithCredential;
+  integrationRunId?: string | null;
+  dryRun: boolean;
+  conversations: CustomConversationInput[];
+  syncState: ReturnType<typeof buildIntegrationSyncState>;
+  checkedCount: number;
+  importedCount: number;
+}) {
+  const importedByExternalId = new Map<string, ImportedConversation>();
+  const finishedAt = new Date();
+
+  if (!input.dryRun) {
+    for (const conversation of input.conversations) {
+      const imported = await upsertCustomConversation(input.workspaceId, conversation, input.db);
+      importedByExternalId.set(conversation.externalId, imported);
+    }
+  }
+
+  if (input.integrationRunId) {
+    for (const conversation of input.conversations) {
+      await recordConnectorRunItem({
+        db: input.db,
+        workspaceId: input.workspaceId,
+        integrationRunId: input.integrationRunId,
+        conversation,
+        status: input.dryRun ? "previewed" : "imported",
+        importedConversation: importedByExternalId.get(conversation.externalId)
+      });
+    }
+
+    await input.db.integrationRun.update({
+      where: { id: input.integrationRunId },
+      data: {
+        status: input.dryRun ? "dry_run_ok" : "succeeded",
+        checkedCount: input.checkedCount,
+        importedCount: input.importedCount,
+        skippedCount: 0,
+        errorCount: 0,
+        cursorJson: JSON.stringify(integrationRunCursorPayload(input.syncState)),
+        checkpointJson: JSON.stringify(input.syncState.checkpoint),
+        errorMessage: null,
+        finishedAt
+      }
+    });
+  }
+
+  const integrationUpdate = await input.db.integration.updateMany({
+    where: {
+      id: input.integration.id,
+      workspaceId: input.workspaceId,
+      status: { not: "disabled" }
+    },
+    data: input.dryRun
+      ? {
+          status: "ready",
+          lastDryRunAt: finishedAt,
+          lastError: null
+        }
+      : {
+          status: "active",
+          lastSyncedAt: finishedAt,
+          lastImportAt: finishedAt,
+          lastError: null,
+          syncStateJson: serializeIntegrationSyncState(input.syncState),
+          syncCursor: input.syncState.cursor
+        }
+  });
+
+  if (integrationUpdate.count !== 1) {
+    throw new Error("Интеграция отключена.");
+  }
+}
+
 export async function runIntegrationConnector(input: {
   workspaceId: string;
   integrationId: string;
@@ -273,8 +403,8 @@ export async function runIntegrationConnector(input: {
   dryRun?: boolean;
   client?: Prisma.TransactionClient;
 }): Promise<IntegrationRunResult> {
-  const db = input.client ?? prisma;
-  const integration = await db.integration.findFirst({
+  const readDb = input.client ?? prisma;
+  const integration = await readDb.integration.findFirst({
     where: {
       id: input.integrationId,
       workspaceId: input.workspaceId
@@ -287,49 +417,60 @@ export async function runIntegrationConnector(input: {
   if (!integration) {
     throw new Error("Интеграция не найдена в рабочем пространстве задачи.");
   }
+  assertIntegrationEnabled(integration);
 
   const config = parseConfig(integration.configJson);
   const limit = requestedLimit(input.requestedLimit, integration.importLimit);
   const conversations = (await loadIntegrationConversations(integration, config, limit)).slice(0, limit);
   const externalIds = conversations.map((conversation) => conversation.externalId);
-
-  if (!input.dryRun) {
-    for (const conversation of conversations as CustomConversationInput[]) {
-      await upsertCustomConversation(input.workspaceId, conversation, db);
-    }
-  }
-
-  if (input.integrationRunId) {
-    await db.integrationRun.update({
-      where: { id: input.integrationRunId },
-      data: {
-        status: input.dryRun ? "dry_run_ok" : "succeeded",
-        importedCount: input.dryRun ? 0 : conversations.length,
-        errorCount: 0,
-        errorMessage: null,
-        finishedAt: new Date()
-      }
-    });
-  }
-
-  await db.integration.update({
-    where: { id: integration.id },
-    data: {
-      status: input.dryRun ? "ready" : "active",
-      lastSyncedAt: input.dryRun ? integration.lastSyncedAt : new Date(),
-      lastDryRunAt: input.dryRun ? new Date() : integration.lastDryRunAt,
-      lastImportAt: input.dryRun ? integration.lastImportAt : new Date(),
-      lastError: null,
-      syncCursor: externalIds.at(-1) ?? integration.syncCursor
+  const checkedCount = conversations.length;
+  const importedCount = input.dryRun ? 0 : conversations.length;
+  const cursor = externalIds.at(-1) ?? integration.syncCursor;
+  const syncState = buildIntegrationSyncState({
+    source: integration.source,
+    mode: integration.type,
+    cursor,
+    checkedCount,
+    importedCount,
+    skippedCount: 0,
+    errorCount: 0,
+    checkpoint: {
+      externalIds,
+      dryRun: Boolean(input.dryRun)
     }
   });
+
+  const writeInput = {
+    workspaceId: input.workspaceId,
+    integration,
+    integrationRunId: input.integrationRunId,
+    dryRun: Boolean(input.dryRun),
+    conversations: conversations as CustomConversationInput[],
+    syncState,
+    checkedCount,
+    importedCount
+  };
+
+  if (input.client) {
+    await writeConnectorRunResult({
+      ...writeInput,
+      db: input.client
+    });
+  } else {
+    await prisma.$transaction(async (tx) =>
+      writeConnectorRunResult({
+        ...writeInput,
+        db: tx
+      })
+    );
+  }
 
   return {
     source: integration.source,
     mode: integration.type,
     dryRun: Boolean(input.dryRun),
-    importedCount: input.dryRun ? 0 : conversations.length,
-    checkedCount: conversations.length,
+    importedCount,
+    checkedCount,
     externalIds
   };
 }
@@ -340,7 +481,12 @@ export async function runSelectedOtrsImportConnector(input: {
   integrationRunId: string;
   selectedItemIds: string[];
 }): Promise<SelectedOtrsImportRunResult> {
-  const result = await importSelectedOtrsRunItems(input);
+  const result = await prisma.$transaction(async (tx) =>
+    importSelectedOtrsRunItems({
+      ...input,
+      db: tx
+    })
+  );
 
   return {
     operation: "otrs_selected_import",

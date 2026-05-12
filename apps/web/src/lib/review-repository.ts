@@ -34,6 +34,19 @@ type ReviewQueueScope = {
   assigneeName?: string;
 };
 
+type CurrentCycleReview = {
+  status: string;
+  reviewSource: string;
+};
+
+function currentCycleReviewsForQaStatus<T extends CurrentCycleReview>(qaStatus: QaStatus, reviews: readonly T[]) {
+  if (qaStatus === "FINALIZED") {
+    return [...reviews];
+  }
+
+  return reviews.filter((review) => !(review.reviewSource === "HUMAN" && review.status === "FINALIZED"));
+}
+
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -122,16 +135,26 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
 
   if (filters.status === "unreviewed") {
     and.push({
-      reviews: {
-        none: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED"
+      OR: [
+        {
+          qaStatus: {
+            not: "FINALIZED"
+          }
+        },
+        {
+          reviews: {
+            none: {
+              reviewSource: "HUMAN",
+              status: "FINALIZED"
+            }
+          }
         }
-      }
+      ]
     });
   }
 
   if (filters.status === "reviewed") {
+    and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
@@ -182,6 +205,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.process === "critical") {
+    and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
@@ -194,6 +218,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.process === "reanswer") {
+    and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
@@ -206,6 +231,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.process === "appeal") {
+    and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
@@ -220,6 +246,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.riskLevel) {
+    and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
@@ -236,6 +263,7 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.finalizedFrom || filters.finalizedTo) {
+    and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
@@ -306,7 +334,7 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
     csatBucket: conversation.csatBucket,
     samplingType: conversation.samplingType,
     riskHint: conversation.riskHint,
-    reviews: conversation.reviews
+    reviews: currentCycleReviewsForQaStatus(conversation.qaStatus, conversation.reviews)
   }));
 }
 
@@ -453,7 +481,7 @@ export async function getReviewQueueFilterOptions(workspaceId: string, scope?: R
 }
 
 export async function getConversationForReview(workspaceId: string, conversationId: string, scope?: ReviewQueueScope) {
-  return prisma.conversation.findFirst({
+  const conversation = await prisma.conversation.findFirst({
     where: {
       id: conversationId,
       ...scopedConversationWhere(workspaceId, scope)
@@ -493,6 +521,15 @@ export async function getConversationForReview(workspaceId: string, conversation
       }
     }
   });
+
+  if (!conversation) {
+    return null;
+  }
+
+  return {
+    ...conversation,
+    reviews: currentCycleReviewsForQaStatus(conversation.qaStatus, conversation.reviews)
+  };
 }
 
 export async function getActiveScorecard(workspaceId: string) {

@@ -6,6 +6,11 @@ import type { OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config"
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
 import { normalizeOtrsFamilyTicketForImport } from "@/lib/integrations/otrs-family/normalization";
 import {
+  buildIntegrationSyncState,
+  integrationRunCursorPayload,
+  serializeIntegrationSyncState
+} from "@/lib/integrations/sync-state";
+import {
   extractOtrsFamilyTickets,
   isOtrsFamilyTicketLike,
   type OtrsFamilySource,
@@ -31,6 +36,7 @@ type PreviewDb = {
   };
   integrationRun: {
     create(args: { data: JsonRecord }): Promise<JsonRecord>;
+    update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
   };
   integrationRunItem: {
     create(args: { data: JsonRecord }): Promise<JsonRecord>;
@@ -60,7 +66,8 @@ type ImportDb = {
     update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
   };
   integration: {
-    update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
+    findFirst(args: { where: JsonRecord }): Promise<JsonRecord | null>;
+    updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
   };
 } & ConversationImportClient;
 
@@ -132,7 +139,9 @@ export async function createOtrsPreviewRun(input: CreateOtrsPreviewRunInput) {
       status: "previewed",
       dryRun: true,
       requestedLimit,
+      checkedCount: 0,
       importedCount: 0,
+      skippedCount: 0,
       errorCount: 0
     }
   });
@@ -148,6 +157,11 @@ export async function createOtrsPreviewRun(input: CreateOtrsPreviewRunInput) {
     ...(input.mode === "manual_ticket_ids"
       ? { mode: input.mode, manualTicketIds: input.manualTicketIds }
       : { mode: input.mode, filters: input.filters })
+  });
+  const progress = previewRunProgress(items);
+  const updatedRun = await db.integrationRun.update({
+    where: { id: String(run.id) },
+    data: progress
   });
   const status = items.some((item) => item.status !== "previewed") ? "warning" : "succeeded";
 
@@ -168,7 +182,10 @@ export async function createOtrsPreviewRun(input: CreateOtrsPreviewRunInput) {
       ...diagnosticRun,
       status
     },
-    run,
+    run: updatedRun ?? {
+      ...run,
+      ...progress
+    },
     items
   };
 }
@@ -201,6 +218,20 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
 
   if (!run) {
     throw new Error("Integration preview run was not found in the requested workspace.");
+  }
+  const integration = await db.integration.findFirst({
+    where: {
+      id: input.integrationId,
+      workspaceId: input.workspaceId
+    }
+  });
+
+  if (!integration) {
+    throw new Error("Интеграция не найдена.");
+  }
+
+  if (integration.status === "disabled") {
+    throw new Error("Интеграция отключена.");
   }
 
   await db.integrationRunItem.updateMany({
@@ -242,19 +273,18 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
       data: {
         status: "no_selection",
         dryRun: true,
+        checkedCount: 0,
         importedCount: 0,
+        skippedCount: 0,
         errorCount: 0,
         errorMessage: "No preview items were selected for import.",
         finishedAt
       }
     });
 
-    await db.integration.update({
-      where: { id: input.integrationId },
-      data: {
-        status: "ready",
-        lastError: null
-      }
+    await updateEnabledIntegration(db, input, {
+      status: "ready",
+      lastError: null
     });
 
     return {
@@ -301,37 +331,52 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   const status = importedCount > 0 ? "imported" : "failed";
   const errorMessage = importedCount > 0 ? null : "All selected preview items failed to import.";
   const integrationStatus = importedCount > 0 ? "active" : "error";
+  const checkedCount = selectedItems.length;
+  const syncState = buildIntegrationSyncState({
+    source: String(run.source ?? "otrs"),
+    mode: String(run.mode ?? "otrs_selected_import"),
+    cursor: lastSuccessfulExternalId ?? null,
+    checkedCount,
+    importedCount,
+    skippedCount: 0,
+    errorCount,
+    checkpoint: {
+      integrationRunId: input.integrationRunId,
+      selectedItemIds: input.selectedItemIds,
+      lastSuccessfulExternalId: lastSuccessfulExternalId ?? null
+    },
+    updatedAt: finishedAt
+  });
 
   await db.integrationRun.update({
     where: { id: input.integrationRunId },
     data: {
       status,
       dryRun: false,
+      checkedCount,
       importedCount,
+      skippedCount: 0,
       errorCount,
+      cursorJson: JSON.stringify(integrationRunCursorPayload(syncState)),
+      checkpointJson: JSON.stringify(syncState.checkpoint),
       errorMessage,
       finishedAt
     }
   });
 
   if (lastSuccessfulExternalId) {
-    await db.integration.update({
-      where: { id: input.integrationId },
-      data: {
-        status: integrationStatus,
-        lastError: null,
-        lastImportAt: finishedAt,
-        lastSyncedAt: finishedAt,
-        syncCursor: lastSuccessfulExternalId
-      }
+    await updateEnabledIntegration(db, input, {
+      status: integrationStatus,
+      lastError: null,
+      lastImportAt: finishedAt,
+      lastSyncedAt: finishedAt,
+      syncCursor: lastSuccessfulExternalId,
+      syncStateJson: serializeIntegrationSyncState(syncState)
     });
   } else {
-    await db.integration.update({
-      where: { id: input.integrationId },
-      data: {
-        status: integrationStatus,
-        lastError: errorMessage
-      }
+    await updateEnabledIntegration(db, input, {
+      status: integrationStatus,
+      lastError: errorMessage
     });
   }
 
@@ -341,9 +386,28 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   };
 }
 
+async function updateEnabledIntegration(
+  db: ImportDb,
+  input: Pick<ImportSelectedOtrsRunItemsInput, "workspaceId" | "integrationId">,
+  data: JsonRecord
+) {
+  const result = await db.integration.updateMany({
+    where: {
+      id: input.integrationId,
+      workspaceId: input.workspaceId,
+      status: { not: "disabled" }
+    },
+    data
+  });
+
+  if (result.count !== 1) {
+    throw new Error("Интеграция отключена.");
+  }
+}
+
 async function previewTicketIds(input: CreateOtrsPreviewItemsInput) {
   if (input.mode === "manual_ticket_ids") {
-    return input.manualTicketIds.map(String).filter(Boolean).slice(0, input.integration.config.limits.manualTicketIdLimit);
+    return uniqueTicketIds(input.manualTicketIds).slice(0, input.integration.config.limits.manualTicketIdLimit);
   }
 
   const response = await input.client.requestJson(
@@ -357,7 +421,34 @@ async function previewTicketIds(input: CreateOtrsPreviewItemsInput) {
     })
   );
 
-  return parseTicketSearchResponse(response).slice(0, input.integration.config.limits.searchLimit);
+  return uniqueTicketIds(parseTicketSearchResponse(response)).slice(0, input.integration.config.limits.searchLimit);
+}
+
+function uniqueTicketIds(ticketIds: Array<string | number>) {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const rawTicketId of ticketIds) {
+    const ticketId = String(rawTicketId).trim();
+
+    if (!ticketId || seen.has(ticketId)) {
+      continue;
+    }
+
+    seen.add(ticketId);
+    unique.push(ticketId);
+  }
+
+  return unique;
+}
+
+function previewRunProgress(items: JsonRecord[]) {
+  return {
+    checkedCount: items.length,
+    importedCount: 0,
+    skippedCount: items.filter((item) => item.status === "skipped").length,
+    errorCount: items.filter((item) => parseJsonArray(item.errorsJson).length > 0).length
+  };
 }
 
 async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput & { db: PreviewDb; ticketId: string }) {
@@ -472,7 +563,7 @@ function firstTicket(payload: unknown): OtrsFamilyTicket | undefined {
 
 function requestedPreviewLimit(input: CreateOtrsPreviewRunInput) {
   if (input.mode === "manual_ticket_ids") {
-    return Math.min(input.manualTicketIds.length, input.integration.config.limits.manualTicketIdLimit);
+    return Math.min(uniqueTicketIds(input.manualTicketIds).length, input.integration.config.limits.manualTicketIdLimit);
   }
 
   return input.integration.config.limits.searchLimit;

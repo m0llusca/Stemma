@@ -1,14 +1,17 @@
 "use server";
 
-import type { QaStatus } from "@prisma/client";
+import type { Prisma, QaStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { recordReviewEvent } from "@/lib/review-events";
-
-const qaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
+import {
+  assertConditionalWorkflowWrite,
+  assertQaWorkflowTransition,
+  qaWorkflowStatuses
+} from "@/lib/review-workflow-policy";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -23,11 +26,43 @@ function optionalStringField(formData: FormData, key: string) {
 function statusField(formData: FormData): QaStatus {
   const value = stringField(formData, "qaStatus");
 
-  if (!qaStatuses.includes(value as QaStatus)) {
+  if (!qaWorkflowStatuses.includes(value as QaStatus)) {
     throw new Error("Некорректное состояние проверки.");
   }
 
   return value as QaStatus;
+}
+
+async function findLatestReopenedAt(tx: Prisma.TransactionClient, workspaceId: string, conversationId: string) {
+  const event = await tx.reviewEvent.findFirst({
+    where: {
+      workspaceId,
+      conversationId,
+      toStatus: "REOPENED"
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true }
+  });
+
+  return event?.createdAt ?? null;
+}
+
+async function hasCurrentCycleFinalizedHumanReview(tx: Prisma.TransactionClient, workspaceId: string, conversationId: string) {
+  const latestReopenedAt = await findLatestReopenedAt(tx, workspaceId, conversationId);
+  const review = await tx.review.findFirst({
+    where: {
+      workspaceId,
+      conversationId,
+      reviewSource: "HUMAN",
+      status: "FINALIZED",
+      finalizedAt: latestReopenedAt ? { gt: latestReopenedAt } : { not: null }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  return Boolean(review);
 }
 
 export async function updateConversationWorkflow(formData: FormData) {
@@ -66,25 +101,36 @@ export async function updateConversationWorkflow(formData: FormData) {
     throw new Error("Проверяющий не найден.");
   }
 
-  const conversation = await prisma.conversation.findFirst({
-    where: {
-      id: conversationId,
-      workspaceId: user.workspaceId
-    },
-    select: {
-      id: true,
-      qaStatus: true
-    }
-  });
-
-  if (!conversation) {
-    throw new Error("Диалог не найден в текущем рабочем пространстве.");
-  }
-
   await prisma.$transaction(async (tx) => {
-    await tx.conversation.update({
+    const conversation = await tx.conversation.findFirst({
       where: {
-        id: conversationId
+        id: conversationId,
+        workspaceId: user.workspaceId
+      },
+      select: {
+        id: true,
+        qaStatus: true
+      }
+    });
+
+    if (!conversation) {
+      throw new Error("Диалог не найден в текущем рабочем пространстве.");
+    }
+
+    const hasFinalizedReview =
+      qaStatus === "FINALIZED" ? await hasCurrentCycleFinalizedHumanReview(tx, user.workspaceId, conversationId) : false;
+
+    assertQaWorkflowTransition({
+      fromStatus: conversation.qaStatus,
+      toStatus: qaStatus,
+      hasFinalizedReview
+    });
+
+    const updateResult = await tx.conversation.updateMany({
+      where: {
+        id: conversationId,
+        workspaceId: user.workspaceId,
+        qaStatus: conversation.qaStatus
       },
       data: {
         qaStatus,
@@ -93,6 +139,7 @@ export async function updateConversationWorkflow(formData: FormData) {
         reviewDueAt: reviewDueAt ? new Date(`${reviewDueAt}T00:00:00.000Z`) : null
       }
     });
+    assertConditionalWorkflowWrite(updateResult.count);
 
     await auditLog(
       {
@@ -151,7 +198,7 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
 
   const qaStatus = qaStatusValue
     ? (() => {
-        if (!qaStatuses.includes(qaStatusValue as QaStatus)) {
+        if (!qaWorkflowStatuses.includes(qaStatusValue as QaStatus)) {
           throw new Error("Некорректное состояние проверки.");
         }
 
@@ -212,15 +259,47 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.conversation.updateMany({
+    const currentConversations = await tx.conversation.findMany({
       where: {
         id: {
           in: safeIds
         },
         workspaceId: user.workspaceId
       },
-      data
+      select: {
+        id: true,
+        qaStatus: true
+      }
     });
+
+    if (currentConversations.length === 0) {
+      throw new Error("Диалоги не найдены в текущем рабочем пространстве.");
+    }
+
+    for (const conversation of currentConversations) {
+      if (qaStatus) {
+        const hasFinalizedReview =
+          qaStatus === "FINALIZED"
+            ? await hasCurrentCycleFinalizedHumanReview(tx, user.workspaceId, conversation.id)
+            : false;
+
+        assertQaWorkflowTransition({
+          fromStatus: conversation.qaStatus,
+          toStatus: qaStatus,
+          hasFinalizedReview
+        });
+      }
+
+      const updateResult = await tx.conversation.updateMany({
+        where: {
+          id: conversation.id,
+          workspaceId: user.workspaceId,
+          ...(qaStatus ? { qaStatus: conversation.qaStatus } : {})
+        },
+        data
+      });
+      assertConditionalWorkflowWrite(updateResult.count);
+    }
 
     await auditLog(
       {
@@ -230,8 +309,8 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
         targetType: "conversation",
         targetId: "bulk",
         metadata: {
-          count: safeIds.length,
-          conversationIds: safeIds,
+          count: currentConversations.length,
+          conversationIds: currentConversations.map((conversation) => conversation.id),
           qaStatus,
           qaAssigneeId: qaAssignee?.id,
           reviewDueAt
@@ -241,7 +320,7 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
     );
 
     if (qaStatus) {
-      for (const conversation of conversations.filter((item) => safeIds.includes(item.id) && item.qaStatus !== qaStatus)) {
+      for (const conversation of currentConversations.filter((item) => item.qaStatus !== qaStatus)) {
         await recordReviewEvent(tx, {
           workspaceId: user.workspaceId,
           conversationId: conversation.id,

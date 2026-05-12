@@ -108,7 +108,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
 
       <div className="queue-list">
         {conversations.map((conversation) => {
-          const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
+          const latestFinalizedReview =
+            conversation.qaStatus === "FINALIZED"
+              ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
+              : undefined;
           const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
           const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
           const isOverdue =

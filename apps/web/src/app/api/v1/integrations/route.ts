@@ -4,6 +4,7 @@ import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
 import {
   applyCaBundleCredentialReference,
   preserveCaBundleCredentialReference,
@@ -11,6 +12,7 @@ import {
   summarizeIntegrationSecretSlots,
   upsertIntegrationSecretSlot
 } from "@/lib/integrations/otrs-family/credentials";
+import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +71,7 @@ export async function GET() {
   return apiJson({
     integrations: integrations.map((integration) => {
       const credentialSummaries = summarizeIntegrationSecretSlots(integration.credentials);
+      const capability = getIntegrationCapability(integration.source, integration.type);
 
       return {
         id: integration.id,
@@ -86,6 +89,8 @@ export async function GET() {
         lastSyncedAt: integration.lastSyncedAt?.toISOString() ?? null,
         lastImportAt: integration.lastImportAt?.toISOString() ?? null,
         lastError: integration.lastError,
+        syncState: parseIntegrationSyncState(integration.syncStateJson),
+        capability,
         config: sanitizeIntegrationCredentialConfig(parseJson(integration.configJson)),
         hasCredential: credentialSummaries.some((credential) => credential.kind === "auth_password"),
         hasCaBundle: credentialSummaries.some((credential) => credential.kind === "ca_bundle"),
@@ -98,12 +103,17 @@ export async function GET() {
           dryRun: run.dryRun,
           requestedLimit: run.requestedLimit,
           importedCount: run.importedCount,
+          checkedCount: run.checkedCount,
+          skippedCount: run.skippedCount,
           errorCount: run.errorCount,
+          cursor: parseJson(run.cursorJson),
+          checkpoint: parseJson(run.checkpointJson),
           startedAt: run.startedAt.toISOString(),
           finishedAt: run.finishedAt?.toISOString() ?? null
         }))
       };
-    })
+    }),
+    capabilities: listIntegrationCapabilities()
   });
 }
 
@@ -253,6 +263,7 @@ export async function POST(request: Request) {
         source: saved.integration.source,
         displayName: saved.integration.displayName,
         status: saved.integration.status,
+        capability: getIntegrationCapability(saved.integration.source, saved.integration.type),
         hasCredential: saved.credentialSummaries.some((credential) => credential.kind === "auth_password"),
         hasCaBundle: saved.credentialSummaries.some((credential) => credential.kind === "ca_bundle")
       }

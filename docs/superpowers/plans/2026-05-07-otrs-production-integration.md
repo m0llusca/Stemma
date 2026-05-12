@@ -910,7 +910,7 @@ Keep `OtrsImportTester` behind a collapsed "Ручная проверка payloa
 
 - [x] **Step 5: Verify responsive UI**
 
-Implementation note: `npm run typecheck` exits `0`. E2E was attempted but local execution is blocked before assertions because Docker/Postgres is unavailable. `npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts` fails during Playwright webServer startup with `Error: Schema engine error:` from `prisma migrate deploy`. Direct confirmation: `DATABASE_URL=postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public npm run db:deploy` loads the schema and datasource, then fails with `Error: Schema engine error:`; `docker ps` cannot connect to `/Users/dubrsky/.docker/run/docker.sock`.
+Implementation note: `npm run typecheck` exits `0`. Local E2E was re-run on 2026-05-12 with `DATABASE_URL='postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public' npm run test:e2e`; the full Playwright suite, including the OTRS cockpit stub workflow, passed 4/4.
 
 Run:
 
@@ -1013,7 +1013,7 @@ The test should:
 9. Run integration queue from UI or call the job runner helper route if already available.
 10. Navigate to `/reviews?source=otrs&q=<externalId>` and assert imported conversation appears.
 
-- [ ] **Step 2: Verify E2E locally**
+- [x] **Step 2: Verify E2E locally**
 
 Run:
 
@@ -1026,7 +1026,7 @@ npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts
 
 Expected: E2E exits `0` against local Postgres and stub OTRS.
 
-Blocked locally on 2026-05-08 because Docker/Postgres is unavailable at `/Users/dubrsky/.docker/run/docker.sock`; `npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts` exits before assertions while Playwright starts the Prisma-backed web server.
+Verified locally on 2026-05-12 with `DATABASE_URL='postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public' npm run test:e2e`; the full Playwright suite, including `tests/e2e/otrs-integration-cockpit.spec.ts`, passed 4/4 against local Postgres and the stub OTRS flow.
 
 - [x] **Step 3: Commit**
 
@@ -1159,15 +1159,13 @@ Expected:
 
 If `verify_no_pending_changes` creates an empty migration or errors because the database is already current, remove the empty migration before committing and document the actual output in the final task notes.
 
-Task 12 local verification results on 2026-05-08:
+Task 12 local verification results on 2026-05-12:
 
-- `npm run db:up`: failed before Postgres startup because Docker was unavailable: `failed to connect to the docker API at unix:///Users/dubrsky/.docker/run/docker.sock`.
-- `npm run db:migrate -- --name verify_no_pending_changes`: failed before drift checks because `DATABASE_URL` was not set (`P1012`). No empty migration was created.
-- `npm run db:seed`: failed before DB writes because `DATABASE_URL` was not set.
 - `npm run typecheck`: passed, exit `0`.
-- `npm run test`: passed, 40 files / 229 tests, exit `0`.
-- `npm run test:e2e`: failed during Playwright `webServer` startup with `Schema engine error`; the configured web server is `npm run db:deploy && npm run db:seed && npm run dev`, so this remains blocked by local database/Docker availability.
-- `npm run build`: passed, exit `0`.
+- `npm run test`: passed, 54 files / 300 tests, exit `0`.
+- `git diff --check`: passed, exit `0`.
+- `DATABASE_URL='postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public' npm run build`: passed, exit `0`.
+- `DATABASE_URL='postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public' npm run test:e2e`: passed, 4/4 Playwright tests, exit `0`.
 
 - [x] **Step 2: Production-readiness self-review**
 
@@ -1198,7 +1196,7 @@ Update docs with final file paths and commands:
 - this plan's completed checkboxes if execution is happening inline;
 - spec corrections only if implementation changed an approved decision.
 
-- [x] **Step 4: Commit final hardening**
+- [ ] **Step 4: Commit final hardening**
 
 Run:
 
@@ -1207,6 +1205,8 @@ git status --short
 git add AGENTS.md docs apps/web
 git commit -m "finalize otrs production integration"
 ```
+
+Pending: the implementation is verified, but the working tree remains intentionally uncommitted until the commit is explicitly requested.
 
 Expected: commit contains only OTRS integration implementation, tests, docs, and necessary generated Prisma artifacts.
 

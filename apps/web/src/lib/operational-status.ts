@@ -65,7 +65,8 @@ export function backendJobTypeLabel(type: string) {
     DIRECTORY_SYNC: "Синхронизация каталога",
     INTEGRATION_IMPORT: "Импорт обращений",
     REPORT_EXPORT: "Экспорт отчета",
-    RETENTION_CLEANUP: "Очистка данных"
+    RETENTION_CLEANUP: "Очистка данных",
+    WEBHOOK_INGEST: "Webhook ingest"
   };
 
   return labels[type] ?? type;

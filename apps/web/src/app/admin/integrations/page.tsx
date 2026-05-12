@@ -3,6 +3,8 @@ import { IntegrationImportQueueForm } from "@/components/integrations/integratio
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
+import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
 
@@ -54,6 +56,10 @@ function integrationJobsByIntegrationId<TJob extends { payloadJson: string }>(jo
   }
 
   return jobsByIntegrationId;
+}
+
+function displayedCheckedCount(run: { checkedCount: number; importedCount: number; skippedCount: number; errorCount: number }) {
+  return run.checkedCount > 0 ? run.checkedCount : run.importedCount + run.skippedCount + run.errorCount;
 }
 
 function idPayloadFilters(ids: string[]) {
@@ -180,6 +186,10 @@ export default async function AdminIntegrationsPage() {
   const integrationJobByRunId = integrationJobsByRunId(linkedIntegrationJobs);
   const integrationJobByIntegrationId = integrationJobsByIntegrationId(linkedIntegrationJobs);
   const activeSources = integrations.filter((integration) => ["active", "ready", "queued"].includes(integration.status));
+  const activeSourceKeys = new Set(integrations.map((integration) => integration.source));
+  const roadmapCapabilities = listIntegrationCapabilities()
+    .filter((capability) => !activeSourceKeys.has(capability.source))
+    .slice(0, 8);
   const diagnosticRuns = integrations.flatMap((integration) =>
     integration.diagnosticRuns.map((run) => ({
       ...run,
@@ -227,6 +237,8 @@ export default async function AdminIntegrationsPage() {
                 const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
                 const latestJob = integrationJobByIntegrationId.get(integration.id);
                 const latestJobStatus = latestJob ? backendJobStatusView(latestJob.status) : null;
+                const capability = getIntegrationCapability(integration.source, integration.type);
+                const syncState = parseIntegrationSyncState(integration.syncStateJson);
 
                 return (
                   <div key={integration.id} className="admin-tile admin-tile--compact">
@@ -245,13 +257,22 @@ export default async function AdminIntegrationsPage() {
                       <span className="record-meta compact-text">
                         {externalSourceLabel(integration.source)} · лимит {integration.importLimit} · батч {integration.batchSize}
                       </span>
+                      <span className="record-meta compact-text">
+                        {capability.readiness} · cursor {capability.supportsCursor ? "есть" : "нет"} · webhooks{" "}
+                        {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
+                      </span>
                       <span className="record-meta">
                         Последний импорт: {formatDate(integration.lastImportAt)} · dry-run: {formatDate(integration.lastDryRunAt)}
+                      </span>
+                      <span className="record-meta">
+                        Sync: проверено {syncState.progress.checkedCount} · импортировано {syncState.progress.importedCount} · ошибок{" "}
+                        {syncState.progress.errorCount} · cursor {syncState.cursor ?? "нет"}
                       </span>
                       {latestRun && latestRunStatus ? (
                         <span className="record-meta">
                           Последний run: <span className={`pill ${latestRunStatus.pillClass}`}>{latestRunStatus.label}</span>{" "}
-                          · импортировано {latestRun.importedCount}/{latestRun.requestedLimit} · preview items {latestRun.items.length}
+                          · проверено {displayedCheckedCount(latestRun)} · импортировано {latestRun.importedCount}/{latestRun.requestedLimit} ·
+                          skipped {latestRun.skippedCount} · preview items {latestRun.items.length}
                         </span>
                       ) : (
                         <span className="record-meta">Запусков еще не было.</span>
@@ -336,7 +357,8 @@ export default async function AdminIntegrationsPage() {
                         {run.dryRun ? "Preview/Dry-run" : "Импорт"} · {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
                       </span>
                       <span className="record-meta">
-                        Импортировано {run.importedCount}/{run.requestedLimit} · ошибок {run.errorCount} · items {run.items.length}
+                        Проверено {displayedCheckedCount(run)} · импортировано {run.importedCount}/{run.requestedLimit} · skipped{" "}
+                        {run.skippedCount} · ошибок {run.errorCount} · items {run.items.length}
                       </span>
                       {job && jobStatus ? (
                         <Link href={`/admin/system/jobs/${job.id}`} className="quiet-link text-sm">
@@ -385,6 +407,33 @@ export default async function AdminIntegrationsPage() {
             ) : (
               <div className={emptyStateClass}>В очереди интеграций пока нет задач.</div>
             )}
+          </div>
+        </div>
+
+        <div className="admin-group">
+          <div className="admin-group__header admin-group__header--compact">
+            <h2 className="text-base font-semibold text-[#111827]">Roadmap источников</h2>
+            <p className="text-sm leading-5 text-[#64748b]">Capability registry для следующих коннекторов и webhook bridge.</p>
+          </div>
+          <div className="grid gap-2">
+            {roadmapCapabilities.map((capability) => (
+              <div key={capability.source} className="admin-tile admin-tile--compact">
+                <span className="admin-tile__icon admin-tile__icon--plain">{capability.displayName.slice(0, 1).toUpperCase()}</span>
+                <span className="admin-tile__body">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="record-title record-title--tight">{capability.displayName}</span>
+                    <span className="pill pill--neutral">{capability.readiness}</span>
+                  </span>
+                  <span className="record-meta compact-text">
+                    {capability.type} · auth {capability.authModes.join(", ")}
+                  </span>
+                  <span className="record-meta compact-text">
+                    cursor {capability.supportsCursor ? "есть" : "нет"} · diagnostics {capability.supportsDiagnostics ? "есть" : "нет"} ·
+                    webhooks {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
+                  </span>
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>

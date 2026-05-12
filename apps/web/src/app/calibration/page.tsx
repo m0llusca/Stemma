@@ -69,6 +69,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
     prisma.conversation.findMany({
       where: {
         workspaceId: user.workspaceId,
+        qaStatus: "FINALIZED",
         reviews: { some: { status: "FINALIZED", reviewSource: "HUMAN" } }
       },
       orderBy: { updatedAt: "desc" },

@@ -14,7 +14,7 @@ import { EvidencePickerListener } from "@/components/review/evidence-picker-list
 import { ScoreBar } from "@/components/ui/score-bar";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
-import { appealStatusLabels, feedbackStatusLabels, ownerTypeLabels, reanswerStatusLabels, riskLevelLabels } from "@/lib/labels";
+import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
 import { finalizeReview, saveReviewDraft } from "@/lib/review-actions";
 
 type ReviewPanelProps = {
@@ -58,9 +58,6 @@ const criticalErrorTemplates = [
   "Грубое нарушение стиля"
 ];
 
-const feedbackStatuses = ["new", "feedback_sent", "acknowledged", "appeal", "corrected"] as const;
-const appealStatuses = ["none", "open", "confirmed", "corrected", "calibration"] as const;
-const reanswerStatuses = ["not_needed", "required", "requested", "completed"] as const;
 const fieldClassName = "form-control text-sm";
 const textareaClassName = `${fieldClassName} min-h-[88px] resize-y`;
 
@@ -443,38 +440,6 @@ export function ReviewPanel({
                 Нужен переответ клиенту
               </label>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                  Статус обратной связи
-                  <select name="feedbackStatus" defaultValue={draftReview?.feedbackStatus ?? "new"} className={fieldClassName}>
-                    {feedbackStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {feedbackStatusLabels[status]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                  Апелляция
-                  <select name="appealStatus" defaultValue={draftReview?.appealStatus ?? "none"} className={fieldClassName}>
-                    {appealStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {appealStatusLabels[status]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                  Переответ
-                  <select name="reanswerStatus" defaultValue={draftReview?.reanswerStatus ?? "not_needed"} className={fieldClassName}>
-                    {reanswerStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {reanswerStatusLabels[status]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
             </div>
           </details>
 

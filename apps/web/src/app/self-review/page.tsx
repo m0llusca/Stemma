@@ -32,6 +32,7 @@ export default async function SelfReviewPage() {
       where: {
         workspaceId: user.workspaceId,
         assigneeName: scopedToAgent ? user.name : undefined,
+        qaStatus: "FINALIZED",
         reviews: { some: { reviewSource: "HUMAN", status: "FINALIZED" } }
       },
       include: {

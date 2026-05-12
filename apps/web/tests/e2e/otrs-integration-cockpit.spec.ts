@@ -54,13 +54,13 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
   await expect(page.getByLabel("Система-источник")).toContainText("OTRS CE 6");
   await page.getByLabel("Система-источник").selectOption("custom_api");
-  await expect(page.getByText("Своя система через API")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Своя система через API" })).toBeVisible();
   await page.getByLabel("Система-источник").selectOption("native:zendesk");
-  await expect(page.getByText("Zendesk", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Zendesk" })).toBeVisible();
 
   await page.goto("/admin/integrations");
-  await page.getByRole("link", { name: "Znuny / OTRS / OTOBO" }).click();
-  await expect(page).toHaveURL(/\/admin\/integrations\/[^/]+$/);
+  await page.getByRole("link", { name: "Znuny / OTRS / OTOBO" }).first().click();
+  await expect(page).toHaveURL(/\/admin\/integrations\/(?!new$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Znuny / OTRS / OTOBO" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "WebService checklist" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
@@ -118,18 +118,19 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await expect(page.getByText("Настройка сохранена. Источник появился в списке подключений.")).toBeVisible();
   await page.getByRole("link", { name: "Открыть cockpit" }).click();
 
-  await expect(page).toHaveURL(/\/admin\/integrations\/[^/]+$/);
+  await expect(page).toHaveURL(/\/admin\/integrations\/(?!new$)[^/]+$/);
   const cockpitUrl = page.url();
 
   await runIntegrationsQueueFromOverview(page);
   await page.goto(cockpitUrl);
 
-  await expect(page.getByRole("heading", { name: "OTRS CE 6" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
-  await page.getByLabel("Product profile").selectOption("otrs_ce_6");
-  await page.getByLabel("Base URL").fill(otrsServer.baseUrl);
-  await page.getByLabel("UserLogin").fill(otrsFixtureUserLogin);
-  await page.getByRole("button", { name: "Сохранить OTRS" }).click();
+  await expect(page.getByRole("heading", { name: "OTRS CE 6" })).toBeVisible({ timeout: 15_000 });
+  const settingsPanel = page.getByRole("heading", { name: "Настройка подключения" }).locator("xpath=ancestor::section[1]");
+  await expect(settingsPanel).toBeVisible();
+  await settingsPanel.getByLabel("Product profile").selectOption("otrs_ce_6");
+  await settingsPanel.getByLabel("Base URL").fill(otrsServer.baseUrl);
+  await settingsPanel.getByLabel("UserLogin").fill(otrsFixtureUserLogin);
+  await settingsPanel.getByRole("button", { name: "Сохранить OTRS" }).click();
   await expect(page.getByText("Настройка OTRS сохранена.")).toBeVisible();
 
   const diagnosticsPanel = page.getByRole("heading", { name: "Диагностика" }).locator("xpath=ancestor::section[1]");

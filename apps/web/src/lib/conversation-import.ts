@@ -1,9 +1,15 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
+import { applySamplingDecision, evaluateSamplingRules, type SamplingRuleRecord } from "@/lib/sampling-engine";
 import { customConversationLimits, type CustomConversationInput } from "@/lib/validation/custom-api";
 
-type ConversationImportClient = Pick<Prisma.TransactionClient, "conversation" | "message">;
+type ConversationImportClient = Pick<Prisma.TransactionClient, "conversation" | "message"> & {
+  samplingRule?: Pick<Prisma.TransactionClient["samplingRule"], "findMany">;
+};
+type ConversationImportOptions = {
+  samplingRules?: SamplingRuleRecord[];
+};
 
 export type ImportedConversation = {
   id: string;
@@ -31,15 +37,40 @@ export function assertConversationImportBatchLimit(conversations: readonly unkno
 export async function upsertCustomConversation(
   workspaceId: string,
   payload: CustomConversationInput,
-  client: ConversationImportClient = prisma
+  client: ConversationImportClient = prisma,
+  options: ConversationImportOptions = {}
 ): Promise<ImportedConversation> {
-  const conversationData = normalizeCustomConversation(payload);
+  const samplingRules =
+    options.samplingRules ??
+    (client.samplingRule
+      ? await client.samplingRule.findMany({
+          where: { workspaceId, isActive: true },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            conditionsJson: true,
+            targetPercent: true,
+            priority: true
+          },
+          orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
+        })
+      : []);
+  const sampledPayload = applySamplingDecision(
+    payload,
+    evaluateSamplingRules({
+      workspaceId,
+      conversation: payload,
+      rules: samplingRules
+    })
+  );
+  const conversationData = normalizeCustomConversation(sampledPayload);
   const conversation = await client.conversation.upsert({
     where: {
       workspaceId_externalSource_externalId: {
         workspaceId,
-        externalSource: payload.externalSource,
-        externalId: payload.externalId
+        externalSource: sampledPayload.externalSource,
+        externalId: sampledPayload.externalId
       }
     },
     create: {
@@ -49,7 +80,7 @@ export async function upsertCustomConversation(
     update: conversationData
   });
 
-  for (const message of payload.messages) {
+  for (const message of sampledPayload.messages) {
     const messageData = normalizeCustomMessage(message);
 
     await client.message.upsert({
@@ -69,10 +100,10 @@ export async function upsertCustomConversation(
 
   return {
     id: conversation.id,
-    externalSource: payload.externalSource,
-    externalId: payload.externalId,
-    subject: payload.subject,
-    messageCount: payload.messages.length
+    externalSource: sampledPayload.externalSource,
+    externalId: sampledPayload.externalId,
+    subject: sampledPayload.subject,
+    messageCount: sampledPayload.messages.length
   };
 }
 
@@ -81,9 +112,21 @@ export async function upsertCustomConversationsAtomic(workspaceId: string, paylo
 
   return prisma.$transaction(async (tx) => {
     const imported: ImportedConversation[] = [];
+    const samplingRules = await tx.samplingRule.findMany({
+      where: { workspaceId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        conditionsJson: true,
+        targetPercent: true,
+        priority: true
+      },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
+    });
 
     for (const payload of payloads) {
-      imported.push(await upsertCustomConversation(workspaceId, payload, tx));
+      imported.push(await upsertCustomConversation(workspaceId, payload, tx, { samplingRules }));
     }
 
     return imported;

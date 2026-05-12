@@ -88,6 +88,7 @@ enum BackendJobType {
   REPORT_EXPORT
   DIRECTORY_SYNC
   RETENTION_CLEANUP
+  WEBHOOK_INGEST
 }
 
 enum BackendJobStatus {
@@ -129,6 +130,8 @@ model Workspace {
   integrationRuns           IntegrationRun[]
   integrationDiagnosticRuns IntegrationDiagnosticRun[]
   integrationRunItems       IntegrationRunItem[]
+  webhookEndpoints          WebhookEndpoint[]
+  webhookIngestEvents       WebhookIngestEvent[]
   apiTokens                 ApiToken[]
   conversations             Conversation[]
   scorecards                Scorecard[]
@@ -264,30 +267,32 @@ model AuthSession {
 }
 
 model Integration {
-  id             String                     @id @default(cuid())
-  workspaceId    String
-  workspace      Workspace                  @relation(fields: [workspaceId], references: [id])
-  source         String
-  displayName    String
-  type           String                     @default("custom_api")
-  status         String
-  baseUrl        String?
-  configJson     String                     @default("{}")
-  authMode       String                     @default("token")
-  importLimit    Int                        @default(100)
-  batchSize      Int                        @default(25)
-  dateRangeDays  Int                        @default(30)
-  schedule       String?
-  syncCursor     String?
-  lastSyncedAt   DateTime?
-  lastDryRunAt   DateTime?
-  lastImportAt   DateTime?
-  lastError      String?
-  credentials    IntegrationCredential[]
-  runs           IntegrationRun[]
-  diagnosticRuns IntegrationDiagnosticRun[]
-  createdAt      DateTime                   @default(now())
-  updatedAt      DateTime                   @updatedAt
+  id               String                     @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace                  @relation(fields: [workspaceId], references: [id])
+  source           String
+  displayName      String
+  type             String                     @default("custom_api")
+  status           String
+  baseUrl          String?
+  configJson       String                     @default("{}")
+  syncStateJson    String                     @default("{}")
+  authMode         String                     @default("token")
+  importLimit      Int                        @default(100)
+  batchSize        Int                        @default(25)
+  dateRangeDays    Int                        @default(30)
+  schedule         String?
+  syncCursor       String?
+  lastSyncedAt     DateTime?
+  lastDryRunAt     DateTime?
+  lastImportAt     DateTime?
+  lastError        String?
+  credentials      IntegrationCredential[]
+  runs             IntegrationRun[]
+  diagnosticRuns   IntegrationDiagnosticRun[]
+  webhookEndpoints WebhookEndpoint[]
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
   @@unique([workspaceId, source])
   @@index([workspaceId, status])
@@ -379,6 +384,7 @@ model Conversation {
   reviews             Review[]
   calibrationItems    CalibrationSessionItem[]
   integrationRunItems IntegrationRunItem[]
+  webhookIngestEvents WebhookIngestEvent[]
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
 
@@ -679,10 +685,15 @@ model IntegrationRun {
   status         String
   dryRun         Boolean              @default(true)
   requestedLimit Int                  @default(100)
+  checkedCount   Int                  @default(0)
   importedCount  Int                  @default(0)
+  skippedCount   Int                  @default(0)
   errorCount     Int                  @default(0)
+  cursorJson     String               @default("{}")
+  checkpointJson String               @default("{}")
   errorMessage   String?
   items          IntegrationRunItem[]
+  webhookEvents  WebhookIngestEvent[]
   startedAt      DateTime             @default(now())
   finishedAt     DateTime?
 
@@ -760,6 +771,60 @@ model IntegrationRunItem {
   @@index([workspaceId, status, createdAt])
   @@index([integrationRunId, status])
   @@index([diagnosticRunId, status])
+  @@index([conversationId])
+}
+
+model WebhookEndpoint {
+  id               String               @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace            @relation(fields: [workspaceId], references: [id])
+  integrationId    String?
+  integration      Integration?         @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  source           String
+  name             String
+  status           String               @default("active")
+  acceptedEvents   String               @default("conversation.upsert")
+  secretPrefix     String
+  encryptedSecret  String
+  signingAlgorithm String               @default("hmac_sha256")
+  lastReceivedAt   DateTime?
+  lastError        String?
+  ingestEvents     WebhookIngestEvent[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, source])
+  @@index([workspaceId, integrationId])
+}
+
+model WebhookIngestEvent {
+  id                String          @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace       @relation(fields: [workspaceId], references: [id])
+  endpointId        String
+  endpoint          WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  integrationRunId  String?
+  integrationRun    IntegrationRun? @relation(fields: [integrationRunId], references: [id], onDelete: SetNull)
+  conversationId    String?
+  conversation      Conversation?   @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  idempotencyKey    String
+  eventType         String
+  source            String
+  status            String          @default("received")
+  requestHash       String
+  signatureVerified Boolean         @default(false)
+  payloadJson       String
+  errorMessage      String?
+  receivedAt        DateTime        @default(now())
+  processedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([endpointId, idempotencyKey])
+  @@index([workspaceId, status, receivedAt])
+  @@index([workspaceId, source, receivedAt])
+  @@index([integrationRunId])
   @@index([conversationId])
 }
 

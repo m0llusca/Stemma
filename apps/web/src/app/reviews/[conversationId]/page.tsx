@@ -16,7 +16,13 @@ import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
-import { canManageReviewWorkflow, canManageTraining, canSaveReviewDraft, requireCurrentUserPermission } from "@/lib/current-user";
+import {
+  canManageReviewWorkflow,
+  canManageTraining,
+  canSaveReviewDraft,
+  canSelfReview,
+  requireCurrentUserPermission
+} from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   channelLabels,
@@ -101,7 +107,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const returnTo = singleParam(rawSearchParams.returnTo);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
-  const canEvaluateReview = canSaveReviewDraft(user.role);
+  const canEvaluateReview = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveReviewDraft(user.role);
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
   const [conversation, scorecard, qaAssignees] = await Promise.all([
@@ -131,7 +137,10 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
     notFound();
   }
 
-  const latestFinalizedReview = conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
+  const latestFinalizedReview =
+    conversation.qaStatus === "FINALIZED"
+      ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
+      : undefined;
   const currentDraftReview = conversation.reviews.find(
     (review) => review.status === "DRAFT" && review.reviewerId === user.id && review.reviewSource === reviewSource
   );

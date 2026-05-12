@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => ({
   logBackendEvent: vi.fn(),
   runIntegrationConnector: vi.fn(),
   runSelectedOtrsImportConnector: vi.fn(),
-  syncDirectoryProvider: vi.fn()
+  syncDirectoryProvider: vi.fn(),
+  ingestWebhookEvent: vi.fn()
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -47,6 +48,10 @@ vi.mock("@/lib/integrations/runner", () => ({
 
 vi.mock("@/lib/auth/directory-sync", () => ({
   syncDirectoryProvider: mocks.syncDirectoryProvider
+}));
+
+vi.mock("@/lib/webhooks/inbound", () => ({
+  ingestWebhookEvent: mocks.ingestWebhookEvent
 }));
 
 function backendJob(overrides: Partial<BackendJob> = {}): BackendJob {
@@ -471,5 +476,121 @@ describe("backend job queue", () => {
       dryRun: true
     });
     expect(mocks.runSelectedOtrsImportConnector).not.toHaveBeenCalled();
+  });
+
+  it("does not retry or overwrite disabled integrations after import runner rejects them", async () => {
+    const { runDueBackendJobs } = await import("@/lib/jobs/queue");
+    const queuedJob = backendJob({
+      type: "INTEGRATION_IMPORT",
+      queueName: "integrations",
+      payloadJson: JSON.stringify({
+        integrationId: "disabled-integration",
+        integrationRunId: "run-1"
+      })
+    });
+    const runningJob = backendJob({
+      ...queuedJob,
+      status: "RUNNING",
+      attempts: 1,
+      maxAttempts: 3,
+      lockedAt: new Date("2026-05-04T08:01:00.000Z"),
+      lockedBy: "worker-a",
+      startedAt: new Date("2026-05-04T08:01:00.000Z")
+    });
+    mocks.prisma.backendJob.findFirst.mockReset();
+    mocks.prisma.backendJob.findUnique.mockReset();
+    mocks.prisma.backendJob.updateMany.mockReset();
+    mocks.prisma.backendJob.findMany.mockResolvedValue([]);
+    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(queuedJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.runIntegrationConnector.mockRejectedValue(new Error("Интеграция отключена."));
+    mocks.prisma.backendJob.update.mockResolvedValue({});
+    mocks.prisma.backendJobEvent.create.mockResolvedValue({});
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 0 });
+    mocks.prisma.integrationRun.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(runDueBackendJobs({ workerId: "worker-a", queueName: "integrations", limit: 1 })).resolves.toEqual([
+      {
+        jobId: "job-1",
+        status: "FAILED",
+        error: "Интеграция отключена."
+      }
+    ]);
+
+    expect(mocks.prisma.backendJob.update).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: expect.objectContaining({
+        status: "FAILED",
+        errorMessage: "Интеграция отключена.",
+        finishedAt: expect.any(Date)
+      })
+    });
+    expect(mocks.prisma.integration.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "disabled-integration",
+        workspaceId: "workspace-1",
+        status: { not: "disabled" }
+      },
+      data: {
+        status: "error",
+        lastError: "Интеграция отключена."
+      }
+    });
+    expect(mocks.prisma.backendJobEvent.create).toHaveBeenCalledWith({
+      data: {
+        jobId: "job-1",
+        level: "error",
+        message: "Интеграция отключена.",
+        metadata: JSON.stringify({ shouldRetry: false })
+      }
+    });
+  });
+
+  it("dispatches WEBHOOK_INGEST jobs to the signed webhook ingest service", async () => {
+    const { runDueBackendJobs } = await import("@/lib/jobs/queue");
+    const queuedJob = backendJob({
+      type: "WEBHOOK_INGEST",
+      queueName: "webhooks",
+      payloadJson: JSON.stringify({
+        endpointId: "endpoint-1",
+        rawBody: "{\"eventType\":\"conversation.upsert\"}",
+        idempotencyKey: "idem-1",
+        timestamp: "1778323200000",
+        signature: "sha256=test"
+      })
+    });
+    const runningJob = backendJob({
+      ...queuedJob,
+      status: "RUNNING",
+      attempts: 1,
+      lockedAt: new Date("2026-05-04T08:01:00.000Z"),
+      lockedBy: "worker-a",
+      startedAt: new Date("2026-05-04T08:01:00.000Z")
+    });
+    mocks.prisma.backendJob.findFirst.mockReset();
+    mocks.prisma.backendJob.findUnique.mockReset();
+    mocks.prisma.backendJob.updateMany.mockReset();
+    mocks.prisma.backendJob.findMany.mockResolvedValue([]);
+    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(queuedJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.ingestWebhookEvent.mockResolvedValue({
+      status: "processed",
+      eventId: "event-1",
+      conversationId: "conversation-1"
+    });
+    mocks.prisma.backendJob.update.mockResolvedValue({});
+
+    await runDueBackendJobs({ workerId: "worker-a", queueName: "webhooks", limit: 1 });
+
+    expect(mocks.ingestWebhookEvent).toHaveBeenCalledWith({
+      endpointId: "endpoint-1",
+      workspaceId: "workspace-1",
+      rawBody: "{\"eventType\":\"conversation.upsert\"}",
+      idempotencyKey: "idem-1",
+      timestamp: "1778323200000",
+      signature: "sha256=test"
+    });
   });
 });
