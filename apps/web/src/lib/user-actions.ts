@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -10,6 +11,8 @@ import { authCookieOptions, demoUserCookieOptions } from "@/lib/auth/cookies";
 import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { currentUserCookieName, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+
+const primaryWorkspaceName = "Контроль качества";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -27,6 +30,133 @@ function loginErrorRedirect(returnTo: string): never {
   });
 
   redirect(`/auth/login?${params.toString()}`);
+}
+
+async function getOrCreatePrimaryWorkspace(tx: Prisma.TransactionClient) {
+  const existingWorkspace = await tx.workspace.findFirst({
+    where: {
+      identityProviders: {
+        none: {
+          type: "DEMO"
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "asc"
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existingWorkspace) {
+    return existingWorkspace;
+  }
+
+  return tx.workspace.create({
+    data: {
+      name: primaryWorkspaceName
+    },
+    select: {
+      id: true
+    }
+  });
+}
+
+async function ensureLocalUserWorkspace(input: {
+  credentialId: string;
+  login: string;
+  userId: string;
+  userEmail: string;
+  workspaceId: string;
+}) {
+  await prisma.$transaction(async (tx) => {
+    const [workspaceHasDemoProvider, userHasDemoIdentity] = await Promise.all([
+      tx.identityProvider.count({
+        where: {
+          workspaceId: input.workspaceId,
+          type: "DEMO"
+        }
+      }),
+      tx.externalIdentity.count({
+        where: {
+          userId: input.userId,
+          provider: {
+            type: "DEMO"
+          }
+        }
+      })
+    ]);
+
+    if (workspaceHasDemoProvider === 0 || userHasDemoIdentity > 0) {
+      return;
+    }
+
+    const targetWorkspace = await getOrCreatePrimaryWorkspace(tx);
+
+    if (targetWorkspace.id === input.workspaceId) {
+      return;
+    }
+
+    const [emailConflict, loginConflict] = await Promise.all([
+      tx.user.findUnique({
+        where: {
+          workspaceId_email: {
+            workspaceId: targetWorkspace.id,
+            email: input.userEmail
+          }
+        },
+        select: {
+          id: true
+        }
+      }),
+      tx.localCredential.findFirst({
+        where: {
+          workspaceId: targetWorkspace.id,
+          login: input.login,
+          userId: {
+            not: input.userId
+          }
+        },
+        select: {
+          id: true
+        }
+      })
+    ]);
+
+    if (emailConflict && emailConflict.id !== input.userId) {
+      throw new Error("Локальный пользователь с таким email уже существует в основном рабочем пространстве.");
+    }
+
+    if (loginConflict) {
+      throw new Error("Локальный пользователь с таким логином уже существует в основном рабочем пространстве.");
+    }
+
+    await tx.user.update({
+      where: {
+        id: input.userId
+      },
+      data: {
+        workspaceId: targetWorkspace.id
+      }
+    });
+    await tx.localCredential.update({
+      where: {
+        id: input.credentialId
+      },
+      data: {
+        workspaceId: targetWorkspace.id
+      }
+    });
+    await tx.authSession.updateMany({
+      where: {
+        userId: input.userId
+      },
+      data: {
+        workspaceId: targetWorkspace.id
+      }
+    });
+  });
 }
 
 export async function signInWithLocalCredentials(formData: FormData) {
@@ -63,6 +193,13 @@ export async function signInWithLocalCredentials(formData: FormData) {
   }
 
   const headerStore = await headers();
+  await ensureLocalUserWorkspace({
+    credentialId: credential.id,
+    login: credential.login,
+    userId: credential.userId,
+    userEmail: credential.user.email,
+    workspaceId: credential.user.workspaceId
+  });
   const { token } = await createAuthSession({
     userId: credential.userId,
     userAgent: headerStore.get("user-agent")
