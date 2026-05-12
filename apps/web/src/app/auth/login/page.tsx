@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 import { ShieldCheck, UserRoundCheck } from "lucide-react";
 import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
-import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
-import { signInWithLocalCredentials, switchCurrentUser } from "@/lib/user-actions";
+import { signInWithDemoUser, signInWithLocalCredentials } from "@/lib/user-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -93,23 +92,21 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         }
       }
     }),
-    isDemoAuthEnabled()
-      ? prisma.user.findMany({
-          where: demoLoginUserWhere,
-          orderBy: demoLoginUserOrderBy,
+    prisma.user.findMany({
+      where: demoLoginUserWhere,
+      orderBy: demoLoginUserOrderBy,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        workspace: {
           select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            workspace: {
-              select: {
-                name: true
-              }
-            }
+            name: true
           }
-        })
-      : Promise.resolve([])
+        }
+      }
+    })
   ]);
   const selectedProvider =
     providers.find(
@@ -170,7 +167,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             {demoUsers.length > 0 ? (
               <details className="border-t border-[#d9e0ea]">
                 <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-[#334155]">Демо-вход</summary>
-                <form action={switchCurrentUser} className="grid gap-3 border-t border-[#d9e0ea] p-5">
+                <form action={signInWithDemoUser} className="grid gap-3 border-t border-[#d9e0ea] p-5">
                   <input type="hidden" name="returnTo" value={returnTo} />
                   <label className="grid gap-1 text-sm font-medium text-[#334155]">
                     Пользователь

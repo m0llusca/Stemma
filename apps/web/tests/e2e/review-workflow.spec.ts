@@ -11,7 +11,7 @@ test.beforeEach(() => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
 });
 
-test("shows standard login with SSO as a separate option", async ({ page }) => {
+test("shows standard login with SSO and demo login as separate options", async ({ page }) => {
   await page.goto("/auth/login?returnTo=/reviews");
 
   await expect(page.getByRole("heading", { name: "Вход в систему" })).toBeVisible();
@@ -19,8 +19,10 @@ test("shows standard login with SSO as a separate option", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "SSO" })).toBeVisible();
   await expect(page.getByText("Microsoft Entra ID / Active Directory")).toBeVisible();
   await expect(page.getByRole("button", { name: "SSO недоступен" })).toBeDisabled();
+  await expect(page.locator("summary").filter({ hasText: "Демо-вход" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.locator("summary").filter({ hasText: "Демо-вход" }).click();
+  await page.getByRole("button", { name: "Войти в демо-режиме" }).click();
   await expect(page).toHaveURL(/\/reviews$/);
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
 });
