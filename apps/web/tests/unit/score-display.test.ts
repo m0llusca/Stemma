@@ -21,6 +21,7 @@ describe("score display helpers", () => {
   it("clamps display values to the stored 0..100 score range", () => {
     expect(clampQualityScore(-5)).toBe(0);
     expect(clampQualityScore(104)).toBe(100);
+    expect(clampQualityScore(Number.NaN)).toBe(0);
   });
 
   it("formats Russian point pluralization edge cases", () => {
@@ -50,6 +51,13 @@ describe("score display helpers", () => {
     expect(formatQualityScoreDelta(3.4)).toBe("+3 п.");
     expect(formatQualityScoreDelta(-2.6)).toBe("-3 п.");
     expect(formatQualityScoreDelta(0)).toBe("0 п.");
+  });
+
+  it("rounds delta half points away from zero", () => {
+    expect(formatQualityScoreDelta(-0.5)).toBe("-1 п.");
+    expect(formatQualityScoreDelta(-2.5)).toBe("-3 п.");
+    expect(formatQualityScoreDelta(0.5)).toBe("+1 п.");
+    expect(formatQualityScoreDelta(2.5)).toBe("+3 п.");
   });
 
   it("formats non-finite deltas as zero point changes", () => {

@@ -45,6 +45,6 @@ export function formatQualityScoreDelta(value: number | null | undefined) {
     return "0 п.";
   }
 
-  const rounded = Math.round(value);
+  const rounded = Math.sign(value) * Math.round(Math.abs(value));
   return `${rounded > 0 ? "+" : ""}${rounded} п.`;
 }
