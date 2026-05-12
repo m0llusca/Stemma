@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { upsertCustomConversation } from "@/lib/conversation-import";
-import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
+import { assertCanPersistSettings, canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   nativeHelpdeskSources,
@@ -101,6 +101,8 @@ export async function importNativeHelpdeskPayload(formData: FormData) {
   if (!canManageIntegrations(user.role)) {
     throw new Error("Нет прав на импорт из helpdesk.");
   }
+
+  await assertCanPersistSettings(user);
 
   const source = sourceField(formData);
   const rawPayload = stringField(formData, "payload");

@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { canManageIntegrations, getCurrentUser } from "@/lib/current-user";
+import { assertCanPersistSettings, canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { queueIntegrationImportJob, queueSelectedOtrsImportJob } from "@/lib/integration-import-service";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
@@ -88,6 +88,18 @@ function jsonField(formData: FormData, key: string, fallback: Record<string, unk
   } catch {
     throw new Error(`${key} должен быть валидным JSON-объектом.`);
   }
+}
+
+async function requireIntegrationSettingsUser() {
+  const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    throw new Error("Нет прав на управление интеграциями.");
+  }
+
+  await assertCanPersistSettings(user);
+
+  return user;
 }
 
 function splitStringList(value: string) {
@@ -363,11 +375,7 @@ async function upsertIntegrationSetup(
 }
 
 export async function saveIntegrationConfiguration(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
   const integration = await prisma.$transaction(async (tx) => {
@@ -415,11 +423,7 @@ export async function saveIntegrationConfiguration(formData: FormData) {
 }
 
 export async function recordIntegrationDryRun(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
 
@@ -497,11 +501,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
 }
 
 export async function saveOtrsIntegrationConfiguration(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const setup = readOtrsIntegrationSetup(formData);
   const integration = await prisma.$transaction(async (tx) => {
@@ -630,11 +630,7 @@ export async function saveOtrsIntegrationConfiguration(formData: FormData) {
 }
 
 export async function runOtrsDiagnosticsAction(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const integrationId = stringField(formData, "integrationId");
   const manualTicketId = stringField(formData, "manualTicketId") || null;
@@ -676,11 +672,7 @@ export async function runOtrsDiagnosticsAction(formData: FormData) {
 }
 
 export async function createOtrsPreviewAction(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const integrationId = stringField(formData, "integrationId");
   const mode = stringField(formData, "mode") || "manual_ticket_ids";
@@ -738,11 +730,7 @@ export async function createOtrsPreviewAction(formData: FormData) {
 }
 
 export async function queueSelectedOtrsImportAction(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const integrationId = stringField(formData, "integrationId");
   const integrationRunId = stringField(formData, "integrationRunId");
@@ -864,11 +852,7 @@ export async function createOtrsPreviewActionState(
 }
 
 export async function queueIntegrationImport(formData: FormData) {
-  const user = await getCurrentUser();
-
-  if (!canManageIntegrations(user.role)) {
-    throw new Error("Нет прав на управление интеграциями.");
-  }
+  const user = await requireIntegrationSettingsUser();
 
   const integrationId = stringField(formData, "integrationId");
   const result = await queueIntegrationImportJob({
@@ -930,17 +914,7 @@ export async function runIntegrationQueueState(
   formData: FormData
 ): Promise<IntegrationQueueRunActionState> {
   try {
-    const user = await getCurrentUser();
-
-    if (!canManageIntegrations(user.role)) {
-      return {
-        ok: false,
-        message: "Нет прав на управление интеграциями.",
-        processed: 0,
-        succeeded: 0,
-        failed: 0
-      };
-    }
+    const user = await requireIntegrationSettingsUser();
 
     const limit = numberField(formData, "limit", 5);
     const results = await runDueBackendJobs({

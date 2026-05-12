@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
 import { logBackendEvent } from "@/lib/observability";
@@ -21,6 +21,7 @@ function stringField(formData: FormData, key: string) {
 
 export async function runQueuedBackendJobs(formData: FormData) {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
+  await assertCanPersistSettings(user);
   const limit = numberField(formData, "limit", 5, 20);
   const results = await runDueBackendJobs({
     limit,
@@ -66,6 +67,7 @@ export async function runQueuedBackendJobs(formData: FormData) {
 
 export async function queueRetentionCleanup() {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
+  await assertCanPersistSettings(user);
   const job = await enqueueBackendJob({
     workspaceId: user.workspaceId,
     type: "RETENTION_CLEANUP",
@@ -93,6 +95,7 @@ export async function queueRetentionCleanup() {
 
 export async function queueDirectorySync(formData: FormData) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
+  await assertCanPersistSettings(user);
   const providerId = stringField(formData, "providerId");
 
   if (!providerId) {
@@ -126,6 +129,7 @@ export async function queueDirectorySync(formData: FormData) {
 
 export async function cancelQueuedBackendJob(formData: FormData) {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
+  await assertCanPersistSettings(user);
   const jobId = stringField(formData, "jobId");
 
   const job = await prisma.backendJob.findFirst({

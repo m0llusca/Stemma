@@ -13,6 +13,13 @@ export class AuthRequiredError extends Error {
   }
 }
 
+export class DemoSettingsMutationError extends Error {
+  constructor() {
+    super("Демо-пользователи не могут сохранять настройки реального окружения.");
+    this.name = "DemoSettingsMutationError";
+  }
+}
+
 export function isDemoAuthEnabled() {
   return process.env.QC_DEMO_AUTH === "enabled";
 }
@@ -60,6 +67,45 @@ export async function requireCurrentUserPermission(permission: Permission) {
   const user = await getCurrentUser();
   requirePermission(user, permission);
   return user;
+}
+
+export async function isCurrentDemoUser(user: { id: string }) {
+  const cookieStore = await cookies();
+  const session = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
+
+  if (session?.providerId) {
+    const provider = await prisma.identityProvider.findUnique({
+      where: { id: session.providerId },
+      select: { type: true }
+    });
+
+    if (provider?.type === "DEMO") {
+      return true;
+    }
+  }
+
+  if (!session && isDemoAuthEnabled()) {
+    return true;
+  }
+
+  const userId = session?.userId ?? user.id;
+  const demoIdentityCount = await prisma.externalIdentity.count({
+    where: {
+      userId,
+      provider: {
+        type: "DEMO",
+        status: "active"
+      }
+    }
+  });
+
+  return demoIdentityCount > 0;
+}
+
+export async function assertCanPersistSettings(user: { id: string }) {
+  if (await isCurrentDemoUser(user)) {
+    throw new DemoSettingsMutationError();
+  }
 }
 
 export async function getWorkspaceUsers(workspaceId: string) {

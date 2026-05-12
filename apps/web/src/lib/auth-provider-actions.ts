@@ -4,7 +4,7 @@ import type { IdentityProviderType, RoleName } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 const providerTypes = ["MICROSOFT_ENTRA_ID", "ACTIVE_DIRECTORY_LDAPS", "OIDC", "SAML"] as const satisfies readonly IdentityProviderType[];
@@ -57,6 +57,7 @@ function parseConfigJson(value: string) {
 
 export async function saveIdentityProvider(formData: FormData) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
+  await assertCanPersistSettings(user);
   const providerId = stringField(formData, "providerId");
   const type = providerTypeField(stringField(formData, "type"));
   const name = stringField(formData, "name");
@@ -150,6 +151,7 @@ export async function saveIdentityProvider(formData: FormData) {
 
 export async function saveGroupRoleMapping(formData: FormData) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
+  await assertCanPersistSettings(user);
   const mappingId = stringField(formData, "mappingId");
   const providerId = stringField(formData, "providerId") || undefined;
   const externalGroupId = stringField(formData, "externalGroupId");
@@ -256,6 +258,7 @@ export async function saveGroupRoleMapping(formData: FormData) {
 
 export async function toggleGroupRoleMapping(formData: FormData) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
+  await assertCanPersistSettings(user);
   const mappingId = stringField(formData, "mappingId");
   const isActive = stringField(formData, "isActive") === "true";
 
@@ -299,6 +302,7 @@ export async function toggleGroupRoleMapping(formData: FormData) {
 
 export async function revokeAuthSessionById(formData: FormData) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
+  await assertCanPersistSettings(user);
   const sessionId = stringField(formData, "sessionId");
 
   const session = await prisma.authSession.findFirst({

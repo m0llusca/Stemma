@@ -4,7 +4,7 @@ import type { CriterionKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
-import { canManageScorecards, getCurrentUser } from "@/lib/current-user";
+import { assertCanPersistSettings, canManageScorecards, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { validateScorecardDraft, type ScorecardCriterionDraft } from "@/lib/scorecard-validation";
 
@@ -31,6 +31,8 @@ export async function createScorecardVersion(formData: FormData) {
   if (!canManageScorecards(user.role)) {
     throw new Error("Нет прав на управление формами оценки.");
   }
+
+  await assertCanPersistSettings(user);
 
   const criterionCount = Number(stringField(formData, "criterionCount"));
 

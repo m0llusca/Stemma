@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { isUiContrastId, isUiCornersId, isUiDensityId, isUiThemeId } from "@/lib/ui-theme";
 
@@ -13,6 +13,7 @@ function stringField(formData: FormData, key: string) {
 
 export async function updateWorkspaceAppearance(formData: FormData) {
   const user = await requireCurrentUserPermission("appearance:manage");
+  await assertCanPersistSettings(user);
   const uiTheme = stringField(formData, "uiTheme");
   const uiDensity = stringField(formData, "uiDensity");
   const uiCorners = stringField(formData, "uiCorners");

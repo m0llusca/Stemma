@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     auditLog: vi.fn(),
+    assertCanPersistSettings: vi.fn(),
     canManageIntegrations: vi.fn(),
     createOtrsPreview: vi.fn(),
     getCurrentUser: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("@/lib/audit", () => ({
 }));
 
 vi.mock("@/lib/current-user", () => ({
+  assertCanPersistSettings: mocks.assertCanPersistSettings,
   canManageIntegrations: mocks.canManageIntegrations,
   getCurrentUser: mocks.getCurrentUser
 }));

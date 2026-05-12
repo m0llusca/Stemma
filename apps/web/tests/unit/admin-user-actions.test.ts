@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     auditLog: vi.fn(),
+    assertCanPersistSettings: vi.fn(),
     hashLocalPassword: vi.fn(),
     prisma,
     requireCurrentUserPermission: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("@/lib/auth/local-credentials", () => ({
 }));
 
 vi.mock("@/lib/current-user", () => ({
+  assertCanPersistSettings: mocks.assertCanPersistSettings,
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
 }));
 
@@ -57,6 +59,7 @@ function adminUser() {
 describe("admin user actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.assertCanPersistSettings.mockResolvedValue(undefined);
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.requireCurrentUserPermission.mockResolvedValue(adminUser());
     mocks.hashLocalPassword.mockResolvedValue({
@@ -144,6 +147,21 @@ describe("admin user actions", () => {
     );
     expect(JSON.stringify(mocks.prisma.localCredential.create.mock.calls[0][0])).not.toContain("local-password-123");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/users");
+  });
+
+  it("blocks demo admins before creating real users", async () => {
+    const { createLocalUser } = await import("@/lib/admin-user-actions");
+    const formData = new FormData();
+    formData.set("name", "Новый пользователь");
+    formData.set("email", "new.user@example.com");
+    formData.set("password", "local-password-123");
+    formData.set("role", "QA_ANALYST");
+    mocks.assertCanPersistSettings.mockRejectedValue(new Error("Демо-пользователи не могут сохранять настройки реального окружения."));
+
+    await expect(createLocalUser(formData)).rejects.toThrow("Демо-пользователи не могут сохранять настройки реального окружения.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.user.create).not.toHaveBeenCalled();
   });
 
   it("updates an existing user role within the current workspace", async () => {

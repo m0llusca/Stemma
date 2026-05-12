@@ -4,7 +4,7 @@ import type { RoleName } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { hashLocalPassword, normalizeLocalLogin } from "@/lib/auth/local-credentials";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] as const satisfies readonly RoleName[];
@@ -51,6 +51,7 @@ function revalidateUserAdmin() {
 
 export async function createLocalUser(formData: FormData) {
   const actor = await requireCurrentUserPermission("users:manage");
+  await assertCanPersistSettings(actor);
   const name = stringField(formData, "name");
   const email = normalizedEmail(stringField(formData, "email"));
   const login = normalizeLocalLogin(stringField(formData, "login") || email);
@@ -151,6 +152,7 @@ export async function createLocalUser(formData: FormData) {
 
 export async function updateUserAccess(formData: FormData) {
   const actor = await requireCurrentUserPermission("users:manage");
+  await assertCanPersistSettings(actor);
   const userId = stringField(formData, "userId");
   const role = roleField(stringField(formData, "role"));
   const teamName = optionalField(formData, "teamName");

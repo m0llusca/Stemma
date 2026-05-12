@@ -1,7 +1,7 @@
 import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api/response";
 import type { Permission } from "@/lib/auth/permissions";
-import { AuthRequiredError, requireCurrentUserPermission } from "@/lib/current-user";
+import { AuthRequiredError, DemoSettingsMutationError, assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 
 type SessionApiResult =
   | {
@@ -14,6 +14,18 @@ type SessionApiResult =
     };
 
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
+const settingsMutationPermissions = new Set<Permission>([
+  "api_tokens:manage",
+  "appearance:manage",
+  "auth_providers:manage",
+  "backend_jobs:manage",
+  "integrations:manage",
+  "privacy:manage",
+  "sampling:manage",
+  "scorecards:manage",
+  "training:manage",
+  "users:manage"
+]);
 const permissionDeniedMessage = "Недостаточно прав для выполнения операции.";
 
 function originOf(value: string) {
@@ -65,6 +77,11 @@ export async function requireSessionApi(
 
   try {
     const user = await requireCurrentUserPermission(permission);
+
+    if (!safeMethods.has(request.method.toUpperCase()) && settingsMutationPermissions.has(permission)) {
+      await assertCanPersistSettings(user);
+    }
+
     return { ok: true, user };
   } catch (error) {
     if (error instanceof AuthRequiredError || (error instanceof Error && error.name === "AuthRequiredError")) {
@@ -75,6 +92,13 @@ export async function requireSessionApi(
     }
 
     if (error instanceof Error && error.message === permissionDeniedMessage) {
+      return {
+        ok: false,
+        response: apiError("forbidden", error.message, 403, options.requestId)
+      };
+    }
+
+    if (error instanceof DemoSettingsMutationError || (error instanceof Error && error.name === "DemoSettingsMutationError")) {
       return {
         ok: false,
         response: apiError("forbidden", error.message, 403, options.requestId)

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  assertCanPersistSettings: vi.fn(),
   auditLog: vi.fn(),
   logBackendEvent: vi.fn(),
   requireCurrentUserPermission: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@/lib/audit", () => ({
 }));
 
 vi.mock("@/lib/current-user", () => ({
+  assertCanPersistSettings: mocks.assertCanPersistSettings,
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
 }));
 

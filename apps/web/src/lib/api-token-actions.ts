@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { createApiToken, revokeApiToken } from "@/lib/api-token-service";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 
 export type CreateApiTokenState = {
   status: "idle" | "success" | "error";
@@ -45,6 +45,7 @@ export async function createApiTokenFromForm(
   formData: FormData
 ): Promise<CreateApiTokenState> {
   const user = await requireCurrentUserPermission("api_tokens:manage");
+  await assertCanPersistSettings(user);
   const name = stringField(formData, "name");
   const scopes = stringListField(formData, "scopes");
   const expiresAt = stringField(formData, "expiresAt");
@@ -100,6 +101,7 @@ export async function createApiTokenFromForm(
 
 export async function revokeApiTokenById(formData: FormData) {
   const user = await requireCurrentUserPermission("api_tokens:manage");
+  await assertCanPersistSettings(user);
   const tokenId = stringField(formData, "tokenId");
   const revoked = await revokeApiToken({
     workspaceId: user.workspaceId,

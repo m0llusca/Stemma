@@ -2,7 +2,7 @@
 
 import type { RiskLevel } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { canManageSamplingRules, canManageTraining, getCurrentUser } from "@/lib/current-user";
+import { assertCanPersistSettings, canManageSamplingRules, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const satisfies readonly RiskLevel[];
@@ -23,6 +23,8 @@ export async function createKnowledgeEntry(formData: FormData) {
   if (!canManageTraining(user.role)) {
     throw new Error("Нет прав на базу ошибок.");
   }
+
+  await assertCanPersistSettings(user);
 
   const riskLevel = stringField(formData, "riskLevel") || "MEDIUM";
 
@@ -52,6 +54,8 @@ export async function createSamplingRule(formData: FormData) {
     throw new Error("Нет прав на правила выборки.");
   }
 
+  await assertCanPersistSettings(user);
+
   const conditions = {
     channel: stringField(formData, "channel") || undefined,
     csatBucket: stringField(formData, "csatBucket") || undefined,
@@ -80,6 +84,8 @@ export async function updateSamplingRuleStatus(formData: FormData) {
   if (!canManageSamplingRules(user.role)) {
     throw new Error("Нет прав на правила выборки.");
   }
+
+  await assertCanPersistSettings(user);
 
   const id = stringField(formData, "id");
   const isActive = formData.get("isActive") === "on";
