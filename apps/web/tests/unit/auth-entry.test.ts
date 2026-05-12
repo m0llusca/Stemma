@@ -11,6 +11,25 @@ describe("auth entry proxy", () => {
     vi.unstubAllEnvs();
   });
 
+  it("redirects local page requests without a session to login by default", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("QC_DEMO_AUTH", "");
+
+    const response = proxy(makeRequest("http://localhost/reviews"));
+    const location = new URL(response.headers.get("location") ?? "");
+
+    expect(response.status).toBe(307);
+    expect(location.pathname).toBe("/auth/login");
+    expect(location.searchParams.get("returnTo")).toBe("/reviews");
+  });
+
+  it("allows unauthenticated page requests only when demo auth is explicitly enabled", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+
+    expect(proxy(makeRequest("http://localhost/reviews")).headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("redirects production page requests without a session to the login page", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("QC_DEMO_AUTH", "disabled");

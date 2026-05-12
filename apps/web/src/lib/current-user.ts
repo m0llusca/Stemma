@@ -14,7 +14,7 @@ export class AuthRequiredError extends Error {
 }
 
 export function isDemoAuthEnabled() {
-  return process.env.NODE_ENV !== "production" || process.env.QC_DEMO_AUTH === "enabled";
+  return process.env.QC_DEMO_AUTH === "enabled";
 }
 
 export async function getCurrentUser() {

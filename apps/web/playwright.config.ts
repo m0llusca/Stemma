@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const defaultDatabaseUrl = "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public";
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? defaultDatabaseUrl;
+process.env.QC_DEMO_AUTH = process.env.QC_DEMO_AUTH ?? "enabled";
 // Playwright forces FORCE_COLOR for workers and webServer. Empty NO_COLOR avoids Node 25 warnings in that child env.
 process.env.NO_COLOR = "";
 

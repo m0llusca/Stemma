@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const sessionCookieName = "qc_session";
 
 function isDemoAuthEnabled() {
-  return process.env.NODE_ENV !== "production" || process.env.QC_DEMO_AUTH === "enabled";
+  return process.env.QC_DEMO_AUTH === "enabled";
 }
 
 function isAuthPath(pathname: string) {

@@ -1,6 +1,6 @@
 import type { RoleName } from "@prisma/client";
 import { AppSidebarShell, type SidebarNavItem } from "@/components/app-sidebar-shell";
-import { AuthRequiredError, getCurrentUser, getWorkspaceUsers } from "@/lib/current-user";
+import { AuthRequiredError, getCurrentUser, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -59,27 +59,29 @@ export async function AppSidebar() {
 
   return (
     <AppSidebarShell items={visibleItems}>
-      <form action={switchCurrentUser} className="soft-callout">
-        <input type="hidden" name="returnTo" value="/reviews" />
-        <label className="grid gap-1 text-xs font-semibold uppercase text-slate-400">
-          Роль
-          <select
-            name="userId"
-            defaultValue={currentUser.id}
-            className="form-control min-w-0 text-sm font-medium normal-case"
-          >
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs font-medium normal-case text-slate-400">{roleLabels[currentUser.role]}</span>
-        </label>
-        <button type="submit" className="app-sidebar__role-submit action-button min-h-[36px] px-3 py-2 text-sm">
-          Переключить
-        </button>
-      </form>
+      {isDemoAuthEnabled() ? (
+        <form action={switchCurrentUser} className="soft-callout">
+          <input type="hidden" name="returnTo" value="/reviews" />
+          <label className="grid gap-1 text-xs font-semibold uppercase text-slate-400">
+            Роль
+            <select
+              name="userId"
+              defaultValue={currentUser.id}
+              className="form-control min-w-0 text-sm font-medium normal-case"
+            >
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs font-medium normal-case text-slate-400">{roleLabels[currentUser.role]}</span>
+          </label>
+          <button type="submit" className="app-sidebar__role-submit action-button min-h-[36px] px-3 py-2 text-sm">
+            Переключить
+          </button>
+        </form>
+      ) : null}
     </AppSidebarShell>
   );
 }
