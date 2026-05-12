@@ -5,6 +5,8 @@ describe("auth permissions", () => {
   it("allows admins to manage backend jobs and auth providers", () => {
     expect(hasPermission("ADMIN", "backend_jobs:manage")).toBe(true);
     expect(hasPermission("ADMIN", "auth_providers:manage")).toBe(true);
+    expect(hasPermission("ADMIN", "users:manage")).toBe(true);
+    expect(hasPermission("TEAM_LEAD", "users:manage")).toBe(false);
   });
 
   it("allows support agents to read their scoped review queue plus self-review, feedback and training", () => {

@@ -1,5 +1,5 @@
 import type { AuthSessionStatus, IdentityProvider, IdentityProviderType, RoleName } from "@prisma/client";
-import { KeyRound, Link2, ShieldCheck } from "lucide-react";
+import { KeyRound, Link2, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
 import {
   revokeAuthSessionById,
@@ -201,6 +201,10 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           <Link href={selectedProviderLoginPath} className="action-button action-button--primary">
             <KeyRound size={16} aria-hidden="true" />
             Проверить вход
+          </Link>
+          <Link href="/admin/users" className="action-button">
+            <UsersRound size={16} aria-hidden="true" />
+            Пользователи
           </Link>
           <Link href="/admin/access?section=provider" className="action-button">
             Провайдер

@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck } from "lucide-react";
+import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -29,7 +29,7 @@ function canSee(role: RoleName, roles: RoleName[]) {
 
 export default async function AdminHomePage() {
   const user = await requireCurrentUserPermission("audit:read");
-  const [workspace, activeScorecard, activeSamplingRules, integrations, providerWarnings, failedJobs, recentAuditLogs, apiTokens] = await Promise.all([
+  const [workspace, activeScorecard, activeSamplingRules, integrations, users, providerWarnings, failedJobs, recentAuditLogs, apiTokens] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
       select: { uiTheme: true, uiDensity: true }
@@ -43,6 +43,9 @@ export default async function AdminHomePage() {
     }),
     prisma.integration.count({
       where: { workspaceId: user.workspaceId, status: { in: ["active", "ready", "queued"] } }
+    }),
+    prisma.user.count({
+      where: { workspaceId: user.workspaceId }
     }),
     prisma.identityProvider.count({
       where: {
@@ -101,6 +104,15 @@ export default async function AdminHomePage() {
       tone: providerWarnings > 0 ? "warn" : "ok"
     },
     {
+      href: "/admin/users",
+      title: "Пользователи и права",
+      description: "Локальные учетные записи и назначение ролей.",
+      icon: UsersRound,
+      roles: ["ADMIN"],
+      metric: `${users} пользователей`,
+      tone: users > 0 ? "ok" : "warn"
+    },
+    {
       href: "/admin/system",
       title: "Состояние системы",
       description: "Очереди, окружение, задачи обслуживания.",
@@ -142,6 +154,7 @@ export default async function AdminHomePage() {
     { href: "/admin/integrations?setup=1#connect", label: "Подключить источник", icon: Plug, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/scorecards?new=1#new-version", label: "Изменить форму оценки", icon: Gauge, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
     { href: "/admin/sampling?new=1#new-rule", label: "Добавить выборку", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { href: "/admin/users#new-user", label: "Создать пользователя", icon: UsersRound, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/access?section=provider", label: "Настроить SSO", icon: ShieldCheck, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/system", label: "Проверить систему", icon: Activity, roles: ["ADMIN"] as RoleName[] }
   ].filter((action) => canSee(user.role, action.roles));
@@ -154,7 +167,7 @@ export default async function AdminHomePage() {
     {
       title: "Подключения",
       description: "Источники обращений, вход пользователей и API-доступ.",
-      hrefs: ["/admin/integrations", "/admin/access", "/admin/tokens"]
+      hrefs: ["/admin/integrations", "/admin/users", "/admin/access", "/admin/tokens"]
     },
     {
       title: "Контроль",

@@ -12,6 +12,7 @@ export type Permission =
   | "scorecards:manage"
   | "sampling:manage"
   | "integrations:manage"
+  | "users:manage"
   | "appearance:manage"
   | "api_tokens:manage"
   | "audit:read"
@@ -35,6 +36,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "scorecards:manage",
     "sampling:manage",
     "integrations:manage",
+    "users:manage",
     "appearance:manage",
     "api_tokens:manage",
     "audit:read",
