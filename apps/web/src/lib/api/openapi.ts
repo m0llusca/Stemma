@@ -517,11 +517,37 @@ export function buildOpenApiDocument() {
             }
           }
         },
+        CertificationStatus: {
+          type: "string",
+          enum: [
+            "docs_checked",
+            "contract_certified",
+            "stub_certified",
+            "live_certified",
+            "ready_for_live_certification",
+            "waiting_for_access",
+            "limited",
+            "not_production_ready",
+            "configuration_required",
+            "secret_required",
+            "certificate_required"
+          ]
+        },
+        CertificationGateSummary: {
+          type: "object",
+          required: ["docs", "contract", "stub", "live"],
+          properties: {
+            docs: { $ref: "#/components/schemas/CertificationStatus" },
+            contract: { $ref: "#/components/schemas/CertificationStatus" },
+            stub: { $ref: "#/components/schemas/CertificationStatus" },
+            live: { $ref: "#/components/schemas/CertificationStatus" }
+          }
+        },
         CertificationSummary: {
           type: "object",
           required: ["status", "label", "productionReady"],
           properties: {
-            status: { type: "string" },
+            status: { $ref: "#/components/schemas/CertificationStatus" },
             label: { type: "string" },
             productionReady: { type: "boolean" }
           }
@@ -530,7 +556,7 @@ export function buildOpenApiDocument() {
           type: "object",
           required: ["gates", "summary", "docs", "limitations"],
           properties: {
-            gates: { type: "object" },
+            gates: { $ref: "#/components/schemas/CertificationGateSummary" },
             summary: { $ref: "#/components/schemas/CertificationSummary" },
             docs: {
               type: "array",
@@ -540,7 +566,7 @@ export function buildOpenApiDocument() {
                 properties: {
                   label: { type: "string" },
                   href: { type: "string" },
-                  status: { type: "string" }
+                  status: { $ref: "#/components/schemas/CertificationStatus" }
                 }
               }
             },
@@ -550,6 +576,14 @@ export function buildOpenApiDocument() {
             }
           }
         },
+        PayloadLimits: {
+          type: "object",
+          required: ["batchSize", "importLimit"],
+          properties: {
+            batchSize: { type: "integer", minimum: 1 },
+            importLimit: { type: "integer", minimum: 1 }
+          }
+        },
         IntegrationCapability: {
           type: "object",
           required: [
@@ -557,9 +591,17 @@ export function buildOpenApiDocument() {
             "displayName",
             "type",
             "authModes",
+            "supportsPaging",
+            "supportsCursor",
+            "supportsDiagnostics",
+            "supportsInboundWebhooks",
+            "supportsOutboundWebhooks",
             "operations",
             "supportedEvents",
+            "requiredSecrets",
+            "docsHref",
             "setupStatus",
+            "payloadLimits",
             "readiness",
             "certification"
           ],
@@ -568,11 +610,17 @@ export function buildOpenApiDocument() {
             displayName: { type: "string" },
             type: { type: "string" },
             authModes: { type: "array", items: { type: "string" } },
+            supportsPaging: { type: "boolean" },
+            supportsCursor: { type: "boolean" },
+            supportsDiagnostics: { type: "boolean" },
+            supportsInboundWebhooks: { type: "boolean" },
+            supportsOutboundWebhooks: { type: "boolean" },
             operations: { type: "array", items: { type: "string" } },
             supportedEvents: { type: "array", items: { type: "string" } },
             requiredSecrets: { type: "array", items: { type: "string" } },
             docsHref: { type: "string" },
             setupStatus: { type: "string", enum: ["available", "preview", "planned"] },
+            payloadLimits: { $ref: "#/components/schemas/PayloadLimits" },
             readiness: { type: "string" },
             certification: { $ref: "#/components/schemas/Certification" }
           }

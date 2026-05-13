@@ -34,10 +34,51 @@ describe("openapi contract", () => {
       required: ["totalScore", "scoreUnit", "scoreLabel"]
     });
     expect(document.components.schemas.ScoreSummary.properties.scoreUnit.enum).toEqual(["points"]);
+    expect(document.components.schemas.CertificationStatus).toEqual({
+      type: "string",
+      enum: [
+        "docs_checked",
+        "contract_certified",
+        "stub_certified",
+        "live_certified",
+        "ready_for_live_certification",
+        "waiting_for_access",
+        "limited",
+        "not_production_ready",
+        "configuration_required",
+        "secret_required",
+        "certificate_required"
+      ]
+    });
+    expect(document.components.schemas.CertificationGateSummary.required).toEqual(["docs", "contract", "stub", "live"]);
+    expect(document.components.schemas.CertificationGateSummary.properties).toEqual({
+      docs: { $ref: "#/components/schemas/CertificationStatus" },
+      contract: { $ref: "#/components/schemas/CertificationStatus" },
+      stub: { $ref: "#/components/schemas/CertificationStatus" },
+      live: { $ref: "#/components/schemas/CertificationStatus" }
+    });
     expect(document.components.schemas.CertificationSummary.required).toEqual(["status", "label", "productionReady"]);
+    expect(document.components.schemas.CertificationSummary.properties.status).toEqual({
+      $ref: "#/components/schemas/CertificationStatus"
+    });
+    expect(document.components.schemas.Certification.properties.docs.items.properties.status).toEqual({
+      $ref: "#/components/schemas/CertificationStatus"
+    });
     expect(document.components.schemas.IntegrationCapability.required).toContain("certification");
+    expect(document.components.schemas.IntegrationCapability.required).toEqual(
+      expect.arrayContaining([
+        "supportsInboundWebhooks",
+        "supportsOutboundWebhooks",
+        "payloadLimits",
+        "docsHref",
+        "requiredSecrets"
+      ])
+    );
     expect(document.components.schemas.IntegrationCapability.properties.certification).toEqual({
       $ref: "#/components/schemas/Certification"
+    });
+    expect(document.components.schemas.IntegrationCapability.properties.payloadLimits).toEqual({
+      $ref: "#/components/schemas/PayloadLimits"
     });
     expect(document.components.schemas.WebhookEndpoint.required).toContain("secretPrefix");
     expect(document.components.schemas.WebhookEndpoint.required).toEqual([
