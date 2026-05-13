@@ -29,6 +29,16 @@ describe("openapi contract", () => {
     });
     expect(document.paths["/jobs/run"].post.security).toEqual([{ sessionCookie: [] }]);
     expect(document.components.schemas.IntegrationCapability.required).toContain("supportedEvents");
+    expect(document.components.schemas.ScoreSummary).toMatchObject({
+      type: "object",
+      required: ["totalScore", "scoreUnit", "scoreLabel"]
+    });
+    expect(document.components.schemas.ScoreSummary.properties.scoreUnit.enum).toEqual(["points"]);
+    expect(document.components.schemas.CertificationSummary.required).toEqual(["status", "label", "productionReady"]);
+    expect(document.components.schemas.IntegrationCapability.required).toContain("certification");
+    expect(document.components.schemas.IntegrationCapability.properties.certification).toEqual({
+      $ref: "#/components/schemas/Certification"
+    });
     expect(document.components.schemas.WebhookEndpoint.required).toContain("secretPrefix");
     expect(document.components.schemas.WebhookEndpoint.required).toEqual([
       "id",

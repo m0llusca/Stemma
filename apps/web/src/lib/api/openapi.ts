@@ -496,9 +496,73 @@ export function buildOpenApiDocument() {
             hasPreviousPage: { type: "boolean" }
           }
         },
+        ScoreSummary: {
+          type: "object",
+          required: ["totalScore", "scoreUnit", "scoreLabel"],
+          properties: {
+            totalScore: {
+              type: "number",
+              minimum: 0,
+              maximum: 100,
+              description: "Normalized final score 0..100."
+            },
+            scoreUnit: {
+              type: "string",
+              enum: ["points"],
+              description: "Final score is displayed as points, not percent."
+            },
+            scoreLabel: {
+              type: "string",
+              examples: ["92 балла"]
+            }
+          }
+        },
+        CertificationSummary: {
+          type: "object",
+          required: ["status", "label", "productionReady"],
+          properties: {
+            status: { type: "string" },
+            label: { type: "string" },
+            productionReady: { type: "boolean" }
+          }
+        },
+        Certification: {
+          type: "object",
+          required: ["gates", "summary", "docs", "limitations"],
+          properties: {
+            gates: { type: "object" },
+            summary: { $ref: "#/components/schemas/CertificationSummary" },
+            docs: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["label", "href", "status"],
+                properties: {
+                  label: { type: "string" },
+                  href: { type: "string" },
+                  status: { type: "string" }
+                }
+              }
+            },
+            limitations: {
+              type: "array",
+              items: { type: "string" }
+            }
+          }
+        },
         IntegrationCapability: {
           type: "object",
-          required: ["source", "displayName", "type", "authModes", "operations", "supportedEvents", "setupStatus", "readiness"],
+          required: [
+            "source",
+            "displayName",
+            "type",
+            "authModes",
+            "operations",
+            "supportedEvents",
+            "setupStatus",
+            "readiness",
+            "certification"
+          ],
           properties: {
             source: { type: "string" },
             displayName: { type: "string" },
@@ -509,7 +573,8 @@ export function buildOpenApiDocument() {
             requiredSecrets: { type: "array", items: { type: "string" } },
             docsHref: { type: "string" },
             setupStatus: { type: "string", enum: ["available", "preview", "planned"] },
-            readiness: { type: "string" }
+            readiness: { type: "string" },
+            certification: { $ref: "#/components/schemas/Certification" }
           }
         },
         WebhookEndpoint: {
