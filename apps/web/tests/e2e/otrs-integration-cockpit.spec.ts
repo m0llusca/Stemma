@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
+import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
+import { prisma } from "@/lib/db";
 import {
   createOtrsGenericInterfaceServer,
   type OtrsGenericInterfaceServer
@@ -29,8 +31,45 @@ test.afterAll(async () => {
   await otrsServer?.close();
 });
 
-test.beforeEach(() => {
+test.beforeEach(async ({ context }) => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
+
+  const workspace = await prisma.workspace.findFirstOrThrow({
+    orderBy: { createdAt: "asc" },
+    select: { id: true }
+  });
+  const user = await prisma.user.upsert({
+    where: {
+      workspaceId_email: {
+        workspaceId: workspace.id,
+        email: "otrs-e2e-admin@example.com"
+      }
+    },
+    create: {
+      workspaceId: workspace.id,
+      email: "otrs-e2e-admin@example.com",
+      name: "OTRS E2E Admin",
+      role: "ADMIN"
+    },
+    update: {
+      name: "OTRS E2E Admin",
+      role: "ADMIN"
+    },
+    select: { id: true }
+  });
+  const { token, session } = await createAuthSession({ userId: user.id, userAgent: "playwright-otrs-e2e" });
+
+  await context.addCookies([
+    {
+      name: sessionCookieName,
+      value: token,
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: false,
+      expires: Math.floor(session.expiresAt.getTime() / 1000)
+    }
+  ]);
 });
 
 async function runIntegrationsQueueFromOverview(page: Page) {
@@ -135,7 +174,7 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await expect(settingsPanel).toBeVisible();
   await settingsPanel.getByLabel("Product profile").selectOption("otrs_ce_6");
   await settingsPanel.getByLabel("Base URL").fill(otrsServer.baseUrl);
-  await settingsPanel.getByLabel("UserLogin").fill(otrsFixtureUserLogin);
+  await settingsPanel.getByRole("textbox", { name: "UserLogin" }).fill(otrsFixtureUserLogin);
   await settingsPanel.getByRole("button", { name: "Сохранить OTRS" }).click();
   await expect(page.getByText("Настройка OTRS сохранена.")).toBeVisible();
 
