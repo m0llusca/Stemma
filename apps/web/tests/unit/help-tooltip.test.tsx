@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 
@@ -37,6 +37,48 @@ describe("HelpTooltip", () => {
     const { container } = render(<HelpTooltip label="Подсказка" content="Текст." className="admin-help" />);
 
     expect(container.querySelector(".help-tooltip")).toHaveClass("admin-help");
+  });
+
+  it("opens on trigger focus", () => {
+    const { container } = render(<HelpTooltip label="Фокус" content="Текст." />);
+
+    const trigger = screen.getByRole("button", { name: "Фокус" });
+    const wrapper = container.querySelector(".help-tooltip");
+
+    expect(wrapper).toHaveAttribute("data-open", "false");
+
+    fireEvent.focus(trigger);
+
+    expect(wrapper).toHaveAttribute("data-open", "true");
+  });
+
+  it("closes on Escape while keeping focus on the trigger", () => {
+    const { container } = render(<HelpTooltip label="Закрыть" content="Текст." />);
+
+    const trigger = screen.getByRole("button", { name: "Закрыть" });
+    const wrapper = container.querySelector(".help-tooltip");
+
+    act(() => {
+      trigger.focus();
+    });
+    expect(wrapper).toHaveAttribute("data-open", "true");
+
+    fireEvent.keyDown(trigger, { key: "Escape" });
+
+    expect(wrapper).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("opens on mouse enter and closes on mouse leave", () => {
+    const { container } = render(<HelpTooltip label="Наведение" content="Текст." />);
+
+    const wrapper = container.querySelector(".help-tooltip");
+
+    fireEvent.mouseEnter(wrapper!);
+    expect(wrapper).toHaveAttribute("data-open", "true");
+
+    fireEvent.mouseLeave(wrapper!);
+    expect(wrapper).toHaveAttribute("data-open", "false");
   });
 
   it("sets an inspectable placement attribute", () => {
