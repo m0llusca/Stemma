@@ -376,9 +376,9 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                       key={provider.id}
                       href={accessSectionHref("provider", provider.id)}
                       className={`ops-table__row ${selectedProvider?.id === provider.id ? "record-card--selected" : ""}`}
-                      role="row"
                     >
                       <div className="ops-table__cell">
+                        <span className="ops-table__label">Провайдер</span>
                         <span className="flex flex-wrap items-center gap-2">
                           <ShieldCheck size={16} aria-hidden="true" />
                           <strong className="record-title">{provider.name}</strong>
@@ -386,16 +386,27 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                         <span className="record-meta compact-text">{provider.slug}</span>
                       </div>
                       <div className="ops-table__cell">
+                        <span className="ops-table__label">Тип</span>
                         <span className="record-title">{providerTypeLabels[provider.type]}</span>
                         <span className={`pill ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
                       </div>
                       <div className="ops-table__cell">
+                        <span className="ops-table__label">Готовность</span>
                         <span className={`pill ${providerReady.tone}`}>{providerReady.label}</span>
                         <span className="record-meta compact-text">{providerReady.details.slice(0, 2).join(", ")}</span>
                       </div>
-                      <span className="record-meta">{provider.groupRoleMappings.length}</span>
-                      <span className="record-meta">{provider._count.externalIdentities}</span>
-                      <span className="record-meta">{provider._count.authSessions}</span>
+                      <span className="record-meta">
+                        <span className="ops-table__label">Группы</span>
+                        {provider.groupRoleMappings.length}
+                      </span>
+                      <span className="record-meta">
+                        <span className="ops-table__label">Пользователи</span>
+                        {provider._count.externalIdentities}
+                      </span>
+                      <span className="record-meta">
+                        <span className="ops-table__label">Сессии</span>
+                        {provider._count.authSessions}
+                      </span>
                     </Link>
                   );
                 })}
@@ -540,19 +551,34 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 selectedProvider.groupRoleMappings.map((mapping) => (
                   <div key={mapping.id} className="ops-table__row" role="row">
                     <form action={toggleGroupRoleMapping} className="ops-table__cell">
+                      <span className="ops-table__label">Статус</span>
                       <input type="hidden" name="mappingId" value={mapping.id} />
                       <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
-                      <button type="submit" className={`action-button action-button--small ${mapping.isActive ? "" : "action-button--primary"}`}>
+                      <button
+                        type="submit"
+                        className={`action-button action-button--small ${mapping.isActive ? "" : "action-button--primary"}`}
+                        aria-label={`${mapping.isActive ? "Отключить" : "Включить"} группу ${mapping.externalGroupName}`}
+                      >
                         {mapping.isActive ? "Отключить" : "Включить"}
                       </button>
                     </form>
                     <div className="ops-table__cell">
+                      <span className="ops-table__label">Группа</span>
                       <strong className="record-title">{mapping.externalGroupName}</strong>
                       <span className={`pill ${mapping.isActive ? "pill--ok" : "pill--neutral"}`}>{mapping.isActive ? "Активна" : "Отключена"}</span>
                     </div>
-                    <span className="record-meta compact-text font-mono">{mapping.externalGroupId}</span>
-                    <span className="pill pill--neutral">{roleLabels[mapping.role]}</span>
-                    <span className="record-meta">{mapping.priority}</span>
+                    <span className="record-meta compact-text font-mono">
+                      <span className="ops-table__label">Идентификатор группы</span>
+                      {mapping.externalGroupId}
+                    </span>
+                    <span className="pill pill--neutral">
+                      <span className="ops-table__label">Роль</span>
+                      {roleLabels[mapping.role]}
+                    </span>
+                    <span className="record-meta">
+                      <span className="ops-table__label">Приоритет</span>
+                      {mapping.priority}
+                    </span>
                   </div>
                 ))
               )}
@@ -613,29 +639,45 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 <span>Провайдер</span>
                 <span>Статус</span>
                 <span>Последняя активность</span>
-                <span>Истекает</span>
+                <span>Завершение</span>
                 <span>Действие</span>
               </div>
               {sessions.map((session) => (
                 <div key={session.id} className="ops-table__row" role="row">
                   <div className="ops-table__cell">
+                    <span className="ops-table__label">Пользователь</span>
                     <span className="record-title">{session.user.name}</span>
                     <span className="record-meta compact-text">
                       {session.user.email} · {roleLabels[session.user.role]}
                     </span>
                   </div>
                   <div className="ops-table__cell">
+                    <span className="ops-table__label">Провайдер</span>
                     <span className="record-title">{session.provider?.name ?? "Без провайдера"}</span>
                     <span className="record-meta">{session.provider ? providerTypeLabels[session.provider.type] : "Локальный вход"}</span>
                   </div>
-                  <span className={`pill ${statusTone(session.status)}`}>{sessionStatusLabels[session.status]}</span>
-                  <span className="record-meta">{formatDate(session.lastSeenAt)}</span>
-                  <span className="record-meta">{formatDate(session.expiresAt)}</span>
+                  <span className={`pill ${statusTone(session.status)}`}>
+                    <span className="ops-table__label">Статус</span>
+                    {sessionStatusLabels[session.status]}
+                  </span>
+                  <span className="record-meta">
+                    <span className="ops-table__label">Последняя активность</span>
+                    {formatDate(session.lastSeenAt)}
+                  </span>
+                  <span className="record-meta">
+                    <span className="ops-table__label">Завершение</span>
+                    {formatDate(session.expiresAt)}
+                  </span>
                   <div className="ops-table__cell ops-table__cell--actions">
+                    <span className="ops-table__label">Действие</span>
                     {session.status === "ACTIVE" ? (
                       <form action={revokeAuthSessionById}>
                         <input type="hidden" name="sessionId" value={session.id} />
-                        <button type="submit" className="action-button action-button--small">
+                        <button
+                          type="submit"
+                          className="action-button action-button--small"
+                          aria-label={`Отозвать сессию ${session.user.email}`}
+                        >
                           Отозвать
                         </button>
                       </form>

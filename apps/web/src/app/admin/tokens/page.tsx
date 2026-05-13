@@ -193,7 +193,12 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
                       ) : null}
                       <form action={revokeApiTokenById} className="mt-2">
                         <input type="hidden" name="tokenId" value={apiToken.id} />
-                        <button type="submit" className="action-button action-button--small" disabled={isExpired}>
+                        <button
+                          type="submit"
+                          className="action-button action-button--small"
+                          disabled={isExpired}
+                          aria-label={`Отозвать ключ ${apiToken.name}`}
+                        >
                           Отозвать
                         </button>
                       </form>
