@@ -1483,7 +1483,7 @@ pre code {
 
 .help-tooltip__content {
   position: absolute;
-  right: 0;
+  left: 50%;
   bottom: calc(100% + 8px);
   z-index: 40;
   width: min(280px, calc(100vw - 32px));
@@ -1494,16 +1494,34 @@ pre code {
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.45;
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-raised);
   pointer-events: none;
   opacity: 0;
-  transform: translateY(4px);
+  transform: translate(-50%, 4px);
   transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.help-tooltip[data-placement="top-start"] .help-tooltip__content {
+  left: 0;
+  transform: translateY(4px);
+}
+
+.help-tooltip[data-placement="top-end"] .help-tooltip__content {
+  right: 0;
+  left: auto;
+  transform: translateY(4px);
 }
 
 .help-tooltip:hover .help-tooltip__content,
 .help-tooltip:focus-within .help-tooltip__content {
   opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.help-tooltip[data-placement="top-start"]:hover .help-tooltip__content,
+.help-tooltip[data-placement="top-start"]:focus-within .help-tooltip__content,
+.help-tooltip[data-placement="top-end"]:hover .help-tooltip__content,
+.help-tooltip[data-placement="top-end"]:focus-within .help-tooltip__content {
   transform: translateY(0);
 }
 
