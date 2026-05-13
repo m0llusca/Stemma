@@ -1424,6 +1424,63 @@ pre code {
   box-shadow: var(--shadow-raised);
 }
 
+.ops-panel__header > *,
+.command-center > *,
+.admin-actions,
+.ops-status-item,
+.ops-metric {
+  min-width: 0;
+}
+
+.ops-panel__header > :first-child,
+.command-center > :first-child {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ops-panel__title,
+.record-title,
+.record-meta,
+.ops-metric__note,
+.ops-status-item__value {
+  overflow-wrap: anywhere;
+}
+
+.ops-table__row {
+  min-width: 0;
+}
+
+.ops-table__cell,
+.ops-table__cell form {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ops-table__cell--actions .action-button,
+.admin-actions .action-button {
+  max-width: 100%;
+}
+
+.ops-tabs--section {
+  scrollbar-gutter: stable;
+}
+
+.help-tooltip[data-open="true"] .help-tooltip__content {
+  display: block;
+}
+
+.help-tooltip:not([data-open="true"]) .help-tooltip__content {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .help-tooltip__content {
+    right: auto;
+    left: 0;
+    max-width: calc(100vw - 32px);
+  }
+}
+
 .command-center--split {
   --command-aside-min: 280px;
   --command-aside-max: 390px;
