@@ -1495,7 +1495,8 @@ pre code {
   font-size: 12px;
   line-height: 1.45;
   box-shadow: var(--shadow-raised);
-  pointer-events: auto;
+  visibility: hidden;
+  pointer-events: none;
   opacity: 0;
   transform: translate(-50%, 4px);
   transition: opacity 120ms ease, transform 120ms ease;
@@ -1513,6 +1514,8 @@ pre code {
 }
 
 .help-tooltip[data-open="true"] .help-tooltip__content {
+  visibility: visible;
+  pointer-events: auto;
   opacity: 1;
   transform: translate(-50%, 0);
 }

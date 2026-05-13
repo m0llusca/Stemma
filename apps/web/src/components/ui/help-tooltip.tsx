@@ -49,8 +49,6 @@ export function HelpTooltip({
       data-open={open ? "true" : "false"}
       data-placement={placement}
       onBlur={closeWhenFocusLeaves}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
       onPointerEnter={() => setOpen(true)}
       onPointerLeave={() => setOpen(false)}
     >

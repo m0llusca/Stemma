@@ -69,15 +69,17 @@ describe("HelpTooltip", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("opens on mouse enter and closes on mouse leave", () => {
+  it("opens on pointer enter and closes on pointer leave", () => {
     const { container } = render(<HelpTooltip label="Наведение" content="Текст." />);
 
     const wrapper = container.querySelector(".help-tooltip");
 
-    fireEvent.mouseEnter(wrapper!);
+    expect(wrapper).toHaveAttribute("data-open", "false");
+
+    fireEvent.pointerEnter(wrapper!);
     expect(wrapper).toHaveAttribute("data-open", "true");
 
-    fireEvent.mouseLeave(wrapper!);
+    fireEvent.pointerLeave(wrapper!);
     expect(wrapper).toHaveAttribute("data-open", "false");
   });
 
