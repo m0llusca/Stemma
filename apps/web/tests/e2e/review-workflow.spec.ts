@@ -165,7 +165,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/admin/integrations");
   const znunyIntegrationCard = page.getByRole("row").filter({ hasText: "Znuny / OTRS / OTOBO" }).first();
-  await expect(znunyIntegrationCard.getByText("OTRS/Znuny · Готово к эксплуатации · курсор есть · вебхуки нет")).toBeVisible();
+  await expect(znunyIntegrationCard).toContainText("OTRS/Znuny · В плане · курсор есть · вебхуки нет");
+  await expect(znunyIntegrationCard).toContainText("Не готово к промышленной эксплуатации");
   await expect(znunyIntegrationCard).toContainText("Проверка готова");
   await znunyIntegrationCard.getByRole("link", { name: "Открыть панель" }).click();
   await expect(page.getByRole("heading", { name: "Сводка источника" })).toBeVisible();
