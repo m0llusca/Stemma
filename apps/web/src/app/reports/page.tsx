@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Database, RotateCcw, Scale } from "lucide-react";
 import { MetricCard } from "@/components/reports/metric-card";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import {
   ChartPanel,
   HorizontalBarChart,
@@ -731,6 +732,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       <PeriodFilter period={period} view={reportView} />
       <ReportViewSelector period={period} view={reportView} />
+
+      <div className="flex items-center gap-2">
+        <span className="record-meta">Средняя оценка</span>
+        <HelpTooltip
+          label="Как считать оценку в баллах?"
+          content="Итоговая оценка хранится как нормализованное значение от 0 до 100 и показывается как баллы."
+          placement="top-start"
+        />
+      </div>
 
       <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard

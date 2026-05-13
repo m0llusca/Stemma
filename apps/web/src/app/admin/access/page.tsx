@@ -7,6 +7,7 @@ import {
   saveIdentityProvider,
   toggleGroupRoleMapping
 } from "@/lib/auth-provider-actions";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { buildEntraAuthorizationMetadata, getDirectoryIntegrationGuidance } from "@/lib/auth/providers";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -20,10 +21,20 @@ type AccessPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+type AccessSection = "overview" | "provider" | "mappings" | "sessions" | "recommendations";
+
+const accessSections: Array<{ value: AccessSection; label: string }> = [
+  { value: "overview", label: "Провайдеры" },
+  { value: "provider", label: "Настройка" },
+  { value: "mappings", label: "Группы и роли" },
+  { value: "sessions", label: "Сессии" },
+  { value: "recommendations", label: "Рекомендации" }
+];
+
 const providerTypeLabels: Record<IdentityProviderType, string> = {
   DEMO: "Демо",
   MICROSOFT_ENTRA_ID: "Microsoft Entra ID",
-  ACTIVE_DIRECTORY_LDAPS: "Active Directory LDAPS",
+  ACTIVE_DIRECTORY_LDAPS: "Active Directory через LDAPS",
   OIDC: "OIDC",
   SAML: "SAML"
 };
@@ -38,14 +49,22 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
   { value: "MICROSOFT_ENTRA_ID", label: "Microsoft Entra ID" },
   { value: "OIDC", label: "OIDC" },
   { value: "SAML", label: "SAML" },
-  { value: "ACTIVE_DIRECTORY_LDAPS", label: "Active Directory LDAPS" }
+  { value: "ACTIVE_DIRECTORY_LDAPS", label: "Active Directory через LDAPS" }
 ];
 
+const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[#64748b]";
 const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"];
+const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC"];
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
   return firstValue?.trim() || undefined;
+}
+
+function accessSectionParam(value: string | string[] | undefined): AccessSection {
+  const section = firstParam(value);
+
+  return accessSections.some((item) => item.value === section) ? (section as AccessSection) : "overview";
 }
 
 function formatDate(value: Date | null | undefined) {
@@ -58,18 +77,14 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (status === "active" || status === "ACTIVE") {
-    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#15803d]";
+    return "pill--ok";
   }
 
   if (status === "draft") {
-    return "border-[#fed7aa] bg-[#fff7ed] text-[#b45309]";
+    return "pill--warn";
   }
 
-  if (status === "disabled" || status === "REVOKED" || status === "EXPIRED") {
-    return "border-[#d9e0ea] bg-[#f8fafc] text-[#64748b]";
-  }
-
-  return "border-[#d9e0ea] bg-white text-[#334155]";
+  return "pill--neutral";
 }
 
 function providerStatusLabel(status: string) {
@@ -96,6 +111,68 @@ function configText(provider: IdentityProvider | null | undefined) {
 
 function callbackPath() {
   return "/auth/callback";
+}
+
+function providerReadiness(provider: IdentityProvider | null | undefined) {
+  if (!provider) {
+    return {
+      label: "Не выбран",
+      tone: "pill--neutral",
+      canTest: false,
+      details: ["Создайте или выберите провайдера"]
+    };
+  }
+
+  if (provider.type === "DEMO") {
+    return {
+      label: "Демо",
+      tone: "pill--neutral",
+      canTest: false,
+      details: ["Демо-провайдер не используется для боевого SSO"]
+    };
+  }
+
+  if (!interactiveSsoTypes.includes(provider.type)) {
+    return {
+      label: "Только каталог",
+      tone: "pill--neutral",
+      canTest: false,
+      details: ["Интерактивный SSO для этого типа пока не подключен"]
+    };
+  }
+
+  const missing: string[] = [];
+
+  if (!provider.clientId) missing.push("Идентификатор приложения");
+  if (provider.type === "MICROSOFT_ENTRA_ID" && !provider.tenantId) missing.push("Идентификатор каталога");
+  if (provider.type === "OIDC" && !provider.authorizationUrl) missing.push("Адрес авторизации");
+  if (provider.type === "OIDC" && !provider.tokenUrl) missing.push("Адрес токена");
+  if (provider.type === "OIDC" && !provider.jwksUrl) missing.push("Адрес ключей JWKS");
+
+  if (provider.status !== "active") {
+    return {
+      label: provider.status === "disabled" ? "Отключен" : "Черновик",
+      tone: provider.status === "disabled" ? "pill--neutral" : "pill--warn",
+      canTest: false,
+      details: ["Переведите провайдера в статус «Активен»"]
+    };
+  }
+
+  if (missing.length > 0) {
+    return {
+      label: "Неполная конфигурация",
+      tone: "pill--warn",
+      canTest: false,
+      details: missing
+    };
+  }
+
+  return {
+    label: "Готов к SSO",
+    tone: "pill--ok",
+    canTest: true,
+    details: ["Можно запускать тестовый вход"]
+  };
 }
 
 function ProviderField({
@@ -176,320 +253,436 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
     providers.find((provider) => provider.type !== "DEMO") ??
     null;
   const selectedProviderType = selectedProvider?.type === "DEMO" ? "MICROSOFT_ENTRA_ID" : selectedProvider?.type ?? "MICROSOFT_ENTRA_ID";
-  const openProviderSettings = firstParam(params.section) === "provider";
-  const openSessions = firstParam(params.section) === "sessions";
+  const activeSection = accessSectionParam(params.section);
+  const accessSectionHref = (section: AccessSection, providerId = selectedProvider?.id) => {
+    const search = new URLSearchParams({ section });
+
+    if (providerId) {
+      search.set("provider", providerId);
+    }
+
+    return `/admin/access?${search.toString()}`;
+  };
   const entraMetadata =
     selectedProvider?.type === "MICROSOFT_ENTRA_ID" || selectedProvider?.type === "OIDC"
       ? buildEntraAuthorizationMetadata(selectedProvider)
       : null;
   const guidance = getDirectoryIntegrationGuidance();
-  const selectedProviderLoginPath = `/auth/login?provider=${encodeURIComponent(
+  const readiness = providerReadiness(selectedProvider);
+  const selectedProviderSsoPath = `/auth/sso?provider=${encodeURIComponent(
     selectedProvider?.slug ?? "microsoft-entra-id"
   )}&workspaceId=${encodeURIComponent(selectedProvider?.workspaceId ?? user.workspaceId)}&returnTo=/reviews`;
+  const activeSessions = sessions.filter((session) => session.status === "ACTIVE").length;
+  const activeMappings = selectedProvider?.groupRoleMappings.filter((mapping) => mapping.isActive).length ?? 0;
+  const linkedUsers = providers.reduce((sum, provider) => sum + provider._count.externalIdentities, 0);
 
   return (
     <section className="page-shell admin-shell">
       <div className="command-center">
-        <div>
+        <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Доступ и SSO</h1>
           <p className="page-subtitle">
             Настройка сквозной авторизации, связки AD/Entra-групп с ролями и контроль активных сессий.
           </p>
-        </div>
-        <div className="admin-actions">
-          <Link href={selectedProviderLoginPath} className="action-button action-button--primary">
-            <KeyRound size={16} aria-hidden="true" />
-            Проверить вход
-          </Link>
-          <Link href="/admin/users" className="action-button">
-            <UsersRound size={16} aria-hidden="true" />
-            Пользователи
-          </Link>
-          <Link href="/admin/access?section=provider" className="action-button">
-            Провайдер
-          </Link>
-          <Link href="/admin/access?section=sessions" className="action-button action-button--quiet">
-            Сессии
-          </Link>
+          <div className="admin-actions mt-5">
+            {readiness.canTest ? (
+              <Link href={selectedProviderSsoPath} className="action-button action-button--primary">
+                <KeyRound size={16} aria-hidden="true" />
+                Проверить вход
+              </Link>
+            ) : (
+              <button type="button" className="action-button action-button--primary" disabled aria-disabled="true">
+                <KeyRound size={16} aria-hidden="true" />
+                Проверить вход
+              </button>
+            )}
+            <Link href="/admin/users" className="action-button">
+              <UsersRound size={16} aria-hidden="true" />
+              Пользователи
+            </Link>
+          </div>
         </div>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
-          <h2 className="text-lg font-semibold">Провайдеры входа</h2>
-          <p className="mt-1 text-sm text-[#64748b]">Выберите источник авторизации, чтобы ниже открыть настройки и связи групп.</p>
+      <section className="ops-metric-grid" aria-label="Сводка доступа">
+        <div className="ops-metric">
+          <span className="ops-metric__label">Провайдеры</span>
+          <strong className="ops-metric__value">{providers.length}</strong>
+          <span className="ops-metric__note">Активны: {providers.filter((provider) => provider.status === "active").length}</span>
         </div>
-        <div className="command-list">
-          {providers.map((provider) => (
-            <Link
-              key={provider.id}
-              href={`/admin/access?provider=${provider.id}`}
-              className={`command-row ${selectedProvider?.id === provider.id ? "bg-[#f8faff]" : ""}`}
-            >
-              <span className="command-row__icon">
-                <ShieldCheck size={18} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="record-title">{provider.name}</h3>
-                  <span className={`w-fit whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>
-                    {providerStatusLabel(provider.status)}
-                  </span>
-                </div>
-                <p className="record-meta mt-1">
-                  {providerTypeLabels[provider.type]} · групп: {provider.groupRoleMappings.length} · пользователей:{" "}
-                  {provider._count.externalIdentities}
-                </p>
-              </div>
-              <span className="command-row__action text-sm font-semibold text-[#1d3fae]">
-                {selectedProvider?.id === provider.id ? "Выбран" : "Открыть"}
-              </span>
-            </Link>
-          ))}
+        <div className="ops-metric">
+          <span className="flex items-center gap-1">
+            <span className="ops-metric__label">Группы</span>
+            <HelpTooltip
+              label="Как работает приоритет групп?"
+              content="Меньшее значение priority применяется раньше. Если пользователь состоит в нескольких группах, победит первое активное правило."
+              placement="top-start"
+            />
+          </span>
+          <strong className="ops-metric__value">{providers.reduce((sum, provider) => sum + provider.groupRoleMappings.length, 0)}</strong>
+          <span className="ops-metric__note">Активных у выбранного: {activeMappings}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">SSO-профили</span>
+          <strong className="ops-metric__value">{linkedUsers}</strong>
+          <span className="ops-metric__note">Связанные внешние учетные записи</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Активные сессии</span>
+          <strong className="ops-metric__value">{activeSessions}</strong>
+          <span className="ops-metric__note">Показано до 40 в разделе сессий</span>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-        <details className="disclosure-panel panel overflow-hidden" open={openProviderSettings}>
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
-            <div>
-              <h2 className="text-lg font-semibold">Провайдер авторизации</h2>
-              <p className="mt-1 text-sm text-[#64748b]">
-                Основные поля скрыты, чтобы экран не превращался в форму настроек.
-              </p>
+      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы доступа и SSO">
+        {accessSections.map((section) => (
+          <Link
+            key={section.value}
+            href={accessSectionHref(section.value)}
+            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
+            aria-current={activeSection === section.value ? "page" : undefined}
+          >
+            {section.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeSection === "overview" ? (
+        <section className="ops-panel" aria-labelledby="providers-title">
+            <div className="ops-panel__header">
+              <div>
+                <p className="ops-panel__eyebrow">Провайдеры удостоверений</p>
+                <h2 id="providers-title" className="ops-panel__title">Провайдеры входа</h2>
+                <p className="ops-panel__subtitle">Выберите провайдера, чтобы открыть его настройку в отдельной вкладке.</p>
+              </div>
+              <span className={`pill ${readiness.tone}`}>{readiness.label}</span>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Изменить</span>
-          </summary>
+            <div className="ops-table-shell">
+              <div className="ops-table ops-table--providers" role="table" aria-label="Провайдеры входа">
+                <div className="ops-table__row ops-table__row--head" role="row">
+                  <span>Провайдер</span>
+                  <span>Тип</span>
+                  <span>Готовность</span>
+                  <span>Группы</span>
+                  <span>Пользователи</span>
+                  <span>Сессии</span>
+                </div>
+                {providers.map((provider) => {
+                  const providerReady = providerReadiness(provider);
+
+                  return (
+                    <Link
+                      key={provider.id}
+                      href={accessSectionHref("provider", provider.id)}
+                      className={`ops-table__row ${selectedProvider?.id === provider.id ? "record-card--selected" : ""}`}
+                      role="row"
+                    >
+                      <div className="ops-table__cell">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <ShieldCheck size={16} aria-hidden="true" />
+                          <strong className="record-title">{provider.name}</strong>
+                        </span>
+                        <span className="record-meta compact-text">{provider.slug}</span>
+                      </div>
+                      <div className="ops-table__cell">
+                        <span className="record-title">{providerTypeLabels[provider.type]}</span>
+                        <span className={`pill ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
+                      </div>
+                      <div className="ops-table__cell">
+                        <span className={`pill ${providerReady.tone}`}>{providerReady.label}</span>
+                        <span className="record-meta compact-text">{providerReady.details.slice(0, 2).join(", ")}</span>
+                      </div>
+                      <span className="record-meta">{provider.groupRoleMappings.length}</span>
+                      <span className="record-meta">{provider._count.externalIdentities}</span>
+                      <span className="record-meta">{provider._count.authSessions}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+        </section>
+      ) : null}
+
+      {activeSection === "provider" ? (
+        <section className="ops-panel" aria-labelledby="provider-settings-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Настройка</p>
+              <h2 id="provider-settings-title" className="ops-panel__title">{selectedProvider?.name ?? "Провайдер авторизации"}</h2>
+              <p className="ops-panel__subtitle">Редактируйте поля при смене каталога, приложения или технических адресов.</p>
+              {selectedProvider && selectedProvider.type !== "DEMO" ? (
+                <form action={queueDirectorySync} className="admin-actions mt-3">
+                  <input type="hidden" name="providerId" value={selectedProvider.id} />
+                  <button type="submit" className="action-button action-button--small">
+                    <ShieldCheck size={15} aria-hidden="true" />
+                    Синхронизировать
+                  </button>
+                </form>
+              ) : null}
+            </div>
+            <span className={`pill ${readiness.tone}`}>{readiness.label}</span>
+          </div>
+          <div className="ops-status-strip" aria-label="Готовность выбранного провайдера">
+            <div className="ops-status-item">
+              <span className="ops-status-item__label">Готовность входа</span>
+              <span className="ops-status-item__value">{readiness.label}</span>
+              <span className="record-meta compact-text">{readiness.details.join(", ")}</span>
+            </div>
+            <div className="ops-status-item">
+              <span className="ops-status-item__label">Адрес возврата</span>
+              <span className="ops-status-item__value font-mono text-sm compact-text">{callbackPath()}</span>
+              <span className="record-meta">Укажите этот путь в приложении провайдера.</span>
+            </div>
+            <div className="ops-status-item">
+              <span className="ops-status-item__label">Группы ролей</span>
+              <span className="ops-status-item__value">{activeMappings}/{selectedProvider?.groupRoleMappings.length ?? 0}</span>
+              <span className="record-meta">Активные группы выбранного провайдера.</span>
+            </div>
+            <div className="ops-status-item">
+              <span className="ops-status-item__label">Последняя синхронизация</span>
+              <span className="ops-status-item__value">{formatDate(selectedProvider?.lastSyncAt)}</span>
+              <span className="record-meta">Синхронизация каталога запускается как фоновая задача.</span>
+            </div>
+          </div>
           <form action={saveIdentityProvider} className="grid gap-5 p-5">
-            <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
-            <div className="grid gap-4 md:grid-cols-2">
+          <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
+          <input type="hidden" name="returnSection" value="provider" />
+          <div className="ops-form-grid">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Тип
+              <select name="type" defaultValue={selectedProviderType} className="form-control">
+                {providerTypes.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Статус
+              <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="form-control">
+                <option value="draft">Черновик</option>
+                <option value="active">Активен</option>
+                <option value="disabled">Отключен</option>
+              </select>
+            </label>
+            <ProviderField label="Название" name="name" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.name} placeholder="Microsoft Entra ID" />
+            <ProviderField label="Код для входа" name="slug" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.slug} placeholder="microsoft-entra-id" />
+            <ProviderField label="Идентификатор каталога" name="tenantId" defaultValue={selectedProvider?.tenantId} placeholder="00000000-0000-0000-0000-000000000000" />
+            <ProviderField label="Идентификатор приложения" name="clientId" defaultValue={selectedProvider?.clientId} placeholder="Идентификатор приложения" />
+            <ProviderField label="Ссылка на секрет" name="clientSecretRef" defaultValue={selectedProvider?.clientSecretRef} placeholder="env:QC_ENTRA_CLIENT_SECRET" />
+            <ProviderField label="Области доступа" name="scopes" defaultValue={selectedProvider?.scopes ?? "openid profile email"} />
+          </div>
+
+          <details className="compact-details">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
+              Адреса OIDC/SAML и расширенная настройка
+            </summary>
+            <div className="ops-form-grid border-t border-[#d9e0ea] p-4">
+              <ProviderField label="Издатель токенов" name="issuer" defaultValue={selectedProvider?.issuer} placeholder="https://login.microsoftonline.com/{tenantId}/v2.0" />
+              <ProviderField label="Адрес авторизации" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
+              <ProviderField label="Адрес токена" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
+              <ProviderField label="Адрес ключей JWKS" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
+              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[#334155]">
+                Настройка JSON
+                <textarea
+                  name="configJson"
+                  defaultValue={configText(selectedProvider)}
+                  rows={5}
+                  className="form-control font-mono text-xs"
+                  placeholder='{"roleSource":"groups"}'
+                />
+              </label>
+            </div>
+          </details>
+
+          {entraMetadata ? (
+            <div className="soft-callout text-sm text-[#64748b]">
+              <p className="font-semibold text-[#334155]">Метаданные Entra/OIDC</p>
+              <p className="compact-text">Авторизация: {entraMetadata.authorizationUrl}</p>
+              <p className="compact-text">Токен: {entraMetadata.tokenUrl}</p>
+              <p>Сценарий: {entraMetadata.recommendedFlow}</p>
+            </div>
+          ) : null}
+
+          <div className="flex justify-end">
+            <ValidatedSubmitButton>
+              Сохранить провайдера
+            </ValidatedSubmitButton>
+          </div>
+        </form>
+        </section>
+      ) : null}
+
+      {activeSection === "mappings" && selectedProvider ? (
+        <section className="ops-panel" aria-labelledby="mappings-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Политика ролей</p>
+              <h2 id="mappings-title" className="ops-panel__title">Группы и роли</h2>
+              <p className="ops-panel__subtitle">Приоритет меньше - роль применяется раньше. Неактивные строки остаются в истории конфигурации.</p>
+            </div>
+            <span className="pill pill--neutral">{selectedProvider.groupRoleMappings.length}</span>
+          </div>
+          <div className="ops-table-shell">
+            <div className="ops-table ops-table--mappings" role="table" aria-label="Группы и роли">
+              <div className="ops-table__row ops-table__row--head" role="row">
+                <span>Статус</span>
+                <span>Группа</span>
+                <span>Идентификатор группы</span>
+                <span>Роль</span>
+                <span>Приоритет</span>
+              </div>
+              {selectedProvider.groupRoleMappings.length === 0 ? (
+                <div className={emptyStateClass}>Для выбранного провайдера пока нет групп.</div>
+              ) : (
+                selectedProvider.groupRoleMappings.map((mapping) => (
+                  <div key={mapping.id} className="ops-table__row" role="row">
+                    <form action={toggleGroupRoleMapping} className="ops-table__cell">
+                      <input type="hidden" name="mappingId" value={mapping.id} />
+                      <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
+                      <button type="submit" className={`action-button action-button--small ${mapping.isActive ? "" : "action-button--primary"}`}>
+                        {mapping.isActive ? "Отключить" : "Включить"}
+                      </button>
+                    </form>
+                    <div className="ops-table__cell">
+                      <strong className="record-title">{mapping.externalGroupName}</strong>
+                      <span className={`pill ${mapping.isActive ? "pill--ok" : "pill--neutral"}`}>{mapping.isActive ? "Активна" : "Отключена"}</span>
+                    </div>
+                    <span className="record-meta compact-text font-mono">{mapping.externalGroupId}</span>
+                    <span className="pill pill--neutral">{roleLabels[mapping.role]}</span>
+                    <span className="record-meta">{mapping.priority}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <details className="compact-details m-4">
+            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+              <h3 className="font-semibold text-[#111827]">Добавить группу</h3>
+              <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
+            </summary>
+            <form action={saveGroupRoleMapping} className="ops-form-grid border-t border-[#d9e0ea] p-4">
+              <input type="hidden" name="providerId" value={selectedProvider.id} />
+              <input type="hidden" name="returnSection" value="mappings" />
+              <ProviderField label="Идентификатор группы" name="externalGroupId" required placeholder="QC_Analysts или GUID группы" />
+              <ProviderField label="Название группы" name="externalGroupName" required placeholder="Аналитики контроля качества" />
               <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Тип
-                <select name="type" defaultValue={selectedProviderType} className="form-control">
-                  {providerTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
+                Роль
+                <select name="role" defaultValue="QA_ANALYST" className="form-control">
+                  {roles.map((role) => (
+                    <option key={role} value={role}>
+                      {roleLabels[role]}
                     </option>
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                Статус
-                <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="form-control">
-                  <option value="draft">Черновик</option>
-                  <option value="active">Активен</option>
-                  <option value="disabled">Отключен</option>
-                </select>
+              <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
+              <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">
+                <input type="checkbox" name="isActive" defaultChecked />
+                Активна
               </label>
-              <ProviderField label="Название" name="name" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.name} placeholder="Microsoft Entra ID" />
-              <ProviderField label="Slug для входа" name="slug" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.slug} placeholder="microsoft-entra-id" />
-              <ProviderField label="Tenant ID" name="tenantId" defaultValue={selectedProvider?.tenantId} placeholder="00000000-0000-0000-0000-000000000000" />
-              <ProviderField label="Client ID" name="clientId" defaultValue={selectedProvider?.clientId} placeholder="Application client ID" />
-              <ProviderField label="Ссылка на секрет" name="clientSecretRef" defaultValue={selectedProvider?.clientSecretRef} placeholder="env:QC_ENTRA_CLIENT_SECRET" />
-              <ProviderField label="Scopes" name="scopes" defaultValue={selectedProvider?.scopes ?? "openid profile email"} />
-            </div>
-
-            <details className="compact-details">
-              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
-                OIDC/SAML endpoints и расширенная конфигурация
-              </summary>
-              <div className="grid gap-4 border-t border-[#d9e0ea] p-4 md:grid-cols-2">
-                <ProviderField label="Issuer" name="issuer" defaultValue={selectedProvider?.issuer} placeholder="https://login.microsoftonline.com/{tenantId}/v2.0" />
-                <ProviderField label="Authorization URL" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
-                <ProviderField label="Token URL" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
-                <ProviderField label="JWKS URL" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
-                <label className="grid gap-1 text-sm font-medium text-[#334155] md:col-span-2">
-                  <textarea
-                    name="configJson"
-                    defaultValue={configText(selectedProvider)}
-                    rows={5}
-                    className="form-control font-mono text-xs"
-                    placeholder='{"roleSource":"groups"}'
-                  />
-                </label>
-              </div>
-            </details>
-
-            <div className="soft-callout text-sm text-[#64748b]">
-              <div className="min-w-0">
-                <p className="font-semibold text-[#334155]">Callback URL</p>
-                <p className="mt-1 font-mono text-xs compact-text">{callbackPath()}</p>
-              </div>
-              {entraMetadata ? (
-                <p className="max-w-xl text-xs leading-5">
-                  Entra metadata: authorization endpoint строится от tenantId, flow — {entraMetadata.recommendedFlow}.
-                </p>
-              ) : null}
-            </div>
-
-            <div className="flex justify-end">
-              <ValidatedSubmitButton>
-                Сохранить провайдера
-              </ValidatedSubmitButton>
-            </div>
-          </form>
-        </details>
-
-        <details className="disclosure-panel panel overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
-            <div>
-              <h2 className="text-lg font-semibold">Рекомендации</h2>
-              <p className="mt-1 text-sm text-[#64748b]">Короткие подсказки по AD/Entra и fallback-сценариям.</p>
-            </div>
-            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Показать</span>
-          </summary>
-          <div className="record-list px-5 text-sm leading-6 text-[#64748b]">
-            <article className="record-card">
-              <h3 className="record-title">Основной путь</h3>
-              <p className="record-meta">{guidance.preferred}</p>
-            </article>
-            <article className="record-card">
-              <h3 className="record-title">On-prem AD</h3>
-              <p className="record-meta">{guidance.onPremDirectory}</p>
-            </article>
-            <article className="record-card">
-              <h3 className="record-title">Роли</h3>
-              <p className="record-meta">{guidance.authorization}</p>
-            </article>
-            {selectedProvider && selectedProvider.type !== "DEMO" ? (
-              <form action={queueDirectorySync} className="py-4">
-                <input type="hidden" name="providerId" value={selectedProvider.id} />
-                <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
-                  <ShieldCheck size={16} aria-hidden="true" />
-                  Запланировать синхронизацию
-                </button>
-              </form>
-            ) : null}
-          </div>
-        </details>
-      </div>
-
-      {selectedProvider ? (
-        <section className="panel mt-6 overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Группы и роли</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Маппинг групп AD/Entra в роли приложения. Приоритет меньше — роль применяется раньше.</p>
-          </div>
-          <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="record-list border-y border-[#d9e0ea]">
-              {selectedProvider.groupRoleMappings.length === 0 ? (
-                <div className="soft-callout text-sm text-[#64748b]">
-                  Для выбранного провайдера пока нет групп.
-                </div>
-              ) : (
-                selectedProvider.groupRoleMappings.map((mapping) => (
-                  <article key={mapping.id} className="record-card">
-                    <div className="record-row">
-                      <div className="min-w-0">
-                        <h3 className="record-title">{mapping.externalGroupName}</h3>
-                        <p className="record-meta mt-1 font-mono compact-text">{mapping.externalGroupId}</p>
-                      </div>
-                      <span className="pill pill--neutral">{roleLabels[mapping.role]}</span>
-                    </div>
-                    <div className="record-row">
-                      <p className="record-meta">Приоритет {mapping.priority}</p>
-                      <form action={toggleGroupRoleMapping}>
-                        <input type="hidden" name="mappingId" value={mapping.id} />
-                        <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
-                        <button type="submit" className={`action-button min-h-[36px] px-3 py-2 text-sm ${mapping.isActive ? "" : "action-button--primary"}`}>
-                          {mapping.isActive ? "Отключить" : "Включить"}
-                        </button>
-                      </form>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
-
-            <details className="compact-details">
-              <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                <h3 className="font-semibold text-[#111827]">Добавить группу</h3>
-                <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
-              </summary>
-              <form action={saveGroupRoleMapping} className="grid gap-3 border-t border-[#d9e0ea] p-4">
-                <input type="hidden" name="providerId" value={selectedProvider.id} />
-                <ProviderField label="ID группы" name="externalGroupId" required placeholder="QC_Analysts или GUID группы" />
-                <ProviderField label="Название группы" name="externalGroupName" required placeholder="QC Analysts" />
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
-                  Роль
-                  <select name="role" defaultValue="QA_ANALYST" className="form-control">
-                    {roles.map((role) => (
-                      <option key={role} value={role}>
-                        {roleLabels[role]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
-                <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">
-                  <input type="checkbox" name="isActive" defaultChecked />
-                  Активна
-                </label>
+              <div className="flex justify-end">
                 <ValidatedSubmitButton>
                   Сохранить группу
                 </ValidatedSubmitButton>
-              </form>
-            </details>
-          </div>
+              </div>
+            </form>
+          </details>
         </section>
       ) : null}
 
-      <details className="disclosure-panel panel mt-6 overflow-hidden" open={openSessions}>
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
+      {activeSection === "sessions" ? (
+        <section className="ops-panel" aria-labelledby="sessions-title">
+        <div className="ops-panel__header">
           <div>
-            <h2 className="text-lg font-semibold">Сессии пользователей</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
+            <p className="ops-panel__eyebrow">Сессии</p>
+            <h2 id="sessions-title" className="ops-panel__title">Сессии пользователей</h2>
+            <p className="ops-panel__subtitle">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
           </div>
-          <span className="shrink-0 rounded-md bg-[#edf2ff] px-2 py-1 text-xs font-semibold text-[#1d3fae]">{sessions.length}</span>
-        </summary>
-        <div className="record-list px-5">
-          {sessions.length === 0 ? (
-            <div className="soft-callout text-sm text-[#64748b]">
-              Сессий пока нет.
-            </div>
-          ) : (
-            sessions.map((session) => (
-              <article key={session.id} className="record-card">
-                <div className="record-row">
-                  <div className="min-w-0">
-                    <h3 className="record-title">{session.user.name}</h3>
-                    <p className="record-meta mt-1">{session.user.email}</p>
-                  </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(session.status)}`}>
-                    {sessionStatusLabels[session.status]}
-                  </span>
-                </div>
-                <p className="record-meta">
-                  Провайдер: {session.provider?.name ?? "Без провайдера"} · последняя активность: {formatDate(session.lastSeenAt)}
-                </p>
-                <div className="record-row">
-                  <p className="record-meta">
-                    Создана: {formatDate(session.createdAt)} · истекает: {formatDate(session.expiresAt)}
-                  </p>
-                  {session.status === "ACTIVE" ? (
-                    <form action={revokeAuthSessionById}>
-                      <input type="hidden" name="sessionId" value={session.id} />
-                      <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
-                        Отозвать
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              </article>
-            ))
-          )}
+          <span className="pill pill--neutral">{sessions.length}</span>
         </div>
-      </details>
+        {sessions.length === 0 ? (
+          <div className={emptyStateClass}>Сессий пока нет.</div>
+        ) : (
+          <div className="ops-table-shell">
+            <div className="ops-table ops-table--sessions" role="table" aria-label="Сессии пользователей">
+              <div className="ops-table__row ops-table__row--head" role="row">
+                <span>Пользователь</span>
+                <span>Провайдер</span>
+                <span>Статус</span>
+                <span>Последняя активность</span>
+                <span>Истекает</span>
+                <span>Действие</span>
+              </div>
+              {sessions.map((session) => (
+                <div key={session.id} className="ops-table__row" role="row">
+                  <div className="ops-table__cell">
+                    <span className="record-title">{session.user.name}</span>
+                    <span className="record-meta compact-text">
+                      {session.user.email} · {roleLabels[session.user.role]}
+                    </span>
+                  </div>
+                  <div className="ops-table__cell">
+                    <span className="record-title">{session.provider?.name ?? "Без провайдера"}</span>
+                    <span className="record-meta">{session.provider ? providerTypeLabels[session.provider.type] : "Локальный вход"}</span>
+                  </div>
+                  <span className={`pill ${statusTone(session.status)}`}>{sessionStatusLabels[session.status]}</span>
+                  <span className="record-meta">{formatDate(session.lastSeenAt)}</span>
+                  <span className="record-meta">{formatDate(session.expiresAt)}</span>
+                  <div className="ops-table__cell ops-table__cell--actions">
+                    {session.status === "ACTIVE" ? (
+                      <form action={revokeAuthSessionById}>
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <button type="submit" className="action-button action-button--small">
+                          Отозвать
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="record-meta">Нет действия</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        </section>
+      ) : null}
 
-      <div className="soft-callout mt-6 text-sm text-[#64748b]">
-        <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
-        Для входа через выбранный провайдер используйте{" "}
-        <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">
-          {selectedProviderLoginPath}
-        </code>
-        .
-      </div>
+      {activeSection === "recommendations" ? (
+        <section className="ops-panel" aria-labelledby="recommendations-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Справка</p>
+            <h2 id="recommendations-title" className="ops-panel__title">Рекомендации</h2>
+            <p className="ops-panel__subtitle">Короткие подсказки по AD/Entra и резервным сценариям.</p>
+          </div>
+        </div>
+        <div className="grid gap-3 p-5 md:grid-cols-3">
+          <div className="soft-callout text-sm leading-6 text-[#64748b]">
+            <h3 className="record-title">Основной путь</h3>
+            <p>{guidance.preferred}</p>
+          </div>
+          <div className="soft-callout text-sm leading-6 text-[#64748b]">
+            <h3 className="record-title">Локальный AD</h3>
+            <p>{guidance.onPremDirectory}</p>
+          </div>
+          <div className="soft-callout text-sm leading-6 text-[#64748b]">
+            <h3 className="record-title">Роли</h3>
+            <p>{guidance.authorization}</p>
+          </div>
+        </div>
+        <div className="soft-callout m-5 mt-0 text-sm text-[#64748b]">
+          <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
+          Для входа через выбранный провайдер используйте:
+          <code className="inline-code-box inline-code-box--wrap mt-2 font-mono compact-text">
+            {selectedProviderSsoPath}
+          </code>
+        </div>
+        </section>
+      ) : null}
     </section>
   );
 }
