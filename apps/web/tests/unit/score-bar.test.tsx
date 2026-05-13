@@ -17,6 +17,16 @@ describe("ScoreBar", () => {
     expect(screen.getByText("Еще не сохранен")).toBeInTheDocument();
   });
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "keeps the empty label for non-finite score %s",
+    (value) => {
+      render(<ScoreBar value={value} emptyLabel="Некорректная оценка" />);
+
+      expect(screen.getByText("Некорректная оценка")).toBeInTheDocument();
+      expect(screen.queryByText(/балл/)).not.toBeInTheDocument();
+    }
+  );
+
   it("hides the visual track from assistive technologies", () => {
     const { container } = render(<ScoreBar value={72} label="Оценка" />);
 

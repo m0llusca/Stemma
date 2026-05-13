@@ -23,7 +23,7 @@ export function ScoreBar({
   compact?: boolean;
   label?: string;
 }) {
-  if (value == null) {
+  if (value == null || !Number.isFinite(value)) {
     return <span className="whitespace-nowrap text-sm font-medium text-[#64748b]">{emptyLabel}</span>;
   }
 
