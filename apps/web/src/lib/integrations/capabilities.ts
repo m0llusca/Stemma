@@ -83,6 +83,27 @@ const roadmapGates: CertificationGateSummary = {
   live: "not_production_ready"
 };
 
+const fallbackUnverifiedGates: CertificationGateSummary = {
+  docs: "configuration_required",
+  contract: "not_production_ready",
+  stub: "not_production_ready",
+  live: "not_production_ready"
+};
+
+function fallbackCertification(source: string) {
+  return certification({
+    gates: { ...fallbackUnverifiedGates },
+    docs: [
+      {
+        label: "Fallback capability requires separate certification",
+        href: "/api/v1/openapi",
+        status: "configuration_required"
+      }
+    ],
+    limitations: [`Источник ${source} использует fallback capability и требует отдельной сертификации.`]
+  });
+}
+
 export const integrationCapabilities: IntegrationCapability[] = [
   {
     source: "otrs",
@@ -331,7 +352,7 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/api/v1/openapi",
     setupStatus: "available",
     payloadLimits: { batchSize: 100, importLimit: 1000 },
-    readiness: "roadmap",
+    readiness: "adapter_ready",
     certification: certification({
       gates: adapterReadyGates,
       docs: [
@@ -452,10 +473,7 @@ export function getIntegrationCapability(source: string, type?: string | null): 
       ...fallback,
       source: normalizedSource,
       displayName: source,
-      certification: {
-        ...fallback.certification,
-        limitations: [`Источник ${source} использует fallback capability и требует отдельной сертификации.`]
-      }
+      certification: fallbackCertification(source)
     };
   }
 
@@ -465,10 +483,7 @@ export function getIntegrationCapability(source: string, type?: string | null): 
     ...fallback,
     source: normalizedSource || "custom_api",
     displayName: source || "Custom API",
-    certification: {
-      ...fallback.certification,
-      limitations: [`Источник ${source} использует fallback capability и требует отдельной сертификации.`]
-    }
+    certification: fallbackCertification(source)
   };
 }
 

@@ -42,7 +42,63 @@ describe("integration capabilities and sync state", () => {
     expect(getIntegrationCapability("generic_webhook")).toMatchObject({
       authModes: ["hmac_sha256"],
       requiredSecrets: ["webhook_secret"],
-      setupStatus: "available"
+      setupStatus: "available",
+      readiness: "adapter_ready"
+    });
+  });
+
+  it("keeps unknown native helpdesk fallbacks uncertified and isolated from Zendesk metadata", () => {
+    const zendesk = getIntegrationCapability("zendesk");
+    const fallback = getIntegrationCapability("unknown_vendor", "native_helpdesk");
+
+    expect(fallback).toMatchObject({
+      source: "unknown_vendor",
+      displayName: "unknown_vendor",
+      type: "native_helpdesk"
+    });
+    expect(fallback.certification.summary).toEqual({
+      status: "not_production_ready",
+      label: "Не готово к промышленной эксплуатации",
+      productionReady: false
+    });
+    expect(fallback.certification.docs).not.toBe(zendesk.certification.docs);
+    expect(fallback.certification.limitations).not.toBe(zendesk.certification.limitations);
+    expect(fallback.certification.docs.map((doc) => doc.label).join(" ")).not.toContain("Zendesk");
+    expect(fallback.certification.limitations).toContain(
+      "Источник unknown_vendor использует fallback capability и требует отдельной сертификации."
+    );
+  });
+
+  it("keeps unknown custom/default fallbacks uncertified and isolated from Custom API metadata", () => {
+    const customApi = getIntegrationCapability("custom_api");
+    const fallback = getIntegrationCapability("some_vendor");
+
+    expect(fallback).toMatchObject({
+      source: "some_vendor",
+      displayName: "some_vendor",
+      type: "custom_api"
+    });
+    expect(fallback.certification.summary.productionReady).toBe(false);
+    expect(fallback.certification.summary.status).not.toBe("live_certified");
+    expect(fallback.certification.docs).not.toBe(customApi.certification.docs);
+    expect(fallback.certification.limitations).not.toBe(customApi.certification.limitations);
+    expect(fallback.certification.docs).toEqual([
+      {
+        label: "Fallback capability requires separate certification",
+        href: "/api/v1/openapi",
+        status: "configuration_required"
+      }
+    ]);
+  });
+
+  it("aligns generic webhook readiness with its live certification status", () => {
+    const genericWebhook = getIntegrationCapability("generic_webhook");
+
+    expect(genericWebhook.readiness).toBe("adapter_ready");
+    expect(genericWebhook.certification.summary).toEqual({
+      status: "ready_for_live_certification",
+      label: "Готово к живой сертификации",
+      productionReady: false
     });
   });
 
