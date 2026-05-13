@@ -1447,6 +1447,66 @@ pre code {
   justify-self: stretch;
 }
 
+.help-tooltip {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.help-tooltip__trigger {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: help;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, outline-color 120ms ease;
+}
+
+.help-tooltip__trigger:hover,
+.help-tooltip__trigger:focus-visible {
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+}
+
+.help-tooltip__trigger:focus-visible {
+  outline-color: var(--button-focus-ring);
+}
+
+.help-tooltip__content {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 40;
+  width: min(280px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--foreground);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: var(--shadow-soft);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.help-tooltip:hover .help-tooltip__content,
+.help-tooltip:focus-within .help-tooltip__content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .action-button {
   display: inline-flex;
   min-height: var(--control-height);
