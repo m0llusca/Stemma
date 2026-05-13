@@ -86,6 +86,9 @@ describe("certification status registry", () => {
 
   it("maps certification statuses to pill tones", () => {
     expect(certificationStatusTone("live_certified")).toBe("pill--ok");
-    expect(certificationStatusTone("waiting_for_access")).toBe("pill--warning");
+    expect(certificationStatusTone("waiting_for_access")).toBe("pill--warn");
+    expect(certificationStatusTone("not_production_ready")).toBe("pill--warn");
+    expect(certificationStatusTone("configuration_required")).toBe("pill--warn");
+    expect(certificationStatusTone("limited")).toBe("pill--neutral");
   });
 });

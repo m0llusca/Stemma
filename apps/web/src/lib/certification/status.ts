@@ -67,13 +67,11 @@ export function certificationStatusTone(status: CertificationStatus) {
     status === "waiting_for_access" ||
     status === "secret_required" ||
     status === "certificate_required" ||
-    status === "ready_for_live_certification"
+    status === "ready_for_live_certification" ||
+    status === "not_production_ready" ||
+    status === "configuration_required"
   ) {
-    return "pill--warning";
-  }
-
-  if (status === "not_production_ready" || status === "configuration_required") {
-    return "pill--danger";
+    return "pill--warn";
   }
 
   return "pill--neutral";
