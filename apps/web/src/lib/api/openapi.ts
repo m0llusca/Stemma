@@ -190,7 +190,14 @@ export function buildOpenApiDocument() {
           security: sessionSecurity,
           summary: "Каталог поддерживаемых коннекторов, capability manifest и webhook events",
           responses: {
-            "200": { description: "Connector capability catalog" }
+            "200": {
+              description: "Connector capability catalog",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/IntegrationCatalogResponse" }
+                }
+              }
+            }
           }
         }
       },
@@ -584,6 +591,25 @@ export function buildOpenApiDocument() {
             importLimit: { type: "integer", minimum: 1 }
           }
         },
+        IntegrationCapabilityType: {
+          type: "string",
+          enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise"]
+        },
+        IntegrationReadiness: {
+          type: "string",
+          enum: ["production_slice", "adapter_ready", "roadmap"]
+        },
+        IntegrationCatalogResponse: {
+          type: "object",
+          required: ["catalog", "requestId"],
+          properties: {
+            catalog: {
+              type: "array",
+              items: { $ref: "#/components/schemas/IntegrationCapability" }
+            },
+            requestId: { type: "string" }
+          }
+        },
         IntegrationCapability: {
           type: "object",
           required: [
@@ -608,7 +634,7 @@ export function buildOpenApiDocument() {
           properties: {
             source: { type: "string" },
             displayName: { type: "string" },
-            type: { type: "string" },
+            type: { $ref: "#/components/schemas/IntegrationCapabilityType" },
             authModes: { type: "array", items: { type: "string" } },
             supportsPaging: { type: "boolean" },
             supportsCursor: { type: "boolean" },
@@ -621,7 +647,7 @@ export function buildOpenApiDocument() {
             docsHref: { type: "string" },
             setupStatus: { type: "string", enum: ["available", "preview", "planned"] },
             payloadLimits: { $ref: "#/components/schemas/PayloadLimits" },
-            readiness: { type: "string" },
+            readiness: { $ref: "#/components/schemas/IntegrationReadiness" },
             certification: { $ref: "#/components/schemas/Certification" }
           }
         },

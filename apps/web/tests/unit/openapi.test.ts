@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildOpenApiDocument } from "@/lib/api/openapi";
+import { certificationStatuses } from "@/lib/certification/status";
 
 describe("openapi contract", () => {
   it("builds an OpenAPI 3.1 document with shared error and pagination schemas", () => {
@@ -36,19 +37,7 @@ describe("openapi contract", () => {
     expect(document.components.schemas.ScoreSummary.properties.scoreUnit.enum).toEqual(["points"]);
     expect(document.components.schemas.CertificationStatus).toEqual({
       type: "string",
-      enum: [
-        "docs_checked",
-        "contract_certified",
-        "stub_certified",
-        "live_certified",
-        "ready_for_live_certification",
-        "waiting_for_access",
-        "limited",
-        "not_production_ready",
-        "configuration_required",
-        "secret_required",
-        "certificate_required"
-      ]
+      enum: [...certificationStatuses]
     });
     expect(document.components.schemas.CertificationGateSummary.required).toEqual(["docs", "contract", "stub", "live"]);
     expect(document.components.schemas.CertificationGateSummary.properties).toEqual({
@@ -65,6 +54,12 @@ describe("openapi contract", () => {
       $ref: "#/components/schemas/CertificationStatus"
     });
     expect(document.components.schemas.IntegrationCapability.required).toContain("certification");
+    expect(document.components.schemas.IntegrationCapability.properties.type).toEqual({
+      $ref: "#/components/schemas/IntegrationCapabilityType"
+    });
+    expect(document.components.schemas.IntegrationCapability.properties.readiness).toEqual({
+      $ref: "#/components/schemas/IntegrationReadiness"
+    });
     expect(document.components.schemas.IntegrationCapability.required).toEqual(
       expect.arrayContaining([
         "supportsInboundWebhooks",
@@ -79,6 +74,33 @@ describe("openapi contract", () => {
     });
     expect(document.components.schemas.IntegrationCapability.properties.payloadLimits).toEqual({
       $ref: "#/components/schemas/PayloadLimits"
+    });
+    expect(document.components.schemas.IntegrationCapabilityType).toEqual({
+      type: "string",
+      enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise"]
+    });
+    expect(document.components.schemas.IntegrationReadiness).toEqual({
+      type: "string",
+      enum: ["production_slice", "adapter_ready", "roadmap"]
+    });
+    expect(document.components.schemas.IntegrationCatalogResponse).toEqual({
+      type: "object",
+      required: ["catalog", "requestId"],
+      properties: {
+        catalog: {
+          type: "array",
+          items: { $ref: "#/components/schemas/IntegrationCapability" }
+        },
+        requestId: { type: "string" }
+      }
+    });
+    expect(document.paths["/integrations/catalog"].get.responses["200"]).toEqual({
+      description: "Connector capability catalog",
+      content: {
+        "application/json": {
+          schema: { $ref: "#/components/schemas/IntegrationCatalogResponse" }
+        }
+      }
     });
     expect(document.components.schemas.WebhookEndpoint.required).toContain("secretPrefix");
     expect(document.components.schemas.WebhookEndpoint.required).toEqual([
