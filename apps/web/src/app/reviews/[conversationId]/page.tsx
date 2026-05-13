@@ -39,6 +39,7 @@ import {
 } from "@/lib/labels";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
+import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -158,7 +159,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         .filter((messageId): messageId is string => Boolean(messageId)) ?? []
     )
   );
-  const scoreLabel = scorePreviewReview ? `${Math.round(scorePreviewReview.totalScore)}%` : "Не проверено";
+  const scoreLabel = formatQualityScore(scorePreviewReview?.totalScore, "Не проверено");
   const hasAppeal = latestFinalizedReview ? latestFinalizedReview.appealStatus !== "none" : false;
   const hasOpenAppeal = latestFinalizedReview?.appealStatus === "open";
   const appealLabel = latestFinalizedReview
@@ -471,7 +472,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
                     <h3 className="record-title">{review.reviewer.name}</h3>
                     <p className="record-meta mt-1">{(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}</p>
                   </div>
-                  <span className="pill pill--neutral">{Math.round(review.totalScore)}%</span>
+                  <span className="pill pill--neutral">{formatQualityScore(review.totalScore)}</span>
                 </div>
                 <p className="record-meta">
                   {reviewStatusLabels[review.status]} · {review.findings[0]?.category ?? "Без замечаний"}

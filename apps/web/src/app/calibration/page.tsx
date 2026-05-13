@@ -4,6 +4,7 @@ import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -306,7 +307,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                           {item.conversation.subject}
                         </Link>
                         <p>
-                          Эталон: {baselineReview ? `${Math.round(baselineReview.totalScore)}% · ${baselineReview.reviewer.name}` : "нет финальной проверки"}
+                          Эталон: {baselineReview ? `${formatQualityScore(baselineReview.totalScore)} · ${baselineReview.reviewer.name}` : "нет финальной проверки"}
                         </p>
                         <div className="calibration-reviewers">
                           {selectedSession.participants.map((participant) => {
@@ -314,7 +315,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
 
                             return (
                               <span key={participant.id} className={`pill ${review ? "pill--ok" : "pill--neutral"}`}>
-                                {participant.user.name}: {review ? `${Math.round(review.totalScore)}%` : "ждет"}
+                                {participant.user.name}: {review ? formatQualityScore(review.totalScore) : "ждет"}
                               </span>
                             );
                           })}

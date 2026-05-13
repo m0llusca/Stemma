@@ -2,6 +2,7 @@ import fs from "node:fs";
 import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/db";
 import { resolveReportPeriod, type ReportPeriod } from "@/lib/report-period";
+import { formatQualityScore } from "@/lib/score-display";
 
 export const reportExportColumns = [
   "Дата проверки",
@@ -188,7 +189,7 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
 
     return [
       review.finalizedAt?.toLocaleString("ru-RU") ?? "",
-      String(Math.round(review.totalScore)),
+      formatQualityScore(review.totalScore),
       review.criticalError ? review.criticalCategory ?? "Да" : "Нет",
       review.needsReanswer ? review.reanswerStatus : "Нет",
       review.appealStatus,
@@ -274,7 +275,7 @@ export async function reportRowsToPdf(rows: ReportExportRow[], period: ReportPer
   rows.slice(0, 80).forEach((row, index) => {
     const [date, score, critical, reanswer, appeal, source, externalId, subject, customer, assignee, reviewer, line, csat, category, risk, summary] = row;
 
-    doc.fontSize(10).text(`${index + 1}. ${date} · ${score}% · ${source}/${externalId}`);
+    doc.fontSize(10).text(`${index + 1}. ${date} · ${score} · ${source}/${externalId}`);
     doc.fontSize(9).text(`${subject} · клиент: ${customer} · оператор: ${assignee} · проверяющий: ${reviewer}`);
     doc.fontSize(9).text(`Линия: ${line || "нет"} · CSAT: ${csat} · категория: ${category || "нет"} · риск: ${risk || "нет"}`);
     doc.fontSize(9).text(`Критическая: ${critical} · переответ: ${reanswer} · апелляция: ${appeal}`);

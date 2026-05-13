@@ -3,7 +3,7 @@ import { reportRowsToCsv, reportRowsToXlsx } from "@/lib/report-export";
 
 const row = [
   "02.05.2026, 12:00:00",
-  "94",
+  "94 балла",
   "Нет",
   "Нет",
   "none",
@@ -25,6 +25,8 @@ describe("report exports", () => {
     const csv = reportRowsToCsv([row]);
 
     expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv).toContain("94 балла");
+    expect(csv).not.toContain("94%");
     expect(csv).toContain('"Ответ корректный; следующий шаг понятен."');
   });
 

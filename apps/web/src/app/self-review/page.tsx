@@ -9,6 +9,7 @@ import {
   externalSourceLabel,
   riskLevelLabels
 } from "@/lib/labels";
+import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -119,7 +120,7 @@ export default async function SelfReviewPage() {
                         <Link href={`/reviews/${conversation.id}`} className="record-title text-[#1d3fae] hover:underline">
                           {conversation.subject}
                         </Link>
-                        <span className="pill pill--neutral">{Math.round(review.totalScore)}%</span>
+                        <span className="pill pill--neutral">{formatQualityScore(review.totalScore)}</span>
                       </div>
                       <p>{review.summary}</p>
                       <div className="feedback-card__meta">

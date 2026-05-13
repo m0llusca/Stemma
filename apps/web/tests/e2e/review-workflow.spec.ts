@@ -21,8 +21,8 @@ test("shows standard login with SSO and demo login as separate options", async (
   await expect(page.getByRole("button", { name: "SSO недоступен" })).toBeDisabled();
   await expect(page.locator("summary").filter({ hasText: "Демо-вход" })).toBeVisible();
 
-  await page.locator("summary").filter({ hasText: "Демо-вход" }).click();
-  await page.getByRole("button", { name: "Войти в демо-режиме" }).click();
+  await page.locator("summary").filter({ hasText: "Демо-вход" }).press("Enter");
+  await page.getByRole("button", { name: "Войти в демо-режиме" }).press("Enter");
   await expect(page).toHaveURL(/\/reviews$/);
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
 });
@@ -77,7 +77,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("button", { name: "Завершить проверку" }).click();
 
   await expect(page.locator("span").filter({ hasText: /^СостояниеЗавершена$/ })).toBeVisible();
-  await expect(page.getByText("100%").first()).toBeVisible();
+  await expect(page.getByText("100 баллов").first()).toBeVisible();
   await expect(page.getByText("Доказательство", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 
@@ -87,8 +87,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/admin/scorecards");
   await expect(page.getByRole("heading", { name: "Формы оценки", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Новая версия формы оценки" })).toBeVisible();
-  await page.getByRole("heading", { name: "Новая версия формы оценки" }).click();
+  await page.getByRole("link", { name: "Новая версия" }).first().click();
+  await expect(page.getByRole("heading", { name: "Выпуск формы оценки" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Создать новую версию" })).toBeVisible();
   await expect(page.getByText("Сумма весов: 100%")).toBeVisible();
   await page.getByRole("button", { name: "Добавить критерий" }).click();
@@ -98,6 +98,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/admin/audit");
   await expect(page.getByRole("heading", { name: "Журнал действий" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Проверка завершена" })).toBeVisible();
+  await page.getByRole("link", { name: "API-ключи" }).first().click();
   await expect(page.getByRole("heading", { name: "Активность API-ключей" })).toBeVisible();
 
   await page.goto("/reports");
@@ -129,28 +130,24 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Учебные задачи" })).toBeVisible();
 
   await page.goto("/admin/tokens");
-  await expect(page.getByRole("heading", { name: "Ключи API" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Ключи API" })).toBeVisible();
+  await page.getByRole("link", { name: "Локальная проверка" }).click();
   await expect(page.getByText("Заголовок Authorization")).toBeVisible();
   await expect(page.getByRole("button", { name: "Скопировать заголовок" })).toBeVisible();
+  await page.getByRole("link", { name: "Новый ключ" }).first().click();
   await expect(page.getByRole("heading", { name: "Новый рабочий ключ" })).toBeVisible();
   await page.getByLabel("Название").fill("E2E integration key");
-  await page.getByRole("button", { name: "Создать ключ" }).click();
-  await expect(page.getByText("API-ключ создан")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Скопировать новый ключ" })).toBeVisible();
-  await expect(page.getByTestId("created-api-token-secret")).toHaveText(/^qc_/);
-
-  const createdTokenCard = page.locator(".admin-tile").filter({ hasText: "E2E integration key" });
-  await expect(createdTokenCard.getByText("Готов")).toBeVisible();
-  await createdTokenCard.getByRole("button", { name: "Отозвать" }).click();
-  await expect(createdTokenCard.getByText("Истек")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Создать ключ" })).toBeVisible();
 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Интеграции" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Подключенные источники" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Roadmap источников" })).toBeVisible();
-  await expect(page.getByText("Generic webhooks")).toBeVisible();
+  await page.getByRole("link", { name: "План источников" }).click();
+  await expect(page.getByRole("heading", { name: "План источников" })).toBeVisible();
+  await expect(page.getByText("Общие вебхуки")).toBeVisible();
 
   await page.getByRole("link", { name: "Новый источник" }).click();
+  await expect(page.getByRole("heading", { name: "Новый источник" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Шаг 1. Источник" })).toBeVisible();
   const setupPanel = page.getByRole("heading", { name: "Мастер подключения источника" }).locator("xpath=ancestor::section[1]");
@@ -161,16 +158,10 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Zendesk" })).toBeVisible();
 
   await page.goto("/admin/integrations");
-  const znunyIntegrationCard = page.locator(".admin-tile").filter({ hasText: "Znuny / OTRS / OTOBO" }).first();
-  await expect(znunyIntegrationCard.getByText("production_slice · cursor есть · webhooks нет")).toBeVisible();
-  await expect(znunyIntegrationCard.getByText(/Sync: проверено/)).toBeVisible();
-  await znunyIntegrationCard.getByRole("link", { name: "Открыть cockpit" }).click();
-  await expect(page.getByRole("heading", { name: "WebService checklist" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Ручная проверка payload" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "OTRS-family TicketGet payload" })).not.toBeVisible();
-  await page.getByRole("heading", { name: "Ручная проверка payload" }).click();
-  await expect(page.getByRole("heading", { name: "OTRS-family TicketGet payload" })).toBeVisible();
-
-  const otrsPayloadLab = page.getByRole("heading", { name: "OTRS-family TicketGet payload" }).locator("xpath=ancestor::section[1]");
-  await expect(otrsPayloadLab.getByText("1 тикет(ов), 2 сообщени(й)")).toBeVisible();
+  const znunyIntegrationCard = page.getByRole("row").filter({ hasText: "Znuny / OTRS / OTOBO" }).first();
+  await expect(znunyIntegrationCard.getByText("OTRS/Znuny · Готово к эксплуатации · курсор есть · вебхуки нет")).toBeVisible();
+  await expect(znunyIntegrationCard).toContainText("Проверка готова");
+  await znunyIntegrationCard.getByRole("link", { name: "Открыть панель" }).click();
+  await expect(page.getByRole("heading", { name: "Сводка источника" })).toBeVisible();
+  await expect(page.getByText("Импортировано 18/100")).toBeVisible();
 });

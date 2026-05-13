@@ -29,6 +29,7 @@ import {
   resolveReportPeriod,
   type ReportPeriod
 } from "@/lib/report-period";
+import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -63,11 +64,7 @@ function resolveReportView(params: Record<string, string | string[] | undefined>
 }
 
 function formatAverageScore(value: number | null | undefined) {
-  if (value == null) {
-    return "Нет данных";
-  }
-
-  return `${Math.round(value)}%`;
+  return formatQualityScore(value, "Нет данных");
 }
 
 function average(values: number[]) {
@@ -740,7 +737,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           label="Средняя оценка"
           value={formatAverageScore(averageScore)}
           helper="К прошлому периоду"
-          comparison={{ current: averageScore, previous: previousAverageScore, unit: " п.п." }}
+          comparison={{ current: averageScore, previous: previousAverageScore, unit: " п." }}
           icon={<CheckCircle2 size={18} aria-hidden="true" />}
         />
         <MetricCard
@@ -796,10 +793,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       {reportView === "performance" ? (
         <div className="reports-panel-grid reports-panel-grid--four">
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
-            <HorizontalBarChart rows={operatorScoreRows} valueSuffix="%" maxValue={100} />
+            <HorizontalBarChart rows={operatorScoreRows} valueSuffix=" баллов" maxValue={100} />
           </ChartPanel>
           <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
-            <HorizontalBarChart rows={sourceScoreRows} valueSuffix="%" maxValue={100} />
+            <HorizontalBarChart rows={sourceScoreRows} valueSuffix=" баллов" maxValue={100} />
           </ChartPanel>
           <ChartPanel
             title="Блоки критериев"
@@ -807,7 +804,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             actionHref={reportReviewHref(period)}
             actionLabel="Критерии"
           >
-            <HorizontalBarChart rows={blockScoreChartRows} valueSuffix="%" maxValue={100} />
+            <HorizontalBarChart rows={blockScoreChartRows} valueSuffix=" баллов" maxValue={100} />
           </ChartPanel>
           <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
             <QuotaProgressBars rows={quotaProgressRows} />

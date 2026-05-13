@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { formatQualityScore } from "@/lib/score-display";
 
 export type ChartDatum = {
   label: string;
@@ -110,12 +111,12 @@ export function SparklineChart({ points }: { points: ChartDatum[] }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-[#64748b]">Начало периода</p>
-          <p className="mt-1 text-lg font-semibold text-[#111827]">{formatPercent(firstPoint.value)}</p>
+          <p className="mt-1 text-lg font-semibold text-[#111827]">{formatQualityScore(firstPoint.value)}</p>
           <p className="text-xs text-[#64748b]">{firstPoint.label}</p>
         </div>
         <div className="text-right">
           <p className="text-xs font-semibold uppercase text-[#64748b]">Последняя точка</p>
-          <p className="mt-1 text-lg font-semibold text-[#111827]">{formatPercent(lastPoint.value)}</p>
+          <p className="mt-1 text-lg font-semibold text-[#111827]">{formatQualityScore(lastPoint.value)}</p>
           <p className="text-xs text-[#64748b]">{lastPoint.label}</p>
         </div>
       </div>
