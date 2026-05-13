@@ -69,6 +69,31 @@ describe("integration capabilities and sync state", () => {
     );
   });
 
+  it("keeps OTRS-family alias fallback identity and certification conservative", () => {
+    const otrs = getIntegrationCapability("otrs");
+    const fallback = getIntegrationCapability("otrs_family", "otrs_family");
+
+    expect(fallback).toMatchObject({
+      source: "otrs_family",
+      type: "otrs_family",
+      supportsPaging: true,
+      supportsCursor: true,
+      supportsDiagnostics: true
+    });
+    expect(fallback.displayName).not.toBe("OTRS CE 6");
+    expect(fallback.certification.summary).toEqual({
+      status: "not_production_ready",
+      label: "Не готово к промышленной эксплуатации",
+      productionReady: false
+    });
+    expect(fallback.certification.summary.status).not.toBe("live_certified");
+    expect(fallback.certification.summary.status).not.toBe("ready_for_live_certification");
+    expect(fallback.certification.docs).not.toBe(otrs.certification.docs);
+    expect(fallback.certification.docs.map((doc) => doc.label).join(" ")).not.toContain(
+      "GenericInterface TicketSearch/TicketGet"
+    );
+  });
+
   it("keeps unknown custom/default fallbacks uncertified and isolated from Custom API metadata", () => {
     const customApi = getIntegrationCapability("custom_api");
     const fallback = getIntegrationCapability("some_vendor");

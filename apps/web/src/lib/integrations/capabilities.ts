@@ -463,7 +463,17 @@ export function getIntegrationCapability(source: string, type?: string | null): 
   }
 
   if (type === "otrs_family") {
-    return integrationCapabilities.find((capability) => capability.source === "otrs")!;
+    const fallback = integrationCapabilities.find((capability) => capability.source === "otrs")!;
+    const fallbackSource = normalizedSource || "otrs_family";
+    const fallbackDisplayName = source.trim() || "OTRS family";
+
+    return {
+      ...fallback,
+      source: fallbackSource,
+      displayName: fallbackDisplayName,
+      docsHref: `/admin/integrations/new?source=${encodeURIComponent(fallbackSource)}`,
+      certification: fallbackCertification(fallbackSource)
+    };
   }
 
   if (type === "native_helpdesk") {
