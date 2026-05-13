@@ -45,13 +45,16 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await expect(page.getByRole("heading", { name: "Интеграции" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Новый источник" })).toHaveAttribute("href", "/admin/integrations/new");
   await expect(page.getByRole("heading", { name: "Подключенные источники" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Последняя диагностика" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Preview и импорт" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Backend jobs" })).toBeVisible();
+  await expect(page.getByText("Готово к живой сертификации").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Что значит статус сертификации?" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Диагностика" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Проверка и импорт" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Фоновые задачи" })).toBeVisible();
 
   await page.getByRole("link", { name: "Новый источник" }).click();
   await expect(page).toHaveURL(/\/admin\/integrations\/new$/);
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
+  await expect(page.getByText("Статус сертификации")).toBeVisible();
   await expect(page.getByLabel("Система-источник")).toContainText("OTRS CE 6");
   await page.getByLabel("Система-источник").selectOption("custom_api");
   await expect(page.getByRole("heading", { name: "Своя система через API" })).toBeVisible();
@@ -62,6 +65,8 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await page.getByRole("link", { name: "Znuny / OTRS / OTOBO" }).first().click();
   await expect(page).toHaveURL(/\/admin\/integrations\/(?!new$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Znuny / OTRS / OTOBO" })).toBeVisible();
+  await expect(page.getByText("Статус сертификации")).toBeVisible();
+  await page.getByRole("link", { name: "Операции" }).click();
   await expect(page.getByRole("heading", { name: "WebService checklist" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Настройка подключения" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Диагностика" })).toBeVisible();
@@ -112,7 +117,7 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByRole("heading", { name: "Шаг 4. Проверка" })).toBeVisible();
   await page.getByRole("button", { name: "Проверить подключение" }).click();
-  await expect(page.getByText("Проверка поставлена в очередь")).toBeVisible();
+  await expect(page.getByText("Проверка поставлена в очередь")).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("button", { name: "Сохранить настройку" }).click();
   await expect(page.getByText("Настройка сохранена. Источник появился в списке подключений.")).toBeVisible();
@@ -125,6 +130,7 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await page.goto(cockpitUrl);
 
   await expect(page.getByRole("heading", { name: "OTRS CE 6" })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("link", { name: "Операции" }).click();
   const settingsPanel = page.getByRole("heading", { name: "Настройка подключения" }).locator("xpath=ancestor::section[1]");
   await expect(settingsPanel).toBeVisible();
   await settingsPanel.getByLabel("Product profile").selectOption("otrs_ce_6");

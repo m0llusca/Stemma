@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronDown, ShieldCheck } from "lucide-react";
 import { type ReactNode, useActionState, useEffect, useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { CodeExampleCard, DataTable } from "@/components/integrations/integration-ui";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import {
   apiTokenPlaceholder,
   buildCurlExample,
@@ -53,6 +54,12 @@ const sourceModeDescriptions: Record<SourceMode, string> = {
   otrs_family: "Подключение через GenericInterface TicketGet с безопасной проверкой перед запуском.",
   native_helpdesk: "Импорт тикетов и сообщений из популярных облачных helpdesk через готовые адаптеры.",
   custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk."
+};
+
+const sourceModeCertificationLabels: Record<SourceMode, string> = {
+  otrs_family: "Готово к живой сертификации",
+  native_helpdesk: "Ожидает доступы",
+  custom_api: "Живая сертификация пройдена"
 };
 
 const sourceOptions = [
@@ -316,6 +323,17 @@ function SourceChoiceStep({
         <div className="grid min-w-0 gap-1">
           <h4 className="source-selected-card__title">{selectedOption.label}</h4>
           <p className="text-sm leading-5 text-[#64748b]">{selectedOption.description}</p>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="soft-callout__label">Статус сертификации</p>
+            <HelpTooltip
+              label="Что значит статус сертификации?"
+              content="Connector нельзя считать промышленно готовым без прохождения всех gate-проверок."
+              placement="top-start"
+            />
+          </div>
+          <span className="pill pill--neutral">{sourceModeCertificationLabels[selectedOption.mode]}</span>
         </div>
         <div className="source-next-steps" aria-label="Следующие шаги">
           <span>Доступ</span>

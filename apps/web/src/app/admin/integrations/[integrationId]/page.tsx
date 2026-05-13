@@ -1,3 +1,4 @@
+import { ArrowLeft, ListChecks, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
@@ -7,8 +8,11 @@ import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
 import { OtrsPreviewPanel } from "@/components/integrations/otrs-preview-panel";
 import { OtrsRunHistory } from "@/components/integrations/otrs-run-history";
 import { OtrsWebserviceChecklist } from "@/components/integrations/otrs-webservice-checklist";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { certificationStatusTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { parseOtrsConnectorConfig, redactOtrsConfigForUi } from "@/lib/integrations/otrs-family/config";
 import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/credentials";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -18,7 +22,26 @@ export const dynamic = "force-dynamic";
 
 type IntegrationDetailsPageProps = {
   params: Promise<{ integrationId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+type IntegrationDetailsSection = "summary" | "operations";
+
+const integrationDetailsSections: Array<{ value: IntegrationDetailsSection; label: string }> = [
+  { value: "summary", label: "Сводка" },
+  { value: "operations", label: "Операции" }
+];
+
+function firstParam(value: string | string[] | undefined) {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  return firstValue?.trim() || undefined;
+}
+
+function integrationDetailsSectionParam(value: string | string[] | undefined): IntegrationDetailsSection {
+  const section = firstParam(value);
+
+  return integrationDetailsSections.some((item) => item.value === section) ? (section as IntegrationDetailsSection) : "summary";
+}
 
 function formatDate(value: Date | null | undefined) {
   return value ? value.toLocaleString("ru-RU") : "Нет данных";
@@ -232,12 +255,12 @@ function NonOtrsIntegrationSummary({
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <section className="admin-group">
-        <div className="admin-group__header admin-group__header--compact">
-          <h2 className="text-base font-semibold text-[#111827]">Сводка источника</h2>
-          <p className="text-sm leading-5 text-[#64748b]">Для non-OTRS источников cockpit показывает безопасную операционную сводку.</p>
-        </div>
+      <section className="soft-callout">
         <div className="grid gap-2">
+          <div>
+            <h3 className="record-title">Сводка источника</h3>
+            <p className="record-meta">Для non-OTRS источников cockpit показывает безопасную операционную сводку.</p>
+          </div>
           <div className="admin-tile admin-tile--compact">
             <span className="admin-tile__icon admin-tile__icon--plain">S</span>
             <span className="admin-tile__body">
@@ -249,12 +272,12 @@ function NonOtrsIntegrationSummary({
         </div>
       </section>
 
-      <section className="admin-group">
-        <div className="admin-group__header admin-group__header--compact">
-          <h2 className="text-base font-semibold text-[#111827]">Backend jobs</h2>
-          <p className="text-sm leading-5 text-[#64748b]">Без отображения raw payload.</p>
-        </div>
+      <section className="soft-callout">
         <div className="grid gap-2">
+          <div>
+            <h3 className="record-title">Фоновые задачи</h3>
+            <p className="record-meta">Без отображения raw payload.</p>
+          </div>
           {jobs.length > 0 ? (
             jobs.slice(0, 5).map((job) => {
               const status = backendJobStatusView(job.status);
@@ -280,9 +303,12 @@ function NonOtrsIntegrationSummary({
   );
 }
 
-export default async function IntegrationDetailsPage({ params }: IntegrationDetailsPageProps) {
+export default async function IntegrationDetailsPage({ params, searchParams }: IntegrationDetailsPageProps) {
+  const search = await searchParams;
   const user = await requireCurrentUserPermission("integrations:manage");
   const { integrationId } = await params;
+  const activeSection = integrationDetailsSectionParam(search.section);
+  const integrationDetailsSectionHref = (section: IntegrationDetailsSection) => `/admin/integrations/${integrationId}?section=${section}`;
   const integration = await loadIntegration(user.workspaceId, integrationId);
 
   if (!integration) {
@@ -337,6 +363,7 @@ export default async function IntegrationDetailsPage({ params }: IntegrationDeta
   const latestRun = integration.runs[0];
   const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
   const credentialSummaries = summarizeIntegrationSecretSlots(integration.credentials);
+  const capability = getIntegrationCapability(integration.source, integration.type);
 
   return (
     <section className="page-shell admin-shell">
@@ -348,69 +375,115 @@ export default async function IntegrationDetailsPage({ params }: IntegrationDeta
             {externalSourceLabel(integration.source)} · {integration.type} · {integrationStatusLabel(integration.status)} · последний запуск{" "}
             {formatDate(latestRun?.startedAt)}
           </p>
-        </div>
-        <div className="admin-actions">
-          <Link href="/admin/integrations" className="action-button">
-            К обзору
-          </Link>
-          <Link href="/admin/integrations/new" className="action-button">
-            Новый источник
-          </Link>
-          <Link href="/reviews" className="action-button action-button--quiet">
-            Очередь проверок
-          </Link>
+          <div className="admin-actions mt-5">
+            <Link href="/admin/integrations" className="action-button">
+              <ArrowLeft size={16} aria-hidden="true" />
+              К обзору
+            </Link>
+            <Link href="/admin/integrations/new" className="action-button">
+              <Plus size={16} aria-hidden="true" />
+              Новый источник
+            </Link>
+            <Link href="/reviews" className="action-button action-button--quiet">
+              <ListChecks size={16} aria-hidden="true" />
+              Очередь проверок
+            </Link>
+          </div>
         </div>
       </div>
 
-      <section className="admin-group-grid admin-group-grid--wide" aria-label="Сводка источника">
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Статус</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Текущая операционная готовность.</p>
-          </div>
-          <div className="admin-tile admin-tile--compact">
-            <span className="admin-tile__icon admin-tile__icon--plain">{integration.displayName.slice(0, 1).toUpperCase()}</span>
-            <span className="admin-tile__body">
-              <span className="record-title record-title--tight">{integrationStatusLabel(integration.status)}</span>
-              <span className="record-meta">Dry-run: {formatDate(integration.lastDryRunAt)} · импорт: {formatDate(integration.lastImportAt)}</span>
-              {integration.lastError ? <span className="record-meta text-[#b91c1c]">{integration.lastError}</span> : null}
-            </span>
-          </div>
-        </div>
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Последний run</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Preview/import counts.</p>
-          </div>
-          <div className="admin-tile admin-tile--compact">
-            <span className="admin-tile__icon admin-tile__icon--plain">{latestRun?.dryRun ? "P" : "I"}</span>
-            <span className="admin-tile__body">
-              {latestRun && latestRunStatus ? (
-                <>
-                  <span className="record-title record-title--tight">
-                    <span className={`pill ${latestRunStatus.pillClass}`}>{latestRunStatus.label}</span>
-                  </span>
-                  <span className="record-meta">
-                    Импортировано {latestRun.importedCount}/{latestRun.requestedLimit} · ошибок {latestRun.errorCount} · items {latestRun.items.length}
-                  </span>
-                </>
-              ) : (
-                <span className="record-meta">Запусков еще нет.</span>
-              )}
-            </span>
-          </div>
-        </div>
-      </section>
+      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы источника">
+        {integrationDetailsSections.map((section) => (
+          <Link
+            key={section.value}
+            href={integrationDetailsSectionHref(section.value)}
+            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
+            aria-current={activeSection === section.value ? "page" : undefined}
+          >
+            {section.label}
+          </Link>
+        ))}
+      </nav>
 
-      {integration.type === "otrs_family" ? (
-        <OtrsDetailCockpit
-          integration={integration}
-          credentialSummaries={credentialSummaries}
-          jobByRunId={jobByRunId}
-        />
-      ) : (
-        <NonOtrsIntegrationSummary integration={integration} jobs={relatedJobs} />
-      )}
+      {activeSection === "summary" ? (
+        <section className="ops-panel" aria-labelledby="integration-summary-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Источник</p>
+              <h2 id="integration-summary-title" className="ops-panel__title">Сводка источника</h2>
+              <p className="ops-panel__subtitle">Статус, последний запуск и состояние импорта без раскрытия технических payload.</p>
+            </div>
+          </div>
+          <div className="grid gap-2 p-4 md:grid-cols-3">
+            <div className="admin-tile admin-tile--compact">
+              <span className="admin-tile__icon admin-tile__icon--plain">{integration.displayName.slice(0, 1).toUpperCase()}</span>
+              <span className="admin-tile__body">
+                <span className="record-title record-title--tight">{integrationStatusLabel(integration.status)}</span>
+                <span className="record-meta">Dry-run: {formatDate(integration.lastDryRunAt)} · импорт: {formatDate(integration.lastImportAt)}</span>
+                {integration.lastError ? <span className="record-meta text-[#b91c1c]">{integration.lastError}</span> : null}
+              </span>
+            </div>
+            <div className="admin-tile admin-tile--compact">
+              <span className="admin-tile__icon admin-tile__icon--plain">{latestRun?.dryRun ? "P" : "I"}</span>
+              <span className="admin-tile__body">
+                {latestRun && latestRunStatus ? (
+                  <>
+                    <span className="record-title record-title--tight">
+                      <span className={`pill ${latestRunStatus.pillClass}`}>{latestRunStatus.label}</span>
+                    </span>
+                    <span className="record-meta">
+                      Импортировано {latestRun.importedCount}/{latestRun.requestedLimit} · ошибок {latestRun.errorCount} · items {latestRun.items.length}
+                    </span>
+                  </>
+                ) : (
+                  <span className="record-meta">Запусков еще нет.</span>
+                )}
+              </span>
+            </div>
+            <div className="ops-status-item">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="ops-status-item__label">Статус сертификации</span>
+                <HelpTooltip
+                  label="Что значит статус сертификации?"
+                  content="Статус показывает прохождение gate-проверок: документация, контракт, заглушка и живая сертификация."
+                  placement="top-end"
+                />
+              </div>
+              <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
+                {capability.certification.summary.label}
+              </span>
+              <span className="record-meta">
+                {capability.certification.summary.productionReady
+                  ? "Можно использовать в промышленном контуре."
+                  : "Нужны дополнительные проверки перед промышленным контуром."}
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {activeSection === "operations" ? (
+        <section className="ops-panel" aria-labelledby="integration-operations-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Операции</p>
+              <h2 id="integration-operations-title" className="ops-panel__title">Настройка и проверки</h2>
+              <p className="ops-panel__subtitle">Диагностика, предпросмотр, импорт и история запусков.</p>
+            </div>
+          </div>
+          <div className="p-4">
+            {integration.type === "otrs_family" ? (
+              <OtrsDetailCockpit
+                integration={integration}
+                credentialSummaries={credentialSummaries}
+                jobByRunId={jobByRunId}
+              />
+            ) : (
+              <NonOtrsIntegrationSummary integration={integration} jobs={relatedJobs} />
+            )}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }
@@ -462,7 +535,7 @@ function OtrsDetailCockpit({
 
       <OtrsRunHistory runs={toRunHistoryRuns(integration.runs, integration.workspaceId)} jobsByRunId={jobByRunId} />
 
-      <details className="disclosure-panel panel overflow-hidden">
+      <details className="compact-details overflow-hidden">
         <summary className="disclosure-summary cursor-pointer list-none border-b border-[#d9e0ea] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Ручная проверка payload</h2>
@@ -483,7 +556,7 @@ function OtrsDetailCockpit({
               <OtrsImportTester />
             </div>
           </section>
-          <details className="compact-details disclosure-panel overflow-hidden">
+          <details className="compact-details overflow-hidden">
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
               Native helpdesk legacy payload
             </summary>

@@ -1,6 +1,9 @@
+import { ArrowUpRight, DatabaseZap, PlugZap } from "lucide-react";
 import Link from "next/link";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { certificationStatusTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
@@ -10,7 +13,36 @@ import { backendJobStatusView, integrationRunStatusView } from "@/lib/operationa
 
 export const dynamic = "force-dynamic";
 
-const emptyStateClass = "soft-callout text-sm leading-5 text-[#64748b]";
+type AdminIntegrationsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+type IntegrationSection = "sources" | "diagnostics" | "runs" | "jobs" | "catalog";
+
+const integrationSections: Array<{ value: IntegrationSection; label: string }> = [
+  { value: "sources", label: "Источники" },
+  { value: "diagnostics", label: "Диагностика" },
+  { value: "runs", label: "Проверка и импорт" },
+  { value: "jobs", label: "Фоновые задачи" },
+  { value: "catalog", label: "План источников" }
+];
+
+const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[#64748b]";
+
+function firstParam(value: string | string[] | undefined) {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  return firstValue?.trim() || undefined;
+}
+
+function integrationSectionParam(value: string | string[] | undefined): IntegrationSection {
+  const section = firstParam(value);
+
+  return integrationSections.some((item) => item.value === section) ? (section as IntegrationSection) : "sources";
+}
+
+function integrationSectionHref(section: IntegrationSection) {
+  return `/admin/integrations?section=${section}`;
+}
 
 function formatDate(value: Date | null | undefined) {
   if (!value) {
@@ -72,7 +104,87 @@ function idPayloadFilters(ids: string[]) {
   }));
 }
 
-export default async function AdminIntegrationsPage() {
+function integrationTone(status: string) {
+  if (status === "error" || status === "disabled") return "pill--warn";
+  if (status === "active" || status === "ready") return "pill--ok";
+  return "pill--neutral";
+}
+
+function capabilityReadinessLabel(value: string) {
+  const labels: Record<string, string> = {
+    production_slice: "Готово к эксплуатации",
+    adapter_ready: "Адаптер готов",
+    roadmap: "В плане"
+  };
+
+  return labels[value] ?? value;
+}
+
+function capabilityTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    otrs_family: "Семейство OTRS",
+    native_helpdesk: "Служба поддержки",
+    custom_api: "Свой API",
+    webhook_bridge: "Мост вебхуков",
+    enterprise: "Корпоративная система"
+  };
+
+  return labels[value] ?? value;
+}
+
+function capabilityName(source: string, displayName: string) {
+  const labels: Record<string, string> = {
+    custom_api: "Свой API",
+    generic_webhook: "Общие вебхуки"
+  };
+
+  return labels[source] ?? displayName;
+}
+
+function authModeLabel(value: string) {
+  const labels: Record<string, string> = {
+    api_token: "API-токен",
+    basic: "Базовая авторизация",
+    bearer_token: "Bearer-токен",
+    hmac_sha256: "Подпись HMAC-SHA256",
+    none: "Без авторизации",
+    oauth_client_credentials: "OAuth: учетные данные клиента",
+    session_create: "Создание сессии",
+    tls_ca_bundle: "Пакет корневых сертификатов",
+    user_password: "Пользователь и пароль"
+  };
+
+  return labels[value] ?? value;
+}
+
+function integrationModeLabel(value: string) {
+  const labels: Record<string, string> = {
+    diagnostics: "Диагностика",
+    dry_run: "Проверка без импорта",
+    fixture_import: "Импорт тестовых данных",
+    import: "Импорт",
+    manual: "Ручной запуск",
+    preview: "Предпросмотр",
+    scheduled: "По расписанию",
+    selected_import: "Выборочный импорт"
+  };
+
+  return labels[value] ?? value;
+}
+
+function CertificationHelpTooltip() {
+  return (
+    <HelpTooltip
+      label="Что значит статус сертификации?"
+      content="Статус показывает, какие проверки прошел connector: документация, контрактные тесты, заглушка и живая сертификация."
+      placement="top-start"
+    />
+  );
+}
+
+export default async function AdminIntegrationsPage({ searchParams }: AdminIntegrationsPageProps) {
+  const params = await searchParams;
+  const activeSection = integrationSectionParam(params.section);
   const user = await requireCurrentUserPermission("integrations:manage");
   const [integrations, recentRuns, recentIntegrationJobs] = await Promise.all([
     prisma.integration.findMany({
@@ -197,6 +309,9 @@ export default async function AdminIntegrationsPage() {
       integrationId: integration.id
     }))
   );
+  const failedDiagnostics = diagnosticRuns.filter((run) => ["failed", "error"].includes(run.status)).length;
+  const activeJobs = recentIntegrationJobs.filter((job) => ["QUEUED", "RUNNING"].includes(job.status)).length;
+  const lastImportRun = recentRuns.find((run) => !run.dryRun);
 
   return (
     <section className="page-shell admin-shell">
@@ -205,238 +320,386 @@ export default async function AdminIntegrationsPage() {
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Интеграции</h1>
           <p className="page-subtitle">
-            Операционный обзор источников: состояние подключений, последняя диагностика, preview/import и backend-задачи.
+            Операционный обзор источников: состояние подключений, последняя диагностика, проверочные запуски, импорт и фоновые задачи.
           </p>
-        </div>
-        <div className="admin-actions">
-          <IntegrationQueueRunForm />
-          <Link href="/admin/integrations/new" className="action-button action-button--primary">
-            Новый источник
-          </Link>
-          <Link href="/admin/tokens" className="action-button">
-            API-доступ
-          </Link>
-          <Link href="/reviews" className="action-button action-button--quiet">
-            Очередь проверок
-          </Link>
+          <div className="admin-actions mt-5">
+            <Link href="/admin/integrations/new" className="action-button action-button--primary">
+              <PlugZap size={16} aria-hidden="true" />
+              Новый источник
+            </Link>
+            <IntegrationQueueRunForm />
+            <Link href="/admin/tokens" className="action-button">
+              API-доступ
+            </Link>
+            <Link href="/reviews" className="action-button action-button--quiet">
+              Очередь проверок
+            </Link>
+          </div>
         </div>
       </div>
 
-      <section className="admin-group-grid admin-group-grid--wide" aria-label="Состояние интеграций">
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Подключенные источники</h2>
-            <p className="text-sm leading-5 text-[#64748b]">
-              Активные и готовые источники: {activeSources.length}/{integrations.length}
-            </p>
+      <section className="ops-metric-grid" aria-label="Состояние интеграций">
+        <div className="ops-metric">
+          <span className="ops-metric__label">Источники</span>
+          <strong className="ops-metric__value">{integrations.length}</strong>
+          <span className="ops-metric__note">Активные и готовые: {activeSources.length}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Диагностика</span>
+          <strong className="ops-metric__value">{diagnosticRuns.length}</strong>
+          <span className="ops-metric__note">Требуют внимания: {failedDiagnostics}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Задачи обработчика</span>
+          <strong className="ops-metric__value">{activeJobs}</strong>
+          <span className="ops-metric__note">В очереди или в работе</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Последний импорт</span>
+          <strong className="ops-metric__value">{lastImportRun ? formatDate(lastImportRun.startedAt).split(",")[0] : "Нет"}</strong>
+          <span className="ops-metric__note">{lastImportRun ? externalSourceLabel(lastImportRun.source) : "Реальные импорты еще не запускались"}</span>
+        </div>
+      </section>
+
+      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы интеграций">
+        {integrationSections.map((section) => (
+          <Link
+            key={section.value}
+            href={integrationSectionHref(section.value)}
+            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
+            aria-current={activeSection === section.value ? "page" : undefined}
+          >
+            {section.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeSection === "sources" ? (
+        <section className="ops-panel" aria-labelledby="sources-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Источники</p>
+            <h2 id="sources-title" className="ops-panel__title">Подключенные источники</h2>
+            <p className="ops-panel__subtitle">Активные и готовые источники: {activeSources.length}/{integrations.length}</p>
+            <div className="admin-actions mt-3">
+              <Link href="/admin/integrations/new" className="action-button action-button--small">
+                <DatabaseZap size={15} aria-hidden="true" />
+                Добавить
+              </Link>
+            </div>
           </div>
-          <div className="grid gap-2">
-            {integrations.length > 0 ? (
-              integrations.map((integration) => {
+        </div>
+        {integrations.length > 0 ? (
+          <div className="ops-table-shell">
+            <div className="ops-table ops-table--integrations" role="table" aria-label="Подключенные источники">
+              <div className="ops-table__row ops-table__row--head" role="row">
+                <span>Источник</span>
+                <span>Импорт</span>
+                <span>Синхронизация</span>
+                <span>Последний запуск</span>
+                <span>Задача</span>
+                <span>Действия</span>
+              </div>
+              {integrations.map((integration) => {
                 const latestRun = integration.runs[0];
                 const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
                 const latestJob = integrationJobByIntegrationId.get(integration.id);
                 const latestJobStatus = latestJob ? backendJobStatusView(latestJob.status) : null;
+                const latestDiagnostic = integration.diagnosticRuns[0];
+                const latestDiagnosticStatus = latestDiagnostic ? integrationRunStatusView(latestDiagnostic.status) : null;
                 const capability = getIntegrationCapability(integration.source, integration.type);
                 const syncState = parseIntegrationSyncState(integration.syncStateJson);
 
                 return (
-                  <div key={integration.id} className="admin-tile admin-tile--compact">
-                    <span className="admin-tile__icon admin-tile__icon--plain">
-                      {integration.displayName.slice(0, 1).toUpperCase()}
-                    </span>
-                    <div className="admin-tile__body">
+                  <article key={integration.id} className="ops-table__row admin-tile admin-tile--table" role="row">
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Источник</span>
                       <span className="flex flex-wrap items-center gap-2">
-                        <Link href={`/admin/integrations/${integration.id}`} className="record-title record-title--tight hover:underline">
+                        <Link href={`/admin/integrations/${integration.id}`} className="record-title hover:underline">
                           {integration.displayName}
                         </Link>
-                        <span className={`pill ${integration.status === "error" ? "pill--warn" : "pill--neutral"}`}>
-                          {integrationStatusLabel(integration.status)}
-                        </span>
+                        <span className={`pill ${integrationTone(integration.status)}`}>{integrationStatusLabel(integration.status)}</span>
                       </span>
                       <span className="record-meta compact-text">
-                        {externalSourceLabel(integration.source)} · лимит {integration.importLimit} · батч {integration.batchSize}
-                      </span>
-                      <span className="record-meta compact-text">
-                        {capability.readiness} · cursor {capability.supportsCursor ? "есть" : "нет"} · webhooks{" "}
+                        {externalSourceLabel(integration.source)} · {capabilityReadinessLabel(capability.readiness)} · курсор{" "}
+                        {capability.supportsCursor ? "есть" : "нет"} · вебхуки{" "}
                         {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
                       </span>
-                      <span className="record-meta">
-                        Последний импорт: {formatDate(integration.lastImportAt)} · dry-run: {formatDate(integration.lastDryRunAt)}
-                      </span>
-                      <span className="record-meta">
-                        Sync: проверено {syncState.progress.checkedCount} · импортировано {syncState.progress.importedCount} · ошибок{" "}
-                        {syncState.progress.errorCount} · cursor {syncState.cursor ?? "нет"}
-                      </span>
-                      {latestRun && latestRunStatus ? (
-                        <span className="record-meta">
-                          Последний run: <span className={`pill ${latestRunStatus.pillClass}`}>{latestRunStatus.label}</span>{" "}
-                          · проверено {displayedCheckedCount(latestRun)} · импортировано {latestRun.importedCount}/{latestRun.requestedLimit} ·
-                          skipped {latestRun.skippedCount} · preview items {latestRun.items.length}
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
+                          {capability.certification.summary.label}
                         </span>
+                        <CertificationHelpTooltip />
+                      </div>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Импорт</span>
+                      <span className="record-title">лимит {integration.importLimit} · батч {integration.batchSize}</span>
+                      <span className="record-meta">Импорт: {formatDate(integration.lastImportAt)}</span>
+                      <span className="record-meta">Проверка без импорта: {formatDate(integration.lastDryRunAt)}</span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Синхронизация</span>
+                      <span className="record-title">
+                        Проверено {syncState.progress.checkedCount} · импортировано {syncState.progress.importedCount}
+                      </span>
+                      <span className="record-meta">
+                        ошибок {syncState.progress.errorCount} · курсор {syncState.cursor ?? "нет"}
+                      </span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Последний запуск</span>
+                      {latestRun && latestRunStatus ? (
+                        <>
+                          <span className={`pill ${latestRunStatus.pillClass}`}>{latestRunStatus.label}</span>
+                          <span className="record-meta">
+                            проверено {displayedCheckedCount(latestRun)} · импортировано {latestRun.importedCount}/{latestRun.requestedLimit}
+                          </span>
+                          <span className="record-meta">
+                            пропущено {latestRun.skippedCount} · строк предпросмотра {latestRun.items.length}
+                          </span>
+                        </>
                       ) : (
                         <span className="record-meta">Запусков еще не было.</span>
                       )}
+                      {latestDiagnostic && latestDiagnosticStatus ? (
+                        <span className="record-meta">
+                          Диагностика: <span className={`pill ${latestDiagnosticStatus.pillClass}`}>{latestDiagnosticStatus.label}</span>
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Задача</span>
                       {latestJob && latestJobStatus ? (
                         <Link href={`/admin/system/jobs/${latestJob.id}`} className="quiet-link text-sm">
-                          Backend job {latestJob.id.slice(0, 8)} · {latestJobStatus.label}
+                          Фоновая задача {latestJob.id.slice(0, 8)} · {latestJobStatus.label}
                         </Link>
-                      ) : null}
-                      <div className="mt-1 flex flex-wrap items-center gap-3">
+                      ) : (
+                        <span className="record-meta">Нет связанной задачи</span>
+                      )}
+                    </div>
+                    <div className="ops-table__cell ops-table__cell--actions">
+                      <span className="ops-table__label">Действия</span>
+                      <div className="admin-actions justify-end">
                         <Link href={`/admin/integrations/${integration.id}`} className="quiet-link text-sm">
-                          Открыть cockpit
+                          Открыть панель
                         </Link>
                         <IntegrationImportQueueForm integrationId={integration.id} />
                       </div>
                     </div>
-                  </div>
+                  </article>
                 );
-              })
-            ) : (
-              <div className={emptyStateClass}>Источники пока не настроены.</div>
-            )}
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className={emptyStateClass}>Источники пока не настроены. Начните с мастера подключения.</div>
+        )}
+        </section>
+      ) : null}
 
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Последняя диагностика</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Последний diagnostic-run по каждому источнику.</p>
+      {activeSection === "diagnostics" ? (
+        <section className="ops-panel" aria-labelledby="diagnostics-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Диагностика</p>
+            <h2 id="diagnostics-title" className="ops-panel__title">Диагностика источников</h2>
+            <p className="ops-panel__subtitle">Последняя проверка по каждому источнику в табличном виде.</p>
           </div>
-          <div className="grid gap-2">
-            {diagnosticRuns.length > 0 ? (
-              diagnosticRuns.map((run) => {
+          <span className="pill pill--neutral">{diagnosticRuns.length}</span>
+        </div>
+        {diagnosticRuns.length > 0 ? (
+          <div className="ops-table-shell">
+            <div className="ops-table ops-table--diagnostics" role="table" aria-label="Последняя диагностика">
+              <div className="ops-table__row ops-table__row--head" role="row">
+                <span>Источник</span>
+                <span>Статус</span>
+                <span>Режим</span>
+                <span>Запуск</span>
+                <span>Адрес</span>
+              </div>
+              {diagnosticRuns.map((run) => {
                 const status = integrationRunStatusView(run.status);
 
                 return (
-                  <Link key={run.id} href={`/admin/integrations/${run.integrationId}`} className="admin-tile admin-tile--compact">
-                    <span className="admin-tile__icon admin-tile__icon--plain">D</span>
-                    <span className="admin-tile__body">
-                      <span className="record-title record-title--tight">{run.integrationName}</span>
-                      <span className="record-meta">
-                        <span className={`pill ${status.pillClass}`}>{status.label}</span> · {run.mode} · {formatDate(run.startedAt)}
-                      </span>
-                      <span className="record-meta compact-text">{run.redactedEndpoint ?? "Endpoint появится после диагностики."}</span>
-                    </span>
+                  <Link key={run.id} href={`/admin/integrations/${run.integrationId}`} className="ops-table__row" role="row">
+                    <span className="record-title">{run.integrationName}</span>
+                    <span className={`pill ${status.pillClass}`}>{status.label}</span>
+                    <span className="record-meta">{integrationModeLabel(run.mode)}</span>
+                    <span className="record-meta">{formatDate(run.startedAt)}</span>
+                    <span className="record-meta compact-text">{run.redactedEndpoint ?? "Адрес появится после диагностики."}</span>
                   </Link>
                 );
-              })
-            ) : (
-              <div className={emptyStateClass}>Диагностик пока нет. Запустите проверку в cockpit источника.</div>
-            )}
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className={emptyStateClass}>Диагностик пока нет. Запустите проверку в панели источника.</div>
+        )}
+        </section>
+      ) : null}
+
+      {activeSection === "runs" ? (
+        <section className="ops-panel" aria-labelledby="runs-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Запуски</p>
+            <h2 id="runs-title" className="ops-panel__title">Проверка и импорт</h2>
+            <p className="ops-panel__subtitle">Последние проверки без импорта, предпросмотры и реальные импорты.</p>
           </div>
         </div>
-
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Preview и импорт</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Последние dry-run, preview и реальные импорты.</p>
-          </div>
-          <div className="grid gap-2">
-            {recentRuns.length > 0 ? (
-              recentRuns.slice(0, 5).map((run) => {
+        {recentRuns.length > 0 ? (
+          <div className="ops-table-shell">
+            <div className="ops-table ops-table--runs" role="table" aria-label="Последние импорты">
+              <div className="ops-table__row ops-table__row--head" role="row">
+                <span>Источник</span>
+                <span>Тип и статус</span>
+                <span>Старт</span>
+                <span>Итог</span>
+                <span>Задача</span>
+              </div>
+              {recentRuns.slice(0, 6).map((run) => {
                 const runStatus = integrationRunStatusView(run.status);
                 const job = integrationJobByRunId.get(run.id);
                 const jobStatus = job ? backendJobStatusView(job.status) : null;
 
                 return (
-                  <div key={run.id} className="admin-tile admin-tile--compact">
-                    <span className="admin-tile__icon admin-tile__icon--plain">{run.dryRun ? "P" : "I"}</span>
-                    <span className="admin-tile__body">
-                      <span className="flex flex-wrap items-center gap-2">
-                        {run.integration && run.integration.workspaceId === user.workspaceId ? (
-                          <Link href={`/admin/integrations/${run.integration.id}`} className="record-title record-title--tight hover:underline">
-                            {run.integration.displayName}
-                          </Link>
-                        ) : (
-                          <span className="record-title record-title--tight">{externalSourceLabel(run.source)}</span>
-                        )}
-                        <span className={`pill ${runStatus.pillClass}`}>{runStatus.label}</span>
-                      </span>
+                  <div key={run.id} className="ops-table__row" role="row">
+                    <div className="ops-table__cell">
+                      {run.integration && run.integration.workspaceId === user.workspaceId ? (
+                        <Link href={`/admin/integrations/${run.integration.id}`} className="record-title hover:underline">
+                          {run.integration.displayName}
+                        </Link>
+                      ) : (
+                        <span className="record-title">{externalSourceLabel(run.source)}</span>
+                      )}
+                      <span className="record-meta">{run.actor?.name ?? "Автоматика"}</span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className={`pill ${runStatus.pillClass}`}>{runStatus.label}</span>
+                      <span className="record-meta">{run.dryRun ? "Предпросмотр без импорта" : "Импорт"}</span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="record-meta">{formatDate(run.startedAt)}</span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="record-title">Проверено {displayedCheckedCount(run)}</span>
                       <span className="record-meta">
-                        {run.dryRun ? "Preview/Dry-run" : "Импорт"} · {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
+                        импортировано {run.importedCount}/{run.requestedLimit} · пропущено {run.skippedCount} · ошибок {run.errorCount} · строк{" "}
+                        {run.items.length}
                       </span>
-                      <span className="record-meta">
-                        Проверено {displayedCheckedCount(run)} · импортировано {run.importedCount}/{run.requestedLimit} · skipped{" "}
-                        {run.skippedCount} · ошибок {run.errorCount} · items {run.items.length}
-                      </span>
+                    </div>
+                    <div className="ops-table__cell">
                       {job && jobStatus ? (
                         <Link href={`/admin/system/jobs/${job.id}`} className="quiet-link text-sm">
-                          Backend job {job.id.slice(0, 8)} · {jobStatus.label}
+                          {job.id.slice(0, 8)} · {jobStatus.label}
                         </Link>
-                      ) : null}
-                    </span>
+                      ) : (
+                        <span className="record-meta">Без фоновой задачи</span>
+                      )}
+                    </div>
                   </div>
                 );
-              })
-            ) : (
-              <div className={emptyStateClass}>Запуски появятся после диагностики, preview или импорта.</div>
-            )}
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className={emptyStateClass}>Запуски появятся после диагностики, предпросмотра или импорта.</div>
+        )}
+        </section>
+      ) : null}
+
+      {activeSection === "jobs" ? (
+        <section className="ops-panel" aria-labelledby="jobs-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Очередь</p>
+            <h2 id="jobs-title" className="ops-panel__title">Фоновые задачи</h2>
+            <p className="ops-panel__subtitle">Очередь обработчика интеграций без технического тела задачи.</p>
           </div>
         </div>
-
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Backend jobs</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Очередь интеграционного runner без raw payload.</p>
-          </div>
-          <div className="grid gap-2">
-            {recentIntegrationJobs.length > 0 ? (
-              recentIntegrationJobs.map((job) => {
+        {recentIntegrationJobs.length > 0 ? (
+          <div className="ops-table-shell">
+            <div className="ops-table ops-table--jobs" role="table" aria-label="Фоновые задачи">
+              <div className="ops-table__row ops-table__row--head" role="row">
+                <span>Задача</span>
+                <span>Статус</span>
+                <span>Источник</span>
+                <span>Запуск</span>
+                <span>Связанный запуск</span>
+              </div>
+              {recentIntegrationJobs.map((job) => {
                 const status = backendJobStatusView(job.status);
                 const payload = parsePayloadJson(job.payloadJson);
                 const runId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
                 const source = typeof payload.source === "string" ? payload.source : "integration";
 
                 return (
-                  <Link key={job.id} href={`/admin/system/jobs/${job.id}`} className="admin-tile admin-tile--compact">
-                    <span className="admin-tile__icon admin-tile__icon--plain">J</span>
-                    <span className="admin-tile__body">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="record-title record-title--tight">Job {job.id.slice(0, 8)}</span>
-                        <span className={`pill ${status.pillClass}`}>{status.label}</span>
-                      </span>
-                      <span className="record-meta">
-                        {externalSourceLabel(source)} · попытка {job.attempts}/{job.maxAttempts} · запуск {formatDate(job.runAfter)}
-                      </span>
-                      <span className="record-meta compact-text">Run: {runId ? runId.slice(0, 8) : "не связан"}</span>
+                  <Link key={job.id} href={`/admin/system/jobs/${job.id}`} className="ops-table__row" role="row">
+                    <span className="record-title">Задача {job.id.slice(0, 8)}</span>
+                    <span className={`pill ${status.pillClass}`}>{status.label}</span>
+                    <span className="record-meta">{externalSourceLabel(source)}</span>
+                    <span className="record-meta">
+                      {formatDate(job.runAfter)} · попытка {job.attempts}/{job.maxAttempts}
                     </span>
+                    <span className="record-meta compact-text">{runId ? runId.slice(0, 8) : "не связан"}</span>
                   </Link>
                 );
-              })
-            ) : (
-              <div className={emptyStateClass}>В очереди интеграций пока нет задач.</div>
-            )}
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className={emptyStateClass}>В очереди интеграций пока нет задач.</div>
+        )}
+        </section>
+      ) : null}
+
+      {activeSection === "catalog" ? (
+        <section className="ops-panel" aria-labelledby="catalog-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Каталог</p>
+            <h2 id="catalog-title" className="ops-panel__title">План источников</h2>
+            <p className="ops-panel__subtitle">Реестр возможностей для следующих коннекторов и моста событий.</p>
+            <div className="admin-actions mt-3">
+              <Link href="/admin/integrations/new" className="action-button action-button--small">
+                Открыть мастер
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </div>
-
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Roadmap источников</h2>
-            <p className="text-sm leading-5 text-[#64748b]">Capability registry для следующих коннекторов и webhook bridge.</p>
-          </div>
-          <div className="grid gap-2">
+        <div className="ops-table-shell">
+          <div className="ops-table ops-table--catalog" role="table" aria-label="План источников">
+            <div className="ops-table__row ops-table__row--head" role="row">
+              <span>Источник</span>
+              <span>Готовность</span>
+              <span>Авторизация</span>
+              <span>Возможности</span>
+            </div>
             {roadmapCapabilities.map((capability) => (
-              <div key={capability.source} className="admin-tile admin-tile--compact">
-                <span className="admin-tile__icon admin-tile__icon--plain">{capability.displayName.slice(0, 1).toUpperCase()}</span>
-                <span className="admin-tile__body">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="record-title record-title--tight">{capability.displayName}</span>
-                    <span className="pill pill--neutral">{capability.readiness}</span>
+              <div key={capability.source} className="ops-table__row" role="row">
+                <div className="ops-table__cell">
+                  <span className="record-title">{capabilityName(capability.source, capability.displayName)}</span>
+                  <span className="record-meta">{capabilityTypeLabel(capability.type)}</span>
+                </div>
+                <div className="ops-table__cell">
+                  <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
+                    {capability.certification.summary.label}
                   </span>
-                  <span className="record-meta compact-text">
-                    {capability.type} · auth {capability.authModes.join(", ")}
-                  </span>
-                  <span className="record-meta compact-text">
-                    cursor {capability.supportsCursor ? "есть" : "нет"} · diagnostics {capability.supportsDiagnostics ? "есть" : "нет"} ·
-                    webhooks {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
-                  </span>
+                  <span className="record-meta">{capabilityReadinessLabel(capability.readiness)}</span>
+                </div>
+                <span className="record-meta compact-text">{capability.authModes.map(authModeLabel).join(", ")}</span>
+                <span className="record-meta compact-text">
+                  курсор {capability.supportsCursor ? "есть" : "нет"} · диагностика {capability.supportsDiagnostics ? "есть" : "нет"} · вебхуки{" "}
+                  {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
                 </span>
               </div>
             ))}
           </div>
         </div>
-      </section>
+        </section>
+      ) : null}
     </section>
   );
 }
