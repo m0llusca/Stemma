@@ -2,10 +2,11 @@
 
 import clsx from "clsx";
 import { CircleHelp } from "lucide-react";
-import type { FocusEvent, KeyboardEvent, ReactNode } from "react";
-import { useId, useRef, useState } from "react";
+import type { FocusEvent, ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type HelpTooltipPlacement = "top" | "top-start" | "top-end";
+const POINTER_CLOSE_DELAY_MS = 120;
 
 export function HelpTooltip({
   label,
@@ -20,7 +21,55 @@ export function HelpTooltip({
 }) {
   const id = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const pointerCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
+
+  const clearPointerCloseTimer = useCallback(() => {
+    if (pointerCloseTimerRef.current === null) {
+      return;
+    }
+
+    clearTimeout(pointerCloseTimerRef.current);
+    pointerCloseTimerRef.current = null;
+  }, []);
+
+  const openTooltip = useCallback(() => {
+    clearPointerCloseTimer();
+    setOpen(true);
+  }, [clearPointerCloseTimer]);
+
+  const closeTooltip = useCallback(() => {
+    clearPointerCloseTimer();
+    setOpen(false);
+  }, [clearPointerCloseTimer]);
+
+  const schedulePointerClose = useCallback(() => {
+    clearPointerCloseTimer();
+    pointerCloseTimerRef.current = setTimeout(() => {
+      pointerCloseTimerRef.current = null;
+      setOpen(false);
+    }, POINTER_CLOSE_DELAY_MS);
+  }, [clearPointerCloseTimer]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function closeOnEscape(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeTooltip();
+      }
+    }
+
+    document.addEventListener("keydown", closeOnEscape, true);
+
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape, true);
+    };
+  }, [closeTooltip, open]);
+
+  useEffect(() => clearPointerCloseTimer, [clearPointerCloseTimer]);
 
   function closeWhenFocusLeaves(event: FocusEvent<HTMLDivElement>) {
     const nextTarget = event.relatedTarget;
@@ -29,17 +78,7 @@ export function HelpTooltip({
       return;
     }
 
-    setOpen(false);
-  }
-
-  function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key !== "Escape") {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    setOpen(false);
+    closeTooltip();
   }
 
   return (
@@ -49,20 +88,25 @@ export function HelpTooltip({
       data-open={open ? "true" : "false"}
       data-placement={placement}
       onBlur={closeWhenFocusLeaves}
-      onPointerEnter={() => setOpen(true)}
-      onPointerLeave={() => setOpen(false)}
+      onPointerEnter={openTooltip}
+      onPointerLeave={schedulePointerClose}
     >
       <button
         type="button"
         className="help-tooltip__trigger"
         aria-label={label}
         aria-describedby={id}
-        onFocus={() => setOpen(true)}
-        onKeyDown={handleTriggerKeyDown}
+        onFocus={openTooltip}
       >
         <CircleHelp aria-hidden="true" size={14} />
       </button>
-      <div id={id} role="tooltip" className="help-tooltip__content">
+      <div
+        id={id}
+        role="tooltip"
+        className="help-tooltip__content"
+        onPointerEnter={openTooltip}
+        onPointerLeave={schedulePointerClose}
+      >
         {content}
       </div>
     </div>

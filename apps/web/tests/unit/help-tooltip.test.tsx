@@ -1,9 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 describe("HelpTooltip", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("links the trigger to tooltip content", () => {
     render(<HelpTooltip label="Что значит статус?" content="Статус показывает readiness gate." />);
 
@@ -69,7 +73,31 @@ describe("HelpTooltip", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("opens on pointer enter and closes on pointer leave", () => {
+  it("closes on document Escape when focus is elsewhere", () => {
+    const { container } = render(
+      <>
+        <button type="button">Другой элемент</button>
+        <HelpTooltip label="Документ" content="Текст." />
+      </>
+    );
+
+    const otherButton = screen.getByRole("button", { name: "Другой элемент" });
+    const wrapper = container.querySelector(".help-tooltip");
+
+    act(() => {
+      otherButton.focus();
+    });
+    fireEvent.pointerEnter(wrapper!);
+    expect(wrapper).toHaveAttribute("data-open", "true");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(wrapper).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).toBe(otherButton);
+  });
+
+  it("opens on pointer enter and delays close on pointer leave", () => {
+    vi.useFakeTimers();
     const { container } = render(<HelpTooltip label="Наведение" content="Текст." />);
 
     const wrapper = container.querySelector(".help-tooltip");
@@ -80,7 +108,39 @@ describe("HelpTooltip", () => {
     expect(wrapper).toHaveAttribute("data-open", "true");
 
     fireEvent.pointerLeave(wrapper!);
+    expect(wrapper).toHaveAttribute("data-open", "true");
+
+    act(() => {
+      vi.advanceTimersByTime(119);
+    });
+    expect(wrapper).toHaveAttribute("data-open", "true");
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(wrapper).toHaveAttribute("data-open", "false");
+  });
+
+  it("stays open when the pointer reaches tooltip content before delayed close", () => {
+    vi.useFakeTimers();
+    const { container } = render(<HelpTooltip label="Переход" content="Текст." />);
+
+    const wrapper = container.querySelector(".help-tooltip");
+    const tooltip = screen.getByRole("tooltip");
+
+    fireEvent.pointerEnter(wrapper!);
+    expect(wrapper).toHaveAttribute("data-open", "true");
+
+    fireEvent.pointerLeave(wrapper!);
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    fireEvent.pointerEnter(tooltip);
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(wrapper).toHaveAttribute("data-open", "true");
   });
 
   it("sets an inspectable placement attribute", () => {
