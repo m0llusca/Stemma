@@ -104,6 +104,12 @@ function fallbackCertification(source: string) {
   });
 }
 
+const fallbackCapabilityMetadata = {
+  docsHref: "/api/v1/openapi",
+  setupStatus: "planned",
+  readiness: "roadmap"
+} satisfies Pick<IntegrationCapability, "docsHref" | "setupStatus" | "readiness">;
+
 export const integrationCapabilities: IntegrationCapability[] = [
   {
     source: "otrs",
@@ -471,7 +477,7 @@ export function getIntegrationCapability(source: string, type?: string | null): 
       ...fallback,
       source: fallbackSource,
       displayName: fallbackDisplayName,
-      docsHref: `/admin/integrations/new?source=${encodeURIComponent(fallbackSource)}`,
+      ...fallbackCapabilityMetadata,
       certification: fallbackCertification(fallbackSource)
     };
   }
@@ -483,6 +489,7 @@ export function getIntegrationCapability(source: string, type?: string | null): 
       ...fallback,
       source: normalizedSource,
       displayName: source,
+      ...fallbackCapabilityMetadata,
       certification: fallbackCertification(source)
     };
   }
@@ -493,6 +500,7 @@ export function getIntegrationCapability(source: string, type?: string | null): 
     ...fallback,
     source: normalizedSource || "custom_api",
     displayName: source || "Custom API",
+    ...fallbackCapabilityMetadata,
     certification: fallbackCertification(source)
   };
 }

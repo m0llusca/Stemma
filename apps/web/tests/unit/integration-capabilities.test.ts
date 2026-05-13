@@ -54,8 +54,12 @@ describe("integration capabilities and sync state", () => {
     expect(fallback).toMatchObject({
       source: "unknown_vendor",
       displayName: "unknown_vendor",
-      type: "native_helpdesk"
+      type: "native_helpdesk",
+      docsHref: "/api/v1/openapi",
+      setupStatus: "planned",
+      readiness: "roadmap"
     });
+    expect(fallback.docsHref).not.toBe(zendesk.docsHref);
     expect(fallback.certification.summary).toEqual({
       status: "not_production_ready",
       label: "Не готово к промышленной эксплуатации",
@@ -76,10 +80,14 @@ describe("integration capabilities and sync state", () => {
     expect(fallback).toMatchObject({
       source: "otrs_family",
       type: "otrs_family",
+      docsHref: "/api/v1/openapi",
+      setupStatus: "planned",
+      readiness: "roadmap",
       supportsPaging: true,
       supportsCursor: true,
       supportsDiagnostics: true
     });
+    expect(fallback.docsHref).not.toBe(otrs.docsHref);
     expect(fallback.displayName).not.toBe("OTRS CE 6");
     expect(fallback.certification.summary).toEqual({
       status: "not_production_ready",
@@ -101,8 +109,12 @@ describe("integration capabilities and sync state", () => {
     expect(fallback).toMatchObject({
       source: "some_vendor",
       displayName: "some_vendor",
-      type: "custom_api"
+      type: "custom_api",
+      docsHref: "/api/v1/openapi",
+      setupStatus: "planned",
+      readiness: "roadmap"
     });
+    expect(fallback.docsHref).not.toBe(customApi.docsHref);
     expect(fallback.certification.summary.productionReady).toBe(false);
     expect(fallback.certification.summary.status).not.toBe("live_certified");
     expect(fallback.certification.docs).not.toBe(customApi.certification.docs);
