@@ -56,11 +56,15 @@ const sourceModeDescriptions: Record<SourceMode, string> = {
   custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk."
 };
 
-const sourceModeCertificationLabels: Record<SourceMode, string> = {
+const setupModeCertificationSummaryLabels: Record<SourceMode, string> = {
   otrs_family: "Готово к живой сертификации",
   native_helpdesk: "Ожидает доступы",
   custom_api: "Живая сертификация пройдена"
 };
+
+function setupModeCertificationSummaryLabel(mode: SourceMode) {
+  return setupModeCertificationSummaryLabels[mode];
+}
 
 const sourceOptions = [
   ...otrsFamilySourceOptions.map((source) => ({
@@ -333,7 +337,7 @@ function SourceChoiceStep({
               placement="top-start"
             />
           </div>
-          <span className="pill pill--neutral">{sourceModeCertificationLabels[selectedOption.mode]}</span>
+          <span className="pill pill--neutral">{setupModeCertificationSummaryLabel(selectedOption.mode)}</span>
         </div>
         <div className="source-next-steps" aria-label="Следующие шаги">
           <span>Доступ</span>
@@ -701,7 +705,7 @@ function DoneStep({ checked, saveState }: { checked: boolean; saveState: Integra
       </div>
       <div className="flex flex-wrap gap-2">
         {saveState?.ok && saveState.integrationId ? (
-          <Link href={`/admin/integrations/${saveState.integrationId}`} className={primaryButtonClass}>
+          <Link href={`/admin/integrations/${saveState.integrationId}?section=operations`} className={primaryButtonClass}>
             Открыть cockpit
           </Link>
         ) : null}

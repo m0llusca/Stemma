@@ -172,10 +172,10 @@ function integrationModeLabel(value: string) {
   return labels[value] ?? value;
 }
 
-function CertificationHelpTooltip() {
+function CertificationHelpTooltip({ label = "Что значит статус сертификации?" }: { label?: string }) {
   return (
     <HelpTooltip
-      label="Что значит статус сертификации?"
+      label={label}
       content="Статус показывает, какие проверки прошел connector: документация, контрактные тесты, заглушка и живая сертификация."
       placement="top-start"
     />
@@ -379,7 +379,10 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
         <div className="ops-panel__header">
           <div>
             <p className="ops-panel__eyebrow">Источники</p>
-            <h2 id="sources-title" className="ops-panel__title">Подключенные источники</h2>
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 id="sources-title" className="ops-panel__title">Подключенные источники</h2>
+              <CertificationHelpTooltip />
+            </div>
             <p className="ops-panel__subtitle">Активные и готовые источники: {activeSources.length}/{integrations.length}</p>
             <div className="admin-actions mt-3">
               <Link href="/admin/integrations/new" className="action-button action-button--small">
@@ -429,7 +432,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                         <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
                           {capability.certification.summary.label}
                         </span>
-                        <CertificationHelpTooltip />
+                        <CertificationHelpTooltip label={`Что значит статус сертификации для ${integration.displayName}?`} />
                       </div>
                     </div>
                     <div className="ops-table__cell">
