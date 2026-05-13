@@ -90,10 +90,18 @@ describe("integration catalog route", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
+    expect(response.headers.get("x-request-id")).toBe("req-catalog");
+    const body = await response.json();
+    expect(body).toEqual({
       catalog,
       requestId: "req-catalog"
     });
+    expect(body.catalog[0].certification.summary).toMatchObject({
+      label: "Живая сертификация пройдена",
+      productionReady: true,
+      status: "live_certified"
+    });
+    expect(body.catalog[0].certification.summary.label).not.toBe("production-ready");
     expect(mocks.requireSessionApi).toHaveBeenCalledWith(expect.any(Request), "integrations:manage", {
       requestId: "req-catalog"
     });
