@@ -1,3 +1,5 @@
+import { certificationStatuses } from "@/lib/certification/status";
+
 export function buildOpenApiDocument() {
   const bearerSecurity = [{ bearerApiToken: [] }];
   const sessionSecurity = [{ sessionCookie: [] }];
@@ -526,19 +528,7 @@ export function buildOpenApiDocument() {
         },
         CertificationStatus: {
           type: "string",
-          enum: [
-            "docs_checked",
-            "contract_certified",
-            "stub_certified",
-            "live_certified",
-            "ready_for_live_certification",
-            "waiting_for_access",
-            "limited",
-            "not_production_ready",
-            "configuration_required",
-            "secret_required",
-            "certificate_required"
-          ]
+          enum: [...certificationStatuses]
         },
         CertificationGateSummary: {
           type: "object",
