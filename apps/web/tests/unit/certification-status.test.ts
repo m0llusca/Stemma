@@ -27,6 +27,21 @@ describe("certification status registry", () => {
     });
   });
 
+  it("summarizes fully live-certified gates as production-ready", () => {
+    expect(
+      summarizeCertification({
+        docs: "docs_checked",
+        contract: "contract_certified",
+        stub: "stub_certified",
+        live: "live_certified"
+      })
+    ).toEqual({
+      status: "live_certified",
+      label: "Живая сертификация пройдена",
+      productionReady: true
+    });
+  });
+
   it("does not mark live certification production-ready when prerequisites are incomplete", () => {
     const summary = summarizeCertification({
       docs: "waiting_for_access",
