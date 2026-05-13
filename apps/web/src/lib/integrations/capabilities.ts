@@ -1,3 +1,15 @@
+import {
+  summarizeCertification,
+  type CertificationGateSummary,
+  type CertificationStatus
+} from "@/lib/certification/status";
+
+type IntegrationCertificationDoc = {
+  label: string;
+  href: string;
+  status: CertificationStatus;
+};
+
 export type IntegrationCapability = {
   source: string;
   displayName: string;
@@ -18,6 +30,12 @@ export type IntegrationCapability = {
     importLimit: number;
   };
   readiness: "production_slice" | "adapter_ready" | "roadmap";
+  certification: {
+    gates: CertificationGateSummary;
+    summary: ReturnType<typeof summarizeCertification>;
+    docs: IntegrationCertificationDoc[];
+    limitations: string[];
+  };
 };
 
 const defaultPayloadLimits = {
@@ -26,6 +44,44 @@ const defaultPayloadLimits = {
 };
 
 const defaultEvents = ["conversation.upsert"];
+
+function certification({
+  gates,
+  docs,
+  limitations = []
+}: {
+  gates: CertificationGateSummary;
+  docs: IntegrationCertificationDoc[];
+  limitations?: string[];
+}) {
+  return {
+    gates,
+    summary: summarizeCertification(gates),
+    docs,
+    limitations
+  };
+}
+
+const adapterReadyGates: CertificationGateSummary = {
+  docs: "docs_checked",
+  contract: "contract_certified",
+  stub: "stub_certified",
+  live: "waiting_for_access"
+};
+
+const liveCertifiedGates: CertificationGateSummary = {
+  docs: "docs_checked",
+  contract: "contract_certified",
+  stub: "stub_certified",
+  live: "live_certified"
+};
+
+const roadmapGates: CertificationGateSummary = {
+  docs: "configuration_required",
+  contract: "not_production_ready",
+  stub: "not_production_ready",
+  live: "not_production_ready"
+};
 
 export const integrationCapabilities: IntegrationCapability[] = [
   {
@@ -44,7 +100,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=otrs",
     setupStatus: "available",
     payloadLimits: { batchSize: 25, importLimit: 50 },
-    readiness: "production_slice"
+    readiness: "production_slice",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "GenericInterface TicketSearch/TicketGet",
+          href: "/admin/integrations/new?source=otrs",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Живая сертификация требует защищенный OTRS/Znuny/OTOBO sandbox."]
+    })
   },
   {
     source: "znuny",
@@ -62,7 +129,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=znuny",
     setupStatus: "available",
     payloadLimits: { batchSize: 25, importLimit: 50 },
-    readiness: "adapter_ready"
+    readiness: "adapter_ready",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "GenericInterface TicketSearch/TicketGet",
+          href: "/admin/integrations/new?source=znuny",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Живая сертификация требует защищенный OTRS/Znuny/OTOBO sandbox."]
+    })
   },
   {
     source: "otobo",
@@ -80,7 +158,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=otobo",
     setupStatus: "available",
     payloadLimits: { batchSize: 25, importLimit: 50 },
-    readiness: "adapter_ready"
+    readiness: "adapter_ready",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "GenericInterface TicketSearch/TicketGet",
+          href: "/admin/integrations/new?source=otobo",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Живая сертификация требует защищенный OTRS/Znuny/OTOBO sandbox."]
+    })
   },
   {
     source: "zendesk",
@@ -98,7 +187,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=zendesk",
     setupStatus: "preview",
     payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready"
+    readiness: "adapter_ready",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "Zendesk API contract",
+          href: "/admin/integrations/new?source=zendesk",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
+    })
   },
   {
     source: "freshdesk",
@@ -116,7 +216,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=freshdesk",
     setupStatus: "preview",
     payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready"
+    readiness: "adapter_ready",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "Freshdesk API contract",
+          href: "/admin/integrations/new?source=freshdesk",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
+    })
   },
   {
     source: "intercom",
@@ -134,7 +245,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=intercom",
     setupStatus: "preview",
     payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready"
+    readiness: "adapter_ready",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "Intercom API contract",
+          href: "/admin/integrations/new?source=intercom",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
+    })
   },
   {
     source: "hubspot",
@@ -152,7 +274,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/integrations/new?source=hubspot",
     setupStatus: "preview",
     payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready"
+    readiness: "adapter_ready",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "HubSpot API contract",
+          href: "/admin/integrations/new?source=hubspot",
+          status: "docs_checked"
+        }
+      ],
+      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
+    })
   },
   {
     source: "custom_api",
@@ -170,7 +303,17 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/tokens",
     setupStatus: "available",
     payloadLimits: { batchSize: 50, importLimit: 500 },
-    readiness: "production_slice"
+    readiness: "production_slice",
+    certification: certification({
+      gates: liveCertifiedGates,
+      docs: [
+        {
+          label: "OpenAPI contract",
+          href: "/api/v1/openapi",
+          status: "contract_certified"
+        }
+      ]
+    })
   },
   {
     source: "generic_webhook",
@@ -188,7 +331,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/api/v1/openapi",
     setupStatus: "available",
     payloadLimits: { batchSize: 100, importLimit: 1000 },
-    readiness: "roadmap"
+    readiness: "roadmap",
+    certification: certification({
+      gates: adapterReadyGates,
+      docs: [
+        {
+          label: "Webhook HMAC contract",
+          href: "/api/v1/openapi",
+          status: "contract_certified"
+        }
+      ],
+      limitations: ["Живая сертификация требует внешний webhook producer."]
+    })
   },
   {
     source: "salesforce",
@@ -206,7 +360,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/api/v1/openapi",
     setupStatus: "planned",
     payloadLimits: defaultPayloadLimits,
-    readiness: "roadmap"
+    readiness: "roadmap",
+    certification: certification({
+      gates: roadmapGates,
+      docs: [
+        {
+          label: "Официальная документация требует проверки перед реализацией adapter",
+          href: "/api/v1/openapi",
+          status: "configuration_required"
+        }
+      ],
+      limitations: ["Adapter еще не реализован."]
+    })
   },
   {
     source: "servicenow",
@@ -224,7 +389,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/api/v1/openapi",
     setupStatus: "planned",
     payloadLimits: defaultPayloadLimits,
-    readiness: "roadmap"
+    readiness: "roadmap",
+    certification: certification({
+      gates: roadmapGates,
+      docs: [
+        {
+          label: "Официальная документация требует проверки перед реализацией adapter",
+          href: "/api/v1/openapi",
+          status: "configuration_required"
+        }
+      ],
+      limitations: ["Adapter еще не реализован."]
+    })
   },
   {
     source: "dynamics",
@@ -242,7 +418,18 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/api/v1/openapi",
     setupStatus: "planned",
     payloadLimits: defaultPayloadLimits,
-    readiness: "roadmap"
+    readiness: "roadmap",
+    certification: certification({
+      gates: roadmapGates,
+      docs: [
+        {
+          label: "Официальная документация требует проверки перед реализацией adapter",
+          href: "/api/v1/openapi",
+          status: "configuration_required"
+        }
+      ],
+      limitations: ["Adapter еще не реализован."]
+    })
   }
 ];
 
@@ -259,17 +446,29 @@ export function getIntegrationCapability(source: string, type?: string | null): 
   }
 
   if (type === "native_helpdesk") {
+    const fallback = integrationCapabilities.find((capability) => capability.source === "zendesk")!;
+
     return {
-      ...integrationCapabilities.find((capability) => capability.source === "zendesk")!,
+      ...fallback,
       source: normalizedSource,
-      displayName: source
+      displayName: source,
+      certification: {
+        ...fallback.certification,
+        limitations: [`Источник ${source} использует fallback capability и требует отдельной сертификации.`]
+      }
     };
   }
 
+  const fallback = integrationCapabilities.find((capability) => capability.source === "custom_api")!;
+
   return {
-    ...integrationCapabilities.find((capability) => capability.source === "custom_api")!,
+    ...fallback,
     source: normalizedSource || "custom_api",
-    displayName: source || "Custom API"
+    displayName: source || "Custom API",
+    certification: {
+      ...fallback.certification,
+      limitations: [`Источник ${source} использует fallback capability и требует отдельной сертификации.`]
+    }
   };
 }
 

@@ -25,6 +25,19 @@ describe("integration capabilities and sync state", () => {
       type: "enterprise",
       readiness: "roadmap"
     });
+    expect(getIntegrationCapability("otrs").certification.summary).toEqual({
+      status: "ready_for_live_certification",
+      label: "Готово к живой сертификации",
+      productionReady: false
+    });
+    expect(getIntegrationCapability("custom_api").certification.summary).toEqual({
+      status: "live_certified",
+      label: "Живая сертификация пройдена",
+      productionReady: true
+    });
+    expect(getIntegrationCapability("servicenow").certification.summary.label).toBe(
+      "Не готово к промышленной эксплуатации"
+    );
     expect(capabilities.map((capability) => capability.source)).toContain("generic_webhook");
     expect(getIntegrationCapability("generic_webhook")).toMatchObject({
       authModes: ["hmac_sha256"],

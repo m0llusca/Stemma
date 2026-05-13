@@ -14,7 +14,8 @@ export async function GET(request: Request) {
 
   return apiJson(
     {
-      catalog: listIntegrationCapabilities()
+      catalog: listIntegrationCapabilities(),
+      requestId
     },
     200,
     requestId
