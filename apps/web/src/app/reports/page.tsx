@@ -803,10 +803,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       {reportView === "performance" ? (
         <div className="reports-panel-grid reports-panel-grid--four">
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
-            <HorizontalBarChart rows={operatorScoreRows} valueSuffix=" баллов" maxValue={100} />
+            <HorizontalBarChart rows={operatorScoreRows} valueFormatter={formatQualityScore} maxValue={100} />
           </ChartPanel>
           <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
-            <HorizontalBarChart rows={sourceScoreRows} valueSuffix=" баллов" maxValue={100} />
+            <HorizontalBarChart rows={sourceScoreRows} valueFormatter={formatQualityScore} maxValue={100} />
           </ChartPanel>
           <ChartPanel
             title="Блоки критериев"
@@ -814,7 +814,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             actionHref={reportReviewHref(period)}
             actionLabel="Критерии"
           >
-            <HorizontalBarChart rows={blockScoreChartRows} valueSuffix=" баллов" maxValue={100} />
+            <HorizontalBarChart rows={blockScoreChartRows} valueFormatter={formatQualityScore} maxValue={100} />
           </ChartPanel>
           <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
             <QuotaProgressBars rows={quotaProgressRows} />

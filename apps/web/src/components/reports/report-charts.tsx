@@ -141,11 +141,13 @@ export function SparklineChart({ points }: { points: ChartDatum[] }) {
 export function HorizontalBarChart({
   rows,
   valueSuffix = "",
+  valueFormatter,
   maxValue,
   emptyLabel = "Нет данных."
 }: {
   rows: ChartDatum[];
   valueSuffix?: string;
+  valueFormatter?: (value: number) => string;
   maxValue?: number;
   emptyLabel?: string;
 }) {
@@ -165,8 +167,7 @@ export function HorizontalBarChart({
             <div className="flex items-baseline justify-between gap-3">
               <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">{row.label}</p>
               <p className="shrink-0 text-sm font-semibold text-[#334155]">
-                {Math.round(row.value)}
-                {valueSuffix}
+                {valueFormatter ? valueFormatter(row.value) : `${Math.round(row.value)}${valueSuffix}`}
               </p>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">

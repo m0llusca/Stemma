@@ -95,8 +95,14 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
   await expect(page.getByText("Статус сертификации")).toBeVisible();
   await expect(page.getByLabel("Система-источник")).toContainText("OTRS CE 6");
+  const selectedSourceCard = page.locator(".source-selected-card");
+  await page.getByLabel("Система-источник").selectOption("otrs:otrs_family");
+  await expect(selectedSourceCard).toContainText("OTRS-family fallback");
+  await expect(selectedSourceCard).toContainText("Не готово к промышленной эксплуатации");
+  await expect(selectedSourceCard).not.toContainText("Готово к живой сертификации");
   await page.getByLabel("Система-источник").selectOption("custom_api");
   await expect(page.getByRole("heading", { name: "Своя система через API" })).toBeVisible();
+  await expect(selectedSourceCard).toContainText("Живая сертификация пройдена");
   await page.getByLabel("Система-источник").selectOption("native:zendesk");
   await expect(page.getByRole("heading", { name: "Zendesk" })).toBeVisible();
 

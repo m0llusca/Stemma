@@ -40,6 +40,8 @@ import {
   otrsFamilyUrlWithQuery,
   type OtrsFamilySource
 } from "@/lib/normalizers/otrs-family";
+import { certificationStatusTone, type CertificationSummary } from "@/lib/certification/status";
+import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 
 type SourceMode = "otrs_family" | "native_helpdesk" | "custom_api";
 type WizardStep = "source" | "access" | "limits" | "preview" | "done";
@@ -56,16 +58,6 @@ const sourceModeDescriptions: Record<SourceMode, string> = {
   custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk."
 };
 
-const setupModeCertificationSummaryLabels: Record<SourceMode, string> = {
-  otrs_family: "Готово к живой сертификации",
-  native_helpdesk: "Ожидает доступы",
-  custom_api: "Живая сертификация пройдена"
-};
-
-function setupModeCertificationSummaryLabel(mode: SourceMode) {
-  return setupModeCertificationSummaryLabels[mode];
-}
-
 const sourceOptions = [
   ...otrsFamilySourceOptions.map((source) => ({
     value: `otrs:${source.value}` as const,
@@ -74,25 +66,29 @@ const sourceOptions = [
     description:
       source.value === "otrs_family"
         ? sourceModeDescriptions.otrs_family
-        : otrsFamilyProfileForSource(source.value).note
+        : otrsFamilyProfileForSource(source.value).note,
+    certificationSummary: getIntegrationCapability(source.value, "otrs_family").certification.summary
   })),
   ...nativeHelpdeskSources.map((source) => ({
     value: `native:${source.value}` as const,
     label: source.label,
     mode: "native_helpdesk" as const,
-    description: `${source.objectName}. ${source.endpointHint}`
+    description: `${source.objectName}. ${source.endpointHint}`,
+    certificationSummary: getIntegrationCapability(source.value, "native_helpdesk").certification.summary
   })),
   {
     value: "custom_api" as const,
     label: "Своя система через API",
     mode: "custom_api" as const,
-    description: sourceModeDescriptions.custom_api
+    description: sourceModeDescriptions.custom_api,
+    certificationSummary: getIntegrationCapability("custom_api").certification.summary
   }
 ] satisfies Array<{
   value: SourceOptionValue;
   label: string;
   mode: SourceMode;
   description: string;
+  certificationSummary: CertificationSummary;
 }>;
 
 const sourceChoiceGroups = [
@@ -337,7 +333,9 @@ function SourceChoiceStep({
               placement="top-start"
             />
           </div>
-          <span className="pill pill--neutral">{setupModeCertificationSummaryLabel(selectedOption.mode)}</span>
+          <span className={`pill ${certificationStatusTone(selectedOption.certificationSummary.status)}`}>
+            {selectedOption.certificationSummary.label}
+          </span>
         </div>
         <div className="source-next-steps" aria-label="Следующие шаги">
           <span>Доступ</span>
