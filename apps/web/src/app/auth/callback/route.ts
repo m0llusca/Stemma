@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authCookieOptions, expiredCookieOptions } from "@/lib/auth/cookies";
+import { loginFlashCookieName, loginFlashCookieOptions, type LoginFlashCode } from "@/lib/auth/login-flash";
 import {
   exchangeAuthorizationCode,
   oidcNonceCookieName,
@@ -25,11 +26,11 @@ function safeReturnTo(value: string | undefined) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
 }
 
-function errorRedirect(request: NextRequest, message: string) {
+function errorRedirect(request: NextRequest, code: LoginFlashCode) {
   const url = new URL("/auth/login", request.nextUrl.origin);
-  url.searchParams.set("authError", message);
   url.searchParams.set("returnTo", safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value));
   const response = NextResponse.redirect(url);
+  response.cookies.set(loginFlashCookieName, code, loginFlashCookieOptions());
   clearOidcCookies(response);
   return response;
 }
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get("error");
 
   if (error) {
-    return errorRedirect(request, request.nextUrl.searchParams.get("error_description") || error);
+    return errorRedirect(request, "sso_callback_failed");
   }
 
   const code = request.nextUrl.searchParams.get("code");
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
   const returnTo = safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value);
 
   if (!code || !state || !expectedState || state !== expectedState || !codeVerifier || !nonce || !providerId) {
-    return errorRedirect(request, "OIDC callback не прошел проверку state.");
+    return errorRedirect(request, "sso_callback_failed");
   }
 
   const provider = await prisma.identityProvider.findUnique({
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!provider || provider.status !== "active") {
-    return errorRedirect(request, "SSO-провайдер не найден или отключен.");
+    return errorRedirect(request, "sso_callback_failed");
   }
 
   try {
@@ -83,10 +84,11 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
 
     response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
+    response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
     clearOidcCookies(response);
 
     return response;
-  } catch (callbackError) {
-    return errorRedirect(request, callbackError instanceof Error ? callbackError.message : "SSO-вход не завершен.");
+  } catch {
+    return errorRedirect(request, "sso_callback_failed");
   }
 }

@@ -34,11 +34,13 @@ function themePreviewStyle(theme: (typeof uiThemeOptions)[number]) {
     "--theme-accent": theme.accent,
     "--theme-surface": theme.surface,
     "--theme-panel": theme.panel,
+    "--theme-panel-header": theme.panelHeader,
     "--theme-sidebar": theme.sidebar,
     "--theme-primary": theme.primary,
     "--theme-dark-accent": theme.dark.accent,
     "--theme-dark-surface": theme.dark.surface,
     "--theme-dark-panel": theme.dark.panel,
+    "--theme-dark-panel-header": theme.dark.panelHeader,
     "--theme-dark-sidebar": theme.dark.sidebar,
     "--theme-dark-primary": theme.dark.primary
   } as CSSProperties;
@@ -180,7 +182,7 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
         <div className="appearance-section__header">
           <div className="min-w-0">
             <h3>Цветовая тема</h3>
-            <p>Тема меняет фон приложения, сайдбар, primary-кнопки, выбранные состояния, hover и акцентные панели; темный вариант включается по системной настройке устройства.</p>
+            <p>Тема меняет фон приложения, сайдбар, шапки панелей, primary-кнопки, выбранные состояния, hover и акцентные панели; темный вариант включается по системной настройке устройства.</p>
           </div>
           <Palette size={18} aria-hidden="true" />
         </div>
@@ -198,6 +200,7 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
                 <span className="theme-option-card__preview" aria-hidden="true">
                   <span className="theme-option-card__sidebar" />
                   <span className="theme-option-card__surface">
+                    <span className="theme-option-card__panel-header" />
                     <span />
                     <span />
                     <span />

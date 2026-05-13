@@ -10,6 +10,35 @@ import { queueDirectorySync, queueRetentionCleanup, runQueuedBackendJobs } from 
 
 export const dynamic = "force-dynamic";
 
+type AdminSystemPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+type SystemSection = "jobs" | "runtime" | "sso" | "integrations" | "maintenance";
+
+const systemSections: Array<{ value: SystemSection; label: string }> = [
+  { value: "jobs", label: "Задачи" },
+  { value: "runtime", label: "Окружение" },
+  { value: "sso", label: "SSO и каталог" },
+  { value: "integrations", label: "Интеграции" },
+  { value: "maintenance", label: "Обслуживание" }
+];
+
+function firstParam(value: string | string[] | undefined) {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  return firstValue?.trim() || undefined;
+}
+
+function systemSectionParam(value: string | string[] | undefined): SystemSection {
+  const section = firstParam(value);
+
+  return systemSections.some((item) => item.value === section) ? (section as SystemSection) : "jobs";
+}
+
+function systemSectionHref(section: SystemSection) {
+  return `/admin/system?section=${section}`;
+}
+
 function formatDate(value: Date | null | undefined) {
   if (!value) {
     return "Нет данных";
@@ -103,7 +132,9 @@ function StatCard({
   );
 }
 
-export default async function AdminSystemPage() {
+export default async function AdminSystemPage({ searchParams }: AdminSystemPageProps) {
+  const params = await searchParams;
+  const activeSection = systemSectionParam(params.section);
   const user = await requireCurrentUserPermission("backend_jobs:manage");
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24);
@@ -194,51 +225,84 @@ export default async function AdminSystemPage() {
 
   return (
     <section className="page-shell admin-shell">
-      <div className="command-center command-center--split">
-        <div>
+      <div className="command-center">
+        <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Состояние системы</h1>
           <p className="page-subtitle">
             Короткий операционный экран: окружение, фоновые задачи, SSO/AD, импорты и очистка технических записей.
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2 xl:justify-end">
-          <form action={runQueuedBackendJobs} className="flex min-w-[220px] gap-2">
-            <select name="limit" defaultValue="5" className="form-control text-sm">
-              <option value="5">5 задач</option>
-              <option value="10">10 задач</option>
-              <option value="20">20 задач</option>
-            </select>
-            <button type="submit" className="action-button action-button--primary">
-              <Play size={16} aria-hidden="true" />
-              Запустить
-            </button>
-          </form>
-          <form action={queueRetentionCleanup}>
-            <button type="submit" className="action-button">
-              <RotateCcw size={16} aria-hidden="true" />
-              Очистка
-            </button>
-          </form>
+          <div className="admin-actions admin-actions--forms mt-5">
+            <form action={runQueuedBackendJobs} className="admin-inline-form">
+              <select name="limit" defaultValue="5" className="form-control text-sm">
+                <option value="5">5 задач</option>
+                <option value="10">10 задач</option>
+                <option value="20">20 задач</option>
+              </select>
+              <button type="submit" className="action-button action-button--primary">
+                <Play size={16} aria-hidden="true" />
+                Запустить
+              </button>
+            </form>
+            <form action={queueRetentionCleanup}>
+              <button type="submit" className="action-button">
+                <RotateCcw size={16} aria-hidden="true" />
+                Очистка
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Окружение" value={runtime.status === "ok" ? "Готово" : runtime.status === "warn" ? "Есть предупреждения" : "Ошибка"} hint={environmentLabel(runtime.environment)} tone={runtime.status === "ok" ? "ok" : runtime.status === "warn" ? "warn" : "error"} />
-        <StatCard label="Очередь задач" value={queuedJobs} hint={`Выполняется: ${runningJobs}`} tone={failedJobs > 0 ? "error" : queuedJobs > 0 ? "warn" : "ok"} />
-        <StatCard label="Ошибки задач" value={failedJobs} hint={`Успешно за 24 часа: ${succeededJobsToday}`} tone={failedJobs > 0 ? "error" : "ok"} />
-        <StatCard label="Активные сессии" value={activeSessions} hint={`Просрочено активных: ${expiredActiveSessions}`} tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
-      </div>
+      <section className="ops-metric-grid" aria-label="Сводка системы">
+        <div className="ops-metric">
+          <span className="ops-metric__label">Окружение</span>
+          <strong className="ops-metric__value">{runtime.status === "ok" ? "Готово" : runtime.status === "warn" ? "Внимание" : "Ошибка"}</strong>
+          <span className="ops-metric__note">{environmentLabel(runtime.environment)}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Очередь задач</span>
+          <strong className="ops-metric__value">{queuedJobs}</strong>
+          <span className="ops-metric__note">Выполняется: {runningJobs}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Ошибки задач</span>
+          <strong className="ops-metric__value">{failedJobs}</strong>
+          <span className="ops-metric__note">Успешно за 24 часа: {succeededJobsToday}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Активные сессии</span>
+          <strong className="ops-metric__value">{activeSessions}</strong>
+          <span className="ops-metric__note">Просрочено активных: {expiredActiveSessions}</span>
+        </div>
+      </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Фоновые задачи</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
+      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы состояния системы">
+        {systemSections.map((section) => (
+          <Link
+            key={section.value}
+            href={systemSectionHref(section.value)}
+            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
+            aria-current={activeSection === section.value ? "page" : undefined}
+          >
+            {section.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeSection === "jobs" ? (
+        <section className="ops-panel" aria-labelledby="system-jobs-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Очередь</p>
+              <h2 id="system-jobs-title" className="ops-panel__title">Фоновые задачи</h2>
+              <p className="ops-panel__subtitle">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
+            </div>
+            <span className="pill pill--neutral">{recentJobs.length}</span>
           </div>
           <div className="record-list px-5">
             {recentJobs.length === 0 ? (
-              <div className="soft-callout text-sm text-[#64748b]">Фоновых задач пока нет.</div>
+              <div className="soft-callout ops-empty text-sm text-[#64748b]">Фоновых задач пока нет.</div>
             ) : (
               recentJobs.map((job) => {
                 const status = backendJobStatusView(job.status);
@@ -247,7 +311,7 @@ export default async function AdminSystemPage() {
                   <article key={job.id} className="record-card">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${status.badgeClass}`}>{status.label}</span>
+                        <span className={`pill ${status.pillClass}`}>{status.label}</span>
                         <h3 className="font-semibold text-[#111827]">{backendJobTypeLabel(job.type)}</h3>
                       </div>
                       <p className="mt-1 text-sm text-[#64748b]">
@@ -258,7 +322,7 @@ export default async function AdminSystemPage() {
                     </div>
                     <div className="record-row">
                       <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
-                      <Link href={`/admin/system/jobs/${job.id}`} className="text-sm font-semibold text-[#1d3fae] hover:underline">
+                      <Link href={`/admin/system/jobs/${job.id}`} className="action-button action-button--small">
                         Детали задачи
                       </Link>
                     </div>
@@ -268,17 +332,20 @@ export default async function AdminSystemPage() {
             )}
           </div>
         </section>
+      ) : null}
 
-        <details className="disclosure-panel panel overflow-hidden">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
+      {activeSection === "runtime" ? (
+        <section className="ops-panel" aria-labelledby="runtime-title">
+          <div className="ops-panel__header">
             <div>
-              <h2 className="text-lg font-semibold">Готовность окружения</h2>
-              <p className="mt-1 text-sm text-[#64748b]">Проверки конфигурации перед production-запуском.</p>
+              <p className="ops-panel__eyebrow">Окружение</p>
+              <h2 id="runtime-title" className="ops-panel__title">Готовность окружения</h2>
+              <p className="ops-panel__subtitle">Проверки конфигурации перед production-запуском.</p>
             </div>
-            <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(runtime.status)}`}>
+            <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(runtime.status)}`}>
               {runtimeStatusLabel(runtime.status)}
             </span>
-          </summary>
+          </div>
           <div className="record-list px-5">
             {runtime.checks.map((check) => {
               const Icon = check.status === "ok" ? CheckCircle2 : AlertTriangle;
@@ -296,33 +363,22 @@ export default async function AdminSystemPage() {
               );
             })}
           </div>
-        </details>
-      </div>
+        </section>
+      ) : null}
 
-      <details className="disclosure-panel mt-6">
-        <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-[#d9e0ea] bg-white px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold">Дополнительные проверки</h2>
-            <p className="mt-1 text-sm text-[#64748b]">SSO, интеграции и обслуживание данных скрыты, чтобы не перегружать основной экран.</p>
-          </div>
-          <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Показать</span>
-        </summary>
-        <div className="mt-4 grid gap-6 xl:grid-cols-3">
-          <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">SSO и каталог</h2>
-                <p className="mt-1 text-sm text-[#64748b]">
-                  Провайдеры авторизации, маппинги групп и ручной запуск синхронизации.
-                </p>
-              </div>
-              <Link href="/admin/access" className="text-sm font-semibold text-[#1d3fae] hover:underline">
-                Настроить
-              </Link>
+      {activeSection === "sso" ? (
+        <section className="ops-panel" aria-labelledby="system-sso-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Каталог</p>
+              <h2 id="system-sso-title" className="ops-panel__title">SSO и каталог</h2>
+              <p className="ops-panel__subtitle">Провайдеры авторизации, маппинги групп и ручной запуск синхронизации.</p>
             </div>
+            <Link href="/admin/access" className="action-button action-button--small">
+              Настроить
+            </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 p-5 text-sm">
+          <div className="grid gap-3 p-5 md:grid-cols-2">
             <StatCard label="Провайдеры" value={providers.length} hint={`Не активны: ${providerWarnings}`} tone={providerWarnings > 0 ? "warn" : "ok"} />
             <StatCard label="Сессии" value={activeSessions} hint="Активные сейчас" tone="neutral" />
           </div>
@@ -347,7 +403,7 @@ export default async function AdminSystemPage() {
                 {provider.type !== "DEMO" ? (
                   <form action={queueDirectorySync}>
                     <input type="hidden" name="providerId" value={provider.id} />
-                    <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                    <button type="submit" className="action-button action-button--small">
                       <ShieldCheck size={16} aria-hidden="true" />
                       Синхронизировать
                     </button>
@@ -357,19 +413,27 @@ export default async function AdminSystemPage() {
             ))}
           </div>
         </section>
+      ) : null}
 
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Интеграции</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Последние подключения и статусы импортов.</p>
+      {activeSection === "integrations" ? (
+        <section className="ops-panel" aria-labelledby="system-integrations-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Источники</p>
+              <h2 id="system-integrations-title" className="ops-panel__title">Интеграции</h2>
+              <p className="ops-panel__subtitle">Последние подключения, статусы импортов и API-ключи.</p>
+            </div>
+            <Link href="/admin/integrations" className="action-button action-button--small">
+              К интеграциям
+            </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 p-5 text-sm">
+          <div className="grid gap-3 p-5 md:grid-cols-2">
             <StatCard label="Источники" value={integrations.length} hint={`Ошибки: ${integrationErrors}`} tone={integrationErrors > 0 ? "error" : "neutral"} />
             <StatCard label="API-ключи" value={apiTokens.length} hint={`Ошибки: ${apiTokenErrors}`} tone={apiTokenErrors > 0 ? "error" : "ok"} />
           </div>
           <div className="record-list px-5">
             {integrations.length === 0 ? (
-              <div className="soft-callout text-sm text-[#64748b]">Интеграции еще не настроены.</div>
+              <div className="soft-callout ops-empty text-sm text-[#64748b]">Интеграции еще не настроены.</div>
             ) : (
               integrations.map((integration) => (
                 <article key={integration.id} className="record-card">
@@ -389,18 +453,6 @@ export default async function AdminSystemPage() {
                 </article>
               ))
             )}
-          </div>
-        </section>
-
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Обслуживание</h2>
-            <p className="mt-1 text-sm text-[#64748b]">Технические записи, которые чистит задача обслуживания.</p>
-          </div>
-          <div className="grid gap-3 p-5">
-            <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
-            <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
-            <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
           </div>
           <div className="border-t border-[#d9e0ea] px-5 py-4">
             <h3 className="font-semibold text-[#111827]">Последние импорты</h3>
@@ -427,15 +479,30 @@ export default async function AdminSystemPage() {
             </div>
           </div>
         </section>
-        </div>
-      </details>
+      ) : null}
 
-      <div className="soft-callout mt-6 text-sm text-[#64748b]">
-        <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
-        Для cron-запуска фоновых задач используйте{" "}
-        <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run -- --once</code>.
-        Команда <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run</code> запускает постоянный worker.
-      </div>
+      {activeSection === "maintenance" ? (
+        <section className="ops-panel" aria-labelledby="maintenance-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Очистка</p>
+              <h2 id="maintenance-title" className="ops-panel__title">Обслуживание</h2>
+              <p className="ops-panel__subtitle">Технические записи, которые чистит задача обслуживания.</p>
+            </div>
+          </div>
+          <div className="grid gap-3 p-5">
+            <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
+            <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
+            <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
+            <div className="soft-callout text-sm text-[#64748b]">
+              <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
+              Для cron-запуска фоновых задач используйте{" "}
+              <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run -- --once</code>.
+              Команда <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run</code> запускает постоянный worker.
+            </div>
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

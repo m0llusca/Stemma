@@ -10,7 +10,28 @@ export const dynamic = "force-dynamic";
 
 type JobDetailsPageProps = {
   params: Promise<{ jobId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+type JobDetailsSection = "summary" | "events" | "payload" | "result";
+
+const jobDetailsSections: Array<{ value: JobDetailsSection; label: string }> = [
+  { value: "summary", label: "Сводка" },
+  { value: "events", label: "События" },
+  { value: "payload", label: "Payload" },
+  { value: "result", label: "Результат" }
+];
+
+function firstParam(value: string | string[] | undefined) {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  return firstValue?.trim() || undefined;
+}
+
+function jobDetailsSectionParam(value: string | string[] | undefined): JobDetailsSection {
+  const section = firstParam(value);
+
+  return jobDetailsSections.some((item) => item.value === section) ? (section as JobDetailsSection) : "summary";
+}
 
 function formatDate(value: Date | null | undefined) {
   return value ? value.toLocaleString("ru-RU") : "Нет данных";
@@ -24,9 +45,12 @@ function parseJson(value: string) {
   }
 }
 
-export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
+export default async function JobDetailsPage({ params, searchParams }: JobDetailsPageProps) {
+  const search = await searchParams;
+  const activeSection = jobDetailsSectionParam(search.section);
   const user = await requireCurrentUserPermission("backend_jobs:manage");
   const { jobId } = await params;
+  const jobDetailsSectionHref = (section: JobDetailsSection) => `/admin/system/jobs/${jobId}?section=${section}`;
   const job = await prisma.backendJob.findFirst({
     where: {
       id: jobId,
@@ -53,45 +77,78 @@ export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
 
   return (
     <section className="page-shell admin-shell">
-      <div className="command-center command-center--split">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Фоновые задачи</p>
           <h1 className="page-title">{backendJobTypeLabel(job.type)}</h1>
           <p className="page-subtitle">
             Очередь {queueNameLabel(job.queueName)}, попытка {job.attempts}/{job.maxAttempts}, создано {formatDate(job.createdAt)}.
           </p>
-        </div>
-        <div className="admin-actions xl:justify-end">
-          <Link href="/admin/system" className="action-button">
-            <ArrowLeft size={16} aria-hidden="true" />
-            К системе
-          </Link>
-          {job.status === "QUEUED" ? (
-            <form action={cancelQueuedBackendJob}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <button type="submit" className="action-button">
-                <Ban size={16} aria-hidden="true" />
-                Отменить
+          <div className="admin-actions mt-5">
+            <Link href="/admin/system" className="action-button">
+              <ArrowLeft size={16} aria-hidden="true" />
+              К системе
+            </Link>
+            {job.status === "QUEUED" ? (
+              <form action={cancelQueuedBackendJob}>
+                <input type="hidden" name="jobId" value={job.id} />
+                <button type="submit" className="action-button">
+                  <Ban size={16} aria-hidden="true" />
+                  Отменить
+                </button>
+              </form>
+            ) : null}
+            <form action={runQueuedBackendJobs}>
+              <input type="hidden" name="limit" value="1" />
+              <button type="submit" className="action-button action-button--primary">
+                <Play size={16} aria-hidden="true" />
+                Запустить очередь
               </button>
             </form>
-          ) : null}
-          <form action={runQueuedBackendJobs}>
-            <input type="hidden" name="limit" value="1" />
-            <button type="submit" className="action-button action-button--primary">
-              <Play size={16} aria-hidden="true" />
-              Запустить очередь
-            </button>
-          </form>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`pill ${jobStatus.pillClass}`}>{jobStatus.label}</span>
-              <h2 className="text-lg font-semibold">Сводка</h2>
+      <section className="ops-metric-grid" aria-label="Сводка фоновой задачи">
+        <div className="ops-metric">
+          <span className="ops-metric__label">Статус</span>
+          <strong className="ops-metric__value">{jobStatus.label}</strong>
+          <span className="ops-metric__note">Попытка {job.attempts}/{job.maxAttempts}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">Очередь</span>
+          <strong className="ops-metric__value">{queueNameLabel(job.queueName)}</strong>
+          <span className="ops-metric__note">Запуск: {formatDate(job.runAfter)}</span>
+        </div>
+        <div className="ops-metric">
+          <span className="ops-metric__label">События</span>
+          <strong className="ops-metric__value">{job.events.length}</strong>
+          <span className="ops-metric__note">История runner</span>
+        </div>
+      </section>
+
+      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы фоновой задачи">
+        {jobDetailsSections.map((section) => (
+          <Link
+            key={section.value}
+            href={jobDetailsSectionHref(section.value)}
+            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
+            aria-current={activeSection === section.value ? "page" : undefined}
+          >
+            {section.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeSection === "summary" ? (
+        <section className="ops-panel" aria-labelledby="job-summary-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Задача</p>
+              <h2 id="job-summary-title" className="ops-panel__title">Сводка</h2>
+              <p className="ops-panel__subtitle">Ключевые параметры фоновой задачи без технического JSON.</p>
             </div>
+            <span className={`pill ${jobStatus.pillClass}`}>{jobStatus.label}</span>
           </div>
           <div className="record-list px-5">
             <article className="record-card">
@@ -112,15 +169,20 @@ export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
             ) : null}
           </div>
         </section>
+      ) : null}
 
-        <section className="panel overflow-hidden">
-          <div className="border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">События</h2>
-            <p className="mt-1 text-sm text-[#64748b]">История запуска, ошибок и результатов backend runner.</p>
+      {activeSection === "events" ? (
+        <section className="ops-panel" aria-labelledby="job-events-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Runner</p>
+              <h2 id="job-events-title" className="ops-panel__title">События</h2>
+              <p className="ops-panel__subtitle">История запуска, ошибок и результатов backend runner.</p>
+            </div>
           </div>
           <div className="record-list px-5">
             {job.events.length === 0 ? (
-              <div className="soft-callout text-sm text-[#64748b]">Событий пока нет.</div>
+              <div className="soft-callout ops-empty text-sm text-[#64748b]">Событий пока нет.</div>
             ) : (
               job.events.map((event) => (
                 <article key={event.id} className="record-card">
@@ -140,26 +202,37 @@ export default async function JobDetailsPage({ params }: JobDetailsPageProps) {
             )}
           </div>
         </section>
-      </div>
+      ) : null}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <details className="disclosure-panel panel overflow-hidden">
-          <summary className="disclosure-summary cursor-pointer list-none border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Payload задачи</h2>
-          </summary>
-          <pre className="max-h-[420px] overflow-auto bg-[#111827] p-5 text-xs leading-5 text-white">
+      {activeSection === "payload" ? (
+        <section className="ops-panel" aria-labelledby="job-payload-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">JSON</p>
+              <h2 id="job-payload-title" className="ops-panel__title">Payload задачи</h2>
+              <p className="ops-panel__subtitle">Техническое тело задачи для отладки обработчика.</p>
+            </div>
+          </div>
+          <pre className="max-h-[520px] overflow-auto bg-[#111827] p-5 text-xs leading-5 text-white">
             {parseJson(job.payloadJson)}
           </pre>
-        </details>
-        <details className="disclosure-panel panel overflow-hidden">
-          <summary className="disclosure-summary cursor-pointer list-none border-b border-[#d9e0ea] px-5 py-4">
-            <h2 className="text-lg font-semibold">Результат</h2>
-          </summary>
-          <pre className="max-h-[420px] overflow-auto bg-[#111827] p-5 text-xs leading-5 text-white">
+        </section>
+      ) : null}
+
+      {activeSection === "result" ? (
+        <section className="ops-panel" aria-labelledby="job-result-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">JSON</p>
+              <h2 id="job-result-title" className="ops-panel__title">Результат</h2>
+              <p className="ops-panel__subtitle">Ответ обработчика после выполнения задачи.</p>
+            </div>
+          </div>
+          <pre className="max-h-[520px] overflow-auto bg-[#111827] p-5 text-xs leading-5 text-white">
             {parseJson(job.resultJson)}
           </pre>
-        </details>
-      </div>
+        </section>
+      ) : null}
     </section>
   );
 }

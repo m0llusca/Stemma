@@ -11,9 +11,33 @@ type SamplingRulesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+type SamplingSection = "rules" | "create";
+
+const samplingSections: Array<{ value: SamplingSection; label: string }> = [
+  { value: "rules", label: "Правила" },
+  { value: "create", label: "Новое правило" }
+];
+
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
   return firstValue?.trim() || undefined;
+}
+
+function samplingSectionParam(
+  value: string | string[] | undefined,
+  newValue: string | string[] | undefined
+): SamplingSection {
+  if (firstParam(newValue) === "1") {
+    return "create";
+  }
+
+  const section = firstParam(value);
+
+  return samplingSections.some((item) => item.value === section) ? (section as SamplingSection) : "rules";
+}
+
+function samplingSectionHref(section: SamplingSection) {
+  return `/admin/sampling?section=${section}`;
 }
 
 function parseConditions(value: string) {
@@ -65,13 +89,13 @@ function formatConditions(conditions: Record<string, string | string[] | undefin
 
 export default async function SamplingRulesPage({ searchParams }: SamplingRulesPageProps) {
   const params = await searchParams;
+  const activeSection = samplingSectionParam(params.section, params.new);
   const user = await requireCurrentUserPermission("sampling:manage");
   const rules = await prisma.samplingRule.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ isActive: "desc" }, { priority: "asc" }, { createdAt: "desc" }]
   });
   const activeRules = rules.filter((rule) => rule.isActive).length;
-  const shouldOpenNewRule = firstParam(params.new) === "1";
 
   return (
     <section className="page-shell admin-shell">
@@ -82,65 +106,89 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
           <p className="page-subtitle">
             Управляют тем, какие обращения попадают в ручную проверку: случайная выборка, негативный CSAT, новые сотрудники и ручные сигналы.
           </p>
-        </div>
-        <div className="admin-actions">
-          <Link href="/admin/sampling?new=1#new-rule" className="action-button action-button--primary">
-            Новое правило
-          </Link>
-          <Link href="/reviews" className="action-button">
-            Очередь проверок
-          </Link>
+          <div className="admin-actions mt-5">
+            <Link href={samplingSectionHref("create")} className="action-button action-button--primary">
+              Новое правило
+            </Link>
+            <Link href="/reviews" className="action-button">
+              Очередь проверок
+            </Link>
+          </div>
         </div>
       </div>
 
-      <section className="admin-group-grid admin-group-grid--two" aria-label="Правила выборки">
-        <div className="admin-group">
-          <div className="admin-group__header admin-group__header--compact">
-            <h2 className="text-base font-semibold text-[#111827]">Правила</h2>
-            <p className="text-sm leading-5 text-[#64748b]">
-              Активно: {activeRules} · всего: {rules.length}
-            </p>
-          </div>
-          <div className="grid gap-2">
-            {rules.map((rule) => {
-              const conditions = parseConditions(rule.conditionsJson);
+      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы правил выборки">
+        {samplingSections.map((section) => (
+          <Link
+            key={section.value}
+            href={samplingSectionHref(section.value)}
+            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
+            aria-current={activeSection === section.value ? "page" : undefined}
+          >
+            {section.label}
+          </Link>
+        ))}
+      </nav>
 
-              return (
-                <div key={rule.id} className="admin-tile admin-tile--compact">
-                  <span className="admin-tile__icon admin-tile__icon--plain">{rule.priority}</span>
-                  <div className="admin-tile__body">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="record-title record-title--tight">{rule.name}</span>
-                      <span className={`pill ${rule.isActive ? "pill--ok" : "pill--neutral"}`}>
-                        {rule.isActive ? "Активно" : "Выключено"}
-                      </span>
-                    </span>
-                    <span className="record-meta">
-                      {samplingRuleTypeLabels[rule.type] ?? rule.type} · {rule.targetPercent}% · приоритет {rule.priority}
-                    </span>
-                    <span className="record-meta">{formatConditions(conditions)}</span>
-                    <form action={updateSamplingRuleStatus} className="mt-1">
-                      <input type="hidden" name="id" value={rule.id} />
-                      <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
-                      <button type="submit" className="quiet-link text-sm">
-                        {rule.isActive ? "Выключить" : "Включить"}
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <details id="new-rule" className="disclosure-panel admin-group h-fit" open={shouldOpenNewRule}>
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#d9e0ea] px-5 py-4">
+      {activeSection === "rules" ? (
+        <section className="ops-panel" aria-labelledby="sampling-rules-title">
+          <div className="ops-panel__header">
             <div>
-              <h2 className="text-base font-semibold">Новое правило</h2>
-              <p className="mt-1 text-sm text-[#64748b]">Форма создания скрыта, пока вы не добавляете правило.</p>
+              <p className="ops-panel__eyebrow">Правила</p>
+              <h2 id="sampling-rules-title" className="ops-panel__title">Правила выборки</h2>
+              <p className="ops-panel__subtitle">
+                Активно: {activeRules} · всего: {rules.length}
+              </p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-[#1d3fae]">Открыть</span>
-          </summary>
+          </div>
+          <div className="grid gap-2 p-4">
+            {rules.length > 0 ? (
+              rules.map((rule) => {
+                const conditions = parseConditions(rule.conditionsJson);
+
+                return (
+                  <div key={rule.id} className="admin-tile admin-tile--compact">
+                    <span className="admin-tile__icon admin-tile__icon--plain">{rule.priority}</span>
+                    <div className="admin-tile__body">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="record-title record-title--tight">{rule.name}</span>
+                        <span className={`pill ${rule.isActive ? "pill--ok" : "pill--neutral"}`}>
+                          {rule.isActive ? "Активно" : "Выключено"}
+                        </span>
+                      </span>
+                      <span className="record-meta">
+                        {samplingRuleTypeLabels[rule.type] ?? rule.type} · {rule.targetPercent}% · приоритет {rule.priority}
+                      </span>
+                      <span className="record-meta">{formatConditions(conditions)}</span>
+                      <form action={updateSamplingRuleStatus} className="mt-1">
+                        <input type="hidden" name="id" value={rule.id} />
+                        <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
+                        <button type="submit" className="quiet-link text-sm">
+                          {rule.isActive ? "Выключить" : "Включить"}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="soft-callout ops-empty text-sm leading-5 text-[#64748b]">
+                Правил пока нет. Добавьте правило, чтобы обращения автоматически попадали в очередь проверки.
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {activeSection === "create" ? (
+        <section className="ops-panel" aria-labelledby="sampling-create-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Новое правило</p>
+              <h2 id="sampling-create-title" className="ops-panel__title">Создание правила</h2>
+              <p className="ops-panel__subtitle">Настройте условия и долю обращений для ручной проверки.</p>
+            </div>
+          </div>
           <form action={createSamplingRule} className="grid gap-3 p-5">
             <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Название
@@ -204,12 +252,14 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
               <input name="isActive" type="checkbox" defaultChecked />
               Включить сразу
             </label>
-            <ValidatedSubmitButton>
-              Создать правило
-            </ValidatedSubmitButton>
+            <div className="flex justify-end">
+              <ValidatedSubmitButton>
+                Создать правило
+              </ValidatedSubmitButton>
+            </div>
           </form>
-        </details>
-      </section>
+        </section>
+      ) : null}
     </section>
   );
 }

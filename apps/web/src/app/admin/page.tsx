@@ -105,7 +105,7 @@ export default async function AdminHomePage() {
     },
     {
       href: "/admin/users",
-      title: "Пользователи и права",
+      title: "Пользователи и роли",
       description: "Локальные учетные записи и назначение ролей.",
       icon: UsersRound,
       roles: ["ADMIN"],
@@ -151,28 +151,31 @@ export default async function AdminHomePage() {
   ];
   const visibleCards = cards.filter((card) => canSee(user.role, card.roles));
   const quickActions = [
-    { href: "/admin/integrations?setup=1#connect", label: "Подключить источник", icon: Plug, roles: ["ADMIN"] as RoleName[] },
-    { href: "/admin/scorecards?new=1#new-version", label: "Изменить форму оценки", icon: Gauge, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
-    { href: "/admin/sampling?new=1#new-rule", label: "Добавить выборку", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
-    { href: "/admin/users#new-user", label: "Создать пользователя", icon: UsersRound, roles: ["ADMIN"] as RoleName[] },
+    { href: "/admin/integrations/new", label: "Подключить источник", icon: Plug, roles: ["ADMIN"] as RoleName[] },
+    { href: "/admin/scorecards?section=create", label: "Изменить форму оценки", icon: Gauge, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { href: "/admin/sampling?section=create", label: "Добавить выборку", icon: ListChecks, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { href: "/admin/users?create=1", label: "Создать пользователя", icon: UsersRound, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/access?section=provider", label: "Настроить SSO", icon: ShieldCheck, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/system", label: "Проверить систему", icon: Activity, roles: ["ADMIN"] as RoleName[] }
   ].filter((action) => canSee(user.role, action.roles));
   const groupedCards = [
     {
+      id: "methodology",
       title: "Методология",
       description: "То, по чему проверяем и как отбираем обращения.",
       hrefs: ["/admin/scorecards", "/admin/sampling"]
     },
     {
+      id: "connections",
       title: "Подключения",
-      description: "Источники обращений, вход пользователей и API-доступ.",
-      hrefs: ["/admin/integrations", "/admin/users", "/admin/access", "/admin/tokens"]
+      description: "Источники обращений, вход пользователей, API-доступ и состояние системных очередей.",
+      hrefs: ["/admin/integrations", "/admin/users", "/admin/access", "/admin/tokens", "/admin/system"]
     },
     {
+      id: "control",
       title: "Контроль",
-      description: "Системные задачи, ошибки и история изменений.",
-      hrefs: ["/admin/system", "/admin/appearance", "/admin/audit"]
+      description: "Внешний вид и история изменений.",
+      hrefs: ["/admin/appearance", "/admin/audit"]
     }
   ]
     .map((group) => ({
@@ -206,39 +209,38 @@ export default async function AdminHomePage() {
         </div>
       </div>
 
-      <section className="admin-group-grid" aria-label="Разделы администрирования">
+      <div className="admin-section-grid">
         {groupedCards.map((group) => (
-          <div key={group.title} className="admin-group">
-            <div className="admin-group__header">
-              <h2 className="text-base font-semibold text-[#111827]">{group.title}</h2>
-              <p className="text-sm leading-5 text-[#64748b]">{group.description}</p>
+          <section key={group.id} className="admin-section-card" aria-labelledby={`admin-section-${group.id}`}>
+            <div className="admin-section-card__header">
+              <p className="ops-panel__eyebrow">Разделы администрирования</p>
+              <h2 id={`admin-section-${group.id}`} className="ops-panel__title">{group.title}</h2>
+              <p className="ops-panel__subtitle">{group.description}</p>
             </div>
-            <div className="grid gap-2">
+            <div className="admin-section-card__list">
               {group.cards.map((card) => {
                 const Icon = card.icon;
 
                 return (
-                  <Link key={card.href} href={card.href} className="admin-tile">
+                  <Link key={card.href} href={card.href} className="admin-home-link" title={card.description}>
                     <span className="admin-tile__icon">
-                      <Icon size={18} aria-hidden="true" />
+                      <Icon size={16} aria-hidden="true" />
                     </span>
-                    <span className="admin-tile__body">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="record-title">{card.title}</span>
+                    <span className="admin-home-link__body">
+                      <span className="admin-home-link__title">
+                        <span className="record-title record-title--tight">{card.title}</span>
                         <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
                       </span>
                       <span className="record-meta">{card.description}</span>
-                      <span className="quiet-link inline-flex items-center gap-1">
-                        Открыть <ArrowRight size={13} aria-hidden="true" />
-                      </span>
                     </span>
+                    <ArrowRight className="admin-home-link__arrow" size={14} aria-hidden="true" />
                   </Link>
                 );
               })}
             </div>
-          </div>
+          </section>
         ))}
-      </section>
+      </div>
     </section>
   );
 }

@@ -91,6 +91,27 @@ describe("user actions", () => {
     mocks.prisma.workspace.findFirst.mockResolvedValue({ id: "primary-workspace" });
   });
 
+  it("stores failed local sign-in state in a flash cookie instead of the URL", async () => {
+    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("login", "dubrovskyrk");
+    formData.set("password", "wrong-password");
+    formData.set("returnTo", "/");
+
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/login?returnTo=%2F");
+
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      "qc_login_flash",
+      "invalid_credentials",
+      expect.objectContaining({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax"
+      })
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith("/auth/login?returnTo=%2F");
+  });
+
   it("moves real local users out of the demo workspace before creating a local session", async () => {
     mocks.prisma.localCredential.findFirst
       .mockResolvedValueOnce({

@@ -22,12 +22,17 @@ const mocks = vi.hoisted(() => {
     hashLocalPassword: vi.fn(),
     prisma,
     requireCurrentUserPermission: vi.fn(),
+    redirect: vi.fn(),
     revalidatePath: vi.fn()
   };
 });
 
 vi.mock("next/cache", () => ({
   revalidatePath: mocks.revalidatePath
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: mocks.redirect
 }));
 
 vi.mock("@/lib/audit", () => ({
@@ -147,6 +152,19 @@ describe("admin user actions", () => {
     );
     expect(JSON.stringify(mocks.prisma.localCredential.create.mock.calls[0][0])).not.toContain("local-password-123");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/users");
+  });
+
+  it("returns to the user directory after creating a local user", async () => {
+    const { createLocalUser } = await import("@/lib/admin-user-actions");
+    const formData = new FormData();
+    formData.set("name", "Новый пользователь");
+    formData.set("email", "new.user@example.com");
+    formData.set("password", "local-password-123");
+    formData.set("role", "QA_ANALYST");
+
+    await createLocalUser(formData);
+
+    expect(mocks.redirect).toHaveBeenCalledWith("/admin/users?section=directory");
   });
 
   it("blocks demo admins before creating real users", async () => {

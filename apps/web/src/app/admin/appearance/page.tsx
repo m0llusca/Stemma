@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { AppearanceSettingsForm } from "@/components/admin/appearance-settings-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -23,7 +23,7 @@ export default async function AdminAppearancePage() {
 
   return (
     <section className="page-shell admin-shell">
-      <div className="command-center command-center--split">
+      <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Внешний вид</h1>
@@ -31,19 +31,21 @@ export default async function AdminAppearancePage() {
             Настройки применяются ко всему рабочему пространству: навигация, кнопки, панели, выбранные состояния и плотность используют один набор токенов.
             Если на устройстве включена темная тема, выбранная палитра автоматически использует темный вариант.
           </p>
-        </div>
-        <div className="admin-actions xl:justify-end">
-          <Link href="/admin" className="action-button">
-            К настройкам
-          </Link>
+          <div className="admin-actions mt-5">
+            <Link href="/admin" className="action-button">
+              <ArrowLeft size={16} aria-hidden="true" />
+              К настройкам
+            </Link>
+          </div>
         </div>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="learning-section-header">
+      <section className="ops-panel" aria-labelledby="appearance-settings-title">
+        <div className="ops-panel__header">
           <div className="min-w-0">
-            <h2>{workspace?.name ?? "Рабочее пространство"}</h2>
-            <p>Статусы готовности, завершения и выполнения остаются зелеными в любой теме.</p>
+            <p className="ops-panel__eyebrow">Рабочее пространство</p>
+            <h2 id="appearance-settings-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
+            <p className="ops-panel__subtitle">Статусы готовности, завершения и выполнения остаются зелеными в любой теме.</p>
           </div>
           <span className="pill pill--ok">
             <CheckCircle2 size={14} aria-hidden="true" />

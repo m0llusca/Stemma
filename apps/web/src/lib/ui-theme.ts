@@ -11,12 +11,14 @@ export const uiThemeOptions = [
     accent: "#2563eb",
     surface: "#f4f6f8",
     panel: "#ffffff",
+    panelHeader: "#f3f7ff",
     sidebar: "#0a1020",
     primary: "#111827",
     dark: {
       accent: "#60a5fa",
       surface: "#070b12",
       panel: "#111827",
+      panelHeader: "#152033",
       sidebar: "#020617",
       primary: "#2563eb"
     }
@@ -28,12 +30,14 @@ export const uiThemeOptions = [
     accent: "#0f5fff",
     surface: "#eff6ff",
     panel: "#f8fbff",
+    panelHeader: "#e8f2ff",
     sidebar: "#061a38",
     primary: "#0747a6",
     dark: {
       accent: "#60a5fa",
       surface: "#061326",
       panel: "#0b1f3a",
+      panelHeader: "#0d2b50",
       sidebar: "#020b1a",
       primary: "#2563eb"
     }
@@ -45,12 +49,14 @@ export const uiThemeOptions = [
     accent: "#0f766e",
     surface: "#f0fdfa",
     panel: "#fbfffd",
+    panelHeader: "#e7fbf3",
     sidebar: "#04201a",
     primary: "#064e3b",
     dark: {
       accent: "#34d399",
       surface: "#031712",
       panel: "#08231d",
+      panelHeader: "#0b332a",
       sidebar: "#02120f",
       primary: "#0f766e"
     }
@@ -62,12 +68,14 @@ export const uiThemeOptions = [
     accent: "#7c3aed",
     surface: "#f5f3ff",
     panel: "#fefcff",
+    panelHeader: "#f0ebff",
     sidebar: "#160f2f",
     primary: "#4c1d95",
     dark: {
       accent: "#a78bfa",
       surface: "#120b24",
       panel: "#1d1535",
+      panelHeader: "#281e49",
       sidebar: "#0d071c",
       primary: "#7c3aed"
     }
@@ -79,12 +87,14 @@ export const uiThemeOptions = [
     accent: "#b45309",
     surface: "#fffbeb",
     panel: "#fffdf7",
+    panelHeader: "#fff3db",
     sidebar: "#201307",
     primary: "#7c2d12",
     dark: {
       accent: "#f59e0b",
       surface: "#1c1206",
       panel: "#2a1a08",
+      panelHeader: "#3a250c",
       sidebar: "#140c04",
       primary: "#b45309"
     }
@@ -96,12 +106,14 @@ export const uiThemeOptions = [
     accent: "#e11d48",
     surface: "#fff1f4",
     panel: "#fffafa",
+    panelHeader: "#ffecef",
     sidebar: "#250915",
     primary: "#881337",
     dark: {
       accent: "#fb7185",
       surface: "#210914",
       panel: "#34111d",
+      panelHeader: "#471827",
       sidebar: "#17050d",
       primary: "#be123c"
     }

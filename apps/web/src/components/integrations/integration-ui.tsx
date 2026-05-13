@@ -59,7 +59,7 @@ export function DataTable({
 }) {
   return (
     <Surface title={title} description={description} bodyClassName="p-0" className={className}>
-      <div className="scroll-area">
+      <div className="scroll-area scroll-area--responsive-table">
         <table className={`table-fixed-copy w-full ${minWidth} border-collapse text-left text-sm`}>{children}</table>
       </div>
     </Surface>

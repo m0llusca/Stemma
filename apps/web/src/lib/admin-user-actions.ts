@@ -2,6 +2,7 @@
 
 import type { RoleName } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { hashLocalPassword, normalizeLocalLogin } from "@/lib/auth/local-credentials";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
@@ -148,6 +149,7 @@ export async function createLocalUser(formData: FormData) {
   });
 
   revalidateUserAdmin();
+  redirect("/admin/users?section=directory");
 }
 
 export async function updateUserAccess(formData: FormData) {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldCheck, UserRoundCheck } from "lucide-react";
 import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
+import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
@@ -115,7 +116,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         (!selectedWorkspaceId || provider.workspaceId === selectedWorkspaceId)
     ) ?? providers[0] ?? null;
   const selectedProviderIsActive = selectedProvider?.status === "active";
-  const authError = firstParam(params.authError);
+  const authError = resolveLoginFlashMessage(cookieStore.get(loginFlashCookieName)?.value);
   const loggedOut = firstParam(params.loggedOut) === "1";
 
   return (

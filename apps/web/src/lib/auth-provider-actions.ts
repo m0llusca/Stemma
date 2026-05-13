@@ -42,6 +42,22 @@ function priorityField(formData: FormData) {
   return Number.isInteger(parsed) && parsed > 0 && parsed <= 1000 ? parsed : 100;
 }
 
+function accessReturnSection(formData: FormData, fallback: string) {
+  const section = stringField(formData, "returnSection");
+
+  return ["overview", "provider", "mappings", "sessions", "recommendations"].includes(section) ? section : fallback;
+}
+
+function accessRedirectPath(providerId: string | undefined, section: string) {
+  const params = new URLSearchParams({ section });
+
+  if (providerId) {
+    params.set("provider", providerId);
+  }
+
+  return `/admin/access?${params.toString()}`;
+}
+
 function parseConfigJson(value: string) {
   if (!value) {
     return {};
@@ -146,7 +162,7 @@ export async function saveIdentityProvider(formData: FormData) {
 
   revalidatePath("/admin/access");
   revalidatePath("/admin/system");
-  redirect(`/admin/access?provider=${provider.id}`);
+  redirect(accessRedirectPath(provider.id, accessReturnSection(formData, "provider")));
 }
 
 export async function saveGroupRoleMapping(formData: FormData) {
@@ -253,7 +269,7 @@ export async function saveGroupRoleMapping(formData: FormData) {
 
   revalidatePath("/admin/access");
   revalidatePath("/admin/system");
-  redirect(`/admin/access?provider=${mapping.providerId ?? providerId ?? ""}`);
+  redirect(accessRedirectPath(mapping.providerId ?? providerId, accessReturnSection(formData, "mappings")));
 }
 
 export async function toggleGroupRoleMapping(formData: FormData) {

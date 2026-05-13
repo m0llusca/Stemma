@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { oidcFlowCookieOptions } from "@/lib/auth/cookies";
+import { loginFlashCookieName, loginFlashCookieOptions, type LoginFlashCode } from "@/lib/auth/login-flash";
 import {
   buildAuthorizationUrl,
   createOidcNonce,
@@ -20,11 +21,13 @@ function safeReturnTo(value: string | null) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
 }
 
-function authErrorRedirect(request: NextRequest, message: string) {
+function authErrorRedirect(request: NextRequest, code: LoginFlashCode) {
   const url = new URL("/auth/login", request.nextUrl.origin);
-  url.searchParams.set("authError", message);
   url.searchParams.set("returnTo", safeReturnTo(request.nextUrl.searchParams.get("returnTo")));
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+  response.cookies.set(loginFlashCookieName, code, loginFlashCookieOptions());
+
+  return response;
 }
 
 export async function GET(request: NextRequest) {
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!provider) {
-    return authErrorRedirect(request, "SSO-провайдер не настроен или отключен.");
+    return authErrorRedirect(request, "sso_unavailable");
   }
 
   try {
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set(oidcReturnToCookieName, returnTo, cookieOptions);
 
     return response;
-  } catch (error) {
-    return authErrorRedirect(request, error instanceof Error ? error.message : "Не удалось начать SSO-вход.");
+  } catch {
+    return authErrorRedirect(request, "sso_start_failed");
   }
 }

@@ -70,7 +70,9 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
           </div>
         </fieldset>
 
-        <CreateTokenSubmitButton />
+        <div className="flex justify-end">
+          <CreateTokenSubmitButton />
+        </div>
       </form>
 
       {state.status === "success" && state.plainToken ? (

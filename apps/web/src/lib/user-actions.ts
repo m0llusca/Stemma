@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { demoUserByIdWhere } from "@/lib/auth/demo-users";
+import { loginFlashCookieName, loginFlashCookieOptions } from "@/lib/auth/login-flash";
 import { normalizeLocalLogin, verifyLocalPassword } from "@/lib/auth/local-credentials";
 import { authCookieOptions, demoUserCookieOptions } from "@/lib/auth/cookies";
 import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
@@ -23,12 +24,13 @@ function safeReturnTo(value: string) {
   return value.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
 }
 
-function loginErrorRedirect(returnTo: string): never {
+async function loginErrorRedirect(returnTo: string): Promise<never> {
+  const cookieStore = await cookies();
   const params = new URLSearchParams({
-    returnTo: safeReturnTo(returnTo),
-    authError: "Неверный логин или пароль."
+    returnTo: safeReturnTo(returnTo)
   });
 
+  cookieStore.set(loginFlashCookieName, "invalid_credentials", loginFlashCookieOptions());
   redirect(`/auth/login?${params.toString()}`);
 }
 
@@ -165,7 +167,7 @@ export async function signInWithLocalCredentials(formData: FormData) {
   const returnTo = safeReturnTo(stringField(formData, "returnTo"));
 
   if (!login || !password) {
-    loginErrorRedirect(returnTo);
+    return loginErrorRedirect(returnTo);
   }
 
   const credential = await prisma.localCredential.findFirst({
@@ -178,7 +180,7 @@ export async function signInWithLocalCredentials(formData: FormData) {
   });
 
   if (!credential) {
-    loginErrorRedirect(returnTo);
+    return loginErrorRedirect(returnTo);
   }
 
   const passwordMatches = await verifyLocalPassword({
@@ -189,7 +191,7 @@ export async function signInWithLocalCredentials(formData: FormData) {
   });
 
   if (!passwordMatches) {
-    loginErrorRedirect(returnTo);
+    return loginErrorRedirect(returnTo);
   }
 
   const headerStore = await headers();
@@ -206,6 +208,7 @@ export async function signInWithLocalCredentials(formData: FormData) {
   });
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, token, authCookieOptions(60 * 60 * 12));
+  cookieStore.delete(loginFlashCookieName);
   cookieStore.delete(currentUserCookieName);
 
   await prisma.localCredential.update({
@@ -250,6 +253,7 @@ async function createDemoUserSession(formData: FormData, options: { requireDemoA
   });
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, token, authCookieOptions(60 * 60 * 12));
+  cookieStore.delete(loginFlashCookieName);
   cookieStore.set(currentUserCookieName, user.id, demoUserCookieOptions(60 * 60 * 24 * 30));
 
   const resolvedReturnTo = user.role === "SUPPORT_AGENT" && (returnTo === "/" || returnTo === "/reviews") ? "/self-review" : returnTo;

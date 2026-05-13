@@ -49,10 +49,10 @@ export function backendJobStatusView(status: BackendJobStatus | string): StatusV
 export function integrationRunStatusView(status: string): StatusView {
   const views: Record<string, StatusView> = {
     queued: view("В очереди", "warn"),
-    dry_run_queued: view("Dry-run в очереди", "warn"),
+    dry_run_queued: view("Проверка в очереди", "warn"),
     retry_scheduled: view("Повтор запланирован", "warn"),
     succeeded: view("Импорт готов", "ok"),
-    dry_run_ok: view("Dry-run готов", "ok"),
+    dry_run_ok: view("Проверка готова", "ok"),
     failed: view("Ошибка", "error"),
     error: view("Ошибка", "error")
   };
@@ -66,7 +66,7 @@ export function backendJobTypeLabel(type: string) {
     INTEGRATION_IMPORT: "Импорт обращений",
     REPORT_EXPORT: "Экспорт отчета",
     RETENTION_CLEANUP: "Очистка данных",
-    WEBHOOK_INGEST: "Webhook ingest"
+    WEBHOOK_INGEST: "Прием вебхука"
   };
 
   return labels[type] ?? type;
