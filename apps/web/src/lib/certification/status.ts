@@ -41,6 +41,18 @@ export const certificationStatusLabels: Record<CertificationStatus, string> = {
   certificate_required: "Ожидает сертификат"
 };
 
+const liveBlockerStatuses: CertificationStatus[] = [
+  "limited",
+  "configuration_required",
+  "secret_required",
+  "certificate_required",
+  "not_production_ready"
+];
+
+function hasCertifiedPrerequisites(gates: CertificationGateSummary) {
+  return gates.docs === "docs_checked" && gates.contract === "contract_certified" && gates.stub === "stub_certified";
+}
+
 export function certificationStatusTone(status: CertificationStatus) {
   if (
     status === "live_certified" ||
@@ -68,7 +80,9 @@ export function certificationStatusTone(status: CertificationStatus) {
 }
 
 export function summarizeCertification(gates: CertificationGateSummary): CertificationSummary {
-  if (gates.live === "live_certified") {
+  const prerequisitesCertified = hasCertifiedPrerequisites(gates);
+
+  if (prerequisitesCertified && gates.live === "live_certified") {
     return {
       status: "live_certified",
       label: certificationStatusLabels.live_certified,
@@ -76,10 +90,18 @@ export function summarizeCertification(gates: CertificationGateSummary): Certifi
     };
   }
 
-  if (gates.docs === "docs_checked" && gates.contract === "contract_certified" && gates.stub === "stub_certified") {
+  if (prerequisitesCertified && gates.live === "waiting_for_access") {
     return {
       status: "ready_for_live_certification",
       label: certificationStatusLabels.ready_for_live_certification,
+      productionReady: false
+    };
+  }
+
+  if (prerequisitesCertified && liveBlockerStatuses.includes(gates.live)) {
+    return {
+      status: gates.live,
+      label: certificationStatusLabels[gates.live],
       productionReady: false
     };
   }
