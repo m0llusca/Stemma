@@ -40,8 +40,19 @@ export async function POST(request: Request, context: { params: Promise<{ integr
       return null;
     }
 
+    if (
+      error instanceof Error &&
+      /защищенной настройки OAuth-доступов|не соответствует контракту Phase B/.test(error.message)
+    ) {
+      return apiError("conflict", error.message, 409, requestId);
+    }
+
     throw error;
   });
+
+  if (result instanceof Response) {
+    return result;
+  }
 
   if (!result) {
     return apiError("not_found", "Интеграция не найдена.", 404, requestId);

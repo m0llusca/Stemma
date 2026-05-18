@@ -417,6 +417,111 @@ describe("OTRS-family credential slots", () => {
     }
   });
 
+  it("rejects REST integration upserts for enterprise and mismatched Phase B sources before secret writes", async () => {
+    const tx = {
+      integration: {
+        findUnique: vi.fn(),
+        upsert: vi.fn(),
+        update: vi.fn()
+      },
+      integrationCredential: {
+        upsert: vi.fn(),
+        findMany: vi.fn()
+      }
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback) => callback(tx))
+    };
+    const auditLog = vi.fn();
+
+    vi.resetModules();
+    vi.doMock("@/lib/db", () => ({ prisma }));
+    vi.doMock("@/lib/audit", () => ({ auditLog }));
+    vi.doMock("@/lib/api/session", () => ({
+      requireSessionApi: vi.fn().mockResolvedValue({
+        ok: true,
+        user: {
+          id: "user-1",
+          workspaceId: "workspace-1"
+        }
+      })
+    }));
+
+    try {
+      const { POST } = await import("@/app/api/v1/integrations/route");
+      const enterpriseResponse = await POST(
+        new Request("http://localhost/api/v1/integrations", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-request-id": "request-enterprise" },
+          body: JSON.stringify({
+            source: "salesforce",
+            displayName: "Salesforce",
+            type: "enterprise",
+            baseUrl: "https://example.my.salesforce.com",
+            credentialSecret: "must-not-store"
+          })
+        })
+      );
+      const mismatchResponse = await POST(
+        new Request("http://localhost/api/v1/integrations", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-request-id": "request-mismatch" },
+          body: JSON.stringify({
+            source: "salesforce",
+            displayName: "Salesforce",
+            type: "native_helpdesk",
+            baseUrl: "https://example.my.salesforce.com",
+            credentialSecret: "must-not-store"
+          })
+        })
+      );
+      const nativeMismatchResponse = await POST(
+        new Request("http://localhost/api/v1/integrations", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-request-id": "request-native-mismatch" },
+          body: JSON.stringify({
+            source: "zendesk",
+            displayName: "Zendesk",
+            type: "custom_api",
+            baseUrl: "https://support.example.com",
+            credentialSecret: "must-not-store"
+          })
+        })
+      );
+      const enterpriseBody = await enterpriseResponse.json();
+      const mismatchBody = await mismatchResponse.json();
+      const nativeMismatchBody = await nativeMismatchResponse.json();
+
+      expect(enterpriseResponse.status).toBe(409);
+      expect(enterpriseResponse.headers.get("x-request-id")).toBe("request-enterprise");
+      expect(enterpriseBody.error).toMatchObject({
+        code: "conflict",
+        message: "Корпоративные источники требуют защищенной настройки OAuth-доступов."
+      });
+      expect(mismatchResponse.status).toBe(409);
+      expect(mismatchResponse.headers.get("x-request-id")).toBe("request-mismatch");
+      expect(mismatchBody.error).toMatchObject({
+        code: "conflict",
+        message: "Корпоративные источники требуют защищенной настройки OAuth-доступов."
+      });
+      expect(nativeMismatchResponse.status).toBe(409);
+      expect(nativeMismatchResponse.headers.get("x-request-id")).toBe("request-native-mismatch");
+      expect(nativeMismatchBody.error).toMatchObject({
+        code: "conflict",
+        message: "Тип источника не соответствует контракту Phase B."
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(tx.integration.upsert).not.toHaveBeenCalled();
+      expect(tx.integrationCredential.upsert).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("@/lib/db");
+      vi.doUnmock("@/lib/audit");
+      vi.doUnmock("@/lib/api/session");
+      vi.resetModules();
+    }
+  });
+
   it("does not include failed upstream response bodies in runner errors", async () => {
     const leakedBody =
       "GET /otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST?UserLogin=qa_api&Password=super-secret";

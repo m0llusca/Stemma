@@ -25,7 +25,6 @@ import {
 import {
   nativeHelpdeskImportExamples,
   nativeHelpdeskMappingRows,
-  nativeHelpdeskSources,
   type NativeHelpdeskSource
 } from "@/lib/normalizers/native-helpdesk";
 import {
@@ -41,11 +40,30 @@ import {
   type OtrsFamilySource
 } from "@/lib/normalizers/otrs-family";
 import { certificationStatusTone, type CertificationSummary } from "@/lib/certification/status";
-import { getIntegrationCapability } from "@/lib/integrations/capabilities";
+import { getIntegrationCapability, type IntegrationCapability } from "@/lib/integrations/capabilities";
+import {
+  phaseBHelpdeskSources,
+  phaseBSourceContracts
+} from "@/lib/integrations/helpdesk-adapters/source-contracts";
+import type { PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
 
-type SourceMode = "otrs_family" | "native_helpdesk" | "custom_api";
+type SourceMode = "otrs_family" | "native_helpdesk" | "enterprise" | "custom_api";
 type WizardStep = "source" | "access" | "limits" | "preview" | "done";
-type SourceOptionValue = `otrs:${OtrsFamilySource}` | `native:${NativeHelpdeskSource}` | "custom_api";
+type SourceOptionValue = `otrs:${OtrsFamilySource}` | `native:${PhaseBHelpdeskSource}` | "custom_api";
+type SourceOption = {
+  value: SourceOptionValue;
+  label: string;
+  mode: SourceMode;
+  description: string;
+  certificationSummary: CertificationSummary;
+  capability?: IntegrationCapability;
+  officialDocs?: Array<{ label: string; href: string; checkedAt?: string }>;
+  limitations?: string[];
+  liveCertification?: {
+    requiredEnvironment: string[];
+    smokeTestCommand: string;
+  } | null;
+};
 
 const fieldClass = "form-control h-10 w-full text-sm";
 const primaryButtonClass = "action-button action-button--primary";
@@ -55,10 +73,42 @@ const smallButtonClass = "action-button min-h-[34px] px-3 py-2 text-xs";
 const sourceModeDescriptions: Record<SourceMode, string> = {
   otrs_family: "Подключение через GenericInterface TicketGet с безопасной проверкой перед запуском.",
   native_helpdesk: "Импорт тикетов и сообщений из популярных облачных helpdesk через готовые адаптеры.",
+  enterprise: "Корпоративные CRM/CSM адаптеры Phase B: контракт готов, но сохранение защищенных OAuth-доступов требует отдельного безопасного потока.",
   custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk."
 };
 
-const sourceOptions = [
+const operationLabels: Record<string, string> = {
+  activities_get: "Получение активностей",
+  case_get: "Получение case",
+  comments_get: "Получение комментариев",
+  conversation_import: "Импорт диалогов",
+  conversations_get: "Получение диалогов",
+  diagnostics: "Диагностика",
+  fixture_import: "Импорт fixture",
+  preview: "Предпросмотр",
+  review_export: "Экспорт проверок",
+  selected_import: "Выборочный импорт",
+  ticket_get: "Получение тикета",
+  ticket_search: "Поиск тикетов",
+  webhook_ingest: "Прием вебхуков"
+};
+
+const secretSlotLabels: Record<string, string> = {
+  auth_password: "auth_password",
+  ca_bundle: "ca_bundle",
+  oauth_client_credentials: "oauth_client_credentials",
+  webhook_secret: "webhook_secret"
+};
+
+function operationLabel(value: string) {
+  return operationLabels[value] ?? value;
+}
+
+function secretSlotLabel(value: string) {
+  return secretSlotLabels[value] ?? value;
+}
+
+const sourceOptions: SourceOption[] = [
   ...otrsFamilySourceOptions.map((source) => ({
     value: `otrs:${source.value}` as const,
     label: source.label,
@@ -69,27 +119,44 @@ const sourceOptions = [
         : otrsFamilyProfileForSource(source.value).note,
     certificationSummary: getIntegrationCapability(source.value, "otrs_family").certification.summary
   })),
-  ...nativeHelpdeskSources.map((source) => ({
-    value: `native:${source.value}` as const,
-    label: source.label,
-    mode: "native_helpdesk" as const,
-    description: `${source.objectName}. ${source.endpointHint}`,
-    certificationSummary: getIntegrationCapability(source.value, "native_helpdesk").certification.summary
-  })),
+  ...phaseBHelpdeskSources.map((source) => {
+    const contract = phaseBSourceContracts[source];
+    const capability = getIntegrationCapability(source, contract.type);
+
+    return {
+      value: `native:${source}` as const,
+      label: contract.displayName,
+      mode: contract.type,
+      description: `${contract.type === "enterprise" ? "Enterprise adapter" : "Helpdesk adapter"}: ${capability.operations
+        .slice(0, 3)
+        .map(operationLabel)
+        .join(", ")}.`,
+      certificationSummary: capability.certification.summary,
+      capability,
+      officialDocs: contract.officialDocs.map((doc) => ({
+        label: doc.label,
+        href: doc.href,
+        checkedAt: doc.checkedAt
+      })),
+      limitations: [...contract.certification.limitations],
+      liveCertification: {
+        requiredEnvironment: [...contract.liveCertification.requiredEnvironment],
+        smokeTestCommand: contract.liveCertification.smokeTestCommand
+      }
+    };
+  }),
   {
     value: "custom_api" as const,
     label: "Своя система через API",
     mode: "custom_api" as const,
     description: sourceModeDescriptions.custom_api,
-    certificationSummary: getIntegrationCapability("custom_api").certification.summary
+    certificationSummary: getIntegrationCapability("custom_api").certification.summary,
+    capability: getIntegrationCapability("custom_api"),
+    officialDocs: [],
+    limitations: [],
+    liveCertification: null
   }
-] satisfies Array<{
-  value: SourceOptionValue;
-  label: string;
-  mode: SourceMode;
-  description: string;
-  certificationSummary: CertificationSummary;
-}>;
+];
 
 const sourceChoiceGroups = [
   {
@@ -103,6 +170,12 @@ const sourceChoiceGroups = [
     title: "Облачные helpdesk",
     description: "Облачные сервисы с готовым адаптером нормализации.",
     options: sourceOptions.filter((option) => option.mode === "native_helpdesk")
+  },
+  {
+    mode: "enterprise" as const,
+    title: "Enterprise CRM / CSM",
+    description: "Корпоративные системы с контрактом Phase B и отдельными требованиями к OAuth-доступам.",
+    options: sourceOptions.filter((option) => option.mode === "enterprise")
   },
   {
     mode: "custom_api" as const,
@@ -130,7 +203,11 @@ function normalizeBaseUrl(value: string) {
 }
 
 function nativeSourceInfo(source: NativeHelpdeskSource) {
-  return nativeHelpdeskSources.find((item) => item.value === source) ?? nativeHelpdeskSources[0];
+  const contract = phaseBSourceContracts[source];
+
+  return {
+    label: contract.displayName
+  };
 }
 
 function nativeImportCurl(source: NativeHelpdeskSource) {
@@ -324,6 +401,24 @@ function SourceChoiceStep({
           <h4 className="source-selected-card__title">{selectedOption.label}</h4>
           <p className="text-sm leading-5 text-[#64748b]">{selectedOption.description}</p>
         </div>
+        {selectedOption.capability ? (
+          <div className="grid min-w-0 gap-3 text-sm leading-5 text-[#334155]">
+            <div className="grid min-w-0 gap-1">
+              <p className="soft-callout__label">Операции адаптера</p>
+              <p className="break-words">
+                {selectedOption.capability.operations.map(operationLabel).join(", ")}
+              </p>
+            </div>
+            <div className="grid min-w-0 gap-1">
+              <p className="soft-callout__label">Слоты секретов</p>
+              <p className="break-words">
+                {selectedOption.capability.requiredSecrets.length > 0
+                  ? selectedOption.capability.requiredSecrets.map(secretSlotLabel).join(", ")
+                  : "Секреты не требуются"}
+              </p>
+            </div>
+          </div>
+        ) : null}
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <p className="soft-callout__label">Статус сертификации</p>
@@ -337,6 +432,46 @@ function SourceChoiceStep({
             {selectedOption.certificationSummary.label}
           </span>
         </div>
+        {selectedOption.officialDocs && selectedOption.officialDocs.length > 0 ? (
+          <div className="grid min-w-0 gap-1 text-sm leading-5">
+            <p className="soft-callout__label">Официальная документация</p>
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {selectedOption.officialDocs.slice(0, 3).map((doc) => (
+                <a
+                  key={`${doc.label}:${doc.href}`}
+                  href={doc.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="quiet-link max-w-full break-words text-sm"
+                >
+                  {doc.label}
+                  {doc.checkedAt ? ` · проверено ${doc.checkedAt}` : ""}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {selectedOption.limitations && selectedOption.limitations.length > 0 ? (
+          <div className="grid min-w-0 gap-1 text-sm leading-5 text-[#64748b]">
+            <p className="soft-callout__label">Ограничения Phase B</p>
+            <ul className="grid min-w-0 gap-1 pl-4">
+              {selectedOption.limitations.map((limitation) => (
+                <li key={limitation} className="list-disc break-words">
+                  {limitation}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {selectedOption.liveCertification ? (
+          <div className="grid min-w-0 gap-1 text-sm leading-5 text-[#64748b]">
+            <p className="soft-callout__label">Для живой сертификации</p>
+            <p className="break-words">
+              Нужны доступы: {selectedOption.liveCertification.requiredEnvironment.join(", ")}. Smoke test запускается вручную:{" "}
+              {selectedOption.liveCertification.smokeTestCommand}.
+            </p>
+          </div>
+        ) : null}
         <div className="source-next-steps" aria-label="Следующие шаги">
           <span>Доступ</span>
           <span>Лимиты</span>
@@ -437,6 +572,29 @@ function AccessStep({
         <FormField label="ID обращения для проверки">
           <input value={nativeTicketId} onChange={(event) => onNativeTicketIdChange(event.target.value)} className={fieldClass} />
         </FormField>
+      </div>
+    );
+  }
+
+  if (mode === "enterprise") {
+    return (
+      <div className="grid gap-4">
+        <div className="soft-callout soft-callout--warn text-sm leading-5 text-[#92400e]">
+          <p className="font-semibold text-[#111827]">Enterprise-доступы требуют отдельного защищенного подключения</p>
+          <p className="mt-1">
+            Контракт Phase B показывает готовность адаптера и документацию, но этот мастер пока не сохраняет OAuth connected app
+            или client credentials в слот oauth_client_credentials. Проверка и сохранение отключены, чтобы не записать источник как native_helpdesk
+            и не сохранить секрет в неправильный слот.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <SummaryItem label="Статус">
+            <span>Ожидает защищенные OAuth-доступы и live smoke test.</span>
+          </SummaryItem>
+          <SummaryItem label="Слот секрета">
+            <span className="font-mono text-xs">oauth_client_credentials</span>
+          </SummaryItem>
+        </div>
       </div>
     );
   }
@@ -921,6 +1079,41 @@ function TechnicalDetailsForMode({
     );
   }
 
+  if (mode === "enterprise") {
+    return (
+      <TechnicalDetails title="Enterprise contract Phase B">
+        <div className="grid gap-4">
+          <div className="soft-callout text-sm leading-5 text-[#64748b]">
+            Enterprise-источники используют контракт Phase B и capability registry, но runnable dry-run/save path в этом мастере
+            отключен до безопасного сохранения oauth_client_credentials.
+          </div>
+          <DataTable
+            title="Сопоставление с единым форматом"
+            description="Контракт нормализации зафиксирован, живая сертификация ожидает доступы."
+            minWidth="min-w-[640px]"
+          >
+            <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Поле источника</th>
+                <th className="px-4 py-3 font-semibold">Поле проверки</th>
+                <th className="px-4 py-3 font-semibold">Правило</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#d9e0ea]">
+              {nativeHelpdeskMappingRows.map((row) => (
+                <tr key={`${row.source}:${row.target}`}>
+                  <td className="px-4 py-3 font-mono text-xs">{row.source}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{row.target}</td>
+                  <td className="px-4 py-3 text-[#334155]">{row.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </div>
+      </TechnicalDetails>
+    );
+  }
+
   return (
     <TechnicalDetails title="Технический контракт своего API">
       <div className="grid gap-5">
@@ -1044,20 +1237,27 @@ export function IntegrationSetupWorkspace({
   const safeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
   const currentStep = wizardSteps[safeStepIndex];
   const sourceValue: SourceOptionValue =
-    mode === "otrs_family" ? `otrs:${otrsSource}` : mode === "native_helpdesk" ? `native:${nativeSource}` : "custom_api";
+    mode === "otrs_family"
+      ? `otrs:${otrsSource}`
+      : mode === "native_helpdesk" || mode === "enterprise"
+        ? `native:${nativeSource}`
+        : "custom_api";
   const selectedSourceOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
   const selectedSourceLabel = useMemo(() => {
     return mode === "custom_api" ? customSystemName.trim() || selectedSourceOption.label : selectedSourceOption.label;
   }, [customSystemName, mode, selectedSourceOption.label]);
-  const selectedSourceKey = mode === "otrs_family" ? otrsSource : mode === "native_helpdesk" ? nativeSource : "custom_api";
+  const selectedSourceKey = mode === "otrs_family" ? otrsSource : mode === "native_helpdesk" || mode === "enterprise" ? nativeSource : "custom_api";
   const activeBaseUrl =
-    mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" ? nativeBaseUrl : customBaseUrl;
+    mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" || mode === "enterprise" ? nativeBaseUrl : customBaseUrl;
   const activeTicketId = mode === "native_helpdesk" ? nativeTicketId : ticketId;
+  const isEnterpriseSource = mode === "enterprise";
   const accessComplete =
     mode === "otrs_family"
       ? [otrsBaseUrl, userLogin, password, ticketId].every((value) => value.trim().length > 0)
       : mode === "native_helpdesk"
         ? [nativeBaseUrl, nativeToken, nativeTicketId].every((value) => value.trim().length > 0)
+        : mode === "enterprise"
+          ? false
         : [customSystemName, customBaseUrl].every((value) => value.trim().length > 0);
   const limitsComplete = [dateRangeDays, maxTickets, batchSize].every((value) => Number(value) > 0);
   const stepNextDisabled =
@@ -1129,8 +1329,9 @@ export function IntegrationSetupWorkspace({
     }
 
     const nextSource = nextValue.replace("native:", "") as NativeHelpdeskSource;
+    const nextContractType = phaseBSourceContracts[nextSource].type;
 
-    setMode("native_helpdesk");
+    setMode(nextContractType);
     setNativeSource(nextSource);
     resetCheck();
   }
@@ -1156,8 +1357,10 @@ export function IntegrationSetupWorkspace({
           description={
             step === "source"
               ? "Сначала выберите конкретный источник. Следующие шаги появятся после перехода дальше."
-              : step === "access"
-                ? "Введите только данные, нужные для проверки доступа. Технические примеры скрыты ниже."
+                : step === "access"
+                ? isEnterpriseSource
+                  ? "Enterprise-источник доступен для изучения readiness/docs, но проверка и сохранение отключены до безопасного OAuth-подключения."
+                  : "Введите только данные, нужные для проверки доступа. Технические примеры скрыты ниже."
                 : step === "limits"
                   ? "Ограничьте первый запуск, чтобы не импортировать большой архив случайно."
                   : step === "preview"

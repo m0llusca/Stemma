@@ -165,6 +165,78 @@ describe("integration import service", () => {
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
 
+  it("rejects enterprise integrations before queueing connector imports", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "salesforce",
+      type: "enterprise",
+      status: "ready",
+      importLimit: 25
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Корпоративные источники требуют защищенной настройки OAuth-доступов.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects enterprise Phase B sources even when persisted with a forged native type", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "salesforce",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Корпоративные источники требуют защищенной настройки OAuth-доступов.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-enterprise Phase B source/type mismatches before queueing connector imports", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "custom_api",
+      status: "ready",
+      importLimit: 25
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Тип источника не соответствует контракту Phase B.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
   it("queues a selected OTRS import job with explicit operation payload", async () => {
     const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
     mocks.prisma.integration.findFirst.mockResolvedValue({

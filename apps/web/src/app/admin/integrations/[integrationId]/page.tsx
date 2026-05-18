@@ -67,6 +67,87 @@ function userLoginFromConfig(value: string) {
   }
 }
 
+function authModeLabel(value: string) {
+  const labels: Record<string, string> = {
+    api_token: "API-токен",
+    basic: "Базовая авторизация",
+    basic_api_key: "API-ключ через Basic",
+    basic_api_token: "API-токен через Basic",
+    bearer_token: "Bearer-токен",
+    hmac_sha256: "Подпись HMAC-SHA256",
+    none: "Без авторизации",
+    oauth: "OAuth",
+    oauth_client_credentials: "OAuth: учетные данные клиента",
+    oauth_connected_app: "OAuth-приложение Salesforce",
+    private_app_token: "Токен private app",
+    session_create: "Создание сессии",
+    tls_ca_bundle: "Пакет корневых сертификатов",
+    user_password: "Пользователь и пароль"
+  };
+
+  return labels[value] ?? value;
+}
+
+function operationLabel(value: string) {
+  const labels: Record<string, string> = {
+    activities_get: "Получение активностей",
+    case_get: "Получение case",
+    comments_get: "Получение комментариев",
+    conversation_import: "Импорт диалогов",
+    conversations_get: "Получение диалогов",
+    diagnostics: "Диагностика",
+    fixture_import: "Импорт fixture",
+    preview: "Предпросмотр",
+    review_export: "Экспорт проверок",
+    selected_import: "Выборочный импорт",
+    ticket_get: "Получение тикета",
+    ticket_search: "Поиск тикетов",
+    webhook_ingest: "Прием вебхуков"
+  };
+
+  return labels[value] ?? value;
+}
+
+function certificationGateLabel(value: string) {
+  const labels: Record<string, string> = {
+    configuration_required: "Нужна настройка",
+    contract_certified: "Контракт проверен",
+    docs_checked: "Документация проверена",
+    live_certified: "Живая сертификация пройдена",
+    not_production_ready: "Не готово",
+    stub_certified: "Stub проверен",
+    waiting_for_access: "Ожидает доступы"
+  };
+
+  return labels[value] ?? value;
+}
+
+function secretSlotLabel(value: string) {
+  const labels: Record<string, string> = {
+    auth_password: "auth_password",
+    ca_bundle: "ca_bundle",
+    oauth_client_credentials: "oauth_client_credentials",
+    webhook_secret: "webhook_secret"
+  };
+
+  return labels[value] ?? value;
+}
+
+function hasRequiredCredentialSlots(
+  credentials: Array<{ kind: string }>,
+  requiredSecrets: string[]
+) {
+  return requiredSecrets.every((secret) => credentials.some((credential) => credential.kind === secret));
+}
+
+function readinessActionLabel(hasBaseUrl: boolean, hasRequiredSecrets: boolean) {
+  return hasBaseUrl && hasRequiredSecrets ? "Готово к живой сертификации" : "Ожидает доступы";
+}
+
+function credentialFingerprintLabel(value: string | null) {
+  return value ? `${value.slice(0, 16)}...` : null;
+}
+
 async function loadIntegration(workspaceId: string, integrationId: string) {
   return prisma.integration.findFirst({
     where: {
@@ -145,6 +226,122 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
 }
 
 type LoadedIntegration = NonNullable<Awaited<ReturnType<typeof loadIntegration>>>;
+
+function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration }) {
+  const capability = getIntegrationCapability(integration.source, integration.type);
+  const hasBaseUrl = Boolean(integration.baseUrl?.trim());
+  const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
+  const canRunDiagnostics = capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets;
+  const hasRunnableDiagnostics = canRunDiagnostics && integration.type === "otrs_family";
+  const gates = [
+    { label: "Документация", value: capability.certification.gates.docs },
+    { label: "Контракт", value: capability.certification.gates.contract },
+    { label: "Stub", value: capability.certification.gates.stub },
+    { label: "Live", value: capability.certification.gates.live }
+  ];
+
+  return (
+    <section className="soft-callout">
+      <div className="grid gap-4">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="record-title">Готовность адаптера</h3>
+            <p className="record-meta">
+              {capability.displayName} · {capability.authModes.map(authModeLabel).join(", ")}
+            </p>
+          </div>
+          <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
+            {capability.certification.summary.label}
+          </span>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {gates.map((gate) => (
+            <div key={gate.label} className="admin-tile admin-tile--compact">
+              <span className="admin-tile__icon admin-tile__icon--plain">G</span>
+              <span className="admin-tile__body">
+                <span className="record-title record-title--tight">{gate.label}</span>
+                <span className="record-meta">{certificationGateLabel(gate.value)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="soft-callout">
+            <p className="soft-callout__label">Операции</p>
+            <p className="mt-1 text-sm leading-5 text-[#334155]">
+              {capability.operations.map(operationLabel).join(", ")}
+            </p>
+          </div>
+          <div className="soft-callout">
+            <p className="soft-callout__label">Секреты</p>
+            <div className="mt-1 grid gap-1 text-sm leading-5 text-[#334155]">
+              {capability.requiredSecrets.length > 0 ? (
+                capability.requiredSecrets.map((secret) => {
+                  const credential = integration.credentials.find((item) => item.kind === secret);
+                  const fingerprint = credentialFingerprintLabel(credential?.fingerprint ?? null);
+
+                  return (
+                    <p key={secret} className="break-words">
+                      {secretSlotLabel(secret)}:{" "}
+                      {credential
+                        ? `сохранен${fingerprint ? `, fingerprint ${fingerprint}` : ""}`
+                        : "не сохранен"}
+                    </p>
+                  );
+                })
+              ) : (
+                <p>Секреты не требуются.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="soft-callout">
+            <p className="soft-callout__label">Документация</p>
+            <div className="mt-1 flex min-w-0 flex-wrap gap-2">
+              {capability.certification.docs.length > 0 ? (
+                capability.certification.docs.map((doc) => (
+                  <a key={`${doc.label}:${doc.href}`} href={doc.href} target="_blank" rel="noreferrer" className="quiet-link text-sm">
+                    {doc.label}
+                  </a>
+                ))
+              ) : (
+                <span className="record-meta">Документы не указаны.</span>
+              )}
+            </div>
+          </div>
+          <div className="soft-callout">
+            <p className="soft-callout__label">Диагностика</p>
+            <p className="mt-1 text-sm leading-5 text-[#334155]">
+              {readinessActionLabel(hasBaseUrl, hasRequiredSecrets)}.
+              {hasRunnableDiagnostics
+                ? " Можно запускать безопасную диагностику из доступного cockpit-действия."
+                : canRunDiagnostics
+                  ? " Условия выполнены, но runnable action для этого адаптера пока не подключен."
+                : " Действие появится после Base URL и обязательных секретов."}
+            </p>
+          </div>
+        </div>
+
+        {capability.certification.limitations.length > 0 ? (
+          <div className="soft-callout">
+            <p className="soft-callout__label">Ограничения</p>
+            <ul className="mt-1 grid gap-1 pl-4 text-sm leading-5 text-[#64748b]">
+              {capability.certification.limitations.map((limitation) => (
+                <li key={limitation} className="list-disc break-words">
+                  {limitation}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
 
 function toDiagnosticRun(run: LoadedIntegration["diagnosticRuns"][number] | undefined) {
   if (!run) {
@@ -253,6 +450,11 @@ function NonOtrsIntegrationSummary({
     maxAttempts: number;
   }>;
 }) {
+  const capability = getIntegrationCapability(integration.source, integration.type);
+  const hasBaseUrl = Boolean(integration.baseUrl?.trim());
+  const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
+  const canRunDiagnostics = capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets;
+
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <section className="soft-callout">
@@ -267,6 +469,11 @@ function NonOtrsIntegrationSummary({
               <span className="record-title record-title--tight">{externalSourceLabel(integration.source)}</span>
               <span className="record-meta">{integration.type} · {integrationStatusLabel(integration.status)}</span>
               <span className="record-meta compact-text">{integration.baseUrl ?? "Base URL не указан"}</span>
+              <span className="record-meta compact-text">
+                {canRunDiagnostics
+                  ? "Условия для диагностики выполнены; runnable action для этого адаптера пока не подключен."
+                  : "Диагностика ожидает Base URL и обязательные секреты."}
+              </span>
             </span>
           </div>
         </div>
@@ -459,6 +666,9 @@ export default async function IntegrationDetailsPage({ params, searchParams }: I
               </span>
             </div>
           </div>
+          <div className="p-4 pt-0">
+            <AdapterReadinessPanel integration={integration} />
+          </div>
         </section>
       ) : null}
 
@@ -472,6 +682,9 @@ export default async function IntegrationDetailsPage({ params, searchParams }: I
             </div>
           </div>
           <div className="p-4">
+            <div className="mb-6">
+              <AdapterReadinessPanel integration={integration} />
+            </div>
             {integration.type === "otrs_family" ? (
               <OtrsDetailCockpit
                 integration={integration}
@@ -509,6 +722,7 @@ function OtrsDetailCockpit({
 }) {
   const config = redactOtrsConfigForUi(parseOtrsConnectorConfig(integration.configJson));
   const latestPreviewRun = integration.runs.find((run) => run.items.length > 0 || ["manual_ticket_ids", "ticket_search", "previewed"].includes(run.mode));
+  const canRunDiagnostics = Boolean(integration.baseUrl?.trim()) && credentialSummaries.some((slot) => slot.kind === "auth_password");
 
   return (
     <div className="grid gap-6">
@@ -529,7 +743,23 @@ function OtrsDetailCockpit({
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <OtrsDiagnosticsPanel integrationId={integration.id} latestDiagnostic={toDiagnosticRun(integration.diagnosticRuns[0])} />
+        {canRunDiagnostics ? (
+          <OtrsDiagnosticsPanel integrationId={integration.id} latestDiagnostic={toDiagnosticRun(integration.diagnosticRuns[0])} />
+        ) : (
+          <section className="panel overflow-hidden">
+            <div className="border-b border-[#d9e0ea] px-5 py-4">
+              <h2 className="text-lg font-semibold">Диагностика</h2>
+              <p className="mt-1 text-sm leading-5 text-[#64748b]">
+                Действие запуска появится после сохранения Base URL и секрета auth_password.
+              </p>
+            </div>
+            <div className="p-4">
+              <div className="soft-callout text-sm leading-5 text-[#64748b]">
+                Ожидает доступы. Raw секреты не отображаются; сохраните пароль или API-секрет в настройке подключения.
+              </div>
+            </div>
+          </section>
+        )}
         <OtrsPreviewPanel integrationId={integration.id} latestPreviewRun={toPreviewRun(latestPreviewRun)} />
       </div>
 

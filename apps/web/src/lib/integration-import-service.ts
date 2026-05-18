@@ -1,5 +1,6 @@
 import { auditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { phaseBSourceContracts } from "@/lib/integrations/helpdesk-adapters/source-contracts";
 
 export type QueuedIntegrationImport = {
   run: {
@@ -19,6 +20,27 @@ export type IntegrationJobOperation = "legacy_connector_run" | "otrs_selected_im
 function assertIntegrationEnabled(integration: { status?: string | null }) {
   if (integration.status === "disabled") {
     throw new Error("Интеграция отключена.");
+  }
+}
+
+function assertIntegrationImportSupported(integration: { type?: string | null }) {
+  if (integration.type === "enterprise") {
+    throw new Error("Корпоративные источники требуют защищенной настройки OAuth-доступов.");
+  }
+}
+
+export function assertIntegrationSourceContractSupported(integration: { source?: string | null; type?: string | null }) {
+  const source = integration.source?.trim().toLowerCase() ?? "";
+  const type = integration.type?.trim() || "custom_api";
+  const contract = phaseBSourceContracts[source as keyof typeof phaseBSourceContracts];
+  const enterpriseMessage = "Корпоративные источники требуют защищенной настройки OAuth-доступов.";
+
+  if (type === "enterprise" || contract?.type === "enterprise") {
+    throw new Error(enterpriseMessage);
+  }
+
+  if (contract && type !== contract.type) {
+    throw new Error("Тип источника не соответствует контракту Phase B.");
   }
 }
 
@@ -42,6 +64,8 @@ export async function queueIntegrationImportJob(input: {
     throw new Error("Интеграция не найдена.");
   }
   assertIntegrationEnabled(integration);
+  assertIntegrationImportSupported(integration);
+  assertIntegrationSourceContractSupported(integration);
 
   const dryRun = input.dryRun ?? false;
   const requestedLimit = input.requestedLimit ?? integration.importLimit;

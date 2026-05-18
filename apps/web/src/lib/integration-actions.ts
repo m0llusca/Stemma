@@ -6,7 +6,11 @@ import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { queueIntegrationImportJob, queueSelectedOtrsImportJob } from "@/lib/integration-import-service";
+import {
+  assertIntegrationSourceContractSupported,
+  queueIntegrationImportJob,
+  queueSelectedOtrsImportJob
+} from "@/lib/integration-import-service";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
@@ -150,10 +154,15 @@ function validateBaseUrl(baseUrl: string, mode: string) {
   }
 }
 
+function assertSupportedSourceMode(source: string, mode: string) {
+  assertIntegrationSourceContractSupported({ source, type: mode });
+}
+
 function readIntegrationSetup(formData: FormData) {
   const source = stringField(formData, "source") || "unknown";
   const sourceLabel = stringField(formData, "sourceLabel") || source;
   const mode = stringField(formData, "mode") || "unknown";
+  assertSupportedSourceMode(source, mode);
   const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), mode);
   const maxTickets = numberField(formData, "maxTickets", 100);
   const batchSize = numberField(formData, "batchSize", 25);
@@ -201,6 +210,10 @@ function readIntegrationSetup(formData: FormData) {
       updatedFrom: "ui_setup_wizard"
     }
   };
+}
+
+function assertSupportedSetupContract(setup: ReturnType<typeof readIntegrationSetup>) {
+  assertSupportedSourceMode(setup.source, setup.mode);
 }
 
 const otrsSourceSchema = z
@@ -378,6 +391,7 @@ export async function saveIntegrationConfiguration(formData: FormData) {
   const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
+  assertSupportedSetupContract(setup);
   const integration = await prisma.$transaction(async (tx) => {
     const existing = await tx.integration.findUnique({
       where: {
@@ -426,6 +440,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
   const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
+  assertSupportedSetupContract(setup);
 
   const integration = await prisma.$transaction(async (tx) => {
     const integration = await upsertIntegrationSetup(tx, user.workspaceId, setup, "queued", {

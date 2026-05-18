@@ -145,16 +145,76 @@ function authModeLabel(value: string) {
   const labels: Record<string, string> = {
     api_token: "API-токен",
     basic: "Базовая авторизация",
+    basic_api_key: "API-ключ через Basic",
+    basic_api_token: "API-токен через Basic",
     bearer_token: "Bearer-токен",
     hmac_sha256: "Подпись HMAC-SHA256",
     none: "Без авторизации",
+    oauth: "OAuth",
     oauth_client_credentials: "OAuth: учетные данные клиента",
+    oauth_connected_app: "OAuth-приложение Salesforce",
+    private_app_token: "Токен private app",
     session_create: "Создание сессии",
     tls_ca_bundle: "Пакет корневых сертификатов",
     user_password: "Пользователь и пароль"
   };
 
   return labels[value] ?? value;
+}
+
+function operationLabel(value: string) {
+  const labels: Record<string, string> = {
+    activities_get: "активности",
+    case_get: "case",
+    comments_get: "комментарии",
+    conversation_import: "импорт диалогов",
+    conversations_get: "диалоги",
+    diagnostics: "диагностика",
+    fixture_import: "fixture",
+    preview: "preview",
+    review_export: "экспорт проверок",
+    selected_import: "выборочный импорт",
+    ticket_get: "ticket get",
+    ticket_search: "ticket search",
+    webhook_ingest: "webhooks"
+  };
+
+  return labels[value] ?? value;
+}
+
+function certificationGateLabel(value: string) {
+  const labels: Record<string, string> = {
+    configuration_required: "нужна настройка",
+    contract_certified: "контракт проверен",
+    docs_checked: "документация проверена",
+    live_certified: "живая сертификация пройдена",
+    not_production_ready: "не готово",
+    stub_certified: "stub проверен",
+    waiting_for_access: "ожидает доступы"
+  };
+
+  return labels[value] ?? value;
+}
+
+function readinessActionLabel({
+  hasBaseUrl,
+  hasRequiredSecrets
+}: {
+  hasBaseUrl: boolean;
+  hasRequiredSecrets: boolean;
+}) {
+  return hasBaseUrl && hasRequiredSecrets ? "Готово к живой сертификации" : "Ожидает доступы";
+}
+
+function hasRequiredCredentialSlots(
+  credentials: Array<{ kind: string }>,
+  requiredSecrets: string[]
+) {
+  return requiredSecrets.every((secret) => credentials.some((credential) => credential.kind === secret));
+}
+
+function canQueueIntegrationImport(capability: ReturnType<typeof getIntegrationCapability>) {
+  return capability.type !== "enterprise" && capability.setupStatus === "available";
 }
 
 function integrationModeLabel(value: string) {
@@ -220,6 +280,16 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
             startedAt: "desc"
           },
           take: 1
+        },
+        credentials: {
+          where: {
+            workspaceId: user.workspaceId
+          },
+          select: {
+            kind: true,
+            fingerprint: true,
+            lastRotatedAt: true
+          }
         }
       }
     }),
@@ -412,6 +482,18 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                 const latestDiagnosticStatus = latestDiagnostic ? integrationRunStatusView(latestDiagnostic.status) : null;
                 const capability = getIntegrationCapability(integration.source, integration.type);
                 const syncState = parseIntegrationSyncState(integration.syncStateJson);
+                const hasBaseUrl = Boolean(integration.baseUrl?.trim());
+                const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
+                const canOpenDiagnostics =
+                  capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets && integration.type === "otrs_family";
+                const diagnosticsReady = capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets;
+                const canQueueImport = canQueueIntegrationImport(capability);
+                const gateSummary = [
+                  `docs: ${certificationGateLabel(capability.certification.gates.docs)}`,
+                  `contract: ${certificationGateLabel(capability.certification.gates.contract)}`,
+                  `stub: ${certificationGateLabel(capability.certification.gates.stub)}`,
+                  `live: ${certificationGateLabel(capability.certification.gates.live)}`
+                ].join(" · ");
 
                 return (
                   <article key={integration.id} className="ops-table__row admin-tile admin-tile--table" role="row">
@@ -428,12 +510,18 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                         {capability.supportsCursor ? "есть" : "нет"} · вебхуки{" "}
                         {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
                       </span>
+                      <span className="record-meta compact-text">
+                        Операции: {capability.operations.slice(0, 5).map(operationLabel).join(", ")}
+                        {capability.operations.length > 5 ? ` +${capability.operations.length - 5}` : ""}
+                      </span>
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
                           {capability.certification.summary.label}
                         </span>
+                        <span className="pill pill--neutral">{readinessActionLabel({ hasBaseUrl, hasRequiredSecrets })}</span>
                         <CertificationHelpTooltip label={`Что значит статус сертификации для ${integration.displayName}?`} />
                       </div>
+                      <span className="record-meta compact-text">Gates: {gateSummary}</span>
                     </div>
                     <div className="ops-table__cell">
                       <span className="ops-table__label">Импорт</span>
@@ -487,7 +575,26 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
                         <Link href={`/admin/integrations/${integration.id}`} className="quiet-link text-sm">
                           Открыть панель
                         </Link>
-                        <IntegrationImportQueueForm integrationId={integration.id} />
+                        {canOpenDiagnostics ? (
+                          <Link href={`/admin/integrations/${integration.id}?section=operations`} className="quiet-link text-sm">
+                            Диагностика
+                          </Link>
+                        ) : diagnosticsReady ? (
+                          <span className="record-meta compact-text">
+                            Диагностика готова по доступам, action пока не подключен
+                          </span>
+                        ) : (
+                          <span className="record-meta compact-text">
+                            Диагностика после Base URL и секретов
+                          </span>
+                        )}
+                        {canQueueImport ? (
+                          <IntegrationImportQueueForm integrationId={integration.id} />
+                        ) : (
+                          <span className="record-meta compact-text">
+                            Импорт ожидает защищенную настройку OAuth-доступов
+                          </span>
+                        )}
                       </div>
                     </div>
                   </article>

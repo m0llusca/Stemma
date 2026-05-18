@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
     createOtrsPreview: vi.fn(),
     getCurrentUser: vi.fn(),
     prisma,
+    queueIntegrationImportJob: vi.fn(),
     queueSelectedOtrsImportJob: vi.fn(),
     revalidatePath: vi.fn(),
     requireSessionApi: vi.fn(),
@@ -48,7 +49,12 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/integration-import-service", () => ({
-  queueIntegrationImportJob: vi.fn(),
+  assertIntegrationSourceContractSupported: vi.fn(({ source, type }: { source?: string | null; type?: string | null }) => {
+    if (type === "enterprise" || source === "salesforce") {
+      throw new Error("Корпоративные источники требуют защищенной настройки OAuth-доступов.");
+    }
+  }),
+  queueIntegrationImportJob: mocks.queueIntegrationImportJob,
   queueSelectedOtrsImportJob: mocks.queueSelectedOtrsImportJob
 }));
 
@@ -84,6 +90,21 @@ function baseOtrsForm() {
   formData.set("caBundle", "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----");
   formData.set("searchLimit", "15");
   formData.set("manualTicketIdLimit", "7");
+  return formData;
+}
+
+function baseSetupForm(source: string, mode: string) {
+  const formData = new FormData();
+  formData.set("source", source);
+  formData.set("sourceLabel", source);
+  formData.set("mode", mode);
+  formData.set("baseUrl", "https://support.example.com");
+  formData.set("nativeToken", "secret-token");
+  formData.set("ticketId", "CASE-1");
+  formData.set("maxTickets", "25");
+  formData.set("batchSize", "10");
+  formData.set("dateRangeDays", "30");
+
   return formData;
 }
 
@@ -198,6 +219,23 @@ describe("OTRS integration actions", () => {
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/integrations");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/integrations/integration-1");
+  });
+
+  it("rejects forged enterprise setup forms before persistence", async () => {
+    const { recordIntegrationDryRunState, saveIntegrationConfigurationState } = await import("@/lib/integration-actions");
+
+    await expect(saveIntegrationConfigurationState(null, baseSetupForm("salesforce", "enterprise"))).resolves.toMatchObject({
+      ok: false,
+      message: "Корпоративные источники требуют защищенной настройки OAuth-доступов."
+    });
+    await expect(recordIntegrationDryRunState(null, baseSetupForm("salesforce", "native_helpdesk"))).resolves.toMatchObject({
+      ok: false,
+      message: "Корпоративные источники требуют защищенной настройки OAuth-доступов."
+    });
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integration.upsert).not.toHaveBeenCalled();
+    expect(mocks.upsertIntegrationSecretSlot).not.toHaveBeenCalled();
   });
 
   it("runs diagnostics only for integration managers and writes the OTRS diagnostics audit action", async () => {
@@ -403,6 +441,45 @@ describe("OTRS integration actions", () => {
       code: "conflict",
       message: "Preview-run уже поставлен в очередь или больше недоступен для выборочного импорта.",
       requestId: "request-conflict"
+    });
+  });
+
+  it("maps enterprise connector import guard errors to a controlled REST import response", async () => {
+    const { POST } = await import("@/app/api/v1/integrations/[integrationId]/imports/route");
+    mocks.queueIntegrationImportJob.mockRejectedValueOnce(
+      new Error("Корпоративные источники требуют защищенной настройки OAuth-доступов.")
+    );
+
+    const response = await POST(
+      new Request("https://qc.example.test/api/v1/integrations/integration-1/imports", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-enterprise-import"
+        },
+        body: JSON.stringify({
+          dryRun: false,
+          requestedLimit: 10
+        })
+      }),
+      { params: Promise.resolve({ integrationId: "integration-1" }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("x-request-id")).toBe("request-enterprise-import");
+    expect(body.error).toMatchObject({
+      code: "conflict",
+      message: "Корпоративные источники требуют защищенной настройки OAuth-доступов.",
+      requestId: "request-enterprise-import"
+    });
+    expect(mocks.queueIntegrationImportJob).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      actorId: "user-1",
+      integrationId: "integration-1",
+      dryRun: false,
+      requestedLimit: 10,
+      runAfter: undefined
     });
   });
 });

@@ -4,6 +4,7 @@ import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
 import {
   applyCaBundleCredentialReference,
@@ -133,6 +134,22 @@ export async function POST(request: Request) {
     return apiError("bad_request", "Некорректные параметры интеграции.", 400, requestId, parsed.error.flatten());
   }
 
+  const integrationType = parsed.data.type ?? "custom_api";
+
+  try {
+    assertIntegrationSourceContractSupported({
+      source: parsed.data.source,
+      type: integrationType
+    });
+  } catch (error) {
+    return apiError(
+      "conflict",
+      error instanceof Error ? error.message : "Интеграция не соответствует контракту источника.",
+      409,
+      requestId
+    );
+  }
+
   const sanitizedConfig = sanitizeIntegrationCredentialConfig(parsed.data.config ?? {});
 
   const saved = await prisma.$transaction(async (tx) => {
@@ -171,7 +188,7 @@ export async function POST(request: Request) {
         workspaceId: user.workspaceId,
         source: parsed.data.source,
         displayName: parsed.data.displayName,
-        type: parsed.data.type ?? "custom_api",
+        type: integrationType,
         status: parsed.data.status ?? "ready",
         baseUrl: optionalString(parsed.data.baseUrl),
         authMode: parsed.data.authMode ?? "token",
@@ -183,7 +200,7 @@ export async function POST(request: Request) {
       },
       update: {
         displayName: parsed.data.displayName,
-        type: parsed.data.type ?? "custom_api",
+        type: integrationType,
         status: parsed.data.status ?? "ready",
         baseUrl: optionalString(parsed.data.baseUrl),
         authMode: parsed.data.authMode ?? "token",
