@@ -63,7 +63,7 @@ export async function createHelpdeskAdapterServer(options: HelpdeskAdapterServer
       return;
     }
 
-    writeJson(response, 200, payloadFor(options.source, requestRecord.operation, mode, options));
+    writeJson(response, 200, payloadFor(options.source, requestRecord, mode, options));
   });
 
   try {
@@ -151,10 +151,11 @@ function operationFor(source: PhaseBHelpdeskSource, method: string, pathname: st
       return "ticket_get";
     }
 
-    if (
-      /^\/crm\/v4\/objects\/tickets\/[^/]+\/associations\/[^/]+$/.test(pathname) ||
-      /^\/crm\/v3\/objects\/tickets\/[^/]+\/associations\/[^/]+$/.test(pathname)
-    ) {
+    if (/^\/crm\/v4\/objects\/tickets\/[^/]+\/associations\/[^/]+$/.test(pathname)) {
+      return "activities_get";
+    }
+
+    if (/^\/crm\/objects\/2026-03\/(?:notes|emails|communications)\/[^/]+$/.test(pathname)) {
       return "activities_get";
     }
   }
@@ -194,10 +195,11 @@ function operationFor(source: PhaseBHelpdeskSource, method: string, pathname: st
 
 function payloadFor(
   source: PhaseBHelpdeskSource,
-  operation: HelpdeskAdapterStubOperation,
+  request: HelpdeskAdapterRequest,
   mode: HelpdeskAdapterServerMode,
   options: HelpdeskAdapterServerOptions
 ) {
+  const operation = request.operation;
   const fixture = getHelpdeskAdapterFixture(source, mode === "malformed_payload" ? "malformed" : "success");
 
   if (source === "zendesk") {
@@ -243,7 +245,7 @@ function payloadFor(
     }
 
     if (operation === "activities_get") {
-      return { results: payload.activities ?? ticket.activities ?? [] };
+      return hubspotActivityPayload(request.pathname, ticket);
     }
   }
 
@@ -286,8 +288,87 @@ function payloadFor(
   return fixture;
 }
 
+function hubspotActivityPayload(pathname: string, ticket: Record<string, unknown>) {
+  const associationMatch = pathname.match(/^\/crm\/v4\/objects\/tickets\/[^/]+\/associations\/([^/]+)$/);
+
+  if (associationMatch) {
+    const activityType = associationMatch[1];
+
+    if (activityType === "notes") {
+      return { results: [{ toObjectId: "note_1" }] };
+    }
+
+    if (activityType === "emails") {
+      return { results: [{ toObjectId: "email_1" }, { toObjectId: "email_2" }] };
+    }
+
+    if (activityType === "communications") {
+      return { results: [{ toObjectId: "communication_1" }] };
+    }
+
+    return { results: [] };
+  }
+
+  const objectMatch = pathname.match(/^\/crm\/objects\/2026-03\/([^/]+)\/([^/]+)$/);
+
+  if (!objectMatch) {
+    return { results: [] };
+  }
+
+  const [, activityType, activityId] = objectMatch;
+  const activities = arrayRecords(ticket.activities);
+  const email = activities.find((activity) => String(activity.id) === activityId);
+
+  if (activityType === "emails" && email) {
+    return {
+      id: activityId,
+      createdAt: email.createdAt,
+      properties: {
+        hs_object_id: activityId,
+        hs_email_direction: email.direction,
+        hs_email_text: email.body,
+        hs_timestamp: email.createdAt,
+        hubspot_owner_id: email.authorName
+      }
+    };
+  }
+
+  if (activityType === "notes" && activityId === "note_1") {
+    return {
+      id: activityId,
+      createdAt: "2026-04-25T10:03:00.000Z",
+      properties: {
+        hs_object_id: activityId,
+        hs_note_body: "Внутренняя заметка: клиент просит возврат.",
+        hs_timestamp: "2026-04-25T10:03:00.000Z",
+        hubspot_owner_id: "Иван Петров"
+      }
+    };
+  }
+
+  if (activityType === "communications" && activityId === "communication_1") {
+    return {
+      id: activityId,
+      createdAt: "2026-04-25T10:12:00.000Z",
+      properties: {
+        hs_object_id: activityId,
+        hs_communication_channel_type: "OUTBOUND",
+        hs_communication_body: "Клиенту отправлено подтверждение возврата.",
+        hs_timestamp: "2026-04-25T10:12:00.000Z",
+        hubspot_owner_id: "Иван Петров"
+      }
+    };
+  }
+
+  return {};
+}
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function arrayRecords(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")) : [];
 }
 
 function headerRecord(headers: http.IncomingHttpHeaders): Record<string, string> {

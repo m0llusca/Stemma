@@ -14,6 +14,18 @@ const ticketProperties = [
   "createdate",
   "hs_lastmodifieddate"
 ];
+const activityAssociationTypes = ["notes", "emails", "communications"] as const;
+const activityProperties = {
+  notes: ["hs_note_body", "hs_timestamp", "hubspot_owner_id", "hs_created_by_user_id"],
+  emails: ["hs_email_text", "hs_email_html", "hs_email_direction", "hs_timestamp", "hubspot_owner_id", "hs_created_by_user_id"],
+  communications: [
+    "hs_communication_body",
+    "hs_communication_channel_type",
+    "hs_timestamp",
+    "hubspot_owner_id",
+    "hs_created_by_user_id"
+  ]
+} satisfies Record<(typeof activityAssociationTypes)[number], string[]>;
 
 export function createHubspotAdapter() {
   const client = createHelpdeskHttpClient();
@@ -35,12 +47,34 @@ export function createHubspotAdapter() {
         operation: "ticket_get",
         url: `${baseUrl}/crm/v3/objects/tickets/${ticketId}?properties=${encodeURIComponent(ticketProperties.join(","))}&associations=${encodeURIComponent("notes,emails,communications")}`
       });
-      const activitiesResponse = await client.requestJson({
-        ...requestDefaults,
-        operation: "activities_get",
-        url: `${baseUrl}/crm/v4/objects/tickets/${ticketId}/associations/notes`
-      });
-      const activities = activityRecords(activitiesResponse.body);
+      const associationResponses = await Promise.all(
+        activityAssociationTypes.map(async (activityType) => ({
+          activityType,
+          response: await client.requestJson({
+            ...requestDefaults,
+            operation: "activities_get",
+            url: `${baseUrl}/crm/v4/objects/tickets/${ticketId}/associations/${activityType}`
+          })
+        }))
+      );
+      const activityResponses = await Promise.all(
+        associationResponses.flatMap(({ activityType, response }) =>
+          associationIds(response.body).map(async (activityId) => ({
+            activityType,
+            response: await client.requestJson({
+              ...requestDefaults,
+              operation: "activities_get",
+              url: `${baseUrl}/crm/objects/2026-03/${activityType}/${encodeURIComponent(activityId)}?properties=${encodeURIComponent(
+                activityProperties[activityType].join(",")
+              )}`
+            })
+          }))
+        )
+      );
+      const activities = activityResponses.map(({ activityType, response }) => ({
+        ...recordValue(response.body),
+        objectType: activityType
+      }));
       const payload = {
         ticket: {
           ...recordValue(ticketResponse.body),
@@ -55,7 +89,11 @@ export function createHubspotAdapter() {
         payload,
         conversations: normalizeNativeHelpdeskPayload(payload, { source: "hubspot", baseUrl: input.baseUrl }),
         diagnostics: {
-          requests: [ticketResponse.diagnostic, activitiesResponse.diagnostic]
+          requests: [
+            ticketResponse.diagnostic,
+            ...associationResponses.map(({ response }) => response.diagnostic),
+            ...activityResponses.map(({ response }) => response.diagnostic)
+          ]
         }
       };
     }
@@ -74,16 +112,30 @@ function arrayValue(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function activityRecords(value: unknown): unknown[] {
-  if (Array.isArray(value)) {
-    return value;
+function associationIds(value: unknown): string[] {
+  const record = recordValue(value);
+  const rows = Array.isArray(value)
+    ? value
+    : arrayValue(record.results).length > 0
+      ? arrayValue(record.results)
+      : arrayValue(record.value).length > 0
+        ? arrayValue(record.value)
+        : arrayValue(record.associations);
+
+  return rows
+    .map((row) => {
+      const association = recordValue(row);
+      const associatedObject = recordValue(association.to);
+      return stringValue(association.toObjectId ?? associatedObject.id ?? association.id);
+    })
+    .filter((id): id is string => Boolean(id));
+}
+
+function stringValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return undefined;
   }
 
-  const record = recordValue(value);
-
-  return arrayValue(record.results).length > 0
-    ? arrayValue(record.results)
-    : arrayValue(record.value).length > 0
-      ? arrayValue(record.value)
-      : arrayValue(record.activities);
+  const normalized = String(value).trim();
+  return normalized ? normalized : undefined;
 }

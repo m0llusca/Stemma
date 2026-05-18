@@ -1,4 +1,4 @@
-import { bearerHeaders, createHelpdeskHttpClient } from "@/lib/integrations/helpdesk-adapters/http";
+import { basicCredentialHeaders, createHelpdeskHttpClient } from "@/lib/integrations/helpdesk-adapters/http";
 import type { HelpdeskAdapterLoadInput, HelpdeskAdapterLoadResult } from "@/lib/integrations/helpdesk-adapters/types";
 import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdesk";
 
@@ -15,7 +15,7 @@ export function createZendeskAdapter() {
       const requestDefaults = {
         source: "zendesk" as const,
         method: "GET" as const,
-        headers: bearerHeaders(input.token),
+        headers: basicCredentialHeaders(input.token),
         timeoutMs: input.timeoutMs ?? defaultTimeoutMs,
         maxResponseBytes: input.maxResponseBytes ?? defaultMaxResponseBytes
       };

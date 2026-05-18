@@ -190,7 +190,7 @@ export const phaseBSourceContracts = {
     displayName: "HubSpot Service Hub",
     type: "native_helpdesk",
     authModes: ["private_app_token", "oauth"],
-    operations: ["ticket_get", "ticket_search", "webhook_ingest", "diagnostics", "fixture_import"],
+    operations: ["ticket_get", "ticket_search", "activities_get", "webhook_ingest", "diagnostics", "fixture_import"],
     supportedEvents: ["ticket.creation", "ticket.propertyChange", "ticket.deletion"],
     requiredSecrets: nativeRuntimeSecrets,
     docsHref: "https://developers.hubspot.com/docs/api-reference/latest/crm/objects/tickets/guide",

@@ -41,6 +41,10 @@ export function basicApiTokenHeaders(token: string | undefined, suffix = "X"): R
   return token ? { authorization: `Basic ${Buffer.from(`${token}:${suffix}`).toString("base64")}` } : {};
 }
 
+export function basicCredentialHeaders(credential: string | undefined): Record<string, string> {
+  return credential ? { authorization: `Basic ${Buffer.from(credential).toString("base64")}` } : {};
+}
+
 export function redactHelpdeskDiagnostic<T>(value: T): T {
   return redactValue(value) as T;
 }

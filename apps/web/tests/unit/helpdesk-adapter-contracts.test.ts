@@ -69,6 +69,12 @@ describe("Phase B helpdesk adapter source contracts", () => {
     }
   });
 
+  it("records HubSpot activity reads without live certification overclaim", () => {
+    expect(phaseBSourceContracts.hubspot.operations).toContain("activities_get");
+    expect(phaseBSourceContracts.hubspot.certification.gates.live).toBe("waiting_for_access");
+    expect(phaseBSourceContracts.hubspot.certification.summary.productionReady).toBe(false);
+  });
+
   it("provides local stub fixtures for every Phase B source", async () => {
     for (const source of phaseBHelpdeskSources) {
       expect(helpdeskAdapterFixtures[source].success).toBeDefined();

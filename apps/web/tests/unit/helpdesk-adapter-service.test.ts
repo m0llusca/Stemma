@@ -54,6 +54,7 @@ function integration(overrides: Record<string, unknown> = {}) {
 describe("helpdesk adapter runner service", () => {
   it("decrypts native auth_password credentials, validates conversations, and returns safe diagnostics", async () => {
     const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
+    const zendeskCredential = "agent@example.com/token:native-token";
 
     try {
       const result = await loadHelpdeskAdapterConversations({
@@ -62,7 +63,7 @@ describe("helpdesk adapter runner service", () => {
           displayName: "Zendesk",
           type: "native_helpdesk",
           baseUrl: server.baseUrl,
-          credentials: [credential("auth_password", "native-token")]
+          credentials: [credential("auth_password", zendeskCredential)]
         }),
         ticketId: "35436",
         samplingReason: "Service import"
@@ -77,8 +78,8 @@ describe("helpdesk adapter runner service", () => {
         samplingReason: expect.any(String)
       });
       expect(result.diagnostics.requests.map((request) => request.operation)).toEqual(["ticket_get", "comments_get"]);
-      expect(server.requests[0]?.headers.authorization).toBe("Bearer native-token");
-      expect(JSON.stringify(result.diagnostics)).not.toContain("native-token");
+      expect(decodedBasicCredential(server.requests[0]?.headers.authorization)).toBe(zendeskCredential);
+      expect(JSON.stringify(result.diagnostics)).not.toContain(zendeskCredential);
     } finally {
       await server.close();
     }
@@ -194,6 +195,7 @@ describe("helpdesk adapter runner service", () => {
 describe("native helpdesk adapters", () => {
   it("loads a Zendesk ticket and comments through the source-specific endpoints", async () => {
     const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
+    const zendeskCredential = "agent@example.com/token:test-token";
 
     try {
       const adapter = createHelpdeskAdapter("zendesk");
@@ -201,7 +203,7 @@ describe("native helpdesk adapters", () => {
         source: "zendesk",
         baseUrl: server.baseUrl,
         externalId: "35436",
-        token: "test-token"
+        token: zendeskCredential
       });
 
       expect(result.conversations[0]).toMatchObject({
@@ -211,7 +213,8 @@ describe("native helpdesk adapters", () => {
       });
       expect(result.conversations[0]?.messages.length).toBeGreaterThan(1);
       expect(server.requests.map((request) => request.operation)).toEqual(["ticket_get", "comments_get"]);
-      expect(JSON.stringify(result.diagnostics)).not.toContain("test-token");
+      expect(decodedBasicCredential(server.requests[0]?.headers.authorization)).toBe(zendeskCredential);
+      expect(JSON.stringify(result.diagnostics)).not.toContain(zendeskCredential);
     } finally {
       await server.close();
     }
@@ -340,11 +343,31 @@ describe("native helpdesk adapters", () => {
       });
       expect(result.conversations[0]?.tags).toContain("HIGH");
       expect(result.conversations[0]?.messages.length).toBeGreaterThan(1);
-      expect(server.requests.map((request) => request.operation)).toEqual(["ticket_get", "activities_get"]);
+      expect(server.requests.map((request) => request.operation)).toEqual([
+        "ticket_get",
+        "activities_get",
+        "activities_get",
+        "activities_get",
+        "activities_get",
+        "activities_get",
+        "activities_get",
+        "activities_get"
+      ]);
       expect(server.requests[0]?.headers.authorization).toBe("Bearer hubspot-token");
       expect(server.requests[0]?.query.properties).toContain("subject");
       expect(server.requests[0]?.query.associations).toBe("notes,emails,communications");
       expect(server.requests[1]?.pathname).toBe("/crm/v4/objects/tickets/987654321/associations/notes");
+      expect(server.requests[2]?.pathname).toBe("/crm/v4/objects/tickets/987654321/associations/emails");
+      expect(server.requests[3]?.pathname).toBe("/crm/v4/objects/tickets/987654321/associations/communications");
+      expect(server.requests.slice(4).map((request) => request.pathname)).toEqual([
+        "/crm/objects/2026-03/notes/note_1",
+        "/crm/objects/2026-03/emails/email_1",
+        "/crm/objects/2026-03/emails/email_2",
+        "/crm/objects/2026-03/communications/communication_1"
+      ]);
+      expect(server.requests[4]?.query.properties).toContain("hs_note_body");
+      expect(server.requests[5]?.query.properties).toContain("hs_email_text");
+      expect(server.requests[7]?.query.properties).toContain("hs_communication_body");
       expect(JSON.stringify(result.diagnostics)).not.toContain("hubspot-token");
     } finally {
       await server.close();
@@ -451,3 +474,8 @@ describe("native helpdesk adapters", () => {
     });
   }
 });
+
+function decodedBasicCredential(authorization: string | undefined) {
+  expect(authorization).toMatch(/^Basic [A-Za-z0-9+/]+=*$/);
+  return Buffer.from(authorization?.replace(/^Basic /, "") ?? "", "base64").toString("utf8");
+}
