@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:live:helpdesk": "cross-env VITEST_INCLUDE_LIVE=1 vitest run tests/live/helpdesk-live-smoke.test.ts",
     "db:up": "docker compose -f ../../compose.yaml up -d postgres",
     "db:down": "docker compose -f ../../compose.yaml down",
     "db:generate": "prisma generate",

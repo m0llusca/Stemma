@@ -17,6 +17,12 @@ const phaseBGates = {
 } as const;
 const nativeRuntimeSecrets = ["auth_password"] as const;
 const enterpriseRuntimeSecrets = ["oauth_client_credentials"] as const;
+const genericLiveSmokeEnvironment = [
+  "HELPDESK_LIVE_SOURCE",
+  "HELPDESK_LIVE_BASE_URL",
+  "HELPDESK_LIVE_TOKEN",
+  "HELPDESK_LIVE_EXTERNAL_ID"
+] as const;
 
 export const phaseBHelpdeskSources = [
   "zendesk",
@@ -122,8 +128,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["ZENDESK_SUBDOMAIN", "ZENDESK_EMAIL", "ZENDESK_API_TOKEN", "ZENDESK_TEST_TICKET_ID"],
-      "npm run test:helpdesk:zendesk:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=zendesk npm run test:live:helpdesk"
     )
   }),
   freshdesk: contract({
@@ -146,8 +152,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["FRESHDESK_DOMAIN", "FRESHDESK_API_KEY", "FRESHDESK_TEST_TICKET_ID"],
-      "npm run test:helpdesk:freshdesk:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=freshdesk npm run test:live:helpdesk"
     )
   }),
   intercom: contract({
@@ -175,8 +181,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["INTERCOM_ACCESS_TOKEN", "INTERCOM_VERSION", "INTERCOM_TEST_CONVERSATION_ID"],
-      "npm run test:helpdesk:intercom:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=intercom npm run test:live:helpdesk"
     )
   }),
   hubspot: contract({
@@ -202,8 +208,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["HUBSPOT_ACCESS_TOKEN", "HUBSPOT_TEST_TICKET_ID"],
-      "npm run test:helpdesk:hubspot:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=hubspot npm run test:live:helpdesk"
     )
   }),
   salesforce: contract({
@@ -238,8 +244,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["SALESFORCE_INSTANCE_URL", "SALESFORCE_CLIENT_ID", "SALESFORCE_CLIENT_SECRET", "SALESFORCE_TEST_CASE_ID"],
-      "npm run test:helpdesk:salesforce:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=salesforce npm run test:live:helpdesk"
     )
   }),
   servicenow: contract({
@@ -269,8 +275,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["SERVICENOW_INSTANCE_URL", "SERVICENOW_USERNAME", "SERVICENOW_PASSWORD", "SERVICENOW_TEST_CASE_SYS_ID"],
-      "npm run test:helpdesk:servicenow:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=servicenow npm run test:live:helpdesk"
     )
   }),
   dynamics: contract({
@@ -305,8 +311,8 @@ export const phaseBSourceContracts = {
       }
     ]),
     liveCertification: liveCertification(
-      ["DYNAMICS_ORG_URL", "DYNAMICS_TENANT_ID", "DYNAMICS_CLIENT_ID", "DYNAMICS_CLIENT_SECRET", "DYNAMICS_TEST_CASE_ID"],
-      "npm run test:helpdesk:dynamics:live"
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=dynamics npm run test:live:helpdesk"
     )
   })
 } satisfies Record<PhaseBHelpdeskSource, HelpdeskSourceContract>;
