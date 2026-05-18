@@ -13,11 +13,7 @@ import {
   type OtrsFamilySource,
   type OtrsFamilyTicketGetResponse
 } from "@/lib/normalizers/otrs-family";
-import {
-  nativeHelpdeskSources,
-  normalizeNativeHelpdeskPayload,
-  type NativeHelpdeskSource
-} from "@/lib/normalizers/native-helpdesk";
+import { loadHelpdeskAdapterConversations } from "@/lib/integrations/helpdesk-adapters/service";
 import { decryptIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import {
   buildIntegrationSyncState,
@@ -124,14 +120,6 @@ function bearerHeaders(token: string | undefined): Record<string, string> {
     : {};
 }
 
-function basicTokenHeaders(token: string | undefined): Record<string, string> {
-  return token
-    ? {
-        authorization: `Basic ${Buffer.from(`${token}:X`).toString("base64")}`
-      }
-    : {};
-}
-
 function externalSourceUrl(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
@@ -183,71 +171,15 @@ async function loadOtrsFamilyConversations(integration: IntegrationWithCredentia
   );
 }
 
-async function loadNativeHelpdeskPayload(source: NativeHelpdeskSource, baseUrl: string, ticketId: string, token: string | undefined) {
-  if (source === "zendesk") {
-    const [ticketPayload, commentsPayload] = await Promise.all([
-      fetchJson(externalSourceUrl(baseUrl, `/api/v2/tickets/${encodeURIComponent(ticketId)}.json`), {
-        headers: bearerHeaders(token)
-      }),
-      fetchJson(externalSourceUrl(baseUrl, `/api/v2/tickets/${encodeURIComponent(ticketId)}/comments.json`), {
-        headers: bearerHeaders(token)
-      })
-    ]);
-
-    return {
-      ...(ticketPayload && typeof ticketPayload === "object" ? ticketPayload : {}),
-      ...(commentsPayload && typeof commentsPayload === "object" ? commentsPayload : {})
-    };
-  }
-
-  if (source === "freshdesk") {
-    return fetchJson(externalSourceUrl(baseUrl, `/api/v2/tickets/${encodeURIComponent(ticketId)}?include=conversations`), {
-      headers: basicTokenHeaders(token)
-    });
-  }
-
-  if (source === "intercom") {
-    return fetchJson(externalSourceUrl(baseUrl, `/conversations/${encodeURIComponent(ticketId)}`), {
-      headers: {
-        ...bearerHeaders(token),
-        "intercom-version": "2.11"
-      }
-    });
-  }
-
-  return fetchJson(
-    externalSourceUrl(
-      baseUrl,
-      `/crm/v3/objects/tickets/${encodeURIComponent(ticketId)}?properties=subject,content,hs_ticket_priority,hs_pipeline_stage,createdate,closed_date`
-    ),
-    {
-      headers: bearerHeaders(token)
-    }
-  );
-}
-
-async function loadNativeHelpdeskConversations(integration: IntegrationWithCredential, config: IntegrationConfig) {
-  const source = integration.source as NativeHelpdeskSource;
-
-  if (!nativeHelpdeskSources.some((item) => item.value === source)) {
-    throw new Error("Неподдерживаемый native helpdesk source.");
-  }
-
-  const baseUrl = requireText(integration.baseUrl, "Для helpdesk-адаптера укажите Base URL.");
+async function loadHelpdeskConversations(integration: IntegrationWithCredential, config: IntegrationConfig) {
   const ticketId = requireText(config.ticketId, "Для helpdesk-адаптера укажите ID обращения для проверки или первого импорта.");
-  const token = requireText(optionalCredentialSecret(integration.credentials), "Для helpdesk-адаптера сохраните API-ключ или секрет приложения.");
-  const payload = await loadNativeHelpdeskPayload(source, baseUrl, ticketId, token);
-  const conversations = normalizeNativeHelpdeskPayload(payload, {
-    source,
-    baseUrl,
+  const result = await loadHelpdeskAdapterConversations({
+    integration,
+    ticketId,
     samplingReason: `Импорт ${integration.displayName}: обращение ${ticketId}.`
-  }).map((conversation) => customConversationSchema.parse(conversation));
+  });
 
-  if (conversations.length === 0) {
-    throw new Error("Источник не вернул обращение в поддерживаемом формате.");
-  }
-
-  return conversations;
+  return result.conversations;
 }
 
 async function loadCustomApiConversations(integration: IntegrationWithCredential, limit: number) {
@@ -270,8 +202,8 @@ async function loadIntegrationConversations(integration: IntegrationWithCredenti
     return loadOtrsFamilyConversations(integration, config);
   }
 
-  if (integration.type === "native_helpdesk") {
-    return loadNativeHelpdeskConversations(integration, config);
+  if (integration.type === "native_helpdesk" || integration.type === "enterprise") {
+    return loadHelpdeskConversations(integration, config);
   }
 
   return loadCustomApiConversations(integration, limit);

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  loadHelpdeskAdapterConversations: vi.fn(),
   prisma: {
     $transaction: vi.fn(),
     integration: {
@@ -30,6 +31,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
+}));
+
+vi.mock("@/lib/integrations/helpdesk-adapters/service", () => ({
+  loadHelpdeskAdapterConversations: mocks.loadHelpdeskAdapterConversations
 }));
 
 const now = new Date("2026-05-09T08:00:00.000Z");
@@ -190,6 +195,73 @@ describe("integration connector run ledger", () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(client.integrationRun.update).not.toHaveBeenCalled();
     expect(client.integration.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("routes native helpdesk runs through the adapter service without inline fetches", async () => {
+    const client = fakeClient();
+    client.integration.findFirst.mockResolvedValue(
+      integration({
+        source: "zendesk",
+        displayName: "Zendesk",
+        type: "native_helpdesk",
+        baseUrl: "https://example.zendesk.com",
+        configJson: JSON.stringify({ ticketId: "35436" })
+      })
+    );
+    mocks.loadHelpdeskAdapterConversations.mockResolvedValue({
+      conversations: [
+        {
+          externalSource: "zendesk",
+          externalId: "35436",
+          channel: "email",
+          subject: "Zendesk ticket",
+          status: "open",
+          tags: ["zendesk"],
+          customerName: "Customer",
+          samplingReason: "Runner import",
+          openedAt: "2026-05-09T08:00:00.000Z",
+          messages: [
+            {
+              externalId: "35436-1",
+              participantType: "customer",
+              authorName: "Customer",
+              body: "Hello from Zendesk",
+              sentAt: "2026-05-09T08:00:00.000Z",
+              isPrivate: false
+            }
+          ]
+        }
+      ],
+      diagnostics: {
+        requests: []
+      }
+    });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const { runIntegrationConnector } = await import("@/lib/integrations/runner");
+
+    const result = await runIntegrationConnector({
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      dryRun: false,
+      client: client as never
+    });
+
+    expect(mocks.loadHelpdeskAdapterConversations).toHaveBeenCalledWith({
+      integration: expect.objectContaining({
+        source: "zendesk",
+        type: "native_helpdesk"
+      }),
+      ticketId: "35436",
+      samplingReason: "Импорт Zendesk: обращение 35436."
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.source).toBe("zendesk");
+    expect(result.mode).toBe("native_helpdesk");
+    expect(result.checkedCount).toBe(1);
+    expect(result.importedCount).toBe(1);
+    expect(result.externalIds).toEqual(["35436"]);
   });
 
   it("writes dry-run cursor data only to the run and leaves integration sync cursor/state unchanged", async () => {

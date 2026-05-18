@@ -1,6 +1,195 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createHelpdeskAdapter } from "@/lib/integrations/helpdesk-adapters";
+import { loadHelpdeskAdapterConversations } from "@/lib/integrations/helpdesk-adapters/service";
+import { encryptSecret } from "@/lib/secrets";
+import { customConversationSchema } from "@/lib/validation/custom-api";
 import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
+
+const now = new Date("2026-05-09T08:00:00.000Z");
+
+function credential(kind: string, secret: string) {
+  return {
+    id: `${kind}-credential`,
+    workspaceId: "workspace-1",
+    integrationId: "integration-1",
+    kind,
+    authMode: "token",
+    encryptedSecret: encryptSecret(secret),
+    keyVersion: "v1",
+    fingerprint: null,
+    lastRotatedAt: now,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function integration(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "integration-1",
+    workspaceId: "workspace-1",
+    source: "zendesk",
+    displayName: "Zendesk",
+    type: "native_helpdesk",
+    status: "ready",
+    baseUrl: "http://127.0.0.1",
+    configJson: "{}",
+    syncStateJson: "{}",
+    authMode: "token",
+    importLimit: 100,
+    batchSize: 25,
+    dateRangeDays: 30,
+    schedule: null,
+    syncCursor: null,
+    lastSyncedAt: null,
+    lastDryRunAt: null,
+    lastImportAt: null,
+    lastError: null,
+    createdAt: now,
+    updatedAt: now,
+    credentials: [credential("auth_password", "native-token")],
+    ...overrides
+  } as Parameters<typeof loadHelpdeskAdapterConversations>[0]["integration"];
+}
+
+describe("helpdesk adapter runner service", () => {
+  it("decrypts native auth_password credentials, validates conversations, and returns safe diagnostics", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
+
+    try {
+      const result = await loadHelpdeskAdapterConversations({
+        integration: integration({
+          source: "zendesk",
+          displayName: "Zendesk",
+          type: "native_helpdesk",
+          baseUrl: server.baseUrl,
+          credentials: [credential("auth_password", "native-token")]
+        }),
+        ticketId: "35436",
+        samplingReason: "Service import"
+      });
+
+      expect(result.conversations.map((conversation) => customConversationSchema.parse(conversation).externalId)).toEqual([
+        "35436"
+      ]);
+      expect(result.conversations[0]).toMatchObject({
+        externalSource: "zendesk",
+        externalId: "35436",
+        samplingReason: expect.any(String)
+      });
+      expect(result.diagnostics.requests.map((request) => request.operation)).toEqual(["ticket_get", "comments_get"]);
+      expect(server.requests[0]?.headers.authorization).toBe("Bearer native-token");
+      expect(JSON.stringify(result.diagnostics)).not.toContain("native-token");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("decrypts enterprise oauth_client_credentials credentials and returns safe diagnostics", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "salesforce", mode: "success" });
+
+    try {
+      const result = await loadHelpdeskAdapterConversations({
+        integration: integration({
+          source: "salesforce",
+          displayName: "Salesforce",
+          type: "enterprise",
+          baseUrl: server.baseUrl,
+          credentials: [credential("oauth_client_credentials", "enterprise-token")]
+        }),
+        ticketId: "500xx0000012345"
+      });
+
+      expect(result.conversations.map((conversation) => customConversationSchema.parse(conversation).externalSource)).toEqual([
+        "salesforce"
+      ]);
+      expect(result.conversations[0]?.messages.length).toBeGreaterThan(0);
+      expect(result.diagnostics.requests.map((request) => request.operation)).toEqual(["case_get", "activities_get"]);
+      expect(server.requests[0]?.headers.authorization).toBe("Bearer enterprise-token");
+      expect(JSON.stringify(result.diagnostics)).not.toContain("enterprise-token");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects unsupported sources before making adapter requests", async () => {
+    await expect(
+      loadHelpdeskAdapterConversations({
+        integration: integration({
+          source: "legacy_helpdesk",
+          credentials: [credential("auth_password", "native-token")]
+        }),
+        ticketId: "35436"
+      })
+    ).rejects.toThrow("Неподдерживаемый Phase B helpdesk source.");
+  });
+
+  it("rejects integration rows whose type does not match the source contract", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
+
+    try {
+      await expect(
+        loadHelpdeskAdapterConversations({
+          integration: integration({
+            source: "zendesk",
+            type: "enterprise",
+            baseUrl: server.baseUrl,
+            credentials: [credential("auth_password", "native-token")]
+          }),
+          ticketId: "35436"
+        })
+      ).rejects.toThrow("Тип интеграции не соответствует Phase B helpdesk source.");
+      expect(server.requests).toEqual([]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects adapter output that fails the custom conversation schema", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/integrations/helpdesk-adapters", () => ({
+      createHelpdeskAdapter: () => ({
+        loadConversation: vi.fn().mockResolvedValue({
+          conversations: [
+            {
+              externalSource: "zendesk",
+              externalId: "35436",
+              channel: "phone",
+              subject: "Invalid channel",
+              status: "open",
+              customerName: "Customer",
+              samplingReason: "Invalid fixture",
+              openedAt: "2026-05-09T08:00:00.000Z",
+              messages: []
+            }
+          ],
+          diagnostics: {
+            requests: []
+          }
+        })
+      })
+    }));
+
+    try {
+      const { loadHelpdeskAdapterConversations: loadServiceWithMockedAdapter } = await import(
+        "@/lib/integrations/helpdesk-adapters/service"
+      );
+
+      await expect(
+        loadServiceWithMockedAdapter({
+          integration: integration({
+            source: "zendesk",
+            type: "native_helpdesk",
+            credentials: [credential("auth_password", "native-token")]
+          }),
+          ticketId: "35436"
+        })
+      ).rejects.toThrow("Invalid enum value");
+    } finally {
+      vi.doUnmock("@/lib/integrations/helpdesk-adapters");
+      vi.resetModules();
+    }
+  });
+});
 
 describe("native helpdesk adapters", () => {
   it("loads a Zendesk ticket and comments through the source-specific endpoints", async () => {
