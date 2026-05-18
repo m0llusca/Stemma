@@ -30,6 +30,7 @@ export type HelpdeskAdapterServer = {
 type HelpdeskAdapterServerOptions = {
   source: PhaseBHelpdeskSource;
   mode?: HelpdeskAdapterServerMode;
+  omitInlineConversations?: boolean;
 };
 
 export async function createHelpdeskAdapterServer(options: HelpdeskAdapterServerOptions): Promise<HelpdeskAdapterServer> {
@@ -61,7 +62,7 @@ export async function createHelpdeskAdapterServer(options: HelpdeskAdapterServer
       return;
     }
 
-    writeJson(response, 200, payloadFor(options.source, requestRecord.operation, mode));
+    writeJson(response, 200, payloadFor(options.source, requestRecord.operation, mode, options));
   });
 
   try {
@@ -192,7 +193,8 @@ function operationFor(source: PhaseBHelpdeskSource, method: string, pathname: st
 function payloadFor(
   source: PhaseBHelpdeskSource,
   operation: HelpdeskAdapterStubOperation,
-  mode: HelpdeskAdapterServerMode
+  mode: HelpdeskAdapterServerMode,
+  options: HelpdeskAdapterServerOptions
 ) {
   const fixture = getHelpdeskAdapterFixture(source, mode === "malformed_payload" ? "malformed" : "success");
 
@@ -212,6 +214,12 @@ function payloadFor(
     const ticket = record(record(fixture).ticket);
 
     if (operation === "ticket_get") {
+      if (options.omitInlineConversations) {
+        const { conversations: _conversations, ...ticketWithoutConversations } = ticket;
+
+        return ticketWithoutConversations;
+      }
+
       return { ...ticket, conversations: ticket.conversations ?? record(fixture).conversations };
     }
 
