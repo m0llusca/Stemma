@@ -14,6 +14,7 @@ export type HelpdeskAdapterRequest = {
   operation: HelpdeskAdapterStubOperation;
   method: string;
   url: string;
+  headers: Record<string, string>;
   pathname: string;
   query: Record<string, string>;
   bodyText: string;
@@ -108,6 +109,7 @@ async function readRequest(request: http.IncomingMessage, source: PhaseBHelpdesk
     operation: operationFor(source, request.method ?? "GET", parsedUrl.pathname),
     method: request.method ?? "GET",
     url: request.url ?? "/",
+    headers: headerRecord(request.headers),
     pathname: parsedUrl.pathname,
     query: Object.fromEntries(parsedUrl.searchParams.entries()),
     bodyText,
@@ -150,7 +152,7 @@ function operationFor(source: PhaseBHelpdeskSource, method: string, pathname: st
     }
 
     if (
-      /^\/crm\/v3\/objects\/tickets\/[^/]+\/activities$/.test(pathname) ||
+      /^\/crm\/v4\/objects\/tickets\/[^/]+\/associations\/[^/]+$/.test(pathname) ||
       /^\/crm\/v3\/objects\/tickets\/[^/]+\/associations\/[^/]+$/.test(pathname)
     ) {
       return "activities_get";
@@ -241,7 +243,7 @@ function payloadFor(
     }
 
     if (operation === "activities_get") {
-      return payload.activities ?? ticket.activities ?? [];
+      return { results: payload.activities ?? ticket.activities ?? [] };
     }
   }
 
@@ -286,6 +288,12 @@ function payloadFor(
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function headerRecord(headers: http.IncomingHttpHeaders): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value.join(", ") : value ?? ""])
+  );
 }
 
 function writeJson(response: http.ServerResponse, statusCode: number, payload: unknown) {
