@@ -161,4 +161,104 @@ describe("native helpdesk adapters", () => {
       await server.close();
     }
   });
+
+  for (const source of ["salesforce", "servicenow", "dynamics"] as const) {
+    it(`loads ${source} fixture through a contract-certified enterprise adapter`, async () => {
+      const server = await createHelpdeskAdapterServer({ source, mode: "success" });
+      const externalId =
+        source === "salesforce"
+          ? "500xx0000012345"
+          : source === "servicenow"
+            ? "0123456789abcdef0123456789abcdef"
+            : "11111111-2222-3333-4444-555555555555";
+
+      try {
+        const adapter = createHelpdeskAdapter(source);
+        const result = await adapter.loadConversation({
+          source,
+          baseUrl: server.baseUrl,
+          externalId,
+          token: "enterprise-token"
+        });
+
+        expect(result.conversations[0]?.externalSource).toBe(source);
+        expect(result.conversations[0]?.messages.length).toBeGreaterThan(0);
+        expect(server.requests.map((request) => request.operation)).toEqual(["case_get", "activities_get"]);
+        expect(server.requests[0]?.headers.authorization).toBe("Bearer enterprise-token");
+
+        if (source === "salesforce") {
+          expect(server.requests[1]?.query.q).toContain("FROM CaseComment");
+          expect(server.requests[1]?.query.q).toContain(externalId);
+        }
+
+        if (source === "servicenow") {
+          expect(server.requests[1]?.query.sysparm_query).toBe(`element_id=${externalId}^element=comments`);
+          expect(server.requests[1]?.query.sysparm_limit).toBe("100");
+          expect(server.requests[1]?.query.sysparm_offset).toBe("0");
+        }
+
+        if (source === "dynamics") {
+          expect(server.requests[0]?.query.$select).toContain("incidentid");
+          expect(server.requests[1]?.query.$filter).toBe(`_regardingobjectid_value eq ${externalId}`);
+        }
+
+        expect(JSON.stringify(result.diagnostics)).not.toContain("enterprise-token");
+      } finally {
+        await server.close();
+      }
+    });
+  }
+
+  for (const externalId of [
+    "0123456789abcdef0123456789abcde^",
+    "0123456789abcdef0123456789abcd^OR",
+    "0123456789abcdef0123456789abcd^NQ"
+  ]) {
+    it(`rejects unsafe ServiceNow sys_id ${externalId} before making requests`, async () => {
+      const server = await createHelpdeskAdapterServer({ source: "servicenow", mode: "success" });
+
+      try {
+        const adapter = createHelpdeskAdapter("servicenow");
+
+        await expect(
+          adapter.loadConversation({
+            source: "servicenow",
+            baseUrl: server.baseUrl,
+            externalId,
+            token: "enterprise-token"
+          })
+        ).rejects.toThrow("ServiceNow sys_id");
+        expect(server.requests).toEqual([]);
+      } finally {
+        await server.close();
+      }
+    });
+  }
+
+  for (const externalId of [
+    "11111111-2222-3333-4444-555555555555 or statecode eq 0",
+    "11111111-2222-3333-4444-555555555555' or '1' eq '1",
+    "11111111-2222-3333-4444-555555555555 or prioritycode eq 1",
+    "(11111111-2222-3333-4444-555555555555)"
+  ]) {
+    it(`rejects unsafe Dynamics incident id ${externalId} before making requests`, async () => {
+      const server = await createHelpdeskAdapterServer({ source: "dynamics", mode: "success" });
+
+      try {
+        const adapter = createHelpdeskAdapter("dynamics");
+
+        await expect(
+          adapter.loadConversation({
+            source: "dynamics",
+            baseUrl: server.baseUrl,
+            externalId,
+            token: "enterprise-token"
+          })
+        ).rejects.toThrow("Dynamics incident id");
+        expect(server.requests).toEqual([]);
+      } finally {
+        await server.close();
+      }
+    });
+  }
 });

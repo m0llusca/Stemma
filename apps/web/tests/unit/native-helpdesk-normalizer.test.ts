@@ -37,4 +37,128 @@ describe("native helpdesk normalizer", () => {
   it("returns no conversations for unsupported payload shapes", () => {
     expect(normalizeNativeHelpdeskPayload({ source: "zendesk", hello: "world" }, { source: "zendesk" as NativeHelpdeskSource })).toEqual([]);
   });
+
+  it("rejects malformed enterprise helpdesk payloads", () => {
+    expect(normalizeNativeHelpdeskPayload({ case: { Id: "500xx0000012345" }, comments: [] }, { source: "salesforce" })).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload({ case: { sys_id: "0123456789abcdef0123456789abcdef" }, journal: [] }, { source: "servicenow" })
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        { incident: { incidentid: "11111111-2222-3333-4444-555555555555" }, activities: [] },
+        { source: "dynamics" }
+      )
+    ).toEqual([]);
+  });
+
+  it("rejects enterprise activity payloads without a case or incident", () => {
+    expect(
+      normalizeNativeHelpdeskPayload(
+        { comments: [{ Id: "c1", CommentBody: "body", CreatedDate: "2026-04-25T10:00:00Z" }] },
+        { source: "salesforce" }
+      )
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        { journal: [{ sys_id: "j1", element: "comments", value: "body", sys_created_on: "2026-04-25 10:00:00" }] },
+        { source: "servicenow" }
+      )
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        { activities: [{ activityid: "a1", description: "body", createdon: "2026-04-25T10:00:00Z" }] },
+        { source: "dynamics" }
+      )
+    ).toEqual([]);
+  });
+
+  it("rejects enterprise cases with only HTML-empty messages", () => {
+    expect(
+      normalizeNativeHelpdeskPayload(
+        {
+          case: {
+            Id: "500xx0000012345",
+            Subject: "Empty Salesforce comment",
+            Status: "New",
+            CreatedDate: "2026-04-25T10:00:00Z"
+          },
+          comments: [{ Id: "c1", CommentBody: "<p></p>", CreatedDate: "2026-04-25T10:00:00Z" }]
+        },
+        { source: "salesforce" }
+      )
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        {
+          case: {
+            sys_id: "0123456789abcdef0123456789abcdef",
+            short_description: "Empty ServiceNow journal",
+            state: "open",
+            opened_at: "2026-04-25 10:00:00"
+          },
+          journal: [{ sys_id: "j1", element: "comments", value: "<br>", sys_created_on: "2026-04-25 10:00:00" }]
+        },
+        { source: "servicenow" }
+      )
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        {
+          incident: {
+            incidentid: "11111111-2222-3333-4444-555555555555",
+            title: "Empty Dynamics activity",
+            statecode: 0,
+            createdon: "2026-04-25T10:00:00Z"
+          },
+          activities: [{ activityid: "a1", description: "<p></p>", createdon: "2026-04-25T10:00:00Z" }]
+        },
+        { source: "dynamics" }
+      )
+    ).toEqual([]);
+  });
+
+  it("rejects enterprise cases with messages missing body fields", () => {
+    expect(
+      normalizeNativeHelpdeskPayload(
+        {
+          case: {
+            Id: "500xx0000012345",
+            Subject: "Missing Salesforce comment body",
+            Status: "New",
+            CreatedDate: "2026-04-25T10:00:00Z"
+          },
+          comments: [{ Id: "c1", CreatedDate: "2026-04-25T10:00:00Z" }]
+        },
+        { source: "salesforce" }
+      )
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        {
+          case: {
+            sys_id: "0123456789abcdef0123456789abcdef",
+            short_description: "Missing ServiceNow journal body",
+            state: "open",
+            opened_at: "2026-04-25 10:00:00"
+          },
+          journal: [{ sys_id: "j1", element: "comments", sys_created_on: "2026-04-25 10:00:00" }]
+        },
+        { source: "servicenow" }
+      )
+    ).toEqual([]);
+    expect(
+      normalizeNativeHelpdeskPayload(
+        {
+          incident: {
+            incidentid: "11111111-2222-3333-4444-555555555555",
+            title: "Missing Dynamics activity body",
+            statecode: 0,
+            createdon: "2026-04-25T10:00:00Z"
+          },
+          activities: [{ activityid: "a1", createdon: "2026-04-25T10:00:00Z" }]
+        },
+        { source: "dynamics" }
+      )
+    ).toEqual([]);
+  });
 });

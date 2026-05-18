@@ -27,6 +27,24 @@ export const nativeHelpdeskSources = [
     label: "HubSpot Service Hub",
     objectName: "Tickets + CRM activities",
     endpointHint: "/crm/v3/objects/tickets + associated activities"
+  },
+  {
+    value: "salesforce",
+    label: "Salesforce Service Cloud",
+    objectName: "Case + CaseComment",
+    endpointHint: "/services/data/vXX.0/sobjects/Case/{id} + /services/data/vXX.0/query"
+  },
+  {
+    value: "servicenow",
+    label: "ServiceNow CSM",
+    objectName: "Customer service case + Journal fields",
+    endpointHint: "/api/now/table/sn_customerservice_case/{id} + /api/now/table/sys_journal_field"
+  },
+  {
+    value: "dynamics",
+    label: "Dynamics 365 Customer Service",
+    objectName: "Incident + ActivityPointer",
+    endpointHint: "/api/data/v9.2/incidents({id}) + /api/data/v9.2/activitypointers"
   }
 ] as const;
 
@@ -42,7 +60,10 @@ const sourceLabels: Record<NativeHelpdeskSource, string> = {
   zendesk: "Zendesk",
   intercom: "Intercom",
   freshdesk: "Freshdesk",
-  hubspot: "HubSpot"
+  hubspot: "HubSpot",
+  salesforce: "Salesforce",
+  servicenow: "ServiceNow",
+  dynamics: "Dynamics 365"
 };
 
 const highRiskPattern = /(urgent|high|critical|escalat|vip|высок|критич|сроч)/i;
@@ -152,7 +173,10 @@ function parseDate(value: unknown, fallback = new Date(0)) {
     return new Date(milliseconds).toISOString();
   }
 
-  const isoLikeValue = normalized.includes("T") ? normalized : normalized.replace(" ", "T");
+  const isoLikeValue = (normalized.includes("T") ? normalized : normalized.replace(" ", "T")).replace(
+    /([+-]\d{2})(\d{2})$/,
+    "$1:$2"
+  );
   const withZone = /(Z|[+-]\d{2}:\d{2})$/.test(isoLikeValue) ? isoLikeValue : `${isoLikeValue}Z`;
   const date = new Date(withZone);
 
@@ -186,6 +210,14 @@ function actorName(actor: NativeRecord | undefined, fallback: unknown) {
     firstString(actor?.name, actor?.email, actor?.display_name, actor?.full_name, actor?.id, fallback) ??
     "Неизвестный участник"
   );
+}
+
+function hasNonEmptyMessageBody(message: CustomMessageInput) {
+  return message.body.trim().length > 0;
+}
+
+function enterpriseMessageBody(...values: unknown[]) {
+  return stripHtml(firstString(...values)) ?? "";
 }
 
 function defaultSamplingReason(source: NativeHelpdeskSource) {
@@ -606,6 +638,191 @@ function normalizeHubspot(payload: unknown, options: NativeHelpdeskNormalizeOpti
   });
 }
 
+function normalizeSalesforceMessage(comment: NativeRecord, index: number): CustomMessageInput {
+  const author = recordValue(comment.CreatedBy);
+
+  return {
+    externalId: firstString(comment.Id, `case-comment-${index + 1}`) ?? `case-comment-${index + 1}`,
+    participantType: "human_agent",
+    authorName: firstString(author?.Name, author?.Email, comment.CreatedById) ?? "Salesforce",
+    body: enterpriseMessageBody(comment.CommentBody, comment.body),
+    sentAt: parseDate(comment.CreatedDate, new Date(index)),
+    isPrivate: false
+  };
+}
+
+function normalizeSalesforce(payload: unknown, options: NativeHelpdeskNormalizeOptions): CustomConversationInput[] {
+  const root = recordValue(payload) ?? {};
+  const cases = oneOrManyRecords(root.cases).length > 0
+    ? oneOrManyRecords(root.cases)
+    : oneOrManyRecords(root.case).length > 0
+      ? oneOrManyRecords(root.case)
+      : firstString(root.Id, root.id)
+        ? oneOrManyRecords(root)
+        : [];
+
+  return cases.flatMap((caseRecord) => {
+    const caseId = firstString(caseRecord.Id, caseRecord.id);
+
+    if (!caseId) {
+      return [];
+    }
+
+    const messages = (
+      oneOrManyRecords(caseRecord.comments).length > 0
+        ? oneOrManyRecords(caseRecord.comments).map(normalizeSalesforceMessage)
+        : oneOrManyRecords(root.comments).map(normalizeSalesforceMessage)
+    ).filter(hasNonEmptyMessageBody);
+    const status = firstString(caseRecord.Status) ?? "unknown";
+    const priority = firstString(caseRecord.Priority);
+
+    return [{
+      externalSource: options.source,
+      externalId: caseId,
+      externalUrl: sourceUrl(options.baseUrl, `/lightning/r/Case/${encodeURIComponent(caseId)}/view`),
+      channel: "ticket",
+      subject: firstString(caseRecord.Subject, caseRecord.CaseNumber, `Salesforce case ${caseId}`) ?? `Salesforce case ${caseId}`,
+      status,
+      tags: uniqueValues([priority, status, firstString(caseRecord.Origin)]),
+      customerName: firstString(recordValue(caseRecord.Contact)?.Name, caseRecord.ContactEmail, caseRecord.ContactId) ?? "Клиент",
+      assigneeName: firstString(recordValue(caseRecord.Owner)?.Name, caseRecord.OwnerId),
+      samplingReason: options.samplingReason ?? defaultSamplingReason(options.source),
+      riskHint: priority && highRiskPattern.test(priority) ? `Priority: ${priority}` : undefined,
+      openedAt: parseDate(caseRecord.CreatedDate, messages[0] ? new Date(messages[0].sentAt) : new Date(0)),
+      closedAt: statusFromClosed(status) ? parseDate(caseRecord.LastModifiedDate) : null,
+      messages
+    }];
+  });
+}
+
+function normalizeServiceNowMessage(entry: NativeRecord, index: number): CustomMessageInput {
+  const element = firstString(entry.element)?.toLowerCase();
+
+  return {
+    externalId: firstString(entry.sys_id, `journal-${index + 1}`) ?? `journal-${index + 1}`,
+    participantType: element === "work_notes" ? "human_agent" : "customer",
+    authorName: firstString(entry.sys_created_by, entry.user_name, entry.user) ?? "ServiceNow",
+    body: enterpriseMessageBody(entry.value, entry.body),
+    sentAt: parseDate(entry.sys_created_on, new Date(index)),
+    isPrivate: element === "work_notes"
+  };
+}
+
+function normalizeServiceNow(payload: unknown, options: NativeHelpdeskNormalizeOptions): CustomConversationInput[] {
+  const root = recordValue(payload) ?? {};
+  const cases = oneOrManyRecords(root.cases).length > 0
+    ? oneOrManyRecords(root.cases)
+    : oneOrManyRecords(root.case).length > 0
+      ? oneOrManyRecords(root.case)
+      : oneOrManyRecords(root.result).length > 0
+        ? oneOrManyRecords(root.result)
+        : firstString(root.sys_id, root.id)
+          ? oneOrManyRecords(root)
+          : [];
+
+  return cases.flatMap((caseRecord) => {
+    const caseId = firstString(caseRecord.sys_id, caseRecord.id);
+
+    if (!caseId) {
+      return [];
+    }
+
+    const messages = (
+      oneOrManyRecords(caseRecord.journal).length > 0
+        ? oneOrManyRecords(caseRecord.journal).map(normalizeServiceNowMessage)
+        : oneOrManyRecords(root.journal).map(normalizeServiceNowMessage)
+    ).filter(hasNonEmptyMessageBody);
+    const status = firstString(caseRecord.state) ?? "unknown";
+    const priority = firstString(caseRecord.priority);
+
+    return [{
+      externalSource: options.source,
+      externalId: caseId,
+      externalUrl: sourceUrl(options.baseUrl, `/nav_to.do?uri=sn_customerservice_case.do?sys_id=${encodeURIComponent(caseId)}`),
+      channel: "ticket",
+      subject: firstString(caseRecord.short_description, caseRecord.number, `ServiceNow case ${caseId}`) ?? `ServiceNow case ${caseId}`,
+      status,
+      tags: uniqueValues([priority ? `priority:${priority}` : undefined, status, firstString(caseRecord.category)]),
+      customerName: firstString(recordValue(caseRecord.consumer)?.display_value, caseRecord.consumer, caseRecord.contact) ?? "Клиент",
+      assigneeName: firstString(recordValue(caseRecord.assigned_to)?.display_value, caseRecord.assigned_to),
+      samplingReason: options.samplingReason ?? defaultSamplingReason(options.source),
+      riskHint: priority && highRiskPattern.test(priority) ? `Priority: ${priority}` : undefined,
+      openedAt: parseDate(caseRecord.opened_at, messages[0] ? new Date(messages[0].sentAt) : new Date(0)),
+      closedAt: statusFromClosed(status) ? parseDate(caseRecord.sys_updated_on) : null,
+      messages
+    }];
+  });
+}
+
+const dynamicsStateLabels: Record<string, string> = {
+  "0": "active",
+  "1": "resolved",
+  "2": "canceled"
+};
+
+const dynamicsPriorityLabels: Record<string, string> = {
+  "0": "low",
+  "1": "normal",
+  "2": "high"
+};
+
+function normalizeDynamicsMessage(activity: NativeRecord, index: number): CustomMessageInput {
+  return {
+    externalId: firstString(activity.activityid, activity.id, `activity-${index + 1}`) ?? `activity-${index + 1}`,
+    participantType: "human_agent",
+    authorName: firstString(activity.sender, recordValue(activity.from)?.name, recordValue(activity.ownerid)?.name) ?? "Dynamics 365",
+    body: enterpriseMessageBody(activity.description, activity.body),
+    sentAt: parseDate(activity.createdon, new Date(index)),
+    isPrivate: false
+  };
+}
+
+function normalizeDynamics(payload: unknown, options: NativeHelpdeskNormalizeOptions): CustomConversationInput[] {
+  const root = recordValue(payload) ?? {};
+  const incidents = oneOrManyRecords(root.incidents).length > 0
+    ? oneOrManyRecords(root.incidents)
+    : oneOrManyRecords(root.incident).length > 0
+      ? oneOrManyRecords(root.incident)
+      : firstString(root.incidentid, root.id)
+        ? oneOrManyRecords(root)
+        : [];
+
+  return incidents.flatMap((incident) => {
+    const incidentId = firstString(incident.incidentid, incident.id);
+
+    if (!incidentId) {
+      return [];
+    }
+
+    const messages = (
+      oneOrManyRecords(incident.activities).length > 0
+        ? oneOrManyRecords(incident.activities).map(normalizeDynamicsMessage)
+        : oneOrManyRecords(root.activities).map(normalizeDynamicsMessage)
+    ).filter(hasNonEmptyMessageBody);
+    const state = firstString(incident.statecode);
+    const status = (state ? dynamicsStateLabels[state] : undefined) ?? state ?? "unknown";
+    const priorityCode = firstString(incident.prioritycode);
+    const priority = (priorityCode ? dynamicsPriorityLabels[priorityCode] : undefined) ?? priorityCode;
+
+    return [{
+      externalSource: options.source,
+      externalId: incidentId,
+      externalUrl: sourceUrl(options.baseUrl, `/main.aspx?pagetype=entityrecord&etn=incident&id=${encodeURIComponent(incidentId)}`),
+      channel: "ticket",
+      subject: firstString(incident.title, incident.ticketnumber, `Dynamics incident ${incidentId}`) ?? `Dynamics incident ${incidentId}`,
+      status,
+      tags: uniqueValues([priority, status, firstString(incident.ticketnumber)]),
+      customerName: firstString(recordValue(incident.customerid)?.name, incident.customerid) ?? "Клиент",
+      assigneeName: firstString(recordValue(incident.ownerid)?.name, incident.ownerid),
+      samplingReason: options.samplingReason ?? defaultSamplingReason(options.source),
+      riskHint: priority && highRiskPattern.test(priority) ? `Priority: ${priority}` : undefined,
+      openedAt: parseDate(incident.createdon, messages[0] ? new Date(messages[0].sentAt) : new Date(0)),
+      closedAt: statusFromClosed(status) ? parseDate(incident.modifiedon) : null,
+      messages
+    }];
+  });
+}
+
 export function normalizeNativeHelpdeskPayload(
   payload: unknown,
   options: NativeHelpdeskNormalizeOptions
@@ -617,7 +834,13 @@ export function normalizeNativeHelpdeskPayload(
         ? normalizeIntercom(payload, options)
         : options.source === "freshdesk"
           ? normalizeFreshdesk(payload, options)
-          : normalizeHubspot(payload, options);
+          : options.source === "hubspot"
+            ? normalizeHubspot(payload, options)
+            : options.source === "salesforce"
+              ? normalizeSalesforce(payload, options)
+              : options.source === "servicenow"
+                ? normalizeServiceNow(payload, options)
+                : normalizeDynamics(payload, options);
 
   return conversations.filter((conversation) => conversation.externalId && conversation.subject && conversation.messages.length > 0);
 }
@@ -632,6 +855,9 @@ export const nativeHelpdeskMappingRows = [
   { source: "Intercom conversation.id + source + conversation_parts", target: "conversation/messages", note: "Source становится первым сообщением, parts добавляются по created_at." },
   { source: "Freshdesk ticket.id + conversations[]", target: "conversation/messages", note: "incoming=true считается клиентом, private=true становится внутренней заметкой." },
   { source: "HubSpot ticket.properties + associated activities", target: "conversation/messages", note: "properties дают карточку тикета, activities/notes/emails дают историю." },
+  { source: "Salesforce Case.Id + CaseComment[]", target: "conversation/messages", note: "Case дает карточку обращения, CaseComment становится историей." },
+  { source: "ServiceNow case.sys_id + sys_journal_field[]", target: "conversation/messages", note: "comments становятся сообщениями, work_notes остаются внутренними." },
+  { source: "Dynamics incident.incidentid + activitypointers[]", target: "conversation/messages", note: "Incident дает карточку обращения, ActivityPointer дает активность." },
   { source: "priority/tags/status/stage", target: "tags/riskHint/status", note: "Высокий/urgent priority подсвечивается как риск." }
 ] as const;
 
@@ -766,5 +992,84 @@ export const nativeHelpdeskImportExamples: Record<NativeHelpdeskSource, unknown>
         }
       ]
     }
+  },
+  salesforce: {
+    case: {
+      Id: "500xx0000012345",
+      CaseNumber: "00001001",
+      Subject: "Refund request from Salesforce",
+      Status: "Closed",
+      Priority: "High",
+      CreatedDate: "2026-04-25T10:00:00.000+0000",
+      LastModifiedDate: "2026-04-25T10:18:00.000+0000"
+    },
+    comments: [
+      {
+        Id: "00axx000001",
+        CommentBody: "Заказ задержан, хочу возврат.",
+        CreatedDate: "2026-04-25T10:00:00.000+0000",
+        CreatedBy: { Name: "Анна Смирнова" }
+      },
+      {
+        Id: "00axx000002",
+        CommentBody: "Проверю статус и предложу вариант возврата.",
+        CreatedDate: "2026-04-25T10:08:00.000+0000",
+        CreatedBy: { Name: "Иван Петров" }
+      }
+    ]
+  },
+  servicenow: {
+    case: {
+      sys_id: "0123456789abcdef0123456789abcdef",
+      number: "CS0001001",
+      short_description: "Refund request from ServiceNow",
+      state: "closed",
+      priority: "2",
+      opened_at: "2026-04-25 10:00:00",
+      sys_updated_on: "2026-04-25 10:18:00"
+    },
+    journal: [
+      {
+        sys_id: "journal-1",
+        element: "comments",
+        value: "Заказ задержан, хочу возврат.",
+        sys_created_on: "2026-04-25 10:00:00",
+        sys_created_by: "anna@example.com"
+      },
+      {
+        sys_id: "journal-2",
+        element: "comments",
+        value: "Проверю статус и предложу вариант возврата.",
+        sys_created_on: "2026-04-25 10:08:00",
+        sys_created_by: "ivan@example.com"
+      }
+    ]
+  },
+  dynamics: {
+    incident: {
+      incidentid: "11111111-2222-3333-4444-555555555555",
+      ticketnumber: "CAS-01001",
+      title: "Refund request from Dynamics",
+      statecode: 1,
+      prioritycode: 1,
+      createdon: "2026-04-25T10:00:00Z",
+      modifiedon: "2026-04-25T10:18:00Z"
+    },
+    activities: [
+      {
+        activityid: "activity-1",
+        subject: "Customer message",
+        description: "Заказ задержан, хочу возврат.",
+        createdon: "2026-04-25T10:00:00Z",
+        sender: "Анна Смирнова"
+      },
+      {
+        activityid: "activity-2",
+        subject: "Agent reply",
+        description: "Проверю статус и предложу вариант возврата.",
+        createdon: "2026-04-25T10:08:00Z",
+        sender: "Иван Петров"
+      }
+    ]
   }
 };

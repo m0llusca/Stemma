@@ -1,6 +1,9 @@
+import { createDynamicsAdapter } from "@/lib/integrations/helpdesk-adapters/dynamics";
 import { createFreshdeskAdapter } from "@/lib/integrations/helpdesk-adapters/freshdesk";
 import { createHubspotAdapter } from "@/lib/integrations/helpdesk-adapters/hubspot";
 import { createIntercomAdapter } from "@/lib/integrations/helpdesk-adapters/intercom";
+import { createSalesforceAdapter } from "@/lib/integrations/helpdesk-adapters/salesforce";
+import { createServiceNowAdapter } from "@/lib/integrations/helpdesk-adapters/servicenow";
 import { createZendeskAdapter } from "@/lib/integrations/helpdesk-adapters/zendesk";
 import type { PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
 
@@ -19,6 +22,18 @@ export function createHelpdeskAdapter(source: PhaseBHelpdeskSource) {
 
   if (source === "hubspot") {
     return createHubspotAdapter();
+  }
+
+  if (source === "salesforce") {
+    return createSalesforceAdapter();
+  }
+
+  if (source === "servicenow") {
+    return createServiceNowAdapter();
+  }
+
+  if (source === "dynamics") {
+    return createDynamicsAdapter();
   }
 
   throw new Error(`Adapter ${source} is not implemented in this task.`);
