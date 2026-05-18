@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
 import {
+  phaseBHelpdeskSources,
+  phaseBSourceContracts
+} from "@/lib/integrations/helpdesk-adapters/source-contracts";
+import {
   buildIntegrationSyncState,
   integrationRunCursorPayload,
   parseIntegrationSyncState,
@@ -17,13 +21,14 @@ describe("integration capabilities and sync state", () => {
       supportsCursor: true,
       supportsInboundWebhooks: true,
       supportsOutboundWebhooks: false,
-      supportedEvents: ["conversation.upsert"],
-      setupStatus: "preview",
+      supportedEvents: ["ticket.created", "ticket.updated", "comment.created"],
+      setupStatus: "available",
       readiness: "adapter_ready"
     });
     expect(getIntegrationCapability("servicenow")).toMatchObject({
       type: "enterprise",
-      readiness: "roadmap"
+      setupStatus: "preview",
+      readiness: "adapter_ready"
     });
     expect(getIntegrationCapability("otrs").certification.summary).toEqual({
       status: "ready_for_live_certification",
@@ -35,9 +40,11 @@ describe("integration capabilities and sync state", () => {
       label: "Живая сертификация пройдена",
       productionReady: true
     });
-    expect(getIntegrationCapability("servicenow").certification.summary.label).toBe(
-      "Не готово к промышленной эксплуатации"
-    );
+    expect(getIntegrationCapability("servicenow").certification.summary).toMatchObject({
+      label: "Готово к живой сертификации",
+      productionReady: false,
+      status: "ready_for_live_certification"
+    });
     expect(capabilities.map((capability) => capability.source)).toContain("generic_webhook");
     expect(getIntegrationCapability("generic_webhook")).toMatchObject({
       authModes: ["hmac_sha256"],
@@ -71,6 +78,53 @@ describe("integration capabilities and sync state", () => {
     expect(fallback.certification.limitations).toContain(
       "Источник unknown_vendor использует fallback capability и требует отдельной сертификации."
     );
+  });
+
+  it("surfaces Phase B adapter evidence without live-production overclaiming", () => {
+    const catalogSources = listIntegrationCapabilities().map((capability) => capability.source);
+
+    for (const source of phaseBHelpdeskSources) {
+      const contract = phaseBSourceContracts[source];
+      const capability = getIntegrationCapability(source);
+
+      expect(catalogSources).toContain(source);
+      expect(capability).toMatchObject({
+        source: contract.source,
+        displayName: contract.displayName,
+        type: contract.type,
+        authModes: [...contract.authModes],
+        operations: [...contract.operations],
+        supportedEvents: [...contract.supportedEvents],
+        requiredSecrets: [...contract.requiredSecrets],
+        docsHref: contract.docsHref,
+        payloadLimits: { ...contract.payloadLimits },
+        readiness: "adapter_ready",
+        setupStatus: contract.type === "native_helpdesk" ? "available" : "preview"
+      });
+      expect(capability.certification.gates).toEqual(contract.certification.gates);
+      expect(capability.certification.summary).toEqual(contract.certification.summary);
+      expect(capability.certification.docs).toEqual(
+        contract.officialDocs.map((doc) => ({
+          label: doc.label,
+          href: doc.href,
+          status: contract.certification.gates.docs
+        }))
+      );
+      expect(capability.certification.limitations).toEqual([...contract.certification.limitations]);
+      expect(capability.certification.docs.length).toBeGreaterThan(0);
+      expect(capability.certification.summary.productionReady).toBe(false);
+      expect(capability.certification.summary.status).not.toBe("live_certified");
+      expect(capability.operations).toContain("diagnostics");
+    }
+
+    expect(getIntegrationCapability("zendesk")).toMatchObject({
+      setupStatus: "available",
+      readiness: "adapter_ready"
+    });
+    expect(getIntegrationCapability("salesforce")).toMatchObject({
+      setupStatus: "preview",
+      readiness: "adapter_ready"
+    });
   });
 
   it("keeps OTRS-family alias fallback identity and certification conservative", () => {

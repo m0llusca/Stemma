@@ -81,6 +81,7 @@ describe("openapi contract", () => {
     expect(document.components.schemas.IntegrationCapability.properties.certification).toEqual({
       $ref: "#/components/schemas/Certification"
     });
+    expect(document.components.schemas.IntegrationCapability.properties.operations.items.type).toBe("string");
     expect(document.components.schemas.IntegrationCapability.properties.payloadLimits).toEqual({
       $ref: "#/components/schemas/PayloadLimits"
     });
@@ -116,6 +117,9 @@ describe("openapi contract", () => {
           schema: { $ref: "#/components/schemas/IntegrationCatalogResponse" }
         }
       }
+    });
+    expect(document.paths["/integrations/catalog"].get.responses["200"].content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/IntegrationCatalogResponse"
     });
     expect(document.components.schemas.WebhookEndpoint.required).toContain("secretPrefix");
     expect(document.components.schemas.WebhookEndpoint.required).toEqual([

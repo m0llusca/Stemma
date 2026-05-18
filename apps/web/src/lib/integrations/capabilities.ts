@@ -3,6 +3,10 @@ import {
   type CertificationGateSummary,
   type CertificationStatus
 } from "@/lib/certification/status";
+import {
+  phaseBHelpdeskSources,
+  phaseBSourceContracts
+} from "@/lib/integrations/helpdesk-adapters/source-contracts";
 
 type IntegrationCertificationDoc = {
   label: string;
@@ -38,11 +42,6 @@ export type IntegrationCapability = {
   };
 };
 
-const defaultPayloadLimits = {
-  batchSize: 25,
-  importLimit: 100
-};
-
 const defaultEvents = ["conversation.upsert"];
 
 function certification({
@@ -76,13 +75,6 @@ const liveCertifiedGates: CertificationGateSummary = {
   live: "live_certified"
 };
 
-const roadmapGates: CertificationGateSummary = {
-  docs: "configuration_required",
-  contract: "not_production_ready",
-  stub: "not_production_ready",
-  live: "not_production_ready"
-};
-
 const fallbackUnverifiedGates: CertificationGateSummary = {
   docs: "configuration_required",
   contract: "not_production_ready",
@@ -109,6 +101,45 @@ const fallbackCapabilityMetadata = {
   setupStatus: "planned",
   readiness: "roadmap"
 } satisfies Pick<IntegrationCapability, "docsHref" | "setupStatus" | "readiness">;
+
+type PhaseBSource = keyof typeof phaseBSourceContracts;
+
+function phaseBCapability(source: PhaseBSource): IntegrationCapability {
+  const contract = phaseBSourceContracts[source];
+
+  return {
+    source: contract.source,
+    displayName: contract.displayName,
+    type: contract.type,
+    authModes: [...contract.authModes],
+    supportsPaging: true,
+    supportsCursor: true,
+    supportsDiagnostics: contract.operations.includes("diagnostics"),
+    supportsInboundWebhooks: contract.operations.includes("webhook_ingest"),
+    supportsOutboundWebhooks: false,
+    operations: [...contract.operations],
+    supportedEvents: [...contract.supportedEvents],
+    requiredSecrets: [...contract.requiredSecrets],
+    docsHref: contract.docsHref,
+    setupStatus: contract.type === "native_helpdesk" ? "available" : "preview",
+    payloadLimits: { ...contract.payloadLimits },
+    readiness: "adapter_ready",
+    certification: {
+      gates: { ...contract.certification.gates },
+      summary: { ...contract.certification.summary },
+      docs: contract.officialDocs.map((doc) => ({
+        label: doc.label,
+        href: doc.href,
+        status: contract.certification.gates.docs
+      })),
+      limitations: [...contract.certification.limitations]
+    }
+  };
+}
+
+const phaseBCapabilities = phaseBHelpdeskSources.map(phaseBCapability);
+const nativePhaseBCapabilities = phaseBCapabilities.filter((capability) => capability.type === "native_helpdesk");
+const enterprisePhaseBCapabilities = phaseBCapabilities.filter((capability) => capability.type === "enterprise");
 
 export const integrationCapabilities: IntegrationCapability[] = [
   {
@@ -198,122 +229,7 @@ export const integrationCapabilities: IntegrationCapability[] = [
       limitations: ["Живая сертификация требует защищенный OTRS/Znuny/OTOBO sandbox."]
     })
   },
-  {
-    source: "zendesk",
-    displayName: "Zendesk",
-    type: "native_helpdesk",
-    authModes: ["bearer_token", "api_token"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["ticket_get", "comments_get", "fixture_import", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["auth_password"],
-    docsHref: "/admin/integrations/new?source=zendesk",
-    setupStatus: "preview",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready",
-    certification: certification({
-      gates: adapterReadyGates,
-      docs: [
-        {
-          label: "Zendesk API contract",
-          href: "/admin/integrations/new?source=zendesk",
-          status: "docs_checked"
-        }
-      ],
-      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
-    })
-  },
-  {
-    source: "freshdesk",
-    displayName: "Freshdesk",
-    type: "native_helpdesk",
-    authModes: ["api_token"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["ticket_get", "conversations_get", "fixture_import", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["auth_password"],
-    docsHref: "/admin/integrations/new?source=freshdesk",
-    setupStatus: "preview",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready",
-    certification: certification({
-      gates: adapterReadyGates,
-      docs: [
-        {
-          label: "Freshdesk API contract",
-          href: "/admin/integrations/new?source=freshdesk",
-          status: "docs_checked"
-        }
-      ],
-      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
-    })
-  },
-  {
-    source: "intercom",
-    displayName: "Intercom",
-    type: "native_helpdesk",
-    authModes: ["bearer_token"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["conversation_get", "fixture_import", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["auth_password"],
-    docsHref: "/admin/integrations/new?source=intercom",
-    setupStatus: "preview",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready",
-    certification: certification({
-      gates: adapterReadyGates,
-      docs: [
-        {
-          label: "Intercom API contract",
-          href: "/admin/integrations/new?source=intercom",
-          status: "docs_checked"
-        }
-      ],
-      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
-    })
-  },
-  {
-    source: "hubspot",
-    displayName: "HubSpot Service Hub",
-    type: "native_helpdesk",
-    authModes: ["bearer_token"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["ticket_get", "fixture_import", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["auth_password"],
-    docsHref: "/admin/integrations/new?source=hubspot",
-    setupStatus: "preview",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "adapter_ready",
-    certification: certification({
-      gates: adapterReadyGates,
-      docs: [
-        {
-          label: "HubSpot API contract",
-          href: "/admin/integrations/new?source=hubspot",
-          status: "docs_checked"
-        }
-      ],
-      limitations: ["Adapter готов к контрактной проверке; нужна live-среда для промышленной сертификации."]
-    })
-  },
+  ...nativePhaseBCapabilities,
   {
     source: "custom_api",
     displayName: "Custom API",
@@ -371,93 +287,7 @@ export const integrationCapabilities: IntegrationCapability[] = [
       limitations: ["Живая сертификация требует внешний webhook producer."]
     })
   },
-  {
-    source: "salesforce",
-    displayName: "Salesforce Service Cloud",
-    type: "enterprise",
-    authModes: ["oauth_client_credentials"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["case_get", "case_search", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["oauth_client_credentials"],
-    docsHref: "/api/v1/openapi",
-    setupStatus: "planned",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "roadmap",
-    certification: certification({
-      gates: roadmapGates,
-      docs: [
-        {
-          label: "Официальная документация требует проверки перед реализацией adapter",
-          href: "/api/v1/openapi",
-          status: "configuration_required"
-        }
-      ],
-      limitations: ["Adapter еще не реализован."]
-    })
-  },
-  {
-    source: "servicenow",
-    displayName: "ServiceNow CSM",
-    type: "enterprise",
-    authModes: ["oauth_client_credentials", "basic"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["case_get", "case_search", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["oauth_client_credentials"],
-    docsHref: "/api/v1/openapi",
-    setupStatus: "planned",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "roadmap",
-    certification: certification({
-      gates: roadmapGates,
-      docs: [
-        {
-          label: "Официальная документация требует проверки перед реализацией adapter",
-          href: "/api/v1/openapi",
-          status: "configuration_required"
-        }
-      ],
-      limitations: ["Adapter еще не реализован."]
-    })
-  },
-  {
-    source: "dynamics",
-    displayName: "Dynamics 365 Customer Service",
-    type: "enterprise",
-    authModes: ["oauth_client_credentials"],
-    supportsPaging: true,
-    supportsCursor: true,
-    supportsDiagnostics: true,
-    supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
-    operations: ["case_get", "case_search", "webhook_ingest"],
-    supportedEvents: defaultEvents,
-    requiredSecrets: ["oauth_client_credentials"],
-    docsHref: "/api/v1/openapi",
-    setupStatus: "planned",
-    payloadLimits: defaultPayloadLimits,
-    readiness: "roadmap",
-    certification: certification({
-      gates: roadmapGates,
-      docs: [
-        {
-          label: "Официальная документация требует проверки перед реализацией adapter",
-          href: "/api/v1/openapi",
-          status: "configuration_required"
-        }
-      ],
-      limitations: ["Adapter еще не реализован."]
-    })
-  }
+  ...enterprisePhaseBCapabilities
 ];
 
 export function getIntegrationCapability(source: string, type?: string | null): IntegrationCapability {
