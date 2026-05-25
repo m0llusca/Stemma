@@ -13,6 +13,7 @@ import {
   oidcStateCookieName,
   oidcVerifierCookieName
 } from "@/lib/auth/oidc";
+import { buildSamlAuthorizationUrl } from "@/lib/auth/saml";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       ...(workspaceId ? { workspaceId } : {}),
       status: "active",
       type: {
-        in: ["MICROSOFT_ENTRA_ID", "OIDC"]
+        in: ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"]
       }
     },
     orderBy: { createdAt: "asc" }
@@ -51,6 +52,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (provider.type === "SAML") {
+      return NextResponse.redirect(
+        await buildSamlAuthorizationUrl({
+          provider,
+          origin: request.nextUrl.origin,
+          relayState: returnTo
+        })
+      );
+    }
+
     const state = createOidcState();
     const nonce = createOidcNonce();
     const codeVerifier = createPkceVerifier();

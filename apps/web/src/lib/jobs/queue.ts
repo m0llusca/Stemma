@@ -31,6 +31,9 @@ type JobClient = Pick<
   | "integrationRun"
   | "identityProvider"
   | "externalIdentity"
+  | "identityGroup"
+  | "userIdentityGroup"
+  | "groupRoleMapping"
   | "user"
   | "authSession"
   | "idempotencyKey"
@@ -414,6 +417,7 @@ async function runReportExportJob(client: JobClient, job: BackendJob, payload: B
 
 async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {
   const providerId = typeof payload.providerId === "string" ? payload.providerId : null;
+  const dryRun = payload.dryRun === true;
 
   if (!providerId) {
     throw new Error("Для синхронизации каталога не указан providerId.");
@@ -422,10 +426,11 @@ async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: 
   const result = await syncDirectoryProvider({
     workspaceId: job.workspaceId,
     providerId,
+    dryRun,
     client
   });
 
-  await recordJobEvent(client, job.id, "info", "Синхронизация каталога выполнена.", result);
+  await recordJobEvent(client, job.id, "info", dryRun ? "Dry-run синхронизации каталога выполнен." : "Синхронизация каталога выполнена.", result);
 
   return result;
 }
@@ -511,12 +516,12 @@ async function executeBackendJob(job: BackendJob) {
       ? await runIntegrationImportJob(job, payload)
       : job.type === "WEBHOOK_INGEST"
         ? await runWebhookIngestJob(job, payload)
+        : job.type === "DIRECTORY_SYNC"
+          ? await runDirectorySyncJob(prisma, job, payload)
       : await prisma.$transaction(async (tx) =>
           job.type === "REPORT_EXPORT"
             ? runReportExportJob(tx, job, payload)
-            : job.type === "DIRECTORY_SYNC"
-              ? runDirectorySyncJob(tx, job, payload)
-              : runRetentionCleanupJob(tx, job)
+            : runRetentionCleanupJob(tx, job)
         );
 
   await prisma.$transaction(async (tx) => {

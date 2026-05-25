@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
+import { assertProviderEndpointUrls, assertSafeProviderConfig } from "@/lib/auth/provider-config-validation";
+import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps";
+import { assertProductionSecretReference, validateOidcProviderConfigForSave } from "@/lib/auth/oidc";
+import { validateSamlProviderConfigForSave } from "@/lib/auth/saml";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
@@ -16,12 +20,27 @@ const updateProviderSchema = z.object({
   authorizationUrl: z.string().trim().url().optional().or(z.literal("")),
   tokenUrl: z.string().trim().url().optional().or(z.literal("")),
   jwksUrl: z.string().trim().url().optional().or(z.literal("")),
+  samlEntityId: z.string().trim().max(300).optional().or(z.literal("")),
+  samlMetadataUrl: z.string().trim().url().optional().or(z.literal("")),
+  samlCertificateRef: z.string().trim().max(4000).optional().or(z.literal("")),
+  ldapsUrl: z.string().trim().url().optional().or(z.literal("")),
+  ldapsBindDn: z.string().trim().max(500).optional().or(z.literal("")),
+  ldapsBindSecretRef: z.string().trim().max(240).optional().or(z.literal("")),
   scopes: z.string().trim().min(1).max(300).optional(),
   config: z.record(z.unknown()).optional()
 });
 
 function optionalValue(value: string | undefined) {
   return value?.trim() || null;
+}
+
+function parseConfigJson(value: string) {
+  try {
+    const parsed = JSON.parse(value || "{}") as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ providerId: string }> }) {
@@ -58,6 +77,53 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
     return apiError("not_found", "Провайдер авторизации не найден.", 404, requestId);
   }
 
+  try {
+    if (parsed.data.config !== undefined) {
+      assertSafeProviderConfig(parsed.data.config);
+    }
+    if (parsed.data.clientSecretRef !== undefined) {
+      assertProductionSecretReference(optionalValue(parsed.data.clientSecretRef));
+    }
+    validateOidcProviderConfigForSave({
+      type: existingProvider.type,
+      status: parsed.data.status ?? existingProvider.status,
+      issuer: parsed.data.issuer !== undefined ? optionalValue(parsed.data.issuer) : existingProvider.issuer,
+      tenantId: parsed.data.tenantId !== undefined ? optionalValue(parsed.data.tenantId) : existingProvider.tenantId
+    });
+    validateSamlProviderConfigForSave({
+      type: existingProvider.type,
+      samlCertificateRef:
+        parsed.data.samlCertificateRef !== undefined ? optionalValue(parsed.data.samlCertificateRef) : existingProvider.samlCertificateRef,
+      config: parsed.data.config ?? parseConfigJson(existingProvider.configJson)
+    });
+    validateLdapsProviderConfigForSave({
+      type: existingProvider.type,
+      status: parsed.data.status ?? existingProvider.status,
+      ldapsUrl: parsed.data.ldapsUrl !== undefined ? optionalValue(parsed.data.ldapsUrl) : existingProvider.ldapsUrl,
+      ldapsBindDn: parsed.data.ldapsBindDn !== undefined ? optionalValue(parsed.data.ldapsBindDn) : existingProvider.ldapsBindDn,
+      ldapsBindSecretRef:
+        parsed.data.ldapsBindSecretRef !== undefined ? optionalValue(parsed.data.ldapsBindSecretRef) : existingProvider.ldapsBindSecretRef,
+      config: parsed.data.config ?? parseConfigJson(existingProvider.configJson)
+    });
+    assertProviderEndpointUrls({
+      type: existingProvider.type,
+      authorizationUrl:
+        parsed.data.authorizationUrl !== undefined ? optionalValue(parsed.data.authorizationUrl) : existingProvider.authorizationUrl,
+      tokenUrl: parsed.data.tokenUrl !== undefined ? optionalValue(parsed.data.tokenUrl) : existingProvider.tokenUrl,
+      jwksUrl: parsed.data.jwksUrl !== undefined ? optionalValue(parsed.data.jwksUrl) : existingProvider.jwksUrl,
+      samlMetadataUrl:
+        parsed.data.samlMetadataUrl !== undefined ? optionalValue(parsed.data.samlMetadataUrl) : existingProvider.samlMetadataUrl,
+      configJson: parsed.data.config !== undefined ? JSON.stringify(parsed.data.config) : existingProvider.configJson
+    });
+  } catch (error) {
+    return apiError(
+      "bad_request",
+      error instanceof Error ? error.message : "Некорректная конфигурация провайдера авторизации.",
+      400,
+      requestId
+    );
+  }
+
   const provider = await prisma.$transaction(async (tx) => {
     const result = await tx.identityProvider.update({
       where: { id: providerId },
@@ -71,6 +137,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
         ...(parsed.data.authorizationUrl !== undefined ? { authorizationUrl: optionalValue(parsed.data.authorizationUrl) } : {}),
         ...(parsed.data.tokenUrl !== undefined ? { tokenUrl: optionalValue(parsed.data.tokenUrl) } : {}),
         ...(parsed.data.jwksUrl !== undefined ? { jwksUrl: optionalValue(parsed.data.jwksUrl) } : {}),
+        ...(parsed.data.samlEntityId !== undefined ? { samlEntityId: optionalValue(parsed.data.samlEntityId) } : {}),
+        ...(parsed.data.samlMetadataUrl !== undefined ? { samlMetadataUrl: optionalValue(parsed.data.samlMetadataUrl) } : {}),
+        ...(parsed.data.samlCertificateRef !== undefined ? { samlCertificateRef: optionalValue(parsed.data.samlCertificateRef) } : {}),
+        ...(parsed.data.ldapsUrl !== undefined ? { ldapsUrl: optionalValue(parsed.data.ldapsUrl) } : {}),
+        ...(parsed.data.ldapsBindDn !== undefined ? { ldapsBindDn: optionalValue(parsed.data.ldapsBindDn) } : {}),
+        ...(parsed.data.ldapsBindSecretRef !== undefined ? { ldapsBindSecretRef: optionalValue(parsed.data.ldapsBindSecretRef) } : {}),
         ...(parsed.data.scopes !== undefined ? { scopes: parsed.data.scopes } : {}),
         ...(parsed.data.config !== undefined ? { configJson: JSON.stringify(parsed.data.config) } : {})
       }
@@ -85,7 +157,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
         targetId: result.id,
         metadata: {
           status: result.status,
-          clientSecretRef: result.clientSecretRef
+          clientSecretRef: result.clientSecretRef,
+          ldapsBindSecretRef: result.ldapsBindSecretRef
         }
       },
       tx

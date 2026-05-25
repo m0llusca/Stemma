@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
+import { assertProviderEndpointUrls, assertSafeProviderConfig } from "@/lib/auth/provider-config-validation";
+import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps";
+import { assertProductionSecretReference, validateOidcProviderConfigForSave } from "@/lib/auth/oidc";
 import { getDirectoryIntegrationGuidance, buildEntraAuthorizationMetadata } from "@/lib/auth/providers";
+import { buildSamlServiceProviderUrls, validateSamlProviderConfigForSave } from "@/lib/auth/saml";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -20,6 +24,12 @@ const providerSchema = z.object({
   authorizationUrl: z.string().trim().url().optional().or(z.literal("")),
   tokenUrl: z.string().trim().url().optional().or(z.literal("")),
   jwksUrl: z.string().trim().url().optional().or(z.literal("")),
+  samlEntityId: z.string().trim().max(300).optional().or(z.literal("")),
+  samlMetadataUrl: z.string().trim().url().optional().or(z.literal("")),
+  samlCertificateRef: z.string().trim().max(4000).optional().or(z.literal("")),
+  ldapsUrl: z.string().trim().url().optional().or(z.literal("")),
+  ldapsBindDn: z.string().trim().max(500).optional().or(z.literal("")),
+  ldapsBindSecretRef: z.string().trim().max(240).optional().or(z.literal("")),
   scopes: z.string().trim().min(1).max(300).optional(),
   config: z.record(z.unknown()).optional()
 });
@@ -28,8 +38,18 @@ function optionalValue(value: string | undefined) {
   return value?.trim() || null;
 }
 
-export async function GET() {
+function parseProviderConfigJson(value: string) {
+  try {
+    const parsed = JSON.parse(value || "{}") as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as { graphGroupFallback?: { enabled?: boolean } }) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function GET(request: Request) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
+  const origin = new URL(request.url).origin;
   const providers = await prisma.identityProvider.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ type: "asc" }, { name: "asc" }],
@@ -52,8 +72,25 @@ export async function GET() {
       issuer: provider.issuer,
       tenantId: provider.tenantId,
       clientId: provider.clientId,
+      ldapsUrl: provider.ldapsUrl,
+      ldapsBindDn: provider.ldapsBindDn,
+      ldapsBindSecretRef: provider.ldapsBindSecretRef,
+      lastSyncStartedAt: provider.lastSyncStartedAt?.toISOString() ?? null,
+      lastSyncAt: provider.lastSyncAt?.toISOString() ?? null,
+      lastSyncStatus: provider.lastSyncStatus,
+      lastSyncError: provider.lastSyncError,
+      scim: {
+        hasToken: Boolean(provider.scimTokenPrefix),
+        tokenPrefix: provider.scimTokenPrefix
+      },
       scopes: provider.scopes,
       entraMetadata: provider.type === "MICROSOFT_ENTRA_ID" ? buildEntraAuthorizationMetadata(provider) : null,
+      sso: provider.type === "SAML" ? buildSamlServiceProviderUrls(provider, origin) : null,
+      graphGroupFallback: {
+        configured: Boolean(parseProviderConfigJson(provider.configJson).graphGroupFallback?.enabled),
+        guidance:
+          "При group overage используйте Microsoft Graph getMemberGroups только при явно настроенном fallback и нужных разрешениях, например GroupMember.Read.All или Directory.Read.All."
+      },
       mappings: provider.groupRoleMappings.map((mapping) => ({
         externalGroupId: mapping.externalGroupId,
         externalGroupName: mapping.externalGroupName,
@@ -86,6 +123,45 @@ export async function POST(request: Request) {
     );
   }
 
+  try {
+    assertSafeProviderConfig(parsed.data.config ?? {});
+    assertProductionSecretReference(optionalValue(parsed.data.clientSecretRef));
+    validateOidcProviderConfigForSave({
+      type: parsed.data.type,
+      status: parsed.data.status ?? "draft",
+      issuer: optionalValue(parsed.data.issuer),
+      tenantId: optionalValue(parsed.data.tenantId)
+    });
+    validateSamlProviderConfigForSave({
+      type: parsed.data.type,
+      samlCertificateRef: optionalValue(parsed.data.samlCertificateRef),
+      config: parsed.data.config ?? {}
+    });
+    validateLdapsProviderConfigForSave({
+      type: parsed.data.type,
+      status: parsed.data.status ?? "draft",
+      ldapsUrl: optionalValue(parsed.data.ldapsUrl),
+      ldapsBindDn: optionalValue(parsed.data.ldapsBindDn),
+      ldapsBindSecretRef: optionalValue(parsed.data.ldapsBindSecretRef),
+      config: parsed.data.config ?? {}
+    });
+    assertProviderEndpointUrls({
+      type: parsed.data.type,
+      authorizationUrl: optionalValue(parsed.data.authorizationUrl),
+      tokenUrl: optionalValue(parsed.data.tokenUrl),
+      jwksUrl: optionalValue(parsed.data.jwksUrl),
+      samlMetadataUrl: optionalValue(parsed.data.samlMetadataUrl),
+      configJson: JSON.stringify(parsed.data.config ?? {})
+    });
+  } catch (error) {
+    return apiError(
+      "bad_request",
+      error instanceof Error ? error.message : "Некорректная конфигурация провайдера авторизации.",
+      400,
+      requestId
+    );
+  }
+
   const provider = await prisma.$transaction(async (tx) => {
     const result = await tx.identityProvider.upsert({
       where: {
@@ -107,6 +183,12 @@ export async function POST(request: Request) {
         authorizationUrl: optionalValue(parsed.data.authorizationUrl),
         tokenUrl: optionalValue(parsed.data.tokenUrl),
         jwksUrl: optionalValue(parsed.data.jwksUrl),
+        samlEntityId: optionalValue(parsed.data.samlEntityId),
+        samlMetadataUrl: optionalValue(parsed.data.samlMetadataUrl),
+        samlCertificateRef: optionalValue(parsed.data.samlCertificateRef),
+        ldapsUrl: optionalValue(parsed.data.ldapsUrl),
+        ldapsBindDn: optionalValue(parsed.data.ldapsBindDn),
+        ldapsBindSecretRef: optionalValue(parsed.data.ldapsBindSecretRef),
         scopes: parsed.data.scopes ?? "openid profile email",
         configJson: JSON.stringify(parsed.data.config ?? {})
       },
@@ -121,6 +203,12 @@ export async function POST(request: Request) {
         authorizationUrl: optionalValue(parsed.data.authorizationUrl),
         tokenUrl: optionalValue(parsed.data.tokenUrl),
         jwksUrl: optionalValue(parsed.data.jwksUrl),
+        samlEntityId: optionalValue(parsed.data.samlEntityId),
+        samlMetadataUrl: optionalValue(parsed.data.samlMetadataUrl),
+        samlCertificateRef: optionalValue(parsed.data.samlCertificateRef),
+        ldapsUrl: optionalValue(parsed.data.ldapsUrl),
+        ldapsBindDn: optionalValue(parsed.data.ldapsBindDn),
+        ldapsBindSecretRef: optionalValue(parsed.data.ldapsBindSecretRef),
         scopes: parsed.data.scopes ?? "openid profile email",
         configJson: JSON.stringify(parsed.data.config ?? {})
       }
@@ -137,7 +225,8 @@ export async function POST(request: Request) {
           type: result.type,
           slug: result.slug,
           status: result.status,
-          clientSecretRef: result.clientSecretRef
+          clientSecretRef: result.clientSecretRef,
+          ldapsBindSecretRef: result.ldapsBindSecretRef
         }
       },
       tx

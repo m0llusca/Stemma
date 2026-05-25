@@ -83,6 +83,12 @@ enum AuthSessionStatus {
   EXPIRED
 }
 
+enum UserLifecycleStatus {
+  ACTIVE
+  SUSPENDED
+  DEPROVISIONED
+}
+
 enum BackendJobType {
   INTEGRATION_IMPORT
   REPORT_EXPORT
@@ -120,8 +126,11 @@ model Workspace {
   uiContrast                String                     @default("standard")
   users                     User[]
   identityProviders         IdentityProvider[]
+  identityGroups            IdentityGroup[]
+  userIdentityGroups        UserIdentityGroup[]
   groupRoleMappings         GroupRoleMapping[]
   authSessions              AuthSession[]
+  ssoRequestStates          SsoRequestState[]
   localCredentials          LocalCredential[]
   backendJobs               BackendJob[]
   idempotencyKeys           IdempotencyKey[]
@@ -155,9 +164,16 @@ model User {
   email                       String
   name                        String
   role                        RoleName
+  lifecycleStatus             UserLifecycleStatus        @default(ACTIVE)
   supportLine                 String?
   teamName                    String?
+  sourceOfTruthProviderId     String?
+  sourceOfTruthProvider       IdentityProvider?          @relation("UserSourceOfTruthProvider", fields: [sourceOfTruthProviderId], references: [id], onDelete: SetNull)
+  lastDirectorySyncAt         DateTime?
+  suspendedAt                 DateTime?
+  deprovisionedAt             DateTime?
   externalIdentities          ExternalIdentity[]
+  identityGroups              UserIdentityGroup[]
   authSessions                AuthSession[]
   localCredential             LocalCredential?
   createdBackendJobs          BackendJob[]               @relation("BackendJobCreatedBy")
@@ -177,7 +193,10 @@ model User {
   updatedAt                   DateTime                   @updatedAt
 
   @@unique([workspaceId, email])
+  @@unique([id, workspaceId])
   @@index([workspaceId, role, name])
+  @@index([workspaceId, lifecycleStatus])
+  @@index([sourceOfTruthProviderId, lifecycleStatus])
 }
 
 model LocalCredential {
@@ -216,13 +235,29 @@ model IdentityProvider {
   scopes             String               @default("openid profile email")
   configJson         String               @default("{}")
   lastSyncAt         DateTime?
+  lastSyncStartedAt  DateTime?
+  lastSyncStatus     String?
+  lastSyncError      String?
+  samlEntityId       String?
+  samlMetadataUrl    String?
+  samlCertificateRef String?
+  ldapsUrl           String?
+  ldapsBindDn        String?
+  ldapsBindSecretRef String?
+  scimTokenPrefix    String?
+  scimTokenHash      String?              @unique
+  sourceOfTruthUsers User[]               @relation("UserSourceOfTruthProvider")
   externalIdentities ExternalIdentity[]
+  identityGroups     IdentityGroup[]
+  userIdentityGroups UserIdentityGroup[]
   groupRoleMappings  GroupRoleMapping[]
   authSessions       AuthSession[]
+  ssoRequestStates   SsoRequestState[]
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
   @@unique([workspaceId, slug])
+  @@unique([id, workspaceId])
   @@index([workspaceId, type])
   @@index([workspaceId, status])
 }
@@ -234,15 +269,58 @@ model ExternalIdentity {
   providerId      String
   provider        IdentityProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   providerSubject String
+  externalId      String?
   email           String
   displayName     String?
   rawClaimsJson   String           @default("{}")
   linkedAt        DateTime         @default(now())
   lastLoginAt     DateTime?
+  lastSyncAt      DateTime?
+  disabledAt      DateTime?
 
   @@unique([providerId, providerSubject])
+  @@unique([providerId, externalId])
   @@index([userId])
   @@index([providerId, email])
+  @@index([providerId, lastSyncAt])
+}
+
+model IdentityGroup {
+  id                String              @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  providerId        String
+  provider          IdentityProvider    @relation(fields: [providerId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  externalGroupId   String
+  externalGroupName String
+  rawAttributesJson String              @default("{}")
+  lastSyncAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  members           UserIdentityGroup[]
+
+  @@unique([providerId, externalGroupId])
+  @@unique([providerId, externalGroupId, workspaceId])
+  @@index([workspaceId, providerId])
+  @@index([workspaceId, externalGroupName])
+}
+
+model UserIdentityGroup {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation(fields: [userId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  providerId      String
+  provider        IdentityProvider @relation(fields: [providerId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  externalGroupId String
+  group           IdentityGroup?   @relation(fields: [providerId, externalGroupId, workspaceId], references: [providerId, externalGroupId, workspaceId], onDelete: Cascade)
+  linkedAt        DateTime         @default(now())
+  lastSyncAt      DateTime?
+
+  @@unique([userId, providerId, externalGroupId])
+  @@index([workspaceId, providerId, externalGroupId])
+  @@index([providerId, externalGroupId])
 }
 
 model GroupRoleMapping {
@@ -259,9 +337,10 @@ model GroupRoleMapping {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  @@unique([workspaceId, externalGroupId, role])
+  @@unique([workspaceId, providerId, externalGroupId, role])
   @@index([workspaceId, isActive])
   @@index([providerId, isActive])
+  @@index([workspaceId, providerId, isActive, priority])
 }
 
 model AuthSession {
@@ -284,6 +363,22 @@ model AuthSession {
   @@index([workspaceId, userId])
   @@index([workspaceId, status, expiresAt])
   @@index([status, expiresAt])
+}
+
+model SsoRequestState {
+  key         String           @id
+  workspaceId String
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   IdentityProvider @relation(fields: [providerId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  value      String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([workspaceId, providerId, expiresAt])
+  @@index([providerId, consumedAt, expiresAt])
+  @@index([expiresAt])
 }
 
 model Integration {
@@ -993,8 +1088,8 @@ model AuditLog {
   id          String    @id @default(cuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  actorId     String
-  actor       User      @relation(fields: [actorId], references: [id])
+  actorId     String?
+  actor       User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
   action      String
   targetType  String
   targetId    String

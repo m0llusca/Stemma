@@ -106,6 +106,40 @@ export function buildOpenApiDocument() {
           }
         }
       },
+      "/auth/providers/{providerId}/scim-token": {
+        get: {
+          security: sessionSecurity,
+          summary: "Статус SCIM bearer token без раскрытия секрета",
+          responses: {
+            "200": { description: "SCIM token metadata" },
+            "404": { description: "Провайдер не найден" }
+          }
+        },
+        post: {
+          security: sessionSecurity,
+          summary: "Выпустить SCIM bearer token; plainToken возвращается один раз",
+          responses: {
+            "201": { description: "SCIM token issued" },
+            "409": { description: "Токен уже существует" }
+          }
+        },
+        patch: {
+          security: sessionSecurity,
+          summary: "Ротировать SCIM bearer token; plainToken возвращается один раз",
+          responses: {
+            "200": { description: "SCIM token rotated" },
+            "404": { description: "Токен или провайдер не найден" }
+          }
+        },
+        delete: {
+          security: sessionSecurity,
+          summary: "Отозвать SCIM bearer token",
+          responses: {
+            "200": { description: "SCIM token revoked" },
+            "404": { description: "Токен или провайдер не найден" }
+          }
+        }
+      },
       "/auth/sessions": {
         get: {
           security: sessionSecurity,

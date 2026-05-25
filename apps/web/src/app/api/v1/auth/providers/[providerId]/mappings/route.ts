@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const mappingSchema = z.object({
   externalGroupId: z.string().trim().min(1).max(240),
   externalGroupName: z.string().trim().min(1).max(240),
-  role: z.enum(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"]),
+  role: z.enum(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"]),
   priority: z.number().int().min(1).max(1000).optional(),
   isActive: z.boolean().optional()
 });
@@ -83,8 +83,9 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   const mapping = await prisma.$transaction(async (tx) => {
     const result = await tx.groupRoleMapping.upsert({
       where: {
-        workspaceId_externalGroupId_role: {
+        workspaceId_providerId_externalGroupId_role: {
           workspaceId: user.workspaceId,
+          providerId,
           externalGroupId: parsed.data.externalGroupId,
           role: parsed.data.role
         }
@@ -99,7 +100,6 @@ export async function POST(request: Request, context: { params: Promise<{ provid
         isActive: parsed.data.isActive ?? true
       },
       update: {
-        providerId,
         externalGroupName: parsed.data.externalGroupName,
         priority: parsed.data.priority ?? 100,
         isActive: parsed.data.isActive ?? true

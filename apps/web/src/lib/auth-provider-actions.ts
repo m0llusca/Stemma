@@ -1,14 +1,18 @@
 "use server";
 
-import type { IdentityProviderType, RoleName } from "@prisma/client";
+import { Prisma, type IdentityProviderType, type RoleName } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
+import { assertProviderEndpointUrls, assertSafeProviderConfig } from "@/lib/auth/provider-config-validation";
+import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps";
+import { assertProductionSecretReference, validateOidcProviderConfigForSave } from "@/lib/auth/oidc";
+import { validateSamlProviderConfigForSave } from "@/lib/auth/saml";
 import { prisma } from "@/lib/db";
 
 const providerTypes = ["MICROSOFT_ENTRA_ID", "ACTIVE_DIRECTORY_LDAPS", "OIDC", "SAML"] as const satisfies readonly IdentityProviderType[];
-const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] as const satisfies readonly RoleName[];
+const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] as const satisfies readonly RoleName[];
 type ConfigurableProviderType = (typeof providerTypes)[number];
 type ConfigurableRole = (typeof roles)[number];
 
@@ -58,17 +62,28 @@ function accessRedirectPath(providerId: string | undefined, section: string) {
   return `/admin/access?${params.toString()}`;
 }
 
-function parseConfigJson(value: string) {
+function parseConfigJson(value: string): Record<string, unknown> {
   if (!value) {
     return {};
   }
 
   try {
     const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
   } catch {
     throw new Error("Дополнительная конфигурация должна быть валидным JSON-объектом.");
   }
+}
+
+function isUniqueConstraintError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
+    ("code" in error && (error as { code?: unknown }).code === "P2002")
+  );
 }
 
 export async function saveIdentityProvider(formData: FormData) {
@@ -81,6 +96,17 @@ export async function saveIdentityProvider(formData: FormData) {
   const status = stringField(formData, "status") || "draft";
   const scopes = stringField(formData, "scopes") || "openid profile email";
   const config = parseConfigJson(stringField(formData, "configJson"));
+  const clientSecretRef = optionalValue(stringField(formData, "clientSecretRef"));
+  const issuer = optionalValue(stringField(formData, "issuer"));
+  const tenantId = optionalValue(stringField(formData, "tenantId"));
+  const authorizationUrl = optionalValue(stringField(formData, "authorizationUrl"));
+  const tokenUrl = optionalValue(stringField(formData, "tokenUrl"));
+  const jwksUrl = optionalValue(stringField(formData, "jwksUrl"));
+  const samlMetadataUrl = optionalValue(stringField(formData, "samlMetadataUrl"));
+  const samlCertificateRef = optionalValue(stringField(formData, "samlCertificateRef"));
+  const ldapsUrl = optionalValue(stringField(formData, "ldapsUrl"));
+  const ldapsBindDn = optionalValue(stringField(formData, "ldapsBindDn"));
+  const ldapsBindSecretRef = optionalValue(stringField(formData, "ldapsBindSecretRef"));
 
   if (name.length < 2 || slug.length < 2 || !/^[a-z0-9-]+$/.test(slug)) {
     throw new Error("Заполните название и slug латиницей в нижнем регистре.");
@@ -90,18 +116,54 @@ export async function saveIdentityProvider(formData: FormData) {
     throw new Error("Некорректный статус провайдера.");
   }
 
+  assertSafeProviderConfig(config);
+  assertProductionSecretReference(clientSecretRef);
+  validateOidcProviderConfigForSave({
+    type,
+    status,
+    issuer,
+    tenantId
+  });
+  validateSamlProviderConfigForSave({
+    type,
+    samlCertificateRef,
+    config
+  });
+  validateLdapsProviderConfigForSave({
+    type,
+    status,
+    ldapsUrl,
+    ldapsBindDn,
+    ldapsBindSecretRef,
+    config
+  });
+  assertProviderEndpointUrls({
+    type,
+    authorizationUrl,
+    tokenUrl,
+    jwksUrl,
+    samlMetadataUrl,
+    configJson: JSON.stringify(config)
+  });
+
   const data = {
     type,
     name,
     slug,
     status,
-    issuer: optionalValue(stringField(formData, "issuer")),
-    tenantId: optionalValue(stringField(formData, "tenantId")),
+    issuer,
+    tenantId,
     clientId: optionalValue(stringField(formData, "clientId")),
-    clientSecretRef: optionalValue(stringField(formData, "clientSecretRef")),
-    authorizationUrl: optionalValue(stringField(formData, "authorizationUrl")),
-    tokenUrl: optionalValue(stringField(formData, "tokenUrl")),
-    jwksUrl: optionalValue(stringField(formData, "jwksUrl")),
+    clientSecretRef,
+    authorizationUrl,
+    tokenUrl,
+    jwksUrl,
+    samlEntityId: optionalValue(stringField(formData, "samlEntityId")),
+    samlMetadataUrl,
+    samlCertificateRef,
+    ldapsUrl,
+    ldapsBindDn,
+    ldapsBindSecretRef,
     scopes,
     configJson: JSON.stringify(config)
   };
@@ -194,7 +256,8 @@ export async function saveGroupRoleMapping(formData: FormData) {
     }
   }
 
-  const mapping = await prisma.$transaction(async (tx) => {
+  async function persistMapping() {
+    return prisma.$transaction(async (tx) => {
     const existingMapping = mappingId
       ? await tx.groupRoleMapping.findFirst({
           where: {
@@ -209,6 +272,18 @@ export async function saveGroupRoleMapping(formData: FormData) {
       throw new Error("Маппинг не относится к текущему рабочему пространству.");
     }
 
+    const duplicateMapping = !existingMapping && !providerId
+      ? await tx.groupRoleMapping.findFirst({
+          where: {
+            workspaceId: user.workspaceId,
+            providerId: null,
+            externalGroupId,
+            role
+          },
+          select: { id: true }
+        })
+      : null;
+
     const result = existingMapping
       ? await tx.groupRoleMapping.update({
           where: { id: mappingId },
@@ -221,30 +296,51 @@ export async function saveGroupRoleMapping(formData: FormData) {
             isActive
           }
         })
-      : await tx.groupRoleMapping.upsert({
-          where: {
-            workspaceId_externalGroupId_role: {
+      : providerId
+        ? await tx.groupRoleMapping.upsert({
+            where: {
+              workspaceId_providerId_externalGroupId_role: {
+                workspaceId: user.workspaceId,
+                providerId,
+                externalGroupId,
+                role
+              }
+            },
+            create: {
               workspaceId: user.workspaceId,
+              providerId,
               externalGroupId,
-              role
+              externalGroupName,
+              role,
+              priority,
+              isActive
+            },
+            update: {
+              externalGroupName,
+              priority,
+              isActive
             }
-          },
-          create: {
-            workspaceId: user.workspaceId,
-            providerId,
-            externalGroupId,
-            externalGroupName,
-            role,
-            priority,
-            isActive
-          },
-          update: {
-            providerId,
-            externalGroupName,
-            priority,
-            isActive
-          }
-        });
+          })
+      : duplicateMapping
+        ? await tx.groupRoleMapping.update({
+            where: { id: duplicateMapping.id },
+            data: {
+              externalGroupName,
+              priority,
+              isActive
+            }
+          })
+        : await tx.groupRoleMapping.create({
+            data: {
+              workspaceId: user.workspaceId,
+              providerId,
+              externalGroupId,
+              externalGroupName,
+              role,
+              priority,
+              isActive
+            }
+          });
 
     await auditLog(
       {
@@ -265,6 +361,15 @@ export async function saveGroupRoleMapping(formData: FormData) {
     );
 
     return result;
+    });
+  }
+
+  const mapping = await persistMapping().catch((error: unknown) => {
+    if (!mappingId && !providerId && isUniqueConstraintError(error)) {
+      return persistMapping();
+    }
+
+    throw error;
   });
 
   revalidatePath("/admin/access");

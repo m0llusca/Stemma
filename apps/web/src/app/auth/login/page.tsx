@@ -75,7 +75,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     prisma.identityProvider.findMany({
       where: {
         type: {
-          in: ["MICROSOFT_ENTRA_ID", "OIDC"]
+          in: ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"]
         }
       },
       orderBy: [{ workspaceId: "asc" }, { createdAt: "asc" }],

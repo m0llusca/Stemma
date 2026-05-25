@@ -181,6 +181,7 @@ describe("openapi contract", () => {
         "/webhooks/{endpointId}",
         "/jobs",
         "/auth/providers/{providerId}",
+        "/auth/providers/{providerId}/scim-token",
         "/auth/providers/{providerId}/sync",
         "/auth/sessions/{sessionId}/revoke",
         "/api-tokens/{tokenId}/revoke",

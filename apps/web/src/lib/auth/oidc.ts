@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, createVerify, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IdentityProvider, RoleName } from "@prisma/client";
-import { buildEntraAuthorizationMetadata, resolveRoleFromExternalClaims } from "@/lib/auth/providers";
+import { buildEntraAuthorizationMetadata, resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
 import { createAuthSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 
@@ -10,7 +10,7 @@ export const oidcNonceCookieName = "qc_oidc_nonce";
 export const oidcProviderCookieName = "qc_oidc_provider";
 export const oidcReturnToCookieName = "qc_oidc_return_to";
 
-type OidcClaims = {
+export type OidcClaims = {
   iss?: string;
   sub?: string;
   aud?: string | string[];
@@ -26,6 +26,13 @@ type OidcClaims = {
   name?: string;
   roles?: string[];
   groups?: string[];
+  hasgroups?: boolean | string;
+  _claim_names?: {
+    groups?: string;
+  };
+  _claim_sources?: Record<string, { endpoint?: string }>;
+  supportLine?: string;
+  teamName?: string;
 };
 
 type JwksKey = {
@@ -44,6 +51,21 @@ type TokenResponse = {
   error?: string;
   error_description?: string;
 };
+
+type OidcProviderConfig = {
+  graphGroupFallback?: {
+    enabled?: boolean;
+    endpoint?: string;
+    securityEnabledOnly?: boolean;
+    userIdClaim?: "oid" | "sub" | "upn" | "email";
+  };
+};
+
+const jwksCacheTtlMs = 10 * 60 * 1000;
+const jwksStaleTtlMs = 60 * 60 * 1000;
+const jwksCacheMaxUrls = 16;
+const jwksCacheMaxKeysPerUrl = 8;
+const jwksCache = new Map<string, { keys: JwksKey[]; expiresAt: number; staleUntil: number }>();
 
 function base64UrlJson<T>(value: string): T {
   return JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as T;
@@ -82,23 +104,63 @@ export function resolveProviderClientSecret(provider: Pick<IdentityProvider, "cl
     return process.env[secretRef.slice("env:".length)];
   }
 
+  if (isManagedSecretReference(secretRef)) {
+    throw new Error("Секрет клиента использует vault:/secret:-ссылку, но в текущем runtime исполняются только env:-ссылки.");
+  }
+
+  if (isProductionRuntime()) {
+    throw new Error("В production секрет клиента должен храниться как env:/vault:-ссылка, а не inline-значение.");
+  }
+
   return secretRef;
 }
 
-function normalizeIssuer(provider: Pick<IdentityProvider, "issuer" | "tenantId">, claims: OidcClaims) {
-  const issuer = provider.issuer?.trim();
-  const tenantId = provider.tenantId?.trim() || claims.tid;
+function isProductionRuntime() {
+  return process.env.NODE_ENV === "production";
+}
 
-  return issuer?.replace("{tenantId}", tenantId ?? "");
+export function isManagedSecretReference(value: string) {
+  return /^(env|vault|secret):[A-Za-z0-9_.:/@-]+$/.test(value.trim());
+}
+
+export function assertProductionSecretReference(value: string | null | undefined, label = "Секрет клиента") {
+  const trimmed = value?.trim();
+
+  if (isProductionRuntime() && trimmed && !isManagedSecretReference(trimmed)) {
+    throw new Error(`${label} в production должен быть env:/vault:-ссылкой, а не inline-значением.`);
+  }
+}
+
+function normalizeIssuerTemplate(value: string, tenantId: string | null | undefined) {
+  return value.replace("{tenantId}", tenantId ?? "").replace("{tenantid}", tenantId ?? "");
+}
+
+function resolveExpectedIssuer(provider: Pick<IdentityProvider, "type" | "issuer" | "tenantId">, claims: OidcClaims) {
+  const issuer = provider.issuer?.trim();
+  const tenantId = provider.tenantId?.trim();
+
+  if (issuer) {
+    return normalizeIssuerTemplate(issuer, tenantId || claims.tid);
+  }
+
+  if (provider.type === "MICROSOFT_ENTRA_ID") {
+    if (!tenantId) {
+      throw new Error("Для проверки issuer Entra ID нужен tenantId или явный issuer.");
+    }
+
+    return `https://login.microsoftonline.com/${tenantId}/v2.0`;
+  }
+
+  throw new Error("Для OIDC провайдера должен быть настроен issuer.");
 }
 
 function validateClaims(input: {
   claims: OidcClaims;
-  provider: Pick<IdentityProvider, "clientId" | "issuer" | "tenantId">;
+  provider: Pick<IdentityProvider, "type" | "clientId" | "issuer" | "tenantId">;
   nonce: string;
 }) {
   const now = Math.floor(Date.now() / 1000);
-  const expectedIssuer = normalizeIssuer(input.provider, input.claims);
+  const expectedIssuer = resolveExpectedIssuer(input.provider, input.claims);
   const audience = Array.isArray(input.claims.aud) ? input.claims.aud : [input.claims.aud].filter(Boolean);
 
   if (!input.claims.sub) {
@@ -117,7 +179,7 @@ function validateClaims(input: {
     throw new Error("ID token выпущен для другого приложения.");
   }
 
-  if (expectedIssuer && input.claims.iss !== expectedIssuer) {
+  if (!input.claims.iss || input.claims.iss !== expectedIssuer) {
     throw new Error("ID token выпущен неизвестным issuer.");
   }
 
@@ -134,12 +196,57 @@ async function fetchJwks(jwksUrl: string): Promise<JwksKey[]> {
   }
 
   const body = (await response.json()) as { keys?: JwksKey[] };
-  return body.keys ?? [];
+  return (body.keys ?? [])
+    .filter((key) => key.kty === "RSA" && Boolean(key.kid) && Boolean(key.n) && Boolean(key.e))
+    .slice(0, jwksCacheMaxKeysPerUrl);
+}
+
+function setCachedJwks(jwksUrl: string, keys: JwksKey[]) {
+  if (!jwksCache.has(jwksUrl) && jwksCache.size >= jwksCacheMaxUrls) {
+    const oldestUrl = jwksCache.keys().next().value as string | undefined;
+
+    if (oldestUrl) {
+      jwksCache.delete(oldestUrl);
+    }
+  }
+
+  const now = Date.now();
+  jwksCache.set(jwksUrl, {
+    keys,
+    expiresAt: now + jwksCacheTtlMs,
+    staleUntil: now + jwksStaleTtlMs
+  });
+}
+
+async function getCachedJwks(jwksUrl: string, kid: string): Promise<JwksKey[]> {
+  const now = Date.now();
+  const cached = jwksCache.get(jwksUrl);
+
+  if (cached && cached.expiresAt > now && cached.keys.some((key) => key.kid === kid)) {
+    return cached.keys;
+  }
+
+  try {
+    const keys = await fetchJwks(jwksUrl);
+    setCachedJwks(jwksUrl, keys);
+
+    return keys;
+  } catch (error) {
+    if (cached && cached.staleUntil > now && cached.keys.some((key) => key.kid === kid)) {
+      return cached.keys;
+    }
+
+    throw error;
+  }
+}
+
+export function clearOidcJwksCacheForTests() {
+  jwksCache.clear();
 }
 
 export async function validateIdToken(input: {
   idToken: string;
-  provider: Pick<IdentityProvider, "clientId" | "issuer" | "tenantId" | "jwksUrl" | "authorizationUrl" | "tokenUrl" | "scopes">;
+  provider: Pick<IdentityProvider, "type" | "clientId" | "issuer" | "tenantId" | "jwksUrl" | "authorizationUrl" | "tokenUrl" | "scopes">;
   nonce: string;
 }) {
   const [rawHeader, rawPayload, rawSignature] = input.idToken.split(".");
@@ -156,7 +263,7 @@ export async function validateIdToken(input: {
   }
 
   const jwksUrl = input.provider.jwksUrl || buildEntraAuthorizationMetadata(input.provider).jwksUrl;
-  const jwk = (await fetchJwks(jwksUrl)).find((key) => key.kid === header.kid);
+  const jwk = (await getCachedJwks(jwksUrl, header.kid)).find((key) => key.kid === header.kid);
 
   if (!jwk) {
     throw new Error("Не найден ключ подписи ID token.");
@@ -178,6 +285,25 @@ export async function validateIdToken(input: {
   });
 
   return claims;
+}
+
+export function validateOidcProviderConfigForSave(input: {
+  type: IdentityProvider["type"];
+  status?: string | null;
+  issuer?: string | null;
+  tenantId?: string | null;
+}) {
+  if (input.status !== "active") {
+    return;
+  }
+
+  if (input.type === "MICROSOFT_ENTRA_ID" && !input.tenantId?.trim()) {
+    throw new Error("Активный Microsoft Entra ID провайдер должен содержать tenantId для проверки issuer.");
+  }
+
+  if (input.type === "OIDC" && !input.issuer?.trim()) {
+    throw new Error("Активный OIDC провайдер должен содержать issuer для проверки ID token.");
+  }
 }
 
 function createPublicKeyFromJwk(jwk: JwksKey) {
@@ -260,6 +386,132 @@ export async function exchangeAuthorizationCode(input: {
   return payload;
 }
 
+function parseProviderConfig(configJson: string | null | undefined): OidcProviderConfig {
+  if (!configJson) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(configJson) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as OidcProviderConfig) : {};
+  } catch {
+    return {};
+  }
+}
+
+function hasGroupOverageClaims(claims: OidcClaims) {
+  return claims.hasgroups === true || claims.hasgroups === "true" || Boolean(claims._claim_names?.groups);
+}
+
+function userIdForGraph(claims: OidcClaims, claim: NonNullable<OidcProviderConfig["graphGroupFallback"]>["userIdClaim"]) {
+  if (claim === "sub") return claimString(claims.sub);
+  if (claim === "upn") return claimString(claims.upn) || claimString(claims.preferred_username);
+  if (claim === "email") return claimString(claims.email);
+  return claimString(claims.oid);
+}
+
+async function fetchGraphMemberGroups(input: {
+  provider: Pick<IdentityProvider, "configJson">;
+  claims: OidcClaims;
+  accessToken?: string;
+}) {
+  const config = parseProviderConfig(input.provider.configJson).graphGroupFallback;
+
+  if (!config?.enabled) {
+    throw new Error("OIDC token содержит overage groups; настройте Microsoft Graph fallback или используйте app roles.");
+  }
+
+  if (!input.accessToken) {
+    throw new Error("OIDC token содержит overage groups; для Graph fallback нужен access token.");
+  }
+
+  const endpoint = resolveMicrosoftGraphEndpoint(config.endpoint);
+  const userId = userIdForGraph(input.claims, config.userIdClaim ?? "oid");
+  const path = userId ? `/users/${encodeURIComponent(userId)}/getMemberGroups` : "/me/getMemberGroups";
+  const response = await fetch(`${endpoint}${path}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${input.accessToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      securityEnabledOnly: config.securityEnabledOnly ?? true
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Не удалось получить группы пользователя через Microsoft Graph.");
+  }
+
+  const body = (await response.json()) as { value?: unknown };
+  const groups = Array.isArray(body.value) ? body.value.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
+
+  if (!groups.length) {
+    throw new Error("Microsoft Graph не вернул группы пользователя.");
+  }
+
+  return groups;
+}
+
+function resolveMicrosoftGraphEndpoint(value: string | undefined) {
+  const rawEndpoint = (value || "https://graph.microsoft.com/v1.0").trim();
+  let url: URL;
+
+  try {
+    url = new URL(rawEndpoint);
+  } catch {
+    throw new Error("Некорректный Microsoft Graph endpoint.");
+  }
+
+  const allowedHosts = new Set([
+    "graph.microsoft.com",
+    "graph.microsoft.us",
+    "dod-graph.microsoft.us",
+    "graph.microsoft.de",
+    "microsoftgraph.chinacloudapi.cn"
+  ]);
+
+  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname.toLowerCase())) {
+    throw new Error("Graph fallback должен использовать официальный Microsoft Graph endpoint.");
+  }
+
+  return url.toString().replace(/\/+$/, "");
+}
+
+export async function resolveOidcRoleClaims(input: {
+  provider: Pick<IdentityProvider, "configJson">;
+  claims: OidcClaims;
+  accessToken?: string;
+}) {
+  if (!hasGroupOverageClaims(input.claims)) {
+    return {
+      appRoles: input.claims.roles,
+      groups: input.claims.groups,
+      supportLine: input.claims.supportLine,
+      teamName: input.claims.teamName,
+      attributes: input.claims as Record<string, unknown>
+    };
+  }
+
+  if (input.claims.roles?.length) {
+    return {
+      appRoles: input.claims.roles,
+      groups: [],
+      supportLine: input.claims.supportLine,
+      teamName: input.claims.teamName,
+      attributes: input.claims as Record<string, unknown>
+    };
+  }
+
+  return {
+    appRoles: input.claims.roles,
+    groups: await fetchGraphMemberGroups(input),
+    supportLine: input.claims.supportLine,
+    teamName: input.claims.teamName,
+    attributes: input.claims as Record<string, unknown>
+  };
+}
+
 function claimString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -267,6 +519,7 @@ function claimString(value: unknown) {
 export async function upsertUserFromOidcClaims(input: {
   workspaceId: string;
   providerId: string;
+  accessToken?: string;
   claims: OidcClaims;
   userAgent?: string | null;
 }) {
@@ -285,11 +538,21 @@ export async function upsertUserFromOidcClaims(input: {
     throw new Error("В ID token нет стабильного идентификатора пользователя.");
   }
 
-  const role = await resolveRoleFromExternalClaims(input.workspaceId, input.providerId, {
-    appRoles: input.claims.roles,
-    groups: input.claims.groups
+  const provider = await prisma.identityProvider.findUnique({
+    where: { id: input.providerId },
+    select: { configJson: true }
   });
+  const roleClaims = await resolveOidcRoleClaims({
+    provider: provider ?? { configJson: "{}" },
+    claims: input.claims,
+    accessToken: input.accessToken
+  });
+  const policy = await resolveIdentityPolicyFromExternalClaims(input.workspaceId, input.providerId, roleClaims);
   const displayName = claimString(input.claims.name) || email;
+  const directoryAttributes = {
+    ...(policy.supportLine !== undefined ? { supportLine: policy.supportLine } : {}),
+    ...(policy.teamName !== undefined ? { teamName: policy.teamName } : {})
+  };
 
   const user = await prisma.$transaction(async (tx) => {
     const existingIdentity = await tx.externalIdentity.findUnique({
@@ -320,7 +583,10 @@ export async function upsertUserFromOidcClaims(input: {
         data: {
           email,
           name: displayName,
-          role
+          role: policy.role,
+          sourceOfTruthProviderId: input.providerId,
+          lastDirectorySyncAt: new Date(),
+          ...directoryAttributes
         }
       });
     }
@@ -340,17 +606,33 @@ export async function upsertUserFromOidcClaims(input: {
           workspaceId: input.workspaceId,
           email,
           name: displayName,
-          role
+          role: policy.role,
+          lifecycleStatus: "ACTIVE",
+          sourceOfTruthProviderId: input.providerId,
+          lastDirectorySyncAt: new Date(),
+          ...directoryAttributes
         }
       }));
 
-    const normalizedUser =
-      linkedUser.role === role && linkedUser.name === displayName
-        ? linkedUser
-        : await tx.user.update({
+    const needsUserUpdate =
+      linkedUser.role !== policy.role ||
+      linkedUser.name !== displayName ||
+      linkedUser.sourceOfTruthProviderId !== input.providerId ||
+      (policy.supportLine !== undefined && linkedUser.supportLine !== policy.supportLine) ||
+      (policy.teamName !== undefined && linkedUser.teamName !== policy.teamName);
+
+    const normalizedUser = needsUserUpdate
+      ? await tx.user.update({
             where: { id: linkedUser.id },
-            data: { name: displayName, role }
-          });
+            data: {
+              name: displayName,
+              role: policy.role,
+              sourceOfTruthProviderId: input.providerId,
+              lastDirectorySyncAt: new Date(),
+              ...directoryAttributes
+            }
+          })
+      : linkedUser;
 
     await tx.externalIdentity.create({
       data: {
@@ -376,6 +658,6 @@ export async function upsertUserFromOidcClaims(input: {
   return {
     user,
     session,
-    role: role as RoleName
+    role: policy.role as RoleName
   };
 }

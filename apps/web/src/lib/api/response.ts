@@ -54,12 +54,13 @@ export function apiData<T>(data: T, options: ApiResponseOptions = {}) {
   );
 }
 
-export function apiJson<T>(data: T, status = 200, requestId: string = apiRequestId()) {
+export function apiJson<T>(data: T, status = 200, requestId: string = apiRequestId(), headers?: HeadersInit) {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("x-request-id", requestId);
+
   return NextResponse.json(data, {
     status,
-    headers: {
-      "x-request-id": requestId
-    }
+    headers: responseHeaders
   });
 }
 

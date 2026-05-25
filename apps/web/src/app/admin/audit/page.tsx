@@ -24,6 +24,9 @@ const auditActionLabels: Record<string, string> = {
   "auth.provider_saved": "Сохранен провайдер входа",
   "auth.provider_updated": "Обновлен провайдер входа",
   "auth.provider_upserted": "Обновлен провайдер входа",
+  "auth.scim_token_issued": "Выпущен SCIM-токен",
+  "auth.scim_token_revoked": "SCIM-токен отозван",
+  "auth.scim_token_rotated": "SCIM-токен ротирован",
   "auth.session_revoked": "Сессия отозвана",
   "backend_job.cancelled": "Фоновая задача отменена",
   "backend_job.retention_cleanup_queued": "Очистка данных поставлена в очередь",
@@ -53,6 +56,7 @@ const auditTargetTypeLabels: Record<string, string> = {
   auth_group_mapping: "Группа доступа",
   auth_provider: "Провайдер входа",
   auth_session: "Сессия",
+  identity_provider: "Провайдер входа",
   backend_job: "Фоновая задача",
   calibration_session: "Калибровка",
   conversation: "Обращение",
@@ -328,7 +332,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                       </time>
                     </div>
                     <span className="record-meta">
-                      {auditTargetTypeLabel(log.targetType)} · {log.actor.name}
+                      {auditTargetTypeLabel(log.targetType)} · {log.actor?.name ?? "Системное событие"}
                     </span>
                     <details className="compact-details bg-[#f8fafc]">
                       <summary>

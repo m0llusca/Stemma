@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth/oidc";
 import { sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +37,16 @@ function errorRedirect(request: NextRequest, code: LoginFlashCode) {
 }
 
 export async function GET(request: NextRequest) {
+  const requestId = requestIdFromHeaders(request.headers);
   const error = request.nextUrl.searchParams.get("error");
 
   if (error) {
+    logBackendEvent({
+      level: "warn",
+      requestId,
+      event: "auth.oidc.login_failed",
+      metadata: { reason: "provider_error" }
+    });
     return errorRedirect(request, "sso_callback_failed");
   }
 
@@ -51,6 +59,14 @@ export async function GET(request: NextRequest) {
   const returnTo = safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value);
 
   if (!code || !state || !expectedState || state !== expectedState || !codeVerifier || !nonce || !providerId) {
+    logBackendEvent({
+      level: "warn",
+      requestId,
+      event: "auth.oidc.login_failed",
+      targetType: "identity_provider",
+      targetId: providerId,
+      metadata: { reason: "invalid_state_or_missing_cookie" }
+    });
     return errorRedirect(request, "sso_callback_failed");
   }
 
@@ -59,6 +75,14 @@ export async function GET(request: NextRequest) {
   });
 
   if (!provider || provider.status !== "active") {
+    logBackendEvent({
+      level: "warn",
+      requestId,
+      event: "auth.oidc.login_failed",
+      targetType: "identity_provider",
+      targetId: providerId,
+      metadata: { reason: "provider_unavailable" }
+    });
     return errorRedirect(request, "sso_callback_failed");
   }
 
@@ -79,6 +103,7 @@ export async function GET(request: NextRequest) {
       workspaceId: provider.workspaceId,
       providerId: provider.id,
       claims,
+      accessToken: tokenResponse.access_token,
       userAgent: request.headers.get("user-agent")
     });
     const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
@@ -86,9 +111,27 @@ export async function GET(request: NextRequest) {
     response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
     clearOidcCookies(response);
+    logBackendEvent({
+      requestId,
+      event: "auth.oidc.login_succeeded",
+      workspaceId: provider.workspaceId,
+      actorId: authSession.session.userId,
+      targetType: "identity_provider",
+      targetId: provider.id,
+      metadata: { sessionId: authSession.session.id }
+    });
 
     return response;
   } catch {
+    logBackendEvent({
+      level: "warn",
+      requestId,
+      event: "auth.oidc.login_failed",
+      workspaceId: provider.workspaceId,
+      targetType: "identity_provider",
+      targetId: provider.id,
+      metadata: { reason: "callback_validation_failed" }
+    });
     return errorRedirect(request, "sso_callback_failed");
   }
 }

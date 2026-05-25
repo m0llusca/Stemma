@@ -1,8 +1,19 @@
 import type { IdentityProvider, Prisma } from "@prisma/client";
-import { resolveRoleFromExternalClaims, type ExternalRoleClaims } from "@/lib/auth/providers";
+import { resolveIdentityPolicyForUser, type ExternalRoleClaims } from "@/lib/auth/providers";
+import { syncActiveDirectoryLdapsProvider, type LdapsClientFactory } from "@/lib/auth/ldaps";
 import { prisma } from "@/lib/db";
 
-type DirectorySyncClient = Pick<Prisma.TransactionClient, "identityProvider" | "externalIdentity" | "user">;
+type DirectorySyncClient = Pick<
+  Prisma.TransactionClient,
+  | "identityProvider"
+  | "externalIdentity"
+  | "identityGroup"
+  | "userIdentityGroup"
+  | "user"
+  | "groupRoleMapping"
+  | "authSession"
+  | "auditLog"
+>;
 
 function parseJsonRecord(value: string) {
   try {
@@ -26,7 +37,10 @@ function claimsFromRawJson(value: string): ExternalRoleClaims {
 
   return {
     appRoles: stringArray(claims.roles ?? claims.appRoles),
-    groups: stringArray(claims.groups)
+    groups: stringArray(claims.groups),
+    supportLine: typeof claims.supportLine === "string" ? claims.supportLine : null,
+    teamName: typeof claims.teamName === "string" ? claims.teamName : null,
+    attributes: claims
   };
 }
 
@@ -43,7 +57,9 @@ function assertProviderCanSync(provider: IdentityProvider) {
 export async function syncDirectoryProvider(input: {
   workspaceId: string;
   providerId: string;
+  dryRun?: boolean;
   client?: DirectorySyncClient;
+  ldapClientFactory?: LdapsClientFactory;
 }) {
   const db = input.client ?? prisma;
   const provider = await db.identityProvider.findFirst({
@@ -57,7 +73,20 @@ export async function syncDirectoryProvider(input: {
     throw new Error("Провайдер авторизации не найден в рабочем пространстве задачи.");
   }
 
+  if (provider.type === "ACTIVE_DIRECTORY_LDAPS") {
+    return syncActiveDirectoryLdapsProvider({
+      provider,
+      client: db,
+      dryRun: input.dryRun,
+      ldapClientFactory: input.ldapClientFactory
+    });
+  }
+
   assertProviderCanSync(provider);
+
+  if (input.dryRun) {
+    throw new Error("Dry-run синхронизации пока поддерживается только для Active Directory LDAPS.");
+  }
 
   const identities = await db.externalIdentity.findMany({
     where: {
@@ -75,19 +104,45 @@ export async function syncDirectoryProvider(input: {
   let updatedUsers = 0;
 
   for (const identity of identities) {
-    const role = await resolveRoleFromExternalClaims(provider.workspaceId, provider.id, claimsFromRawJson(identity.rawClaimsJson));
+    const policy = await resolveIdentityPolicyForUser(provider.workspaceId, provider.id, identity.userId, claimsFromRawJson(identity.rawClaimsJson));
+    const name = identity.displayName ?? identity.email;
+    const supportLine = policy.supportLine ?? identity.user.supportLine;
+    const teamName = policy.teamName ?? identity.user.teamName;
+    const userAttributesChanged =
+      identity.user.role !== policy.role ||
+      identity.user.email !== identity.email ||
+      identity.user.name !== name ||
+      identity.user.supportLine !== supportLine ||
+      identity.user.teamName !== teamName ||
+      identity.user.sourceOfTruthProviderId !== provider.id;
 
-    if (identity.user.role !== role || identity.user.email !== identity.email || identity.user.name !== (identity.displayName ?? identity.email)) {
-      await db.user.update({
-        where: { id: identity.userId },
-        data: {
-          email: identity.email,
-          name: identity.displayName ?? identity.email,
-          role
-        }
-      });
+    await db.user.update({
+      where: { id: identity.userId },
+      data: {
+        ...(userAttributesChanged
+          ? {
+              email: identity.email,
+              name,
+              role: policy.role,
+              supportLine,
+              teamName,
+              sourceOfTruthProviderId: provider.id
+            }
+          : {}),
+        lastDirectorySyncAt: new Date()
+      }
+    });
+
+    if (userAttributesChanged) {
       updatedUsers += 1;
     }
+
+    await db.externalIdentity.update({
+      where: { id: identity.id },
+      data: {
+        lastSyncAt: new Date()
+      }
+    });
   }
 
   await db.identityProvider.update({

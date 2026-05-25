@@ -97,6 +97,7 @@ export async function queueDirectorySync(formData: FormData) {
   const user = await requireCurrentUserPermission("auth_providers:manage");
   await assertCanPersistSettings(user);
   const providerId = stringField(formData, "providerId");
+  const dryRun = stringField(formData, "dryRun") === "true";
 
   if (!providerId) {
     throw new Error("Провайдер авторизации не указан.");
@@ -109,7 +110,8 @@ export async function queueDirectorySync(formData: FormData) {
     priority: 70,
     createdById: user.id,
     payload: {
-      providerId
+      providerId,
+      ...(dryRun ? { dryRun: true } : {})
     }
   });
 
@@ -120,7 +122,8 @@ export async function queueDirectorySync(formData: FormData) {
     targetType: "identity_provider",
     targetId: providerId,
     metadata: {
-      jobId: job.id
+      jobId: job.id,
+      dryRun
     }
   });
 

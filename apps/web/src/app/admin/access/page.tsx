@@ -1,5 +1,6 @@
 import type { AuthSessionStatus, IdentityProvider, IdentityProviderType, RoleName } from "@prisma/client";
 import { KeyRound, Link2, ShieldCheck, UsersRound } from "lucide-react";
+import { headers } from "next/headers";
 import Link from "next/link";
 import {
   revokeAuthSessionById,
@@ -7,9 +8,12 @@ import {
   saveIdentityProvider,
   toggleGroupRoleMapping
 } from "@/lib/auth-provider-actions";
+import { ScimTokenManager } from "@/components/admin/scim-token-manager";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { sanitizeProviderConfigForDisplay } from "@/lib/auth/provider-config-validation";
 import { buildEntraAuthorizationMetadata, getDirectoryIntegrationGuidance } from "@/lib/auth/providers";
+import { buildSamlServiceProviderUrls } from "@/lib/auth/saml";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
@@ -21,11 +25,12 @@ type AccessPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type AccessSection = "overview" | "provider" | "mappings" | "sessions" | "recommendations";
+type AccessSection = "overview" | "provider" | "scim" | "mappings" | "sessions" | "recommendations";
 
 const accessSections: Array<{ value: AccessSection; label: string }> = [
   { value: "overview", label: "Провайдеры" },
   { value: "provider", label: "Настройка" },
+  { value: "scim", label: "SCIM" },
   { value: "mappings", label: "Группы и роли" },
   { value: "sessions", label: "Сессии" },
   { value: "recommendations", label: "Рекомендации" }
@@ -53,8 +58,8 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
 ];
 
 const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[#64748b]";
-const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"];
-const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC"];
+const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"];
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
@@ -98,19 +103,70 @@ function providerStatusLabel(status: string) {
 }
 
 function configText(provider: IdentityProvider | null | undefined) {
+  return sanitizeProviderConfigForDisplay(provider?.configJson);
+}
+
+function configObject(provider: IdentityProvider | null | undefined): Record<string, unknown> {
   if (!provider?.configJson) {
-    return "";
+    return {};
   }
 
   try {
-    return JSON.stringify(JSON.parse(provider.configJson), null, 2);
+    const parsed = JSON.parse(provider.configJson) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
   } catch {
-    return provider.configJson;
+    return {};
   }
 }
 
-function callbackPath() {
-  return "/auth/callback";
+function hasStringEntry(value: unknown) {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim().length > 0);
+}
+
+function hasSamlIdpCertificates(provider: IdentityProvider) {
+  const config = configObject(provider);
+
+  return Boolean(
+    provider.samlCertificateRef?.trim() ||
+      hasStringEntry(config.idpCertRefs) ||
+      hasStringEntry(config.idpCerts)
+  );
+}
+
+function hasSamlIdpSsoUrl(provider: IdentityProvider) {
+  const config = configObject(provider);
+  return Boolean(provider.authorizationUrl?.trim() || (typeof config.idpSsoUrl === "string" && config.idpSsoUrl.trim()));
+}
+
+function ldapsConfig(provider: IdentityProvider) {
+  const config = configObject(provider);
+  const ldaps = config.ldaps && typeof config.ldaps === "object" && !Array.isArray(config.ldaps) ? (config.ldaps as Record<string, unknown>) : config;
+
+  return {
+    userSearchBase: typeof ldaps.userSearchBase === "string" ? ldaps.userSearchBase.trim() : "",
+    groupSearchBase: typeof ldaps.groupSearchBase === "string" ? ldaps.groupSearchBase.trim() : "",
+    userFilter: typeof ldaps.userFilter === "string" ? ldaps.userFilter.trim() : "",
+    groupFilter: typeof ldaps.groupFilter === "string" ? ldaps.groupFilter.trim() : "",
+    nestedGroups: ldaps.nestedGroups === true,
+    caConfigured: hasStringEntry(ldaps.caCertRefs) || hasStringEntry(ldaps.caCertRef) || hasStringEntry(ldaps.caFileRefs) || hasStringEntry(ldaps.caFileRef)
+  };
+}
+
+function requestOrigin(headerList: Headers) {
+  const forwardedHost = headerList.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || headerList.get("host")?.trim();
+  const forwardedProto = headerList.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = forwardedProto || (host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https");
+
+  return host ? `${proto}://${host}` : "http://localhost:3000";
+}
+
+function callbackPath(provider: IdentityProvider | null | undefined) {
+  return provider?.type === "SAML" ? "/auth/saml/acs" : "/auth/callback";
 }
 
 function providerReadiness(provider: IdentityProvider | null | undefined) {
@@ -119,6 +175,8 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
       label: "Не выбран",
       tone: "pill--neutral",
       canTest: false,
+      canDirectorySync: false,
+      canDryRun: false,
       details: ["Создайте или выберите провайдера"]
     };
   }
@@ -128,7 +186,44 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
       label: "Демо",
       tone: "pill--neutral",
       canTest: false,
+      canDirectorySync: false,
+      canDryRun: false,
       details: ["Демо-провайдер не используется для боевого SSO"]
+    };
+  }
+
+  if (provider.type === "ACTIVE_DIRECTORY_LDAPS") {
+    const missing: string[] = [];
+    const config = ldapsConfig(provider);
+
+    if (!provider.ldapsUrl?.startsWith("ldaps://")) missing.push("LDAPS URL");
+    if (!provider.ldapsBindDn?.trim()) missing.push("Bind DN");
+    if (!provider.ldapsBindSecretRef?.trim()) missing.push("Bind secret ref");
+    if (!config.userSearchBase) missing.push("userSearchBase");
+    if (!config.groupSearchBase) missing.push("groupSearchBase");
+
+    if (missing.length > 0) {
+      return {
+        label: "Неполная LDAPS-конфигурация",
+        tone: "pill--warn",
+        canTest: false,
+        canDirectorySync: false,
+        canDryRun: false,
+        details: missing
+      };
+    }
+
+    return {
+      label: provider.status === "active" ? "Готов к live-проверке" : "Готов к dry-run",
+      tone: provider.status === "active" ? "pill--ok" : "pill--warn",
+      canTest: false,
+      canDirectorySync: provider.status === "active",
+      canDryRun: true,
+      details: [
+        "Только синхронизация каталога, не LDAP password login",
+        config.nestedGroups ? "Nested groups включены" : "Nested groups выключены",
+        config.caConfigured ? "Custom CA настроен" : "Используется системное доверие TLS"
+      ]
     };
   }
 
@@ -137,23 +232,32 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
       label: "Только каталог",
       tone: "pill--neutral",
       canTest: false,
+      canDirectorySync: provider.status === "active",
+      canDryRun: false,
       details: ["Интерактивный SSO для этого типа пока не подключен"]
     };
   }
 
   const missing: string[] = [];
 
-  if (!provider.clientId) missing.push("Идентификатор приложения");
+  if ((provider.type === "MICROSOFT_ENTRA_ID" || provider.type === "OIDC") && !provider.clientId) {
+    missing.push("Идентификатор приложения");
+  }
   if (provider.type === "MICROSOFT_ENTRA_ID" && !provider.tenantId) missing.push("Идентификатор каталога");
+  if (provider.type === "OIDC" && !provider.issuer) missing.push("Issuer");
   if (provider.type === "OIDC" && !provider.authorizationUrl) missing.push("Адрес авторизации");
   if (provider.type === "OIDC" && !provider.tokenUrl) missing.push("Адрес токена");
   if (provider.type === "OIDC" && !provider.jwksUrl) missing.push("Адрес ключей JWKS");
+  if (provider.type === "SAML" && !hasSamlIdpSsoUrl(provider)) missing.push("IdP SSO URL");
+  if (provider.type === "SAML" && !hasSamlIdpCertificates(provider)) missing.push("Сертификат IdP или env-ссылка");
 
   if (provider.status !== "active") {
     return {
       label: provider.status === "disabled" ? "Отключен" : "Черновик",
       tone: provider.status === "disabled" ? "pill--neutral" : "pill--warn",
       canTest: false,
+      canDirectorySync: false,
+      canDryRun: false,
       details: ["Переведите провайдера в статус «Активен»"]
     };
   }
@@ -163,15 +267,19 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
       label: "Неполная конфигурация",
       tone: "pill--warn",
       canTest: false,
+      canDirectorySync: false,
+      canDryRun: false,
       details: missing
     };
   }
 
   return {
-    label: "Готов к SSO",
+    label: provider.type === "SAML" ? "Готов к contract test" : "Готов к SSO",
     tone: "pill--ok",
     canTest: true,
-    details: ["Можно запускать тестовый вход"]
+    canDirectorySync: true,
+    canDryRun: false,
+    details: [provider.type === "SAML" ? "Можно запускать тестовый вход после настройки IdP" : "Можно запускать тестовый вход"]
   };
 }
 
@@ -207,6 +315,7 @@ function ProviderField({
 
 export default async function AdminAccessPage({ searchParams }: AccessPageProps) {
   const params = await searchParams;
+  const origin = requestOrigin(await headers());
   const user = await requireCurrentUserPermission("auth_providers:manage");
   const [providers, sessions] = await Promise.all([
     prisma.identityProvider.findMany({
@@ -267,8 +376,13 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
     selectedProvider?.type === "MICROSOFT_ENTRA_ID" || selectedProvider?.type === "OIDC"
       ? buildEntraAuthorizationMetadata(selectedProvider)
       : null;
+  const samlMetadata =
+    selectedProvider?.type === "SAML"
+      ? buildSamlServiceProviderUrls(selectedProvider, origin)
+      : null;
   const guidance = getDirectoryIntegrationGuidance();
   const readiness = providerReadiness(selectedProvider);
+  const scimBaseUrl = "/scim/v2";
   const selectedProviderSsoPath = `/auth/sso?provider=${encodeURIComponent(
     selectedProvider?.slug ?? "microsoft-entra-id"
   )}&workspaceId=${encodeURIComponent(selectedProvider?.workspaceId ?? user.workspaceId)}&returnTo=/reviews`;
@@ -423,13 +537,25 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               <h2 id="provider-settings-title" className="ops-panel__title">{selectedProvider?.name ?? "Провайдер авторизации"}</h2>
               <p className="ops-panel__subtitle">Редактируйте поля при смене каталога, приложения или технических адресов.</p>
               {selectedProvider && selectedProvider.type !== "DEMO" ? (
-                <form action={queueDirectorySync} className="admin-actions mt-3">
-                  <input type="hidden" name="providerId" value={selectedProvider.id} />
-                  <button type="submit" className="action-button action-button--small">
-                    <ShieldCheck size={15} aria-hidden="true" />
-                    Синхронизировать
-                  </button>
-                </form>
+                <div className="admin-actions mt-3">
+                  {readiness.canDryRun ? (
+                    <form action={queueDirectorySync}>
+                      <input type="hidden" name="providerId" value={selectedProvider.id} />
+                      <input type="hidden" name="dryRun" value="true" />
+                      <button type="submit" className="action-button action-button--small">
+                        <ShieldCheck size={15} aria-hidden="true" />
+                        Dry-run
+                      </button>
+                    </form>
+                  ) : null}
+                  <form action={queueDirectorySync}>
+                    <input type="hidden" name="providerId" value={selectedProvider.id} />
+                    <button type="submit" className="action-button action-button--small" disabled={!readiness.canDirectorySync} aria-disabled={!readiness.canDirectorySync}>
+                      <ShieldCheck size={15} aria-hidden="true" />
+                      Синхронизировать
+                    </button>
+                  </form>
+                </div>
               ) : null}
             </div>
             <span className={`pill ${readiness.tone}`}>{readiness.label}</span>
@@ -442,7 +568,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </div>
             <div className="ops-status-item">
               <span className="ops-status-item__label">Адрес возврата</span>
-              <span className="ops-status-item__value font-mono text-sm compact-text">{callbackPath()}</span>
+              <span className="ops-status-item__value font-mono text-sm compact-text">{callbackPath(selectedProvider)}</span>
               <span className="record-meta">Укажите этот путь в приложении провайдера.</span>
             </div>
             <div className="ops-status-item">
@@ -453,7 +579,10 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             <div className="ops-status-item">
               <span className="ops-status-item__label">Последняя синхронизация</span>
               <span className="ops-status-item__value">{formatDate(selectedProvider?.lastSyncAt)}</span>
-              <span className="record-meta">Синхронизация каталога запускается как фоновая задача.</span>
+              <span className="record-meta compact-text">
+                {selectedProvider?.lastSyncStatus ?? "Синхронизация каталога запускается как фоновая задача."}
+                {selectedProvider?.lastSyncError ? ` · ${selectedProvider.lastSyncError}` : ""}
+              </span>
             </div>
           </div>
           <form action={saveIdentityProvider} className="grid gap-5 p-5">
@@ -495,6 +624,21 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               <ProviderField label="Адрес авторизации" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
               <ProviderField label="Адрес токена" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
               <ProviderField label="Адрес ключей JWKS" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
+              <ProviderField label="SAML Entity ID" name="samlEntityId" defaultValue={selectedProvider?.samlEntityId} placeholder="https://app.example.com/auth/saml/metadata?provider=saml" />
+              <ProviderField label="SAML Metadata URL IdP" name="samlMetadataUrl" defaultValue={selectedProvider?.samlMetadataUrl} />
+              <ProviderField label="LDAPS URL" name="ldapsUrl" defaultValue={selectedProvider?.ldapsUrl} placeholder="ldaps://dc01.example.com:636" />
+              <ProviderField label="LDAPS bind DN" name="ldapsBindDn" defaultValue={selectedProvider?.ldapsBindDn} placeholder="CN=qc-sync,OU=Service Accounts,DC=example,DC=com" />
+              <ProviderField label="LDAPS bind secret ref" name="ldapsBindSecretRef" defaultValue={selectedProvider?.ldapsBindSecretRef} placeholder="env:QC_AD_BIND_PASSWORD" />
+              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[#334155]">
+                SAML сертификаты IdP
+                <textarea
+                  name="samlCertificateRef"
+                  defaultValue={selectedProvider?.samlCertificateRef ?? ""}
+                  rows={4}
+                  className="form-control font-mono text-xs"
+                  placeholder="env:SAML_IDP_CERT_CURRENT&#10;env:SAML_IDP_CERT_NEXT"
+                />
+              </label>
               <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[#334155]">
                 Настройка JSON
                 <textarea
@@ -502,7 +646,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   defaultValue={configText(selectedProvider)}
                   rows={5}
                   className="form-control font-mono text-xs"
-                  placeholder='{"roleSource":"groups"}'
+                  placeholder='{"userSearchBase":"OU=Users,DC=example,DC=com","groupSearchBase":"OU=Groups,DC=example,DC=com","nestedGroups":true,"caCertRefs":["env:QC_AD_CA_PEM"]}'
                 />
               </label>
             </div>
@@ -514,6 +658,26 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               <p className="compact-text">Авторизация: {entraMetadata.authorizationUrl}</p>
               <p className="compact-text">Токен: {entraMetadata.tokenUrl}</p>
               <p>Сценарий: {entraMetadata.recommendedFlow}</p>
+              <p>Group overage: Graph fallback включайте только явно в JSON-конфигурации; используйте Microsoft Graph getMemberGroups с минимальными правами GroupMember.Read.All или Directory.Read.All.</p>
+            </div>
+          ) : null}
+
+          {samlMetadata ? (
+            <div className="soft-callout text-sm text-[#64748b]">
+              <p className="font-semibold text-[#334155]">Метаданные SAML SP</p>
+              <p className="compact-text">Entity ID: {samlMetadata.entityId}</p>
+              <p className="compact-text">ACS: {samlMetadata.acsUrl}</p>
+              <p className="compact-text">Metadata: {samlMetadata.metadataUrl}</p>
+              <p>Статус означает готовность к contract test с IdP, а не подтвержденную production/live интеграцию.</p>
+            </div>
+          ) : null}
+
+          {selectedProvider?.type === "ACTIVE_DIRECTORY_LDAPS" ? (
+            <div className="soft-callout text-sm text-[#64748b]">
+              <p className="font-semibold text-[#334155]">Active Directory LDAPS</p>
+              <p>LDAPS здесь используется только для синхронизации пользователей и групп. LDAP password login не включается.</p>
+              <p className="compact-text">TLS обязателен: используйте ldaps:// на 636/3269; bind secret и CA сейчас исполняются только через env:-ссылки.</p>
+              <p className="compact-text">Готовность означает возможность dry-run или live-проверки, а не подтвержденный production-live статус.</p>
             </div>
           ) : null}
 
@@ -523,6 +687,36 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </ValidatedSubmitButton>
           </div>
         </form>
+        </section>
+      ) : null}
+
+      {activeSection === "scim" && selectedProvider ? (
+        <section className="ops-panel" aria-labelledby="scim-token-title">
+          {selectedProvider.type === "DEMO" ? (
+            <>
+              <div className="ops-panel__header">
+                <div>
+                  <p className="ops-panel__eyebrow">Provisioning</p>
+                  <h2 id="scim-token-title" className="ops-panel__title">SCIM 2.0 bearer token</h2>
+                  <p className="ops-panel__subtitle">
+                    Выпуск, ротация и отзыв токена входящего provisioning для выбранного провайдера.
+                  </p>
+                </div>
+                <span className="pill pill--warn">Не выпущен</span>
+              </div>
+              <div className={emptyStateClass}>Для демо-провайдера SCIM provisioning не выпускается.</div>
+            </>
+          ) : (
+            <div className="p-5">
+              <ScimTokenManager
+                titleId="scim-token-title"
+                providerId={selectedProvider.id}
+                providerName={selectedProvider.name}
+                initialTokenPrefix={selectedProvider.scimTokenPrefix}
+                scimBaseUrl={scimBaseUrl}
+              />
+            </div>
+          )}
         </section>
       ) : null}
 

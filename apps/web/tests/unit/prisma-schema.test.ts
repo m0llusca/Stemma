@@ -29,6 +29,20 @@ const webhookIngestMigrationName = readdirSync(migrationsDir).find((name) => nam
 const webhookIngestMigration = webhookIngestMigrationName
   ? readFileSync(join(migrationsDir, webhookIngestMigrationName, "migration.sql"), "utf8")
   : "";
+const identityLifecycleMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_phase_c_identity_lifecycle"));
+const identityLifecycleMigration = identityLifecycleMigrationName
+  ? readFileSync(join(migrationsDir, identityLifecycleMigrationName, "migration.sql"), "utf8")
+  : "";
+const samlRequestStateMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_phase_c_saml_request_state"));
+const samlRequestStateMigration = samlRequestStateMigrationName
+  ? readFileSync(join(migrationsDir, samlRequestStateMigrationName, "migration.sql"), "utf8")
+  : "";
+const ssoRequestStateCompositeFkMigrationName = readdirSync(migrationsDir).find((name) =>
+  name.endsWith("_phase_c_sso_request_state_composite_fk")
+);
+const ssoRequestStateCompositeFkMigration = ssoRequestStateCompositeFkMigrationName
+  ? readFileSync(join(migrationsDir, ssoRequestStateCompositeFkMigrationName, "migration.sql"), "utf8")
+  : "";
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -330,5 +344,96 @@ describe("prisma schema database foundations", () => {
     expect(webhookIngestMigration).toContain('CONSTRAINT "WebhookIngestEvent_status_chk"');
     expect(webhookIngestMigration).toContain('ALTER TABLE "WebhookEndpoint" ADD CONSTRAINT "WebhookEndpoint_workspaceId_fkey"');
     expect(webhookIngestMigration).toContain('ALTER TABLE "WebhookIngestEvent" ADD CONSTRAINT "WebhookIngestEvent_endpointId_fkey"');
+  });
+
+  it("stores Phase C identity lifecycle, sync metadata, and provider-scoped group links", () => {
+    const workspaceModel = modelBlock("Workspace");
+    const userModel = modelBlock("User");
+    const providerModel = modelBlock("IdentityProvider");
+    const identityModel = modelBlock("ExternalIdentity");
+    const groupModel = modelBlock("IdentityGroup");
+    const userGroupModel = modelBlock("UserIdentityGroup");
+    const mappingModel = modelBlock("GroupRoleMapping");
+    const requestStateModel = modelBlock("SsoRequestState");
+
+    expect(schema).toContain("enum UserLifecycleStatus");
+    expect(userModel).toContain("lifecycleStatus             UserLifecycleStatus");
+    expect(userModel).toContain("sourceOfTruthProviderId");
+    expect(userModel).toContain("lastDirectorySyncAt");
+    expect(userModel).toContain("@@index([workspaceId, lifecycleStatus])");
+    expect(workspaceModel).toMatch(/identityGroups\s+IdentityGroup\[]/);
+    expect(workspaceModel).toMatch(/ssoRequestStates\s+SsoRequestState\[]/);
+    expect(providerModel).toContain("lastSyncStartedAt");
+    expect(providerModel).toContain("samlCertificateRef");
+    expect(providerModel).toContain("ldapsBindSecretRef");
+    expect(providerModel).toContain("scimTokenPrefix");
+    expect(providerModel).toContain("scimTokenHash      String?              @unique");
+    expect(providerModel).toMatch(/identityGroups\s+IdentityGroup\[]/);
+    expect(providerModel).toMatch(/ssoRequestStates\s+SsoRequestState\[]/);
+    expect(identityModel).toContain("externalId");
+    expect(identityModel).toContain("lastSyncAt");
+    expect(userModel).toContain("@@unique([id, workspaceId])");
+    expect(providerModel).toContain("@@unique([id, workspaceId])");
+    expect(groupModel).toMatch(/provider\s+IdentityProvider\s+@relation\(fields: \[providerId, workspaceId], references: \[id, workspaceId], onDelete: Cascade\)/);
+    expect(groupModel).toContain("@@unique([providerId, externalGroupId])");
+    expect(groupModel).toContain("@@unique([providerId, externalGroupId, workspaceId])");
+    expect(userGroupModel).toMatch(/user\s+User\s+@relation\(fields: \[userId, workspaceId], references: \[id, workspaceId], onDelete: Cascade\)/);
+    expect(userGroupModel).toMatch(/provider\s+IdentityProvider\s+@relation\(fields: \[providerId, workspaceId], references: \[id, workspaceId], onDelete: Cascade\)/);
+    expect(userGroupModel).toMatch(/group\s+IdentityGroup\?\s+@relation\(fields: \[providerId, externalGroupId, workspaceId], references: \[providerId, externalGroupId, workspaceId], onDelete: Cascade\)/);
+    expect(userGroupModel).toContain("@@unique([userId, providerId, externalGroupId])");
+    expect(mappingModel).toContain("@@unique([workspaceId, providerId, externalGroupId, role])");
+    expect(requestStateModel).toContain("key         String");
+    expect(requestStateModel).toMatch(/provider\s+IdentityProvider\s+@relation\(fields: \[providerId, workspaceId], references: \[id, workspaceId], onDelete: Cascade\)/);
+    expect(requestStateModel).toContain("expiresAt  DateTime");
+    expect(requestStateModel).toContain("consumedAt DateTime?");
+    expect(requestStateModel).toContain("@@index([workspaceId, providerId, expiresAt])");
+    expect(requestStateModel).toContain("@@index([providerId, consumedAt, expiresAt])");
+  });
+
+  it("migrates Phase C identity lifecycle without preserving cross-provider group mapping collisions", () => {
+    expect(identityLifecycleMigrationName).toMatch(/^\d+_phase_c_identity_lifecycle$/);
+    expect(identityLifecycleMigrationName?.localeCompare(webhookIngestMigrationName ?? "")).toBeGreaterThan(0);
+    expect(identityLifecycleMigration).toContain('CREATE TYPE "UserLifecycleStatus"');
+    expect(identityLifecycleMigration).toContain('ADD COLUMN "lifecycleStatus" "UserLifecycleStatus" NOT NULL DEFAULT \'ACTIVE\'');
+    expect(identityLifecycleMigration).toContain('CREATE TABLE "IdentityGroup"');
+    expect(identityLifecycleMigration).toContain('CREATE TABLE "UserIdentityGroup"');
+    expect(identityLifecycleMigration).toContain('CREATE UNIQUE INDEX "User_id_workspaceId_key" ON "User"("id", "workspaceId")');
+    expect(identityLifecycleMigration).toContain(
+      'CREATE UNIQUE INDEX "IdentityGroup_providerId_externalGroupId_workspaceId_key" ON "IdentityGroup"("providerId", "externalGroupId", "workspaceId")'
+    );
+    expect(identityLifecycleMigration).toContain('DROP INDEX "GroupRoleMapping_workspaceId_externalGroupId_role_key"');
+    expect(identityLifecycleMigration).toContain(
+      'CREATE UNIQUE INDEX "GroupRoleMapping_workspaceId_providerId_externalGroupId_role_key" ON "GroupRoleMapping"("workspaceId", "providerId", "externalGroupId", "role")'
+    );
+    expect(identityLifecycleMigration).toContain(
+      'CREATE UNIQUE INDEX "GroupRoleMapping_workspaceId_externalGroupId_role_global_key" ON "GroupRoleMapping"("workspaceId", "externalGroupId", "role") WHERE "providerId" IS NULL'
+    );
+    expect(identityLifecycleMigration).toContain('ALTER TABLE "User" ADD CONSTRAINT "User_sourceOfTruthProviderId_fkey"');
+    expect(identityLifecycleMigration).toContain(
+      'ALTER TABLE "UserIdentityGroup" ADD CONSTRAINT "UserIdentityGroup_providerId_externalGroupId_workspaceId_fkey"'
+    );
+  });
+
+  it("migrates persistent SAML request state for InResponseTo replay protection", () => {
+    expect(samlRequestStateMigrationName).toMatch(/^\d+_phase_c_saml_request_state$/);
+    expect(samlRequestStateMigrationName?.localeCompare(identityLifecycleMigrationName ?? "")).toBeGreaterThan(0);
+    expect(samlRequestStateMigration).toContain('CREATE TABLE "SsoRequestState"');
+    expect(samlRequestStateMigration).toContain('"consumedAt" TIMESTAMP(3)');
+    expect(samlRequestStateMigration).toContain('CONSTRAINT "SsoRequestState_pkey" PRIMARY KEY ("key")');
+    expect(samlRequestStateMigration).toContain('CREATE INDEX "SsoRequestState_workspaceId_providerId_expiresAt_idx"');
+    expect(samlRequestStateMigration).toContain('CREATE INDEX "SsoRequestState_providerId_consumedAt_expiresAt_idx"');
+    expect(samlRequestStateMigration).toContain('ALTER TABLE "SsoRequestState" ADD CONSTRAINT "SsoRequestState_providerId_fkey"');
+  });
+
+  it("tightens persistent SSO request state to provider/workspace composite integrity", () => {
+    expect(ssoRequestStateCompositeFkMigrationName).toMatch(/^\d+_phase_c_sso_request_state_composite_fk$/);
+    expect(ssoRequestStateCompositeFkMigrationName?.localeCompare(samlRequestStateMigrationName ?? "")).toBeGreaterThan(0);
+    expect(ssoRequestStateCompositeFkMigration).toContain('DELETE FROM "SsoRequestState" state');
+    expect(ssoRequestStateCompositeFkMigration).toContain('DROP CONSTRAINT "SsoRequestState_providerId_fkey"');
+    expect(ssoRequestStateCompositeFkMigration).toContain(
+      'ADD CONSTRAINT "SsoRequestState_providerId_workspaceId_fkey"'
+    );
+    expect(ssoRequestStateCompositeFkMigration).toContain('FOREIGN KEY ("providerId", "workspaceId")');
+    expect(ssoRequestStateCompositeFkMigration).toContain('REFERENCES "IdentityProvider"("id", "workspaceId")');
   });
 });

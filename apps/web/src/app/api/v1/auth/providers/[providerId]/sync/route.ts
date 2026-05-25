@@ -15,6 +15,8 @@ export async function POST(request: Request, context: { params: Promise<{ provid
 
   const user = session.user;
   const { providerId } = await context.params;
+  const body = await request.json().catch(() => null);
+  const dryRun = Boolean(body && typeof body === "object" && "dryRun" in body && (body as { dryRun?: unknown }).dryRun === true);
   const provider = await prisma.identityProvider.findFirst({
     where: {
       id: providerId,
@@ -39,7 +41,8 @@ export async function POST(request: Request, context: { params: Promise<{ provid
     createdById: user.id,
     payload: {
       providerId: provider.id,
-      providerType: provider.type
+      providerType: provider.type,
+      ...(dryRun ? { dryRun: true } : {})
     }
   });
 

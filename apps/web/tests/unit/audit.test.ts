@@ -6,6 +6,7 @@ describe("redactAuditMetadata", () => {
     expect(
       redactAuditMetadata({
         apiToken: "plain-token",
+        clientSecretRef: "env:OIDC_SECRET",
         nested: {
           authorizationHeader: "Bearer secret",
           safeValue: "visible"
@@ -14,6 +15,7 @@ describe("redactAuditMetadata", () => {
       })
     ).toEqual({
       apiToken: "[redacted]",
+      clientSecretRef: "[redacted]",
       nested: {
         authorizationHeader: "[redacted]",
         safeValue: "visible"
