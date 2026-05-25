@@ -142,6 +142,7 @@ model Workspace {
   integrationRunItems       IntegrationRunItem[]
   webhookEndpoints          WebhookEndpoint[]
   webhookIngestEvents       WebhookIngestEvent[]
+  certificationEvidence     CertificationEvidence[]
   apiTokens                 ApiToken[]
   conversations             Conversation[]
   scorecards                Scorecard[]
@@ -179,6 +180,7 @@ model User {
   createdBackendJobs          BackendJob[]               @relation("BackendJobCreatedBy")
   reportSnapshots             ReportSnapshot[]           @relation("ReportSnapshotCreatedBy")
   reviewEvents                ReviewEvent[]
+  certificationEvidence       CertificationEvidence[]
   reviews                     Review[]
   savedQueueViews             SavedQueueView[]
   ownedCalibrationSessions    CalibrationSession[]       @relation("CalibrationOwner")
@@ -218,43 +220,44 @@ model LocalCredential {
 }
 
 model IdentityProvider {
-  id                 String               @id @default(cuid())
-  workspaceId        String
-  workspace          Workspace            @relation(fields: [workspaceId], references: [id])
-  type               IdentityProviderType
-  name               String
-  slug               String
-  status             String               @default("draft")
-  issuer             String?
-  tenantId           String?
-  clientId           String?
-  clientSecretRef    String?
-  authorizationUrl   String?
-  tokenUrl           String?
-  jwksUrl            String?
-  scopes             String               @default("openid profile email")
-  configJson         String               @default("{}")
-  lastSyncAt         DateTime?
-  lastSyncStartedAt  DateTime?
-  lastSyncStatus     String?
-  lastSyncError      String?
-  samlEntityId       String?
-  samlMetadataUrl    String?
-  samlCertificateRef String?
-  ldapsUrl           String?
-  ldapsBindDn        String?
-  ldapsBindSecretRef String?
-  scimTokenPrefix    String?
-  scimTokenHash      String?              @unique
-  sourceOfTruthUsers User[]               @relation("UserSourceOfTruthProvider")
-  externalIdentities ExternalIdentity[]
-  identityGroups     IdentityGroup[]
-  userIdentityGroups UserIdentityGroup[]
-  groupRoleMappings  GroupRoleMapping[]
-  authSessions       AuthSession[]
-  ssoRequestStates   SsoRequestState[]
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  id                    String                  @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace               @relation(fields: [workspaceId], references: [id])
+  type                  IdentityProviderType
+  name                  String
+  slug                  String
+  status                String                  @default("draft")
+  issuer                String?
+  tenantId              String?
+  clientId              String?
+  clientSecretRef       String?
+  authorizationUrl      String?
+  tokenUrl              String?
+  jwksUrl               String?
+  scopes                String                  @default("openid profile email")
+  configJson            String                  @default("{}")
+  lastSyncAt            DateTime?
+  lastSyncStartedAt     DateTime?
+  lastSyncStatus        String?
+  lastSyncError         String?
+  samlEntityId          String?
+  samlMetadataUrl       String?
+  samlCertificateRef    String?
+  ldapsUrl              String?
+  ldapsBindDn           String?
+  ldapsBindSecretRef    String?
+  scimTokenPrefix       String?
+  scimTokenHash         String?                 @unique
+  sourceOfTruthUsers    User[]                  @relation("UserSourceOfTruthProvider")
+  externalIdentities    ExternalIdentity[]
+  identityGroups        IdentityGroup[]
+  userIdentityGroups    UserIdentityGroup[]
+  groupRoleMappings     GroupRoleMapping[]
+  authSessions          AuthSession[]
+  ssoRequestStates      SsoRequestState[]
+  certificationEvidence CertificationEvidence[]
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
 
   @@unique([workspaceId, slug])
   @@unique([id, workspaceId])
@@ -369,12 +372,12 @@ model SsoRequestState {
   key         String           @id
   workspaceId String
   workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  providerId String
-  provider   IdentityProvider @relation(fields: [providerId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
-  value      String
-  expiresAt  DateTime
-  consumedAt DateTime?
-  createdAt  DateTime         @default(now())
+  providerId  String
+  provider    IdentityProvider @relation(fields: [providerId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  value       String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime         @default(now())
 
   @@index([workspaceId, providerId, expiresAt])
   @@index([providerId, consumedAt, expiresAt])
@@ -382,32 +385,33 @@ model SsoRequestState {
 }
 
 model Integration {
-  id               String                     @id @default(cuid())
-  workspaceId      String
-  workspace        Workspace                  @relation(fields: [workspaceId], references: [id])
-  source           String
-  displayName      String
-  type             String                     @default("custom_api")
-  status           String
-  baseUrl          String?
-  configJson       String                     @default("{}")
-  syncStateJson    String                     @default("{}")
-  authMode         String                     @default("token")
-  importLimit      Int                        @default(100)
-  batchSize        Int                        @default(25)
-  dateRangeDays    Int                        @default(30)
-  schedule         String?
-  syncCursor       String?
-  lastSyncedAt     DateTime?
-  lastDryRunAt     DateTime?
-  lastImportAt     DateTime?
-  lastError        String?
-  credentials      IntegrationCredential[]
-  runs             IntegrationRun[]
-  diagnosticRuns   IntegrationDiagnosticRun[]
-  webhookEndpoints WebhookEndpoint[]
-  createdAt        DateTime                   @default(now())
-  updatedAt        DateTime                   @updatedAt
+  id                    String                     @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace                  @relation(fields: [workspaceId], references: [id])
+  source                String
+  displayName           String
+  type                  String                     @default("custom_api")
+  status                String
+  baseUrl               String?
+  configJson            String                     @default("{}")
+  syncStateJson         String                     @default("{}")
+  authMode              String                     @default("token")
+  importLimit           Int                        @default(100)
+  batchSize             Int                        @default(25)
+  dateRangeDays         Int                        @default(30)
+  schedule              String?
+  syncCursor            String?
+  lastSyncedAt          DateTime?
+  lastDryRunAt          DateTime?
+  lastImportAt          DateTime?
+  lastError             String?
+  credentials           IntegrationCredential[]
+  runs                  IntegrationRun[]
+  diagnosticRuns        IntegrationDiagnosticRun[]
+  webhookEndpoints      WebhookEndpoint[]
+  certificationEvidence CertificationEvidence[]
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
 
   @@unique([workspaceId, source])
   @@index([workspaceId, status])
@@ -887,6 +891,33 @@ model IntegrationRunItem {
   @@index([integrationRunId, status])
   @@index([diagnosticRunId, status])
   @@index([conversationId])
+}
+
+model CertificationEvidence {
+  id                      String            @id @default(cuid())
+  workspaceId             String
+  workspace               Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  targetType              String
+  source                  String
+  provider                String?
+  integrationId           String?
+  integration             Integration?      @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  identityProviderId      String?
+  identityProvider        IdentityProvider? @relation(fields: [identityProviderId], references: [id], onDelete: SetNull)
+  runId                   String
+  actorId                 String?
+  actor                   User?             @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  envGate                 String
+  result                  String
+  redactedDiagnosticsJson String            @default("{}")
+  recordedAt              DateTime          @default(now())
+  createdAt               DateTime          @default(now())
+
+  @@index([workspaceId, targetType, source, recordedAt])
+  @@index([workspaceId, result, recordedAt])
+  @@index([integrationId, recordedAt])
+  @@index([identityProviderId, recordedAt])
+  @@index([actorId, recordedAt])
 }
 
 model WebhookEndpoint {

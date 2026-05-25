@@ -1,0 +1,85 @@
+name: Phase D Live Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  helpdesk-live-smoke:
+    name: Helpdesk live smoke
+    runs-on: ubuntu-latest
+    environment: helpdesk-live
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      HELPDESK_LIVE_SOURCE: ${{ vars.HELPDESK_LIVE_SOURCE }}
+      HELPDESK_LIVE_BASE_URL: ${{ secrets.HELPDESK_LIVE_BASE_URL }}
+      HELPDESK_LIVE_TOKEN: ${{ secrets.HELPDESK_LIVE_TOKEN }}
+      HELPDESK_LIVE_EXTERNAL_ID: ${{ vars.HELPDESK_LIVE_EXTERNAL_ID }}
+      CERTIFICATION_EVIDENCE_WORKSPACE_ID: ${{ secrets.CERTIFICATION_EVIDENCE_WORKSPACE_ID }}
+      CERTIFICATION_EVIDENCE_ACTOR_ID: ${{ secrets.CERTIFICATION_EVIDENCE_ACTOR_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Run helpdesk live smoke
+        run: HELPDESK_LIVE_SMOKE=1 npm run test:live:helpdesk
+
+  identity-live-smoke:
+    name: Identity live smoke
+    runs-on: ubuntu-latest
+    environment: identity-live
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      IDENTITY_LIVE_PROVIDER: ${{ vars.IDENTITY_LIVE_PROVIDER }}
+      IDENTITY_LIVE_TENANT_ID: ${{ secrets.IDENTITY_LIVE_TENANT_ID }}
+      IDENTITY_LIVE_OIDC_DISCOVERY_URL: ${{ secrets.IDENTITY_LIVE_OIDC_DISCOVERY_URL }}
+      IDENTITY_LIVE_OIDC_ISSUER: ${{ vars.IDENTITY_LIVE_OIDC_ISSUER }}
+      IDENTITY_LIVE_SAML_METADATA_URL: ${{ secrets.IDENTITY_LIVE_SAML_METADATA_URL }}
+      IDENTITY_LIVE_SCIM_BASE_URL: ${{ secrets.IDENTITY_LIVE_SCIM_BASE_URL }}
+      IDENTITY_LIVE_SCIM_TOKEN: ${{ secrets.IDENTITY_LIVE_SCIM_TOKEN }}
+      IDENTITY_LIVE_LDAPS_URL: ${{ secrets.IDENTITY_LIVE_LDAPS_URL }}
+      IDENTITY_LIVE_LDAPS_BIND_DN: ${{ secrets.IDENTITY_LIVE_LDAPS_BIND_DN }}
+      IDENTITY_LIVE_LDAPS_BIND_PASSWORD: ${{ secrets.IDENTITY_LIVE_LDAPS_BIND_PASSWORD }}
+      IDENTITY_LIVE_LDAPS_USER_SEARCH_BASE: ${{ vars.IDENTITY_LIVE_LDAPS_USER_SEARCH_BASE }}
+      CERTIFICATION_EVIDENCE_WORKSPACE_ID: ${{ secrets.CERTIFICATION_EVIDENCE_WORKSPACE_ID }}
+      CERTIFICATION_EVIDENCE_ACTOR_ID: ${{ secrets.CERTIFICATION_EVIDENCE_ACTOR_ID }}
+      CERTIFICATION_EVIDENCE_IDENTITY_PROVIDER_ID: ${{ vars.CERTIFICATION_EVIDENCE_IDENTITY_PROVIDER_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Run identity live smoke
+        run: IDENTITY_LIVE_SMOKE=1 npm run test:live:identity

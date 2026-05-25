@@ -5,6 +5,7 @@ import { validateSamlPostResponse, upsertUserFromSamlProfile } from "@/lib/auth/
 import { sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,8 @@ function safeReturnTo(value: FormDataEntryValue | string | null | undefined) {
   return text.startsWith("/") && !text.startsWith("//") ? text : "/reviews";
 }
 
-function errorRedirect(request: NextRequest, providerId: string | undefined, reason: string) {
-  const url = new URL("/auth/login", request.nextUrl.origin);
+function errorRedirect(request: NextRequest, origin: string, providerId: string | undefined, reason: string) {
+  const url = new URL("/auth/login", origin);
   url.searchParams.set("returnTo", "/reviews");
   const response = NextResponse.redirect(url);
   response.cookies.set(loginFlashCookieName, "sso_callback_failed", loginFlashCookieOptions());
@@ -31,6 +32,14 @@ function errorRedirect(request: NextRequest, providerId: string | undefined, rea
 }
 
 export async function POST(request: NextRequest) {
+  let origin: string;
+
+  try {
+    origin = resolvePublicOrigin({ headers: request.headers, requestUrl: request.url });
+  } catch {
+    return new NextResponse("Public origin is not configured.", { status: 500 });
+  }
+
   const providerId = request.nextUrl.searchParams.get("providerId") || undefined;
   const providerSlug = request.nextUrl.searchParams.get("provider") || "saml";
   const workspaceId = request.nextUrl.searchParams.get("workspaceId") || undefined;
@@ -45,20 +54,20 @@ export async function POST(request: NextRequest) {
   });
 
   if (!provider) {
-    return errorRedirect(request, undefined, "provider_unavailable");
+    return errorRedirect(request, origin, undefined, "provider_unavailable");
   }
 
   const formData = await request.formData().catch(() => null);
   const samlResponse = formData?.get("SAMLResponse");
 
   if (typeof samlResponse !== "string" || !samlResponse) {
-    return errorRedirect(request, provider.id, "missing_saml_response");
+    return errorRedirect(request, origin, provider.id, "missing_saml_response");
   }
 
   try {
     const profile = await validateSamlPostResponse({
       provider,
-      origin: request.nextUrl.origin,
+      origin,
       samlResponse
     });
     const { session: authSession } = await upsertUserFromSamlProfile({
@@ -67,7 +76,7 @@ export async function POST(request: NextRequest) {
       profile,
       userAgent: request.headers.get("user-agent")
     });
-    const response = NextResponse.redirect(new URL(safeReturnTo(formData?.get("RelayState")), request.nextUrl.origin));
+    const response = NextResponse.redirect(new URL(safeReturnTo(formData?.get("RelayState")), origin));
 
     response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
@@ -83,6 +92,6 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch {
-    return errorRedirect(request, provider.id, "acs_validation_failed");
+    return errorRedirect(request, origin, provider.id, "acs_validation_failed");
   }
 }

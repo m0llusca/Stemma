@@ -18,6 +18,7 @@ const phaseBGates = {
 const nativeRuntimeSecrets = ["auth_password"] as const;
 const enterpriseRuntimeSecrets = ["oauth_client_credentials"] as const;
 const genericLiveSmokeEnvironment = [
+  "HELPDESK_LIVE_SMOKE",
   "HELPDESK_LIVE_SOURCE",
   "HELPDESK_LIVE_BASE_URL",
   "HELPDESK_LIVE_TOKEN",
@@ -44,7 +45,9 @@ function liveCertification(
 ): HelpdeskLiveCertificationRequirement {
   return {
     requiredEnvironment: [...requiredEnvironment],
-    smokeTestCommand,
+    smokeTestCommand: smokeTestCommand.includes("HELPDESK_LIVE_SMOKE=1")
+      ? smokeTestCommand
+      : `HELPDESK_LIVE_SMOKE=1 ${smokeTestCommand}`,
     neverRunByDefault: true
   };
 }

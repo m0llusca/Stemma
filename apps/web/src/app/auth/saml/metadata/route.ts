@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateSamlMetadata } from "@/lib/auth/saml";
 import { prisma } from "@/lib/db";
+import { PublicOriginError, resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +26,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    return new NextResponse(generateSamlMetadata(provider, request.nextUrl.origin), {
+    const origin = resolvePublicOrigin({ headers: request.headers, requestUrl: request.url });
+
+    return new NextResponse(generateSamlMetadata(provider, origin), {
       headers: {
         "content-type": "application/samlmetadata+xml; charset=utf-8",
         "cache-control": "no-store"
       }
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof PublicOriginError) {
+      return new NextResponse("Public origin is not configured.", { status: 500 });
+    }
+
     return new NextResponse("SAML metadata is not available for this provider.", { status: 400 });
   }
 }

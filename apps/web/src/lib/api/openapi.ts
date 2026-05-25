@@ -38,7 +38,14 @@ export function buildOpenApiDocument() {
           security: sessionSecurity,
           summary: "Readiness diagnostics: runtime config, queues, SSO and integrations",
           responses: {
-            "200": { description: "Сервис готов или содержит предупреждения" }
+            "200": {
+              description: "Сервис готов или содержит предупреждения",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ReadinessResponse" }
+                }
+              }
+            }
           }
         }
       },
@@ -692,6 +699,116 @@ export function buildOpenApiDocument() {
               type: "array",
               items: { type: "string" }
             }
+          }
+        },
+        CertificationEvidence: {
+          type: "object",
+          required: [
+            "id",
+            "targetType",
+            "source",
+            "provider",
+            "integrationId",
+            "identityProviderId",
+            "runId",
+            "actor",
+            "recordedAt",
+            "envGate",
+            "result",
+            "redactedDiagnostics",
+            "protectedEnvGate"
+          ],
+          properties: {
+            id: { type: "string" },
+            targetType: { type: "string", enum: ["integration", "identity_provider"] },
+            source: { type: "string" },
+            provider: { type: ["string", "null"] },
+            integrationId: { type: ["string", "null"] },
+            identityProviderId: { type: ["string", "null"] },
+            runId: { type: "string" },
+            actor: { type: ["string", "null"] },
+            recordedAt: { type: "string", format: "date-time" },
+            envGate: { type: "string" },
+            result: { type: "string", enum: ["passed", "failed", "blocked", "skipped"] },
+            redactedDiagnostics: { type: "object", additionalProperties: true },
+            protectedEnvGate: { type: "boolean" }
+          }
+        },
+        PhaseDReadinessItem: {
+          type: "object",
+          required: [
+            "key",
+            "targetType",
+            "source",
+            "provider",
+            "displayName",
+            "status",
+            "label",
+            "productionReady",
+            "configured",
+            "liveSmokeCommand",
+            "blockers",
+            "latestEvidence"
+          ],
+          properties: {
+            key: { type: "string" },
+            targetType: { type: "string", enum: ["integration", "identity_provider"] },
+            source: { type: "string" },
+            provider: { type: ["string", "null"] },
+            displayName: { type: "string" },
+            status: { $ref: "#/components/schemas/CertificationStatus" },
+            label: { type: "string" },
+            productionReady: { type: "boolean" },
+            configured: { type: "boolean" },
+            liveSmokeCommand: { type: "string" },
+            blockers: { type: "array", items: { type: "string" } },
+            latestEvidence: {
+              anyOf: [{ $ref: "#/components/schemas/CertificationEvidence" }, { type: "null" }]
+            }
+          }
+        },
+        PhaseDReadinessReport: {
+          type: "object",
+          required: ["generatedAt", "summary", "integrations", "identityProviders", "evidenceModel"],
+          properties: {
+            generatedAt: { type: "string", format: "date-time" },
+            summary: {
+              type: "object",
+              required: ["total", "liveCertified", "readyForLiveCertification", "waitingForAccess", "failedOrLimited"],
+              properties: {
+                total: { type: "integer" },
+                liveCertified: { type: "integer" },
+                readyForLiveCertification: { type: "integer" },
+                waitingForAccess: { type: "integer" },
+                failedOrLimited: { type: "integer" }
+              }
+            },
+            integrations: {
+              type: "array",
+              items: { $ref: "#/components/schemas/PhaseDReadinessItem" }
+            },
+            identityProviders: {
+              type: "array",
+              items: { $ref: "#/components/schemas/PhaseDReadinessItem" }
+            },
+            evidenceModel: {
+              type: "object",
+              required: ["requiredFields", "protectedEnvGates"],
+              properties: {
+                requiredFields: { type: "array", items: { type: "string" } },
+                protectedEnvGates: { type: "array", items: { type: "string" } }
+              }
+            }
+          }
+        },
+        ReadinessResponse: {
+          type: "object",
+          required: ["status", "runtime", "workspace", "phaseD"],
+          properties: {
+            status: { type: "string", enum: ["ready", "not_ready"] },
+            runtime: { type: "object", additionalProperties: true },
+            workspace: { type: "object", additionalProperties: true },
+            phaseD: { $ref: "#/components/schemas/PhaseDReadinessReport" }
           }
         },
         PayloadLimits: {

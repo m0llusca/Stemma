@@ -23,6 +23,9 @@ describe("openapi contract", () => {
     });
     expect(document.paths["/health"].get.security).toEqual([]);
     expect(document.paths["/openapi"].get.security).toEqual([]);
+    expect(document.paths["/readiness"].get.responses["200"].content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/ReadinessResponse"
+    });
     expect(document.paths["/conversations"].get.security).toEqual([{ bearerApiToken: [] }]);
     expect(document.paths["/webhooks/{endpointId}"].post.security).toEqual([]);
     expect(document.paths["/webhooks/{endpointId}"].post.responses["413"]).toEqual({
@@ -62,6 +65,20 @@ describe("openapi contract", () => {
     expect(document.components.schemas.Certification.properties.docs.items.properties.status).toEqual({
       $ref: "#/components/schemas/CertificationStatus"
     });
+    expect(document.components.schemas.ReadinessResponse.required).toContain("phaseD");
+    expect(document.components.schemas.ReadinessResponse.properties.phaseD).toEqual({
+      $ref: "#/components/schemas/PhaseDReadinessReport"
+    });
+    expect(document.components.schemas.PhaseDReadinessReport.properties.integrations.items).toEqual({
+      $ref: "#/components/schemas/PhaseDReadinessItem"
+    });
+    expect(document.components.schemas.PhaseDReadinessItem.properties.latestEvidence.anyOf).toEqual([
+      { $ref: "#/components/schemas/CertificationEvidence" },
+      { type: "null" }
+    ]);
+    expect(document.components.schemas.CertificationEvidence.required).toEqual(
+      expect.arrayContaining(["source", "runId", "actor", "recordedAt", "envGate", "result", "redactedDiagnostics"])
+    );
     expect(document.components.schemas.IntegrationCapability.required).toContain("certification");
     expect(document.components.schemas.IntegrationCapability.properties.type).toEqual({
       $ref: "#/components/schemas/IntegrationCapabilityType"

@@ -26,7 +26,8 @@ describe("admin access UI", () => {
   it("displays SAML SP details from the same absolute URL builder used at runtime", () => {
     expect(accessPage).toContain('import { headers } from "next/headers"');
     expect(accessPage).toContain('import { buildSamlServiceProviderUrls } from "@/lib/auth/saml"');
-    expect(accessPage).toContain("const origin = requestOrigin(await headers())");
+    expect(accessPage).toContain('import { resolvePublicOrigin } from "@/lib/public-origin"');
+    expect(accessPage).toContain("const origin = resolvePublicOrigin({ headers: await headers() })");
     expect(accessPage).toContain("buildSamlServiceProviderUrls(selectedProvider, origin)");
     expect(accessPage).toContain("samlMetadata.acsUrl");
     expect(accessPage).toContain("samlMetadata.metadataUrl");

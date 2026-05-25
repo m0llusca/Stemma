@@ -17,6 +17,7 @@ import { buildSamlServiceProviderUrls } from "@/lib/auth/saml";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { queueDirectorySync } from "@/lib/system-actions";
 
 export const dynamic = "force-dynamic";
@@ -154,15 +155,6 @@ function ldapsConfig(provider: IdentityProvider) {
     nestedGroups: ldaps.nestedGroups === true,
     caConfigured: hasStringEntry(ldaps.caCertRefs) || hasStringEntry(ldaps.caCertRef) || hasStringEntry(ldaps.caFileRefs) || hasStringEntry(ldaps.caFileRef)
   };
-}
-
-function requestOrigin(headerList: Headers) {
-  const forwardedHost = headerList.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const host = forwardedHost || headerList.get("host")?.trim();
-  const forwardedProto = headerList.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  const proto = forwardedProto || (host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https");
-
-  return host ? `${proto}://${host}` : "http://localhost:3000";
 }
 
 function callbackPath(provider: IdentityProvider | null | undefined) {
@@ -315,7 +307,7 @@ function ProviderField({
 
 export default async function AdminAccessPage({ searchParams }: AccessPageProps) {
   const params = await searchParams;
-  const origin = requestOrigin(await headers());
+  const origin = resolvePublicOrigin({ headers: await headers() });
   const user = await requireCurrentUserPermission("auth_providers:manage");
   const [providers, sessions] = await Promise.all([
     prisma.identityProvider.findMany({

@@ -9,6 +9,7 @@ import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -48,8 +49,16 @@ function parseProviderConfigJson(value: string) {
 }
 
 export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
   const user = await requireCurrentUserPermission("auth_providers:manage");
-  const origin = new URL(request.url).origin;
+  let origin: string;
+
+  try {
+    origin = resolvePublicOrigin({ headers: request.headers, requestUrl: request.url });
+  } catch {
+    return apiError("internal_error", "Публичный HTTPS origin приложения не настроен.", 500, requestId);
+  }
+
   const providers = await prisma.identityProvider.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ type: "asc" }, { name: "asc" }],

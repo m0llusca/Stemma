@@ -34,6 +34,8 @@ describe("Phase B helpdesk adapter source contracts", () => {
       expect(contract.operations.length).toBeGreaterThan(0);
       expect(contract.requiredSecrets.length).toBeGreaterThan(0);
       expect(contract.liveCertification.requiredEnvironment.length).toBeGreaterThan(0);
+      expect(contract.liveCertification.requiredEnvironment).toContain("HELPDESK_LIVE_SMOKE");
+      expect(contract.liveCertification.smokeTestCommand).toContain("HELPDESK_LIVE_SMOKE=1");
       expect(contract.liveCertification.neverRunByDefault).toBe(true);
       expect(contract.certification.gates.live).toBe("waiting_for_access");
       expect(contract.certification.summary.productionReady).toBe(false);

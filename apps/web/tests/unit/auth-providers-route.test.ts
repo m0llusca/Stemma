@@ -53,6 +53,50 @@ describe("auth providers API", () => {
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
   });
 
+  it("uses canonical public origin for SAML setup URLs in provider listings", async () => {
+    mocks.requireCurrentUserPermission.mockResolvedValue({ workspaceId: "workspace-1" });
+    mocks.prisma.identityProvider.findMany.mockResolvedValue([
+      {
+        id: "provider-saml",
+        workspaceId: "workspace-1",
+        type: "SAML",
+        name: "SAML",
+        slug: "saml",
+        status: "active",
+        issuer: "https://idp.example.com",
+        tenantId: null,
+        clientId: null,
+        ldapsUrl: null,
+        ldapsBindDn: null,
+        ldapsBindSecretRef: null,
+        lastSyncStartedAt: null,
+        lastSyncAt: null,
+        lastSyncStatus: null,
+        lastSyncError: null,
+        scimTokenPrefix: null,
+        scopes: "openid profile email",
+        samlEntityId: null,
+        configJson: "{}",
+        groupRoleMappings: []
+      }
+    ]);
+
+    const { GET } = await import("@/app/api/v1/auth/providers/route");
+    const response = await GET(
+      new Request("https://app.example.com/api/v1/auth/providers", {
+        headers: {
+          "x-forwarded-host": "attacker.example.com"
+        }
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect((response as unknown as { body: { providers: Array<{ sso: { acsUrl: string; metadataUrl: string } }> } }).body.providers[0].sso).toMatchObject({
+      acsUrl: "https://app.example.com/auth/saml/acs?providerId=provider-saml&workspaceId=workspace-1",
+      metadataUrl: "https://app.example.com/auth/saml/metadata?providerId=provider-saml&workspaceId=workspace-1"
+    });
+  });
+
   it("rejects active generic OIDC provider creation without issuer", async () => {
     const { POST } = await import("@/app/api/v1/auth/providers/route");
     const response = await POST(

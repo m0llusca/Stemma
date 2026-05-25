@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/oidc";
 import { buildSamlAuthorizationUrl } from "@/lib/auth/saml";
 import { prisma } from "@/lib/db";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,8 @@ function safeReturnTo(value: string | null) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
 }
 
-function authErrorRedirect(request: NextRequest, code: LoginFlashCode) {
-  const url = new URL("/auth/login", request.nextUrl.origin);
+function authErrorRedirect(request: NextRequest, origin: string, code: LoginFlashCode) {
+  const url = new URL("/auth/login", origin);
   url.searchParams.set("returnTo", safeReturnTo(request.nextUrl.searchParams.get("returnTo")));
   const response = NextResponse.redirect(url);
   response.cookies.set(loginFlashCookieName, code, loginFlashCookieOptions());
@@ -32,6 +33,14 @@ function authErrorRedirect(request: NextRequest, code: LoginFlashCode) {
 }
 
 export async function GET(request: NextRequest) {
+  let origin: string;
+
+  try {
+    origin = resolvePublicOrigin({ headers: request.headers, requestUrl: request.url });
+  } catch {
+    return new NextResponse("Public origin is not configured.", { status: 500 });
+  }
+
   const providerSlug = request.nextUrl.searchParams.get("provider") || "microsoft-entra-id";
   const workspaceId = request.nextUrl.searchParams.get("workspaceId") || undefined;
   const returnTo = safeReturnTo(request.nextUrl.searchParams.get("returnTo"));
@@ -48,7 +57,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!provider) {
-    return authErrorRedirect(request, "sso_unavailable");
+    return authErrorRedirect(request, origin, "sso_unavailable");
   }
 
   try {
@@ -56,7 +65,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         await buildSamlAuthorizationUrl({
           provider,
-          origin: request.nextUrl.origin,
+          origin,
           relayState: returnTo
         })
       );
@@ -65,7 +74,7 @@ export async function GET(request: NextRequest) {
     const state = createOidcState();
     const nonce = createOidcNonce();
     const codeVerifier = createPkceVerifier();
-    const redirectUri = new URL("/auth/callback", request.nextUrl.origin).toString();
+    const redirectUri = new URL("/auth/callback", origin).toString();
     const authorizationUrl = buildAuthorizationUrl({
       provider,
       redirectUri,
@@ -84,6 +93,6 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch {
-    return authErrorRedirect(request, "sso_start_failed");
+    return authErrorRedirect(request, origin, "sso_start_failed");
   }
 }

@@ -43,6 +43,10 @@ const ssoRequestStateCompositeFkMigrationName = readdirSync(migrationsDir).find(
 const ssoRequestStateCompositeFkMigration = ssoRequestStateCompositeFkMigrationName
   ? readFileSync(join(migrationsDir, ssoRequestStateCompositeFkMigrationName, "migration.sql"), "utf8")
   : "";
+const certificationEvidenceMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_phase_d_certification_evidence"));
+const certificationEvidenceMigration = certificationEvidenceMigrationName
+  ? readFileSync(join(migrationsDir, certificationEvidenceMigrationName, "migration.sql"), "utf8")
+  : "";
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -367,7 +371,7 @@ describe("prisma schema database foundations", () => {
     expect(providerModel).toContain("samlCertificateRef");
     expect(providerModel).toContain("ldapsBindSecretRef");
     expect(providerModel).toContain("scimTokenPrefix");
-    expect(providerModel).toContain("scimTokenHash      String?              @unique");
+    expect(providerModel).toMatch(/scimTokenHash\s+String\?\s+@unique/);
     expect(providerModel).toMatch(/identityGroups\s+IdentityGroup\[]/);
     expect(providerModel).toMatch(/ssoRequestStates\s+SsoRequestState\[]/);
     expect(identityModel).toContain("externalId");
@@ -384,8 +388,8 @@ describe("prisma schema database foundations", () => {
     expect(mappingModel).toContain("@@unique([workspaceId, providerId, externalGroupId, role])");
     expect(requestStateModel).toContain("key         String");
     expect(requestStateModel).toMatch(/provider\s+IdentityProvider\s+@relation\(fields: \[providerId, workspaceId], references: \[id, workspaceId], onDelete: Cascade\)/);
-    expect(requestStateModel).toContain("expiresAt  DateTime");
-    expect(requestStateModel).toContain("consumedAt DateTime?");
+    expect(requestStateModel).toMatch(/expiresAt\s+DateTime/);
+    expect(requestStateModel).toMatch(/consumedAt\s+DateTime\?/);
     expect(requestStateModel).toContain("@@index([workspaceId, providerId, expiresAt])");
     expect(requestStateModel).toContain("@@index([providerId, consumedAt, expiresAt])");
   });
@@ -435,5 +439,43 @@ describe("prisma schema database foundations", () => {
     );
     expect(ssoRequestStateCompositeFkMigration).toContain('FOREIGN KEY ("providerId", "workspaceId")');
     expect(ssoRequestStateCompositeFkMigration).toContain('REFERENCES "IdentityProvider"("id", "workspaceId")');
+  });
+
+  it("stores Phase D live certification evidence as a dedicated redacted ledger", () => {
+    const workspaceModel = modelBlock("Workspace");
+    const userModel = modelBlock("User");
+    const providerModel = modelBlock("IdentityProvider");
+    const integrationModel = modelBlock("Integration");
+    const evidenceModel = modelBlock("CertificationEvidence");
+
+    expect(workspaceModel).toMatch(/certificationEvidence\s+CertificationEvidence\[]/);
+    expect(userModel).toMatch(/certificationEvidence\s+CertificationEvidence\[]/);
+    expect(providerModel).toMatch(/certificationEvidence\s+CertificationEvidence\[]/);
+    expect(integrationModel).toMatch(/certificationEvidence\s+CertificationEvidence\[]/);
+    expect(evidenceModel).toContain("targetType              String");
+    expect(evidenceModel).toContain("source                  String");
+    expect(evidenceModel).toContain("provider                String?");
+    expect(evidenceModel).toContain("runId                   String");
+    expect(evidenceModel).toContain("actorId                 String?");
+    expect(evidenceModel).toContain("envGate                 String");
+    expect(evidenceModel).toContain("result                  String");
+    expect(evidenceModel).toContain('redactedDiagnosticsJson String            @default("{}")');
+    expect(evidenceModel).toContain("recordedAt              DateTime          @default(now())");
+    expect(evidenceModel).toContain("@@index([workspaceId, targetType, source, recordedAt])");
+    expect(evidenceModel).toContain("@@index([workspaceId, result, recordedAt])");
+  });
+
+  it("migrates Phase D certification evidence with foreign keys and query indexes", () => {
+    expect(certificationEvidenceMigrationName).toMatch(/^\d+_phase_d_certification_evidence$/);
+    expect(certificationEvidenceMigrationName?.localeCompare(ssoRequestStateCompositeFkMigrationName ?? "")).toBeGreaterThan(0);
+    expect(certificationEvidenceMigration).toContain('CREATE TABLE "CertificationEvidence"');
+    expect(certificationEvidenceMigration).toContain('"redactedDiagnosticsJson" TEXT NOT NULL DEFAULT \'{}\'');
+    expect(certificationEvidenceMigration).toContain('CREATE INDEX "CertificationEvidence_workspaceId_targetType_source_recordedAt_idx"');
+    expect(certificationEvidenceMigration).toContain('CREATE INDEX "CertificationEvidence_workspaceId_result_recordedAt_idx"');
+    expect(certificationEvidenceMigration).toContain('ALTER TABLE "CertificationEvidence"');
+    expect(certificationEvidenceMigration).toContain('ADD CONSTRAINT "CertificationEvidence_workspaceId_fkey"');
+    expect(certificationEvidenceMigration).toContain('ADD CONSTRAINT "CertificationEvidence_integrationId_fkey"');
+    expect(certificationEvidenceMigration).toContain('ADD CONSTRAINT "CertificationEvidence_identityProviderId_fkey"');
+    expect(certificationEvidenceMigration).toContain('ADD CONSTRAINT "CertificationEvidence_actorId_fkey"');
   });
 });

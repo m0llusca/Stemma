@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   buildSamlAuthorizationUrl: vi.fn(),
@@ -52,11 +52,19 @@ describe("SAML auth routes", () => {
     mocks.prisma.identityProvider.findFirst.mockResolvedValue(activeSamlProvider());
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("starts SAML from /auth/sso without setting OIDC flow cookies", async () => {
     mocks.buildSamlAuthorizationUrl.mockResolvedValue("https://idp.example.com/sso?SAMLRequest=request");
     const { GET } = await import("@/app/auth/sso/route");
     const response = await GET(
-      new NextRequest("https://app.example.com/auth/sso?provider=saml&workspaceId=workspace-1&returnTo=/reports")
+      new NextRequest("https://app.example.com/auth/sso?provider=saml&workspaceId=workspace-1&returnTo=/reports", {
+        headers: {
+          "x-forwarded-host": "attacker.example.com"
+        }
+      })
     );
 
     expect(response.status).toBe(307);
@@ -73,12 +81,17 @@ describe("SAML auth routes", () => {
     mocks.generateSamlMetadata.mockReturnValue("<EntityDescriptor />");
     const { GET } = await import("@/app/auth/saml/metadata/route");
     const response = await GET(
-      new NextRequest("https://app.example.com/auth/saml/metadata?providerId=provider-1&workspaceId=workspace-1")
+      new NextRequest("https://app.example.com/auth/saml/metadata?providerId=provider-1&workspaceId=workspace-1", {
+        headers: {
+          "x-forwarded-host": "attacker.example.com"
+        }
+      })
     );
 
     await expect(response.text()).resolves.toBe("<EntityDescriptor />");
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/samlmetadata+xml");
+    expect(mocks.generateSamlMetadata).toHaveBeenCalledWith(expect.objectContaining({ id: "provider-1" }), "https://app.example.com");
     expect(mocks.prisma.identityProvider.findFirst).toHaveBeenCalledWith({
       where: {
         id: "provider-1",
@@ -106,7 +119,7 @@ describe("SAML auth routes", () => {
     const response = await POST(
       new NextRequest("https://app.example.com/auth/saml/acs?providerId=provider-1&workspaceId=workspace-1", {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
+        headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-host": "attacker.example.com" },
         body: formData
       })
     );
@@ -145,7 +158,7 @@ describe("SAML auth routes", () => {
     const response = await POST(
       new NextRequest("https://app.example.com/auth/saml/acs?provider=saml", {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
+        headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-host": "attacker.example.com" },
         body: formData
       })
     );

@@ -14,6 +14,7 @@ import {
 import { sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,8 @@ function safeReturnTo(value: string | undefined) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
 }
 
-function errorRedirect(request: NextRequest, code: LoginFlashCode) {
-  const url = new URL("/auth/login", request.nextUrl.origin);
+function errorRedirect(request: NextRequest, origin: string, code: LoginFlashCode) {
+  const url = new URL("/auth/login", origin);
   url.searchParams.set("returnTo", safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value));
   const response = NextResponse.redirect(url);
   response.cookies.set(loginFlashCookieName, code, loginFlashCookieOptions());
@@ -38,6 +39,14 @@ function errorRedirect(request: NextRequest, code: LoginFlashCode) {
 
 export async function GET(request: NextRequest) {
   const requestId = requestIdFromHeaders(request.headers);
+  let origin: string;
+
+  try {
+    origin = resolvePublicOrigin({ headers: request.headers, requestUrl: request.url });
+  } catch {
+    return new NextResponse("Public origin is not configured.", { status: 500 });
+  }
+
   const error = request.nextUrl.searchParams.get("error");
 
   if (error) {
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
       event: "auth.oidc.login_failed",
       metadata: { reason: "provider_error" }
     });
-    return errorRedirect(request, "sso_callback_failed");
+    return errorRedirect(request, origin, "sso_callback_failed");
   }
 
   const code = request.nextUrl.searchParams.get("code");
@@ -67,7 +76,7 @@ export async function GET(request: NextRequest) {
       targetId: providerId,
       metadata: { reason: "invalid_state_or_missing_cookie" }
     });
-    return errorRedirect(request, "sso_callback_failed");
+    return errorRedirect(request, origin, "sso_callback_failed");
   }
 
   const provider = await prisma.identityProvider.findUnique({
@@ -83,11 +92,11 @@ export async function GET(request: NextRequest) {
       targetId: providerId,
       metadata: { reason: "provider_unavailable" }
     });
-    return errorRedirect(request, "sso_callback_failed");
+    return errorRedirect(request, origin, "sso_callback_failed");
   }
 
   try {
-    const redirectUri = new URL("/auth/callback", request.nextUrl.origin).toString();
+    const redirectUri = new URL("/auth/callback", origin).toString();
     const tokenResponse = await exchangeAuthorizationCode({
       provider,
       code,
@@ -106,7 +115,7 @@ export async function GET(request: NextRequest) {
       accessToken: tokenResponse.access_token,
       userAgent: request.headers.get("user-agent")
     });
-    const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
+    const response = NextResponse.redirect(new URL(returnTo, origin));
 
     response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
@@ -132,6 +141,6 @@ export async function GET(request: NextRequest) {
       targetId: provider.id,
       metadata: { reason: "callback_validation_failed" }
     });
-    return errorRedirect(request, "sso_callback_failed");
+    return errorRedirect(request, origin, "sso_callback_failed");
   }
 }

@@ -1,6 +1,8 @@
 import type { IdentityProviderType } from "@prisma/client";
 import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { certificationStatusTone } from "@/lib/certification/status";
+import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -14,11 +16,12 @@ type AdminSystemPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type SystemSection = "jobs" | "runtime" | "sso" | "integrations" | "maintenance";
+type SystemSection = "jobs" | "runtime" | "readiness" | "sso" | "integrations" | "maintenance";
 
 const systemSections: Array<{ value: SystemSection; label: string }> = [
   { value: "jobs", label: "Задачи" },
   { value: "runtime", label: "Окружение" },
+  { value: "readiness", label: "Готовность" },
   { value: "sso", label: "SSO и каталог" },
   { value: "integrations", label: "Интеграции" },
   { value: "maintenance", label: "Обслуживание" }
@@ -105,6 +108,56 @@ function environmentLabel(environment: string) {
   return labels[environment] ?? environment;
 }
 
+function evidenceResultLabel(result: string) {
+  const labels: Record<string, string> = {
+    passed: "Пройдено",
+    failed: "Ошибка",
+    blocked: "Заблокировано",
+    skipped: "Пропущено"
+  };
+
+  return labels[result] ?? result;
+}
+
+function evidenceDiagnosticsText(value: Record<string, unknown>) {
+  const text = JSON.stringify(value);
+  return text.length > 220 ? `${text.slice(0, 220)}...` : text;
+}
+
+function renderReadinessItem(item: PhaseDReadinessItem) {
+  return (
+    <article key={item.key} className="record-card">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`pill ${certificationStatusTone(item.status)}`}>{item.label}</span>
+          <h3 className="font-semibold text-[#111827]">{item.displayName}</h3>
+        </div>
+        <p className="mt-1 text-sm text-[#64748b]">
+          {item.targetType === "identity_provider" ? "Провайдер удостоверений" : "Интеграция"} · {item.source}
+        </p>
+        <p className="mt-2 font-mono text-xs text-[#64748b]">{item.liveSmokeCommand}</p>
+        {item.latestEvidence ? (
+          <div className="mt-2 space-y-1 text-sm text-[#64748b]">
+            <p>
+              Evidence {item.latestEvidence.runId} · {evidenceResultLabel(item.latestEvidence.result)} ·{" "}
+              {new Date(item.latestEvidence.recordedAt).toLocaleString("ru-RU")}
+            </p>
+            <p className="compact-text">Actor: {item.latestEvidence.actor ?? "Автоматика"} · Env gate: {item.latestEvidence.envGate}</p>
+            <p className="compact-text font-mono text-xs">Diagnostics: {evidenceDiagnosticsText(item.latestEvidence.redactedDiagnostics)}</p>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-[#64748b]">Protected live smoke evidence еще не записан.</p>
+        )}
+      </div>
+      <div className="record-row">
+        <p className="record-meta compact-text">
+          {item.blockers.length > 0 ? item.blockers.slice(0, 3).join(" · ") : "Блокеров нет."}
+        </p>
+      </div>
+    </article>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -152,7 +205,8 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
     expiredActiveSessions,
     expiredIdempotencyKeys,
     staleRateLimits,
-    apiTokens
+    apiTokens,
+    phaseDReport
   ] = await Promise.all([
     prisma.backendJob.count({ where: { workspaceId: user.workspaceId, status: "QUEUED" } }),
     prisma.backendJob.count({ where: { workspaceId: user.workspaceId, status: "RUNNING" } }),
@@ -214,7 +268,8 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
         lastErrorAt: true,
         lastError: true
       }
-    })
+    }),
+    getPhaseDReadinessReport(user.workspaceId)
   ]);
   const runtime = getRuntimeConfigDiagnostics();
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
@@ -362,6 +417,56 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
                 </div>
               );
             })}
+          </div>
+        </section>
+      ) : null}
+
+      {activeSection === "readiness" ? (
+        <section className="ops-panel" aria-labelledby="phase-d-readiness-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Phase D</p>
+          <h2 id="phase-d-readiness-title" className="ops-panel__title">Готовность живой сертификации</h2>
+          <p className="ops-panel__subtitle">
+                Отчет по живой сертификации: интеграции, провайдеры удостоверений и только redacted evidence из protected smoke runs.
+              </p>
+            </div>
+            <span className={`pill ${phaseDReport.summary.liveCertified > 0 ? "pill--ok" : "pill--warn"}`}>
+              Live: {phaseDReport.summary.liveCertified}/{phaseDReport.summary.total}
+            </span>
+          </div>
+          <section className="ops-metric-grid p-5 pt-0" aria-label="Сводка live certification">
+            <StatCard label="Всего объектов" value={phaseDReport.summary.total} hint="Интеграции и провайдеры удостоверений" />
+            <StatCard label="Live-certified" value={phaseDReport.summary.liveCertified} hint="Только successful protected evidence" tone="ok" />
+            <StatCard label="Готовы к live" value={phaseDReport.summary.readyForLiveCertification} hint="Контракты готовы, доступов нет" tone="warn" />
+            <StatCard label="Блокеры" value={phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess} hint="Ожидают доступы, настройку или исправление" tone="warn" />
+          </section>
+          <div className="grid gap-5 p-5 pt-0 lg:grid-cols-2">
+            <section aria-labelledby="phase-d-integrations-title">
+              <h3 id="phase-d-integrations-title" className="mb-3 text-sm font-semibold uppercase text-[#64748b]">
+                Интеграции
+              </h3>
+              <div className="record-list">
+                {phaseDReport.integrations.map(renderReadinessItem)}
+              </div>
+            </section>
+            <section aria-labelledby="phase-d-identity-title">
+              <h3 id="phase-d-identity-title" className="mb-3 text-sm font-semibold uppercase text-[#64748b]">
+                Провайдеры удостоверений
+              </h3>
+              <div className="record-list">
+                {phaseDReport.identityProviders.length > 0 ? (
+                  phaseDReport.identityProviders.map(renderReadinessItem)
+                ) : (
+                  <div className="soft-callout ops-empty text-sm text-[#64748b]">Провайдеры удостоверений еще не настроены.</div>
+                )}
+              </div>
+            </section>
+          </div>
+          <div className="soft-callout mx-5 mb-5 text-sm text-[#64748b]">
+            <p className="font-semibold text-[#334155]">Evidence model</p>
+            <p className="compact-text">Поля: {phaseDReport.evidenceModel.requiredFields.join(", ")}.</p>
+            <p className="compact-text">Protected gates: {phaseDReport.evidenceModel.protectedEnvGates.slice(0, 5).join(", ")}.</p>
           </div>
         </section>
       ) : null}
