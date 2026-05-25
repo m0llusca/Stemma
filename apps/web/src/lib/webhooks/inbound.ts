@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import {
@@ -222,6 +223,7 @@ export async function ingestWebhookEvent(input: {
   timestamp: string | null;
   signature: string | null;
   now?: Date;
+  beforeWrite?: (client: Prisma.TransactionClient) => Promise<void>;
 }) {
   const now = input.now ?? new Date();
   const endpoint = await prisma.webhookEndpoint.findFirst({
@@ -353,6 +355,8 @@ export async function ingestWebhookEvent(input: {
 
   try {
     const processed = await prisma.$transaction(async (tx) => {
+      await input.beforeWrite?.(tx);
+
       const run = endpoint.integrationId
         ? await tx.integrationRun.create({
             data: {

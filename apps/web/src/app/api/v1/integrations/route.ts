@@ -2,7 +2,6 @@ import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
@@ -45,13 +44,21 @@ function parseJson(value: string) {
   }
 }
 
-export async function GET() {
-  const user = await requireCurrentUserPermission("integrations:manage");
+export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "integrations:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const integrations = await prisma.integration.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ updatedAt: "desc" }],
     include: {
       credentials: {
+        where: { workspaceId: user.workspaceId },
         select: {
           id: true,
           kind: true,
@@ -63,6 +70,7 @@ export async function GET() {
         }
       },
       runs: {
+        where: { workspaceId: user.workspaceId },
         orderBy: { startedAt: "desc" },
         take: 5
       }

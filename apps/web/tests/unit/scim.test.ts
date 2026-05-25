@@ -313,6 +313,60 @@ describe("SCIM inbound provisioning", () => {
     expect(JSON.stringify(mocks.prisma.auditLog.create.mock.calls)).not.toContain("scim_test_token");
   });
 
+  it("replaces a privileged local role with provider policy when SCIM links by email", async () => {
+    const { createScimUser } = await import("@/lib/auth/scim");
+    const existingAdmin = {
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "admin@example.com",
+      name: "Local Admin",
+      role: "ADMIN",
+      lifecycleStatus: "ACTIVE",
+      createdAt: new Date("2026-05-18T10:00:00.000Z"),
+      updatedAt: new Date("2026-05-18T10:00:00.000Z")
+    };
+    mocks.prisma.externalIdentity.findFirst.mockResolvedValue(null);
+    mocks.prisma.user.findFirst
+      .mockResolvedValueOnce(existingAdmin)
+      .mockResolvedValueOnce({
+        ...existingAdmin,
+        name: "Directory User",
+        role: "SUPPORT_AGENT",
+        sourceOfTruthProviderId: "provider-1",
+        externalIdentities: [{ externalId: "entra-user-1", providerSubject: "entra-user-1", displayName: "Directory User" }]
+      });
+    mocks.prisma.userIdentityGroup.findMany.mockResolvedValue([]);
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([]);
+    mocks.prisma.user.update.mockResolvedValue({
+      ...existingAdmin,
+      name: "Directory User",
+      role: "SUPPORT_AGENT",
+      sourceOfTruthProviderId: "provider-1",
+      lastDirectorySyncAt: new Date("2026-05-18T10:00:00.000Z")
+    });
+    mocks.prisma.externalIdentity.create.mockResolvedValue({});
+
+    const result = await createScimUser(
+      { workspaceId: "workspace-1", providerId: "provider-1", providerName: "Entra" },
+      {
+        userName: "admin@example.com",
+        externalId: "entra-user-1",
+        displayName: "Directory User",
+        active: true,
+        emails: [{ value: "admin@example.com", primary: true }]
+      }
+    );
+
+    expect(result.status).toBe(200);
+    expect(mocks.prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: expect.objectContaining({
+        role: "SUPPORT_AGENT",
+        sourceOfTruthProviderId: "provider-1"
+      })
+    });
+  });
+
   it("deactivates a SCIM user and revokes active sessions through lifecycle helpers", async () => {
     const { patchScimUser } = await import("@/lib/auth/scim");
     mocks.prisma.user.findFirst.mockResolvedValue({
@@ -482,6 +536,72 @@ describe("SCIM inbound provisioning", () => {
       }
     });
     expect(mocks.prisma.userIdentityGroup.upsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats idempotent group POST members as a full replacement", async () => {
+    const { createScimGroup } = await import("@/lib/auth/scim");
+    mocks.prisma.identityGroup.findFirst
+      .mockResolvedValueOnce({
+        id: "group-1",
+        members: [{ userId: "user-1" }]
+      })
+      .mockResolvedValueOnce({
+        id: "group-1",
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        externalGroupId: "entra-group-1",
+        externalGroupName: "Support",
+        createdAt: new Date("2026-05-18T10:00:00.000Z"),
+        updatedAt: new Date("2026-05-18T10:00:00.000Z"),
+        members: []
+      });
+    mocks.prisma.identityGroup.upsert.mockResolvedValue({
+      id: "group-1",
+      workspaceId: "workspace-1",
+      providerId: "provider-1",
+      externalGroupId: "entra-group-1",
+      externalGroupName: "Support"
+    });
+    mocks.prisma.userIdentityGroup.deleteMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([]);
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await createScimGroup(
+      { workspaceId: "workspace-1", providerId: "provider-1", providerName: "Entra" },
+      {
+        displayName: "Support",
+        externalId: "entra-group-1",
+        members: []
+      }
+    );
+
+    expect(result.status).toBe(200);
+    expect(mocks.prisma.userIdentityGroup.deleteMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        externalGroupId: "entra-group-1"
+      }
+    });
+    expect(mocks.prisma.userIdentityGroup.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "user-1",
+        workspaceId: "workspace-1",
+        OR: [
+          { sourceOfTruthProviderId: "provider-1" },
+          {
+            externalIdentities: {
+              some: { providerId: "provider-1" }
+            }
+          }
+        ]
+      },
+      data: expect.objectContaining({
+        role: "SUPPORT_AGENT",
+        sourceOfTruthProviderId: "provider-1"
+      })
+    });
   });
 
   it("validates SCIM remove-by-value member IDs before deleting or refreshing policy", async () => {

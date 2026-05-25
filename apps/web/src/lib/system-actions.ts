@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
-import { prisma } from "@/lib/db";
-import { enqueueBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
+import { enqueueBackendJob, cancelBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
 import { logBackendEvent } from "@/lib/observability";
 
 function numberField(formData: FormData, key: string, fallback: number, max: number) {
@@ -25,7 +24,8 @@ export async function runQueuedBackendJobs(formData: FormData) {
   const limit = numberField(formData, "limit", 5, 20);
   const results = await runDueBackendJobs({
     limit,
-    workerId: `ui-${user.id.slice(0, 8)}`
+    workerId: `ui-${user.id.slice(0, 8)}`,
+    workspaceId: user.workspaceId
   });
 
   logBackendEvent({
@@ -134,55 +134,11 @@ export async function cancelQueuedBackendJob(formData: FormData) {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
   await assertCanPersistSettings(user);
   const jobId = stringField(formData, "jobId");
-
-  const job = await prisma.backendJob.findFirst({
-    where: {
-      id: jobId,
-      workspaceId: user.workspaceId
-    }
-  });
-
-  if (!job) {
-    throw new Error("Фоновая задача не найдена.");
-  }
-
-  if (job.status !== "QUEUED") {
-    throw new Error("Можно отменить только задачу в очереди.");
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.backendJob.update({
-      where: { id: job.id },
-      data: {
-        status: "CANCELLED",
-        finishedAt: new Date(),
-        lockedAt: null,
-        lockedBy: null
-      }
-    });
-
-    await tx.backendJobEvent.create({
-      data: {
-        jobId: job.id,
-        level: "warn",
-        message: "Задача отменена администратором из интерфейса.",
-        metadata: JSON.stringify({ actorId: user.id })
-      }
-    });
-
-    await auditLog(
-      {
-        workspaceId: user.workspaceId,
-        actorId: user.id,
-        action: "backend_job.cancelled",
-        targetType: "backend_job",
-        targetId: job.id,
-        metadata: {
-          type: job.type
-        }
-      },
-      tx
-    );
+  const job = await cancelBackendJob({
+    workspaceId: user.workspaceId,
+    jobId,
+    actorId: user.id,
+    eventMessage: "Задача отменена администратором из интерфейса."
   });
 
   revalidatePath("/admin/system");

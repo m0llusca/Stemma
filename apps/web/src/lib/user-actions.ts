@@ -263,7 +263,7 @@ async function createDemoUserSession(formData: FormData, options: { requireDemoA
 }
 
 export async function signInWithDemoUser(formData: FormData) {
-  return createDemoUserSession(formData, { requireDemoAuthEnabled: false });
+  return createDemoUserSession(formData, { requireDemoAuthEnabled: true });
 }
 
 export async function switchCurrentUser(formData: FormData) {

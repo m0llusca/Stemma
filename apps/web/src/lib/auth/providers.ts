@@ -28,6 +28,7 @@ type GroupRoleMappingCandidate = {
 };
 
 type IdentityPolicyClient = Pick<Prisma.TransactionClient, "groupRoleMapping" | "userIdentityGroup">;
+type IdentityPolicyRefreshClient = IdentityPolicyClient & Pick<Prisma.TransactionClient, "user">;
 
 const roleOrder: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
 const attributeKeys = {
@@ -201,6 +202,82 @@ export async function resolveIdentityPolicyForUser(
     },
     client
   );
+}
+
+function identityPolicyUpdateData(providerId: string, policy: ResolvedIdentityPolicy, now: Date) {
+  return {
+    role: policy.role,
+    ...(policy.supportLine ? { supportLine: policy.supportLine } : {}),
+    ...(policy.teamName ? { teamName: policy.teamName } : {}),
+    sourceOfTruthProviderId: providerId,
+    lastDirectorySyncAt: now
+  };
+}
+
+export async function refreshIdentityPoliciesForUsers(
+  input: { workspaceId: string; providerId: string; userIds: string[]; now?: Date },
+  client: IdentityPolicyRefreshClient = prisma
+) {
+  const ids = [...new Set(input.userIds)].filter(Boolean);
+  if (ids.length === 0) {
+    return;
+  }
+
+  const now = input.now ?? new Date();
+  for (const userId of ids) {
+    const policy = await resolveIdentityPolicyForUser(input.workspaceId, input.providerId, userId, {}, client);
+    await client.user.updateMany({
+      where: {
+        id: userId,
+        workspaceId: input.workspaceId,
+        OR: [
+          { sourceOfTruthProviderId: input.providerId },
+          {
+            externalIdentities: {
+              some: { providerId: input.providerId }
+            }
+          }
+        ]
+      },
+      data: identityPolicyUpdateData(input.providerId, policy, now)
+    });
+  }
+}
+
+export async function refreshIdentityPoliciesForExternalGroup(
+  input: { workspaceId: string; providerId: string | null; externalGroupId: string; now?: Date },
+  client: IdentityPolicyRefreshClient = prisma
+) {
+  const memberships = await client.userIdentityGroup.findMany({
+    where: {
+      workspaceId: input.workspaceId,
+      ...(input.providerId ? { providerId: input.providerId } : {}),
+      externalGroupId: input.externalGroupId
+    },
+    select: {
+      userId: true,
+      providerId: true
+    }
+  });
+  const usersByProvider = new Map<string, string[]>();
+
+  for (const membership of memberships) {
+    const providerUsers = usersByProvider.get(membership.providerId) ?? [];
+    providerUsers.push(membership.userId);
+    usersByProvider.set(membership.providerId, providerUsers);
+  }
+
+  for (const [providerId, userIds] of usersByProvider) {
+    await refreshIdentityPoliciesForUsers(
+      {
+        workspaceId: input.workspaceId,
+        providerId,
+        userIds,
+        now: input.now
+      },
+      client
+    );
+  }
 }
 
 export async function resolveRoleFromExternalClaims(workspaceId: string, providerId: string | null, claims: ExternalRoleClaims): Promise<RoleName> {

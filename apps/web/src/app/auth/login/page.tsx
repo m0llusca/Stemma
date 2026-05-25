@@ -5,6 +5,7 @@ import { ShieldCheck, UserRoundCheck } from "lucide-react";
 import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
+import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { signInWithDemoUser, signInWithLocalCredentials } from "@/lib/user-actions";
@@ -71,6 +72,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   const selectedProviderSlug = firstParam(params.provider);
   const selectedWorkspaceId = firstParam(params.workspaceId);
+  const demoAuthEnabled = isDemoAuthEnabled();
   const [providers, demoUsers] = await Promise.all([
     prisma.identityProvider.findMany({
       where: {
@@ -93,21 +95,23 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         }
       }
     }),
-    prisma.user.findMany({
-      where: demoLoginUserWhere,
-      orderBy: demoLoginUserOrderBy,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        workspace: {
+    demoAuthEnabled
+      ? prisma.user.findMany({
+          where: demoLoginUserWhere,
+          orderBy: demoLoginUserOrderBy,
           select: {
-            name: true
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            workspace: {
+              select: {
+                name: true
+              }
+            }
           }
-        }
-      }
-    })
+        })
+      : Promise.resolve([])
   ]);
   const selectedProvider =
     providers.find(

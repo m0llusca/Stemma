@@ -14,6 +14,7 @@ export type OidcClaims = {
   iss?: string;
   sub?: string;
   aud?: string | string[];
+  azp?: string;
   exp?: number;
   nbf?: number;
   iat?: number;
@@ -177,6 +178,10 @@ function validateClaims(input: {
 
   if (input.provider.clientId && !audience.includes(input.provider.clientId)) {
     throw new Error("ID token выпущен для другого приложения.");
+  }
+
+  if (input.provider.clientId && audience.length > 1 && input.claims.azp !== input.provider.clientId) {
+    throw new Error("ID token azp не совпадает с приложением.");
   }
 
   if (!input.claims.iss || input.claims.iss !== expectedIssuer) {

@@ -885,9 +885,7 @@ type SetupFieldsProps = {
   sourceLabel: string;
   baseUrl: string;
   userLogin: string;
-  password: string;
   ticketId: string;
-  nativeToken: string;
   queueFilter: string;
   statusFilter: string;
   dateRangeDays: string;
@@ -903,9 +901,7 @@ function SetupFields({
   sourceLabel,
   baseUrl,
   userLogin,
-  password,
   ticketId,
-  nativeToken,
   queueFilter,
   statusFilter,
   dateRangeDays,
@@ -921,8 +917,6 @@ function SetupFields({
       <input type="hidden" name="mode" value={mode} />
       <input type="hidden" name="baseUrl" value={normalizeBaseUrl(baseUrl)} />
       <input type="hidden" name="userLogin" value={userLogin} />
-      <input type="hidden" name="password" value={password} />
-      <input type="hidden" name="nativeToken" value={nativeToken} />
       <input type="hidden" name="ticketId" value={ticketId} />
       <input type="hidden" name="queueFilter" value={queueFilter} />
       <input type="hidden" name="statusFilter" value={statusFilter} />
@@ -1271,9 +1265,7 @@ export function IntegrationSetupWorkspace({
       sourceLabel={selectedSourceLabel}
       baseUrl={activeBaseUrl}
       userLogin={userLogin}
-      password={password}
       ticketId={activeTicketId}
-      nativeToken={nativeToken}
       queueFilter={queueFilter}
       statusFilter={statusFilter}
       dateRangeDays={dateRangeDays}
@@ -1336,6 +1328,34 @@ export function IntegrationSetupWorkspace({
     resetCheck();
   }
 
+  function setupFormDataWithSecrets(formData: FormData) {
+    const payload = new FormData();
+
+    formData.forEach((value, key) => {
+      payload.append(key, value);
+    });
+
+    if (mode === "otrs_family") {
+      payload.set("password", password);
+    }
+
+    if (mode === "native_helpdesk") {
+      payload.set("nativeToken", nativeToken);
+    }
+
+    return payload;
+  }
+
+  function submitSetupCheck(formData: FormData) {
+    const payload = setupFormDataWithSecrets(formData);
+    payload.set("dryRun", "true");
+    checkAction(payload);
+  }
+
+  function submitSetupSave(formData: FormData) {
+    saveAction(setupFormDataWithSecrets(formData));
+  }
+
   const workspaceClassName = embedded
     ? "integration-setup-workspace integration-setup-workspace--embedded"
     : "integration-setup-workspace panel";
@@ -1374,7 +1394,7 @@ export function IntegrationSetupWorkspace({
           nextDisabled={stepNextDisabled}
           nextSlot={
             step === "preview" ? (
-              <form action={saveAction}>
+              <form action={submitSetupSave}>
                 {setupFields}
                 <button
                   type="submit"
@@ -1504,7 +1524,7 @@ export function IntegrationSetupWorkspace({
               checkState={checkState}
               checkPending={checkPending}
               accessComplete={accessComplete}
-              checkAction={checkAction}
+              checkAction={submitSetupCheck}
               setupFields={setupFields}
             />
           ) : null}

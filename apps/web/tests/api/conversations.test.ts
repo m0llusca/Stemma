@@ -40,7 +40,7 @@ const currentUser = {
   workspace: { id: "workspace-1", name: "Demo Support QA" }
 };
 
-function apiRequest(token: string | null = "qa_demo_dev_token") {
+function apiRequest(token: string | null = "qa_test_token") {
   const headers = new Headers();
 
   if (token) {
@@ -52,7 +52,7 @@ function apiRequest(token: string | null = "qa_demo_dev_token") {
   }) as NextRequest;
 }
 
-function jsonRequest(body: unknown, token: string | null = "qa_demo_dev_token") {
+function jsonRequest(body: unknown, token: string | null = "qa_test_token") {
   const headers = new Headers({ "content-type": "application/json" });
 
   if (token) {

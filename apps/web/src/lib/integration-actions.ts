@@ -441,11 +441,17 @@ export async function recordIntegrationDryRun(formData: FormData) {
 
   const setup = readIntegrationSetup(formData);
   assertSupportedSetupContract(setup);
+  const runStatus = setup.dryRun ? "dry_run_queued" : "queued";
+  const queuedAction = setup.dryRun ? "integration.dry_run_queued" : "integration.import_queued";
 
   const integration = await prisma.$transaction(async (tx) => {
-    const integration = await upsertIntegrationSetup(tx, user.workspaceId, setup, "queued", {
-      lastDryRunAt: new Date()
-    });
+    const integration = await upsertIntegrationSetup(
+      tx,
+      user.workspaceId,
+      setup,
+      "queued",
+      setup.dryRun ? { lastDryRunAt: new Date() } : { lastImportAt: new Date() }
+    );
 
     const run = await tx.integrationRun.create({
       data: {
@@ -454,8 +460,8 @@ export async function recordIntegrationDryRun(formData: FormData) {
         actorId: user.id,
         source: setup.source,
         mode: setup.mode,
-        status: "dry_run_queued",
-        dryRun: true,
+        status: runStatus,
+        dryRun: setup.dryRun,
         requestedLimit: setup.maxTickets,
         importedCount: 0,
         errorCount: 0
@@ -468,7 +474,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
         type: "INTEGRATION_IMPORT",
         status: "QUEUED",
         queueName: "integrations",
-        priority: 40,
+        priority: setup.dryRun ? 40 : 50,
         createdById: user.id,
         payloadJson: JSON.stringify({
           integrationId: integration.id,
@@ -476,7 +482,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
           source: setup.source,
           mode: setup.mode,
           requestedLimit: setup.maxTickets,
-          dryRun: true
+          dryRun: setup.dryRun
         })
       }
     });
@@ -485,7 +491,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
       {
         workspaceId: user.workspaceId,
         actorId: user.id,
-        action: "integration.dry_run_queued",
+        action: queuedAction,
         targetType: "integration",
         targetId: integration.id,
         metadata: {
@@ -493,7 +499,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
           sourceLabel: setup.sourceLabel,
           mode: setup.mode,
           baseUrl: setup.baseUrl,
-          dryRun: true,
+          dryRun: setup.dryRun,
           maxTickets: setup.maxTickets,
           batchSize: setup.batchSize,
           dateRangeDays: setup.dateRangeDays,
@@ -787,10 +793,13 @@ export async function saveIntegrationConfigurationState(_state: IntegrationActio
 export async function recordIntegrationDryRunState(_state: IntegrationActionState, formData: FormData): Promise<IntegrationActionState> {
   try {
     const result = await recordIntegrationDryRun(formData);
+    const liveImport = stringField(formData, "dryRun") === "false";
 
     return {
       ok: true,
-      message: "Проверка подключения поставлена в backend-очередь. Запуск выполнит реальный connector runner.",
+      message: liveImport
+        ? "Импорт поставлен в backend-очередь. Запуск выполнит реальный connector runner."
+        : "Проверка подключения поставлена в backend-очередь. Запуск выполнит реальный connector runner.",
       integrationId: result.integrationId
     };
   } catch (error) {
@@ -935,7 +944,8 @@ export async function runIntegrationQueueState(
     const results = await runDueBackendJobs({
       limit,
       queueName: "integrations",
-      workerId: `ui-integrations-${user.id.slice(0, 8)}`
+      workerId: `ui-integrations-${user.id.slice(0, 8)}`,
+      workspaceId: user.workspaceId
     });
     const succeeded = results.filter((result) => result.status === "SUCCEEDED").length;
     const failed = results.filter((result) => result.status === "FAILED").length;

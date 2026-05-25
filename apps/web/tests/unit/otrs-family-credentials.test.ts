@@ -246,6 +246,82 @@ describe("OTRS-family credential slots", () => {
     expect(serialized).not.toContain("certificatePem");
   });
 
+  it("removes nested secret-looking config keys before API serialization or storage", () => {
+    const rawConfig = {
+      sourceLabel: "Support",
+      password: "root-password",
+      token: "root-token",
+      apiToken: "api-token",
+      secretKey: "root-secret-key",
+      secret_key: "root-secret-key-snake",
+      auth: {
+        username: "qa-api",
+        clientSecret: "client-secret",
+        bearerToken: "bearer-token",
+        authorization: "Bearer root-token",
+        authorizationHeader: "Bearer header-token",
+        privateKeyPem: "raw-private-key-material"
+      },
+      nested: {
+        safeUrl: "https://support.example.com",
+        array: [
+          {
+            label: "visible",
+            password: "nested-password"
+          },
+          {
+            headers: {
+              Authorization: "Bearer nested-token",
+              accept: "application/json"
+            }
+          },
+          ["Authorization", "Bearer tuple-token"],
+          ["x-api-key", "tuple-api-key"],
+          ["accept", "application/json"],
+          "safe-value"
+        ]
+      }
+    };
+
+    const sanitized = sanitizeIntegrationCredentialConfig(rawConfig);
+    const serialized = JSON.stringify(sanitized);
+
+    expect(sanitized).toEqual({
+      sourceLabel: "Support",
+      auth: {
+        username: "qa-api"
+      },
+      nested: {
+        safeUrl: "https://support.example.com",
+        array: [
+          {
+            label: "visible"
+          },
+          {
+            headers: {
+              accept: "application/json"
+            }
+          },
+          ["accept", "application/json"],
+          "safe-value"
+        ]
+      }
+    });
+    expect(serialized).not.toContain("root-password");
+    expect(serialized).not.toContain("root-token");
+    expect(serialized).not.toContain("api-token");
+    expect(serialized).not.toContain("root-secret-key");
+    expect(serialized).not.toContain("root-secret-key-snake");
+    expect(serialized).not.toContain("client-secret");
+    expect(serialized).not.toContain("bearer-token");
+    expect(serialized).not.toContain("header-token");
+    expect(serialized).not.toContain("raw-private-key-material");
+    expect(serialized).not.toContain("nested-password");
+    expect(serialized).not.toContain("nested-token");
+    expect(serialized).not.toContain("tuple-token");
+    expect(serialized).not.toContain("tuple-api-key");
+  });
+
   it("redacts legacy PEM-bearing configJson from the integrations API response", async () => {
     const prisma = {
       integration: {
@@ -272,7 +348,11 @@ describe("OTRS-family credential slots", () => {
                 caBundle: caPemWithWindowsLines,
                 caFingerprint: "fingerprint-123"
               },
-              caBundle: caPemWithWindowsLines
+              caBundle: caPemWithWindowsLines,
+              auth: {
+                secretKey: "legacy-secret-key",
+                authorizationHeader: "Bearer legacy-token"
+              }
             }),
             credentials: [],
             runs: []
@@ -283,32 +363,61 @@ describe("OTRS-family credential slots", () => {
 
     vi.resetModules();
     vi.doMock("@/lib/db", () => ({ prisma }));
+    vi.doMock("@/lib/api/session", () => ({
+      requireSessionApi: vi.fn().mockResolvedValue({
+        ok: true,
+        user: {
+          id: "user-1",
+          workspaceId: "workspace-1",
+          role: "ADMIN"
+        }
+      })
+    }));
     vi.doMock("@/lib/current-user", () => ({
-      requireCurrentUserPermission: vi.fn().mockResolvedValue({
-        id: "user-1",
-        workspaceId: "workspace-1",
-        role: "ADMIN"
+      requireCurrentUserPermission: vi.fn(() => {
+        throw new Error("legacy auth wrapper used");
       })
     }));
 
     try {
       const { GET } = await import("@/app/api/v1/integrations/route");
-      const response = await GET();
+      const response = await GET(
+        new Request("http://localhost/api/v1/integrations", {
+          headers: { "x-request-id": "req-integrations-1" }
+        })
+      );
       const body = await response.json();
       const serialized = JSON.stringify(body);
       const configSerialized = JSON.stringify(body.integrations[0].config);
 
+      expect(prisma.integration.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { workspaceId: "workspace-1" },
+          include: expect.objectContaining({
+            credentials: expect.objectContaining({
+              where: { workspaceId: "workspace-1" }
+            }),
+            runs: expect.objectContaining({
+              where: { workspaceId: "workspace-1" }
+            })
+          })
+        })
+      );
       expect(body.integrations[0].config).toEqual({
         tls: {
           mode: "custom_ca",
           caFingerprint: "fingerprint-123"
-        }
+        },
+        auth: {}
       });
       expect(serialized).not.toContain("BEGIN CERTIFICATE");
       expect(serialized).not.toContain("MIIFakeCertificate");
+      expect(serialized).not.toContain("legacy-secret-key");
+      expect(serialized).not.toContain("legacy-token");
       expect(configSerialized).not.toContain("caBundle");
     } finally {
       vi.doUnmock("@/lib/db");
+      vi.doUnmock("@/lib/api/session");
       vi.doUnmock("@/lib/current-user");
       vi.resetModules();
     }
@@ -383,6 +492,11 @@ describe("OTRS-family credential slots", () => {
               tls: {
                 mode: "custom_ca",
                 caBundle: caPemWithWindowsLines
+              },
+              auth: {
+                password: "inline-password",
+                secretKey: "inline-secret-key",
+                authorizationHeader: "Bearer inline-token"
               }
             }
           })
@@ -400,11 +514,15 @@ describe("OTRS-family credential slots", () => {
           mode: "custom_ca",
           caBundleSecretId: "credential-ca",
           caFingerprint: "existing-fingerprint"
-        }
+        },
+        auth: {}
       });
       expect(storedCreateConfig).toEqual(storedUpdateConfig);
       expect(serialized).not.toContain("BEGIN CERTIFICATE");
       expect(serialized).not.toContain("MIIFakeCertificate");
+      expect(serialized).not.toContain("inline-password");
+      expect(serialized).not.toContain("inline-secret-key");
+      expect(serialized).not.toContain("inline-token");
       expect(body.integration).toMatchObject({
         id: "integration-1",
         hasCaBundle: true

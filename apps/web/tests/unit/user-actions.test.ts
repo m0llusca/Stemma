@@ -208,30 +208,18 @@ describe("user actions", () => {
     expect(mocks.createAuthSession).not.toHaveBeenCalled();
   });
 
-  it("allows explicit demo sign-in from the login page without enabling auto demo auth", async () => {
+  it("rejects explicit demo sign-in when demo auth is disabled without querying users or creating a session", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(false);
-    mocks.prisma.user.findFirst.mockResolvedValue({
-      id: "demo-user",
-      workspaceId: "workspace-1",
-      role: "QA_ANALYST"
-    });
     const { signInWithDemoUser } = await import("@/lib/user-actions");
     const formData = new FormData();
     formData.set("userId", "demo-user");
     formData.set("returnTo", "/reviews");
 
-    await expect(signInWithDemoUser(formData)).rejects.toThrow("NEXT_REDIRECT:/reviews");
+    await expect(signInWithDemoUser(formData)).rejects.toThrow("Демо-переключение пользователей отключено.");
 
-    expect(mocks.prisma.user.findFirst).toHaveBeenCalledWith({
-      where: demoUserByIdWhere("demo-user"),
-      select: { id: true, workspaceId: true, role: true }
-    });
-    expect(mocks.createAuthSession).toHaveBeenCalledWith({
-      userId: "demo-user",
-      providerId: "demo-provider",
-      userAgent: "vitest-agent"
-    });
-    expect(mocks.cookieSet).toHaveBeenCalledWith("qc_session", "session-token", expect.objectContaining({ path: "/" }));
-    expect(mocks.cookieSet).toHaveBeenCalledWith("qc_current_user_id", "demo-user", expect.objectContaining({ path: "/" }));
+    expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(mocks.prisma.identityProvider.findFirst).not.toHaveBeenCalled();
+    expect(mocks.createAuthSession).not.toHaveBeenCalled();
+    expect(mocks.cookieSet).not.toHaveBeenCalled();
   });
 });

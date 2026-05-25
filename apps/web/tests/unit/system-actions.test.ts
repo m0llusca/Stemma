@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   logBackendEvent: vi.fn(),
   requireCurrentUserPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  cancelBackendJob: vi.fn(),
   runDueBackendJobs: vi.fn()
 }));
 
@@ -27,6 +28,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/jobs/queue", () => ({
+  cancelBackendJob: mocks.cancelBackendJob,
   enqueueBackendJob: vi.fn(),
   runDueBackendJobs: mocks.runDueBackendJobs
 }));
@@ -43,6 +45,7 @@ describe("system actions", () => {
       workspaceId: "workspace-1"
     });
     mocks.runDueBackendJobs.mockResolvedValue([{ jobId: "job-1" }, { jobId: "job-2" }]);
+    mocks.cancelBackendJob.mockResolvedValue({ id: "job-1" });
     mocks.auditLog.mockResolvedValue({});
   });
 
@@ -56,7 +59,8 @@ describe("system actions", () => {
 
     expect(mocks.runDueBackendJobs).toHaveBeenCalledWith({
       limit: 9,
-      workerId: "ui-user-123"
+      workerId: "ui-user-123",
+      workspaceId: "workspace-1"
     });
     expect(mocks.runDueBackendJobs.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.logBackendEvent.mock.invocationCallOrder[0]
@@ -94,5 +98,22 @@ describe("system actions", () => {
       }
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
+  });
+
+  it("cancels queued backend jobs through the guarded queue helper", async () => {
+    const { cancelQueuedBackendJob } = await import("@/lib/system-actions");
+    const formData = new FormData();
+    formData.set("jobId", "job-1");
+
+    await expect(cancelQueuedBackendJob(formData)).resolves.toBeUndefined();
+
+    expect(mocks.cancelBackendJob).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      jobId: "job-1",
+      actorId: "user-1234567890",
+      eventMessage: "Задача отменена администратором из интерфейса."
+    });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system/jobs/job-1");
   });
 });

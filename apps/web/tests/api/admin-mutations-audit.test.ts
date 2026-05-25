@@ -5,7 +5,10 @@ const mocks = vi.hoisted(() => ({
   enqueueBackendJob: vi.fn(),
   logBackendEvent: vi.fn(),
   prisma: {
-    $transaction: vi.fn()
+    $transaction: vi.fn(),
+    integration: {
+      findFirst: vi.fn()
+    }
   },
   requireSessionApi: vi.fn(),
   runDueBackendJobs: vi.fn()
@@ -62,6 +65,7 @@ describe("admin backend mutation audit logging", () => {
     });
     mocks.auditLog.mockResolvedValue({});
     mocks.enqueueBackendJob.mockResolvedValue(job);
+    mocks.prisma.integration.findFirst.mockResolvedValue(null);
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback("tx-client"));
     mocks.runDueBackendJobs.mockResolvedValue([{ jobId: "job-1" }, { jobId: "job-2" }]);
   });
@@ -169,6 +173,35 @@ describe("admin backend mutation audit logging", () => {
     expect(mocks.auditLog).not.toHaveBeenCalled();
   });
 
+  it("rejects manual integration import jobs that bypass source-contract guards", async () => {
+    const { POST } = await import("@/app/api/v1/jobs/route");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-enterprise",
+      workspaceId: "workspace-1",
+      source: "salesforce",
+      type: "enterprise",
+      status: "ready"
+    });
+
+    const response = await POST(
+      jsonRequest("/api/v1/jobs", {
+        type: "INTEGRATION_IMPORT",
+        payload: { integrationId: "integration-enterprise" }
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "conflict",
+        message: "Корпоративные источники требуют защищенной настройки OAuth-доступов.",
+        requestId: "req-1"
+      }
+    });
+    expect(mocks.enqueueBackendJob).not.toHaveBeenCalled();
+    expect(mocks.auditLog).not.toHaveBeenCalled();
+  });
+
   it("audits manual backend job runner requests after running jobs and preserves backend logging", async () => {
     const { POST } = await import("@/app/api/v1/jobs/run/route");
 
@@ -180,6 +213,11 @@ describe("admin backend mutation audit logging", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(mocks.runDueBackendJobs).toHaveBeenCalledWith({
+      limit: 5,
+      workerId: "worker-1",
+      workspaceId: "workspace-1"
+    });
     expect(mocks.runDueBackendJobs.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.auditLog.mock.invocationCallOrder[0]
     );

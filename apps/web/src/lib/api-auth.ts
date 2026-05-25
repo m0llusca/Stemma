@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, requestIdFromHeaders } from "@/lib/api/response";
+import { demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 
 export type ApiScope =
@@ -68,6 +69,10 @@ function authErrorResponse(request: NextRequest, message: string, status: 401 | 
   return apiError(status === 401 ? "unauthorized" : "forbidden", message, status, requestId);
 }
 
+function isDisabledDemoApiToken(token: string) {
+  return token === demoApiToken && process.env.QC_DEMO_AUTH !== "enabled";
+}
+
 export async function requireApiToken(
   request: NextRequest,
   requiredScope: ApiScope,
@@ -79,6 +84,13 @@ export async function requireApiToken(
     return {
       ok: false,
       response: authErrorResponse(request, "API token is required.", 401, options)
+    };
+  }
+
+  if (isDisabledDemoApiToken(token)) {
+    return {
+      ok: false,
+      response: authErrorResponse(request, "API token is invalid or expired.", 401, options)
     };
   }
 

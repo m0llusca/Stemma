@@ -7,6 +7,12 @@ const mocks = vi.hoisted(() => {
       findUnique: vi.fn(),
       upsert: vi.fn(),
       update: vi.fn()
+    },
+    integrationRun: {
+      create: vi.fn()
+    },
+    backendJob: {
+      create: vi.fn()
     }
   };
 
@@ -22,6 +28,7 @@ const mocks = vi.hoisted(() => {
     revalidatePath: vi.fn(),
     requireSessionApi: vi.fn(),
     runOtrsConnectorDiagnostics: vi.fn(),
+    runDueBackendJobs: vi.fn(),
     upsertIntegrationSecretSlot: vi.fn()
   };
 });
@@ -68,7 +75,7 @@ vi.mock("@/lib/integrations/otrs-family/service", () => ({
 }));
 
 vi.mock("@/lib/jobs/queue", () => ({
-  runDueBackendJobs: vi.fn()
+  runDueBackendJobs: mocks.runDueBackendJobs
 }));
 
 function authorizedUser() {
@@ -133,10 +140,24 @@ describe("OTRS integration actions", () => {
       status: "ready",
       configJson: data.configJson
     }));
+    mocks.prisma.integrationRun.create.mockResolvedValue({
+      id: "run-1",
+      status: "queued",
+      requestedLimit: 25,
+      dryRun: false
+    });
+    mocks.prisma.backendJob.create.mockResolvedValue({
+      id: "job-1",
+      status: "QUEUED"
+    });
     mocks.upsertIntegrationSecretSlot
       .mockResolvedValueOnce({ id: "password-slot", kind: "auth_password", fingerprint: null })
       .mockResolvedValueOnce({ id: "ca-slot", kind: "ca_bundle", fingerprint: "ca-fingerprint" });
     mocks.auditLog.mockResolvedValue({});
+    mocks.runDueBackendJobs.mockResolvedValue([
+      { jobId: "job-1", status: "SUCCEEDED" },
+      { jobId: "job-2", status: "FAILED" }
+    ]);
   });
 
   it("saves OTRS setup as typed config and secret slots", async () => {
@@ -238,6 +259,44 @@ describe("OTRS integration actions", () => {
     expect(mocks.upsertIntegrationSecretSlot).not.toHaveBeenCalled();
   });
 
+  it("queues a live import when the setup wizard submits dryRun=false", async () => {
+    const { recordIntegrationDryRunState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("zendesk", "native_helpdesk");
+    formData.set("dryRun", "false");
+
+    await expect(recordIntegrationDryRunState(null, formData)).resolves.toMatchObject({
+      ok: true,
+      message: expect.stringContaining("Импорт"),
+      integrationId: "integration-1"
+    });
+
+    expect(mocks.prisma.integrationRun.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: "queued",
+        dryRun: false,
+        requestedLimit: 25
+      })
+    });
+    const payloadJson = mocks.prisma.backendJob.create.mock.calls[0][0].data.payloadJson;
+    expect(JSON.parse(payloadJson)).toMatchObject({
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      source: "zendesk",
+      mode: "native_helpdesk",
+      requestedLimit: 25,
+      dryRun: false
+    });
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "integration.import_queued",
+        metadata: expect.objectContaining({
+          dryRun: false
+        })
+      }),
+      mocks.prisma
+    );
+  });
+
   it("runs diagnostics only for integration managers and writes the OTRS diagnostics audit action", async () => {
     const { runOtrsDiagnosticsAction } = await import("@/lib/integration-actions");
     const formData = new FormData();
@@ -308,6 +367,39 @@ describe("OTRS integration actions", () => {
       actorId: "user-1",
       mode: "ticket_search",
       filters: { QueueIDs: [1], StateType: "Open" }
+    });
+  });
+
+  it("runs the integrations queue only for the current workspace", async () => {
+    const { runIntegrationQueueState } = await import("@/lib/integration-actions");
+    const formData = new FormData();
+    formData.set("limit", "7");
+
+    await expect(runIntegrationQueueState(null, formData)).resolves.toMatchObject({
+      ok: true,
+      processed: 2,
+      succeeded: 1,
+      failed: 1
+    });
+
+    expect(mocks.runDueBackendJobs).toHaveBeenCalledWith({
+      limit: 7,
+      queueName: "integrations",
+      workerId: "ui-integrations-user-1",
+      workspaceId: "workspace-1"
+    });
+    expect(mocks.auditLog).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      actorId: "user-1",
+      action: "backend_jobs.run_from_integrations_ui",
+      targetType: "backend_job",
+      targetId: "integrations",
+      metadata: {
+        limit: 7,
+        processed: 2,
+        succeeded: 1,
+        failed: 1
+      }
     });
   });
 

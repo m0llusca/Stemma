@@ -5,7 +5,7 @@ import { CopyButton } from "@/components/copy-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { isDemoAuthEnabled, requireCurrentUserPermission } from "@/lib/current-user";
 import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 
@@ -87,6 +87,7 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
       createdAt: "desc"
     }
   });
+  const demoAuthEnabled = isDemoAuthEnabled();
   const authorizationHeader = `Authorization: Bearer ${demoApiToken}`;
   const now = new Date();
   const activeTokens = apiTokens.filter((token) => !token.expiresAt || token.expiresAt > now).length;
@@ -237,28 +238,36 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
               <p className="ops-panel__subtitle">Плейсхолдер {apiTokenPlaceholder} и реальные значения для тестовых запросов.</p>
             </div>
           </div>
-          <div className="grid gap-2 p-4">
-            <div className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">K</span>
-              <div className="admin-tile__body">
-                <span className="record-row">
-                  <span className="record-title">Ключ</span>
-                  <CopyButton value={demoApiToken} label="Скопировать ключ" />
-                </span>
-                <code className="inline-code-box compact-text">{demoApiToken}</code>
+          {demoAuthEnabled ? (
+            <div className="grid gap-2 p-4">
+              <div className="admin-tile admin-tile--compact">
+                <span className="admin-tile__icon admin-tile__icon--plain">K</span>
+                <div className="admin-tile__body">
+                  <span className="record-row">
+                    <span className="record-title">Ключ</span>
+                    <CopyButton value={demoApiToken} label="Скопировать ключ" />
+                  </span>
+                  <code className="inline-code-box compact-text">{demoApiToken}</code>
+                </div>
+              </div>
+              <div className="admin-tile admin-tile--compact">
+                <span className="admin-tile__icon admin-tile__icon--plain">A</span>
+                <div className="admin-tile__body">
+                  <span className="record-row">
+                    <span className="record-title">Заголовок Authorization</span>
+                    <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
+                  </span>
+                  <code className="inline-code-box compact-text">{authorizationHeader}</code>
+                </div>
               </div>
             </div>
-            <div className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">A</span>
-              <div className="admin-tile__body">
-                <span className="record-row">
-                  <span className="record-title">Заголовок Authorization</span>
-                  <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
-                </span>
-                <code className="inline-code-box compact-text">{authorizationHeader}</code>
+          ) : (
+            <div className="p-4">
+              <div className="soft-callout ops-empty text-sm text-[#64748b]">
+                Демо-ключ доступен только при включенном демо-режиме.
               </div>
             </div>
-          </div>
+          )}
         </section>
       ) : null}
     </section>

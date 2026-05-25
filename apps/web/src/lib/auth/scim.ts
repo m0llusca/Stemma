@@ -2,7 +2,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { Prisma, type UserLifecycleStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auditLog } from "@/lib/audit";
-import { resolveIdentityPolicyForUser } from "@/lib/auth/providers";
+import {
+  refreshIdentityPoliciesForUsers,
+  resolveIdentityPolicyForUser,
+  resolveIdentityPolicyFromExternalClaims,
+  type ResolvedIdentityPolicy
+} from "@/lib/auth/providers";
 import { applyUserLifecycleStatus } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 
@@ -541,6 +546,21 @@ function userActiveStatus(payload: ScimUserPayload): UserLifecycleStatus {
   return payload.active === false ? "DEPROVISIONED" : "ACTIVE";
 }
 
+function scimUserGroupClaims(payload: ScimUserPayload) {
+  return Array.isArray(payload.groups) ? payload.groups.map((group) => stringValue(group.value, 240)).filter(Boolean) : [];
+}
+
+function scimPolicyUpdateData(policy: ResolvedIdentityPolicy, context: ScimContext, now: Date, status: UserLifecycleStatus) {
+  return {
+    role: policy.role,
+    ...(policy.supportLine ? { supportLine: policy.supportLine } : {}),
+    ...(policy.teamName ? { teamName: policy.teamName } : {}),
+    sourceOfTruthProviderId: context.providerId,
+    lastDirectorySyncAt: now,
+    ...(status === "ACTIVE" ? { lifecycleStatus: "ACTIVE" as const, suspendedAt: null, deprovisionedAt: null } : {})
+  };
+}
+
 function serializeUser(user: UserForScim, providerId: string) {
   const identity = user.externalIdentities?.find((item) => item.providerSubject || item.externalId);
 
@@ -830,6 +850,14 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
     });
 
     if (existingIdentity?.user) {
+      const policy = await resolveIdentityPolicyForUser(
+        context.workspaceId,
+        context.providerId,
+        existingIdentity.userId,
+        { groups: scimUserGroupClaims(payload) },
+        tx
+      );
+
       if (status !== existingIdentity.user.lifecycleStatus) {
         await applyUserLifecycleStatus({
           userId: existingIdentity.userId,
@@ -847,9 +875,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         data: {
           email,
           name,
-          sourceOfTruthProviderId: context.providerId,
-          lastDirectorySyncAt: now,
-          ...(status === "ACTIVE" ? { lifecycleStatus: "ACTIVE", suspendedAt: null, deprovisionedAt: null } : {})
+          ...scimPolicyUpdateData(policy, context, now, status)
         },
         include: {
           externalIdentities: {
@@ -895,6 +921,14 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
     let user = existingUser;
 
     if (user) {
+      const policy = await resolveIdentityPolicyForUser(
+        context.workspaceId,
+        context.providerId,
+        user.id,
+        { groups: scimUserGroupClaims(payload) },
+        tx
+      );
+
       if (status !== user.lifecycleStatus) {
         await applyUserLifecycleStatus({
           userId: user.id,
@@ -912,18 +946,25 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         data: {
           email,
           name,
-          sourceOfTruthProviderId: context.providerId,
-          lastDirectorySyncAt: now,
-          ...(status === "ACTIVE" ? { lifecycleStatus: "ACTIVE", suspendedAt: null, deprovisionedAt: null } : {})
+          ...scimPolicyUpdateData(policy, context, now, status)
         }
       });
     } else {
+      const policy = await resolveIdentityPolicyFromExternalClaims(
+        context.workspaceId,
+        context.providerId,
+        { groups: scimUserGroupClaims(payload) },
+        tx
+      );
+
       user = await tx.user.create({
         data: {
           workspaceId: context.workspaceId,
           email,
           name,
-          role: "SUPPORT_AGENT",
+          role: policy.role,
+          ...(policy.supportLine ? { supportLine: policy.supportLine } : {}),
+          ...(policy.teamName ? { teamName: policy.teamName } : {}),
           lifecycleStatus: status,
           sourceOfTruthProviderId: context.providerId,
           lastDirectorySyncAt: now,
@@ -1207,30 +1248,14 @@ async function refreshUserPoliciesForScimMembers(client: Prisma.TransactionClien
     return;
   }
 
-  for (const userId of ids) {
-    const policy = await resolveIdentityPolicyForUser(context.workspaceId, context.providerId, userId, {}, client);
-    await client.user.updateMany({
-      where: {
-        id: userId,
-        workspaceId: context.workspaceId,
-        OR: [
-          { sourceOfTruthProviderId: context.providerId },
-          {
-            externalIdentities: {
-              some: { providerId: context.providerId }
-            }
-          }
-        ]
-      },
-      data: {
-        role: policy.role,
-        ...(policy.supportLine ? { supportLine: policy.supportLine } : {}),
-        ...(policy.teamName ? { teamName: policy.teamName } : {}),
-        sourceOfTruthProviderId: context.providerId,
-        lastDirectorySyncAt: new Date()
-      }
-    });
-  }
+  await refreshIdentityPoliciesForUsers(
+    {
+      workspaceId: context.workspaceId,
+      providerId: context.providerId,
+      userIds: ids
+    },
+    client
+  );
 }
 
 export async function listScimGroups(context: ScimContext, url: URL) {
@@ -1283,7 +1308,12 @@ export async function createScimGroup(context: ScimContext, payload: ScimGroupPa
         providerId: context.providerId,
         externalGroupId
       },
-      select: { id: true }
+      select: {
+        id: true,
+        members: {
+          select: { userId: true }
+        }
+      }
     });
     const group = await tx.identityGroup.upsert({
       where: {
@@ -1307,9 +1337,22 @@ export async function createScimGroup(context: ScimContext, payload: ScimGroupPa
       }
     });
 
-    const members = memberIds(payload.members);
-    await addGroupMembers(tx, context, group, members);
-    await refreshUserPoliciesForScimMembers(tx, context, members);
+    if (Array.isArray(payload.members)) {
+      const members = memberIds(payload.members);
+      const existingMemberIds = existingGroup?.members?.map((member) => member.userId) ?? [];
+      await addGroupMembers(tx, context, group, members);
+      if (existingGroup) {
+        await tx.userIdentityGroup.deleteMany({
+          where: {
+            workspaceId: context.workspaceId,
+            providerId: context.providerId,
+            externalGroupId,
+            ...(members.length ? { userId: { notIn: members } } : {})
+          }
+        });
+      }
+      await refreshUserPoliciesForScimMembers(tx, context, [...existingMemberIds, ...members]);
+    }
     const hydrated = await groupById(tx, context, group.id);
     await auditScimEvent(tx, {
       workspaceId: context.workspaceId,

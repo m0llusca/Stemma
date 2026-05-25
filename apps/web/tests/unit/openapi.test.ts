@@ -138,6 +138,31 @@ describe("openapi contract", () => {
     expect(document.paths["/integrations/catalog"].get.responses["200"].content["application/json"].schema).toEqual({
       $ref: "#/components/schemas/IntegrationCatalogResponse"
     });
+    expect(document.paths["/integrations/{integrationId}/diagnostics"].post).toMatchObject({
+      security: [{ sessionCookie: [] }],
+      responses: {
+        "202": { description: "Диагностика интеграции запущена" },
+        "400": { description: "Некорректные параметры диагностики" },
+        "404": { description: "Интеграция не найдена" }
+      }
+    });
+    expect(document.paths["/integrations/{integrationId}/preview"].post).toMatchObject({
+      security: [{ sessionCookie: [] }],
+      responses: {
+        "201": { description: "Preview интеграции создан" },
+        "400": { description: "Некорректные параметры preview" },
+        "404": { description: "Интеграция не найдена" }
+      }
+    });
+    expect(document.paths["/integrations/{integrationId}/import"].post).toMatchObject({
+      security: [{ sessionCookie: [] }],
+      responses: {
+        "202": { description: "Выбранные preview-строки поставлены в очередь импорта" },
+        "400": { description: "Некорректные параметры выборочного импорта" },
+        "404": { description: "Интеграция или preview-run не найдены" },
+        "409": { description: "Выбранные строки уже поставлены в очередь или недоступны" }
+      }
+    });
     expect(document.components.schemas.WebhookEndpoint.required).toContain("secretPrefix");
     expect(document.components.schemas.WebhookEndpoint.required).toEqual([
       "id",
@@ -194,6 +219,10 @@ describe("openapi contract", () => {
         "/reviews/{reviewId}",
         "/integrations",
         "/integrations/catalog",
+        "/integrations/{integrationId}/imports",
+        "/integrations/{integrationId}/diagnostics",
+        "/integrations/{integrationId}/preview",
+        "/integrations/{integrationId}/import",
         "/webhook-endpoints",
         "/webhooks/{endpointId}",
         "/jobs",

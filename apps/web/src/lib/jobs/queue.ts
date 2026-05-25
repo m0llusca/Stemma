@@ -15,11 +15,34 @@ export const backendJobQueueDefaults = {
   staleRecoveryLimit: 20
 } as const;
 const requeueConflictMessage = "Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.";
+const cancelConflictMessage = "Можно отменить только задачу в очереди.";
+const lostLockMessage = "Задача уже перехвачена другим worker.";
 
 export class BackendJobRequeueConflictError extends Error {
   constructor() {
     super(requeueConflictMessage);
     this.name = "BackendJobRequeueConflictError";
+  }
+}
+
+export class BackendJobCancelConflictError extends Error {
+  constructor() {
+    super(cancelConflictMessage);
+    this.name = "BackendJobCancelConflictError";
+  }
+}
+
+export class BackendJobNotFoundError extends Error {
+  constructor() {
+    super("Фоновая задача не найдена.");
+    this.name = "BackendJobNotFoundError";
+  }
+}
+
+class BackendJobLostLockError extends Error {
+  constructor() {
+    super(lostLockMessage);
+    this.name = "BackendJobLostLockError";
   }
 }
 
@@ -157,7 +180,76 @@ export async function requeueBackendJob(input: { workspaceId: string; jobId: str
   });
 }
 
-export async function claimNextBackendJob(workerId: string, filters: { queueName?: string } = {}) {
+export async function cancelBackendJob(input: { workspaceId: string; jobId: string; actorId: string; eventMessage?: string }) {
+  const existing = await prisma.backendJob.findFirst({
+    where: {
+      id: input.jobId,
+      workspaceId: input.workspaceId
+    },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (!existing) {
+    throw new BackendJobNotFoundError();
+  }
+
+  if (existing.status !== "QUEUED") {
+    throw new BackendJobCancelConflictError();
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const cancelled = await tx.backendJob.updateMany({
+      where: {
+        id: input.jobId,
+        workspaceId: input.workspaceId,
+        status: "QUEUED"
+      },
+      data: {
+        status: "CANCELLED",
+        finishedAt: new Date(),
+        lockedAt: null,
+        lockedBy: null
+      }
+    });
+
+    if (cancelled.count === 0) {
+      throw new BackendJobCancelConflictError();
+    }
+
+    const updated = await tx.backendJob.findUnique({
+      where: { id: input.jobId }
+    });
+
+    if (!updated) {
+      throw new BackendJobCancelConflictError();
+    }
+
+    await recordJobEvent(tx, updated.id, "warn", input.eventMessage ?? "Задача отменена администратором.", {
+      actorId: input.actorId
+    });
+
+    await auditLog(
+      {
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: "backend_job.cancelled",
+        targetType: "backend_job",
+        targetId: updated.id,
+        metadata: {
+          type: updated.type
+        }
+      },
+      tx
+    );
+
+    return updated;
+  });
+}
+
+export async function claimNextBackendJob(workerId: string, filters: { queueName?: string; workspaceId?: string } = {}) {
   const now = new Date();
 
   for (let attempt = 0; attempt < backendJobQueueDefaults.claimRetries; attempt += 1) {
@@ -166,6 +258,7 @@ export async function claimNextBackendJob(workerId: string, filters: { queueName
         status: "QUEUED",
         lockedAt: null,
         ...(filters.queueName ? { queueName: filters.queueName } : {}),
+        ...(filters.workspaceId !== undefined ? { workspaceId: filters.workspaceId } : {}),
         runAfter: {
           lte: now
         }
@@ -182,6 +275,7 @@ export async function claimNextBackendJob(workerId: string, filters: { queueName
         id: nextJob.id,
         status: "QUEUED",
         lockedAt: null,
+        ...(filters.workspaceId !== undefined ? { workspaceId: filters.workspaceId } : {}),
         runAfter: {
           lte: now
         }
@@ -217,6 +311,7 @@ export async function claimNextBackendJob(workerId: string, filters: { queueName
 
 export async function recoverStaleBackendJobs(input: {
   workerId?: string;
+  workspaceId?: string;
   now?: Date;
   staleAfterMs?: number;
   limit?: number;
@@ -227,6 +322,7 @@ export async function recoverStaleBackendJobs(input: {
   const staleJobs = await prisma.backendJob.findMany({
     where: {
       status: "RUNNING",
+      ...(input.workspaceId !== undefined ? { workspaceId: input.workspaceId } : {}),
       lockedAt: {
         lte: cutoff
       }
@@ -247,6 +343,7 @@ export async function recoverStaleBackendJobs(input: {
         where: {
           id: job.id,
           status: "RUNNING",
+          ...(input.workspaceId !== undefined ? { workspaceId: input.workspaceId } : {}),
           lockedAt: {
             lte: cutoff
           }
@@ -293,6 +390,48 @@ function parsePayload(job: BackendJob): BackendJobPayload {
   }
 }
 
+function currentJobLockWhere(job: BackendJob) {
+  return {
+    id: job.id,
+    status: "RUNNING" as const,
+    lockedAt: job.lockedAt,
+    lockedBy: job.lockedBy
+  };
+}
+
+type JobLockState = {
+  lockedAt: Date | null;
+  renewed: boolean;
+};
+
+async function assertCurrentJobLock(client: Pick<Prisma.TransactionClient, "backendJob">, job: BackendJob, options: { renew?: boolean } = {}) {
+  const renew = options.renew ?? true;
+  const lockedAt = renew ? new Date() : job.lockedAt;
+  const locked = await client.backendJob.updateMany({
+    where: currentJobLockWhere(job),
+    data: {
+      lockedAt,
+      lockedBy: job.lockedBy
+    }
+  });
+
+  if (locked.count === 0) {
+    throw new BackendJobLostLockError();
+  }
+
+  return { lockedAt, renewed: renew };
+}
+
+function applyJobLockState(job: BackendJob, lockState: JobLockState | null | undefined) {
+  if (lockState?.renewed) {
+    job.lockedAt = lockState.lockedAt;
+  }
+}
+
+async function renewCurrentJobLock(client: Pick<Prisma.TransactionClient, "backendJob">, job: BackendJob) {
+  applyJobLockState(job, await assertCurrentJobLock(client, job));
+}
+
 function integrationJobOperation(payload: BackendJobPayload): IntegrationJobOperation {
   return payload.operation === "otrs_selected_import" ? "otrs_selected_import" : "legacy_connector_run";
 }
@@ -310,13 +449,18 @@ async function runLegacyIntegrationImportJob(job: BackendJob, payload: BackendJo
     throw new Error("Для задачи импорта не указан integrationId.");
   }
 
+  let pendingLockState: JobLockState | null = null;
   const result = await runIntegrationConnector({
     workspaceId: job.workspaceId,
     integrationId,
     integrationRunId,
     requestedLimit: payload.requestedLimit,
-    dryRun
+    dryRun,
+    beforeWrite: async (client) => {
+      pendingLockState = await assertCurrentJobLock(client, job);
+    }
   });
+  applyJobLockState(job, pendingLockState);
 
   await prisma.backendJobEvent.create({
     data: {
@@ -358,12 +502,17 @@ async function runSelectedOtrsImportJob(job: BackendJob, payload: BackendJobPayl
     throw new Error("Для выборочного OTRS-импорта не указаны integrationRunItemIds.");
   }
 
+  let pendingLockState: JobLockState | null = null;
   const result = await runSelectedOtrsImportConnector({
     workspaceId: job.workspaceId,
     integrationId,
     integrationRunId,
-    selectedItemIds
+    selectedItemIds,
+    beforeWrite: async (client) => {
+      pendingLockState = await assertCurrentJobLock(client, job);
+    }
   });
+  applyJobLockState(job, pendingLockState);
 
   await prisma.backendJobEvent.create({
     data: {
@@ -390,12 +539,16 @@ async function runSelectedOtrsImportJob(job: BackendJob, payload: BackendJobPayl
 }
 
 async function runIntegrationImportJob(job: BackendJob, payload: BackendJobPayload) {
+  await renewCurrentJobLock(prisma, job);
+
   return integrationJobOperation(payload) === "otrs_selected_import"
     ? runSelectedOtrsImportJob(job, payload)
     : runLegacyIntegrationImportJob(job, payload);
 }
 
 async function runReportExportJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {
+  const lockState = await assertCurrentJobLock(client, job);
+
   const snapshot = await client.reportSnapshot.create({
     data: {
       workspaceId: job.workspaceId,
@@ -412,7 +565,7 @@ async function runReportExportJob(client: JobClient, job: BackendJob, payload: B
 
   await recordJobEvent(client, job.id, "info", "Снимок отчета подготовлен.", { snapshotId: snapshot.id });
 
-  return { snapshotId: snapshot.id };
+  return { result: { snapshotId: snapshot.id }, lockState };
 }
 
 async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {
@@ -423,6 +576,8 @@ async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: 
     throw new Error("Для синхронизации каталога не указан providerId.");
   }
 
+  const lockState = await assertCurrentJobLock(client, job);
+
   const result = await syncDirectoryProvider({
     workspaceId: job.workspaceId,
     providerId,
@@ -432,15 +587,18 @@ async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: 
 
   await recordJobEvent(client, job.id, "info", dryRun ? "Dry-run синхронизации каталога выполнен." : "Синхронизация каталога выполнена.", result);
 
-  return result;
+  return { result, lockState };
 }
 
 async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
+  const lockState = await assertCurrentJobLock(client, job);
+
   const now = new Date();
   const rateLimitCutoff = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7);
   const [sessions, idempotencyKeys, rateLimits] = await Promise.all([
     client.authSession.updateMany({
       where: {
+        workspaceId: job.workspaceId,
         status: "ACTIVE",
         expiresAt: {
           lt: now
@@ -450,6 +608,7 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
     }),
     client.idempotencyKey.deleteMany({
       where: {
+        workspaceId: job.workspaceId,
         expiresAt: {
           lt: now
         }
@@ -457,6 +616,7 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
     }),
     client.apiRateLimit.deleteMany({
       where: {
+        workspaceId: job.workspaceId,
         windowStart: {
           lt: rateLimitCutoff
         }
@@ -471,9 +631,12 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
   });
 
   return {
-    expiredSessions: sessions.count,
-    deletedIdempotencyKeys: idempotencyKeys.count,
-    deletedRateLimitBuckets: rateLimits.count
+    result: {
+      expiredSessions: sessions.count,
+      deletedIdempotencyKeys: idempotencyKeys.count,
+      deletedRateLimitBuckets: rateLimits.count
+    },
+    lockState
   };
 }
 
@@ -486,18 +649,26 @@ async function runWebhookIngestJob(job: BackendJob, payload: BackendJobPayload) 
     throw new Error("Для webhook ingest задачи нужны endpointId, rawBody и idempotencyKey.");
   }
 
-  return ingestWebhookEvent({
+  let pendingLockState: JobLockState | null = null;
+  const result = await ingestWebhookEvent({
     endpointId,
     workspaceId: job.workspaceId,
     rawBody,
     idempotencyKey,
     timestamp: typeof payload.timestamp === "string" ? payload.timestamp : null,
-    signature: typeof payload.signature === "string" ? payload.signature : null
+    signature: typeof payload.signature === "string" ? payload.signature : null,
+    beforeWrite: async (client) => {
+      pendingLockState = await assertCurrentJobLock(client, job);
+    }
   });
+  applyJobLockState(job, pendingLockState);
+  return result;
 }
 
 async function executeBackendJob(job: BackendJob) {
   const payload = parsePayload(job);
+
+  await renewCurrentJobLock(prisma, job);
 
   await prisma.backendJobEvent.create({
     data: {
@@ -511,22 +682,27 @@ async function executeBackendJob(job: BackendJob) {
     }
   });
 
-  const result =
-    job.type === "INTEGRATION_IMPORT"
-      ? await runIntegrationImportJob(job, payload)
-      : job.type === "WEBHOOK_INGEST"
-        ? await runWebhookIngestJob(job, payload)
-        : job.type === "DIRECTORY_SYNC"
-          ? await runDirectorySyncJob(prisma, job, payload)
-      : await prisma.$transaction(async (tx) =>
-          job.type === "REPORT_EXPORT"
-            ? runReportExportJob(tx, job, payload)
-            : runRetentionCleanupJob(tx, job)
-        );
+  let result: unknown;
+
+  if (job.type === "INTEGRATION_IMPORT") {
+    result = await runIntegrationImportJob(job, payload);
+  } else if (job.type === "WEBHOOK_INGEST") {
+    result = await runWebhookIngestJob(job, payload);
+  } else if (job.type === "DIRECTORY_SYNC") {
+    const transactionResult = await prisma.$transaction(async (tx) => runDirectorySyncJob(tx, job, payload));
+    applyJobLockState(job, transactionResult.lockState);
+    result = transactionResult.result;
+  } else {
+    const transactionResult = await prisma.$transaction(async (tx) =>
+      job.type === "REPORT_EXPORT" ? runReportExportJob(tx, job, payload) : runRetentionCleanupJob(tx, job)
+    );
+    applyJobLockState(job, transactionResult.lockState);
+    result = transactionResult.result;
+  }
 
   await prisma.$transaction(async (tx) => {
-    await tx.backendJob.update({
-      where: { id: job.id },
+    const finalized = await tx.backendJob.updateMany({
+      where: currentJobLockWhere(job),
       data: {
         status: "SUCCEEDED",
         resultJson: JSON.stringify(result),
@@ -537,13 +713,24 @@ async function executeBackendJob(job: BackendJob) {
       }
     });
 
-    await recordJobEvent(tx, job.id, "info", "Задача завершена.", result);
+    if (finalized.count === 0) {
+      throw new BackendJobLostLockError();
+    }
 
-    return result;
+    await recordJobEvent(tx, job.id, "info", "Задача завершена.", result);
   });
+
+  return result;
 }
 
-export async function runDueBackendJobs(input: { workerId?: string; limit?: number; recoverStale?: boolean; staleAfterMs?: number; queueName?: string } = {}) {
+export async function runDueBackendJobs(input: {
+  workerId?: string;
+  workspaceId?: string;
+  limit?: number;
+  recoverStale?: boolean;
+  staleAfterMs?: number;
+  queueName?: string;
+} = {}) {
   const workerId = input.workerId ?? `worker-${process.pid}`;
   const limit = input.limit ?? 5;
   const results: Array<{ jobId: string; status: "SUCCEEDED" | "FAILED"; result?: unknown; error?: string }> = [];
@@ -551,13 +738,15 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
   if (input.recoverStale ?? true) {
     await recoverStaleBackendJobs({
       workerId,
+      workspaceId: input.workspaceId,
       staleAfterMs: input.staleAfterMs
     });
   }
 
   for (let index = 0; index < limit; index += 1) {
     const job = await claimNextBackendJob(workerId, {
-      queueName: input.queueName
+      queueName: input.queueName,
+      workspaceId: input.workspaceId
     });
 
     if (!job) {
@@ -587,10 +776,109 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
       });
       results.push({ jobId: job.id, status: "SUCCEEDED", result });
     } catch (error) {
+      if (error instanceof BackendJobLostLockError) {
+        logBackendEvent({
+          level: "warn",
+          event: "backend_job.lost_lock",
+          workspaceId: job.workspaceId,
+          targetType: "backend_job",
+          targetId: job.id,
+          metadata: {
+            type: job.type,
+            workerId
+          }
+        });
+        results.push({ jobId: job.id, status: "FAILED", error: error.message });
+        continue;
+      }
+
       const message = error instanceof Error ? error.message : "Неизвестная ошибка фоновой задачи.";
       const payload = parsePayload(job);
       const isDisabledIntegrationFailure = job.type === "INTEGRATION_IMPORT" && message === "Интеграция отключена.";
       const shouldRetry = !isDisabledIntegrationFailure && job.attempts < job.maxAttempts;
+
+      const finalized = await prisma.$transaction(async (tx) => {
+        const finalized = await tx.backendJob.updateMany({
+          where: currentJobLockWhere(job),
+          data: {
+            status: shouldRetry ? "QUEUED" : "FAILED",
+            errorMessage: message,
+            runAfter: shouldRetry ? nextRetryRunAfter({ attempts: job.attempts }) : job.runAfter,
+            finishedAt: shouldRetry ? null : new Date(),
+            lockedAt: null,
+            lockedBy: null
+          }
+        });
+
+        if (finalized.count === 0) {
+          return finalized;
+        }
+
+        await tx.backendJobEvent.create({
+          data: {
+            jobId: job.id,
+            level: "error",
+            message,
+            metadata: JSON.stringify({ shouldRetry })
+          }
+        });
+
+        if (job.type === "INTEGRATION_IMPORT") {
+          const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
+          const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
+
+          if (integrationId) {
+            await tx.integration.updateMany({
+              where: {
+                id: integrationId,
+                workspaceId: job.workspaceId,
+                status: { not: "disabled" }
+              },
+              data: {
+                status: shouldRetry ? "queued" : "error",
+                lastError: message
+              }
+            });
+          }
+
+          if (integrationRunId) {
+            await tx.integrationRun.updateMany({
+              where: {
+                id: integrationRunId,
+                workspaceId: job.workspaceId
+              },
+              data: {
+                status: shouldRetry ? "retry_scheduled" : "failed",
+                errorCount: {
+                  increment: 1
+                },
+                errorMessage: message,
+                finishedAt: shouldRetry ? null : new Date()
+              }
+            });
+          }
+        }
+
+        return finalized;
+      });
+
+      if (finalized.count === 0) {
+        logBackendEvent({
+          level: "warn",
+          event: "backend_job.lost_lock",
+          workspaceId: job.workspaceId,
+          targetType: "backend_job",
+          targetId: job.id,
+          metadata: {
+            type: job.type,
+            workerId,
+            originalError: message
+          }
+        });
+        results.push({ jobId: job.id, status: "FAILED", error: lostLockMessage });
+        continue;
+      }
+
       logBackendEvent({
         level: "error",
         event: "backend_job.failed",
@@ -603,63 +891,6 @@ export async function runDueBackendJobs(input: { workerId?: string; limit?: numb
           error: message
         }
       });
-
-      await prisma.backendJob.update({
-        where: { id: job.id },
-        data: {
-          status: shouldRetry ? "QUEUED" : "FAILED",
-          errorMessage: message,
-          runAfter: shouldRetry ? nextRetryRunAfter({ attempts: job.attempts }) : job.runAfter,
-          finishedAt: shouldRetry ? null : new Date(),
-          lockedAt: null,
-          lockedBy: null
-        }
-      });
-      await prisma.backendJobEvent.create({
-        data: {
-          jobId: job.id,
-          level: "error",
-          message,
-          metadata: JSON.stringify({ shouldRetry })
-        }
-      });
-
-      if (job.type === "INTEGRATION_IMPORT") {
-        const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
-        const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
-
-        if (integrationId) {
-          await prisma.integration.updateMany({
-            where: {
-              id: integrationId,
-              workspaceId: job.workspaceId,
-              status: { not: "disabled" }
-            },
-            data: {
-              status: shouldRetry ? "queued" : "error",
-              lastError: message
-            }
-          });
-        }
-
-        if (integrationRunId) {
-          await prisma.integrationRun.updateMany({
-            where: {
-              id: integrationRunId,
-              workspaceId: job.workspaceId
-            },
-            data: {
-              status: shouldRetry ? "retry_scheduled" : "failed",
-              errorCount: {
-                increment: 1
-              },
-              errorMessage: message,
-              finishedAt: shouldRetry ? null : new Date()
-            }
-          });
-        }
-      }
-
       results.push({ jobId: job.id, status: "FAILED", error: message });
     }
   }

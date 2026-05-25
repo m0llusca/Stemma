@@ -229,6 +229,8 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  let reservedIdempotencyKeyId: string | null = null;
+
   try {
     const body = await request.json();
     const payload = customConversationSchema.parse(body);
@@ -244,9 +246,21 @@ export async function POST(request: NextRequest) {
         })
       : null;
 
+    if (reserved?.created) {
+      reservedIdempotencyKeyId = reserved.record.id;
+    }
+
     if (reserved?.isConflict) {
       await recordApiTokenError(auth.apiTokenId, "Idempotency key conflict.");
       return apiError("conflict", "Idempotency-Key уже использован для другого запроса.", 409, {
+        requestId,
+        includeDetails: false
+      });
+    }
+
+    if (reserved?.isInProgress) {
+      await recordApiTokenError(auth.apiTokenId, "Idempotency key is already in progress.");
+      return apiError("conflict", "Idempotency-Key уже обрабатывается.", 409, {
         requestId,
         includeDetails: false
       });
@@ -288,6 +302,14 @@ export async function POST(request: NextRequest) {
     }
 
     await recordApiTokenError(auth.apiTokenId, "Internal server error.");
+    if (reservedIdempotencyKeyId) {
+      await completeIdempotencyKey({
+        id: reservedIdempotencyKeyId,
+        responseStatus: 500,
+        responseBody: { error: "internal_error" },
+        failed: true
+      }).catch(() => undefined);
+    }
     return apiError("internal_error", "Внутренняя ошибка сервера.", 500, {
       requestId,
       includeDetails: false

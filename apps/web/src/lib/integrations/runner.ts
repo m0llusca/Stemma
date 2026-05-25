@@ -1,6 +1,7 @@
 import type { Integration, IntegrationCredential, Prisma } from "@prisma/client";
 import { upsertCustomConversation, type ImportedConversation } from "@/lib/conversation-import";
 import { prisma } from "@/lib/db";
+import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { importSelectedOtrsRunItems } from "@/lib/integrations/otrs-family/import-plan";
 import {
   buildOtrsFamilyTicketGetQueryParams,
@@ -55,6 +56,8 @@ export type SelectedOtrsImportRunResult = {
   importedCount: number;
   errorCount: number;
 };
+
+type ConnectorWriteGuard = (db: Prisma.TransactionClient) => Promise<void>;
 
 function parseConfig(value: string): IntegrationConfig {
   try {
@@ -334,6 +337,7 @@ export async function runIntegrationConnector(input: {
   requestedLimit?: unknown;
   dryRun?: boolean;
   client?: Prisma.TransactionClient;
+  beforeWrite?: ConnectorWriteGuard;
 }): Promise<IntegrationRunResult> {
   const readDb = input.client ?? prisma;
   const integration = await readDb.integration.findFirst({
@@ -350,6 +354,7 @@ export async function runIntegrationConnector(input: {
     throw new Error("Интеграция не найдена в рабочем пространстве задачи.");
   }
   assertIntegrationEnabled(integration);
+  assertIntegrationSourceContractSupported(integration);
 
   const config = parseConfig(integration.configJson);
   const limit = requestedLimit(input.requestedLimit, integration.importLimit);
@@ -384,17 +389,20 @@ export async function runIntegrationConnector(input: {
   };
 
   if (input.client) {
+    await input.beforeWrite?.(input.client);
     await writeConnectorRunResult({
       ...writeInput,
       db: input.client
     });
   } else {
-    await prisma.$transaction(async (tx) =>
-      writeConnectorRunResult({
+    await prisma.$transaction(async (tx) => {
+      await input.beforeWrite?.(tx);
+
+      return writeConnectorRunResult({
         ...writeInput,
         db: tx
-      })
-    );
+      });
+    });
   }
 
   return {
@@ -412,13 +420,16 @@ export async function runSelectedOtrsImportConnector(input: {
   integrationId: string;
   integrationRunId: string;
   selectedItemIds: string[];
+  beforeWrite?: ConnectorWriteGuard;
 }): Promise<SelectedOtrsImportRunResult> {
-  const result = await prisma.$transaction(async (tx) =>
-    importSelectedOtrsRunItems({
+  const result = await prisma.$transaction(async (tx) => {
+    await input.beforeWrite?.(tx);
+
+    return importSelectedOtrsRunItems({
       ...input,
       db: tx
-    })
-  );
+    });
+  });
 
   return {
     operation: "otrs_selected_import",
