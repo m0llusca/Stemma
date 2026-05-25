@@ -12,6 +12,12 @@ const mocks = vi.hoisted(() => ({
     auditLog: {
       create: vi.fn()
     },
+    user: {
+      updateMany: vi.fn()
+    },
+    userIdentityGroup: {
+      findMany: vi.fn()
+    },
     identityProvider: {
       findFirst: vi.fn(),
       update: vi.fn(),
@@ -19,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     },
     groupRoleMapping: {
       create: vi.fn(),
+      findMany: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn()
@@ -92,6 +99,9 @@ describe("auth provider server actions", () => {
       isActive: true
     });
     mocks.prisma.auditLog.create.mockResolvedValue({});
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.userIdentityGroup.findMany.mockResolvedValue([]);
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([]);
   });
 
   it("allows VIEWER and uses provider-scoped upsert for provider mappings", async () => {
@@ -129,6 +139,50 @@ describe("auth provider server actions", () => {
         priority: 40,
         isActive: true
       }
+    });
+  });
+
+  it("refreshes mapped provider users when saving a group role mapping", async () => {
+    mocks.prisma.userIdentityGroup.findMany
+      .mockResolvedValueOnce([{ userId: "user-1", providerId: "provider-1" }])
+      .mockResolvedValueOnce([{ externalGroupId: "External_Viewers" }]);
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        providerId: "provider-1",
+        externalGroupId: "External_Viewers",
+        role: "VIEWER",
+        priority: 40
+      }
+    ]);
+    const { saveGroupRoleMapping } = await import("@/lib/auth-provider-actions");
+    const formData = new FormData();
+    formData.set("providerId", "provider-1");
+    formData.set("externalGroupId", "External_Viewers");
+    formData.set("externalGroupName", "External Viewers");
+    formData.set("role", "VIEWER");
+    formData.set("priority", "40");
+    formData.set("isActive", "on");
+
+    await expect(saveGroupRoleMapping(formData)).rejects.toThrow("NEXT_REDIRECT:/admin/access?section=mappings&provider=provider-1");
+
+    expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "user-1",
+        workspaceId: "workspace-1",
+        OR: [
+          { sourceOfTruthProviderId: "provider-1" },
+          {
+            externalIdentities: {
+              some: { providerId: "provider-1" }
+            }
+          }
+        ]
+      },
+      data: expect.objectContaining({
+        role: "VIEWER",
+        sourceOfTruthProviderId: "provider-1"
+      })
     });
   });
 

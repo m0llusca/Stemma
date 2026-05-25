@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
+import { refreshIdentityPoliciesForExternalGroup } from "@/lib/auth/providers";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
@@ -119,6 +120,15 @@ export async function POST(request: Request, context: { params: Promise<{ provid
           role: result.role,
           isActive: result.isActive
         }
+      },
+      tx
+    );
+
+    await refreshIdentityPoliciesForExternalGroup(
+      {
+        workspaceId: user.workspaceId,
+        providerId,
+        externalGroupId: result.externalGroupId
       },
       tx
     );

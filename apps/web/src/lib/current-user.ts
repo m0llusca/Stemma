@@ -29,6 +29,17 @@ export async function getCurrentUser() {
   const session = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
 
   if (session) {
+    if (session.providerId && !isDemoAuthEnabled()) {
+      const provider = await prisma.identityProvider.findUnique({
+        where: { id: session.providerId },
+        select: { type: true }
+      });
+
+      if (provider?.type === "DEMO") {
+        throw new AuthRequiredError();
+      }
+    }
+
     return session.user;
   }
 

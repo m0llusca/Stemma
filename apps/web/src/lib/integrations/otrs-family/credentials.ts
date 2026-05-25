@@ -186,6 +186,10 @@ function sanitizeConfigValue(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
+    if (typeof value[0] === "string" && isUnsafeConfigKey(value[0])) {
+      return undefined;
+    }
+
     return value.map(sanitizeConfigValue).filter((item) => item !== undefined);
   }
 
@@ -203,7 +207,24 @@ function objectRecord(value: unknown) {
 }
 
 function isUnsafeConfigKey(key: string) {
-  return /^(caBundle|caBundlePem|caCertificate|caCertificatePem|certificatePem|pem)$/i.test(key);
+  if (/^(caBundle|caBundlePem|caCertificate|caCertificatePem|certificatePem|pem)$/i.test(key)) {
+    return true;
+  }
+
+  const normalizedKey = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+  return (
+    normalizedKey === "authorization" ||
+    normalizedKey === "secret" ||
+    normalizedKey.startsWith("authorization") ||
+    normalizedKey.endsWith("password") ||
+    normalizedKey.endsWith("token") ||
+    normalizedKey.endsWith("secret") ||
+    normalizedKey.endsWith("secretkey") ||
+    normalizedKey.endsWith("apikey") ||
+    normalizedKey.endsWith("privatekey") ||
+    normalizedKey.endsWith("privatekeypem")
+  );
 }
 
 function isPemText(value: string) {

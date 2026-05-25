@@ -4,6 +4,12 @@ export function buildOpenApiDocument() {
   const bearerSecurity = [{ bearerApiToken: [] }];
   const sessionSecurity = [{ sessionCookie: [] }];
   const noSecurity: [] = [];
+  const integrationIdPathParameter = {
+    name: "integrationId",
+    in: "path",
+    required: true,
+    schema: { type: "string" }
+  };
 
   return {
     openapi: "3.1.0",
@@ -254,8 +260,52 @@ export function buildOpenApiDocument() {
         post: {
           security: sessionSecurity,
           summary: "Поставить импорт интеграции в очередь",
+          parameters: [integrationIdPathParameter],
           responses: {
-            "202": { description: "IntegrationRun и BackendJob созданы" }
+            "202": { description: "IntegrationRun и BackendJob созданы" },
+            "400": { description: "Некорректные параметры запуска импорта" },
+            "404": { description: "Интеграция не найдена" },
+            "409": { description: "Интеграция не соответствует контракту импорта" }
+          }
+        }
+      },
+      "/integrations/{integrationId}/diagnostics": {
+        post: {
+          security: sessionSecurity,
+          summary: "Запустить диагностику OTRS-интеграции",
+          parameters: [integrationIdPathParameter],
+          responses: {
+            "202": { description: "Диагностика интеграции запущена" },
+            "400": { description: "Некорректные параметры диагностики" },
+            "404": { description: "Интеграция не найдена" },
+            "500": { description: "Не удалось выполнить диагностику" }
+          }
+        }
+      },
+      "/integrations/{integrationId}/preview": {
+        post: {
+          security: sessionSecurity,
+          summary: "Создать preview OTRS-импорта",
+          parameters: [integrationIdPathParameter],
+          responses: {
+            "201": { description: "Preview интеграции создан" },
+            "400": { description: "Некорректные параметры preview" },
+            "404": { description: "Интеграция не найдена" },
+            "500": { description: "Не удалось создать preview" }
+          }
+        }
+      },
+      "/integrations/{integrationId}/import": {
+        post: {
+          security: sessionSecurity,
+          summary: "Поставить выбранные preview-строки OTRS в очередь импорта",
+          parameters: [integrationIdPathParameter],
+          responses: {
+            "202": { description: "Выбранные preview-строки поставлены в очередь импорта" },
+            "400": { description: "Некорректные параметры выборочного импорта" },
+            "404": { description: "Интеграция или preview-run не найдены" },
+            "409": { description: "Выбранные строки уже поставлены в очередь или недоступны" },
+            "500": { description: "Не удалось запланировать выборочный OTRS-импорт" }
           }
         }
       },

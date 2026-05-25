@@ -10,10 +10,17 @@ const mocks = vi.hoisted(() => ({
     auditLog: {
       create: vi.fn()
     },
+    user: {
+      updateMany: vi.fn()
+    },
+    userIdentityGroup: {
+      findMany: vi.fn()
+    },
     identityProvider: {
       findFirst: vi.fn()
     },
     groupRoleMapping: {
+      findMany: vi.fn(),
       upsert: vi.fn()
     }
   }
@@ -54,6 +61,9 @@ describe("auth provider mappings API", () => {
       isActive: true
     });
     mocks.prisma.auditLog.create.mockResolvedValue({});
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.userIdentityGroup.findMany.mockResolvedValue([]);
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([]);
   });
 
   it("uses provider-scoped compound unique upsert for mappings", async () => {
@@ -107,6 +117,64 @@ describe("auth provider mappings API", () => {
         priority: 25,
         isActive: true
       }
+    });
+  });
+
+  it("refreshes provider users that belong to the changed external group", async () => {
+    const { POST } = await import("@/app/api/v1/auth/providers/[providerId]/mappings/route");
+    mocks.prisma.userIdentityGroup.findMany
+      .mockResolvedValueOnce([{ userId: "user-1", providerId: "provider-1" }])
+      .mockResolvedValueOnce([{ externalGroupId: "External_Viewers" }]);
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        providerId: "provider-1",
+        externalGroupId: "External_Viewers",
+        role: "VIEWER",
+        priority: 25
+      }
+    ]);
+    const request = new Request("https://app.example.com/api/v1/auth/providers/provider-1/mappings", {
+      method: "POST",
+      body: JSON.stringify({
+        externalGroupId: "External_Viewers",
+        externalGroupName: "External Viewers",
+        role: "VIEWER",
+        priority: 25,
+        isActive: true
+      })
+    });
+
+    await POST(request, { params: Promise.resolve({ providerId: "provider-1" }) });
+
+    expect(mocks.prisma.userIdentityGroup.findMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        externalGroupId: "External_Viewers"
+      },
+      select: {
+        userId: true,
+        providerId: true
+      }
+    });
+    expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "user-1",
+        workspaceId: "workspace-1",
+        OR: [
+          { sourceOfTruthProviderId: "provider-1" },
+          {
+            externalIdentities: {
+              some: { providerId: "provider-1" }
+            }
+          }
+        ]
+      },
+      data: expect.objectContaining({
+        role: "VIEWER",
+        sourceOfTruthProviderId: "provider-1"
+      })
     });
   });
 });

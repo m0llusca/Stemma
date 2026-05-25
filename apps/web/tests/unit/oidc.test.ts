@@ -182,6 +182,37 @@ describe("OIDC helpers", () => {
     ).resolves.toMatchObject({ iss: "https://login.microsoftonline.com/tenant-1/v2.0" });
   });
 
+  it("requires azp to match clientId when an ID token has multiple audiences", async () => {
+    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const jwk = publicKey.export({ format: "jwk" });
+    const now = Math.floor(Date.now() / 1000);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ keys: [{ ...jwk, kid: "kid-1", alg: "RS256", use: "sig" }] })));
+    const provider = {
+      type: "OIDC" as const,
+      clientId: "client-1",
+      issuer: "https://issuer.example.com",
+      tenantId: null,
+      jwksUrl: "https://issuer.example.com/keys",
+      authorizationUrl: "https://issuer.example.com/auth",
+      tokenUrl: "https://issuer.example.com/token",
+      scopes: "openid profile email"
+    };
+    const claims = {
+      iss: "https://issuer.example.com",
+      aud: ["client-1", "resource-api"],
+      exp: now + 300,
+      sub: "subject-1",
+      nonce: "nonce-1"
+    };
+    const tokenWithoutAzp = signJwt({ kid: "kid-1", privateKey, claims });
+    const tokenWithAzp = signJwt({ kid: "kid-1", privateKey, claims: { ...claims, azp: "client-1" } });
+
+    await expect(validateIdToken({ idToken: tokenWithoutAzp, provider, nonce: "nonce-1" })).rejects.toThrow(/azp/);
+    await expect(validateIdToken({ idToken: tokenWithAzp, provider, nonce: "nonce-1" })).resolves.toMatchObject({
+      sub: "subject-1"
+    });
+  });
+
   it("fails closed when a generic OIDC provider has no configured issuer", async () => {
     const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
     const jwk = publicKey.export({ format: "jwk" });

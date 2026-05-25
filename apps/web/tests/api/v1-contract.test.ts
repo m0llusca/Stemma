@@ -10,9 +10,22 @@ const mocks = vi.hoisted(() => ({
     apiRateLimit: {
       upsert: vi.fn()
     },
+    idempotencyKey: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn()
+    },
+    $transaction: vi.fn(),
     conversation: {
+      upsert: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn()
+    },
+    message: {
+      upsert: vi.fn()
+    },
+    samplingRule: {
+      findMany: vi.fn()
     },
     review: {
       findMany: vi.fn(),
@@ -28,10 +41,45 @@ vi.mock("@/lib/db", () => ({
 function v1Request(path: string) {
   return new NextRequest(`http://localhost${path}`, {
     headers: {
-      authorization: "Bearer qa_demo_dev_token",
+      authorization: "Bearer qa_test_token",
       "x-request-id": "req-v1-1"
     }
   });
+}
+
+function v1JsonRequest(path: string, body: unknown, headers: HeadersInit = {}) {
+  return new NextRequest(`http://localhost${path}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: {
+      authorization: "Bearer qa_test_token",
+      "content-type": "application/json",
+      "x-request-id": "req-v1-1",
+      ...headers
+    }
+  });
+}
+
+const conversationPayload = {
+  externalSource: "custom_api",
+  externalId: "conv-123",
+  channel: "chat",
+  subject: "Refund request",
+  status: "closed",
+  tags: [],
+  customerName: "Ava Customer",
+  samplingReason: "High-value customer",
+  openedAt: "2026-04-25T10:00:00.000Z",
+  messages: []
+};
+
+async function requestHashFor(body: unknown) {
+  const [{ customConversationSchema }, { hashRequestBody }] = await Promise.all([
+    import("@/lib/validation/custom-api"),
+    import("@/lib/api/idempotency")
+  ]);
+
+  return hashRequestBody(customConversationSchema.parse(body));
 }
 
 describe("public v1 API contract", () => {
@@ -47,6 +95,21 @@ describe("public v1 API contract", () => {
     mocks.prisma.apiRateLimit.upsert.mockResolvedValue({
       requestCount: 1
     });
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValue(null);
+    mocks.prisma.idempotencyKey.create.mockResolvedValue({
+      id: "idem-1",
+      status: "IN_PROGRESS",
+      requestHash: "new-request-hash",
+      method: "POST",
+      path: "/api/v1/conversations",
+      responseStatus: null,
+      responseBodyJson: null
+    });
+    mocks.prisma.idempotencyKey.update.mockResolvedValue({});
+    mocks.prisma.samplingRule.findMany.mockResolvedValue([]);
+    mocks.prisma.conversation.upsert.mockResolvedValue({ id: "conv-db-1" });
+    mocks.prisma.message.upsert.mockResolvedValue({ id: "msg-db-1" });
+    mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
   });
 
   it("wraps empty conversation lists with pagination metadata and rate-limit headers", async () => {
@@ -74,6 +137,134 @@ describe("public v1 API contract", () => {
     expect(response.headers.get("x-request-id")).toBe("req-v1-1");
     expect(response.headers.get("x-ratelimit-limit")).toBe("120");
     expect(response.headers.get("x-ratelimit-remaining")).toBe("119");
+  });
+
+  it("returns a 409 conflict instead of processing an in-progress idempotency key with the same request hash", async () => {
+    const { POST } = await import("@/app/api/v1/conversations/route");
+    const requestHash = await requestHashFor(conversationPayload);
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValue({
+      id: "idem-1",
+      status: "IN_PROGRESS",
+      requestHash,
+      method: "POST",
+      path: "/api/v1/conversations",
+      responseStatus: null,
+      responseBodyJson: null
+    });
+
+    const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "conflict",
+        requestId: "req-v1-1"
+      }
+    });
+    expect(response.status).toBe(409);
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.idempotencyKey.create).not.toHaveBeenCalled();
+  });
+
+  it("replays a completed idempotency key with the same request hash", async () => {
+    const { POST } = await import("@/app/api/v1/conversations/route");
+    const requestHash = await requestHashFor(conversationPayload);
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValue({
+      id: "idem-1",
+      status: "COMPLETED",
+      requestHash,
+      method: "POST",
+      path: "/api/v1/conversations",
+      responseStatus: 201,
+      responseBodyJson: JSON.stringify({ id: "conv-db-existing" })
+    });
+
+    const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
+
+    await expect(response.json()).resolves.toEqual({
+      data: { id: "conv-db-existing" },
+      requestId: "req-v1-1"
+    });
+    expect(response.status).toBe(201);
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.idempotencyKey.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reused idempotency key with a different request payload", async () => {
+    const { POST } = await import("@/app/api/v1/conversations/route");
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValue({
+      id: "idem-1",
+      status: "COMPLETED",
+      requestHash: "different-request-hash",
+      method: "POST",
+      path: "/api/v1/conversations",
+      responseStatus: 201,
+      responseBodyJson: JSON.stringify({ id: "conv-db-existing" })
+    });
+
+    const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "conflict",
+        requestId: "req-v1-1"
+      }
+    });
+    expect(response.status).toBe(409);
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.idempotencyKey.create).not.toHaveBeenCalled();
+  });
+
+  it("re-reads an idempotency reservation after a unique create race and returns the in-progress conflict", async () => {
+    const { POST } = await import("@/app/api/v1/conversations/route");
+    const requestHash = await requestHashFor(conversationPayload);
+    mocks.prisma.idempotencyKey.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: "idem-1",
+      status: "IN_PROGRESS",
+      requestHash,
+      method: "POST",
+      path: "/api/v1/conversations",
+      responseStatus: null,
+      responseBodyJson: null
+    });
+    mocks.prisma.idempotencyKey.create.mockRejectedValueOnce({
+      code: "P2002",
+      meta: { target: ["workspaceId", "key"] }
+    });
+
+    const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "conflict",
+        requestId: "req-v1-1"
+      }
+    });
+    expect(response.status).toBe(409);
+    expect(mocks.prisma.idempotencyKey.findUnique).toHaveBeenCalledTimes(2);
+    expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
+  });
+
+  it("marks a newly reserved idempotency key as failed when processing returns a 500", async () => {
+    const { POST } = await import("@/app/api/v1/conversations/route");
+    mocks.prisma.conversation.upsert.mockRejectedValue(new Error("database unavailable"));
+
+    const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "internal_error",
+        requestId: "req-v1-1"
+      }
+    });
+    expect(response.status).toBe(500);
+    expect(mocks.prisma.idempotencyKey.update).toHaveBeenCalledWith({
+      where: { id: "idem-1" },
+      data: {
+        responseStatus: 500,
+        responseBodyJson: JSON.stringify({ error: "internal_error" }),
+        status: "FAILED"
+      }
+    });
   });
 
   it("returns structured errors for invalid review filters", async () => {

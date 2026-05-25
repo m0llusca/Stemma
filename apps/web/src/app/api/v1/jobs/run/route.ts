@@ -28,7 +28,10 @@ export async function POST(request: Request) {
     return apiError("bad_request", "Некорректные параметры запуска очереди.", 400, requestId, parsed.error.flatten());
   }
 
-  const results = await runDueBackendJobs(parsed.data);
+  const results = await runDueBackendJobs({
+    ...parsed.data,
+    workspaceId: user.workspaceId
+  });
   logBackendEvent({
     requestId,
     event: "backend_jobs.run_requested",

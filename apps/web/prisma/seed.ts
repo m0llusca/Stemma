@@ -8,6 +8,10 @@ function hashApiToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
+function isDemoAuthEnabled() {
+  return process.env.QC_DEMO_AUTH === "enabled";
+}
+
 async function main() {
   await prisma.auditLog.deleteMany();
   await prisma.reportSnapshot.deleteMany();
@@ -817,15 +821,17 @@ async function main() {
     }
   });
 
-  const apiToken = await prisma.apiToken.create({
-    data: {
-      workspaceId: workspace.id,
-      name: "Локальный dev API",
-      tokenPrefix: `${demoApiToken.slice(0, 7)}...`,
-      tokenHash: hashApiToken(demoApiToken),
-      scopes: "all"
-    }
-  });
+  const apiToken = isDemoAuthEnabled()
+    ? await prisma.apiToken.create({
+        data: {
+          workspaceId: workspace.id,
+          name: "Локальный dev API",
+          tokenPrefix: `${demoApiToken.slice(0, 7)}...`,
+          tokenHash: hashApiToken(demoApiToken),
+          scopes: "all"
+        }
+      })
+    : null;
 
   await prisma.auditLog.create({
     data: {
@@ -840,7 +846,7 @@ async function main() {
         supportAgentId: supportAgent.id,
         scorecardId: scorecard.id,
         conversationId: conversation.id,
-        apiTokenId: apiToken.id,
+        apiTokenId: apiToken?.id ?? null,
         calibrationSessionId: calibrationSession.id
       })
     }

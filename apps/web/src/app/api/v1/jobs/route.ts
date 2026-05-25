@@ -4,6 +4,7 @@ import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { enqueueBackendJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,40 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return apiError("bad_request", "Некорректные параметры фоновой задачи.", 400, requestId, parsed.error.flatten());
+  }
+
+  if (parsed.data.type === "INTEGRATION_IMPORT") {
+    const integrationId = typeof parsed.data.payload?.integrationId === "string" ? parsed.data.payload.integrationId : null;
+
+    if (!integrationId) {
+      return apiError("bad_request", "Для задачи импорта не указан integrationId.", 400, requestId);
+    }
+
+    const integration = await prisma.integration.findFirst({
+      where: {
+        id: integrationId,
+        workspaceId: user.workspaceId
+      },
+      select: {
+        source: true,
+        type: true
+      }
+    });
+
+    if (!integration) {
+      return apiError("not_found", "Интеграция не найдена.", 404, requestId);
+    }
+
+    try {
+      assertIntegrationSourceContractSupported(integration);
+    } catch (error) {
+      return apiError(
+        "conflict",
+        error instanceof Error ? error.message : "Интеграция не соответствует контракту источника.",
+        409,
+        requestId
+      );
+    }
   }
 
   const job = await prisma.$transaction(async (tx) => {

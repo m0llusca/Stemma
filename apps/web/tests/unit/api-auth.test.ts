@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireApiToken } from "@/lib/api-auth";
+import { demoApiToken } from "@/lib/custom-api-docs";
 
 const mocks = vi.hoisted(() => ({
   prisma: {
@@ -21,6 +22,7 @@ function request(headers: HeadersInit = {}) {
 describe("api token auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("keeps the legacy unauthorized error body by default", async () => {
@@ -73,5 +75,34 @@ describe("api token auth", () => {
       where: { id: "token-1" },
       data: { lastUsedAt: expect.any(Date) }
     });
+  });
+
+  it("rejects the source-known demo API token when demo auth is disabled", async () => {
+    vi.stubEnv("QC_DEMO_AUTH", "disabled");
+    mocks.prisma.apiToken.findUnique.mockResolvedValue({
+      id: "demo-token",
+      workspaceId: "workspace-1",
+      scopes: "all",
+      expiresAt: null
+    });
+
+    const auth = await requireApiToken(request({ authorization: `Bearer ${demoApiToken}` }), "reviews:read", {
+      structuredErrors: true
+    });
+
+    expect(auth.ok).toBe(false);
+
+    if (!auth.ok) {
+      await expect(auth.response.json()).resolves.toEqual({
+        error: {
+          code: "unauthorized",
+          message: "API token is invalid or expired.",
+          details: null,
+          requestId: expect.any(String)
+        }
+      });
+      expect(auth.response.status).toBe(401);
+    }
+    expect(mocks.prisma.apiToken.update).not.toHaveBeenCalled();
   });
 });

@@ -4,11 +4,12 @@ import { Prisma, type IdentityProviderType, type RoleName } from "@prisma/client
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
-import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { assertProviderEndpointUrls, assertSafeProviderConfig } from "@/lib/auth/provider-config-validation";
+import { refreshIdentityPoliciesForExternalGroup } from "@/lib/auth/providers";
 import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps";
 import { assertProductionSecretReference, validateOidcProviderConfigForSave } from "@/lib/auth/oidc";
 import { validateSamlProviderConfigForSave } from "@/lib/auth/saml";
+import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 const providerTypes = ["MICROSOFT_ENTRA_ID", "ACTIVE_DIRECTORY_LDAPS", "OIDC", "SAML"] as const satisfies readonly IdentityProviderType[];
@@ -264,7 +265,7 @@ export async function saveGroupRoleMapping(formData: FormData) {
             id: mappingId,
             workspaceId: user.workspaceId
           },
-          select: { id: true }
+          select: { id: true, providerId: true, externalGroupId: true }
         })
       : null;
 
@@ -360,6 +361,29 @@ export async function saveGroupRoleMapping(formData: FormData) {
       tx
     );
 
+    await refreshIdentityPoliciesForExternalGroup(
+      {
+        workspaceId: user.workspaceId,
+        providerId: result.providerId,
+        externalGroupId: result.externalGroupId
+      },
+      tx
+    );
+
+    if (
+      existingMapping &&
+      (existingMapping.providerId !== result.providerId || existingMapping.externalGroupId !== result.externalGroupId)
+    ) {
+      await refreshIdentityPoliciesForExternalGroup(
+        {
+          workspaceId: user.workspaceId,
+          providerId: existingMapping.providerId,
+          externalGroupId: existingMapping.externalGroupId
+        },
+        tx
+      );
+    }
+
     return result;
     });
   }
@@ -412,6 +436,15 @@ export async function toggleGroupRoleMapping(formData: FormData) {
           role: updated.role,
           isActive
         }
+      },
+      tx
+    );
+
+    await refreshIdentityPoliciesForExternalGroup(
+      {
+        workspaceId: user.workspaceId,
+        providerId: updated.providerId,
+        externalGroupId: updated.externalGroupId
       },
       tx
     );

@@ -197,6 +197,35 @@ describe("integration connector run ledger", () => {
     expect(client.integration.updateMany).not.toHaveBeenCalled();
   });
 
+  it("rejects unsupported source-contract integration jobs before fetching connector data", async () => {
+    const client = fakeClient();
+    client.integration.findFirst.mockResolvedValue(
+      integration({
+        source: "salesforce",
+        displayName: "Salesforce",
+        type: "enterprise",
+        baseUrl: "https://example.my.salesforce.com"
+      })
+    );
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const { runIntegrationConnector } = await import("@/lib/integrations/runner");
+
+    await expect(
+      runIntegrationConnector({
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        dryRun: false,
+        client: client as never
+      })
+    ).rejects.toThrow("Корпоративные источники требуют защищенной настройки OAuth-доступов.");
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(client.integrationRun.update).not.toHaveBeenCalled();
+    expect(client.integration.updateMany).not.toHaveBeenCalled();
+  });
+
   it("routes native helpdesk runs through the adapter service without inline fetches", async () => {
     const client = fakeClient();
     client.integration.findFirst.mockResolvedValue(
@@ -355,5 +384,42 @@ describe("integration connector run ledger", () => {
     });
     expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
     expect(mocks.prisma.integrationRunItem.create).not.toHaveBeenCalled();
+  });
+
+  it("runs a connector write guard inside the transaction before ledger side effects", async () => {
+    const events: string[] = [];
+    const tx = fakeClient();
+    tx.conversation.upsert.mockImplementation(async () => {
+      events.push("conversation-write");
+      return { id: "conversation-1" };
+    });
+    mocks.prisma.integration.findFirst.mockResolvedValue(integration());
+    mocks.prisma.$transaction.mockImplementation(async (callback) => {
+      events.push("transaction");
+      return callback(tx);
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => {
+        events.push("fetch");
+        return new Response(JSON.stringify(connectorPayload()), { status: 200 });
+      })
+    );
+    const beforeWrite = vi.fn(async (client) => {
+      expect(client).toBe(tx);
+      events.push("guard");
+    });
+    const { runIntegrationConnector } = await import("@/lib/integrations/runner");
+
+    await runIntegrationConnector({
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      dryRun: false,
+      beforeWrite
+    });
+
+    expect(events).toEqual(["fetch", "transaction", "guard", "conversation-write"]);
+    expect(beforeWrite).toHaveBeenCalledTimes(1);
   });
 });
