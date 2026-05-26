@@ -35,16 +35,16 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByText(/завершено/i).first()).toBeVisible();
 
   await page.getByLabel("Поиск").fill("Мила");
-  await page.getByRole("button", { name: "Применить" }).click();
+  await page.waitForURL((url) => url.searchParams.get("q") === "Мила");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
 
   await page.getByLabel("Поиск").fill("несуществующий клиент");
-  await page.getByRole("button", { name: "Применить" }).click();
+  await page.waitForURL((url) => url.searchParams.get("q") === "несуществующий клиент");
   await expect(page.getByRole("heading", { name: "Очередь пуста" })).toBeVisible({ timeout: 10_000 });
 
   await page.goto("/reviews");
   await page.getByLabel("Статус проверки").selectOption("unreviewed");
-  await page.getByRole("button", { name: "Применить" }).click();
+  await page.waitForURL((url) => url.searchParams.get("status") === "unreviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
 
   await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
@@ -108,11 +108,11 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Как считать оценку в баллах?" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Что требует внимания" })).toBeVisible();
+  await expect(page.getByText("Источник с худшей оценкой")).toBeVisible();
   await page.getByRole("link", { name: /Исполнение/ }).click();
   await expect(page.getByRole("heading", { name: "По источникам" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "По операторам" })).toBeVisible();
-  await page.getByRole("link", { name: /Процесс/ }).click();
+  await page.getByRole("link", { name: /^Процесс\s+\d+$/ }).click();
   await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
   await page.getByRole("link", { name: /Разрезы/ }).click();
   await expect(page.getByRole("heading", { name: "Источники" })).toBeVisible();
@@ -131,7 +131,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/self-review");
   await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Проверки к ознакомлению" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Требуют ответа" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "История" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Учебные задачи" })).toBeVisible();
 
   await page.goto("/admin/tokens");

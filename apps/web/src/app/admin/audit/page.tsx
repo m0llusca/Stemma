@@ -1,5 +1,6 @@
 import { Filter, KeyRound } from "lucide-react";
 import Link from "next/link";
+import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
@@ -376,7 +377,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               <p className="ops-panel__subtitle">Фильтр применяется к списку событий и сбрасывает страницу на первую.</p>
             </div>
           </div>
-          <form action="/admin/audit" className="ops-form-grid p-5">
+          <AutoSubmitFilterForm action="/admin/audit" className="ops-form-grid p-5">
             <input type="hidden" name="section" value="events" />
             <input type="hidden" name="page" value="1" />
             <label className="grid gap-1 text-sm font-medium text-[#334155]">
@@ -409,12 +410,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               По дату
               <input type="date" name="end" defaultValue={dateInputValue(end)} className="form-control" />
             </label>
-            <div className="ops-form-grid__wide flex justify-end">
-              <button type="submit" className="action-button action-button--primary">
-                Применить
-              </button>
-            </div>
-          </form>
+          </AutoSubmitFilterForm>
         </section>
       ) : null}
 

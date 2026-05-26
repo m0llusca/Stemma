@@ -93,22 +93,41 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
   const selectedExpectedCount = selectedItemCount * selectedParticipantCount;
   const selectedProgress = selectedExpectedCount > 0 ? Math.round((selectedCompletedCount / selectedExpectedCount) * 100) : 0;
   const selectedWaitingCount = Math.max(selectedExpectedCount - selectedCompletedCount, 0);
-  const selectedDisagreementCount =
-    selectedSession?.items.filter((item) => {
+  const activeSessionCount = sessions.filter((session) => session.status === "active" || session.status === "draft").length;
+  const selectedItemStates =
+    selectedSession?.items.map((item) => {
+      const baselineReview =
+        item.conversation.reviews.find((review) => review.id === item.baselineReviewId) ??
+        item.conversation.reviews.find((review) => review.reviewSource === "HUMAN" && review.status === "FINALIZED");
       const reviews = item.conversation.reviews.filter(
         (review) =>
           review.reviewSource === "CALIBRATION" &&
           review.status === "FINALIZED" &&
           selectedSession.participants.some((participant) => participant.userId === review.reviewerId)
       );
-      const spread = scoreSpread(reviews.map((review) => Math.round(review.totalScore)));
+      const scores = reviews.map((review) => Math.round(review.totalScore));
+      const spread = scoreSpread(scores);
+      const missingParticipants = selectedSession.participants.filter(
+        (participant) => !reviews.some((review) => review.reviewerId === participant.userId)
+      );
 
-      return spread != null && spread > 10;
-    }).length ?? 0;
+      return {
+        item,
+        baselineReview,
+        reviews,
+        spread,
+        missingParticipants
+      };
+    }) ?? [];
+  const selectedDisagreementCount = selectedItemStates.filter((state) => state.spread != null && state.spread > 10).length;
+  const selectedExceptions = selectedItemStates
+    .filter((state) => state.missingParticipants.length > 0 || (state.spread != null && state.spread > 10))
+    .sort((left, right) => (right.spread ?? 0) - (left.spread ?? 0) || right.missingParticipants.length - left.missingParticipants.length)
+    .slice(0, 3);
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center">
+      <div className="command-center command-center--split command-center--metrics calibration-command-center">
         <div className="min-w-0">
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Калибровка</h1>
@@ -116,10 +135,32 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило.
           </p>
         </div>
+        <div className="learning-metrics" aria-label="Сводка калибровок">
+          <div className="learning-metric">
+            <ClipboardCheck size={16} aria-hidden="true" />
+            <span>{activeSessionCount}</span>
+            <small>активных</small>
+          </div>
+          <div className="learning-metric">
+            <Gauge size={16} aria-hidden="true" />
+            <span>{selectedProgress}%</span>
+            <small>готовность</small>
+          </div>
+          <div className={`learning-metric ${selectedDisagreementCount > 0 ? "learning-metric--danger" : "learning-metric--success"}`}>
+            <TriangleAlert size={16} aria-hidden="true" />
+            <span>{selectedDisagreementCount}</span>
+            <small>расхождений</small>
+          </div>
+        </div>
       </div>
 
-      <details className="calibration-create-panel" open={openNewSession}>
-        <summary className="training-create-summary calibration-create-summary">
+      <details className="calibration-create-panel workflow-create-panel" open={openNewSession}>
+        <summary className="training-create-summary calibration-create-summary workflow-create-summary">
+          <span className="workflow-create-summary__text">
+            <span className="page-kicker">Сборка сессии</span>
+            <strong>Новая калибровка</strong>
+            <small>Выберите проверяющих и обращения из финальных проверок.</small>
+          </span>
           <span className="action-button action-button--primary training-create-summary__button calibration-create-summary__button">
             <PlusCircle size={18} aria-hidden="true" />
             Новая сессия
@@ -133,15 +174,15 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             </div>
           </div>
           <div className="calibration-create-shell">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
               Название
               <input name="name" required defaultValue="Калибровка недели" className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
               Срок
               <input name="dueAt" type="date" className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
               Заметки
               <textarea name="notes" rows={2} className="form-control" />
             </label>
@@ -149,7 +190,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
 
           <div className="calibration-create-columns">
             <fieldset className="form-stack">
-              <legend className="text-sm font-semibold text-[#334155]">Участники</legend>
+              <legend className="text-sm font-semibold text-[var(--foreground)]">Участники</legend>
               <div className="calibration-picker-grid">
                 {qaUsers.map((qaUser) => (
                   <label key={qaUser.id} className="compact-check-card">
@@ -161,7 +202,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
             </fieldset>
 
             <fieldset className="form-stack">
-              <legend className="text-sm font-semibold text-[#334155]">Обращения</legend>
+              <legend className="text-sm font-semibold text-[var(--foreground)]">Обращения</legend>
               <div className="calibration-picker-grid calibration-picker-grid--scroll">
                 {conversations.map((conversation) => (
                   <label key={conversation.id} className="compact-check-card compact-check-card--tall">
@@ -275,51 +316,90 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                 </div>
               </div>
 
-              <div className="calibration-attention-strip">
-                <div>
-                  <strong>{selectedWaitingCount}</strong>
-                  <span>оценок еще ждут участников</span>
+              <div className="calibration-exception-band">
+                <div className="calibration-exception-band__lead">
+                  <span className="page-kicker">Исключения</span>
+                  <strong>{selectedWaitingCount + selectedDisagreementCount}</strong>
+                  <small>ожидания и расхождения, которые мешают закрыть сессию</small>
                 </div>
-                <div>
-                  <strong>{selectedDisagreementCount}</strong>
-                  <span>обращений требуют общего решения по правилу</span>
+                <div className="calibration-exception-band__list">
+                  {selectedExceptions.length > 0 ? (
+                    selectedExceptions.map((state) => {
+                      const exceptionReason =
+                        state.spread != null && state.spread > 10
+                          ? "расхождение"
+                          : state.missingParticipants.length > 0
+                            ? "ждет оценку"
+                            : "проверить";
+
+                      return (
+                        <Link key={state.item.id} href={`/reviews/${state.item.conversationId}`} className="calibration-exception-card">
+                          <span>{state.item.conversation.externalId}</span>
+                          <strong>{exceptionReason}</strong>
+                          <small>
+                            {state.missingParticipants.length > 0
+                              ? `Ждут: ${state.missingParticipants.map((participant) => participant.user.name).join(", ")}`
+                              : "Нужно общее решение по правилу"}
+                          </small>
+                        </Link>
+                      );
+                    })
+                  ) : (
+                    <div className="calibration-exception-card calibration-exception-card--static">
+                      <span>Сессия ровная</span>
+                      <strong>0</strong>
+                      <small>Нет ожиданий и крупных расхождений</small>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="calibration-item-list">
-                {selectedSession.items.map((item) => {
-                  const baselineReview =
-                    item.conversation.reviews.find((review) => review.id === item.baselineReviewId) ??
-                    item.conversation.reviews.find((review) => review.reviewSource === "HUMAN" && review.status === "FINALIZED");
-                  const reviews = item.conversation.reviews.filter(
-                    (review) =>
-                      review.reviewSource === "CALIBRATION" &&
-                      review.status === "FINALIZED" &&
-                      selectedSession.participants.some((participant) => participant.userId === review.reviewerId)
-                  );
-                  const scores = reviews.map((review) => Math.round(review.totalScore));
-                  const spread = scoreSpread(scores);
+                {selectedItemStates.map(({ item, baselineReview, reviews, spread, missingParticipants }) => {
+                  const completedCount = reviews.length;
+                  const expectedCount = selectedSession.participants.length;
+                  const attention = spread != null && spread > 10;
+                  const waiting = missingParticipants.length > 0;
 
                   return (
-                    <article key={item.id} className="calibration-item-card">
+                    <article
+                      key={item.id}
+                      className={`calibration-item-card ${attention ? "calibration-item-card--attention" : ""} ${waiting ? "calibration-item-card--waiting" : ""}`}
+                    >
                       <div className="calibration-item-card__main">
-                        <Link href={`/reviews/${item.conversationId}`} className="record-title text-[#1d3fae] hover:underline">
+                        <Link href={`/reviews/${item.conversationId}`} className="record-title calibration-item-card__title">
                           {item.conversation.subject}
                         </Link>
-                        <p>
-                          Эталон: {baselineReview ? `${formatQualityScore(baselineReview.totalScore)} · ${baselineReview.reviewer.name}` : "нет финальной проверки"}
-                        </p>
-                        <div className="calibration-reviewers">
-                          {selectedSession.participants.map((participant) => {
-                            const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
-
-                            return (
-                              <span key={participant.id} className={`pill ${review ? "pill--ok" : "pill--neutral"}`}>
-                                {participant.user.name}: {review ? formatQualityScore(review.totalScore) : "ждет"}
-                              </span>
-                            );
-                          })}
+                        <div className="calibration-item-card__detail-row" aria-label="Состояние обращения в калибровке">
+                          <span>
+                            <strong>Эталон</strong>
+                            {baselineReview ? `${formatQualityScore(baselineReview.totalScore)} · ${baselineReview.reviewer.name}` : "нет финальной проверки"}
+                          </span>
+                          <span>
+                            <strong>Готово</strong>
+                            {completedCount}/{expectedCount}
+                          </span>
+                          {waiting ? (
+                            <span className="calibration-info-chip--warning">
+                              <strong>Ждут</strong>
+                              {missingParticipants.length}
+                            </span>
+                          ) : null}
                         </div>
+                        <details className="calibration-reviewer-details">
+                          <summary>Показать оценки участников</summary>
+                          <div className="calibration-reviewers">
+                            {selectedSession.participants.map((participant) => {
+                              const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
+
+                              return (
+                                <span key={participant.id} className={`pill ${review ? "pill--ok" : "pill--neutral"}`}>
+                                  {participant.user.name}: {review ? formatQualityScore(review.totalScore) : "ждет"}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </details>
                       </div>
                       <div className="calibration-item-card__aside">
                         <span className={`pill ${spread != null && spread > 10 ? "pill--warn" : "pill--neutral"}`}>

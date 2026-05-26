@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Calibration and Coaching Design Improve</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f5f7fa;
+        color: #111827;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 40px 24px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      section {
+        border: 1px solid #d8e0ea;
+        border-radius: 14px;
+        background: #ffffff;
+        padding: 22px;
+      }
+
+      section + section {
+        margin-top: 16px;
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 10px;
+      }
+
+      p,
+      li {
+        color: #475569;
+        line-height: 1.55;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        border: 1px solid #d8e0ea;
+        border-radius: 10px;
+        background: #ffffff;
+      }
+
+      @media (max-width: 760px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>Калибровки и обучение: улучшение интерфейса</h1>
+        <p>
+          Реализация убирает ощущение забытых разделов: оба экрана получили общую командную шапку, фокусные блоки,
+          спокойные формы создания и более плотные рабочие строки.
+        </p>
+      </section>
+
+      <section>
+        <h2>Что изменено</h2>
+        <ul>
+          <li>Калибровки: добавлена сводка в command center и переработаны строки обращений с чипами состояния.</li>
+          <li>Обучение: расширена сводка, фокусная зона теперь показывает сроки и связь с проверками.</li>
+          <li>Формы создания обеих сущностей оформлены как command panels, визуально привязанные к рабочему потоку.</li>
+          <li>CSS переведен на токены темы там, где раньше бросались в глаза старые жесткие цвета.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>До и после</h2>
+        <div class="grid">
+          <img src="references/calibration-current.png" alt="Calibration before" />
+          <img src="references/calibration-redesign.png" alt="Calibration after" />
+          <img src="references/coaching-current.png" alt="Coaching before" />
+          <img src="references/coaching-redesign.png" alt="Coaching after" />
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

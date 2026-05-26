@@ -1,4 +1,5 @@
-import { CheckCircle2, Clock3, Inbox, TriangleAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, Inbox, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
@@ -15,6 +16,49 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
   const data = await getReviewQueuePageData(await searchParams);
   const filteredCount = data.conversations.length;
   const { total, queued, inWork, reviewed, overdue } = data.summary;
+  const visibleCriticalCount = data.conversations.filter((conversation) =>
+    conversation.reviews.some((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN" && review.criticalError)
+  ).length;
+  const visibleReanswerCount = data.conversations.filter((conversation) =>
+    conversation.reviews.some((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN" && review.needsReanswer)
+  ).length;
+  const visibleUnassignedCount = data.conversations.filter(
+    (conversation) => conversation.qaStatus !== "FINALIZED" && !conversation.qaAssigneeName
+  ).length;
+  const reviewFocusItems = [
+    overdue > 0
+      ? {
+          href: "/reviews?due=overdue",
+          label: "Просроченные SLA",
+          value: overdue,
+          description: "Сначала закрыть или переназначить"
+        }
+      : null,
+    visibleCriticalCount > 0
+      ? {
+          href: "/reviews?process=critical",
+          label: "Критический риск",
+          value: visibleCriticalCount,
+          description: "Проверить переответ и обучение"
+        }
+      : null,
+    visibleUnassignedCount > 0
+      ? {
+          href: "/reviews?qaStatus=QUEUED",
+          label: "Без проверяющего",
+          value: visibleUnassignedCount,
+          description: "Назначить владельца проверки"
+        }
+      : null,
+    visibleReanswerCount > 0
+      ? {
+          href: "/reviews?process=reanswer",
+          label: "Нужен переответ",
+          value: visibleReanswerCount,
+          description: "Сверить текст до отправки"
+        }
+      : null
+  ].filter((item): item is { href: string; label: string; value: number; description: string } => Boolean(item)).slice(0, 3);
 
   return (
     <section className="page-shell workspace-shell">
@@ -49,6 +93,33 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           </div>
         </div>
       </div>
+
+      <section className="workflow-focus-strip" aria-label="Где смотреть в очереди сейчас">
+        <div className="workflow-focus-strip__lead">
+          <span className="page-kicker">Фокус очереди</span>
+          <strong>{reviewFocusItems.length > 0 ? "Есть действия на сейчас" : "Критичных действий нет"}</strong>
+          <small>{reviewFocusItems.length > 0 ? "Открывайте с самого жесткого SLA или риска." : "Можно разбирать очередь по обычному приоритету."}</small>
+        </div>
+        <div className="workflow-focus-strip__items">
+          {reviewFocusItems.length > 0 ? (
+            reviewFocusItems.map((item) => (
+              <Link key={item.href} href={item.href} className="workflow-focus-card">
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.description}</small>
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            ))
+          ) : (
+            <Link href="/reviews?status=unreviewed" className="workflow-focus-card">
+              <span>Следующая проверка</span>
+              <strong>{queued + inWork}</strong>
+              <small>Открыть незавершенные обращения</small>
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          )}
+        </div>
+      </section>
       <section className="queue-controls panel">
         <QueueSavedViews currentAssigneeName={data.currentAssigneeName} currentHref={data.currentHref} savedViews={data.savedViews} />
         <QueueFilters

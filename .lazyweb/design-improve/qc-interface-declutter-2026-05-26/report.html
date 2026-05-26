@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QC interface declutter - design improvement report</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --surface: #ffffff;
+        --surface-2: #eef3f8;
+        --text: #111827;
+        --muted: #5f6f85;
+        --line: #d8e0ea;
+        --line-strong: #b9c6d6;
+        --accent: #1f5eff;
+        --accent-soft: #e9f0ff;
+        --ok: #0f7b4f;
+        --warn: #a45b12;
+        --danger: #b42318;
+        --shadow: 0 18px 42px rgba(35, 47, 67, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .shell {
+        width: min(1280px, calc(100vw - 40px));
+        margin: 0 auto;
+        padding: 36px 0 56px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 24px;
+        align-items: stretch;
+        margin-bottom: 24px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .section,
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .hero-main {
+        padding: 28px;
+      }
+
+      .hero-side {
+        padding: 22px;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 880px;
+        margin-bottom: 14px;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-bottom: 12px;
+        font-size: 26px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 17px;
+        line-height: 1.25;
+      }
+
+      .lead {
+        max-width: 830px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .meta {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfdff;
+      }
+
+      .meta span,
+      .small-label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .meta strong {
+        display: block;
+        margin-top: 2px;
+        font-size: 15px;
+      }
+
+      .section {
+        margin-top: 18px;
+        padding: 24px;
+      }
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+
+      .section-header p {
+        max-width: 820px;
+        margin-bottom: 0;
+        color: var(--muted);
+      }
+
+      .badge {
+        display: inline-flex;
+        min-height: 28px;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fbfdff;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .badge-blue {
+        border-color: #bcd0ff;
+        background: var(--accent-soft);
+        color: #1847be;
+      }
+
+      .grid-2,
+      .grid-3 {
+        display: grid;
+        gap: 14px;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .card {
+        padding: 16px;
+        box-shadow: none;
+      }
+
+      .card p {
+        color: var(--muted);
+      }
+
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+
+      .finding {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .finding:first-child {
+        border-top: 0;
+      }
+
+      .index {
+        display: inline-flex;
+        width: 30px;
+        height: 30px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: var(--accent-soft);
+        color: #1747bc;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .rule {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(300px, 1.05fr);
+        gap: 16px;
+        padding: 18px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .rule:first-of-type {
+        border-top: 0;
+      }
+
+      .rule ul,
+      .section ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+      }
+
+      .rule li,
+      .section li {
+        margin: 6px 0;
+      }
+
+      .diagram {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f9fbff;
+        color: #26364a;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .image-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      figure {
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      figure img {
+        display: block;
+        width: 100%;
+        height: 260px;
+        object-fit: cover;
+        object-position: top left;
+        border-bottom: 1px solid var(--line);
+      }
+
+      figcaption {
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f2f6fb;
+        color: #314158;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .status-ok {
+        color: var(--ok);
+        font-weight: 700;
+      }
+
+      .status-warn {
+        color: var(--warn);
+        font-weight: 700;
+      }
+
+      .status-danger {
+        color: var(--danger);
+        font-weight: 700;
+      }
+
+      .references {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .reference-card img {
+        height: 190px;
+      }
+
+      .footer-note {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        .hero,
+        .rule,
+        .grid-2,
+        .grid-3,
+        .image-grid,
+        .references {
+          grid-template-columns: 1fr;
+        }
+
+        .shell {
+          width: min(100vw - 24px, 760px);
+          padding-top: 18px;
+        }
+
+        .meta-grid {
+          grid-template-columns: 1fr;
+        }
+
+        figure img {
+          height: 220px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-main">
+          <p class="eyebrow">Design improvement report</p>
+          <h1>QC interface declutter without losing operational signal</h1>
+          <p class="lead">
+            Reading this as an enterprise QA operations console for QA leads, admins, analysts and agents. The visual language should stay restrained and dense, but every fact must have one clear owner so the same information is not repeated as a KPI, hint, chip, row fact and callout.
+          </p>
+          <div class="meta-grid">
+            <div class="meta">
+              <span>Design variance</span>
+              <strong>4 - preserve structure</strong>
+            </div>
+            <div class="meta">
+              <span>Motion intensity</span>
+              <strong>2 - static console</strong>
+            </div>
+            <div class="meta">
+              <span>Visual density</span>
+              <strong>7 - dense, lower noise</strong>
+            </div>
+          </div>
+        </div>
+        <aside class="hero-side">
+          <p class="eyebrow">Main diagnosis</p>
+          <h2>The problem is not too much data</h2>
+          <p>
+            The problem is that several layers answer the same question at once. A page subtitle explains current state, KPI cards quantify it, a focus strip repeats it as actions, rows repeat it as chips, and panel helpers explain it again.
+          </p>
+          <p>
+            The fix is a semantic page contract: one place for scope, one place for aggregate facts, one place for next actions, one place for row decisions, one place for entity metadata.
+          </p>
+        </aside>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Current screenshots</p>
+            <h2>Where overload currently appears</h2>
+            <p>
+              Screens were captured from the local demo interface on May 26, 2026. The current visual system is coherent, but the information architecture now needs stricter ownership rules.
+            </p>
+          </div>
+          <span class="badge badge-blue">local app</span>
+        </div>
+        <div class="image-grid">
+          <figure>
+            <img src="references/current.png" alt="Current review queue screenshot" />
+            <figcaption>Reviews: page metrics, focus cards, row status, facts, signals and action compete for first scan.</figcaption>
+          </figure>
+          <figure>
+            <img src="references/current-reports.png" alt="Current reports screenshot" />
+            <figcaption>Reports: insight summary, primary score, metric helpers and focus panel overlap in the answer they give.</figcaption>
+          </figure>
+          <figure>
+            <img src="references/current-admin.png" alt="Current admin screenshot" />
+            <figcaption>Admin: navigation cards, quick actions and attention items mix destination, status and remediation.</figcaption>
+          </figure>
+          <figure>
+            <img src="references/current-calibration.png" alt="Current calibration screenshot" />
+            <figcaption>Calibration: session facts, exceptions and participant details are all visible at once.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Audit synthesis</p>
+            <h2>What to reduce first</h2>
+            <p>
+              Three read-only audits converged on the same pattern: the interface needs fewer formats for the same fact, not fewer operational facts.
+            </p>
+          </div>
+          <span class="badge">subagent audit</span>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Duplicate fact layers</h3>
+            <p>Header metrics, focus cards, section subtitles and row chips often restate the same queue, risk or readiness facts.</p>
+          </div>
+          <div class="card">
+            <h3>Clickable cards that do not change context</h3>
+            <p>Some focus cards look like filters but link back to the same unfiltered route. They should either filter the list or become static status.</p>
+          </div>
+          <div class="card">
+            <h3>Too many severity encodings</h3>
+            <p>Rows can use tint, stripe, chip, SLA tile and signal badges together. Keep one dominant severity marker and reserve badges for exceptions.</p>
+          </div>
+          <div class="card">
+            <h3>Panel grammar drift</h3>
+            <p>Admin, reports, integrations and workflow pages use similar panels with different header shapes, action slots and helper copy rules.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">References</p>
+            <h2>Patterns worth adapting</h2>
+            <p>
+              These are not templates to copy. The useful pattern is how they assign navigation, status, filters and analytics to separate layers.
+            </p>
+          </div>
+          <span class="badge">Lazyweb + web</span>
+        </div>
+        <div class="references">
+          <figure class="reference-card">
+            <img src="references/lazyweb-intryc-qa-admin.png" alt="Intryc QA admin dashboard reference" />
+            <figcaption>
+              Lazyweb reference: Intryc QA admin, useful for separating QA process management from queue scanning. Source:
+              <a href="https://www.intryc.com/product/qa-admin">intryc.com/product/qa-admin</a>
+            </figcaption>
+          </figure>
+          <figure class="reference-card">
+            <img src="references/lazyweb-intercom-reporting.png" alt="Intercom reporting dashboard reference" />
+            <figcaption>
+              Lazyweb reference: Intercom reporting, useful for prebuilt report hierarchy and chart-as-evidence structure. Source:
+              <a href="https://www.intercom.com/helpdesk/reporting">intercom.com/helpdesk/reporting</a>
+            </figcaption>
+          </figure>
+          <figure class="reference-card">
+            <img src="references/lazyweb-attackiq-command-center.png" alt="AttackIQ command center dashboard reference" />
+            <figcaption>
+              Lazyweb reference: AttackIQ command center, useful for command-center status surfaces and scenario monitoring.
+            </figcaption>
+          </figure>
+          <figure class="reference-card">
+            <img src="references/live-intryc-qa-admin.png" alt="Live Intryc QA admin page screenshot" />
+            <figcaption>Live web capture: QA admin product page, mainly useful for the idea of QA process setup as its own workspace.</figcaption>
+          </figure>
+          <figure class="reference-card">
+            <img src="references/live-intercom-reporting.png" alt="Live Intercom reporting page screenshot" />
+            <figcaption>Live web capture: reporting narrative around prebuilt reports and layouts.</figcaption>
+          </figure>
+          <figure class="reference-card">
+            <img src="references/live-sentry-issues-doc.png" alt="Sentry issues documentation screenshot" />
+            <figcaption>
+              Web reference: Sentry issues emphasize filtering and triage state as primary tools. Source:
+              <a href="https://docs.sentry.dev/product/issues/">docs.sentry.dev/product/issues</a>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Core contract</p>
+            <h2>One owner per fact</h2>
+            <p>
+              This should become the product rule for every page. It keeps density high while removing repeated evidence.
+            </p>
+          </div>
+          <span class="badge badge-blue">recommended</span>
+        </div>
+
+        <div class="rule">
+          <div>
+            <h3>1. PageCommand owns scope and primary actions only</h3>
+            <p>
+              The page header says where the user is, what scope they are viewing, and what primary command is available. It should not carry KPI counts already shown below.
+            </p>
+            <ul>
+              <li>Keep: title, role/scope, primary actions.</li>
+              <li>Remove: current totals, readiness claims, long workflow explanations.</li>
+            </ul>
+          </div>
+          <pre class="diagram">PageCommand
+  title: "Очередь проверок"
+  scope: "Период: май, все источники"
+  actions: [Обновить] [Экспортировать]
+
+No counts here if PageKpiGrid already owns them.</pre>
+        </div>
+
+        <div class="rule">
+          <div>
+            <h3>2. PageKpiGrid owns aggregate truth</h3>
+            <p>
+              Counts, averages, deltas, period totals and readiness totals live in one KPI grid. A helper can define denominator or caveat, but cannot paraphrase the label.
+            </p>
+            <ul>
+              <li>Max 3-5 KPI cards per page.</li>
+              <li>One primary metric if there is a clear leading question.</li>
+              <li>Never repeat a KPI value in a focus strip.</li>
+            </ul>
+          </div>
+          <pre class="diagram">PageKpiGrid
+  Average score: 91.4
+  Critical risk: 3
+  Overdue: 7
+  Unassigned: 4
+
+FocusStrip may say "Разобрать просроченные", not "7 просрочено" again.</pre>
+        </div>
+
+        <div class="rule">
+          <div>
+            <h3>3. ActionFocusStrip owns next action, not status</h3>
+            <p>
+              The focus strip should answer "where should I click now?" It should contain filtered links or remediation actions. If a card does not change state, it should not look actionable.
+            </p>
+            <ul>
+              <li>Action card: links to filtered queue or setup page.</li>
+              <li>Static note: notice styling, not a clickable card.</li>
+              <li>Max 3 items; more belongs in the list itself.</li>
+            </ul>
+          </div>
+          <pre class="diagram">ActionFocusStrip
+  [Просроченные проверки -> /reviews?due=overdue]
+  [Критический риск -> /reviews?risk=critical]
+  [Без QA -> /reviews?assignee=none]</pre>
+        </div>
+
+        <div class="rule">
+          <div>
+            <h3>4. EntityList owns selection, not all metadata</h3>
+            <p>
+              A row should help the user decide whether to open it. Detailed facts move to EntityDetail or an expanded row. This matters most in reviews, coaching, calibration, integrations and users.
+            </p>
+            <ul>
+              <li>Three scan anchors per row: identity, status/severity, score/action.</li>
+              <li>One dominant severity marker.</li>
+              <li>Metadata like source, reviewer, SLA and timestamps belongs in a fact grid.</li>
+            </ul>
+          </div>
+          <pre class="diagram">Row
+  Subject + customer
+  State: Просрочено
+  Score/risk + Open
+
+Expanded facts
+  SLA, source, channel, operator, reviewer, timestamps</pre>
+        </div>
+
+        <div class="rule">
+          <div>
+            <h3>5. Notice owns remediation and empty states</h3>
+            <p>
+              `soft-callout` is currently used for facts, metrics and guidance. Split it conceptually into FactItem and Notice.
+            </p>
+            <ul>
+              <li>FactItem: label/value metadata.</li>
+              <li>Notice: warning, empty state, setup required, small sample caveat.</li>
+              <li>HelpTooltip: formula or caveat only, not duplicated visible text.</li>
+            </ul>
+          </div>
+          <pre class="diagram">FactItem
+  Source: Zendesk
+  Last run: 26.05 10:12
+
+Notice
+  "Недостаточно данных для устойчивого тренда."</pre>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section map</p>
+            <h2>Concrete changes by section</h2>
+            <p>
+              This is the practical cleanup plan. It keeps all critical information, but assigns it to fewer, more predictable surfaces.
+            </p>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th>Keep Visible</th>
+              <th>Move Or Collapse</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Reviews</strong></td>
+              <td>Queue scope, 3-4 aggregate metrics, real filtered focus actions, lean row list.</td>
+              <td>Move client/operator/channel/source/reviewer/SLA facts into expanded detail or muted context line.</td>
+              <td>Reviewers choose rows faster when each row has three anchors instead of many competing chips.</td>
+            </tr>
+            <tr>
+              <td><strong>Review detail</strong></td>
+              <td>Conversation, score form, latest review state, history disclosure.</td>
+              <td>Reduce repeated summary text between disclosure header, body and form default value.</td>
+              <td>The page should focus on evaluation and evidence, not duplicate the same review narrative.</td>
+            </tr>
+            <tr>
+              <td><strong>Reports</strong></td>
+              <td>One executive insight, primary score, KPI grid, charts as evidence.</td>
+              <td>Merge FocusPanel guidance with InsightSummary; remove duplicate metric explanation from chart helpers.</td>
+              <td>Analytics should answer "what changed and where to inspect" once, then show evidence.</td>
+            </tr>
+            <tr>
+              <td><strong>Coaching</strong></td>
+              <td>Training queue, highest-priority assignment, due state, score/risk context.</td>
+              <td>Pin first task inside the list instead of separate panel plus repeated list item.</td>
+              <td>One task model is easier to scan and avoids "главное плюс остальные" duplication.</td>
+            </tr>
+            <tr>
+              <td><strong>Self-review</strong></td>
+              <td>Action-needed list and history list.</td>
+              <td>Make focus cards either filter action-needed items or become static counters.</td>
+              <td>Agents need a clean split between "answer now" and "read later".</td>
+            </tr>
+            <tr>
+              <td><strong>Calibration</strong></td>
+              <td>Session status, exception band, item rows with subject, spread, missing count, action.</td>
+              <td>Hide per-participant score pills until row expansion or selected detail.</td>
+              <td>The default view should surface disagreement, not every reviewer fact.</td>
+            </tr>
+            <tr>
+              <td><strong>Admin home</strong></td>
+              <td>Primary admin actions, one attention strip, stable section navigation.</td>
+              <td>Separate navigation cards from status/action cards; create one admin KPI registry.</td>
+              <td>Admin should read as a control console, not a set of cards that all try to be summaries.</td>
+            </tr>
+            <tr>
+              <td><strong>Users and roles</strong></td>
+              <td>User directory, role state, active sessions, create user action.</td>
+              <td>Move role-permission matrix into role detail or disclosure; avoid repeating team/access copy in subtitles.</td>
+              <td>Admins usually need to find and adjust a user first; permission education is secondary.</td>
+            </tr>
+            <tr>
+              <td><strong>Scorecards</strong></td>
+              <td>Active method, version action, criteria list when needed.</td>
+              <td>Collapse historical criteria details by default; keep weight/status visible only where comparing versions.</td>
+              <td>Method setup needs confidence in the active version, not all historical details at once.</td>
+            </tr>
+            <tr>
+              <td><strong>Integrations</strong></td>
+              <td>Source readiness, last diagnostic/run, required next setup action.</td>
+              <td>Put auth modes, certification gates, operation labels and raw payloads into detail/debug zones.</td>
+              <td>Integration pages mix operational readiness with implementation detail; separate them by audience.</td>
+            </tr>
+            <tr>
+              <td><strong>System, audit, sampling, appearance</strong></td>
+              <td>Current health, required action, recent activity or selected setting.</td>
+              <td>Move technical diagnostics and explanatory paragraphs behind disclosures; standardize empty/help taxonomy.</td>
+              <td>Admin utility pages should use the same control grammar as the rest of the console.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Implementation plan</p>
+            <h2>Safe order of work</h2>
+            <p>
+              This can be implemented without changing business logic or API contracts first. The first pass is mostly layout, copy ownership and component semantics.
+            </p>
+          </div>
+        </div>
+
+        <div class="finding">
+          <span class="index">1</span>
+          <div>
+            <h3>Define semantic component roles</h3>
+            <p>
+              Add or standardize `PageCommand`, `PageKpiGrid`, `ActionFocusStrip`, `PanelHeader`, `FactItem`, `Notice`, and a shared action vocabulary. Existing CSS can be mapped onto these roles.
+            </p>
+          </div>
+        </div>
+        <div class="finding">
+          <span class="index">2</span>
+          <div>
+            <h3>Remove duplicated page-level summaries</h3>
+            <p>
+              Start with Reports, Reviews, Coaching, Self-review and Admin. For each page, decide whether a fact lives in KPI, focus action, row, detail or notice. Delete the other appearances.
+            </p>
+          </div>
+        </div>
+        <div class="finding">
+          <span class="index">3</span>
+          <div>
+            <h3>Compress rows and move metadata into detail</h3>
+            <p>
+              Reviews, calibration, users, integrations and system jobs should default to lean rows. Use expanded rows or side/detail panels for rich fact grids.
+            </p>
+          </div>
+        </div>
+        <div class="finding">
+          <span class="index">4</span>
+          <div>
+            <h3>Normalize status and empty-state taxonomy</h3>
+            <p>
+              Use consistent buckets: no data yet, sample too small, setup required, warning, error, completed. This removes repeated explanatory paragraphs while preserving guidance.
+            </p>
+          </div>
+        </div>
+        <div class="finding">
+          <span class="index">5</span>
+          <div>
+            <h3>Verify with viewport screenshots and task flows</h3>
+            <p>
+              Check desktop and mobile screenshots for Reviews, Reports, Admin, Coaching, Self-review, Calibration and Integrations. Then run typecheck and relevant e2e flows.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Decision checklist</p>
+            <h2>How to know the cleanup worked</h2>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="status-ok">One page, one summary layer</h3>
+            <p>No page shows the same count in header, KPI, focus strip and section copy.</p>
+          </div>
+          <div class="card">
+            <h3 class="status-ok">Rows have three anchors</h3>
+            <p>Identity, status/severity and action/score are visible. Extra facts are available but not competing.</p>
+          </div>
+          <div class="card">
+            <h3 class="status-ok">All action cards change state</h3>
+            <p>If it looks clickable, it applies a filter, opens a detail, starts an action or navigates to setup.</p>
+          </div>
+          <div class="card">
+            <h3 class="status-ok">One severity marker per record</h3>
+            <p>Row tint, stripe, pill and icon are not stacked unless the row has a truly exceptional state.</p>
+          </div>
+          <div class="card">
+            <h3 class="status-ok">Panel headers are predictable</h3>
+            <p>Title, optional subtitle, optional status/action slot. Selected entity facts live in the body.</p>
+          </div>
+          <div class="card">
+            <h3 class="status-ok">Help text explains, not repeats</h3>
+            <p>Tooltips and subtitles provide formulas, caveats or remediation, not paraphrases of labels.</p>
+          </div>
+        </div>
+        <p class="footer-note">
+          External sources reviewed: <a href="https://www.intryc.com/product/qa-admin">Intryc QA Admin</a>,
+          <a href="https://www.intercom.com/helpdesk/reporting">Intercom Reporting</a>,
+          <a href="https://docs.sentry.dev/product/issues/">Sentry Issues</a>,
+          <a href="https://linear.app/docs/filters">Linear Filters</a>,
+          <a href="https://linear.app/docs/inbox">Linear Inbox</a>.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

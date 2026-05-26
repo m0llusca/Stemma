@@ -5,6 +5,7 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
 import { createKnowledgeEntry } from "@/lib/quality-actions";
+import { formatQualityScore } from "@/lib/score-display";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 
 export const dynamic = "force-dynamic";
@@ -90,18 +91,19 @@ export default async function CoachingPage() {
   const doneCount = assignments.filter((assignment) => assignment.status === "done").length;
   const overdueCount = assignments.filter((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)).length;
   const criticalKnowledgeCount = knowledgeEntries.filter((entry) => entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH").length;
+  const linkedAssignmentCount = assignments.filter((assignment) => assignment.reviewId).length;
   const nextAssignment =
     assignments.find((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)) ??
     assignments.find((assignment) => assignment.status !== "done");
-  const listedAssignments = nextAssignment
-    ? assignments.filter((assignment) => assignment.id !== nextAssignment.id)
+  const displayedAssignments = nextAssignment
+    ? [nextAssignment, ...assignments.filter((assignment) => assignment.id !== nextAssignment.id)]
     : assignments;
   const nextConversation = nextAssignment?.review?.conversation;
   const nextFinding = nextAssignment?.review?.findings[0];
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split command-center--metrics">
+      <div className="command-center command-center--split command-center--metrics coaching-command-center">
         <div className="min-w-0">
           <p className="page-kicker">Развитие качества</p>
           <h1 className="page-title">Обучение</h1>
@@ -115,58 +117,71 @@ export default async function CoachingPage() {
             <span>{openCount}</span>
             <small>в работе</small>
           </div>
-          <div className="learning-metric">
+          <div className={`learning-metric ${overdueCount > 0 ? "learning-metric--danger" : "learning-metric--success"}`}>
             <TriangleAlert size={16} aria-hidden="true" />
             <span>{overdueCount}</span>
             <small>просрочено</small>
           </div>
-          <div className="learning-metric">
+          <div className="learning-metric learning-metric--success">
             <CheckCircle2 size={16} aria-hidden="true" />
             <span>{doneCount}</span>
             <small>закрыто</small>
           </div>
+          <div className="learning-metric">
+            <BookOpenCheck size={16} aria-hidden="true" />
+            <span>{criticalKnowledgeCount}</span>
+            <small>важных правил</small>
+          </div>
         </div>
       </div>
 
-      {nextAssignment ? (
-        <section className={`learning-next-panel panel ${isOverdue(nextAssignment.dueAt, now) ? "learning-next-panel--urgent" : ""}`}>
-          <div className="learning-next-panel__main">
-            <p className="page-kicker">Следующий разбор</p>
-            <h2>{nextAssignment.title}</h2>
-            <p>{nextAssignment.description}</p>
-            <div className="learning-task__meta">
-              <span>{nextAssignment.assigneeName}</span>
-              <span>{dueText(nextAssignment.dueAt)}</span>
-              {nextConversation ? <span>{nextConversation.externalId}</span> : null}
-              {nextFinding ? <span>{nextFinding.category}</span> : null}
+      <section className="workflow-focus-strip" aria-label="Фокус обучения">
+        <div className="workflow-focus-strip__lead">
+          <span className="page-kicker">Что разобрать первым</span>
+          <strong>{nextAssignment ? nextAssignment.title : "Нет срочных разборов"}</strong>
+          <small>{nextAssignment ? `${nextAssignment.assigneeName} · ${dueText(nextAssignment.dueAt)}` : "Учебные задачи и база ошибок остаются ниже."}</small>
+        </div>
+        <div className="workflow-focus-strip__items">
+          {nextConversation ? (
+            <Link href={`/reviews/${nextConversation.id}`} className="workflow-focus-card">
+              <span>Открыть проверку</span>
+              <strong>{nextConversation.externalId}</strong>
+              <small>{nextFinding ? `${nextFinding.category} · ${riskLevelLabels[nextFinding.riskLevel]}` : "Связанная проверка"}</small>
+            </Link>
+          ) : (
+            <div className="workflow-focus-card workflow-focus-card--static">
+              <span>Фокус</span>
+              <strong>{openCount}</strong>
+              <small>Незакрытых учебных задач</small>
             </div>
+          )}
+          <div className={`workflow-focus-card workflow-focus-card--static ${overdueCount > 0 ? "workflow-focus-card--warning" : ""}`}>
+            <span>Сроки</span>
+            <strong>{overdueCount}</strong>
+            <small>{overdueCount > 0 ? "Просроченных разборов" : "Нет просроченных задач"}</small>
           </div>
-          <div className="learning-next-panel__actions">
-            {nextConversation ? (
-              <Link href={`/reviews/${nextConversation.id}`} className="action-button">
-                Открыть проверку
-              </Link>
-            ) : null}
-            <form action={updateTrainingAssignmentStatus}>
-              <input type="hidden" name="id" value={nextAssignment.id} />
-              <input type="hidden" name="status" value="done" />
-              <button type="submit" className="action-button action-button--primary">
-                Завершить разбор
-              </button>
-            </form>
+          <div className="workflow-focus-card workflow-focus-card--static">
+            <span>Связь с проверками</span>
+            <strong>{linkedAssignmentCount}</strong>
+            <small>Задач с контекстом тикета</small>
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
 
-      <details className="training-create-panel">
-        <summary className="training-create-summary">
+      <details className="training-create-panel workflow-create-panel">
+        <summary className="training-create-summary workflow-create-summary">
+          <span className="workflow-create-summary__text">
+            <span className="page-kicker">Назначение разбора</span>
+            <strong>Новая учебная задача</strong>
+            <small>Привяжите задачу к проверке, чтобы оператор сразу видел контекст ошибки.</small>
+          </span>
           <span className="action-button action-button--primary training-create-summary__button">
             <PlusCircle size={18} />
             Новая задача
           </span>
         </summary>
         <form action={createTrainingAssignment} className="training-create-form">
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
             Исполнитель
             <select name="assigneeId" required className="form-control">
               <option value="">Выберите оператора</option>
@@ -178,7 +193,7 @@ export default async function CoachingPage() {
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
             Проверка
             <select name="reviewId" className="form-control">
               <option value="">Без привязки</option>
@@ -189,15 +204,15 @@ export default async function CoachingPage() {
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
             Срок
             <input name="dueAt" type="date" className="form-control" />
           </label>
-          <label className="training-create-form__title grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="training-create-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
             Задача
             <input name="title" required placeholder="Например: разбор маршрутизации" className="form-control" />
           </label>
-          <label className="training-create-form__description grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
             Что разобрать
             <textarea
               name="description"
@@ -218,26 +233,31 @@ export default async function CoachingPage() {
           <div className="learning-section-header">
             <div className="min-w-0">
               <h2>Учебные задачи</h2>
-              <p>{nextAssignment ? "Остальные разборы без задачи, вынесенной выше." : "Разборы из проверок, переответов, апелляций и калибровок."}</p>
+              <p>Разборы из проверок, переответов, апелляций и калибровок.</p>
             </div>
-            <span className="pill pill--neutral">{listedAssignments.length}</span>
+            <span className="pill pill--neutral">{assignments.length}</span>
           </div>
 
           <div className="learning-task-list">
-            {listedAssignments.length > 0 ? (
-              listedAssignments.map((assignment) => {
+            {displayedAssignments.length > 0 ? (
+              displayedAssignments.map((assignment) => {
                 const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
                 const conversation = assignment.review?.conversation;
                 const finding = assignment.review?.findings[0];
+                const isPriority = nextAssignment?.id === assignment.id;
 
                 return (
-                  <article key={assignment.id} className={`learning-task ${overdue ? "learning-task--urgent" : ""}`}>
+                  <article
+                    key={assignment.id}
+                    className={`learning-task ${overdue ? "learning-task--urgent" : ""} ${isPriority ? "learning-task--priority" : ""}`}
+                  >
                     <div className="learning-task__marker" aria-hidden="true">
                       <BookOpenCheck size={17} />
                     </div>
                     <div className="learning-task__content">
                       <div className="learning-task__head">
                         <h3>{assignment.title}</h3>
+                        {isPriority ? <span className="pill pill--warn">Следующий разбор</span> : null}
                         <span className={`pill ${trainingStatusClassName(assignment.status)}`}>
                           {trainingStatusLabel(assignment.status)}
                         </span>
@@ -245,15 +265,17 @@ export default async function CoachingPage() {
                       <p className="learning-task__description">{assignment.description}</p>
                       <div className="learning-task__meta">
                         <span>{assignment.assigneeName}</span>
-                        <span className={overdue ? "text-[#b45309]" : ""}>{dueText(assignment.dueAt)}</span>
+                        <span className={overdue ? "learning-task__meta-chip--warning" : undefined}>{dueText(assignment.dueAt)}</span>
                         {conversation ? <span>{conversation.externalId}</span> : null}
-                        {finding ? <span>{finding.category}</span> : null}
+                        {finding ? <span>{finding.category} · {riskLevelLabels[finding.riskLevel]}</span> : null}
+                        {assignment.review ? <span>{formatQualityScore(assignment.review.totalScore)}</span> : null}
+                        {assignment.review?.needsReanswer ? <span>переответ</span> : null}
                       </div>
                     </div>
                     <div className="learning-task__actions">
                       {conversation ? (
                         <Link href={`/reviews/${conversation.id}`} className="action-button">
-                          Открыть проверку
+                          Открыть
                         </Link>
                       ) : null}
                       <form action={updateTrainingAssignmentStatus}>
@@ -269,12 +291,8 @@ export default async function CoachingPage() {
               })
             ) : (
               <div className="empty-state">
-                <h3>{nextAssignment ? "Других задач нет" : "Нет учебных задач"}</h3>
-                <p>
-                  {nextAssignment
-                    ? "Текущий приоритет вынесен выше, чтобы его не искать в списке."
-                    : "После проверки с замечанием здесь появится задача на разбор с оператором."}
-                </p>
+                <h3>Нет учебных задач</h3>
+                <p>После проверки с замечанием здесь появится задача на разбор с оператором.</p>
               </div>
             )}
           </div>
@@ -309,15 +327,15 @@ export default async function CoachingPage() {
               </span>
             </summary>
             <form action={createKnowledgeEntry} className="form-stack border-t border-[#d9e0ea] p-4">
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
                 Категория
                 <input name="category" required className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
                 Название
                 <input name="title" required className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
                 Риск
                 <select name="riskLevel" defaultValue="MEDIUM" className="form-control">
                   {Object.entries(riskLevelLabels).map(([value, label]) => (
@@ -327,11 +345,11 @@ export default async function CoachingPage() {
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
                 Описание
                 <textarea name="description" required rows={3} className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
                 Рекомендация
                 <textarea name="recommendation" required rows={3} className="form-control" />
               </label>

@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [qc_app] recent context, 2026-05-13 2:28pm GMT+3
+# [qc_app] recent context, 2026-05-18 5:54pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (28,994t read) | 3,899,781t work | 99% savings
+Stats: 50 obs (27,704t read) | 2,661,251t work | 99% savings
 
 ### May 12, 2026
 S478 What is needed to actually test the OTRS integration (May 12 at 10:50 AM)
@@ -15,39 +15,13 @@ S477 Prerequisites for real-world testing of OTRS integration, plus local auth s
 S479 Redesign of admin sections (Integrations, Users & Permissions, Access & SSO) — state-of-the-art production design addressing unclear UX and narrow/long lists (May 12 at 1:00 PM)
 S480 Read-only audit of qc_app integrations: inventory connectors/backend/API/UI/tests/docs, identify implemented vs placeholder, list official-docs to recheck, surface backend/API/frontend hardening targets — no code edits (May 12 at 2:16 PM)
 S481 Read-only design audit of /Users/dubrsky/Downloads/qc_app apps/web frontend to inform a production-grade next iteration covering tooltip/help icons, UI polish/alignment, integration audit vs official docs, score display percent→points migration, and stronger Active Directory/group policy support. (May 12 at 4:51 PM)
+S483 Production-grade polish pass: tooltips, UI alignment, integration re-verification, score-based quality metric, and improved Active Directory / group policy support (May 12 at 4:55 PM)
 ### May 13, 2026
-S483 Production-grade polish pass: tooltips, UI alignment, integration re-verification, score-based quality metric, and improved Active Directory / group policy support (May 13 at 12:38 PM)
-3190 1:54p ✅ Two parallel spec compliance reviewers dispatched for Task 11
-3194 " 🔵 Task 11 spec compliance review requested for integration catalog hardening
-3191 1:55p 🔵 Maxwell spec reviewer confirms Task 11 commit 90ecceaa is spec compliant
-3192 " 🔵 Task 11 commit confirmed as 9-insertion/1-deletion test-only diff
-3193 " ✅ Code quality reviewer Tesla dispatched for Task 11
-3274 " 🟣 Task 11 hardens integration catalog response contract assertions
-3195 1:57p 🔵 Task 11 verified: integration catalog route already conformed to readiness contract
-3196 " 🔵 Code quality reviewer Tesla approves Task 11 with one minor note
-3197 1:58p 🔵 Phase A Task 12 verification step 1-3 green: typecheck passes, forbidden-pattern greps clean
-3198 " 🔵 Phase A typecheck passes for apps/web via next typegen + tsc --noEmit
-3199 " 🔵 Phase A unit + API test suite green: 64 files / 362 tests pass
-3200 " 🔵 Phase A e2e suite green: 5 Playwright tests pass in 28.9s
-3201 1:59p 🔵 Phase A final verification step 6: git diff confirms pre-existing admin-redesign state untouched
-3202 " 🟣 Phase A enterprise production hardening complete on codex/admin-redesign
-3203 " 🔵 Phase A full commit ladder: 30 commits from plan adoption to Task 11 across all 12 tasks
-3205 " ⚖️ Phase A enterprise hardening final read-only review scope defined
-3204 2:00p ✅ Stale next dev server on port 3000 stopped after Phase A verification
-3210 2:03p 🔵 Phase A score-display points refactor verified via committed diff
-3211 " 🟣 Certification status registry exposes honest gate summaries for connectors
-3212 " 🟣 Integration capabilities expose per-connector certification and isolate fallback metadata
-3213 " 🟣 Integration catalog route returns stable request id and OpenAPI documents certification schemas
-3214 " 🟣 HelpTooltip primitive added with accessible focus/pointer/Escape handling
-3215 " 🟣 Admin layout visual overflow sweep covers Phase A routes at four widths
-3216 " 🔄 Admin pages restructured into ops-metric/ops-tab/ops-panel grids with section routing
-3217 " 🔵 Setup wizard certification label is mode-based and may overstate OTRS-family fallback option
 3218 2:05p 🔵 Reviews detail page header chip and history pill rendered as Russian points
 3219 " 🔵 Score display unit test suite pins points formatting and edge cases
 3220 " 🔵 OpenAPI ScoreSummary schema is defined but no path response references it
 3221 " 🔵 Phase A admin overflow guards use min-width:0 cascade rather than overflow-x:hidden
 3222 " 🔵 Scorecards admin page applies HelpTooltip to weight-vs-score field and exposes new sections
-3223 " 🔵 Admin access providerReadiness disables Проверить вход until SSO config is complete
 3225 2:06p 🔵 Reports performance bar charts use static " баллов" suffix instead of per-row pluralization
 3226 " 🔵 Integration cockpit summary shows latest run with "items" label and Dry-run English copy
 3227 2:07p 🔵 OpenAPI integration catalog summary still uses English technical terms inside Russian summary
@@ -67,8 +41,35 @@ S483 Production-grade polish pass: tooltips, UI alignment, integration re-verifi
 3303 2:27p ✅ Deleted merged codex/admin-redesign branch
 3304 " 🔵 Master left with restored stash as uncommitted working changes
 3306 " 🔵 Master HEAD confirmed at Phase A verification commit
+3309 2:28p 🔵 Working tree unchanged since last status check
+3310 " 🔵 In-flight admin/users redesign details surfaced
+3312 " 🟣 Admin management polish committed to master
+3313 2:29p 🔵 Master clean after admin polish commit
+3315 " 🔵 writing-plans superpowers skill documented
+3316 " 🔵 Phase A scope and Phase B/C handoff documented
+3318 2:30p 🔵 Enterprise hardening spec details Phase B-D scope
+3319 " 🔵 Zendesk Support API contract surfaced for Phase B adapter planning
+3321 " 🔵 Existing helpdesk adapter scaffolding mapped for Phase B
+3322 2:31p 🔵 Helpdesk normalizers and capability fallback semantics fully mapped
+3323 " 🔵 OTRS adapter contract patterns serve as Phase B reference architecture
+3353 2:35p ✅ User requested handoff prompt for new session with two superpowers skills
+3360 2:38p ✅ Session pause requested with cleanup of background processes
+3347 2:44p 🔵 Phase B Task 1 spec compliance review requested for commit f49d56b
+3348 2:45p 🔵 Phase B Task 1 code quality review requested for helpdesk adapter contracts
+3349 2:46p 🟣 Phase B helpdesk adapter source contracts module added
+3350 2:47p 🔵 Phase B helpdesk adapter contracts cover seven sources with conservative certification gates
+3351 " 🔵 Phase B live smoke test npm scripts referenced in contracts do not yet exist
+3354 2:50p 🟣 Phase B enterprise production hardening implementation plan authored
+3359 2:53p 🔵 Phase B helpdesk adapter source contracts pass re-review at commit dbf02e4
+3361 " 🟣 Phase B helpdesk adapter source contracts landed on codex/phase-b-adapter-hardening
+3362 " 🔵 Context7 coverage gaps for Salesforce and ServiceNow REST APIs forced first-party fallback
+3363 " 🔵 claude-mem observation_add unavailable in worker runtime
+3365 2:54p ⚖️ Phase B kickoff plan with subagent workflow constraints
+3364 3:02p 🟣 Production-grade roadmap requested: tooltips, polish, integrations audit, scoring, group policy
+S484 Production-grade enhancement plan: tooltips, UI polish, integrations audit, points-based scoring, and Active Directory/group policy support (May 13 at 3:02 PM)
+3366 " 🔵 Dozens of stale bun MCP server processes accumulated on host
 
-Access 3900k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 2661k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
 
 # Project Notes

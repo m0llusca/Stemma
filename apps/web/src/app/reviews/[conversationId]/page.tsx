@@ -169,6 +169,11 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   const reanswerLabel = latestFinalizedReview
     ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? latestFinalizedReview.reanswerStatus
     : "Нет";
+  const feedbackClosed =
+    latestFinalizedReview?.feedbackStatus === "acknowledged" || latestFinalizedReview?.feedbackStatus === "corrected";
+  const canAcknowledgeFeedback = Boolean(latestFinalizedReview && !feedbackClosed && !hasOpenAppeal);
+  const canOpenAppeal = Boolean(latestFinalizedReview && !feedbackClosed && latestFinalizedReview.appealStatus === "none");
+  const canCompleteReanswer = Boolean(latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested");
 
   return (
     <section className="page-shell workspace-shell">
@@ -390,21 +395,25 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <form action={updateReviewFeedback}>
-                  <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                  <input type="hidden" name="action" value="acknowledged" />
-                  <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
-                    Ознакомлен
-                  </button>
-                </form>
-                <form action={updateReviewFeedback}>
-                  <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                  <input type="hidden" name="action" value="appeal_opened" />
-                  <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
-                    Открыть апелляцию
-                  </button>
-                </form>
-                {latestFinalizedReview.needsReanswer ? (
+                {canAcknowledgeFeedback ? (
+                  <form action={updateReviewFeedback}>
+                    <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                    <input type="hidden" name="action" value="acknowledged" />
+                    <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                      Ознакомлен
+                    </button>
+                  </form>
+                ) : null}
+                {canOpenAppeal ? (
+                  <form action={updateReviewFeedback}>
+                    <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                    <input type="hidden" name="action" value="appeal_opened" />
+                    <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
+                      Открыть апелляцию
+                    </button>
+                  </form>
+                ) : null}
+                {canCompleteReanswer ? (
                   <form action={updateReviewFeedback}>
                     <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                     <input type="hidden" name="action" value="reanswer_completed" />
@@ -412,6 +421,9 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
                       Переответ выполнен
                     </button>
                   </form>
+                ) : null}
+                {!canAcknowledgeFeedback && !canOpenAppeal && !canCompleteReanswer ? (
+                  <span className="pill pill--neutral">Действий нет</span>
                 ) : null}
               </div>
             </div>

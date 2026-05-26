@@ -10,6 +10,7 @@ type MetricCardProps = {
     current: number | null;
     previous: number | null;
     unit?: string;
+    stable?: boolean;
   };
 };
 
@@ -24,11 +25,13 @@ function formatSignedValue(value: number, unit = "") {
 function MetricComparison({
   current,
   previous,
-  unit = ""
+  unit = "",
+  stable = true
 }: {
   current: number | null;
   previous: number | null;
   unit?: string;
+  stable?: boolean;
 }) {
   if (current == null || previous == null) {
     return (
@@ -50,16 +53,18 @@ function MetricComparison({
   const TrendIcon = trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
   const relativeLabel = relativeDelta == null ? (delta > 0 ? "новый рост" : "0%") : formatSignedValue(relativeDelta, "%");
   const absoluteLabel = formatSignedValue(delta, unit);
+  const mainLabel = stable ? relativeLabel : absoluteLabel;
+  const detailLabel = stable ? absoluteLabel : "малая выборка";
 
   return (
-    <div className={`metric-card__trend metric-card__trend--${trend}`} aria-label={`К прошлому периоду: ${relativeLabel}, ${absoluteLabel}`}>
+    <div className={`metric-card__trend metric-card__trend--${trend}`} aria-label={`К прошлому периоду: ${mainLabel}, ${detailLabel}`}>
       <span className="metric-card__trend-icon" aria-hidden="true">
         <TrendIcon size={18} />
       </span>
       <span className="metric-card__trend-body">
         <span className="metric-card__trend-main">
-          <span className="metric-card__trend-value">{relativeLabel}</span>
-          <span className="metric-card__trend-detail">{absoluteLabel}</span>
+          <span className="metric-card__trend-value">{mainLabel}</span>
+          <span className="metric-card__trend-detail">{detailLabel}</span>
         </span>
         <span className="metric-card__trend-caption">к прошлому периоду</span>
       </span>
@@ -77,7 +82,8 @@ export function MetricCard({ label, value, helper, icon, comparison }: MetricCar
         </div>
         {icon ? <div className="icon-box">{icon}</div> : null}
       </div>
-      {comparison ? <MetricComparison {...comparison} /> : <p className="metric-card__helper">{helper}</p>}
+      {comparison ? <MetricComparison {...comparison} /> : null}
+      <p className="metric-card__helper">{helper}</p>
     </article>
   );
 }

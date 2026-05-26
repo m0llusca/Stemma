@@ -46,12 +46,25 @@ function samplingIsSignal(samplingType: string) {
   return samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE";
 }
 
+function dueTone(isOverdue: boolean, hasDueDate: boolean, isFinalized: boolean) {
+  if (isFinalized) return "good";
+  if (isOverdue) return "danger";
+  if (hasDueDate) return "warning";
+  return "neutral";
+}
+
 export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
   if (conversations.length === 0) {
     return (
-      <div className="panel px-5 py-10 text-center">
-        <h2 className="text-base font-semibold text-[#111827]">Очередь пуста</h2>
-        <p className="mt-2 text-sm text-[#64748b]">Новые диалоги появятся после импорта или ручной загрузки через API.</p>
+      <div className="panel queue-empty-state">
+        <div className="queue-empty-state__mark">0</div>
+        <div>
+          <h2>Очередь пуста</h2>
+          <p>Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора.</p>
+        </div>
+        <Link href="/reviews" className="action-button action-button--primary">
+          Сбросить фильтры
+        </Link>
       </div>
     );
   }
@@ -132,15 +145,12 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
             : "Переответ";
           const stateTone = isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState);
-          const contextItems = [
-            conversation.customerName,
-            conversation.assigneeName ?? "Не назначен",
-            formatMessageCount(conversation.messageCount),
-            channelLabels[conversation.channel],
-            externalSourceLabel(conversation.externalSource),
-            `срок ${reviewDueAt ? reviewDueAt.toLocaleDateString("ru-RU") : "не задан"}`,
-            `проверяющий: ${conversation.qaAssigneeName ?? "не назначен"}`
-          ];
+          const dueLabel = reviewDueAt
+            ? reviewDueAt.toLocaleDateString("ru-RU")
+            : conversation.qaStatus === "FINALIZED"
+              ? "закрыто"
+              : "не задан";
+          const dueSignalTone = dueTone(isOverdue, Boolean(reviewDueAt), conversation.qaStatus === "FINALIZED");
           const signalItems = [
             conversation.csatBucket === "NEGATIVE"
               ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
@@ -167,7 +177,26 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   </Link>
                   <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
                 </div>
-                <p className="queue-ticket__meta">{contextItems.join(" · ")}</p>
+                <div className="queue-ticket__meta-row">
+                  <p className="queue-ticket__meta">
+                    {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
+                    {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)}
+                  </p>
+                </div>
+                <ul className="queue-ticket__detail-chips" aria-label="Рабочий контекст обращения">
+                  <li>
+                    <span>Источник</span>
+                    <strong>{externalSourceLabel(conversation.externalSource)}</strong>
+                  </li>
+                  <li>
+                    <span>Проверяющий</span>
+                    <strong>{conversation.qaAssigneeName ?? "Не назначен"}</strong>
+                  </li>
+                  <li className={`queue-ticket__due queue-ticket__due--${dueSignalTone}`}>
+                    <span>SLA</span>
+                    <strong>{dueLabel}</strong>
+                  </li>
+                </ul>
                 {hasFlags ? (
                   <div className="queue-ticket__signals">
                     {signalItems.length > 0 ? (

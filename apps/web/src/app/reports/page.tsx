@@ -1,11 +1,23 @@
 import Link from "next/link";
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Database, RotateCcw, Scale } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  CalendarDays,
+  ClipboardList,
+  Database,
+  RotateCcw,
+  Scale
+} from "lucide-react";
 import { MetricCard } from "@/components/reports/metric-card";
+import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import {
   ChartPanel,
   HorizontalBarChart,
   QuotaProgressBars,
+  RankedList,
   ScoreDistribution,
   SparklineChart,
   StackedBar,
@@ -30,7 +42,7 @@ import {
   resolveReportPeriod,
   type ReportPeriod
 } from "@/lib/report-period";
-import { formatQualityScore } from "@/lib/score-display";
+import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +50,9 @@ type BreakdownRow = {
   label: string;
   count: number;
   averageScore?: number | null;
+  href?: string;
+  delta?: number | null;
+  meta?: string;
 };
 
 type ReportsPageProps = {
@@ -66,6 +81,25 @@ function resolveReportView(params: Record<string, string | string[] | undefined>
 
 function formatAverageScore(value: number | null | undefined) {
   return formatQualityScore(value, "Нет данных");
+}
+
+function formatReviewCount(count: number) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+
+  if (lastTwo >= 11 && lastTwo <= 14) {
+    return `${count} проверок`;
+  }
+
+  if (last === 1) {
+    return `${count} проверка`;
+  }
+
+  if (last >= 2 && last <= 4) {
+    return `${count} проверки`;
+  }
+
+  return `${count} проверок`;
 }
 
 function average(values: number[]) {
@@ -110,6 +144,17 @@ function reportExportFormatHref(period: ReportPeriod, format: "xlsx" | "pdf") {
   return `/reports/export/${format}?${params.toString()}`;
 }
 
+function reportHref(period: ReportPeriod, extras: Record<string, string> = {}) {
+  const params = new URLSearchParams({
+    period: period.preset,
+    start: reportDateInputValue(period.start),
+    end: reportDateInputValue(period.end),
+    ...extras
+  });
+
+  return `/reports?${params.toString()}`;
+}
+
 function reportViewHref(period: ReportPeriod, view: ReportView) {
   const params = new URLSearchParams({
     period: period.preset,
@@ -130,6 +175,98 @@ function reportReviewHref(period: ReportPeriod, extras: Record<string, string> =
   });
 
   return `/reviews?${params.toString()}`;
+}
+
+function reportDeltaLabel(delta: number | null | undefined) {
+  if (delta == null) {
+    return "нет базы сравнения";
+  }
+
+  if (delta === 0) {
+    return "без изменений к прошлому периоду";
+  }
+
+  return `${delta > 0 ? "+" : "-"}${Math.abs(delta)} п. к прошлому периоду`;
+}
+
+function sampleInsight(currentCount: number, previousCount: number) {
+  if (currentCount === 0) {
+    return "За выбранный период нет завершенных проверок. Сначала откройте очередь и завершите оценки.";
+  }
+
+  if (currentCount < 5 || previousCount < 5) {
+    return "Выборка мала. Проценты и дельты показывают направление, но не устойчивый тренд.";
+  }
+
+  return "Выборка достаточна для сравнения с прошлым периодом.";
+}
+
+function scoreDelta(current: number | null | undefined, previous: number | null | undefined) {
+  if (current == null || previous == null) {
+    return null;
+  }
+
+  return Math.round(current - previous);
+}
+
+type TrendTone = "up" | "down" | "flat" | "none";
+
+function trendTone(delta: number | null | undefined): TrendTone {
+  if (delta == null) {
+    return "none";
+  }
+
+  if (delta > 0) {
+    return "up";
+  }
+
+  if (delta < 0) {
+    return "down";
+  }
+
+  return "flat";
+}
+
+function trendVerdictTitle(delta: number | null, current: number | null) {
+  if (current == null) {
+    return "Оценка пока не рассчитана";
+  }
+
+  if (delta == null) {
+    return "Нет базы сравнения";
+  }
+
+  if (delta > 0) {
+    return "Качество улучшилось";
+  }
+
+  if (delta < 0) {
+    return "Качество снизилось";
+  }
+
+  return "Качество без изменений";
+}
+
+function trendPointDeltaLabel(delta: number | null | undefined) {
+  if (delta == null) {
+    return "первая точка периода";
+  }
+
+  if (delta === 0) {
+    return "без изменений к предыдущей точке";
+  }
+
+  return `${formatQualityScoreDelta(delta)} к предыдущей точке`;
+}
+
+function targetDistanceLabel(value: number, target: number) {
+  const delta = Math.round(value - target);
+
+  if (delta >= 0) {
+    return "в целевом коридоре";
+  }
+
+  return `ниже цели на ${Math.abs(delta)} п.`;
 }
 
 function formatShortDate(value: Date) {
@@ -163,8 +300,26 @@ function averageScoreChartRows(rows: BreakdownRow[], limit = 6): ChartDatum[] {
     .map((row) => ({
       label: row.label,
       value: Math.round(row.averageScore ?? 0),
-      detail: `${row.count} проверок`
+      detail: formatReviewCount(row.count)
     }));
+}
+
+function rankedScoreRows(rows: BreakdownRow[], previousRows: BreakdownRow[], limit = 6): BreakdownRow[] {
+  const previousAverageByLabel = new Map(previousRows.map((row) => [row.label, row.averageScore ?? null]));
+
+  return rows
+    .filter((row) => row.averageScore != null)
+    .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))
+    .slice(0, limit)
+    .map((row) => {
+      const delta = scoreDelta(row.averageScore, previousAverageByLabel.get(row.label));
+
+      return {
+        ...row,
+        delta,
+        meta: reportDeltaLabel(delta)
+      };
+    });
 }
 
 function scoreTrendRows(reviews: ReviewForReport[]): ChartDatum[] {
@@ -189,7 +344,7 @@ function scoreTrendRows(reviews: ReviewForReport[]): ChartDatum[] {
       return {
         label: formatShortDate(new Date(`${date}T00:00:00.000Z`)),
         value: Math.round(value),
-        detail: `${scores.length} проверок`
+        detail: formatReviewCount(scores.length)
       };
     });
 }
@@ -197,15 +352,22 @@ function scoreTrendRows(reviews: ReviewForReport[]): ChartDatum[] {
 function scoreDistributionRows(reviews: ReviewForReport[]): ChartDatum[] {
   const ranges = [
     { label: "0-50", min: 0, max: 50 },
-    { label: "51-70", min: 51, max: 70 },
-    { label: "71-85", min: 71, max: 85 },
-    { label: "86-100", min: 86, max: 100 }
+    { label: "51-70", min: 50, max: 70 },
+    { label: "71-85", min: 70, max: 85 },
+    { label: "86-100", min: 85, max: 100 }
   ];
 
-  return ranges.map((range) => ({
-    label: range.label,
-    value: reviews.filter((review) => review.totalScore >= range.min && review.totalScore <= range.max).length
-  }));
+  return ranges.map((range, index) => {
+    const isFirst = index === 0;
+    const matchesRange = (score: number) => isFirst
+      ? score >= range.min && score <= range.max
+      : score > range.min && score <= range.max;
+
+    return {
+      label: range.label,
+      value: reviews.filter((review) => matchesRange(review.totalScore)).length
+    };
+  });
 }
 
 function riskSegments(riskGroups: Map<string, number>): StackedSegment[] {
@@ -317,20 +479,25 @@ function blockRows(reviews: ReviewForReport[]): BreakdownRow[] {
 }
 
 function BreakdownTable({
+  id,
   title,
   rows,
   countLabel,
   showAverage = false
 }: {
+  id?: string;
   title: string;
   rows: BreakdownRow[];
   countLabel: string;
   showAverage?: boolean;
 }) {
   return (
-    <section className="panel overflow-hidden">
+    <section id={id} className="panel overflow-hidden breakdown-panel">
       <div className="border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="mt-1 text-sm text-[#64748b]">
+          {rows.length > 0 ? `${rows.length} строк в разрезе` : "Нет данных для выбранного периода"}
+        </p>
       </div>
       <div className="record-list px-5">
         {rows.length > 0 ? (
@@ -355,72 +522,113 @@ function BreakdownTable({
   );
 }
 
-function PeriodFilter({ period, view }: { period: ReportPeriod; view: ReportView }) {
+function ReportCommandBar({
+  period,
+  previousPeriod,
+  view
+}: {
+  period: ReportPeriod;
+  previousPeriod: ReportPeriod;
+  view: ReportView;
+}) {
   return (
-    <form action="/reports" className="report-toolbar">
-      <input type="hidden" name="view" value={view} />
-      <label className="grid gap-1 text-sm font-medium text-[#334155]">
-        Период
-        <select name="period" defaultValue={period.preset} className="form-control">
-          <option value="vk-current">Текущий период 22-21</option>
-          <option value="vk-previous">Прошлый период 22-21</option>
-          <option value="calendar-current">Календарный месяц</option>
-          <option value="calendar-previous">Прошлый месяц</option>
-          <option value="quarter-current">Текущий квартал</option>
-          <option value="custom">Произвольный</option>
-        </select>
-      </label>
-      <label className="grid gap-1 text-sm font-medium text-[#334155]">
-        С даты
-        <input
-          name="start"
-          type="date"
-          defaultValue={reportDateInputValue(period.start)}
-          className="form-control"
-        />
-      </label>
-      <label className="grid gap-1 text-sm font-medium text-[#334155]">
-        По дату
-        <input
-          name="end"
-          type="date"
-          defaultValue={reportDateInputValue(period.end)}
-          className="form-control"
-        />
-      </label>
-      <button type="submit" className="action-button action-button--primary">
-        Показать
-      </button>
-    </form>
+    <section className="report-command-bar" aria-label="Настройки аналитики">
+      <div className="report-command-bar__title">
+        <p className="page-kicker">Контроль качества</p>
+        <h1 className="page-title">Аналитика качества</h1>
+      </div>
+
+      <AutoSubmitFilterForm action="/reports" className="report-command-bar__form">
+        <input type="hidden" name="view" value={view} />
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          Период
+          <select name="period" defaultValue={period.preset} className="form-control">
+            <option value="vk-current">Текущий период 22-21</option>
+            <option value="vk-previous">Прошлый период 22-21</option>
+            <option value="calendar-current">Календарный месяц</option>
+            <option value="calendar-previous">Прошлый месяц</option>
+            <option value="quarter-current">Текущий квартал</option>
+            <option value="custom">Произвольный</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          С даты
+          <input
+            name="start"
+            type="date"
+            defaultValue={reportDateInputValue(period.start)}
+            className="form-control"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          По дату
+          <input
+            name="end"
+            type="date"
+            defaultValue={reportDateInputValue(period.end)}
+            className="form-control"
+          />
+        </label>
+      </AutoSubmitFilterForm>
+
+      <div className="report-command-bar__meta">
+        <span>{period.label}: {formatPeriod(period)}</span>
+        <span>Сравнение: {formatPeriod(previousPeriod)}</span>
+      </div>
+
+      <details className="report-export-menu">
+        <summary className="action-button">Экспорт</summary>
+        <div className="report-export-menu__panel">
+          <Link href={reportExportHref(period)}>CSV</Link>
+          <Link href={reportExportFormatHref(period, "xlsx")}>XLSX</Link>
+          <Link href={reportExportFormatHref(period, "pdf")}>PDF</Link>
+        </div>
+      </details>
+    </section>
   );
 }
 
-function ReportViewSelector({ period, view }: { period: ReportPeriod; view: ReportView }) {
-  return (
-    <nav className="report-view-selector" aria-label="Режим аналитики">
-      {reportViews.map((item) => {
-        const isActive = item.id === view;
+function ReportViewSelector({
+  period,
+  view,
+  counts
+}: {
+  period: ReportPeriod;
+  view: ReportView;
+  counts: Record<ReportView, number>;
+}) {
+  const activeView = reportViews.find((item) => item.id === view) ?? reportViews[0];
 
-        return (
-          <Link
-            key={item.id}
-            href={reportViewHref(period, item.id)}
-            className={`report-view-selector__item ${isActive ? "report-view-selector__item--active" : ""}`}
-            aria-current={isActive ? "page" : undefined}
-          >
-            <span>{item.label}</span>
-            <small>{item.description}</small>
-          </Link>
-        );
-      })}
-    </nav>
+  return (
+    <div className="report-view-selector-wrap">
+      <nav className="report-view-selector" aria-label="Режим аналитики">
+        {reportViews.map((item) => {
+          const isActive = item.id === view;
+
+          return (
+            <Link
+              key={item.id}
+              href={reportViewHref(period, item.id)}
+              className={`report-view-selector__item ${isActive ? "report-view-selector__item--active" : ""}`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <span>{item.label}</span>
+              <strong>{counts[item.id]}</strong>
+            </Link>
+          );
+        })}
+      </nav>
+      <p className="report-view-selector__description">{activeView.description}</p>
+    </div>
   );
 }
 
 function QuotaTable({
+  id,
   quotas,
   reviews
 }: {
+  id?: string;
   quotas: Array<{
     assigneeName: string;
     supportLine: string | null;
@@ -432,7 +640,7 @@ function QuotaTable({
   reviews: ReviewForReport[];
 }) {
   return (
-    <section className="panel overflow-hidden">
+    <section id={id} className="panel overflow-hidden breakdown-panel quota-table-panel">
       <div className="border-b border-[#d9e0ea] px-5 py-4">
         <h2 className="text-lg font-semibold">Нормы проверок</h2>
         <p className="mt-1 text-sm text-[#64748b]">План, факт и доля негативного CSAT по операторам.</p>
@@ -465,7 +673,7 @@ function QuotaTable({
                   <span className={`pill ${remaining > 0 ? "pill--warn" : "pill--ok"}`}>{quotaStatus}</span>
                 </div>
                 <p className="record-meta">
-                  План: {quota.plannedCount} · факт: {actualReviews.length} · осталось: {remaining} · DSAT: {dsatCount} ({dsatPercent}%) / цель {quota.dsatTargetPercent}%
+                  План: {quota.plannedCount}, факт: {actualReviews.length}, осталось: {remaining}, DSAT: {dsatCount} ({dsatPercent}%) / цель {quota.dsatTargetPercent}%
                 </p>
                 {quota.absenceDays > 0 || quota.note ? (
                   <p className="record-meta compact-text">
@@ -496,31 +704,32 @@ function ProcessSummary({
   appealCount: number;
 }) {
   const items = [
-    { label: "Критические ошибки", value: criticalCount, detail: "Обнуляют оценку", icon: Scale },
-    { label: "Переответы", value: reanswerCount, detail: "Нужен новый ответ", icon: RotateCcw },
-    { label: "Апелляции", value: appealCount, detail: "Споры по оценке", icon: CalendarDays }
+    { label: "Критические ошибки", value: criticalCount, detail: "Обнуляют оценку", icon: Scale, tone: "danger" },
+    { label: "Переответы", value: reanswerCount, detail: "Нужен новый ответ", icon: RotateCcw, tone: "warn" },
+    { label: "Апелляции", value: appealCount, detail: "Споры по оценке", icon: CalendarDays, tone: "neutral" }
   ];
 
   return (
     <section className="panel process-summary overflow-hidden">
-      <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="border-b border-[#d9e0ea] bg-[#f8fafc] p-4 lg:border-b-0 lg:border-r">
-          <p className="text-xs font-semibold uppercase text-[#64748b]">Контроль процесса</p>
-          <p className="mt-1 text-sm leading-5 text-[#64748b]">Эскалации, которые требуют управленческого внимания.</p>
+      <div className="process-summary__layout">
+        <div className="process-summary__lead">
+          <p className="page-kicker">Процесс</p>
+          <h2>Контроль процесса</h2>
+          <p>Эскалации, которые требуют управленческого внимания.</p>
         </div>
-        <dl className="grid divide-y divide-[#d9e0ea] md:grid-cols-3 md:divide-x md:divide-y-0">
+        <dl className="process-summary__list">
           {items.map((item) => {
             const Icon = item.icon;
 
             return (
-              <div key={item.label} className="flex items-center gap-3 p-4">
-                <span className="icon-box h-9 w-9 shrink-0">
+              <div key={item.label} className={`process-summary__item process-summary__item--${item.tone}`}>
+                <span className="process-summary__icon">
                   <Icon size={17} aria-hidden="true" />
                 </span>
                 <div>
-                  <dt className="text-xs font-semibold uppercase text-[#64748b]">{item.label}</dt>
-                  <dd className="mt-1 text-xl font-semibold text-[#111827]">{item.value}</dd>
-                  <p className="text-sm text-[#64748b]">{item.detail}</p>
+                  <dt>{item.label}</dt>
+                  <dd>{item.value}</dd>
+                  <p>{item.detail}</p>
                 </div>
               </div>
             );
@@ -531,54 +740,326 @@ function ProcessSummary({
   );
 }
 
-function FocusPanel({
-  finalizedCount,
-  topRiskRow,
-  topCategoryRow,
-  weakestAssignee
+type DetailsIndexItem = {
+  label: string;
+  value: string;
+  detail: string;
+  href: string;
+};
+
+function DetailsIndexPanel({ items }: { items: DetailsIndexItem[] }) {
+  return (
+    <aside className="panel details-index-panel">
+      <div>
+        <p className="page-kicker">Навигация по разрезам</p>
+        <h2>Быстрый переход</h2>
+        <p>Таблицы ниже сгруппированы по задачам разбора: критерии, норма, источники, люди и статусы.</p>
+      </div>
+      <nav aria-label="Разрезы аналитики" className="details-index-panel__nav">
+        {items.map((item) => (
+          <a key={item.href} href={item.href} className="details-index-panel__item">
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </a>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+type FocusItem = {
+  label: string;
+  value: string;
+  detail: string;
+  href?: string;
+  actionLabel?: string;
+};
+
+type ReportFocusItem = {
+  label: string;
+  value: string;
+  detail: string;
+  href?: string;
+  tone?: "neutral" | "ok" | "warn" | "danger";
+};
+
+function ReportFocusPanel({
+  kicker,
+  title,
+  description,
+  actionHref,
+  actionLabel,
+  items
 }: {
-  finalizedCount: number;
-  topRiskRow?: BreakdownRow;
-  topCategoryRow?: BreakdownRow;
-  weakestAssignee?: BreakdownRow;
+  kicker: string;
+  title: string;
+  description: string;
+  actionHref: string;
+  actionLabel: string;
+  items: ReportFocusItem[];
 }) {
+  return (
+    <section className="panel report-focus-panel">
+      <div className="report-focus-panel__header">
+        <div>
+          <p className="page-kicker">{kicker}</p>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <Link href={actionHref} className="chart-panel__action">
+          {actionLabel}
+        </Link>
+      </div>
+      <div className="report-focus-panel__grid">
+        {items.map((item) => {
+          const content = (
+            <>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </>
+          );
+          const className = `report-focus-panel__item report-focus-panel__item--${item.tone ?? "neutral"}`;
+
+          return item.href ? (
+            <Link key={item.label} href={item.href} className={className}>
+              {content}
+            </Link>
+          ) : (
+            <article key={item.label} className={className}>
+              {content}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function InsightSummary({
+  averageScore,
+  finalizedCount,
+  previousCount,
+  topSource,
+  period,
+  focusItems
+}: {
+  averageScore: number | null;
+  finalizedCount: number;
+  previousCount: number;
+  topSource?: BreakdownRow;
+  period: ReportPeriod;
+  focusItems: FocusItem[];
+}) {
+  const sourceText = topSource
+    ? `Основной вклад в выборку: ${formatReviewCount(topSource.count)} из источника ${topSource.label}.`
+    : "Источники появятся после первых завершенных проверок.";
+  const insightTitle = averageScore == null
+    ? "Данные появятся после первых проверок"
+    : "Где смотреть сейчас";
+
+  return (
+    <section className="panel insight-summary">
+      <div className="insight-summary__body">
+        <p className="page-kicker">Сводка периода</p>
+        <h2>{insightTitle}</h2>
+        <p>{sourceText} {sampleInsight(finalizedCount, previousCount)}</p>
+      </div>
+      <div className="insight-summary__actions">
+        <Link href={reportReviewHref(period)} className="action-button action-button--primary">
+          Открыть проверки
+        </Link>
+        <Link href={reportHref(period, { view: "performance" })} className="action-button">
+          Сравнить разрезы
+        </Link>
+      </div>
+      <div className="insight-summary__focus" aria-label="Где смотреть сейчас">
+        {focusItems.map((row) => {
+          const content = (
+            <>
+              <span>{row.label}</span>
+              <strong>{row.value}</strong>
+              <small>{row.detail}</small>
+            </>
+          );
+
+          return row.href ? (
+            <Link key={row.label} href={row.href} className="insight-focus-card">
+              {content}
+            </Link>
+          ) : (
+            <div key={row.label} className="insight-focus-card insight-focus-card--static">
+              {content}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function TrendVerdict({
+  averageScore,
+  previousAverageScore,
+  finalizedCount,
+  previousCount
+}: {
+  averageScore: number | null;
+  previousAverageScore: number | null;
+  finalizedCount: number;
+  previousCount: number;
+}) {
+  const delta = scoreDelta(averageScore, previousAverageScore);
+  const tone = trendTone(delta);
+  const TrendIcon = tone === "up" ? ArrowUpRight : tone === "down" ? ArrowDownRight : ArrowRight;
+  const comparisonText = delta == null
+    ? "Прошлый период не дает базы сравнения"
+    : `${formatQualityScoreDelta(delta)} к прошлому периоду`;
+  const sampleText = finalizedCount >= 5 && previousCount >= 5
+    ? "выборка достаточна"
+    : "малая база сравнения";
+
+  return (
+    <div className={`trend-verdict trend-verdict--${tone}`}>
+      <span className="trend-verdict__icon" aria-hidden="true">
+        <TrendIcon size={18} />
+      </span>
+      <div>
+        <strong>{trendVerdictTitle(delta, averageScore)}</strong>
+        <span>{comparisonText}, {sampleText}</span>
+      </div>
+    </div>
+  );
+}
+
+function TrendSignals({ points, target = 90 }: { points: ChartDatum[]; target?: number }) {
+  if (points.length === 0) {
+    return <p className="text-sm text-[#64748b]">Нет завершенных проверок за выбранный период.</p>;
+  }
+
+  const pointsWithDeltas = points.map((point, index) => ({
+    ...point,
+    delta: index === 0 ? null : point.value - points[index - 1].value
+  }));
+  const last = pointsWithDeltas[pointsWithDeltas.length - 1];
+  const lowest = pointsWithDeltas.reduce((candidate, point) => (point.value < candidate.value ? point : candidate), pointsWithDeltas[0]);
+  const strongestMove = pointsWithDeltas
+    .slice(1)
+    .sort((left, right) => Math.abs(right.delta ?? 0) - Math.abs(left.delta ?? 0))[0];
+  const targetDistance = targetDistanceLabel(last.value, target);
   const rows = [
     {
-      label: "Завершено проверок",
-      value: String(finalizedCount),
-      detail: "Объем данных за выбранный период."
+      label: "Последняя точка",
+      value: formatAverageScore(last.value),
+      detail: [last.label, last.detail, trendPointDeltaLabel(last.delta)].filter(Boolean).join(", "),
+      tone: trendTone(last.delta)
     },
     {
-      label: "Главный риск",
-      value: topRiskRow ? `${topRiskRow.label}: ${topRiskRow.count}` : "Нет данных",
-      detail: "Самый частый уровень риска."
+      label: "Минимум периода",
+      value: formatAverageScore(lowest.value),
+      detail: [lowest.label, lowest.detail, targetDistanceLabel(lowest.value, target)].filter(Boolean).join(", "),
+      tone: "down" as TrendTone
     },
     {
-      label: "Частая категория",
-      value: topCategoryRow ? `${topCategoryRow.label}: ${topCategoryRow.count}` : "Нет данных",
-      detail: "Что чаще всего встречается в замечаниях."
-    },
-    {
-      label: "Оператор для разбора",
-      value: weakestAssignee ? `${weakestAssignee.label}: ${formatAverageScore(weakestAssignee.averageScore)}` : "Нет данных",
-      detail: "Самая низкая средняя оценка."
+      label: "Цель 90 баллов",
+      value: targetDistance,
+      detail: last.value >= target ? "Последняя точка держится в рабочем коридоре." : "Нужен разбор причин просадки.",
+      tone: last.value >= target ? "up" as TrendTone : "down" as TrendTone
     }
   ];
 
+  if (strongestMove) {
+    rows.splice(2, 0, {
+      label: "Самое сильное движение",
+      value: formatQualityScoreDelta(strongestMove.delta),
+      detail: [strongestMove.label, trendPointDeltaLabel(strongestMove.delta), formatAverageScore(strongestMove.value)].join(", "),
+      tone: trendTone(strongestMove.delta)
+    });
+  }
+
   return (
-    <section className="panel focus-panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
-        <h2 className="text-lg font-semibold">Что требует внимания</h2>
-        <p className="mt-1 text-sm text-[#64748b]">Короткая сводка для руководителя без лишних разрезов.</p>
+    <div className="trend-signal-list">
+      {rows.map((row) => (
+        <article key={row.label} className={`trend-signal trend-signal--${row.tone}`}>
+          <div>
+            <span>{row.label}</span>
+            <strong>{row.value}</strong>
+          </div>
+          <p>{row.detail}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function PrimaryScoreValue({ value }: { value: number | null }) {
+  if (value == null) {
+    return <p className="primary-score-panel__value">Нет данных</p>;
+  }
+
+  const [score, ...unitParts] = formatAverageScore(value).split(" ");
+
+  return (
+    <p className="primary-score-panel__value">
+      <span>{score}</span>
+      <small>{unitParts.join(" ")}</small>
+    </p>
+  );
+}
+
+function PrimaryScorePanel({
+  averageScore,
+  previousAverageScore,
+  finalizedCount,
+  previousCount,
+  trendRows,
+  period
+}: {
+  averageScore: number | null;
+  previousAverageScore: number | null;
+  finalizedCount: number;
+  previousCount: number;
+  trendRows: ChartDatum[];
+  period: ReportPeriod;
+}) {
+  const stable = finalizedCount >= 5 && previousCount >= 5;
+
+  return (
+    <section className="panel primary-score-panel">
+      <div className="primary-score-panel__summary">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="metric-card__label">Средняя оценка</p>
+            <HelpTooltip
+              label="Как считать оценку в баллах?"
+              content="Итоговая оценка хранится как нормализованное значение от 0 до 100 и показывается как баллы."
+              placement="top-start"
+            />
+          </div>
+          <PrimaryScoreValue value={averageScore} />
+        </div>
+        <TrendVerdict
+          averageScore={averageScore}
+          previousAverageScore={previousAverageScore}
+          finalizedCount={finalizedCount}
+          previousCount={previousCount}
+        />
+        <div className="primary-score-panel__facts">
+          <span>{formatReviewCount(finalizedCount)}</span>
+          <span>прошлый период: {previousAverageScore == null ? "нет данных" : formatAverageScore(previousAverageScore)}</span>
+          <span>{stable ? "тренд устойчив" : "малая база сравнения"}</span>
+        </div>
+        <Link href={reportReviewHref(period)} className="chart-panel__action">
+          Открыть проверки
+        </Link>
       </div>
-      <div className="grid divide-y divide-[#d9e0ea] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
-        {rows.map((row) => (
-          <article key={row.label} className="p-4">
-            <p className="text-xs font-semibold uppercase text-[#64748b]">{row.label}</p>
-            <p className="mt-2 text-base font-semibold text-[#111827]">{row.value}</p>
-            <p className="mt-1 text-sm leading-5 text-[#64748b]">{row.detail}</p>
-          </article>
-        ))}
+      <div className="primary-score-panel__chart">
+        <SparklineChart
+          points={trendRows}
+          target={90}
+          annotation={stable ? "Пунктир показывает целевой коридор 90 баллов." : "Для устойчивого тренда нужно не меньше 5 проверок в каждом периоде."}
+        />
       </div>
     </section>
   );
@@ -634,9 +1115,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const appealGroups = new Map<string, number>();
   const reanswerGroups = new Map<string, number>();
   const criticalCategoryGroups = new Map<string, number>();
+  const previousSourceGroups = new Map<string, number[]>();
+  const previousAssigneeGroups = new Map<string, number[]>();
 
   for (const review of finalizedReviews) {
-    addScoreGroup(sourceGroups, externalSourceLabel(review.conversation.externalSource), review.totalScore);
+    addScoreGroup(sourceGroups, review.conversation.externalSource, review.totalScore);
     addScoreGroup(assigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
     addScoreGroup(reviewerGroups, review.reviewer.name, review.totalScore);
     addCountGroup(samplingGroups, samplingTypeLabels[review.conversation.samplingType] ?? review.conversation.samplingType);
@@ -655,7 +1138,21 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     }
   }
 
-  const sourceRows = scoreGroupRows(sourceGroups);
+  for (const review of previousReviews) {
+    addScoreGroup(previousSourceGroups, review.conversation.externalSource, review.totalScore);
+    addScoreGroup(previousAssigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
+  }
+
+  const previousSourceRows = scoreGroupRows(previousSourceGroups).map((row) => ({
+    ...row,
+    label: externalSourceLabel(row.label)
+  }));
+  const previousAssigneeRows = scoreGroupRows(previousAssigneeGroups);
+  const sourceRows = scoreGroupRows(sourceGroups).map((row) => ({
+    ...row,
+    label: externalSourceLabel(row.label),
+    href: reportReviewHref(period, { source: row.label })
+  }));
   const assigneeRows = scoreGroupRows(assigneeGroups);
   const reviewerRows = scoreGroupRows(reviewerGroups);
   const categoryRows = countGroupRows(categoryGroups);
@@ -670,9 +1167,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const finalizedCount = finalizedReviews.length;
   const previousAverageScore = averageScoreFor(previousReviews);
   const averageScore = averageScoreFor(finalizedReviews);
-  const topRiskRow = riskRows[0];
-  const topCategoryRow = categoryRows[0];
-  const weakestAssignee = assigneeRows
+  const weakestBlock = blockScoreRows
     .filter((row) => row.averageScore != null)
     .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))[0];
   const criticalCount = finalizedReviews.filter((review) => review.criticalError).length;
@@ -680,8 +1175,21 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const appealCount = finalizedReviews.filter((review) => review.appealStatus !== "none").length;
   const trendRows = scoreTrendRows(finalizedReviews);
   const distributionRows = scoreDistributionRows(finalizedReviews);
-  const operatorScoreRows = averageScoreChartRows(assigneeRows);
-  const sourceScoreRows = averageScoreChartRows(sourceRows);
+  const operatorRankRows = rankedScoreRows(assigneeRows, previousAssigneeRows).map((row) => ({
+    ...row,
+    value: Math.round(row.averageScore ?? 0),
+    href: row.label === "Не назначен" ? reportReviewHref(period) : reportReviewHref(period, { assignee: row.label }),
+    detail: formatReviewCount(row.count),
+    meta: row.delta == null ? "нет базы сравнения" : undefined
+  }));
+  const sourceRankRows = rankedScoreRows(sourceRows, previousSourceRows).map((row) => ({
+    ...row,
+    value: Math.round(row.averageScore ?? 0),
+    detail: formatReviewCount(row.count),
+    meta: row.delta == null ? "нет базы сравнения" : undefined
+  }));
+  const weakestAssigneeFocus = operatorRankRows[0];
+  const weakestSourceFocus = sourceRankRows[0];
   const blockScoreChartRows = averageScoreChartRows(blockScoreRows, 8);
   const riskStackSegments = riskSegments(riskGroups);
   const quotaProgressRows = quotas.map((quota) => {
@@ -692,94 +1200,237 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     );
 
     return {
-      label: quota.supportLine ? `${quota.assigneeName} · ${quota.supportLine}` : quota.assigneeName,
+      label: quota.supportLine ? `${quota.assigneeName}, ${quota.supportLine}` : quota.assigneeName,
       planned: quota.plannedCount,
       actual: actualReviews.length
     };
   });
+  const plannedQuotaTotal = quotaProgressRows.reduce((sum, row) => sum + row.planned, 0);
+  const actualQuotaTotal = quotaProgressRows.reduce((sum, row) => sum + row.actual, 0);
+  const quotaCompletionPercent = plannedQuotaTotal > 0
+    ? Math.round((actualQuotaTotal / plannedQuotaTotal) * 100)
+    : null;
+  const processRiskCount = criticalCount + reanswerCount + appealCount;
+  const viewCounts: Record<ReportView, number> = {
+    overview: finalizedCount,
+    performance: operatorRankRows.length + sourceRankRows.length,
+    process: processRiskCount,
+    details: 8
+  };
+  const focusItems: FocusItem[] = [
+    {
+      label: "Источник с худшей оценкой",
+      value: weakestSourceFocus ? `${weakestSourceFocus.label}: ${formatAverageScore(weakestSourceFocus.averageScore)}` : "Нет данных",
+      detail: weakestSourceFocus ? `${formatReviewCount(weakestSourceFocus.count)}, ${reportDeltaLabel(weakestSourceFocus.delta)}` : "Появится после первых завершенных проверок.",
+      href: weakestSourceFocus?.href,
+      actionLabel: "Открыть источник"
+    },
+    {
+      label: "Блок критериев",
+      value: weakestBlock ? `${weakestBlock.label}: ${formatAverageScore(weakestBlock.averageScore)}` : "Нет данных",
+      detail: "Самая низкая средняя оценка по блоку.",
+      href: reportHref(period, { view: "details" }),
+      actionLabel: "Посмотреть блоки"
+    },
+    {
+      label: "Оператор для разбора",
+      value: weakestAssigneeFocus ? `${weakestAssigneeFocus.label}: ${formatAverageScore(weakestAssigneeFocus.averageScore)}` : "Нет данных",
+      detail: weakestAssigneeFocus ? `${formatReviewCount(weakestAssigneeFocus.count)}, ${reportDeltaLabel(weakestAssigneeFocus.delta)}` : "Операторы появятся после завершенных проверок.",
+      href: weakestAssigneeFocus?.href,
+      actionLabel: "Открыть очередь"
+    },
+    {
+      label: "Процессный риск",
+      value: processRiskCount > 0 ? `${processRiskCount} событий` : "Нет событий",
+      detail: "Критические ошибки, переответы и апелляции.",
+      href: processRiskCount > 0 ? reportHref(period, { view: "process" }) : undefined,
+      actionLabel: "Разобрать процесс"
+    }
+  ];
+  const performanceFocusItems: ReportFocusItem[] = [
+    {
+      label: "Оператор для разбора",
+      value: weakestAssigneeFocus ? weakestAssigneeFocus.label : "Нет данных",
+      detail: weakestAssigneeFocus
+        ? `${formatAverageScore(weakestAssigneeFocus.averageScore)}, ${formatReviewCount(weakestAssigneeFocus.count)}, ${reportDeltaLabel(weakestAssigneeFocus.delta)}`
+        : "Появится после завершенных проверок.",
+      href: weakestAssigneeFocus?.href,
+      tone: weakestAssigneeFocus && (weakestAssigneeFocus.averageScore ?? 100) < 85 ? "warn" : "neutral"
+    },
+    {
+      label: "Источник с просадкой",
+      value: weakestSourceFocus ? weakestSourceFocus.label : "Нет данных",
+      detail: weakestSourceFocus
+        ? `${formatAverageScore(weakestSourceFocus.averageScore)}, ${formatReviewCount(weakestSourceFocus.count)}, ${reportDeltaLabel(weakestSourceFocus.delta)}`
+        : "Источники появятся после первых финальных оценок.",
+      href: weakestSourceFocus?.href,
+      tone: weakestSourceFocus && (weakestSourceFocus.averageScore ?? 100) < 85 ? "warn" : "neutral"
+    },
+    {
+      label: "Блок критериев",
+      value: weakestBlock ? weakestBlock.label : "Нет данных",
+      detail: weakestBlock
+        ? `${formatAverageScore(weakestBlock.averageScore)}, ${formatReviewCount(weakestBlock.count)}`
+        : "Нет оцененных критериев за период.",
+      href: reportHref(period, { view: "details" }),
+      tone: weakestBlock && (weakestBlock.averageScore ?? 100) < 85 ? "warn" : "neutral"
+    },
+    {
+      label: "Норма проверок",
+      value: plannedQuotaTotal > 0 ? `${actualQuotaTotal}/${plannedQuotaTotal}` : "Нет плана",
+      detail: quotaCompletionPercent == null ? "Нормы на период пока не заданы." : `${quotaCompletionPercent}% выполнения по плану периода.`,
+      href: reportHref(period, { view: "details" }),
+      tone: quotaCompletionPercent == null ? "neutral" : quotaCompletionPercent >= 100 ? "ok" : "warn"
+    }
+  ];
+  const detailsFocusItems: ReportFocusItem[] = [
+    {
+      label: "Выборка",
+      value: formatReviewCount(finalizedCount),
+      detail: "Финализированные проверки в выбранном периоде.",
+      href: reportReviewHref(period),
+      tone: finalizedCount >= 10 ? "ok" : "warn"
+    },
+    {
+      label: "Источники",
+      value: String(sourceRows.length),
+      detail: sourceRows.length > 1 ? "Можно сравнивать каналы по объему и оценке." : "Нужна выборка из нескольких источников.",
+      href: reportReviewHref(period),
+      tone: sourceRows.length > 1 ? "ok" : "neutral"
+    },
+    {
+      label: "Операторы",
+      value: String(assigneeRows.length),
+      detail: assigneeRows.length > 1 ? "Есть база для ранжирования операторов." : "Пока недостаточно срезов по операторам.",
+      href: reportHref(period, { view: "performance" }),
+      tone: assigneeRows.length > 1 ? "ok" : "neutral"
+    },
+    {
+      label: "Проверяющие",
+      value: String(reviewerRows.length),
+      detail: reviewerRows.length > 1 ? "Можно сверять нагрузку и стиль оценивания." : "Пока работает один проверяющий.",
+      tone: reviewerRows.length > 1 ? "ok" : "neutral"
+    }
+  ];
+  const detailsIndexItems: DetailsIndexItem[] = [
+    {
+      label: "Критерии",
+      value: String(blockScoreRows.length),
+      detail: "Блоки и средние оценки",
+      href: "#details-blocks"
+    },
+    {
+      label: "Норма",
+      value: String(quotas.length),
+      detail: "План и факт проверок",
+      href: "#details-quotas"
+    },
+    {
+      label: "Источники",
+      value: String(sourceRows.length),
+      detail: "Каналы обращений",
+      href: "#details-sources"
+    },
+    {
+      label: "Люди",
+      value: String(assigneeRows.length + reviewerRows.length),
+      detail: "Операторы и проверяющие",
+      href: "#details-people"
+    },
+    {
+      label: "Статусы",
+      value: String(samplingRows.length + csatRows.length + riskRows.length),
+      detail: "Выборка, CSAT и риски",
+      href: "#details-statuses"
+    }
+  ];
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split">
-        <div>
-          <p className="page-kicker">Контроль качества</p>
-          <h1 className="page-title">Аналитика качества</h1>
-          <p className="page-subtitle">
-            {period.label}: {formatPeriod(period)}. Сравнение: {formatPeriod(previousPeriod)}.
-          </p>
+      <ReportCommandBar period={period} previousPeriod={previousPeriod} view={reportView} />
+
+      {reportView === "overview" ? (
+        <InsightSummary
+          averageScore={averageScore}
+          finalizedCount={finalizedCount}
+          previousCount={previousReviews.length}
+          topSource={sourceRows[0]}
+          period={period}
+          focusItems={focusItems}
+        />
+      ) : null}
+
+      <ReportViewSelector period={period} view={reportView} counts={viewCounts} />
+
+      {reportView === "overview" ? (
+        <div className="report-metrics-layout">
+          <PrimaryScorePanel
+            averageScore={averageScore}
+            previousAverageScore={previousAverageScore}
+            finalizedCount={finalizedCount}
+            previousCount={previousReviews.length}
+            trendRows={trendRows}
+            period={period}
+          />
+          <div className="report-secondary-metrics">
+            <MetricCard
+              label="Замечания с высоким риском"
+              value={String(highRiskFindings)}
+              helper={highRiskFindings > 0 ? "Откройте риск и разберите причины до следующего цикла." : "Высокий риск не найден в выбранном периоде."}
+              icon={<AlertTriangle size={18} aria-hidden="true" />}
+            />
+            <MetricCard
+              label="Разборы с операторами"
+              value={String(coachingBacklog)}
+              helper={coachingBacklog > 0 ? "Есть открытые действия по разбору замечаний." : "Открытых действий по разбору нет."}
+              icon={<ClipboardList size={18} aria-hidden="true" />}
+            />
+            <MetricCard
+              label="Проверенные источники"
+              value={String(sourceRows.length)}
+              helper={sourceRows.length > 1 ? "Сравните источники по средней оценке и объему." : "Источник считается проверенным после финальной оценки."}
+              icon={<Database size={18} aria-hidden="true" />}
+            />
+          </div>
         </div>
-        <div className="admin-actions xl:justify-end">
-          <Link
-            href={reportExportHref(period)}
-            className="action-button"
-          >
-            CSV
-          </Link>
-          <Link
-            href={reportExportFormatHref(period, "xlsx")}
-            className="action-button"
-          >
-            XLSX
-          </Link>
-          <Link
-            href={reportExportFormatHref(period, "pdf")}
-            className="action-button action-button--primary"
-          >
-            PDF
-          </Link>
-        </div>
-      </div>
+      ) : null}
 
-      <PeriodFilter period={period} view={reportView} />
-      <ReportViewSelector period={period} view={reportView} />
+      {reportView === "performance" ? (
+        <ReportFocusPanel
+          kicker="Исполнение"
+          title="Что тянет оценку вниз"
+          description="Операторы, источники, блоки критериев и план проверок в одном рабочем срезе."
+          actionHref={reportReviewHref(period)}
+          actionLabel="Открыть очередь"
+          items={performanceFocusItems}
+        />
+      ) : null}
 
-      <div className="flex items-center gap-2">
-        <span className="record-meta">Средняя оценка</span>
-        <HelpTooltip
-          label="Как считать оценку в баллах?"
-          content="Итоговая оценка хранится как нормализованное значение от 0 до 100 и показывается как баллы."
-          placement="top-start"
-        />
-      </div>
+      {reportView === "process" ? (
+        <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
+      ) : null}
 
-      <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Средняя оценка"
-          value={formatAverageScore(averageScore)}
-          helper="К прошлому периоду"
-          comparison={{ current: averageScore, previous: previousAverageScore, unit: " п." }}
-          icon={<CheckCircle2 size={18} aria-hidden="true" />}
+      {reportView === "details" ? (
+        <ReportFocusPanel
+          kicker="Разрезы"
+          title="Состав выборки для ручного разбора"
+          description="Сколько данных доступно в таблицах по источникам, операторам, проверяющим и очереди проверок."
+          actionHref={reportReviewHref(period)}
+          actionLabel="Открыть проверки"
+          items={detailsFocusItems}
         />
-        <MetricCard
-          label="Замечания с высоким риском"
-          value={String(highRiskFindings)}
-          helper="Замечания с высоким или критическим риском."
-          icon={<AlertTriangle size={18} aria-hidden="true" />}
-        />
-        <MetricCard
-          label="Разборы с операторами"
-          value={String(coachingBacklog)}
-          helper="Открытые действия по разбору замечаний."
-          icon={<ClipboardList size={18} aria-hidden="true" />}
-        />
-        <MetricCard
-          label="Проверенные источники"
-          value={String(sourceRows.length)}
-          helper="Источник считается проверенным после финальной оценки."
-          icon={<Database size={18} aria-hidden="true" />}
-        />
-      </div>
+      ) : null}
 
       {reportView === "overview" ? (
         <>
           <div className="reports-main-grid">
             <ChartPanel
-              title="Динамика оценки"
-              description="Средняя итоговая оценка по дням завершения проверок."
+              title="Сигналы тренда"
+              description="Ключевые точки, которые объясняют движение оценки."
               actionHref={reportReviewHref(period)}
               actionLabel="Проверки"
             >
-              <SparklineChart points={trendRows} />
+              <TrendSignals points={trendRows} />
             </ChartPanel>
             <ChartPanel
               title="Распределение оценок"
@@ -790,23 +1441,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               <ScoreDistribution rows={distributionRows} />
             </ChartPanel>
           </div>
-
-          <FocusPanel
-            finalizedCount={finalizedCount}
-            topRiskRow={topRiskRow}
-            topCategoryRow={topCategoryRow}
-            weakestAssignee={weakestAssignee}
-          />
         </>
       ) : null}
 
       {reportView === "performance" ? (
         <div className="reports-panel-grid reports-panel-grid--four">
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
-            <HorizontalBarChart rows={operatorScoreRows} valueFormatter={formatQualityScore} maxValue={100} />
+            <RankedList rows={operatorRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>
           <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
-            <HorizontalBarChart rows={sourceScoreRows} valueFormatter={formatQualityScore} maxValue={100} />
+            <RankedList rows={sourceRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>
           <ChartPanel
             title="Блоки критериев"
@@ -824,7 +1468,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       {reportView === "process" ? (
         <>
-          <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
           <div className="reports-panel-grid reports-panel-grid--three">
             <ChartPanel
               title="Профиль рисков"
@@ -846,15 +1489,18 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "details" ? (
-        <div className="reports-table-grid">
-          <BreakdownTable title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
-          <QuotaTable quotas={quotas} reviews={finalizedReviews} />
-          <BreakdownTable title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
-          <BreakdownTable title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
-          <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
-          <BreakdownTable title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
-          <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
-          <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
+        <div className="details-workbench">
+          <DetailsIndexPanel items={detailsIndexItems} />
+          <div className="reports-table-grid reports-table-grid--details">
+            <BreakdownTable id="details-blocks" title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
+            <QuotaTable id="details-quotas" quotas={quotas} reviews={finalizedReviews} />
+            <BreakdownTable id="details-sources" title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
+            <BreakdownTable id="details-people" title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
+            <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
+            <BreakdownTable id="details-statuses" title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
+            <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
+            <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
+          </div>
         </div>
       ) : null}
     </section>

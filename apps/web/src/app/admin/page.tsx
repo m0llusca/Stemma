@@ -17,12 +17,6 @@ type AdminCard = {
   tone?: "ok" | "warn" | "neutral";
 };
 
-function pillTone(tone: AdminCard["tone"]) {
-  if (tone === "ok") return "pill--ok";
-  if (tone === "warn") return "pill--warn";
-  return "pill--neutral";
-}
-
 function canSee(role: RoleName, roles: RoleName[]) {
   return roles.includes(role);
 }
@@ -136,7 +130,7 @@ export default async function AdminHomePage() {
       description: "Темы, плотность, радиусы, контраст и единый стиль интерфейса.",
       icon: Palette,
       roles: ["ADMIN"],
-      metric: `${currentTheme.label} · ${currentDensity.label}`,
+      metric: `${currentTheme.label}, ${currentDensity.label}`,
       tone: "ok"
     },
     {
@@ -185,10 +179,81 @@ export default async function AdminHomePage() {
         .filter((card): card is AdminCard => Boolean(card))
     }))
     .filter((group) => group.cards.length > 0);
+  type AttentionItem = {
+    href: string;
+    label: string;
+    value: string;
+    description: string;
+    tone: "warn" | "neutral";
+    roles: RoleName[];
+  };
+
+  const attentionItems = [
+    failedJobs > 0
+      ? {
+          href: "/admin/system",
+          label: "Фоновые задачи",
+          value: `${failedJobs} ошибок`,
+          description: "Проверить очередь и повторить сбойные задания",
+          tone: "warn" as const,
+          roles: ["ADMIN"] as RoleName[]
+        }
+      : null,
+    providerWarnings > 0
+      ? {
+          href: "/admin/access",
+          label: "SSO и доступ",
+          value: `${providerWarnings} требуют настройки`,
+          description: "Закрыть поля провайдера и групповые правила",
+          tone: "warn" as const,
+          roles: ["ADMIN"] as RoleName[]
+        }
+      : null,
+    !activeScorecard
+      ? {
+          href: "/admin/scorecards",
+          label: "Форма оценки",
+          value: "Не настроено",
+          description: "Создать активную версию scorecard",
+          tone: "warn" as const,
+          roles: ["ADMIN", "TEAM_LEAD"] as RoleName[]
+        }
+      : null,
+    activeSamplingRules === 0
+      ? {
+          href: "/admin/sampling",
+          label: "Выборки",
+          value: "0 активных",
+          description: "Добавить правила отбора в очередь",
+          tone: "warn" as const,
+          roles: ["ADMIN", "TEAM_LEAD"] as RoleName[]
+        }
+      : null,
+    integrations === 0
+      ? {
+          href: "/admin/integrations/new",
+          label: "Интеграции",
+          value: "Нет источников",
+          description: "Подключить helpdesk или API-источник",
+          tone: "warn" as const,
+          roles: ["ADMIN"] as RoleName[]
+        }
+      : null,
+    apiTokens === 0
+      ? {
+          href: "/admin/tokens",
+          label: "API-доступ",
+          value: "Нет ключей",
+          description: "Создать ключ для demo/API загрузки",
+          tone: "neutral" as const,
+          roles: ["ADMIN"] as RoleName[]
+        }
+      : null
+  ].filter((item): item is AttentionItem => item !== null && canSee(user.role, item.roles)).slice(0, 4);
 
   return (
     <section className="page-shell admin-shell">
-      <div className="command-center">
+      <div className="command-center admin-command-center">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Настройки</h1>
@@ -208,6 +273,32 @@ export default async function AdminHomePage() {
           </div>
         </div>
       </div>
+
+      <section className="admin-attention-strip" aria-label="Что требует внимания">
+        <div className="admin-attention-strip__lead">
+          <p className="ops-panel__eyebrow">Требует внимания</p>
+          <h2>{attentionItems.length > 0 ? "Продолжить настройку" : "Настройки в рабочем состоянии"}</h2>
+          <p>{attentionItems.length > 0 ? "Сначала закрывайте блокеры, которые мешают проверкам и импорту." : "Можно переходить к методологии, источникам или журналу действий."}</p>
+        </div>
+        <div className="admin-attention-strip__list">
+          {attentionItems.length > 0 ? (
+            attentionItems.map((item) => (
+              <Link key={item.href} href={item.href} className={`admin-attention-card admin-attention-card--${item.tone}`}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.description}</small>
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            ))
+          ) : (
+            <div className="admin-attention-card admin-attention-card--static">
+              <span>Блокеров нет</span>
+              <strong>Готово</strong>
+              <small>Основные настройки, источники и системные очереди доступны в разделах ниже.</small>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="admin-section-grid">
         {groupedCards.map((group) => (
@@ -229,7 +320,6 @@ export default async function AdminHomePage() {
                     <span className="admin-home-link__body">
                       <span className="admin-home-link__title">
                         <span className="record-title record-title--tight">{card.title}</span>
-                        <span className={`pill ${pillTone(card.tone)}`}>{card.metric}</span>
                       </span>
                       <span className="record-meta">{card.description}</span>
                     </span>

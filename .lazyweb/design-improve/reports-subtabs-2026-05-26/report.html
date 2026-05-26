@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design Improvement: Reports Subtabs</title>
+  <style>
+    body { margin: 0; background: #eef2f6; color: #111827; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.55; }
+    main { max-width: 920px; margin: 0 auto; padding: 40px 20px 64px; }
+    h1 { margin: 0 0 16px; font-size: 34px; line-height: 1.1; }
+    h2 { margin: 34px 0 12px; font-size: 24px; }
+    h3 { margin: 26px 0 8px; font-size: 19px; }
+    p { color: #475569; }
+    .callout { border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; padding: 16px 18px; }
+    figure { margin: 18px 0; }
+    img { max-width: 100%; border-radius: 14px; border: 1px solid #d8e0ea; box-shadow: 0 12px 28px rgba(30, 41, 59, .12); }
+    figcaption { margin-top: 8px; color: #64748b; font-size: 13px; }
+    pre { overflow: auto; border-radius: 12px; background: #111827; color: #e5e7eb; padding: 16px; }
+    .grid { display: grid; gap: 18px; }
+    .idea { border: 1px solid #d8e0ea; border-radius: 16px; background: #fff; padding: 18px; }
+    a { color: #2445b8; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Design Improvement: Reports Subtabs</h1>
+    <section class="callout">
+      <strong>TL;DR</strong>
+      <p>Главный шанс улучшения: сделать каждую вкладку отдельным рабочим режимом. Не просто разные данные в одинаковых карточках, а scoreboard для исполнения, incident cockpit для процесса и workbench для разрезов.</p>
+    </section>
+
+    <h2>Current State</h2>
+    <figure>
+      <img src="references/current.png" alt="Current reports performance tab">
+      <figcaption>Текущий экран исполнения: смысл уже отличается от обзора, но визуальный язык панелей еще слишком одинаковый.</figcaption>
+    </figure>
+
+    <h2>Improvement Ideas</h2>
+    <div class="grid">
+      <article class="idea">
+        <h3>1. Scoreboard для вкладки исполнения</h3>
+        <p>Ранжированные списки должны читаться как операционный scoreboard: место, имя, оценка, дельта и короткий индикатор качества в одной строке.</p>
+        <figure>
+          <img src="references/fable-security-risk-table.png" alt="Risk table reference">
+          <figcaption>Fable Security - risk table with color-coded operational rows [Lazyweb]</figcaption>
+        </figure>
+        <p><strong>Why this works:</strong> строки становятся сканируемыми по приоритету, а не выглядят как обычный список ссылок.</p>
+        <pre>┌ Rank ┬ Operator              Score  Delta ┐
+│  1   │ Линия доставки        78     -6    │
+│      │ 14 проверок  ━━━━━━━━━━━      │
+└──────┴───────────────────────────────┘</pre>
+      </article>
+
+      <article class="idea">
+        <h3>2. Incident cockpit для вкладки процесса</h3>
+        <p>Процессная вкладка должна начинаться с блока эскалаций, похожего на status console: критические ошибки, переответы, апелляции.</p>
+        <p><strong>Inspired by:</strong> status dashboards and incident management screens where color and layout express urgency before the user reads details.</p>
+        <pre>┌ Контроль процесса ┬ Critical ┬ Reanswer ┬ Appeals ┐
+│ brief             │ 1        │ 8        │ 6       │
+└───────────────────┴──────────┴──────────┴─────────┘</pre>
+      </article>
+
+      <article class="idea">
+        <h3>3. Workbench для вкладки разрезов</h3>
+        <p>Вместо стены одинаковых таблиц нужен левый индекс: критерии, норма, источники, люди, статусы. Он снижает перегрузку и дает быстрые якоря.</p>
+        <figure>
+          <img src="references/intercom-reporting.png" alt="Reporting dashboard reference">
+          <figcaption>Intercom reporting - dashboards and report navigation [Lazyweb]</figcaption>
+        </figure>
+        <pre>┌ Index ┐ ┌ Table grid                         ┐
+│ 5     │ │ Блоки критериев │ Нормы проверок  │
+│ links │ │ Источники       │ Операторы       │
+└───────┘ └────────────────────────────────────┘</pre>
+      </article>
+    </div>
+
+    <h2>What's Working</h2>
+    <p>Период, фильтры и вкладки уже собраны консистентно. Общий график качества больше не дублируется в под-разделах. Данные демо-режима достаточно богаты, чтобы показывать реальные различия между вкладками.</p>
+
+    <h2>All References</h2>
+    <p>Lazyweb MCP: Fable Security risk table, Intercom reporting dashboard. Web research fallback: Google Workspace Status Dashboard, Yahoo Finance comparison tables.</p>
+  </main>
+</body>
+</html>

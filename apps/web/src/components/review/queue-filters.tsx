@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { QueueAdvancedFilters } from "@/components/review/queue-advanced-filters";
+import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { StatusChip } from "@/components/ui/status-chip";
 import {
   channelLabels,
@@ -62,7 +63,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
   ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
 
   return (
-    <form action="/reviews" className="queue-filterbar">
+    <AutoSubmitFilterForm action="/reviews" className="queue-filterbar">
       <div className="queue-filterbar__primary">
         <label className="grid gap-1 text-sm font-medium text-[#334155]">
           Поиск
@@ -90,9 +91,6 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           defaultOpen={hasAdvancedFilters}
           actions={
             <div className="queue-filterbar__actions">
-              <button type="submit" className="action-button action-button--primary">
-                Применить
-              </button>
               <Link href="/reviews" className="action-button">
                 Сбросить
               </Link>
@@ -228,6 +226,6 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           ))}
         </div>
       ) : null}
-    </form>
+    </AutoSubmitFilterForm>
   );
 }

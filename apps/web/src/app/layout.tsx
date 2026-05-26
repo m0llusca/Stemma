@@ -1,8 +1,22 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { resolveUiAppearance } from "@/lib/ui-theme";
+
+const sans = Manrope({
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+  variable: "--font-sans"
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-mono"
+});
 
 export const metadata: Metadata = {
   title: "Контроль качества поддержки",
@@ -25,7 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const appearance = await getLayoutAppearance();
 
   return (
-    <html lang="ru">
+    <html lang="ru" className={`${sans.variable} ${mono.variable}`}>
       <body
         data-theme={appearance.uiTheme}
         data-density={appearance.uiDensity}
