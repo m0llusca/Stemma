@@ -53,7 +53,15 @@ async function main() {
   await prisma.workspace.deleteMany();
 
   const workspace = await prisma.workspace.create({
-    data: { name: "Демо Контроль качества" }
+    data: {
+      name: "Демо Контроль качества",
+      brandName: "QA Контроль",
+      brandTagline: "Поддержка и проверки",
+      brandMark: "QA",
+      brandLogoAlt: "Логотип QA Контроль",
+      brandPrimaryColor: "#3157d5",
+      brandAccentColor: "#0f766e"
+    }
   });
 
   const demoProvider = await prisma.identityProvider.create({

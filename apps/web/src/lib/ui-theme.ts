@@ -2,18 +2,43 @@ export const defaultUiTheme = "graphite";
 export const defaultUiDensity = "comfortable";
 export const defaultUiCorners = "medium";
 export const defaultUiContrast = "standard";
+export const defaultBrandName = "КК поддержки";
+export const defaultBrandTagline = "Ручная проверка";
+export const defaultBrandMark = "КК";
+export const defaultBrandPrimaryColor = "#3157d5";
+export const defaultBrandAccentColor = "#7c97ff";
+export const maxBrandLogoUrlLength = 360_000;
+
+export const uiPaletteTokenOptions = [
+  { id: "accent", label: "Акцент", cssVariable: "--accent", group: "brand" },
+  { id: "accentStrong", label: "Сильный акцент", cssVariable: "--accent-strong", group: "brand" },
+  { id: "buttonPrimaryBg", label: "Primary кнопка", cssVariable: "--button-primary-bg", group: "buttons" },
+  { id: "buttonPrimaryHover", label: "Primary hover", cssVariable: "--button-primary-hover", group: "buttons" },
+  { id: "buttonPrimaryText", label: "Текст кнопки", cssVariable: "--button-primary-text", group: "buttons" },
+  { id: "sidebarBg", label: "Фон сайдбара", cssVariable: "--sidebar-bg", group: "sidebar" },
+  { id: "sidebarAccent", label: "Активный пункт", cssVariable: "--sidebar-accent", group: "sidebar" },
+  { id: "background", label: "Фон приложения", cssVariable: "--background", group: "surfaces" },
+  { id: "panel", label: "Панель", cssVariable: "--panel", group: "surfaces" },
+  { id: "panelMuted", label: "Мягкая панель", cssVariable: "--panel-muted", group: "surfaces" },
+  { id: "panelTint", label: "Hover/tint", cssVariable: "--panel-tint", group: "surfaces" },
+  { id: "panelHeader", label: "Шапка панели", cssVariable: "--panel-header", group: "surfaces" },
+  { id: "border", label: "Границы", cssVariable: "--border", group: "surfaces" },
+  { id: "success", label: "Успех", cssVariable: "--success", group: "status" },
+  { id: "warning", label: "Внимание", cssVariable: "--warning", group: "status" },
+  { id: "danger", label: "Риск", cssVariable: "--danger", group: "status" }
+] as const;
 
 export const uiThemeOptions = [
   {
     id: "graphite",
     label: "Graphite",
-    description: "Сдержанная рабочая тема: темная навигация, чистые панели, кобальтовый акцент.",
-    accent: "#3157d5",
-    surface: "#eef2f6",
+    description: "Нейтральная рабочая тема с темной навигацией, ясными панелями и спокойным синим акцентом.",
+    accent: "#2f5fff",
+    surface: "#eef3f8",
     panel: "#ffffff",
-    panelHeader: "#f7f9fc",
-    sidebar: "#101720",
-    primary: "#2445b8",
+    panelHeader: "#f6f8fb",
+    sidebar: "#121a26",
+    primary: "#274fc7",
     dark: {
       accent: "#60a5fa",
       surface: "#070b12",
@@ -25,14 +50,14 @@ export const uiThemeOptions = [
   },
   {
     id: "azure",
-    label: "Cobalt",
-    description: "Более контрастная синяя тема для отчетов, очередей и плотных операционных экранов.",
-    accent: "#0f5fff",
-    surface: "#eff6ff",
-    panel: "#f8fbff",
-    panelHeader: "#e8f2ff",
-    sidebar: "#061a38",
-    primary: "#0747a6",
+    label: "Signal Blue",
+    description: "Холодная синяя палитра для аналитики, очередей и экранов с большим количеством сигналов.",
+    accent: "#2563eb",
+    surface: "#edf5ff",
+    panel: "#fbfdff",
+    panelHeader: "#eaf2ff",
+    sidebar: "#071a33",
+    primary: "#1d4ed8",
     dark: {
       accent: "#60a5fa",
       surface: "#061326",
@@ -44,14 +69,14 @@ export const uiThemeOptions = [
   },
   {
     id: "emerald",
-    label: "Emerald",
-    description: "Зеленовато-синяя тема для спокойной навигации; success-статусы остаются отдельным зеленым.",
-    accent: "#0f766e",
-    surface: "#f0fdfa",
+    label: "Mint Steel",
+    description: "Спокойная зелено-синяя палитра для команд, которым нужен менее холодный рабочий интерфейс.",
+    accent: "#0f8f84",
+    surface: "#eefbf8",
     panel: "#fbfffd",
-    panelHeader: "#e7fbf3",
-    sidebar: "#04201a",
-    primary: "#064e3b",
+    panelHeader: "#e8f7f3",
+    sidebar: "#06231f",
+    primary: "#0b6f66",
     dark: {
       accent: "#34d399",
       surface: "#031712",
@@ -63,14 +88,14 @@ export const uiThemeOptions = [
   },
   {
     id: "violet",
-    label: "Violet",
-    description: "Заметная фиолетовая тема для команд, которым нужны более выраженные акценты.",
-    accent: "#7c3aed",
-    surface: "#f5f3ff",
+    label: "Iris",
+    description: "Глубокая фиолетовая тема без неонового эффекта, хорошо работает для брендированных демо.",
+    accent: "#6d4aff",
+    surface: "#f4f2ff",
     panel: "#fefcff",
-    panelHeader: "#f0ebff",
-    sidebar: "#160f2f",
-    primary: "#4c1d95",
+    panelHeader: "#efecff",
+    sidebar: "#17112c",
+    primary: "#5338d5",
     dark: {
       accent: "#a78bfa",
       surface: "#120b24",
@@ -82,14 +107,14 @@ export const uiThemeOptions = [
   },
   {
     id: "amber",
-    label: "Amber",
-    description: "Теплая тема для админских и обучающих сценариев с янтарным акцентом.",
-    accent: "#b45309",
-    surface: "#fffbeb",
-    panel: "#fffdf7",
-    panelHeader: "#fff3db",
-    sidebar: "#201307",
-    primary: "#7c2d12",
+    label: "Copper",
+    description: "Теплая медная палитра для демонстраций, обучения и админских сценариев.",
+    accent: "#b85f17",
+    surface: "#fff7ed",
+    panel: "#fffdf8",
+    panelHeader: "#fff0dd",
+    sidebar: "#24180b",
+    primary: "#9a4312",
     dark: {
       accent: "#f59e0b",
       surface: "#1c1206",
@@ -101,14 +126,14 @@ export const uiThemeOptions = [
   },
   {
     id: "rose",
-    label: "Rose",
-    description: "Высокозаметная розово-красная тема для команд, работающих с рисками и эскалациями.",
-    accent: "#e11d48",
-    surface: "#fff1f4",
-    panel: "#fffafa",
-    panelHeader: "#ffecef",
-    sidebar: "#250915",
-    primary: "#881337",
+    label: "Cranberry",
+    description: "Собранная красная палитра для команд, где важны риски, эскалации и контроль качества.",
+    accent: "#cf244d",
+    surface: "#fff2f5",
+    panel: "#fffafb",
+    panelHeader: "#ffedf1",
+    sidebar: "#2a0e19",
+    primary: "#a41437",
     dark: {
       accent: "#fb7185",
       surface: "#210914",
@@ -116,6 +141,25 @@ export const uiThemeOptions = [
       panelHeader: "#471827",
       sidebar: "#17050d",
       primary: "#be123c"
+    }
+  },
+  {
+    id: "ops",
+    label: "Night Ops",
+    description: "Темная операционная тема для мониторов, очередей и дежурных рабочих пространств.",
+    accent: "#5ea0ff",
+    surface: "#0b0f17",
+    panel: "#151a24",
+    panelHeader: "#1c2230",
+    sidebar: "#0a0e15",
+    primary: "#2563eb",
+    dark: {
+      accent: "#60a5fa",
+      surface: "#070b12",
+      panel: "#111827",
+      panelHeader: "#172033",
+      sidebar: "#050810",
+      primary: "#3b82f6"
     }
   }
 ] as const;
@@ -179,11 +223,17 @@ export type UiThemeId = (typeof uiThemeOptions)[number]["id"];
 export type UiDensityId = (typeof uiDensityOptions)[number]["id"];
 export type UiCornersId = (typeof uiCornersOptions)[number]["id"];
 export type UiContrastId = (typeof uiContrastOptions)[number]["id"];
+export type UiPaletteToken = (typeof uiPaletteTokenOptions)[number]["id"];
+export type UiPaletteOverrides = Partial<Record<UiPaletteToken, string>>;
 
 const uiThemeIds = new Set<string>(uiThemeOptions.map((theme) => theme.id));
 const uiDensityIds = new Set<string>(uiDensityOptions.map((option) => option.id));
 const uiCornersIds = new Set<string>(uiCornersOptions.map((option) => option.id));
 const uiContrastIds = new Set<string>(uiContrastOptions.map((option) => option.id));
+const uiPaletteTokenIds = new Set<string>(uiPaletteTokenOptions.map((option) => option.id));
+const brandHexColorPattern = /^#[0-9A-Fa-f]{6}$/;
+const brandHttpsLogoPattern = /^https:\/\/[^\s"'<>]+$/i;
+const brandDataLogoPattern = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 export function isUiThemeId(value: string): value is UiThemeId {
   return uiThemeIds.has(value);
@@ -217,19 +267,216 @@ export function resolveUiContrast(value: string | null | undefined): UiContrastI
   return value && isUiContrastId(value) ? value : defaultUiContrast;
 }
 
+export function normalizeBrandText(value: string | null | undefined, maxLength: number) {
+  return (value ?? "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+export function isBrandHexColor(value: string | null | undefined): value is string {
+  return Boolean(value && brandHexColorPattern.test(value));
+}
+
+export function isUiPaletteToken(value: string): value is UiPaletteToken {
+  return uiPaletteTokenIds.has(value);
+}
+
+export function resolveBrandColor(value: string | null | undefined, fallback: string) {
+  return isBrandHexColor(value) ? value : fallback;
+}
+
+export function isBrandLogoUrl(value: string | null | undefined) {
+  if (!value) {
+    return true;
+  }
+
+  if (value.length > maxBrandLogoUrlLength) {
+    return false;
+  }
+
+  return brandHttpsLogoPattern.test(value) || brandDataLogoPattern.test(value);
+}
+
+export function normalizeBrandLogoUrl(value: string | null | undefined) {
+  const normalized = (value ?? "").trim();
+  return normalized && isBrandLogoUrl(normalized) ? normalized : "";
+}
+
+export function normalizeBrandMark(value: string | null | undefined) {
+  const normalized = normalizeBrandText(value, 8).toLocaleUpperCase("ru-RU");
+  return Array.from(normalized).slice(0, 3).join("");
+}
+
+function stablePaletteJson(overrides: UiPaletteOverrides) {
+  const entries = uiPaletteTokenOptions
+    .map((token) => [token.id, overrides[token.id]] as const)
+    .filter((entry): entry is readonly [UiPaletteToken, string] => Boolean(entry[1]));
+
+  return entries.length ? JSON.stringify(Object.fromEntries(entries)) : "{}";
+}
+
+export function sanitizeUiPaletteOverrides(value: unknown): UiPaletteOverrides {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const result: UiPaletteOverrides = {};
+
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (!isUiPaletteToken(key) || typeof rawValue !== "string") {
+      continue;
+    }
+
+    const normalized = rawValue.trim();
+
+    if (isBrandHexColor(normalized)) {
+      result[key] = normalized;
+    }
+  }
+
+  return result;
+}
+
+export function parseUiPaletteOverridesJson(value: string | null | undefined): UiPaletteOverrides {
+  const normalized = (value ?? "").trim();
+
+  if (!normalized) {
+    return {};
+  }
+
+  try {
+    return sanitizeUiPaletteOverrides(JSON.parse(normalized));
+  } catch {
+    return {};
+  }
+}
+
+export function serializeUiPaletteOverrides(overrides: UiPaletteOverrides) {
+  return stablePaletteJson(sanitizeUiPaletteOverrides(overrides));
+}
+
+export function validateUiPaletteOverridesJson(value: string | null | undefined) {
+  const normalized = (value ?? "").trim();
+
+  if (!normalized) {
+    return {};
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(normalized);
+  } catch {
+    throw new Error("Палитра интерфейса должна быть корректным JSON.");
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Палитра интерфейса должна быть объектом.");
+  }
+
+  for (const [key, rawValue] of Object.entries(parsed)) {
+    if (!isUiPaletteToken(key)) {
+      throw new Error("Палитра содержит неизвестный токен интерфейса.");
+    }
+
+    if (typeof rawValue !== "string" || !isBrandHexColor(rawValue.trim())) {
+      throw new Error("Все цвета интерфейса должны быть в формате #RRGGBB.");
+    }
+  }
+
+  return sanitizeUiPaletteOverrides(parsed);
+}
+
+export function uiPaletteOverridesToCssVariables(overrides: UiPaletteOverrides) {
+  const cssVariables: Record<string, string> = {};
+
+  for (const token of uiPaletteTokenOptions) {
+    const value = overrides[token.id];
+
+    if (value) {
+      cssVariables[token.cssVariable] = value;
+    }
+  }
+
+  if (overrides.accent) {
+    cssVariables["--accent-soft"] = `color-mix(in srgb, ${overrides.accent} 12%, var(--panel))`;
+    cssVariables["--accent-muted"] = `color-mix(in srgb, ${overrides.accent} 18%, var(--panel))`;
+    cssVariables["--accent-border"] = `color-mix(in srgb, ${overrides.accent} 42%, var(--border))`;
+    cssVariables["--control-selected-bg"] = `color-mix(in srgb, ${overrides.accent} 12%, var(--panel))`;
+    cssVariables["--control-selected-border"] = `color-mix(in srgb, ${overrides.accent} 44%, var(--border))`;
+  }
+
+  if (overrides.sidebarAccent) {
+    cssVariables["--sidebar-glow"] = `color-mix(in srgb, ${overrides.sidebarAccent} 18%, transparent)`;
+    cssVariables["--sidebar-active-icon"] = `color-mix(in srgb, ${overrides.sidebarAccent} 24%, transparent)`;
+  }
+
+  if (overrides.success) {
+    cssVariables["--success-soft"] = `color-mix(in srgb, ${overrides.success} 12%, var(--panel))`;
+  }
+
+  if (overrides.warning) {
+    cssVariables["--warning-soft"] = `color-mix(in srgb, ${overrides.warning} 12%, var(--panel))`;
+  }
+
+  if (overrides.danger) {
+    cssVariables["--danger-soft"] = `color-mix(in srgb, ${overrides.danger} 12%, var(--panel))`;
+  }
+
+  return cssVariables;
+}
+
+export function resolveWorkspaceBranding(input: {
+  brandName?: string | null;
+  brandTagline?: string | null;
+  brandLogoUrl?: string | null;
+  brandLogoAlt?: string | null;
+  brandMark?: string | null;
+  brandPrimaryColor?: string | null;
+  brandAccentColor?: string | null;
+  uiPaletteOverridesJson?: string | null;
+} = {}) {
+  const brandName = normalizeBrandText(input.brandName, 64) || defaultBrandName;
+  const brandTagline = normalizeBrandText(input.brandTagline, 96) || defaultBrandTagline;
+
+  return {
+    brandName,
+    brandTagline,
+    brandLogoUrl: normalizeBrandLogoUrl(input.brandLogoUrl),
+    brandLogoAlt: normalizeBrandText(input.brandLogoAlt, 96) || brandName,
+    brandMark: normalizeBrandMark(input.brandMark) || defaultBrandMark,
+    brandPrimaryColor: resolveBrandColor(input.brandPrimaryColor, defaultBrandPrimaryColor),
+    brandAccentColor: resolveBrandColor(input.brandAccentColor, defaultBrandAccentColor)
+  };
+}
+
 export function resolveUiAppearance(input: {
   uiTheme?: string | null;
   uiDensity?: string | null;
   uiCorners?: string | null;
   uiContrast?: string | null;
+  brandName?: string | null;
+  brandTagline?: string | null;
+  brandLogoUrl?: string | null;
+  brandLogoAlt?: string | null;
+  brandMark?: string | null;
+  brandPrimaryColor?: string | null;
+  brandAccentColor?: string | null;
+  uiPaletteOverridesJson?: string | null;
 }) {
+  const uiPaletteOverrides = parseUiPaletteOverridesJson(input.uiPaletteOverridesJson);
+
   return {
+    ...resolveWorkspaceBranding(input),
     uiTheme: resolveUiTheme(input.uiTheme),
     uiDensity: resolveUiDensity(input.uiDensity),
     uiCorners: resolveUiCorners(input.uiCorners),
-    uiContrast: resolveUiContrast(input.uiContrast)
+    uiContrast: resolveUiContrast(input.uiContrast),
+    uiPaletteOverrides,
+    uiPaletteOverridesJson: serializeUiPaletteOverrides(uiPaletteOverrides)
   };
 }
+
+export type WorkspaceBranding = ReturnType<typeof resolveWorkspaceBranding>;
+export type UiAppearance = ReturnType<typeof resolveUiAppearance>;
 
 export function getUiThemeOption(value: string | null | undefined) {
   const theme = resolveUiTheme(value);

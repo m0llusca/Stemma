@@ -3,15 +3,17 @@ import { AppSidebarShell, type SidebarNavItem } from "@/components/app-sidebar-s
 import { AuthRequiredError, getCurrentUser, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
+import { resolveWorkspaceBranding } from "@/lib/ui-theme";
 import { switchCurrentUser } from "@/lib/user-actions";
 
 const navItems = [
-  { href: "/reviews", label: "Проверки", icon: "reviews", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
-  { href: "/self-review", label: "Моя обратная связь", icon: "self-review", roles: ["SUPPORT_AGENT"] },
-  { href: "/calibration", label: "Калибровка", icon: "calibration", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
-  { href: "/coaching", label: "Обучение", icon: "coaching", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
-  { href: "/reports", label: "Аналитика", icon: "reports", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
-  { href: "/admin", label: "Настройки", icon: "admin", roles: ["ADMIN", "TEAM_LEAD"] }
+  { href: "/dashboard", label: "Дашборд", icon: "dashboard", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
+  { href: "/reviews", label: "Проверки", icon: "reviews", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
+  { href: "/self-review", label: "Моя обратная связь", icon: "self-review", group: "workspace", roles: ["SUPPORT_AGENT"] },
+  { href: "/calibration", label: "Калибровка", icon: "calibration", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
+  { href: "/coaching", label: "Обучение", icon: "coaching", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
+  { href: "/reports", label: "Аналитика", icon: "reports", group: "data", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
+  { href: "/admin", label: "Настройки", icon: "admin", group: "admin", roles: ["ADMIN", "TEAM_LEAD"] }
 ] satisfies Array<SidebarNavItem & { roles: string[] }>;
 
 function canSeeNavItem(role: RoleName, roles: string[]) {
@@ -31,7 +33,7 @@ export async function AppSidebar() {
     return null;
   }
 
-  const [users, openAppealCount] = await Promise.all([
+  const [users, openAppealCount, queuedCount, activeTrainingCount] = await Promise.all([
     getWorkspaceUsers(currentUser.workspaceId),
     prisma.conversation.count({
       where: {
@@ -46,6 +48,20 @@ export async function AppSidebar() {
           }
         }
       }
+    }),
+    prisma.conversation.count({
+      where: {
+        workspaceId: currentUser.workspaceId,
+        ...(currentUser.role === "SUPPORT_AGENT" ? { assigneeName: currentUser.name } : {}),
+        qaStatus: "QUEUED"
+      }
+    }),
+    prisma.trainingAssignment.count({
+      where: {
+        workspaceId: currentUser.workspaceId,
+        ...(currentUser.role === "SUPPORT_AGENT" ? { assigneeId: currentUser.id } : {}),
+        status: { not: "done" }
+      }
     })
   ]);
   const visibleItems = navItems
@@ -54,11 +70,19 @@ export async function AppSidebar() {
       href: item.href,
       label: item.label,
       icon: item.icon,
-      badge: (item.href === "/reviews" || item.href === "/self-review") && openAppealCount > 0 ? openAppealCount : undefined
+      group: item.group,
+      badge:
+        item.href === "/reviews" && queuedCount > 0
+          ? queuedCount
+          : (item.href === "/self-review" && openAppealCount > 0) || (item.href === "/reviews" && openAppealCount > 0)
+            ? openAppealCount
+            : item.href === "/coaching" && activeTrainingCount > 0
+              ? activeTrainingCount
+              : undefined
     }));
 
   return (
-    <AppSidebarShell items={visibleItems}>
+    <AppSidebarShell items={visibleItems} branding={resolveWorkspaceBranding(currentUser.workspace)}>
       {isDemoAuthEnabled() ? (
         <form action={switchCurrentUser} className="soft-callout">
           <input type="hidden" name="returnTo" value="/reviews" />

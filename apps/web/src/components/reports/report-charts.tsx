@@ -7,6 +7,7 @@ export type ChartDatum = {
   label: string;
   value: number;
   detail?: string;
+  href?: string;
 };
 
 export type RankedDatum = ChartDatum & {
@@ -19,6 +20,7 @@ export type StackedSegment = {
   label: string;
   value: number;
   color: string;
+  href?: string;
 };
 
 function clampPercent(value: number) {
@@ -231,15 +233,27 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
         ))}
       </div>
       <div className="risk-stack__legend">
-        {segments.map((segment) => (
-          <div key={segment.label} className="risk-stack__legend-item">
-            <span>
-              <span className={`risk-stack__dot ${segment.color}`} />
-              <span>{segment.label}</span>
-            </span>
-            <strong>{segment.value}</strong>
-          </div>
-        ))}
+        {segments.map((segment) => {
+          const content = (
+            <>
+              <span>
+                <span className={`risk-stack__dot ${segment.color}`} />
+                <span>{segment.label}</span>
+              </span>
+              <strong>{segment.value}</strong>
+            </>
+          );
+
+          return segment.href ? (
+            <Link key={segment.label} href={segment.href} className="risk-stack__legend-item risk-stack__legend-item--link">
+              {content}
+            </Link>
+          ) : (
+            <div key={segment.label} className="risk-stack__legend-item">
+              {content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -252,6 +266,7 @@ export function QuotaProgressBars({
     label: string;
     planned: number;
     actual: number;
+    href?: string;
   }>;
 }) {
   if (rows.length === 0) {
@@ -264,14 +279,25 @@ export function QuotaProgressBars({
         const percent = row.planned > 0 ? clampPercent((row.actual / row.planned) * 100) : 0;
         const remaining = Math.max(0, row.planned - row.actual);
 
-        return (
-          <div key={row.label} className={`quota-list__row ${remaining > 0 ? "quota-list__row--behind" : "quota-list__row--done"}`}>
+        const content = (
+          <>
             <div>
               <p>{row.label}</p>
               <span>{remaining > 0 ? `Осталось ${remaining}` : "Норма закрыта"}</span>
             </div>
             <PercentProgressBar value={percent} label={row.label} />
             <strong>{row.actual} из {row.planned}</strong>
+          </>
+        );
+        const className = `quota-list__row ${remaining > 0 ? "quota-list__row--behind" : "quota-list__row--done"} ${row.href ? "quota-list__row--link" : ""}`;
+
+        return row.href ? (
+          <Link key={row.label} href={row.href} className={className}>
+            {content}
+          </Link>
+        ) : (
+          <div key={row.label} className={className}>
+            {content}
           </div>
         );
       })}

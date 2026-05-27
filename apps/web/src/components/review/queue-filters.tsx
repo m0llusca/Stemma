@@ -5,7 +5,10 @@ import { StatusChip } from "@/components/ui/status-chip";
 import {
   channelLabels,
   csatBucketLabels,
+  appealStatusLabels,
+  feedbackStatusLabels,
   qaStatusLabels,
+  reanswerStatusLabels,
   reviewQueueStatusLabels,
   riskLevelLabels,
   samplingTypeLabels
@@ -33,6 +36,12 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
     filters.process,
     filters.due,
     filters.riskLevel,
+    filters.coachingStatus,
+    filters.findingCategory,
+    filters.criticalCategory,
+    filters.feedbackStatus,
+    filters.appealStatus,
+    filters.reanswerStatus,
     filters.finalizedFrom,
     filters.finalizedTo
   ];
@@ -43,7 +52,11 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
     reanswer: "Переответы",
     appeal: "Апелляции"
   } as const;
-  const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+  const riskLevels = ["HIGH_OR_CRITICAL", "CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
+  const riskFilterLabels = {
+    HIGH_OR_CRITICAL: "Высокий и критический",
+    ...riskLevelLabels
+  } as const;
   const activeFilters = [
     filters.q ? { label: "Поиск", value: filters.q } : null,
     filters.status !== "all" ? { label: "Статус", value: reviewQueueStatusLabels[filters.status] } : null,
@@ -57,7 +70,13 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
     filters.supportLine ? { label: "Линия", value: filters.supportLine } : null,
     filters.process ? { label: "Процесс", value: processLabels[filters.process] } : null,
     filters.due ? { label: "Срок", value: "Просрочено" } : null,
-    filters.riskLevel ? { label: "Риск", value: riskLevelLabels[filters.riskLevel] } : null,
+    filters.riskLevel ? { label: "Риск", value: riskFilterLabels[filters.riskLevel] } : null,
+    filters.coachingStatus ? { label: "Разбор", value: "Открыт" } : null,
+    filters.findingCategory ? { label: "Категория", value: filters.findingCategory } : null,
+    filters.criticalCategory ? { label: "Критическая ошибка", value: filters.criticalCategory } : null,
+    filters.feedbackStatus ? { label: "Обратная связь", value: feedbackStatusLabels[filters.feedbackStatus] ?? filters.feedbackStatus } : null,
+    filters.appealStatus ? { label: "Апелляция", value: appealStatusLabels[filters.appealStatus] ?? filters.appealStatus } : null,
+    filters.reanswerStatus ? { label: "Переответ", value: reanswerStatusLabels[filters.reanswerStatus] ?? filters.reanswerStatus } : null,
     filters.finalizedFrom ? { label: "Период с", value: filters.finalizedFrom.toLocaleDateString("ru-RU") } : null,
     filters.finalizedTo ? { label: "Период по", value: filters.finalizedTo.toLocaleDateString("ru-RU") } : null
   ].filter((filter): filter is { label: string; value: string } => Boolean(filter));
@@ -208,7 +227,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
                 <option value="">Все</option>
                 {riskLevels.map((riskLevel) => (
                   <option key={riskLevel} value={riskLevel}>
-                    {riskLevelLabels[riskLevel]}
+                    {riskFilterLabels[riskLevel]}
                   </option>
                 ))}
               </select>

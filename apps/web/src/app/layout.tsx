@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import type { CSSProperties, ReactNode } from "react";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppTopbar } from "@/components/app-topbar";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
-import { resolveUiAppearance } from "@/lib/ui-theme";
+import { resolveUiAppearance, uiPaletteOverridesToCssVariables } from "@/lib/ui-theme";
 
 const sans = Manrope({
   subsets: ["latin", "cyrillic"],
@@ -35,12 +37,18 @@ async function getLayoutAppearance() {
   return resolveUiAppearance(user?.workspace ?? {});
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   const appearance = await getLayoutAppearance();
+  const brandStyle = {
+    "--brand-primary": appearance.brandPrimaryColor,
+    "--brand-accent": appearance.brandAccentColor,
+    ...uiPaletteOverridesToCssVariables(appearance.uiPaletteOverrides)
+  } as CSSProperties;
 
   return (
     <html lang="ru" className={`${sans.variable} ${mono.variable}`}>
       <body
+        style={brandStyle}
         data-theme={appearance.uiTheme}
         data-density={appearance.uiDensity}
         data-corners={appearance.uiCorners}
@@ -51,7 +59,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </a>
         <div className="page">
           <AppSidebar />
-          <main id="main-content">{children}</main>
+          <main id="main-content">
+            <AppTopbar />
+            {children}
+          </main>
         </div>
       </body>
     </html>

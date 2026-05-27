@@ -47,6 +47,14 @@ const certificationEvidenceMigrationName = readdirSync(migrationsDir).find((name
 const certificationEvidenceMigration = certificationEvidenceMigrationName
   ? readFileSync(join(migrationsDir, certificationEvidenceMigrationName, "migration.sql"), "utf8")
   : "";
+const workspaceBrandingMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_add_workspace_branding"));
+const workspaceBrandingMigration = workspaceBrandingMigrationName
+  ? readFileSync(join(migrationsDir, workspaceBrandingMigrationName, "migration.sql"), "utf8")
+  : "";
+const workspacePaletteMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_add_workspace_palette_overrides"));
+const workspacePaletteMigration = workspacePaletteMigrationName
+  ? readFileSync(join(migrationsDir, workspacePaletteMigrationName, "migration.sql"), "utf8")
+  : "";
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -58,6 +66,23 @@ describe("prisma schema database foundations", () => {
     expect(migrationLock).toContain('provider = "postgresql"');
     expect(baselineMigration).toContain('CREATE SCHEMA IF NOT EXISTS "public";');
     expect(baselineMigration).not.toContain("PRAGMA");
+  });
+
+  it("stores workspace branding separately from operational theme tokens", () => {
+    const workspaceModel = modelBlock("Workspace");
+
+    expect(workspaceModel).toContain("brandName                 String?");
+    expect(workspaceModel).toContain("brandTagline              String?");
+    expect(workspaceModel).toContain("brandLogoUrl              String?");
+    expect(workspaceModel).toContain("brandLogoAlt              String?");
+    expect(workspaceModel).toContain("brandMark                 String?");
+    expect(workspaceModel).toContain('brandPrimaryColor         String                     @default("#3157d5")');
+    expect(workspaceModel).toContain('brandAccentColor          String                     @default("#7c97ff")');
+    expect(workspaceModel).toContain('uiPaletteOverridesJson    String                     @default("{}")');
+    expect(workspaceBrandingMigration).toContain('ADD COLUMN "brandLogoUrl" TEXT');
+    expect(workspaceBrandingMigration).toContain('CONSTRAINT "Workspace_brandPrimaryColor_chk"');
+    expect(workspaceBrandingMigration).toContain('CONSTRAINT "Workspace_brandAccentColor_chk"');
+    expect(workspacePaletteMigration).toContain('ADD COLUMN "uiPaletteOverridesJson" TEXT NOT NULL DEFAULT');
   });
 
   it("keeps evidence and calibration baseline references as database foreign keys", () => {

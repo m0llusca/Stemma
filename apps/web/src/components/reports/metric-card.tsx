@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
 type MetricCardProps = {
@@ -6,6 +7,8 @@ type MetricCardProps = {
   value: string;
   helper: string;
   icon?: ReactNode;
+  actionHref?: string;
+  actionLabel?: string;
   comparison?: {
     current: number | null;
     previous: number | null;
@@ -72,7 +75,7 @@ function MetricComparison({
   );
 }
 
-export function MetricCard({ label, value, helper, icon, comparison }: MetricCardProps) {
+export function MetricCard({ label, value, helper, icon, actionHref, actionLabel = "Открыть", comparison }: MetricCardProps) {
   return (
     <article className="panel metric-card p-5">
       <div className="flex items-start justify-between gap-4">
@@ -84,6 +87,11 @@ export function MetricCard({ label, value, helper, icon, comparison }: MetricCar
       </div>
       {comparison ? <MetricComparison {...comparison} /> : null}
       <p className="metric-card__helper">{helper}</p>
+      {actionHref ? (
+        <Link href={actionHref} className="metric-card__action">
+          {actionLabel}
+        </Link>
+      ) : null}
     </article>
   );
 }

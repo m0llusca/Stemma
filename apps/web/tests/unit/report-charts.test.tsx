@@ -13,6 +13,12 @@ describe("QuotaProgressBars", () => {
     expect(screen.getByRole("progressbar", { name: "Операторы: 70%" })).toHaveAttribute("aria-valuenow", "70");
     expect(screen.queryByText(/балл/)).not.toBeInTheDocument();
   });
+
+  it("links quota rows to filtered review queues when drilldown href is provided", () => {
+    render(<QuotaProgressBars rows={[{ label: "Иван Петров", planned: 10, actual: 7, href: "/reviews?assignee=Иван+Петров" }]} />);
+
+    expect(screen.getByRole("link", { name: /Иван Петров/ })).toHaveAttribute("href", "/reviews?assignee=Иван+Петров");
+  });
 });
 
 describe("HorizontalBarChart", () => {

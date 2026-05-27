@@ -120,10 +120,18 @@ enum ReportSnapshotStatus {
 model Workspace {
   id                        String                     @id @default(cuid())
   name                      String
+  brandName                 String?
+  brandTagline              String?
+  brandLogoUrl              String?
+  brandLogoAlt              String?
+  brandMark                 String?
+  brandPrimaryColor         String                     @default("#3157d5")
+  brandAccentColor          String                     @default("#7c97ff")
   uiTheme                   String                     @default("graphite")
   uiDensity                 String                     @default("comfortable")
   uiCorners                 String                     @default("medium")
   uiContrast                String                     @default("standard")
+  uiPaletteOverridesJson    String                     @default("{}")
   users                     User[]
   identityProviders         IdentityProvider[]
   identityGroups            IdentityGroup[]

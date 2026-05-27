@@ -13,10 +13,18 @@ export default async function AdminAppearancePage() {
     where: { id: user.workspaceId },
     select: {
       name: true,
+      brandName: true,
+      brandTagline: true,
+      brandLogoUrl: true,
+      brandLogoAlt: true,
+      brandMark: true,
+      brandPrimaryColor: true,
+      brandAccentColor: true,
       uiTheme: true,
       uiDensity: true,
       uiCorners: true,
-      uiContrast: true
+      uiContrast: true,
+      uiPaletteOverridesJson: true
     }
   });
   const appearance = resolveUiAppearance(workspace ?? {});
@@ -45,7 +53,7 @@ export default async function AdminAppearancePage() {
           <div className="min-w-0">
             <p className="ops-panel__eyebrow">Рабочее пространство</p>
             <h2 id="appearance-settings-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
-            <p className="ops-panel__subtitle">Статусы готовности, завершения и выполнения остаются зелеными в любой теме.</p>
+            <p className="ops-panel__subtitle">Палитра управляет навигацией, кнопками, поверхностями, границами и статусами без ручной правки CSS.</p>
           </div>
           <span className="pill pill--ok">
             <CheckCircle2 size={14} aria-hidden="true" />

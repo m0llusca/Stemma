@@ -2,9 +2,11 @@ import type { ConversationChannel, Prisma, QaStatus, RiskLevel } from "@prisma/c
 import type {
   ReviewQueueConversationDto,
   ReviewQueueDueFilter,
+  ReviewQueueCoachingFilter,
   ReviewQueueFilterOptionsDto,
   ReviewQueueFilters,
   ReviewQueueProcessFilter,
+  ReviewQueueRiskFilter,
   ReviewQueueSearchParams,
   ReviewQueueStatus,
   ReviewQueueSummaryDto
@@ -13,8 +15,10 @@ import { prisma } from "@/lib/db";
 
 export type {
   ReviewQueueDueFilter,
+  ReviewQueueCoachingFilter,
   ReviewQueueFilters,
   ReviewQueueProcessFilter,
+  ReviewQueueRiskFilter,
   ReviewQueueSearchParams,
   ReviewQueueStatus
 } from "@/lib/contracts/review-queue";
@@ -29,6 +33,8 @@ export const queueDueFilters = ["overdue"] as const;
 const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
 const conversationQaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
 const findingRiskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const satisfies readonly RiskLevel[];
+const reviewQueueRiskFilters = [...findingRiskLevels, "HIGH_OR_CRITICAL"] as const satisfies readonly ReviewQueueRiskFilter[];
+const reviewQueueCoachingStatuses = ["open"] as const satisfies readonly ReviewQueueCoachingFilter[];
 
 type ReviewQueueScope = {
   assigneeName?: string;
@@ -75,6 +81,7 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
   const requestedProcess = cleanParam(searchParams.process);
   const requestedDue = cleanParam(searchParams.due);
   const requestedRiskLevel = cleanParam(searchParams.riskLevel);
+  const requestedCoachingStatus = cleanParam(searchParams.coachingStatus);
   const requestedFinalizedFrom = cleanParam(searchParams.finalizedFrom);
   const requestedFinalizedTo = cleanParam(searchParams.finalizedTo);
 
@@ -101,7 +108,17 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
       ? (requestedProcess as ReviewQueueProcessFilter)
       : undefined,
     due: queueDueFilters.includes(requestedDue as ReviewQueueDueFilter) ? (requestedDue as ReviewQueueDueFilter) : undefined,
-    riskLevel: findingRiskLevels.includes(requestedRiskLevel as RiskLevel) ? (requestedRiskLevel as RiskLevel) : undefined,
+    riskLevel: reviewQueueRiskFilters.includes(requestedRiskLevel as ReviewQueueRiskFilter)
+      ? (requestedRiskLevel as ReviewQueueRiskFilter)
+      : undefined,
+    coachingStatus: reviewQueueCoachingStatuses.includes(requestedCoachingStatus as ReviewQueueCoachingFilter)
+      ? (requestedCoachingStatus as ReviewQueueCoachingFilter)
+      : undefined,
+    findingCategory: cleanParam(searchParams.findingCategory),
+    criticalCategory: cleanParam(searchParams.criticalCategory),
+    feedbackStatus: cleanParam(searchParams.feedbackStatus),
+    appealStatus: cleanParam(searchParams.appealStatus),
+    reanswerStatus: cleanParam(searchParams.reanswerStatus),
     finalizedFrom: parseDateParam(requestedFinalizedFrom),
     finalizedTo: parseDateParam(requestedFinalizedTo, true)
   };
@@ -246,6 +263,11 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.riskLevel) {
+    const riskLevelWhere =
+      filters.riskLevel === "HIGH_OR_CRITICAL"
+        ? { in: ["HIGH", "CRITICAL"] satisfies RiskLevel[] }
+        : filters.riskLevel;
+
     and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
@@ -254,9 +276,98 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
           status: "FINALIZED",
           findings: {
             some: {
-              riskLevel: filters.riskLevel
+              riskLevel: riskLevelWhere
             }
           }
+        }
+      }
+    });
+  }
+
+  if (filters.findingCategory) {
+    and.push({ qaStatus: "FINALIZED" });
+    and.push({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          findings: {
+            some: {
+              category: filters.findingCategory
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (filters.coachingStatus === "open") {
+    and.push({ qaStatus: "FINALIZED" });
+    and.push({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          findings: {
+            some: {
+              coachingAction: {
+                status: "open"
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (filters.criticalCategory) {
+    and.push({ qaStatus: "FINALIZED" });
+    and.push({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          criticalError: true,
+          criticalCategory: filters.criticalCategory
+        }
+      }
+    });
+  }
+
+  if (filters.feedbackStatus) {
+    and.push({ qaStatus: "FINALIZED" });
+    and.push({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          feedbackStatus: filters.feedbackStatus
+        }
+      }
+    });
+  }
+
+  if (filters.appealStatus) {
+    and.push({ qaStatus: "FINALIZED" });
+    and.push({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          appealStatus: filters.appealStatus
+        }
+      }
+    });
+  }
+
+  if (filters.reanswerStatus) {
+    and.push({ qaStatus: "FINALIZED" });
+    and.push({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          reanswerStatus: filters.reanswerStatus
         }
       }
     });

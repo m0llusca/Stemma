@@ -302,7 +302,7 @@ export default async function AdminHomePage() {
 
       <div className="admin-section-grid">
         {groupedCards.map((group) => (
-          <section key={group.id} className="admin-section-card" aria-labelledby={`admin-section-${group.id}`}>
+          <section key={group.id} className={`admin-section-card admin-section-card--${group.id}`} aria-labelledby={`admin-section-${group.id}`}>
             <div className="admin-section-card__header">
               <p className="ops-panel__eyebrow">Разделы администрирования</p>
               <h2 id={`admin-section-${group.id}`} className="ops-panel__title">{group.title}</h2>
@@ -320,6 +320,7 @@ export default async function AdminHomePage() {
                     <span className="admin-home-link__body">
                       <span className="admin-home-link__title">
                         <span className="record-title record-title--tight">{card.title}</span>
+                        {card.metric ? <span className={`admin-home-link__metric admin-home-link__metric--${card.tone ?? "neutral"}`}>{card.metric}</span> : null}
                       </span>
                       <span className="record-meta">{card.description}</span>
                     </span>

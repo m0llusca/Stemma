@@ -370,12 +370,12 @@ function scoreDistributionRows(reviews: ReviewForReport[]): ChartDatum[] {
   });
 }
 
-function riskSegments(riskGroups: Map<string, number>): StackedSegment[] {
+function riskSegments(riskGroups: Map<string, number>, period: ReportPeriod): StackedSegment[] {
   return [
-    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, color: "bg-[#3157d5]" },
-    { label: "Средний", value: riskGroups.get("Средний") ?? 0, color: "bg-[#0f766e]" },
-    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, color: "bg-[#d97706]" },
-    { label: "Критический", value: riskGroups.get("Критический") ?? 0, color: "bg-[#dc2626]" }
+    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, color: "bg-[#3157d5]", href: reportReviewHref(period, { riskLevel: "LOW" }) },
+    { label: "Средний", value: riskGroups.get("Средний") ?? 0, color: "bg-[#0f766e]", href: reportReviewHref(period, { riskLevel: "MEDIUM" }) },
+    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, color: "bg-[#d97706]", href: reportReviewHref(period, { riskLevel: "HIGH" }) },
+    { label: "Критический", value: riskGroups.get("Критический") ?? 0, color: "bg-[#dc2626]", href: reportReviewHref(period, { riskLevel: "CRITICAL" }) }
   ];
 }
 
@@ -483,13 +483,15 @@ function BreakdownTable({
   title,
   rows,
   countLabel,
-  showAverage = false
+  showAverage = false,
+  actionLabel = "Открыть проверки"
 }: {
   id?: string;
   title: string;
   rows: BreakdownRow[];
   countLabel: string;
   showAverage?: boolean;
+  actionLabel?: string;
 }) {
   return (
     <section id={id} className="panel overflow-hidden breakdown-panel">
@@ -510,6 +512,11 @@ function BreakdownTable({
                 </span>
               </div>
               {showAverage ? <p className="record-meta">Средняя оценка: {formatAverageScore(row.averageScore)}</p> : null}
+              {row.href ? (
+                <Link href={row.href} className="record-card__action">
+                  {actionLabel}
+                </Link>
+              ) : null}
             </article>
           ))
         ) : (
@@ -626,7 +633,8 @@ function ReportViewSelector({
 function QuotaTable({
   id,
   quotas,
-  reviews
+  reviews,
+  period
 }: {
   id?: string;
   quotas: Array<{
@@ -638,6 +646,7 @@ function QuotaTable({
     note: string | null;
   }>;
   reviews: ReviewForReport[];
+  period: ReportPeriod;
 }) {
   return (
     <section id={id} className="panel overflow-hidden breakdown-panel quota-table-panel">
@@ -662,6 +671,10 @@ function QuotaTable({
                 : remaining > 0
                   ? "Нужно добрать"
                   : "Норма выполнена";
+            const href = reportReviewHref(period, {
+              assignee: quota.assigneeName,
+              ...(quota.supportLine ? { supportLine: quota.supportLine } : {})
+            });
 
             return (
               <article key={`${quota.assigneeName}:${quota.supportLine ?? ""}`} className="record-card">
@@ -681,6 +694,9 @@ function QuotaTable({
                     {quota.note ?? ""}
                   </p>
                 ) : null}
+                <Link href={href} className="record-card__action">
+                  Открыть проверки оператора
+                </Link>
               </article>
             );
           })
@@ -697,16 +713,18 @@ function QuotaTable({
 function ProcessSummary({
   criticalCount,
   reanswerCount,
-  appealCount
+  appealCount,
+  period
 }: {
   criticalCount: number;
   reanswerCount: number;
   appealCount: number;
+  period: ReportPeriod;
 }) {
   const items = [
-    { label: "Критические ошибки", value: criticalCount, detail: "Обнуляют оценку", icon: Scale, tone: "danger" },
-    { label: "Переответы", value: reanswerCount, detail: "Нужен новый ответ", icon: RotateCcw, tone: "warn" },
-    { label: "Апелляции", value: appealCount, detail: "Споры по оценке", icon: CalendarDays, tone: "neutral" }
+    { label: "Критические ошибки", value: criticalCount, detail: "Обнуляют оценку", icon: Scale, tone: "danger", href: reportReviewHref(period, { process: "critical" }) },
+    { label: "Переответы", value: reanswerCount, detail: "Нужен новый ответ", icon: RotateCcw, tone: "warn", href: reportReviewHref(period, { process: "reanswer" }) },
+    { label: "Апелляции", value: appealCount, detail: "Споры по оценке", icon: CalendarDays, tone: "neutral", href: reportReviewHref(period, { process: "appeal" }) }
   ];
 
   return (
@@ -722,7 +740,7 @@ function ProcessSummary({
             const Icon = item.icon;
 
             return (
-              <div key={item.label} className={`process-summary__item process-summary__item--${item.tone}`}>
+              <Link key={item.label} href={item.href} className={`process-summary__item process-summary__item--${item.tone}`}>
                 <span className="process-summary__icon">
                   <Icon size={17} aria-hidden="true" />
                 </span>
@@ -731,7 +749,7 @@ function ProcessSummary({
                   <dd>{item.value}</dd>
                   <p>{item.detail}</p>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </dl>
@@ -1143,6 +1161,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     addScoreGroup(previousAssigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
   }
 
+  const riskLevelByLabel = new Map(Object.entries(riskLevelLabels).map(([value, label]) => [label, value]));
+  const samplingTypeByLabel = new Map(Object.entries(samplingTypeLabels).map(([value, label]) => [label, value]));
+  const csatBucketByLabel = new Map(Object.entries(csatBucketLabels).map(([value, label]) => [label, value]));
+  const feedbackStatusByLabel = new Map(Object.entries(feedbackStatusLabels).map(([value, label]) => [label, value]));
+  const appealStatusByLabel = new Map(Object.entries(appealStatusLabels).map(([value, label]) => [label, value]));
+  const reanswerStatusByLabel = new Map(Object.entries(reanswerStatusLabels).map(([value, label]) => [label, value]));
   const previousSourceRows = scoreGroupRows(previousSourceGroups).map((row) => ({
     ...row,
     label: externalSourceLabel(row.label)
@@ -1153,16 +1177,70 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     label: externalSourceLabel(row.label),
     href: reportReviewHref(period, { source: row.label })
   }));
-  const assigneeRows = scoreGroupRows(assigneeGroups);
-  const reviewerRows = scoreGroupRows(reviewerGroups);
-  const categoryRows = countGroupRows(categoryGroups);
-  const riskRows = countGroupRows(riskGroups);
-  const samplingRows = countGroupRows(samplingGroups);
-  const csatRows = countGroupRows(csatGroups);
-  const feedbackRows = countGroupRows(feedbackGroups);
-  const appealRows = countGroupRows(appealGroups);
-  const reanswerRows = countGroupRows(reanswerGroups);
-  const criticalCategoryRows = countGroupRows(criticalCategoryGroups);
+  const assigneeRows = scoreGroupRows(assigneeGroups).map((row) => ({
+    ...row,
+    href: row.label === "Не назначен" ? reportReviewHref(period) : reportReviewHref(period, { assignee: row.label })
+  }));
+  const reviewerRows = scoreGroupRows(reviewerGroups).map((row) => ({
+    ...row,
+    href: reportReviewHref(period, { qaAssignee: row.label })
+  }));
+  const categoryRows = countGroupRows(categoryGroups).map((row) => ({
+    ...row,
+    href: reportReviewHref(period, { findingCategory: row.label })
+  }));
+  const riskRows = countGroupRows(riskGroups).map((row) => {
+    const riskLevel = riskLevelByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: riskLevel ? reportReviewHref(period, { riskLevel }) : undefined
+    };
+  });
+  const samplingRows = countGroupRows(samplingGroups).map((row) => {
+    const samplingType = samplingTypeByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: samplingType ? reportReviewHref(period, { samplingType }) : undefined
+    };
+  });
+  const csatRows = countGroupRows(csatGroups).map((row) => {
+    const csatBucket = csatBucketByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: csatBucket ? reportReviewHref(period, { csatBucket }) : undefined
+    };
+  });
+  const feedbackRows = countGroupRows(feedbackGroups).map((row) => {
+    const feedbackStatus = feedbackStatusByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: feedbackStatus ? reportReviewHref(period, { feedbackStatus }) : undefined
+    };
+  });
+  const appealRows = countGroupRows(appealGroups).map((row) => {
+    const appealStatus = appealStatusByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: appealStatus ? reportReviewHref(period, { appealStatus }) : undefined
+    };
+  });
+  const reanswerRows = countGroupRows(reanswerGroups).map((row) => {
+    const reanswerStatus = reanswerStatusByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: reanswerStatus ? reportReviewHref(period, { reanswerStatus }) : undefined
+    };
+  });
+  const criticalCategoryRows = countGroupRows(criticalCategoryGroups).map((row) => ({
+    ...row,
+    href: reportReviewHref(period, { criticalCategory: row.label })
+  }));
   const blockScoreRows = blockRows(finalizedReviews);
   const finalizedCount = finalizedReviews.length;
   const previousAverageScore = averageScoreFor(previousReviews);
@@ -1178,7 +1256,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const operatorRankRows = rankedScoreRows(assigneeRows, previousAssigneeRows).map((row) => ({
     ...row,
     value: Math.round(row.averageScore ?? 0),
-    href: row.label === "Не назначен" ? reportReviewHref(period) : reportReviewHref(period, { assignee: row.label }),
+    href: row.href,
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
@@ -1191,7 +1269,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const weakestAssigneeFocus = operatorRankRows[0];
   const weakestSourceFocus = sourceRankRows[0];
   const blockScoreChartRows = averageScoreChartRows(blockScoreRows, 8);
-  const riskStackSegments = riskSegments(riskGroups);
+  const riskStackSegments = riskSegments(riskGroups, period);
   const quotaProgressRows = quotas.map((quota) => {
     const actualReviews = finalizedReviews.filter(
       (review) =>
@@ -1202,7 +1280,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     return {
       label: quota.supportLine ? `${quota.assigneeName}, ${quota.supportLine}` : quota.assigneeName,
       planned: quota.plannedCount,
-      actual: actualReviews.length
+      actual: actualReviews.length,
+      href: reportReviewHref(period, {
+        assignee: quota.assigneeName,
+        ...(quota.supportLine ? { supportLine: quota.supportLine } : {})
+      })
     };
   });
   const plannedQuotaTotal = quotaProgressRows.reduce((sum, row) => sum + row.planned, 0);
@@ -1378,18 +1460,24 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               value={String(highRiskFindings)}
               helper={highRiskFindings > 0 ? "Откройте риск и разберите причины до следующего цикла." : "Высокий риск не найден в выбранном периоде."}
               icon={<AlertTriangle size={18} aria-hidden="true" />}
+              actionHref={reportReviewHref(period, { riskLevel: "HIGH_OR_CRITICAL" })}
+              actionLabel="Открыть риск"
             />
             <MetricCard
               label="Разборы с операторами"
               value={String(coachingBacklog)}
               helper={coachingBacklog > 0 ? "Есть открытые действия по разбору замечаний." : "Открытых действий по разбору нет."}
               icon={<ClipboardList size={18} aria-hidden="true" />}
+              actionHref={reportReviewHref(period, { coachingStatus: "open" })}
+              actionLabel="Открыть разборы"
             />
             <MetricCard
               label="Проверенные источники"
               value={String(sourceRows.length)}
               helper={sourceRows.length > 1 ? "Сравните источники по средней оценке и объему." : "Источник считается проверенным после финальной оценки."}
               icon={<Database size={18} aria-hidden="true" />}
+              actionHref={reportHref(period, { view: "performance" })}
+              actionLabel="Сравнить источники"
             />
           </div>
         </div>
@@ -1407,7 +1495,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "process" ? (
-        <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} />
+        <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} period={period} />
       ) : null}
 
       {reportView === "details" ? (
@@ -1493,7 +1581,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <DetailsIndexPanel items={detailsIndexItems} />
           <div className="reports-table-grid reports-table-grid--details">
             <BreakdownTable id="details-blocks" title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
-            <QuotaTable id="details-quotas" quotas={quotas} reviews={finalizedReviews} />
+            <QuotaTable id="details-quotas" quotas={quotas} reviews={finalizedReviews} period={period} />
             <BreakdownTable id="details-sources" title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
             <BreakdownTable id="details-people" title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
             <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />

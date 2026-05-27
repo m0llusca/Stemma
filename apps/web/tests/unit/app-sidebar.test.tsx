@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     conversation: {
       count: vi.fn()
+    },
+    trainingAssignment: {
+      count: vi.fn()
     }
   },
   switchCurrentUser: vi.fn()
@@ -51,6 +54,7 @@ function mockCurrentUser() {
     }
   ]);
   mocks.prisma.conversation.count.mockResolvedValue(0);
+  mocks.prisma.trainingAssignment.count.mockResolvedValue(0);
 }
 
 describe("app sidebar", () => {

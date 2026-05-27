@@ -3,6 +3,8 @@ import type { ConversationChannel, QaStatus, ReviewSource, ReviewStatus, RiskLev
 export type ReviewQueueStatus = "all" | "unreviewed" | "reviewed";
 export type ReviewQueueProcessFilter = "critical" | "reanswer" | "appeal";
 export type ReviewQueueDueFilter = "overdue";
+export type ReviewQueueRiskFilter = RiskLevel | "HIGH_OR_CRITICAL";
+export type ReviewQueueCoachingFilter = "open";
 
 export type ReviewQueueFilters = {
   q?: string;
@@ -17,7 +19,13 @@ export type ReviewQueueFilters = {
   supportLine?: string;
   process?: ReviewQueueProcessFilter;
   due?: ReviewQueueDueFilter;
-  riskLevel?: RiskLevel;
+  riskLevel?: ReviewQueueRiskFilter;
+  coachingStatus?: ReviewQueueCoachingFilter;
+  findingCategory?: string;
+  criticalCategory?: string;
+  feedbackStatus?: string;
+  appealStatus?: string;
+  reanswerStatus?: string;
   finalizedFrom?: Date;
   finalizedTo?: Date;
 };

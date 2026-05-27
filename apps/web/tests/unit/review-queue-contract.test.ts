@@ -224,4 +224,87 @@ describe("review queue frontend/backend contract", () => {
       ])
     );
   });
+
+  it("turns analytics drilldown params into concrete reviewed queue filters", async () => {
+    mocks.prisma.conversation.findMany.mockResolvedValue([]);
+    const { getReviewQueue, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const filters = parseReviewQueueFilters({
+      status: "reviewed",
+      riskLevel: "HIGH_OR_CRITICAL",
+      coachingStatus: "open",
+      findingCategory: "Маршрутизация",
+      feedbackStatus: "appeal",
+      appealStatus: "open",
+      reanswerStatus: "requested"
+    });
+
+    await getReviewQueue("workspace-1", filters);
+
+    const and = mocks.prisma.conversation.findMany.mock.calls[0][0].where.AND;
+
+    expect(filters.riskLevel).toBe("HIGH_OR_CRITICAL");
+    expect(filters.coachingStatus).toBe("open");
+    expect(and).toEqual(
+      expect.arrayContaining([
+        {
+          reviews: {
+            some: expect.objectContaining({
+              findings: {
+                some: {
+                  riskLevel: {
+                    in: ["HIGH", "CRITICAL"]
+                  }
+                }
+              }
+            })
+          }
+        },
+        {
+          reviews: {
+            some: expect.objectContaining({
+              findings: {
+                some: {
+                  coachingAction: {
+                    status: "open"
+                  }
+                }
+              }
+            })
+          }
+        },
+        {
+          reviews: {
+            some: expect.objectContaining({
+              findings: {
+                some: {
+                  category: "Маршрутизация"
+                }
+              }
+            })
+          }
+        },
+        {
+          reviews: {
+            some: expect.objectContaining({
+              feedbackStatus: "appeal"
+            })
+          }
+        },
+        {
+          reviews: {
+            some: expect.objectContaining({
+              appealStatus: "open"
+            })
+          }
+        },
+        {
+          reviews: {
+            some: expect.objectContaining({
+              reanswerStatus: "requested"
+            })
+          }
+        }
+      ])
+    );
+  });
 });

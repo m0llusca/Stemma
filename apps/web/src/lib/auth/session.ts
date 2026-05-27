@@ -77,10 +77,18 @@ export async function getValidAuthSession(token: string | undefined): Promise<
         workspace: {
           id: string;
           name: string;
+          brandName: string | null;
+          brandTagline: string | null;
+          brandLogoUrl: string | null;
+          brandLogoAlt: string | null;
+          brandMark: string | null;
+          brandPrimaryColor: string;
+          brandAccentColor: string;
           uiTheme: string;
           uiDensity: string;
           uiCorners: string;
           uiContrast: string;
+          uiPaletteOverridesJson: string;
           createdAt: Date;
           updatedAt: Date;
         };
