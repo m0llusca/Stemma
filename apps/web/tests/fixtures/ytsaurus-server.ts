@@ -24,11 +24,15 @@ export async function createYTsaurusServer(options: { mode: Mode }) {
   const requests: YTsaurusRequest[] = [];
   let responseEnded = false;
   let closedBeforeEnd = false;
+  let responseClosed = false;
+  const responseCloseWaiters: Array<() => void> = [];
   const server = http.createServer((request, response) => {
     response.on("close", () => {
       if (!responseEnded) {
         closedBeforeEnd = true;
       }
+      responseClosed = true;
+      responseCloseWaiters.splice(0).forEach((resolve) => resolve());
     });
 
     const parsedUrl = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -74,10 +78,11 @@ export async function createYTsaurusServer(options: { mode: Mode }) {
       setTimeout(() => {
         response.write(`${JSON.stringify(oversizedRow)}\n`);
       }, 5);
-      setTimeout(() => {
+      const endTimer = setTimeout(() => {
         responseEnded = true;
         response.end(`${JSON.stringify(sampleRow)}\n`);
-      }, 15);
+      }, 250);
+      response.on("close", () => clearTimeout(endTimer));
       return;
     }
 
@@ -102,6 +107,12 @@ export async function createYTsaurusServer(options: { mode: Mode }) {
     get closedBeforeEnd() {
       return closedBeforeEnd;
     },
+    waitForResponseClose: () =>
+      responseClosed
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            responseCloseWaiters.push(resolve);
+          }),
     close: () => new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
   };
 }

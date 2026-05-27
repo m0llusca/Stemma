@@ -845,6 +845,7 @@ function PreviewStep({
   checked,
   checkState,
   checkPending,
+  checkErrorMessage,
   accessComplete,
   checkAction,
   setupFields
@@ -863,6 +864,7 @@ function PreviewStep({
   checked: boolean;
   checkState: IntegrationActionState;
   checkPending: boolean;
+  checkErrorMessage: string | null;
   accessComplete: boolean;
   checkAction: (payload: FormData) => void;
   setupFields: ReactNode;
@@ -928,6 +930,12 @@ function PreviewStep({
       {checkState && !checkState.ok ? (
         <div className="soft-callout soft-callout--warn text-sm leading-5 text-[#b45309]">
           {checkState.message}
+        </div>
+      ) : null}
+
+      {checkErrorMessage ? (
+        <div className="soft-callout soft-callout--warn text-sm leading-5 text-[#b45309]">
+          {checkErrorMessage}
         </div>
       ) : null}
 
@@ -1371,7 +1379,11 @@ export function IntegrationSetupWorkspace({
   const [checkState, checkAction, checkPending] = useActionState(recordIntegrationDryRunState, null);
   const [saveState, saveAction, savePending] = useActionState(saveIntegrationConfigurationState, null);
   const queueImportMutation = trpc.integrations.queueImport.useMutation({
-    onSuccess: () => setChecked(true)
+    onSuccess: (result) => {
+      if (result?.ok) {
+        setChecked(true);
+      }
+    }
   });
   const useWrappedBody = false;
 
@@ -1745,8 +1757,9 @@ export function IntegrationSetupWorkspace({
               dryRun={dryRun}
               deduplicate={deduplicate}
               checked={checked}
-              checkState={checkState}
-              checkPending={checkPending}
+              checkState={mode === "custom_api" ? (queueImportMutation.data ?? null) : checkState}
+              checkPending={mode === "custom_api" ? queueImportMutation.isPending : checkPending}
+              checkErrorMessage={mode === "custom_api" ? (queueImportMutation.error?.message ?? null) : null}
               accessComplete={accessComplete}
               checkAction={submitSetupCheck}
               setupFields={setupFields}

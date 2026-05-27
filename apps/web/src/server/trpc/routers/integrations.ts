@@ -1,13 +1,11 @@
-import {
-  integrationSetupInputSchema,
-  recordIntegrationDryRunFromInput
-} from "@/lib/integration-actions";
+import { recordIntegrationDryRunFromInput } from "@/lib/integration-actions";
+import { secretlessIntegrationSetupInputSchema } from "@/lib/integration-setup-schema";
 import { listIntegrationCapabilities } from "@/lib/integrations/capabilities";
-import { createTRPCRouter, permissionProcedure, protectedProcedure } from "@/server/trpc/init";
+import { createTRPCRouter, permissionProcedure } from "@/server/trpc/init";
 
 export const integrationsRouter = createTRPCRouter({
   catalog: permissionProcedure("integrations:manage").query(() => listIntegrationCapabilities()),
-  queueImport: protectedProcedure.input(integrationSetupInputSchema).mutation(({ input }) => {
+  queueImport: permissionProcedure("integrations:manage").input(secretlessIntegrationSetupInputSchema).mutation(({ input }) => {
     return recordIntegrationDryRunFromInput(input);
   })
 });

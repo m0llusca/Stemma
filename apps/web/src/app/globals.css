@@ -661,6 +661,7 @@ body[data-contrast="high"] {
 
 html {
   max-width: 100%;
+  scroll-padding-top: calc(var(--app-topbar-height) + 16px);
 }
 
 body {
@@ -702,6 +703,10 @@ button, input, select, textarea {
   font: inherit;
   min-width: 0;
   max-width: 100%;
+}
+
+.page-shell :is(a, button, input, select, textarea) {
+  scroll-margin-top: calc(var(--app-topbar-height) + 16px);
 }
 
 button {

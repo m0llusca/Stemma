@@ -107,7 +107,10 @@ describe("YTsaurus adapter", () => {
         })
       ).rejects.toThrow("Ответ YTsaurus превышает лимит размера.");
 
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await Promise.race([
+        server.waitForResponseClose(),
+        new Promise((resolve) => setTimeout(resolve, 100))
+      ]);
       expect(server.closedBeforeEnd).toBe(true);
     } finally {
       await server.close();

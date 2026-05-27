@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IntegrationSetupWorkspace } from "@/components/integrations/integration-setup-workspace";
 import { recordIntegrationDryRunState } from "@/lib/integration-actions";
 
 const trpcMocks = vi.hoisted(() => ({
-  queueImportMutate: vi.fn()
+  queueImportMutate: vi.fn(),
+  queueImportError: null as Error | null
 }));
 
 vi.mock("@/lib/integration-actions", () => ({
@@ -20,7 +21,7 @@ vi.mock("@/lib/trpc/client", () => ({
           mutate: trpcMocks.queueImportMutate,
           isPending: false,
           data: null,
-          error: null
+          error: trpcMocks.queueImportError
         })
       }
     }
@@ -28,6 +29,12 @@ vi.mock("@/lib/trpc/client", () => ({
 }));
 
 describe("IntegrationSetupWorkspace", () => {
+  beforeEach(() => {
+    trpcMocks.queueImportMutate.mockClear();
+    trpcMocks.queueImportError = null;
+    vi.mocked(recordIntegrationDryRunState).mockClear();
+  });
+
   it("offers Jira and tabular data sources in setup", () => {
     const { container } = render(
       <IntegrationSetupWorkspace apiTokenCount={1} apiHealth={{ label: "OK", className: "text-green-700" }} />
@@ -93,5 +100,20 @@ describe("IntegrationSetupWorkspace", () => {
     const submitted = vi.mocked(recordIntegrationDryRunState).mock.calls[0]?.[1] as FormData;
 
     expect(submitted.get("dryRun")).toBe("true");
+  });
+
+  it("surfaces custom API tRPC connection-check errors", () => {
+    trpcMocks.queueImportError = new Error("Недостаточно прав для выполнения операции.");
+
+    render(<IntegrationSetupWorkspace apiTokenCount={1} apiHealth={{ label: "OK", className: "text-green-700" }} />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Система-источник" }), {
+      target: { value: "custom_api" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Далее" }));
+    fireEvent.click(screen.getByRole("button", { name: "Далее" }));
+    fireEvent.click(screen.getByRole("button", { name: "Далее" }));
+
+    expect(screen.getByText("Недостаточно прав для выполнения операции.")).toBeTruthy();
   });
 });

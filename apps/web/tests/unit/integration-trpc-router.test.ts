@@ -77,6 +77,63 @@ describe("integration tRPC router", () => {
 
     await expect(
       caller.integrations.queueImport({
+        source: "custom_api",
+        sourceLabel: "Custom API",
+        mode: "custom_api",
+        baseUrl: "https://helpdesk.example.com",
+        maxTickets: 100,
+        batchSize: 25,
+        dateRangeDays: 30,
+        dryRun: true,
+        deduplicate: true,
+        config: {}
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      runId: "run-1"
+    });
+    expect(mocks.recordIntegrationDryRunFromInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "custom_api",
+        mode: "custom_api",
+        config: {}
+      })
+    );
+  });
+
+  it("requires integration management permission for queueImport", async () => {
+    const { appRouter } = await import("@/server/trpc/root");
+    const caller = appRouter.createCaller({
+      user: { id: "user-1", workspaceId: "workspace-1", role: "QA_ANALYST" } as never
+    });
+
+    await expect(
+      caller.integrations.queueImport({
+        source: "custom_api",
+        sourceLabel: "Custom API",
+        mode: "custom_api",
+        baseUrl: "https://helpdesk.example.com",
+        maxTickets: 100,
+        batchSize: 25,
+        dateRangeDays: 30,
+        dryRun: true,
+        deduplicate: true,
+        config: {}
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN"
+    });
+    expect(mocks.recordIntegrationDryRunFromInput).not.toHaveBeenCalled();
+  });
+
+  it("rejects credentialed sources through tRPC queueImport", async () => {
+    const { appRouter } = await import("@/server/trpc/root");
+    const caller = appRouter.createCaller({
+      user: { id: "user-1", workspaceId: "workspace-1", role: "ADMIN" } as never
+    });
+
+    await expect(
+      caller.integrations.queueImport({
         source: "ytsaurus",
         sourceLabel: "YTsaurus/YT",
         mode: "data_source",
@@ -88,16 +145,9 @@ describe("integration tRPC router", () => {
         deduplicate: true,
         config: { tablePath: "//home/qc/conversations" }
       })
-    ).resolves.toMatchObject({
-      ok: true,
-      runId: "run-1"
+    ).rejects.toMatchObject({
+      code: "BAD_REQUEST"
     });
-    expect(mocks.recordIntegrationDryRunFromInput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        source: "ytsaurus",
-        mode: "data_source",
-        config: { tablePath: "//home/qc/conversations" }
-      })
-    );
+    expect(mocks.recordIntegrationDryRunFromInput).not.toHaveBeenCalled();
   });
 });

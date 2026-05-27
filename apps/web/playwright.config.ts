@@ -6,6 +6,10 @@ process.env.QC_DEMO_AUTH = process.env.QC_DEMO_AUTH ?? "enabled";
 // Playwright forces FORCE_COLOR for workers and webServer. Empty NO_COLOR avoids Node 25 warnings in that child env.
 process.env.NO_COLOR = "";
 
+const webServerEnv = Object.fromEntries(
+  Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+);
+
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
@@ -25,6 +29,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run db:deploy && npm run db:seed && npm run dev",
+    env: webServerEnv,
     url: "http://localhost:3000",
     timeout: 120_000,
     reuseExistingServer: !process.env.CI
