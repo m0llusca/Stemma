@@ -871,7 +871,7 @@ export function buildOpenApiDocument() {
         },
         IntegrationCapabilityType: {
           type: "string",
-          enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise"]
+          enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise", "data_source"]
         },
         IntegrationReadiness: {
           type: "string",

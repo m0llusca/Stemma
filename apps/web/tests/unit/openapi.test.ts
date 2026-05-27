@@ -104,7 +104,7 @@ describe("openapi contract", () => {
     });
     expect(document.components.schemas.IntegrationCapabilityType).toEqual({
       type: "string",
-      enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise"]
+      enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise", "data_source"]
     });
     expect(document.components.schemas.IntegrationReadiness).toEqual({
       type: "string",
