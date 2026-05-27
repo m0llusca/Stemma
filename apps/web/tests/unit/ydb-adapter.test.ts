@@ -99,6 +99,23 @@ describe("YDB adapter", () => {
     expect(queryFn).not.toHaveBeenCalled();
   });
 
+  it("rejects trailing line comments that can swallow the enforced limit", async () => {
+    const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
+
+    await expect(
+      createYdbAdapter().loadRows({
+        source: "ydb",
+        baseUrl: "grpc://localhost:2136/local",
+        config: { query: "SELECT * FROM conversations LIMIT 100000 --" },
+        credential: JSON.stringify({ username: "user", password: "pass" }),
+        limit: 25
+      })
+    ).rejects.toThrow("YDB query должен быть read-only SELECT/WITH SELECT.");
+
+    expect(driverConstructor).not.toHaveBeenCalled();
+    expect(queryFn).not.toHaveBeenCalled();
+  });
+
   it("appends a server-side limit to read-only queries without one", async () => {
     const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
 

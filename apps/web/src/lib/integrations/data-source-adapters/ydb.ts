@@ -13,6 +13,7 @@ type YdbResultRow = Record<string, JSValue>;
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 2_000_000;
 const mutationKeywordPattern = /\b(UPSERT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|TRUNCATE|GRANT|REVOKE|CALL|PRAGMA)\b/i;
+const commentTokenPattern = /--|\/\*|\*\//;
 const trailingLimitPattern = /\s+LIMIT\s+(\d+)\s*$/i;
 const tablePathPattern = /^[A-Za-z0-9_./-]+$/;
 
@@ -32,7 +33,7 @@ function readOnlyQueryError() {
 function validateReadOnlyQuery(value: string, limit: number) {
   const text = value.trim();
 
-  if (!text || text.includes(";") || mutationKeywordPattern.test(text)) {
+  if (!text || text.includes(";") || commentTokenPattern.test(text) || mutationKeywordPattern.test(text)) {
     throw readOnlyQueryError();
   }
 
