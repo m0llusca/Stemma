@@ -363,6 +363,10 @@ function helpdeskLiveSmokeCommand(capability: IntegrationCapability) {
     return `HELPDESK_LIVE_SMOKE=1 HELPDESK_LIVE_SOURCE=${capability.source} npm run test:live:helpdesk`;
   }
 
+  if (capability.type === "data_source") {
+    return `DATA_SOURCE_LIVE_SMOKE=1 DATA_SOURCE_LIVE_SOURCE=${capability.source} npm run test:live:data-source`;
+  }
+
   if (capability.source === "generic_webhook") {
     return "HELPDESK_LIVE_SMOKE=1 npm run test:live:helpdesk";
   }

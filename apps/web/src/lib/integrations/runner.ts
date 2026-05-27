@@ -3,6 +3,7 @@ import { upsertCustomConversation, type ImportedConversation } from "@/lib/conve
 import { prisma } from "@/lib/db";
 import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { importSelectedOtrsRunItems } from "@/lib/integrations/otrs-family/import-plan";
+import { loadDataSourceAdapterConversations } from "@/lib/integrations/data-source-adapters/service";
 import {
   buildOtrsFamilyTicketGetQueryParams,
   extractOtrsFamilyTickets,
@@ -185,6 +186,12 @@ async function loadHelpdeskConversations(integration: IntegrationWithCredential,
   return result.conversations;
 }
 
+async function loadDataSourceConversations(integration: IntegrationWithCredential, limit: number) {
+  const result = await loadDataSourceAdapterConversations({ integration, limit });
+
+  return result.conversations;
+}
+
 async function loadCustomApiConversations(integration: IntegrationWithCredential, limit: number) {
   const baseUrl = requireText(integration.baseUrl, "Для своего API укажите Base URL источника.");
   const token = optionalCredentialSecret(integration.credentials);
@@ -207,6 +214,10 @@ async function loadIntegrationConversations(integration: IntegrationWithCredenti
 
   if (integration.type === "native_helpdesk" || integration.type === "enterprise") {
     return loadHelpdeskConversations(integration, config);
+  }
+
+  if (integration.type === "data_source") {
+    return loadDataSourceConversations(integration, limit);
   }
 
   return loadCustomApiConversations(integration, limit);

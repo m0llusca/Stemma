@@ -237,6 +237,16 @@ describe("integration import service", () => {
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
 
+  it("accepts data_source contracts for YDB and YTsaurus", async () => {
+    const { assertIntegrationSourceContractSupported } = await import("@/lib/integration-import-service");
+
+    expect(() => assertIntegrationSourceContractSupported({ source: "ydb", type: "data_source" })).not.toThrow();
+    expect(() => assertIntegrationSourceContractSupported({ source: "ytsaurus", type: "data_source" })).not.toThrow();
+    expect(() => assertIntegrationSourceContractSupported({ source: "ydb", type: "custom_api" })).toThrow(
+      "Тип интеграции не соответствует data source contract."
+    );
+  });
+
   it("queues a selected OTRS import job with explicit operation payload", async () => {
     const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
     mocks.prisma.integration.findFirst.mockResolvedValue({

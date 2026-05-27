@@ -22,6 +22,7 @@ import {
   saveIntegrationConfigurationState,
   type IntegrationActionState
 } from "@/lib/integration-actions";
+import { trpc } from "@/lib/trpc/client";
 import {
   nativeHelpdeskImportExamples,
   nativeHelpdeskMappingRows,
@@ -46,10 +47,15 @@ import {
   phaseBSourceContracts
 } from "@/lib/integrations/helpdesk-adapters/source-contracts";
 import type { PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
+import {
+  dataSourceContracts,
+  dataSourceSources
+} from "@/lib/integrations/data-source-adapters/source-contracts";
+import type { DataSourceSource } from "@/lib/integrations/data-source-adapters/types";
 
-type SourceMode = "otrs_family" | "native_helpdesk" | "enterprise" | "custom_api";
+type SourceMode = "otrs_family" | "native_helpdesk" | "enterprise" | "custom_api" | "data_source";
 type WizardStep = "source" | "access" | "limits" | "preview" | "done";
-type SourceOptionValue = `otrs:${OtrsFamilySource}` | `native:${PhaseBHelpdeskSource}` | "custom_api";
+type SourceOptionValue = `otrs:${OtrsFamilySource}` | `native:${PhaseBHelpdeskSource}` | `data:${DataSourceSource}` | "custom_api";
 type SourceOption = {
   value: SourceOptionValue;
   label: string;
@@ -74,7 +80,8 @@ const sourceModeDescriptions: Record<SourceMode, string> = {
   otrs_family: "Подключение через GenericInterface TicketGet с безопасной проверкой перед запуском.",
   native_helpdesk: "Импорт тикетов и сообщений из популярных облачных helpdesk через готовые адаптеры.",
   enterprise: "Корпоративные CRM/CSM адаптеры Phase B: контракт готов, но сохранение защищенных OAuth-доступов требует отдельного безопасного потока.",
-  custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk."
+  custom_api: "Единый API-контракт для внутренних систем и нестандартных helpdesk.",
+  data_source: "Импорт строк из YDB и YTsaurus по фиксированному mapping contract."
 };
 
 const operationLabels: Record<string, string> = {
@@ -96,6 +103,8 @@ const operationLabels: Record<string, string> = {
 const secretSlotLabels: Record<string, string> = {
   auth_password: "auth_password",
   ca_bundle: "ca_bundle",
+  data_source_credentials: "data_source_credentials",
+  data_source_token: "data_source_token",
   oauth_client_credentials: "oauth_client_credentials",
   webhook_secret: "webhook_secret"
 };
@@ -145,6 +154,28 @@ const sourceOptions: SourceOption[] = [
       }
     };
   }),
+  ...dataSourceSources.map((source) => {
+    const contract = dataSourceContracts[source];
+    const capability = getIntegrationCapability(source, "data_source");
+
+    return {
+      value: `data:${source}` as const,
+      label: contract.displayName,
+      mode: "data_source" as const,
+      description:
+        source === "ydb"
+          ? "YQL query returning conversation/message columns."
+          : "YTsaurus table read returning conversation/message columns.",
+      certificationSummary: capability.certification.summary,
+      capability,
+      officialDocs: [{ label: `${contract.displayName} documentation`, href: contract.docsHref }],
+      limitations: [...contract.certification.limitations],
+      liveCertification: {
+        requiredEnvironment: ["DATA_SOURCE_LIVE_SMOKE", "DATA_SOURCE_LIVE_SOURCE", "DATA_SOURCE_LIVE_BASE_URL"],
+        smokeTestCommand: `DATA_SOURCE_LIVE_SMOKE=1 DATA_SOURCE_LIVE_SOURCE=${source} npm run test:live:data-source`
+      }
+    };
+  }),
   {
     value: "custom_api" as const,
     label: "Своя система через API",
@@ -176,6 +207,12 @@ const sourceChoiceGroups = [
     title: "Enterprise CRM / CSM",
     description: "Корпоративные системы с контрактом Phase B и отдельными требованиями к OAuth-доступам.",
     options: sourceOptions.filter((option) => option.mode === "enterprise")
+  },
+  {
+    mode: "data_source" as const,
+    title: "Табличные источники",
+    description: "YDB и YTsaurus/YT с табличным mapping contract.",
+    options: sourceOptions.filter((option) => option.mode === "data_source")
   },
   {
     mode: "custom_api" as const,
@@ -491,6 +528,11 @@ function AccessStep({
   nativeBaseUrl,
   nativeToken,
   nativeTicketId,
+  dataSource,
+  dataSourceBaseUrl,
+  dataSourceSecret,
+  dataSourceTablePath,
+  dataSourceQuery,
   customSystemName,
   customBaseUrl,
   apiTokenCount,
@@ -502,6 +544,10 @@ function AccessStep({
   onNativeBaseUrlChange,
   onNativeTokenChange,
   onNativeTicketIdChange,
+  onDataSourceBaseUrlChange,
+  onDataSourceSecretChange,
+  onDataSourceTablePathChange,
+  onDataSourceQueryChange,
   onCustomSystemNameChange,
   onCustomBaseUrlChange
 }: {
@@ -513,6 +559,11 @@ function AccessStep({
   nativeBaseUrl: string;
   nativeToken: string;
   nativeTicketId: string;
+  dataSource: DataSourceSource;
+  dataSourceBaseUrl: string;
+  dataSourceSecret: string;
+  dataSourceTablePath: string;
+  dataSourceQuery: string;
   customSystemName: string;
   customBaseUrl: string;
   apiTokenCount: number;
@@ -527,6 +578,10 @@ function AccessStep({
   onNativeBaseUrlChange: (value: string) => void;
   onNativeTokenChange: (value: string) => void;
   onNativeTicketIdChange: (value: string) => void;
+  onDataSourceBaseUrlChange: (value: string) => void;
+  onDataSourceSecretChange: (value: string) => void;
+  onDataSourceTablePathChange: (value: string) => void;
+  onDataSourceQueryChange: (value: string) => void;
   onCustomSystemNameChange: (value: string) => void;
   onCustomBaseUrlChange: (value: string) => void;
 }) {
@@ -594,6 +649,48 @@ function AccessStep({
           <SummaryItem label="Слот секрета">
             <span className="font-mono text-xs">oauth_client_credentials</span>
           </SummaryItem>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "data_source") {
+    return (
+      <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField label={dataSource === "ydb" ? "YDB endpoint/database" : "YTsaurus proxy URL"}>
+            <input value={dataSourceBaseUrl} onChange={(event) => onDataSourceBaseUrlChange(event.target.value)} className={fieldClass} />
+          </FormField>
+          <FormField label={dataSource === "ydb" ? "YDB credentials JSON" : "OAuth token"}>
+            <input
+              name="dataSourceSecret"
+              value={dataSourceSecret}
+              onChange={(event) => onDataSourceSecretChange(event.target.value)}
+              type="password"
+              className={fieldClass}
+            />
+          </FormField>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField label="Table path">
+            <input
+              value={dataSourceTablePath}
+              onChange={(event) => onDataSourceTablePathChange(event.target.value)}
+              placeholder="//home/qc/conversations"
+              className={fieldClass}
+            />
+          </FormField>
+          <FormField label="YQL query">
+            <input
+              value={dataSourceQuery}
+              onChange={(event) => onDataSourceQueryChange(event.target.value)}
+              placeholder="SELECT * FROM conversations LIMIT 100"
+              className={fieldClass}
+            />
+          </FormField>
+        </div>
+        <div className="soft-callout text-sm leading-5 text-[#64748b]">
+          Mapping checklist: conversation_id, message_id, author_name, participant_type, body и sent_at обязательны для импорта.
         </div>
       </div>
     );
@@ -886,6 +983,8 @@ type SetupFieldsProps = {
   baseUrl: string;
   userLogin: string;
   ticketId: string;
+  dataSourceTablePath: string;
+  dataSourceQuery: string;
   queueFilter: string;
   statusFilter: string;
   dateRangeDays: string;
@@ -902,6 +1001,8 @@ function SetupFields({
   baseUrl,
   userLogin,
   ticketId,
+  dataSourceTablePath,
+  dataSourceQuery,
   queueFilter,
   statusFilter,
   dateRangeDays,
@@ -918,6 +1019,8 @@ function SetupFields({
       <input type="hidden" name="baseUrl" value={normalizeBaseUrl(baseUrl)} />
       <input type="hidden" name="userLogin" value={userLogin} />
       <input type="hidden" name="ticketId" value={ticketId} />
+      <input type="hidden" name="dataSourceTablePath" value={dataSourceTablePath} />
+      <input type="hidden" name="dataSourceQuery" value={dataSourceQuery} />
       <input type="hidden" name="queueFilter" value={queueFilter} />
       <input type="hidden" name="statusFilter" value={statusFilter} />
       <input type="hidden" name="maxTickets" value={maxTickets} />
@@ -1108,6 +1211,43 @@ function TechnicalDetailsForMode({
     );
   }
 
+  if (mode === "data_source") {
+    const mappingRows = [
+      ["conversation_id", "externalId", "Обязательное поле группировки строк."],
+      ["message_id", "messages[].externalId", "Уникальный идентификатор сообщения внутри диалога."],
+      ["participant_type", "messages[].participantType", "customer, human_agent, ai_agent или system."],
+      ["body", "messages[].body", "Непустой текст сообщения."],
+      ["sent_at", "messages[].sentAt", "ISO datetime с offset."]
+    ];
+
+    return (
+      <TechnicalDetails title="Mapping checklist табличного источника">
+        <DataTable
+          title="Поля строк"
+          description="YDB и YTsaurus должны вернуть строки в едином формате до нормализации."
+          minWidth="min-w-[640px]"
+        >
+          <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Поле источника</th>
+              <th className="px-4 py-3 font-semibold">Поле проверки</th>
+              <th className="px-4 py-3 font-semibold">Правило</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#d9e0ea]">
+            {mappingRows.map(([source, target, note]) => (
+              <tr key={source}>
+                <td className="px-4 py-3 font-mono text-xs">{source}</td>
+                <td className="px-4 py-3 font-mono text-xs">{target}</td>
+                <td className="px-4 py-3 text-[#334155]">{note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </DataTable>
+      </TechnicalDetails>
+    );
+  }
+
   return (
     <TechnicalDetails title="Технический контракт своего API">
       <div className="grid gap-5">
@@ -1213,6 +1353,11 @@ export function IntegrationSetupWorkspace({
   const [nativeBaseUrl, setNativeBaseUrl] = useState("https://support.example.com");
   const [nativeToken, setNativeToken] = useState("");
   const [nativeTicketId, setNativeTicketId] = useState("35436");
+  const [dataSource, setDataSource] = useState<DataSourceSource>("ytsaurus");
+  const [dataSourceBaseUrl, setDataSourceBaseUrl] = useState("https://yt.example.com");
+  const [dataSourceSecret, setDataSourceSecret] = useState("");
+  const [dataSourceTablePath, setDataSourceTablePath] = useState("//home/qc/conversations");
+  const [dataSourceQuery, setDataSourceQuery] = useState("SELECT * FROM conversations LIMIT 100");
   const [customSystemName, setCustomSystemName] = useState("Внутренний helpdesk");
   const [customBaseUrl, setCustomBaseUrl] = useState("https://helpdesk.internal.example.com");
   const [dateRangeDays, setDateRangeDays] = useState("30");
@@ -1225,6 +1370,9 @@ export function IntegrationSetupWorkspace({
   const [checked, setChecked] = useState(false);
   const [checkState, checkAction, checkPending] = useActionState(recordIntegrationDryRunState, null);
   const [saveState, saveAction, savePending] = useActionState(saveIntegrationConfigurationState, null);
+  const queueImportMutation = trpc.integrations.queueImport.useMutation({
+    onSuccess: () => setChecked(true)
+  });
   const useWrappedBody = false;
 
   const currentStepIndex = wizardSteps.findIndex((item) => item.value === step);
@@ -1235,14 +1383,29 @@ export function IntegrationSetupWorkspace({
       ? `otrs:${otrsSource}`
       : mode === "native_helpdesk" || mode === "enterprise"
         ? `native:${nativeSource}`
-        : "custom_api";
+        : mode === "data_source"
+          ? `data:${dataSource}`
+          : "custom_api";
   const selectedSourceOption = sourceOptions.find((option) => option.value === sourceValue) ?? sourceOptions[0];
   const selectedSourceLabel = useMemo(() => {
     return mode === "custom_api" ? customSystemName.trim() || selectedSourceOption.label : selectedSourceOption.label;
   }, [customSystemName, mode, selectedSourceOption.label]);
-  const selectedSourceKey = mode === "otrs_family" ? otrsSource : mode === "native_helpdesk" || mode === "enterprise" ? nativeSource : "custom_api";
+  const selectedSourceKey =
+    mode === "otrs_family"
+      ? otrsSource
+      : mode === "native_helpdesk" || mode === "enterprise"
+        ? nativeSource
+        : mode === "data_source"
+          ? dataSource
+          : "custom_api";
   const activeBaseUrl =
-    mode === "otrs_family" ? otrsBaseUrl : mode === "native_helpdesk" || mode === "enterprise" ? nativeBaseUrl : customBaseUrl;
+    mode === "otrs_family"
+      ? otrsBaseUrl
+      : mode === "native_helpdesk" || mode === "enterprise"
+        ? nativeBaseUrl
+        : mode === "data_source"
+          ? dataSourceBaseUrl
+          : customBaseUrl;
   const activeTicketId = mode === "native_helpdesk" ? nativeTicketId : ticketId;
   const isEnterpriseSource = mode === "enterprise";
   const accessComplete =
@@ -1252,7 +1415,13 @@ export function IntegrationSetupWorkspace({
         ? [nativeBaseUrl, nativeToken, nativeTicketId].every((value) => value.trim().length > 0)
         : mode === "enterprise"
           ? false
-        : [customSystemName, customBaseUrl].every((value) => value.trim().length > 0);
+          : mode === "data_source"
+            ? [
+                dataSourceBaseUrl,
+                dataSourceSecret,
+                dataSource === "ydb" ? dataSourceQuery : dataSourceTablePath
+              ].every((value) => value.trim().length > 0)
+            : [customSystemName, customBaseUrl].every((value) => value.trim().length > 0);
   const limitsComplete = [dateRangeDays, maxTickets, batchSize].every((value) => Number(value) > 0);
   const stepNextDisabled =
     (step === "access" && !accessComplete) ||
@@ -1266,6 +1435,8 @@ export function IntegrationSetupWorkspace({
       baseUrl={activeBaseUrl}
       userLogin={userLogin}
       ticketId={activeTicketId}
+      dataSourceTablePath={dataSourceTablePath}
+      dataSourceQuery={dataSourceQuery}
       queueFilter={queueFilter}
       statusFilter={statusFilter}
       dateRangeDays={dateRangeDays}
@@ -1320,6 +1491,16 @@ export function IntegrationSetupWorkspace({
       return;
     }
 
+    if (nextValue.startsWith("data:")) {
+      const nextSource = nextValue.replace("data:", "") as DataSourceSource;
+
+      setMode("data_source");
+      setDataSource(nextSource);
+      setDataSourceBaseUrl(nextSource === "ydb" ? "grpc://localhost:2136/local" : "https://yt.example.com");
+      resetCheck();
+      return;
+    }
+
     const nextSource = nextValue.replace("native:", "") as NativeHelpdeskSource;
     const nextContractType = phaseBSourceContracts[nextSource].type;
 
@@ -1343,10 +1524,32 @@ export function IntegrationSetupWorkspace({
       payload.set("nativeToken", nativeToken);
     }
 
+    if (mode === "data_source") {
+      payload.set("dataSourceSecret", dataSourceSecret);
+    }
+
     return payload;
   }
 
   function submitSetupCheck(formData: FormData) {
+    if (mode === "custom_api") {
+      queueImportMutation.mutate({
+        source: selectedSourceKey,
+        sourceLabel: selectedSourceLabel,
+        mode,
+        baseUrl: normalizeBaseUrl(activeBaseUrl),
+        maxTickets: toPositiveNumber(maxTickets, 100),
+        batchSize: toPositiveNumber(batchSize, 25),
+        dateRangeDays: toPositiveNumber(dateRangeDays, 30),
+        ticketId: activeTicketId,
+        userLogin,
+        dryRun: true,
+        deduplicate,
+        config: {}
+      });
+      return;
+    }
+
     const payload = setupFormDataWithSecrets(formData);
     payload.set("dryRun", "true");
     checkAction(payload);
@@ -1424,6 +1627,11 @@ export function IntegrationSetupWorkspace({
               nativeBaseUrl={nativeBaseUrl}
               nativeToken={nativeToken}
               nativeTicketId={nativeTicketId}
+              dataSource={dataSource}
+              dataSourceBaseUrl={dataSourceBaseUrl}
+              dataSourceSecret={dataSourceSecret}
+              dataSourceTablePath={dataSourceTablePath}
+              dataSourceQuery={dataSourceQuery}
               customSystemName={customSystemName}
               customBaseUrl={customBaseUrl}
               apiTokenCount={apiTokenCount}
@@ -1454,6 +1662,22 @@ export function IntegrationSetupWorkspace({
               }}
               onNativeTicketIdChange={(value) => {
                 setNativeTicketId(value);
+                resetCheck();
+              }}
+              onDataSourceBaseUrlChange={(value) => {
+                setDataSourceBaseUrl(value);
+                resetCheck();
+              }}
+              onDataSourceSecretChange={(value) => {
+                setDataSourceSecret(value);
+                resetCheck();
+              }}
+              onDataSourceTablePathChange={(value) => {
+                setDataSourceTablePath(value);
+                resetCheck();
+              }}
+              onDataSourceQueryChange={(value) => {
+                setDataSourceQuery(value);
                 resetCheck();
               }}
               onCustomSystemNameChange={(value) => {

@@ -135,6 +135,34 @@ describe("Phase D readiness report", () => {
     });
   });
 
+  it("uses data source live smoke commands and source-specific secret slots", () => {
+    const report = composePhaseDReadinessReport({
+      generatedAt: new Date("2026-05-25T10:00:00.000Z"),
+      integrations: [
+        {
+          id: "integration-ydb",
+          source: "ydb",
+          displayName: "YDB analytics",
+          type: "data_source",
+          status: "ready",
+          baseUrl: "grpc://localhost:2136/local",
+          credentials: [{ kind: "data_source_credentials" }]
+        }
+      ],
+      identityProviders: [],
+      evidence: []
+    });
+    const ydb = report.integrations.find((item) => item.source === "ydb");
+
+    expect(ydb).toMatchObject({
+      displayName: "YDB analytics",
+      configured: true,
+      liveSmokeCommand: "DATA_SOURCE_LIVE_SMOKE=1 DATA_SOURCE_LIVE_SOURCE=ydb npm run test:live:data-source"
+    });
+    expect(ydb?.blockers).not.toContain("Не заполнены требуемые secret slots.");
+    expect(ydb?.blockers).toContain("Нет успешного protected live smoke evidence.");
+  });
+
   it("does not reuse identity evidence across providers or promote discovery-only evidence", () => {
     const report = composePhaseDReadinessReport({
       generatedAt: new Date("2026-05-25T10:00:00.000Z"),

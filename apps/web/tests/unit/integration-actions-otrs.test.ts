@@ -297,6 +297,38 @@ describe("OTRS integration actions", () => {
     );
   });
 
+  it("accepts YDB data source setup with grpc endpoint and stores credentials in the data source slot", async () => {
+    const { saveIntegrationConfigurationState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("ydb", "data_source");
+    formData.set("baseUrl", "grpc://localhost:2136/local");
+    formData.set("dataSourceSecret", JSON.stringify({ username: "qa", password: "secret" }));
+    formData.set("dataSourceQuery", "SELECT * FROM conversations LIMIT 100");
+
+    await expect(saveIntegrationConfigurationState(null, formData)).resolves.toMatchObject({
+      ok: true,
+      integrationId: "integration-1"
+    });
+
+    expect(mocks.prisma.integration.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          source: "ydb",
+          type: "data_source",
+          baseUrl: "grpc://localhost:2136/local",
+          configJson: expect.stringContaining("SELECT * FROM conversations LIMIT 100")
+        })
+      })
+    );
+    expect(mocks.upsertIntegrationSecretSlot).toHaveBeenCalledWith(
+      mocks.prisma,
+      expect.objectContaining({
+        kind: "data_source_credentials",
+        authMode: "data_source_secret",
+        secret: JSON.stringify({ username: "qa", password: "secret" })
+      })
+    );
+  });
+
   it("runs diagnostics only for integration managers and writes the OTRS diagnostics audit action", async () => {
     const { runOtrsDiagnosticsAction } = await import("@/lib/integration-actions");
     const formData = new FormData();

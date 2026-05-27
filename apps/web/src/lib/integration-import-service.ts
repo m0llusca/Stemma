@@ -1,5 +1,6 @@
 import { auditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { dataSourceContracts } from "@/lib/integrations/data-source-adapters/source-contracts";
 import { phaseBSourceContracts } from "@/lib/integrations/helpdesk-adapters/source-contracts";
 
 export type QueuedIntegrationImport = {
@@ -33,7 +34,16 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
   const source = integration.source?.trim().toLowerCase() ?? "";
   const type = integration.type?.trim() || "custom_api";
   const contract = phaseBSourceContracts[source as keyof typeof phaseBSourceContracts];
+  const dataSourceContract = dataSourceContracts[source as keyof typeof dataSourceContracts];
   const enterpriseMessage = "Корпоративные источники требуют защищенной настройки OAuth-доступов.";
+
+  if (dataSourceContract) {
+    if (type !== dataSourceContract.type) {
+      throw new Error("Тип интеграции не соответствует data source contract.");
+    }
+
+    return;
+  }
 
   if (type === "enterprise" || contract?.type === "enterprise") {
     throw new Error(enterpriseMessage);

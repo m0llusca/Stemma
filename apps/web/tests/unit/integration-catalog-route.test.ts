@@ -74,6 +74,18 @@ describe("integration catalog route", () => {
             productionReady: true
           }
         }
+      },
+      {
+        source: "ydb",
+        displayName: "YDB",
+        type: "data_source",
+        certification: {
+          summary: {
+            status: "waiting_for_access",
+            label: "Живая сертификация ожидает доступы",
+            productionReady: false
+          }
+        }
       }
     ];
     mocks.requireSessionApi.mockResolvedValue({
@@ -102,6 +114,17 @@ describe("integration catalog route", () => {
       status: "live_certified"
     });
     expect(body.catalog[0].certification.summary.label).not.toBe("production-ready");
+    expect(body.catalog[1]).toMatchObject({
+      source: "ydb",
+      displayName: "YDB",
+      type: "data_source",
+      certification: {
+        summary: {
+          status: "waiting_for_access",
+          productionReady: false
+        }
+      }
+    });
     expect(mocks.requireSessionApi).toHaveBeenCalledWith(expect.any(Request), "integrations:manage", {
       requestId: "req-catalog"
     });
