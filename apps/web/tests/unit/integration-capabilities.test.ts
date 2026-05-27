@@ -132,12 +132,16 @@ describe("integration capabilities and sync state", () => {
       source: "ydb",
       displayName: "YDB",
       type: "data_source",
+      supportsPaging: false,
+      supportsCursor: false,
       readiness: "adapter_ready"
     });
     expect(getIntegrationCapability("ytsaurus")).toMatchObject({
       source: "ytsaurus",
       displayName: "YTsaurus/YT",
       type: "data_source",
+      supportsPaging: false,
+      supportsCursor: false,
       readiness: "adapter_ready"
     });
   });

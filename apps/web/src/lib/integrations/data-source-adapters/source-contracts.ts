@@ -35,7 +35,7 @@ export const dataSourceContracts = {
     source: "ydb",
     displayName: "YDB",
     type: "data_source",
-    authModes: ["static_credentials", "token"],
+    authModes: ["static_credentials"],
     operations: ["query_execute", "diagnostics", "fixture_import"],
     requiredSecrets: ["data_source_credentials"],
     docsHref: "https://ydb.tech/docs/ru/"

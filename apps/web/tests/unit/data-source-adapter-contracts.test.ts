@@ -8,8 +8,10 @@ describe("data source adapter contracts", () => {
       source: "ydb",
       displayName: "YDB",
       type: "data_source",
+      authModes: ["static_credentials"],
       requiredSecrets: ["data_source_credentials"]
     });
+    expect(dataSourceContracts.ydb.authModes).not.toContain("token");
     expect(dataSourceContracts.ytsaurus).toMatchObject({
       source: "ytsaurus",
       displayName: "YTsaurus/YT",
