@@ -2,6 +2,7 @@ import { createDynamicsAdapter } from "@/lib/integrations/helpdesk-adapters/dyna
 import { createFreshdeskAdapter } from "@/lib/integrations/helpdesk-adapters/freshdesk";
 import { createHubspotAdapter } from "@/lib/integrations/helpdesk-adapters/hubspot";
 import { createIntercomAdapter } from "@/lib/integrations/helpdesk-adapters/intercom";
+import { createJiraAdapter } from "@/lib/integrations/helpdesk-adapters/jira";
 import { createSalesforceAdapter } from "@/lib/integrations/helpdesk-adapters/salesforce";
 import { createServiceNowAdapter } from "@/lib/integrations/helpdesk-adapters/servicenow";
 import { createZendeskAdapter } from "@/lib/integrations/helpdesk-adapters/zendesk";
@@ -22,6 +23,10 @@ export function createHelpdeskAdapter(source: PhaseBHelpdeskSource) {
 
   if (source === "hubspot") {
     return createHubspotAdapter();
+  }
+
+  if (source === "jira") {
+    return createJiraAdapter();
   }
 
   if (source === "salesforce") {

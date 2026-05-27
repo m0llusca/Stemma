@@ -29,6 +29,12 @@ export const nativeHelpdeskSources = [
     endpointHint: "/crm/v3/objects/tickets + associated activities"
   },
   {
+    value: "jira",
+    label: "Jira Service Management",
+    objectName: "Requests + Comments",
+    endpointHint: "/rest/servicedeskapi/request/{issueIdOrKey} + /comment"
+  },
+  {
     value: "salesforce",
     label: "Salesforce Service Cloud",
     objectName: "Case + CaseComment",
@@ -61,6 +67,7 @@ const sourceLabels: Record<NativeHelpdeskSource, string> = {
   intercom: "Intercom",
   freshdesk: "Freshdesk",
   hubspot: "HubSpot",
+  jira: "Jira Service Management",
   salesforce: "Salesforce",
   servicenow: "ServiceNow",
   dynamics: "Dynamics 365"
@@ -638,6 +645,104 @@ function normalizeHubspot(payload: unknown, options: NativeHelpdeskNormalizeOpti
   });
 }
 
+function jiraRequest(payload: unknown) {
+  const root = recordValue(payload) ?? {};
+
+  return (
+    recordValue(root.request) ??
+    recordValue(root.issue) ??
+    (firstString(root.issueKey, root.issueId, root.id) ? root : undefined)
+  );
+}
+
+function jiraComments(payload: unknown) {
+  const root = recordValue(payload) ?? {};
+  const comments = root.comments;
+  const commentsRecord = recordValue(comments);
+
+  if (Array.isArray(comments)) {
+    return arrayRecords(comments);
+  }
+
+  if (commentsRecord) {
+    const values = oneOrManyRecords(commentsRecord.values);
+
+    if (values.length > 0) {
+      return values;
+    }
+
+    return oneOrManyRecords(commentsRecord.comments);
+  }
+
+  return oneOrManyRecords(recordValue(root.comment)?.values);
+}
+
+function normalizeJiraMessage(comment: NativeRecord, index: number): CustomMessageInput {
+  const author = recordValue(comment.author);
+  const publicFlag = recordValue(comment.public);
+  const isPublic = boolValue(publicFlag?.value ?? comment.public) ?? true;
+  const bodyValue =
+    typeof comment.body === "object" ? firstString(comment.renderedBody) : firstString(comment.body, comment.renderedBody);
+
+  return {
+    externalId: firstString(comment.id, `jira-comment-${index + 1}`) ?? `jira-comment-${index + 1}`,
+    participantType: isPublic ? "customer" : "human_agent",
+    authorName: actorName(author, firstString(author?.displayName, author?.emailAddress, "Jira")),
+    body: stripHtml(bodyValue) ?? "Без текста",
+    sentAt: parseDate(recordValue(comment.created)?.iso8601 ?? comment.created, new Date(index)),
+    isPrivate: !isPublic
+  };
+}
+
+function normalizeJira(payload: unknown, options: NativeHelpdeskNormalizeOptions): CustomConversationInput[] {
+  const request = jiraRequest(payload);
+
+  if (!request) {
+    return [];
+  }
+
+  const requestId = firstString(request.issueKey, request.key, request.issueId, request.id) ?? "jira-request";
+  const fields = recordValue(request.fields);
+  const currentStatus = recordValue(request.currentStatus);
+  const fieldStatus = recordValue(fields?.status);
+  const status =
+    firstString(
+      currentStatus?.status,
+      fieldStatus?.name,
+      typeof fields?.status === "object" ? undefined : fields?.status,
+      request.status
+    ) ?? "unknown";
+  const reporter = recordValue(request.reporter);
+  const messages = jiraComments(payload).map(normalizeJiraMessage).filter(hasNonEmptyMessageBody);
+  const requestFields = oneOrManyRecords(request.requestFieldValues);
+  const summary = firstString(
+    request.summary,
+    request.subject,
+    requestFields.find((field) => firstString(field.fieldId) === "summary")?.value,
+    `Jira request ${requestId}`
+  ) ?? `Jira request ${requestId}`;
+  const assignee = recordValue(request.assignee) ?? recordValue(fields?.assignee);
+
+  return [{
+    externalSource: options.source,
+    externalId: requestId,
+    externalUrl: sourceUrl(options.baseUrl, `/browse/${encodeURIComponent(requestId)}`),
+    channel: "ticket",
+    subject: summary,
+    status,
+    tags: uniqueValues([firstString(request.requestTypeId), firstString(request.serviceDeskId), status]),
+    customerName: actorName(reporter, firstString(reporter?.displayName, reporter?.emailAddress, request.reporter)),
+    assigneeName: firstString(assignee?.displayName, assignee?.emailAddress),
+    samplingReason: options.samplingReason ?? defaultSamplingReason(options.source),
+    openedAt: parseDate(
+      recordValue(request.createdDate)?.iso8601 ?? request.created,
+      messages[0] ? new Date(messages[0].sentAt) : new Date(0)
+    ),
+    closedAt: statusFromClosed(status) ? parseDate(recordValue(currentStatus?.statusDate)?.iso8601 ?? request.updated) : null,
+    messages
+  }];
+}
+
 function normalizeSalesforceMessage(comment: NativeRecord, index: number): CustomMessageInput {
   const author = recordValue(comment.CreatedBy);
 
@@ -836,11 +941,13 @@ export function normalizeNativeHelpdeskPayload(
           ? normalizeFreshdesk(payload, options)
           : options.source === "hubspot"
             ? normalizeHubspot(payload, options)
-            : options.source === "salesforce"
-              ? normalizeSalesforce(payload, options)
-              : options.source === "servicenow"
-                ? normalizeServiceNow(payload, options)
-                : normalizeDynamics(payload, options);
+            : options.source === "jira"
+              ? normalizeJira(payload, options)
+              : options.source === "salesforce"
+                ? normalizeSalesforce(payload, options)
+                : options.source === "servicenow"
+                  ? normalizeServiceNow(payload, options)
+                  : normalizeDynamics(payload, options);
 
   return conversations.filter((conversation) => conversation.externalId && conversation.subject && conversation.messages.length > 0);
 }
@@ -855,6 +962,7 @@ export const nativeHelpdeskMappingRows = [
   { source: "Intercom conversation.id + source + conversation_parts", target: "conversation/messages", note: "Source становится первым сообщением, parts добавляются по created_at." },
   { source: "Freshdesk ticket.id + conversations[]", target: "conversation/messages", note: "incoming=true считается клиентом, private=true становится внутренней заметкой." },
   { source: "HubSpot ticket.properties + associated activities", target: "conversation/messages", note: "properties дают карточку тикета, activities/notes/emails дают историю." },
+  { source: "Jira request.issueKey + comments.values[]", target: "conversation/messages", note: "Request дает карточку обращения, comments становятся сообщениями." },
   { source: "Salesforce Case.Id + CaseComment[]", target: "conversation/messages", note: "Case дает карточку обращения, CaseComment становится историей." },
   { source: "ServiceNow case.sys_id + sys_journal_field[]", target: "conversation/messages", note: "comments становятся сообщениями, work_notes остаются внутренними." },
   { source: "Dynamics incident.incidentid + activitypointers[]", target: "conversation/messages", note: "Incident дает карточку обращения, ActivityPointer дает активность." },
@@ -992,6 +1100,34 @@ export const nativeHelpdeskImportExamples: Record<NativeHelpdeskSource, unknown>
         }
       ]
     }
+  },
+  jira: {
+    request: {
+      issueId: "10042",
+      issueKey: "SUP-42",
+      serviceDeskId: "15",
+      requestTypeId: "63",
+      reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+      currentStatus: { status: "Resolved", statusDate: { iso8601: "2026-04-25T10:18:00+0000" } },
+      createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+      requestFieldValues: [{ fieldId: "summary", label: "Summary", value: "Refund request from Jira" }]
+    },
+    comments: [
+      {
+        id: "10001",
+        body: "Заказ задержан, хочу возврат.",
+        public: { value: true },
+        created: "2026-04-25T10:00:00.000+0000",
+        author: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" }
+      },
+      {
+        id: "10002",
+        body: "Проверю перевозчика перед возвратом.",
+        public: { value: false },
+        created: "2026-04-25T10:08:00.000+0000",
+        author: { displayName: "Иван Петров", emailAddress: "ivan@example.com" }
+      }
+    ]
   },
   salesforce: {
     case: {

@@ -30,6 +30,7 @@ export const phaseBHelpdeskSources = [
   "freshdesk",
   "intercom",
   "hubspot",
+  "jira",
   "salesforce",
   "servicenow",
   "dynamics"
@@ -213,6 +214,38 @@ export const phaseBSourceContracts = {
     liveCertification: liveCertification(
       genericLiveSmokeEnvironment,
       "HELPDESK_LIVE_SOURCE=hubspot npm run test:live:helpdesk"
+    )
+  }),
+  jira: contract({
+    source: "jira",
+    displayName: "Jira Service Management",
+    type: "native_helpdesk",
+    authModes: ["basic_api_token"],
+    operations: ["ticket_get", "comments_get", "webhook_ingest", "diagnostics", "fixture_import"],
+    supportedEvents: ["request.created", "request.updated", "comment.created"],
+    requiredSecrets: nativeRuntimeSecrets,
+    docsHref: "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/",
+    officialDocs: docs([
+      {
+        label: "Jira Service Management Request API",
+        href: "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/",
+        context7Id: "/websites/developer_atlassian_cloud_jira_service-desk_rest_api-group-servicedesk",
+        notes: [
+          "Context7 confirmed request fields including issueId, issueKey, reporter, currentStatus, requestFieldValues, and paged values shapes."
+        ]
+      },
+      {
+        label: "Jira Service Management Request Comments API",
+        href: "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/#api-rest-servicedeskapi-request-issueidorkey-comment-get",
+        context7Id: "/websites/developer_atlassian_cloud_jira_service-desk_rest_api-group-servicedesk",
+        notes: [
+          "Context7 confirmed request comments include paged values, author/body/created fields, and public flags for internal versus public comment mapping."
+        ]
+      }
+    ]),
+    liveCertification: liveCertification(
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=jira npm run test:live:helpdesk"
     )
   }),
   salesforce: contract({

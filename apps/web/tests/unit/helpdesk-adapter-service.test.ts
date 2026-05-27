@@ -374,6 +374,40 @@ describe("native helpdesk adapters", () => {
     }
   });
 
+  it("loads a Jira Service Management request and comments", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "jira", mode: "success" });
+    const jiraCredential = "agent@example.com:jira-api-token";
+
+    try {
+      const adapter = createHelpdeskAdapter("jira");
+      const result = await adapter.loadConversation({
+        source: "jira",
+        baseUrl: server.baseUrl,
+        externalId: "SUP-42",
+        token: jiraCredential
+      });
+
+      expect(result.conversations[0]).toMatchObject({
+        externalSource: "jira",
+        externalId: "SUP-42",
+        channel: "ticket",
+        status: "Resolved"
+      });
+      expect(result.conversations[0]?.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ externalId: "10001", isPrivate: false }),
+          expect.objectContaining({ externalId: "10002", isPrivate: true })
+        ])
+      );
+      expect(server.requests.map((request) => request.operation)).toEqual(["ticket_get", "comments_get"]);
+      expect(server.requests[1]?.query).toMatchObject({ limit: "100", start: "0" });
+      expect(decodedBasicCredential(server.requests[0]?.headers.authorization)).toBe(jiraCredential);
+      expect(JSON.stringify(result.diagnostics)).not.toContain("jira-api-token");
+    } finally {
+      await server.close();
+    }
+  });
+
   for (const source of ["salesforce", "servicenow", "dynamics"] as const) {
     it(`loads ${source} fixture through a contract-certified enterprise adapter`, async () => {
       const server = await createHelpdeskAdapterServer({ source, mode: "success" });

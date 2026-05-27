@@ -34,6 +34,50 @@ describe("native helpdesk normalizer", () => {
     expect(hubspot?.tags).toContain("HIGH");
   });
 
+  it("maps Jira public and internal comments to message privacy", () => {
+    const [conversation] = normalizeNativeHelpdeskPayload(
+      {
+        request: {
+          issueId: "10042",
+          issueKey: "SUP-42",
+          reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+          currentStatus: { status: "Resolved" },
+          createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+          requestFieldValues: [{ fieldId: "summary", value: "Refund request from Jira" }]
+        },
+        comments: [
+          {
+            id: "10001",
+            body: "Заказ задержан, хочу возврат.",
+            public: true,
+            created: { iso8601: "2026-04-25T10:00:00+0000" },
+            author: { displayName: "Анна Смирнова" }
+          },
+          {
+            id: "10002",
+            body: "Проверю перевозчика перед возвратом.",
+            public: { value: false },
+            created: { iso8601: "2026-04-25T10:08:00+0000" },
+            author: { displayName: "Иван Петров" }
+          }
+        ]
+      },
+      { source: "jira" }
+    );
+
+    expect(conversation).toMatchObject({
+      externalSource: "jira",
+      externalId: "SUP-42",
+      subject: "Refund request from Jira"
+    });
+    expect(conversation?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ externalId: "10001", participantType: "customer", isPrivate: false }),
+        expect.objectContaining({ externalId: "10002", participantType: "human_agent", isPrivate: true })
+      ])
+    );
+  });
+
   it("returns no conversations for unsupported payload shapes", () => {
     expect(normalizeNativeHelpdeskPayload({ source: "zendesk", hello: "world" }, { source: "zendesk" as NativeHelpdeskSource })).toEqual([]);
   });

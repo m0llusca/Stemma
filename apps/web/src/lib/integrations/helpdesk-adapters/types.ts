@@ -6,6 +6,7 @@ export type PhaseBHelpdeskSource =
   | "freshdesk"
   | "intercom"
   | "hubspot"
+  | "jira"
   | "salesforce"
   | "servicenow"
   | "dynamics";
