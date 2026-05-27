@@ -17,14 +17,15 @@ The existing Phase B work is not being reimplemented. Phase B already exists in 
 - Add Jira to the existing native helpdesk setup flow, catalog, runner, normalizer, fixtures, tests, and readiness reporting.
 - Add YDB and YTsaurus as first-class import sources for teams that store conversations in internal data platforms.
 - Reuse the existing `CustomConversationInput` validation and import pipeline.
-- Keep the stack conservative: add only dependencies required for YDB access, and defer unrelated stack migrations.
+- Improve the stack where it directly improves this work: add typed internal APIs and better server-state handling instead of preserving demo-era code by default.
 - Preserve current certification semantics: docs and stub tests can certify adapter contracts, but live certification remains gated by protected credentials.
 
 ## Non-Goals
 
 - Do not replace PostgreSQL/Prisma with YDB.
 - Do not run YTsaurus MapReduce or long-running operations in this slice.
-- Do not add tRPC, Auth.js, Zustand, TanStack Query, shadcn/ui, Tailwind v4 migration, Sentry, or OpenTelemetry as part of this feature.
+- Do not migrate every existing API route, server action, or screen to the new client/server stack in this slice.
+- Do not complete the Auth.js migration inside the Jira/YDB/YTsaurus integration implementation unless the project is explicitly reprioritized around auth first.
 - Do not mark Jira/YDB/YTsaurus production-ready until live smoke tests run against real protected environments.
 
 ## Existing Architecture
@@ -187,6 +188,14 @@ The setup should collect:
 
 Existing certification/readiness chips should be reused. YDB/YTsaurus should show adapter-ready status after docs and stub tests, not production-ready status.
 
+New interactive integration screens should use the revised client stack:
+
+- tRPC for internal admin/integration procedures that are consumed only by this Next.js app.
+- TanStack Query for remote state, mutations, cache invalidation, and polling of diagnostics/import-run status.
+- Zustand only for complex local wizard state that currently turns into large prop chains or broad `useState` clusters.
+
+Public integration endpoints remain REST/OpenAPI because external systems and operators need stable documented HTTP contracts.
+
 ## API and OpenAPI
 
 Update the integration capability schema:
@@ -232,7 +241,9 @@ Verification commands:
 
 ## Stack Decision
 
-Keep the current stack as the baseline:
+Use the existing stack as the base, but do not preserve demo-era architecture when a newer tool clearly improves the project.
+
+Baseline:
 
 - Next.js 16 and React 19
 - Prisma/PostgreSQL
@@ -244,24 +255,33 @@ Keep the current stack as the baseline:
 Selected additions:
 
 - YDB JavaScript/TypeScript SDK packages, server-side only.
+- tRPC for new internal admin/integration procedures.
+- TanStack Query through the tRPC React integration for integration setup, diagnostics, import-run actions, cache invalidation, and polling.
+- Zustand for integration wizard local state only if it reduces the current large client component state surface.
+
+Auth decision:
+
+- Auth.js v5 is a better long-term authentication foundation than maintaining custom demo-session plumbing.
+- Auth.js should own sign-in/session/provider plumbing in a separate auth modernization plan.
+- Product authorization, workspace permissions, SCIM provisioning, audit events, and group policy remain application concerns layered above Auth.js.
+- SAML can be addressed through an Auth.js-compatible provider/integration where appropriate, but it does not remove the need for local group/role mapping.
 
 Deferred:
 
-- tRPC: not needed because the app already has REST/OpenAPI, server actions, and internal service boundaries.
-- Auth.js: not appropriate now because the app already has local credentials, sessions, OIDC, SAML, SCIM, groups, and permission logic.
-- Zustand/Jotai/TanStack Query: not needed for this import slice.
 - shadcn/ui and Tailwind v4: separate migration/design-system decision.
 - Sentry/OpenTelemetry: valuable production hardening, but separate from integration delivery.
 
 ## Rollout
 
-1. Add Jira to existing Phase B helpdesk contracts and tests.
-2. Add tabular normalizer and `data_source` capability model.
-3. Add YTsaurus HTTP adapter because it has no package-install dependency.
-4. Add YDB adapter and SDK dependencies.
-5. Extend setup UI and catalog/OpenAPI.
-6. Run full typecheck and unit tests.
-7. Leave live smoke tests documented but skipped until real credentials are available.
+1. Add tRPC/TanStack Query foundations for new internal integration workflows.
+2. Refactor only the integration setup/run interactions that benefit from typed procedures, mutations, invalidation, or polling.
+3. Add Jira to existing Phase B helpdesk contracts and tests.
+4. Add tabular normalizer and `data_source` capability model.
+5. Add YTsaurus HTTP adapter because it has no package-install dependency.
+6. Add YDB adapter and SDK dependencies.
+7. Extend setup UI and catalog/OpenAPI.
+8. Run full typecheck and unit tests.
+9. Leave live smoke tests documented but skipped until real credentials are available.
 
 ## Self-Review
 
@@ -269,4 +289,5 @@ Deferred:
 - Phase B is described as existing work and is not re-scoped as new implementation.
 - Jira and data-platform integrations have separate module boundaries.
 - The first YDB/YTsaurus slice is import-only and does not include storage replacement or export.
-- The stack decision is scoped to the feature and avoids unrelated migrations.
+- The stack decision no longer rejects tRPC/TanStack/Zustand merely because older code exists.
+- Auth.js is treated as a recommended separate modernization track because it changes app-wide auth/session behavior, while the current spec is scoped to imports.
