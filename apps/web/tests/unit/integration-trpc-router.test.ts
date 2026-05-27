@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   listIntegrationCapabilities: vi.fn(() => [
@@ -32,6 +32,11 @@ vi.mock("@/lib/integration-actions", async (importOriginal) => {
 });
 
 describe("integration tRPC router", () => {
+  beforeEach(() => {
+    mocks.listIntegrationCapabilities.mockClear();
+    mocks.recordIntegrationDryRunFromInput.mockClear();
+  });
+
   it("returns the integration catalog for authenticated users", async () => {
     const { appRouter } = await import("@/server/trpc/root");
     const caller = appRouter.createCaller({
@@ -50,6 +55,18 @@ describe("integration tRPC router", () => {
     await expect(caller.integrations.catalog()).rejects.toMatchObject({
       code: "UNAUTHORIZED"
     });
+  });
+
+  it("rejects catalog access for authenticated users without integration management permission", async () => {
+    const { appRouter } = await import("@/server/trpc/root");
+    const caller = appRouter.createCaller({
+      user: { id: "user-1", workspaceId: "workspace-1", role: "QA_ANALYST" } as never
+    });
+
+    await expect(caller.integrations.catalog()).rejects.toMatchObject({
+      code: "FORBIDDEN"
+    });
+    expect(mocks.listIntegrationCapabilities).not.toHaveBeenCalled();
   });
 
   it("queues integration imports through a typed mutation", async () => {
