@@ -74,6 +74,7 @@ const sourceLabels: Record<NativeHelpdeskSource, string> = {
 };
 
 const highRiskPattern = /(urgent|high|critical|escalat|vip|высок|критич|сроч)/i;
+const jiraDescriptionFieldPattern = /(description|why|details|описание)/i;
 
 function isRecord(value: unknown): value is NativeRecord {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -165,6 +166,17 @@ function firstString(...values: unknown[]) {
   }
 
   return undefined;
+}
+
+function lowerString(value: unknown) {
+  return stringValue(value)?.toLowerCase();
+}
+
+function sameNormalizedString(left: unknown, right: unknown) {
+  const normalizedLeft = lowerString(left);
+  const normalizedRight = lowerString(right);
+
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
 }
 
 function parseDate(value: unknown, fallback = new Date(0)) {
@@ -677,7 +689,112 @@ function jiraComments(payload: unknown) {
   return oneOrManyRecords(recordValue(root.comment)?.values);
 }
 
-function normalizeJiraMessage(comment: NativeRecord, index: number): CustomMessageInput {
+function jiraRequestFields(request: NativeRecord) {
+  const requestFieldValues = request.requestFieldValues;
+
+  if (Array.isArray(requestFieldValues)) {
+    return arrayRecords(requestFieldValues);
+  }
+
+  if (!isRecord(requestFieldValues)) {
+    return [];
+  }
+
+  return Object.entries(requestFieldValues).map(([fieldId, value]) =>
+    isRecord(value) ? { fieldId, ...value } : { fieldId, value }
+  );
+}
+
+function jiraFieldText(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return stripHtml(stringValue(value));
+  }
+
+  if (Array.isArray(value)) {
+    const values = uniqueValues(value.map(jiraFieldText));
+    return values.length > 0 ? values.join("\n") : undefined;
+  }
+
+  if (isRecord(value)) {
+    return (
+      jiraFieldText(value.text) ??
+      jiraFieldText(value.value) ??
+      jiraFieldText(value.renderedValue) ??
+      jiraFieldText(value.html) ??
+      jiraFieldText(value.content)
+    );
+  }
+
+  return undefined;
+}
+
+function jiraDescriptionBody(request: NativeRecord, requestFields: NativeRecord[]) {
+  const descriptionField = requestFields.find((field) => {
+    const fieldId = lowerString(field.fieldId ?? field.id);
+    const label = firstString(field.label, field.name, field.fieldName);
+
+    return fieldId === "description" || jiraDescriptionFieldPattern.test(label ?? "");
+  });
+  const fields = recordValue(request.fields);
+
+  return (
+    jiraFieldText(descriptionField?.value ?? descriptionField?.renderedValue) ??
+    jiraFieldText(request.description) ??
+    jiraFieldText(request.renderedDescription) ??
+    jiraFieldText(fields?.description)
+  );
+}
+
+function jiraHasApplicationRoles(author: NativeRecord | undefined) {
+  const applicationRoles = author ? author.applicationRoles : undefined;
+  const applicationRolesRecord = recordValue(applicationRoles);
+  const size = Number(firstString(applicationRolesRecord?.size));
+
+  if (Number.isFinite(size) && size > 0) {
+    return true;
+  }
+
+  if (oneOrManyRecords(applicationRolesRecord?.items).length > 0) {
+    return true;
+  }
+
+  return Array.isArray(applicationRoles) && applicationRoles.length > 0;
+}
+
+function jiraAuthorMatchesReporter(author: NativeRecord | undefined, reporter: NativeRecord | undefined) {
+  return Boolean(
+    author &&
+      reporter &&
+      (sameNormalizedString(author.emailAddress, reporter.emailAddress) ||
+        sameNormalizedString(author.displayName, reporter.displayName))
+  );
+}
+
+function jiraParticipantType(
+  author: NativeRecord | undefined,
+  reporter: NativeRecord | undefined,
+  isPublic: boolean
+): CustomMessageInput["participantType"] {
+  if (!isPublic) {
+    return "human_agent";
+  }
+
+  if (jiraAuthorMatchesReporter(author, reporter)) {
+    return "customer";
+  }
+
+  if (lowerString(author?.accountType)?.includes("customer")) {
+    return "customer";
+  }
+
+  if (jiraHasApplicationRoles(author)) {
+    return "human_agent";
+  }
+
+  return "human_agent";
+}
+
+function normalizeJiraMessage(comment: NativeRecord, index: number, reporter: NativeRecord | undefined): CustomMessageInput {
   const author = recordValue(comment.author);
   const publicFlag = recordValue(comment.public);
   const isPublic = boolValue(publicFlag?.value ?? comment.public) ?? true;
@@ -686,7 +803,7 @@ function normalizeJiraMessage(comment: NativeRecord, index: number): CustomMessa
 
   return {
     externalId: firstString(comment.id, `jira-comment-${index + 1}`) ?? `jira-comment-${index + 1}`,
-    participantType: isPublic ? "customer" : "human_agent",
+    participantType: jiraParticipantType(author, reporter, isPublic),
     authorName: actorName(author, firstString(author?.displayName, author?.emailAddress, "Jira")),
     body: stripHtml(bodyValue) ?? "Без текста",
     sentAt: parseDate(recordValue(comment.created)?.iso8601 ?? comment.created, new Date(index)),
@@ -705,6 +822,8 @@ function normalizeJira(payload: unknown, options: NativeHelpdeskNormalizeOptions
   const fields = recordValue(request.fields);
   const currentStatus = recordValue(request.currentStatus);
   const fieldStatus = recordValue(fields?.status);
+  const requestFields = jiraRequestFields(request);
+  const reporter = recordValue(request.reporter);
   const status =
     firstString(
       currentStatus?.status,
@@ -712,9 +831,23 @@ function normalizeJira(payload: unknown, options: NativeHelpdeskNormalizeOptions
       typeof fields?.status === "object" ? undefined : fields?.status,
       request.status
     ) ?? "unknown";
-  const reporter = recordValue(request.reporter);
-  const messages = jiraComments(payload).map(normalizeJiraMessage).filter(hasNonEmptyMessageBody);
-  const requestFields = oneOrManyRecords(request.requestFieldValues);
+  const normalizedComments = jiraComments(payload)
+    .map((comment, index) => normalizeJiraMessage(comment, index, reporter))
+    .filter(hasNonEmptyMessageBody);
+  const descriptionBody = jiraDescriptionBody(request, requestFields);
+  const fallbackMessages: CustomMessageInput[] = descriptionBody
+    ? [
+        {
+          externalId: `${requestId}:description`,
+          participantType: "customer",
+          authorName: actorName(reporter, firstString(reporter?.displayName, reporter?.emailAddress, request.reporter)),
+          body: descriptionBody,
+          sentAt: parseDate(recordValue(request.createdDate)?.iso8601 ?? request.created),
+          isPrivate: false
+        }
+      ]
+    : [];
+  const messages = normalizedComments.length > 0 ? normalizedComments : fallbackMessages;
   const summary = firstString(
     request.summary,
     request.subject,

@@ -1,3 +1,5 @@
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, expect, it, vi } from "vitest";
 import { createHelpdeskAdapter } from "@/lib/integrations/helpdesk-adapters";
 import { loadHelpdeskAdapterConversations } from "@/lib/integrations/helpdesk-adapters/service";
@@ -408,6 +410,43 @@ describe("native helpdesk adapters", () => {
     }
   });
 
+  it("loads a Jira request without comments from the request description fallback", async () => {
+    const server = await createJiraRequestWithoutCommentsServer();
+    const jiraCredential = "agent@example.com:jira-api-token";
+
+    try {
+      const adapter = createHelpdeskAdapter("jira");
+      const result = await adapter.loadConversation({
+        source: "jira",
+        baseUrl: server.baseUrl,
+        externalId: "SUP-77",
+        token: jiraCredential
+      });
+
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0]).toMatchObject({
+        externalSource: "jira",
+        externalId: "SUP-77",
+        subject: "Portal access issue"
+      });
+      expect(result.conversations[0]?.messages).toEqual([
+        expect.objectContaining({
+          participantType: "customer",
+          body: "Customer cannot access the portal.",
+          isPrivate: false
+        })
+      ]);
+      expect(server.requests.map((request) => request.pathname)).toEqual([
+        "/rest/servicedeskapi/request/SUP-77",
+        "/rest/servicedeskapi/request/SUP-77/comment"
+      ]);
+      expect(decodedBasicCredential(server.requests[0]?.headers.authorization)).toBe(jiraCredential);
+      expect(JSON.stringify(result.diagnostics)).not.toContain("jira-api-token");
+    } finally {
+      await server.close();
+    }
+  });
+
   for (const source of ["salesforce", "servicenow", "dynamics"] as const) {
     it(`loads ${source} fixture through a contract-certified enterprise adapter`, async () => {
       const server = await createHelpdeskAdapterServer({ source, mode: "success" });
@@ -512,4 +551,66 @@ describe("native helpdesk adapters", () => {
 function decodedBasicCredential(authorization: string | undefined) {
   expect(authorization).toMatch(/^Basic [A-Za-z0-9+/]+=*$/);
   return Buffer.from(authorization?.replace(/^Basic /, "") ?? "", "base64").toString("utf8");
+}
+
+async function createJiraRequestWithoutCommentsServer() {
+  const requests: Array<{
+    pathname: string;
+    headers: Record<string, string | undefined>;
+  }> = [];
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+    requests.push({
+      pathname: url.pathname,
+      headers: Object.fromEntries(
+        Object.entries(request.headers).map(([key, value]) => [key, Array.isArray(value) ? value.join(",") : value])
+      )
+    });
+    response.setHeader("content-type", "application/json");
+
+    if (url.pathname === "/rest/servicedeskapi/request/SUP-77") {
+      response.end(
+        JSON.stringify({
+          issueId: "10077",
+          issueKey: "SUP-77",
+          reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+          currentStatus: { status: "Open" },
+          createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+          requestFieldValues: [
+            { fieldId: "summary", label: "Summary", value: "Portal access issue" },
+            { fieldId: "description", label: "Description", value: "Customer cannot access the portal." }
+          ]
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/rest/servicedeskapi/request/SUP-77/comment") {
+      response.end(JSON.stringify({ values: [], start: 0, limit: 100, isLastPage: true }));
+      return;
+    }
+
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: "not found" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  const address = server.address() as AddressInfo;
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    requests,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      })
+  };
 }

@@ -54,6 +54,25 @@ describe("native helpdesk normalizer", () => {
             author: { displayName: "Анна Смирнова" }
           },
           {
+            id: "10003",
+            body: "Public agent reply should not become a customer message.",
+            public: true,
+            created: { iso8601: "2026-04-25T10:12:00+0000" },
+            author: {
+              displayName: "Мария Агент",
+              emailAddress: "agent@example.com",
+              accountType: "atlassian",
+              applicationRoles: { size: 1, items: [{ key: "jira-servicedesk" }] }
+            }
+          },
+          {
+            id: "10004",
+            body: "Public non-reporter comment should be treated conservatively as an agent reply.",
+            public: true,
+            created: { iso8601: "2026-04-25T10:14:00+0000" },
+            author: { displayName: "Unknown public user", emailAddress: "unknown@example.com" }
+          },
+          {
             id: "10002",
             body: "Проверю перевозчика перед возвратом.",
             public: { value: false },
@@ -73,9 +92,72 @@ describe("native helpdesk normalizer", () => {
     expect(conversation?.messages).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ externalId: "10001", participantType: "customer", isPrivate: false }),
-        expect.objectContaining({ externalId: "10002", participantType: "human_agent", isPrivate: true })
+        expect.objectContaining({ externalId: "10002", participantType: "human_agent", isPrivate: true }),
+        expect.objectContaining({ externalId: "10003", participantType: "human_agent", isPrivate: false }),
+        expect.objectContaining({ externalId: "10004", participantType: "human_agent", isPrivate: false })
       ])
     );
+  });
+
+  it("imports Jira requests without comments from description-like request fields", () => {
+    const [conversation] = normalizeNativeHelpdeskPayload(
+      {
+        request: {
+          issueId: "10043",
+          issueKey: "SUP-43",
+          reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+          currentStatus: { status: "Open" },
+          createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+          requestFieldValues: [
+            { fieldId: "summary", label: "Summary", value: "Portal login problem" },
+            { fieldId: "customfield_10123", label: "Why do you need help?", value: "I cannot sign in to the portal." }
+          ]
+        },
+        comments: []
+      },
+      { source: "jira" }
+    );
+
+    expect(conversation).toMatchObject({
+      externalSource: "jira",
+      externalId: "SUP-43",
+      subject: "Portal login problem"
+    });
+    expect(conversation?.messages).toEqual([
+      expect.objectContaining({
+        participantType: "customer",
+        authorName: "Анна Смирнова",
+        body: "I cannot sign in to the portal.",
+        isPrivate: false
+      })
+    ]);
+  });
+
+  it("imports Jira requests without comments from request description fallback", () => {
+    const [conversation] = normalizeNativeHelpdeskPayload(
+      {
+        request: {
+          issueId: "10044",
+          issueKey: "SUP-44",
+          reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+          currentStatus: { status: "Open" },
+          createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+          requestFieldValues: [{ fieldId: "summary", label: "Summary", value: "Missing order details" }],
+          description: "<p>The order details page is empty.</p>"
+        },
+        comments: { values: [] }
+      },
+      { source: "jira" }
+    );
+
+    expect(conversation?.messages).toEqual([
+      expect.objectContaining({
+        participantType: "customer",
+        authorName: "Анна Смирнова",
+        body: "The order details page is empty.",
+        isPrivate: false
+      })
+    ]);
   });
 
   it("returns no conversations for unsupported payload shapes", () => {
