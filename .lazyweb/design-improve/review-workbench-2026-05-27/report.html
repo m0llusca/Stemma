@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Design Improvement: Review Workbench</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --text: #172033;
+        --muted: #667085;
+        --line: #d9e0ea;
+        --accent: #3157d5;
+        --accent-soft: #edf2ff;
+        --shadow: 0 18px 54px rgba(32, 44, 67, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(920px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 42px 0 64px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        font-size: clamp(32px, 5vw, 54px);
+      }
+
+      h2 {
+        margin-top: 40px;
+        font-size: 24px;
+      }
+
+      h3 {
+        margin-top: 26px;
+        font-size: 18px;
+      }
+
+      p {
+        margin: 10px 0 0;
+        max-width: 72ch;
+      }
+
+      a {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .kicker {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .callout {
+        margin-top: 24px;
+        border: 1px solid #c8d6ff;
+        border-radius: 14px;
+        background: #eef4ff;
+        padding: 18px 20px;
+      }
+
+      .panel {
+        margin-top: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .panel-body {
+        padding: 18px;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #ffffff;
+      }
+
+      .caption {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .idea {
+        margin-top: 18px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        padding: 18px;
+      }
+
+      .idea h3 {
+        margin-top: 0;
+      }
+
+      .badge {
+        display: inline-flex;
+        margin-left: 6px;
+        border-radius: 7px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 2px 7px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      pre {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f8fafc;
+        padding: 14px;
+        color: #344054;
+        font-size: 13px;
+      }
+
+      .refs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .ref {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        padding: 14px;
+      }
+
+      ul {
+        padding-left: 20px;
+      }
+
+      li + li {
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Design Improvement</p>
+      <h1>Review workbench</h1>
+      <div class="callout">
+        <strong>TL;DR</strong>
+        <p>Главная правка: убрать яркую боковую цветовую рейку из критериев и превратить блок оценки в сканируемый structured list. Статус должен помогать, а не доминировать.</p>
+      </div>
+
+      <h2>Current state</h2>
+      <div class="panel">
+        <div class="panel-body">
+          <img src="references/current.png" alt="Текущий экран проверки до переработки блока критериев" />
+          <p class="caption">Текущий дизайн: критерии уже сгруппированы, но цветовые отметки сбоку визуально конкурируют с содержанием и делают список шумным.</p>
+        </div>
+      </div>
+
+      <h2>Improvement ideas</h2>
+
+      <section class="idea">
+        <h3>1. Structured list вместо набора карточек <span class="badge">highest impact</span></h3>
+        <p>Критерии лучше читать как рабочий список: номер, название, метаданные, статус, раскрытие. Это снижает визуальный вес и сохраняет плотность.</p>
+        <p><strong>Inspired by:</strong> Carbon structured list. Carbon описывает structured list как способ группировать похожую информацию в логичные и сканируемые строки.</p>
+        <pre>┌ Группа процесса                                      без замечаний  30% ┐
+│ 01  Приветствие и идентификация       Вес 10%  Да/нет        Зачет      │
+│ 02  Полнота ответа                     Вес 15%  Шкала 1-3     3/3       │
+│ 03  Эскалация                          Вес 10%  Да/нет        Незачет   │
+└─────────────────────────────────────────────────────────────────────────┘</pre>
+      </section>
+
+      <section class="idea">
+        <h3>2. Спокойные status lozenges вместо цветной полосы</h3>
+        <p>Статусы должны быть компактными текстовыми индикаторами. Цвет нужен только как вторичный сигнал, поэтому фон и бордер должны быть мягкими.</p>
+        <p><strong>Inspired by:</strong> Atlassian lozenge и Carbon tag. Оба паттерна используют компактный статус рядом с объектом, а не декоративную маркировку всей строки.</p>
+        <pre>Название критерия                         [3/3 стандарт]
+Метаданные: вес, тип шкалы, доказательство</pre>
+      </section>
+
+      <section class="idea">
+        <h3>3. Пресеты итога как действие, а не copy flow</h3>
+        <p>Шаблон итогового комментария должен сразу заполнять поле. Копирование создает лишний шаг и не подходит для формы, где результат уже известен.</p>
+        <p><strong>Inspired by:</strong> Atlassian form guidance: формы должны вести пользователя с минимальным трением, а поля и действия должны быть сгруппированы по смыслу.</p>
+        <pre>Быстрые формулировки
+[Стандарт] [Замечание] [Критическая ошибка]
+
+Итог проверки
+┌───────────────────────────────────────────────┐
+│ выбранный текст уже здесь                     │
+└───────────────────────────────────────────────┘</pre>
+      </section>
+
+      <h2>Implemented state</h2>
+      <div class="panel">
+        <div class="panel-body">
+          <img src="references/after.png" alt="Экран проверки после переработки пресетов итога" />
+          <p class="caption">После: пресеты подставляют текст напрямую в поле итога. Критерии в коде переведены на спокойные статусные капсулы без боковых цветных реек.</p>
+        </div>
+      </div>
+
+      <h2>What's working</h2>
+      <ul>
+        <li>Группировка критериев по процессным блокам полезна, ее стоит оставить.</li>
+        <li>Sticky review panel хорошо поддерживает рабочий сценарий проверки рядом с диалогом.</li>
+        <li>Progressive disclosure для доказательств и комментариев снижает объем формы на первом взгляде.</li>
+      </ul>
+
+      <h2>All references</h2>
+      <div class="refs">
+        <div class="ref">
+          <strong>Carbon structured list</strong>
+          <p>Паттерн для сканируемых строк похожей информации.</p>
+          <a href="https://carbondesignsystem.com/components/structured-list/usage/">Source</a>
+        </div>
+        <div class="ref">
+          <strong>Carbon tag</strong>
+          <p>Компактные метки для статуса и категоризации.</p>
+          <a href="https://carbondesignsystem.com/components/tag/usage/">Source</a>
+        </div>
+        <div class="ref">
+          <strong>Atlassian forms</strong>
+          <p>Группировка полей, ясные labels, минимальное трение.</p>
+          <a href="https://design-system-docs-proxy.services.atlassian.com/patterns/forms/">Source</a>
+        </div>
+        <div class="ref">
+          <strong>Atlassian lozenge</strong>
+          <p>Статус рядом с объектом, а не декоративный цвет на всю строку.</p>
+          <a href="https://design-system-docs.us-east-1.prod.public.atl-paas.net/components/lozenge/lozenge/">Source</a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

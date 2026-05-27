@@ -343,6 +343,10 @@ export async function saveReviewDraft(formData: FormData) {
       throw new Error("Диалог не найден в текущем рабочем пространстве.");
     }
 
+    if (reviewSource === "HUMAN" && currentConversation.qaStatus === "FINALIZED") {
+      throw new ReviewLifecycleTransitionError("Завершенный диалог нужно сначала переоткрыть для нового цикла проверки.");
+    }
+
     const latestReopenedAt = await findLatestReopenedAt(tx, user.workspaceId, conversationId);
     const existingReview = await findCurrentReview(tx, user.workspaceId, conversationId, user.id, reviewSource, latestReopenedAt);
     assertReviewCanSaveDraft(existingReview?.status ?? null);

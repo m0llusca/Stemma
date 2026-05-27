@@ -1,7 +1,9 @@
 import type { RoleName } from "@prisma/client";
 import { ArrowLeft, KeyRound, ShieldCheck, UserCog } from "lucide-react";
 import Link from "next/link";
+import { CoachCallout } from "@/components/guidance/coach-callout";
 import { createLocalUser, updateUserAccess } from "@/lib/admin-user-actions";
+import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { getPermissions, type Permission } from "@/lib/auth/permissions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -182,6 +184,7 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
   );
   const openCreateUser = firstParam(params.create) === "1";
   const activeSection = usersSectionParam(params.section, openCreateUser);
+  const usersSetupHint = users.length > 1 ? null : getSettingCoachmark("users");
 
   return (
     <section className="page-shell admin-shell">
@@ -252,6 +255,21 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
               <p className="ops-panel__subtitle">Каждая строка сохраняется отдельно и сразу пишет событие аудита.</p>
             </div>
           </div>
+          {usersSetupHint ? (
+            <div className="admin-setup-inline">
+              <CoachCallout
+                title={usersSetupHint.title}
+                body={usersSetupHint.body}
+                href={usersSetupHint.href}
+                actionLabel={usersSetupHint.actionLabel}
+                variant="spotlight"
+                placement="top"
+                anchorLabel="Подсказка к пользователям"
+                stepIndex={1}
+                dismissId="settings:users"
+              />
+            </div>
+          ) : null}
           <div className="ops-table-shell">
             <div className="ops-table ops-table--users" role="table" aria-label="Пользователи">
               <div className="ops-table__row ops-table__row--head" role="row">

@@ -128,6 +128,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           assignees={data.filterOptions.assignees}
           qaAssignees={data.filterOptions.qaAssignees}
           supportLines={data.filterOptions.supportLines}
+          teamNames={data.filterOptions.teamNames}
         />
       </section>
       <div className="grid min-w-0 gap-3">

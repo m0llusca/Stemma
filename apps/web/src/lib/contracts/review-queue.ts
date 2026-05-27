@@ -17,6 +17,7 @@ export type ReviewQueueFilters = {
   samplingType?: string;
   csatBucket?: string;
   supportLine?: string;
+  teamName?: string;
   process?: ReviewQueueProcessFilter;
   due?: ReviewQueueDueFilter;
   riskLevel?: ReviewQueueRiskFilter;
@@ -46,6 +47,7 @@ export type ReviewQueueFilterOptionsDto = {
   assignees: string[];
   qaAssignees: string[];
   supportLines: string[];
+  teamNames: string[];
 };
 
 export type ReviewQueueReviewDto = {
@@ -67,6 +69,8 @@ export type ReviewQueueConversationDto = {
   messageCount: number;
   channel: ConversationChannel;
   externalSource: string;
+  supportLine: string | null;
+  teamName: string | null;
   reviewDueAt: string | null;
   qaStatus: QaStatus;
   qaAssigneeName: string | null;

@@ -189,6 +189,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                     <strong>{externalSourceLabel(conversation.externalSource)}</strong>
                   </li>
                   <li>
+                    <span>Команда</span>
+                    <strong>{conversation.teamName ?? "Не указана"}</strong>
+                  </li>
+                  <li>
                     <span>Проверяющий</span>
                     <strong>{conversation.qaAssigneeName ?? "Не назначен"}</strong>
                   </li>

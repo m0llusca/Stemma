@@ -40,11 +40,19 @@ export function formatQualityScore(
   return `${score} ${qualityScorePointWord(score)}`;
 }
 
+export function qualityScoreDelta(current: number | null | undefined, previous: number | null | undefined) {
+  if (current == null || previous == null || !Number.isFinite(current) || !Number.isFinite(previous)) {
+    return null;
+  }
+
+  return clampQualityScore(current) - clampQualityScore(previous);
+}
+
 export function formatQualityScoreDelta(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
-    return "0 п.";
+    return "0 баллов";
   }
 
   const rounded = Math.sign(value) * Math.round(Math.abs(value));
-  return `${rounded > 0 ? "+" : ""}${rounded} п.`;
+  return `${rounded > 0 ? "+" : ""}${rounded} ${qualityScorePointWord(Math.abs(rounded))}`;
 }

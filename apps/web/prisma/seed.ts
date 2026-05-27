@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { PrismaClient, type ConversationChannel, type FindingOwnerType, type ReviewSource, type RiskLevel } from "@prisma/client";
 import { demoApiToken } from "../src/lib/custom-api-docs";
+import {
+  buildDemoOperationalStatusPlan,
+  buildOperationalConversationSeeds,
+  type OperationalConversationSeed,
+  type OperationalReviewSeed
+} from "./demo-operational-seeds";
 import { buildTwoMonthReviewedConversationSeeds } from "./demo-review-seeds";
 
 const prisma = new PrismaClient();
@@ -408,6 +414,7 @@ async function main() {
     where: { scorecardId: scorecard.id },
     orderBy: { order: "asc" }
   });
+  const operationalStatusPlan = buildDemoOperationalStatusPlan();
 
   const conversation = await prisma.conversation.create({
     data: {
@@ -750,6 +757,134 @@ async function main() {
     });
 
     return review;
+  }
+
+  async function createDraftReview(input: OperationalReviewSeed & { conversationId: string }) {
+    return prisma.review.create({
+      data: {
+        workspaceId: workspace.id,
+        conversationId: input.conversationId,
+        reviewerId: input.reviewerId,
+        scorecardId: scorecard.id,
+        reviewSource: input.reviewSource ?? "HUMAN",
+        rubricVersion: scorecard.version,
+        status: "DRAFT",
+        totalScore: input.totalScore,
+        summary: input.summary,
+        feedbackComment: "",
+        positiveNotes: input.positiveNotes ?? "",
+        instructionLinks: "Черновик проверки, регламент КК",
+        feedbackStatus: input.feedbackStatus ?? "new",
+        appealStatus: input.appealStatus ?? "none",
+        criticalError: input.criticalError ?? false,
+        criticalCategory: input.criticalCategory,
+        needsReanswer: input.needsReanswer ?? false,
+        reanswerStatus: input.reanswerStatus ?? "not_needed",
+        calibrationStatus: "none",
+        calibrationNotes: "",
+        scores: {
+          create: activeCriteria.map((criterion, index) => ({
+            criterionId: criterion.id,
+            value: scoreValuesFor(input.totalScore)[index],
+            passed: null,
+            isNotApplicable: false,
+            comment: index === 0 ? "Черновая оценка для демонстрации незавершенного разбора." : "",
+            evidenceMessageId: null
+          }))
+        },
+        findings: {
+          create: {
+            ownerType: input.ownerType ?? "AGENT",
+            category: input.category,
+            rootCause: "Черновик: причина уточняется проверяющим.",
+            riskLevel: input.riskLevel,
+            evidenceSummary: input.summary,
+            coachingAction:
+              input.riskLevel === "HIGH" || input.riskLevel === "CRITICAL"
+                ? {
+                    create: {
+                      assignee: "Проверяющий",
+                      action: "Довести черновик до финального решения и согласовать действие с руководителем.",
+                      dueAt: new Date(Date.UTC(2026, 4, 28, 12, 0, 0))
+                    }
+                  }
+                : undefined
+          }
+        }
+      }
+    });
+  }
+
+  async function createOperationalConversation(input: OperationalConversationSeed) {
+    const createdConversation = await prisma.conversation.create({
+      data: {
+        workspaceId: workspace.id,
+        externalSource: input.externalSource,
+        externalId: input.externalId,
+        externalUrl: input.externalUrl ?? `https://example.com/tickets/${encodeURIComponent(input.externalId)}`,
+        channel: input.channel,
+        subject: input.subject,
+        status: input.status,
+        tags: input.tags,
+        customerName: input.customerName,
+        assigneeName: input.assigneeName ?? null,
+        qaStatus: input.qaStatus,
+        qaAssigneeId: input.qaAssigneeId ?? null,
+        qaAssigneeName: input.qaAssigneeName ?? null,
+        reviewDueAt: input.reviewDueAt,
+        samplingReason: input.samplingReason,
+        samplingType: input.samplingType,
+        csatScore: input.csatScore,
+        csatBucket: input.csatBucket,
+        supportLine: input.supportLine,
+        teamName: input.teamName,
+        riskHint: input.riskHint ?? null,
+        openedAt: input.openedAt,
+        closedAt: input.closedAt ?? null,
+        messages: {
+          create: input.messages.map((item, index) => ({
+            externalId: `${input.externalId}-operational-msg-${index + 1}`,
+            participantType: item.participantType,
+            authorName: item.authorName,
+            body: item.body,
+            sentAt: item.sentAt,
+            isPrivate: item.isPrivate ?? false
+          }))
+        }
+      }
+    });
+
+    const draftReview = input.draftReview
+      ? await createDraftReview({
+          ...input.draftReview,
+          conversationId: createdConversation.id
+        })
+      : null;
+    const previousFinalizedReview = input.previousFinalizedReview
+      ? await createFinalizedReview({
+          ...input.previousFinalizedReview,
+          conversationId: createdConversation.id,
+          finalizedAt: input.previousFinalizedReview.finalizedAt ?? new Date(input.openedAt.getTime() + 2 * 60 * 60 * 1000)
+        })
+      : null;
+
+    if (previousFinalizedReview && input.qaStatus === "REOPENED") {
+      await prisma.reviewEvent.create({
+        data: {
+          workspaceId: workspace.id,
+          reviewId: previousFinalizedReview.id,
+          conversationId: createdConversation.id,
+          actorId: input.qaAssigneeId ?? teamLead.id,
+          action: "qa.reopened",
+          fromStatus: "FINALIZED",
+          toStatus: "REOPENED",
+          metadata: JSON.stringify({ reason: input.samplingReason, demo: true }),
+          createdAt: new Date(previousFinalizedReview.finalizedAt?.getTime() ?? input.reviewDueAt.getTime())
+        }
+      });
+    }
+
+    return { conversation: createdConversation, draftReview, previousFinalizedReview };
   }
 
   async function createReviewedConversation(input: ReviewedConversationSeed) {
@@ -1582,6 +1717,27 @@ async function main() {
 
   const additionalReviewByExternalId = new Map(additionalReviewRecords.map((record) => [record.conversation.externalId, record.review]));
   const additionalConversationByExternalId = new Map(additionalReviewRecords.map((record) => [record.conversation.externalId, record.conversation]));
+  const operationalConversationRecords: Awaited<ReturnType<typeof createOperationalConversation>>[] = [];
+
+  for (const seed of buildOperationalConversationSeeds({
+    analystId: analyst.id,
+    analystName: analyst.name,
+    teamLeadId: teamLead.id,
+    teamLeadName: teamLead.name,
+    seniorAnalystId: seniorAnalyst.id,
+    seniorAnalystName: seniorAnalyst.name,
+    supportAgentName: supportAgent.name,
+    supportOlgaName: supportOlga.name,
+    supportDenisName: supportDenis.name,
+    supportElenaName: supportElena.name
+  })) {
+    operationalConversationRecords.push(await createOperationalConversation(seed));
+  }
+
+  const operationalConversationByExternalId = new Map(
+    operationalConversationRecords.map((record) => [record.conversation.externalId, record.conversation])
+  );
+
   function reviewIdFor(externalId: string) {
     const review = additionalReviewByExternalId.get(externalId);
 
@@ -1592,7 +1748,7 @@ async function main() {
     return review.id;
   }
   function conversationIdFor(externalId: string) {
-    const seededConversation = additionalConversationByExternalId.get(externalId);
+    const seededConversation = additionalConversationByExternalId.get(externalId) ?? operationalConversationByExternalId.get(externalId);
 
     if (!seededConversation) {
       throw new Error(`Missing seeded conversation for ${externalId}`);
@@ -1834,6 +1990,59 @@ async function main() {
         syncCursor: "after=HS-4302",
         lastSyncedAt: new Date("2026-05-25T10:35:00.000Z"),
         lastImportAt: new Date("2026-05-25T10:35:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        source: "generic_webhook",
+        displayName: "Generic Webhook",
+        type: "webhook",
+        status: "queued",
+        baseUrl: "https://hooks.example.com/support-events",
+        configJson: JSON.stringify({ acceptedEvents: ["conversation.upsert", "conversation.closed"], signing: "hmac_sha256" }),
+        syncStateJson: JSON.stringify({
+          source: "generic_webhook",
+          cursor: null,
+          progress: { checkedCount: 0, importedCount: 0, skippedCount: 0, errorCount: 0 }
+        }),
+        schedule: null,
+        syncCursor: null
+      },
+      {
+        workspaceId: workspace.id,
+        source: "salesforce",
+        displayName: "Salesforce Service Cloud",
+        type: "native_helpdesk",
+        status: "paused",
+        baseUrl: "https://company.my.salesforce.com",
+        configJson: JSON.stringify({ endpoint: "/services/data/v61.0/sobjects/Case" }),
+        syncStateJson: JSON.stringify({
+          source: "salesforce",
+          cursor: "SystemModstamp>2026-05-20T10:00:00Z",
+          progress: { checkedCount: 12, importedCount: 9, skippedCount: 3, errorCount: 0 }
+        }),
+        schedule: "0 */12 * * *",
+        syncCursor: "SystemModstamp>2026-05-20T10:00:00Z",
+        lastSyncedAt: new Date("2026-05-20T10:00:00.000Z"),
+        lastImportAt: new Date("2026-05-20T10:00:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        source: "jira_service",
+        displayName: "Jira Service Management",
+        type: "native_helpdesk",
+        status: "error",
+        baseUrl: "https://company.atlassian.net",
+        configJson: JSON.stringify({ endpoint: "/rest/servicedeskapi/request" }),
+        syncStateJson: JSON.stringify({
+          source: "jira_service",
+          cursor: "request=JSM-184",
+          progress: { checkedCount: 5, importedCount: 2, skippedCount: 1, errorCount: 2 }
+        }),
+        schedule: "15 */8 * * *",
+        syncCursor: "request=JSM-184",
+        lastSyncedAt: new Date("2026-05-23T07:20:00.000Z"),
+        lastDryRunAt: new Date("2026-05-23T07:20:00.000Z"),
+        lastError: "Demo: токен истек, нужен повторный live dry-run."
       }
     ]
   });
@@ -1845,6 +2054,9 @@ async function main() {
   const intercomIntegration = integrations.find((integration) => integration.source === "intercom");
   const freshdeskIntegration = integrations.find((integration) => integration.source === "freshdesk");
   const hubspotIntegration = integrations.find((integration) => integration.source === "hubspot");
+  const genericWebhookIntegration = integrations.find((integration) => integration.source === "generic_webhook");
+  const salesforceIntegration = integrations.find((integration) => integration.source === "salesforce");
+  const jiraServiceIntegration = integrations.find((integration) => integration.source === "jira_service");
 
   await prisma.integrationCredential.createMany({
     data: [
@@ -1950,6 +2162,70 @@ async function main() {
         errorCount: 0,
         startedAt: new Date("2026-05-02T12:05:00.000Z"),
         finishedAt: new Date("2026-05-02T12:10:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        integrationId: genericWebhookIntegration?.id,
+        actorId: admin.id,
+        source: "generic_webhook",
+        mode: "webhook_ingest",
+        status: "queued",
+        dryRun: false,
+        requestedLimit: 100,
+        checkedCount: 0,
+        importedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        startedAt: new Date("2026-05-27T08:50:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        integrationId: salesforceIntegration?.id,
+        actorId: seniorAnalyst.id,
+        source: "salesforce",
+        mode: "native_helpdesk",
+        status: "dry_run_queued",
+        dryRun: true,
+        requestedLimit: 25,
+        checkedCount: 0,
+        importedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        startedAt: new Date("2026-05-26T16:20:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        integrationId: jiraServiceIntegration?.id,
+        actorId: admin.id,
+        source: "jira_service",
+        mode: "native_helpdesk",
+        status: "retry_scheduled",
+        dryRun: true,
+        requestedLimit: 50,
+        checkedCount: 5,
+        importedCount: 2,
+        skippedCount: 1,
+        errorCount: 2,
+        errorMessage: "Demo: повтор запланирован после обновления токена.",
+        startedAt: new Date("2026-05-23T07:20:00.000Z"),
+        finishedAt: new Date("2026-05-23T07:22:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        integrationId: jiraServiceIntegration?.id,
+        actorId: admin.id,
+        source: "jira_service",
+        mode: "native_helpdesk",
+        status: "failed",
+        dryRun: false,
+        requestedLimit: 20,
+        checkedCount: 3,
+        importedCount: 0,
+        skippedCount: 0,
+        errorCount: 3,
+        errorMessage: "Demo: API вернул 401 Unauthorized.",
+        startedAt: new Date("2026-05-22T09:00:00.000Z"),
+        finishedAt: new Date("2026-05-22T09:01:00.000Z")
       }
     ]
   });
@@ -1966,6 +2242,20 @@ async function main() {
       workspaceId: workspace.id,
       source: "custom_api",
       startedAt: new Date("2026-05-02T12:05:00.000Z")
+    }
+  });
+  const webhookQueuedRun = await prisma.integrationRun.findFirst({
+    where: {
+      workspaceId: workspace.id,
+      source: "generic_webhook",
+      startedAt: new Date("2026-05-27T08:50:00.000Z")
+    }
+  });
+  const jiraFailedRun = await prisma.integrationRun.findFirst({
+    where: {
+      workspaceId: workspace.id,
+      source: "jira_service",
+      startedAt: new Date("2026-05-22T09:00:00.000Z")
     }
   });
 
@@ -2065,6 +2355,50 @@ async function main() {
                 subject: "Ручной аудит шаблонного ответа",
                 channel: "CHAT",
                 assigneeName: "Елена Морозова"
+              })
+            }
+          ]
+        : []),
+      ...(webhookQueuedRun
+        ? [
+            {
+              workspaceId: workspace.id,
+              integrationRunId: webhookQueuedRun.id,
+              externalId: "WEBHOOK-9001",
+              ticketNumber: "WEBHOOK-9001",
+              status: "queued",
+              articleCount: 0,
+              privateArticleCount: 0,
+              attachmentCount: 0,
+              warningsJson: JSON.stringify(["waiting_for_signature_verification"]),
+              errorsJson: "[]",
+              conversationId: null,
+              normalizedPreviewJson: JSON.stringify({
+                eventType: "conversation.upsert",
+                source: "generic_webhook",
+                queued: true
+              })
+            }
+          ]
+        : []),
+      ...(jiraFailedRun
+        ? [
+            {
+              workspaceId: workspace.id,
+              integrationRunId: jiraFailedRun.id,
+              externalId: "JSM-184",
+              ticketNumber: "JSM-184",
+              status: "failed",
+              articleCount: 1,
+              privateArticleCount: 0,
+              attachmentCount: 0,
+              warningsJson: "[]",
+              errorsJson: JSON.stringify(["401 Unauthorized", "token_expired"]),
+              conversationId: null,
+              normalizedPreviewJson: JSON.stringify({
+                subject: "Ошибка импорта Jira Service Management",
+                source: "jira_service",
+                redacted: true
               })
             }
           ]
@@ -2193,6 +2527,22 @@ async function main() {
         href: "/reviews?csatBucket=NEGATIVE",
         scope: "workspace",
         order: 3
+      },
+      {
+        workspaceId: workspace.id,
+        userId: null,
+        name: "В работе",
+        href: "/reviews?qaStatus=IN_PROGRESS",
+        scope: "workspace",
+        order: 4
+      },
+      {
+        workspaceId: workspace.id,
+        userId: null,
+        name: "Переоткрытые",
+        href: "/reviews?qaStatus=REOPENED",
+        scope: "workspace",
+        order: 5
       }
     ]
   });
@@ -2263,6 +2613,132 @@ async function main() {
     notes: "Согласовать как позитивный пример для блока полноты решения."
   });
 
+  await prisma.calibrationSession.create({
+    data: {
+      workspaceId: workspace.id,
+      ownerId: seniorAnalyst.id,
+      scorecardId: scorecard.id,
+      name: "Черновик калибровки по шаблонам",
+      status: "draft",
+      dueAt: new Date("2026-05-31T12:00:00.000Z"),
+      notes: "Новая сессия еще собирается: нужны кейсы по шаблонам и персонализации.",
+      participants: {
+        create: [
+          {
+            userId: analyst.id,
+            status: "assigned",
+            notes: "Ожидает старта сессии."
+          },
+          {
+            userId: seniorAnalyst.id,
+            status: "assigned",
+            notes: "Подберет эталонный пример."
+          }
+        ]
+      },
+      items: {
+        create: [
+          {
+            conversationId: conversationIdFor("ZD-7002"),
+            baselineReviewId: reviewIdFor("ZD-7002")
+          },
+          {
+            conversationId: conversationIdFor("FD-3202"),
+            baselineReviewId: reviewIdFor("FD-3202")
+          }
+        ]
+      }
+    }
+  });
+
+  await prisma.calibrationSession.create({
+    data: {
+      workspaceId: workspace.id,
+      ownerId: teamLead.id,
+      scorecardId: scorecard.id,
+      name: "Завершенная калибровка по документам",
+      status: "completed",
+      dueAt: new Date("2026-05-23T12:00:00.000Z"),
+      notes: "Сессия закрыта: правило по фактическому статусу документов закреплено.",
+      participants: {
+        create: [
+          {
+            userId: analyst.id,
+            status: "completed",
+            completedAt: new Date("2026-05-23T10:20:00.000Z"),
+            notes: "Согласовал снижение за отсутствие фактического статуса."
+          },
+          {
+            userId: seniorAnalyst.id,
+            status: "completed",
+            completedAt: new Date("2026-05-23T10:35:00.000Z"),
+            notes: "Подтвердил правило по срокам документов."
+          }
+        ]
+      },
+      items: {
+        create: [
+          {
+            conversationId: conversationIdFor("HS-4301"),
+            baselineReviewId: reviewIdFor("HS-4301")
+          },
+          {
+            conversationId: conversationIdFor("ZD-7001"),
+            baselineReviewId: reviewIdFor("ZD-7001")
+          }
+        ]
+      }
+    }
+  });
+
+  await createCalibrationReview({
+    conversationId: conversationIdFor("HS-4301"),
+    reviewerId: analyst.id,
+    totalScore: 66,
+    summary: "Калибровка: отсутствие проверки статуса документов снижает оценку сильнее обычного замечания.",
+    finalizedAt: new Date("2026-05-23T10:05:00.000Z"),
+    notes: "Правило закреплено для финансовых документов."
+  });
+
+  await createCalibrationReview({
+    conversationId: conversationIdFor("HS-4301"),
+    reviewerId: seniorAnalyst.id,
+    totalScore: 69,
+    summary: "Калибровка: согласована высокая важность фактической проверки статуса документов.",
+    finalizedAt: new Date("2026-05-23T10:25:00.000Z"),
+    notes: "Расхождение внутри допустимого диапазона."
+  });
+
+  await prisma.calibrationSession.create({
+    data: {
+      workspaceId: workspace.id,
+      ownerId: teamLead.id,
+      scorecardId: scorecard.id,
+      name: "Архив: тон и персонализация",
+      status: "archived",
+      dueAt: new Date("2026-04-18T12:00:00.000Z"),
+      notes: "Архивная сессия оставлена для демонстрации истории калибровок.",
+      participants: {
+        create: [
+          {
+            userId: analyst.id,
+            status: "completed",
+            completedAt: new Date("2026-04-18T10:00:00.000Z"),
+            notes: "Историческая оценка закрыта."
+          }
+        ]
+      },
+      items: {
+        create: [
+          {
+            conversationId: previousConversation.id,
+            baselineReviewId: previousReview.id
+          }
+        ]
+      }
+    }
+  });
+
   await prisma.samplingRule.createMany({
     data: [
       {
@@ -2288,6 +2764,15 @@ async function main() {
         conditionsJson: JSON.stringify({ channels: ["CHAT", "EMAIL", "TICKET"] }),
         targetPercent: 10,
         priority: 100
+      },
+      {
+        workspaceId: workspace.id,
+        name: "Пауза: старые макросы",
+        type: "manual",
+        conditionsJson: JSON.stringify({ tag: "legacy_macro", reason: "replaced_by_new_policy" }),
+        targetPercent: 1,
+        priority: 200,
+        isActive: false
       }
     ]
   });
@@ -2413,6 +2898,39 @@ async function main() {
         description: "Без привязки к проверке: обновить личный чек-лист по срокам рассмотрения и просрочкам.",
         dueAt: new Date("2026-05-30T12:00:00.000Z"),
         status: "open"
+      },
+      {
+        workspaceId: workspace.id,
+        reviewId: null,
+        assigneeId: supportDenis.id,
+        assignedById: analyst.id,
+        assigneeName: supportDenis.name,
+        title: "Очередь без финальной проверки",
+        description: "Пройти короткий тренинг по тому, как работать с обращениями в статусах В очереди и В работе.",
+        dueAt: new Date("2026-05-26T12:00:00.000Z"),
+        status: "open"
+      },
+      {
+        workspaceId: workspace.id,
+        reviewId: null,
+        assigneeId: supportElena.id,
+        assignedById: seniorAnalyst.id,
+        assigneeName: supportElena.name,
+        title: "Правило компенсаций после апелляции",
+        description: "Обновить личные заметки по акциям и показать два спорных примера руководителю.",
+        dueAt: new Date("2026-05-28T12:00:00.000Z"),
+        status: "in_progress"
+      },
+      {
+        workspaceId: workspace.id,
+        reviewId: reviewIdFor("HS-4302"),
+        assigneeId: supportDenis.id,
+        assignedById: teamLead.id,
+        assigneeName: supportDenis.name,
+        title: "Эталонный сложный кейс",
+        description: "Разобрать сильный пример структурного ответа и добавить прием в личный чек-лист.",
+        dueAt: new Date("2026-05-22T12:00:00.000Z"),
+        status: "done"
       }
     ]
   });
@@ -2564,6 +3082,69 @@ async function main() {
     }
   });
 
+  const webhookQueuedJob = await prisma.backendJob.create({
+    data: {
+      workspaceId: workspace.id,
+      type: "WEBHOOK_INGEST",
+      status: "QUEUED",
+      queueName: "integrations",
+      priority: 35,
+      payloadJson: JSON.stringify({
+        integrationId: genericWebhookIntegration?.id ?? null,
+        runId: webhookQueuedRun?.id ?? null,
+        source: "generic_webhook"
+      }),
+      resultJson: "{}",
+      attempts: 0,
+      maxAttempts: 3,
+      runAfter: new Date("2026-05-27T09:00:00.000Z"),
+      createdById: admin.id,
+      createdAt: new Date("2026-05-27T08:55:00.000Z"),
+      events: {
+        create: [
+          {
+            level: "info",
+            message: "Webhook-событие ожидает обработки воркером.",
+            metadata: JSON.stringify({ source: "generic_webhook", status: "QUEUED" })
+          }
+        ]
+      }
+    }
+  });
+
+  const runningImportJob = await prisma.backendJob.create({
+    data: {
+      workspaceId: workspace.id,
+      type: "INTEGRATION_IMPORT",
+      status: "RUNNING",
+      queueName: "integrations",
+      priority: 30,
+      payloadJson: JSON.stringify({
+        integrationId: salesforceIntegration?.id ?? null,
+        source: "salesforce",
+        mode: "dry_run"
+      }),
+      resultJson: "{}",
+      attempts: 1,
+      maxAttempts: 3,
+      runAfter: new Date("2026-05-27T08:40:00.000Z"),
+      lockedAt: new Date("2026-05-27T08:41:00.000Z"),
+      lockedBy: "demo-worker-1",
+      startedAt: new Date("2026-05-27T08:41:00.000Z"),
+      createdById: seniorAnalyst.id,
+      createdAt: new Date("2026-05-27T08:40:00.000Z"),
+      events: {
+        create: [
+          {
+            level: "info",
+            message: "Dry-run Salesforce выполняется: проверяется схема Case.",
+            metadata: JSON.stringify({ source: "salesforce", status: "RUNNING" })
+          }
+        ]
+      }
+    }
+  });
+
   await prisma.backendJob.create({
     data: {
       workspaceId: workspace.id,
@@ -2588,6 +3169,49 @@ async function main() {
         ]
       }
     }
+  });
+
+  await prisma.reportSnapshot.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        name: "Месячный отчет качества",
+        periodStart: new Date("2026-05-22T00:00:00.000Z"),
+        periodEnd: new Date("2026-06-21T23:59:59.999Z"),
+        filtersJson: JSON.stringify({ period: "current" }),
+        metricsJson: JSON.stringify({ averageScore: 84, finalizedCount: 34, highRiskCount: 9 }),
+        exportFormat: "xlsx",
+        status: "READY",
+        filePath: "demo/reports/current-quality.xlsx",
+        fileSize: 48240,
+        createdById: teamLead.id,
+        createdAt: new Date("2026-05-26T12:31:08.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        name: "PDF по открытой очереди",
+        periodStart: new Date("2026-05-27T00:00:00.000Z"),
+        periodEnd: new Date("2026-05-27T23:59:59.999Z"),
+        filtersJson: JSON.stringify({ qaStatus: ["QUEUED", "ASSIGNED", "IN_PROGRESS", "REOPENED"] }),
+        metricsJson: JSON.stringify({ queued: 3, assigned: 3, inProgress: 3, reopened: 2 }),
+        exportFormat: "pdf",
+        status: "QUEUED",
+        createdById: analyst.id,
+        createdAt: new Date("2026-05-27T09:05:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        name: "Срез по интеграциям с ошибками",
+        periodStart: new Date("2026-05-20T00:00:00.000Z"),
+        periodEnd: new Date("2026-05-27T23:59:59.999Z"),
+        filtersJson: JSON.stringify({ section: "integrations", status: "error" }),
+        metricsJson: JSON.stringify({ error: "Demo: источник Jira требует обновления токена" }),
+        exportFormat: "csv",
+        status: "FAILED",
+        createdById: admin.id,
+        createdAt: new Date("2026-05-27T09:10:00.000Z")
+      }
+    ]
   });
 
   const apiToken = isDemoAuthEnabled()
@@ -2618,6 +3242,8 @@ async function main() {
           conversationId: conversation.id,
           apiTokenId: apiToken?.id ?? null,
           calibrationSessionId: calibrationSession.id,
+          operationalConversations: operationalConversationRecords.length,
+          operationalStatusPlan,
           additionalHumanReviews:
             currentPeriodReviewedConversations.length + previousPeriodReviewedConversations.length + generatedExpansionReviewedConversations.length
         }),
@@ -2677,12 +3303,36 @@ async function main() {
       },
       {
         workspaceId: workspace.id,
+        actorId: admin.id,
+        action: "backend_job.queued",
+        targetType: "backend_job",
+        targetId: webhookQueuedJob.id,
+        metadata: JSON.stringify({
+          type: "WEBHOOK_INGEST",
+          source: "generic_webhook"
+        }),
+        createdAt: new Date("2026-05-27T08:55:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        actorId: seniorAnalyst.id,
+        action: "backend_job.running",
+        targetType: "backend_job",
+        targetId: runningImportJob.id,
+        metadata: JSON.stringify({
+          type: "INTEGRATION_IMPORT",
+          source: "salesforce"
+        }),
+        createdAt: new Date("2026-05-27T08:41:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
         actorId: teamLead.id,
         action: "training.assignment_created",
         targetType: "training_assignment",
         targetId: "demo-training-batch",
         metadata: JSON.stringify({
-          count: 8,
+          count: 11,
           statuses: ["open", "in_progress", "done"]
         }),
         createdAt: new Date("2026-05-26T12:35:00.000Z")

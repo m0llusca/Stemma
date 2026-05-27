@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
+import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 import type { ChartDatum } from "@/components/reports/report-charts";
 
 type SparklinePoint = ChartDatum & {
@@ -67,7 +68,7 @@ export function InteractiveSparklineChart({
     const nextPoints = points.map((point, index): SparklinePoint => {
       const x = points.length > 1 ? index * stepX : width / 2;
       const y = height - ((point.value - min) / range) * height;
-      const delta = index === 0 ? null : point.value - points[index - 1].value;
+      const delta = index === 0 ? null : qualityScoreDelta(point.value, points[index - 1].value);
 
       return {
         ...point,
@@ -190,26 +191,32 @@ export function InteractiveSparklineChart({
               point.xPercent > 68 ? "interactive-sparkline__point-control--right" : "",
               point.yPercent < 44 ? "interactive-sparkline__point-control--top" : ""
             ].filter(Boolean).join(" ");
+            const content = (
+              <span className="interactive-sparkline__point-tooltip" aria-hidden="true">
+                <strong>{point.label}</strong>
+                <span>{formatQualityScore(point.value)}</span>
+                <small>{[point.detail, pointDeltaLabel(point.delta)].filter(Boolean).join(", ")}</small>
+              </span>
+            );
+            const controlProps = {
+              "aria-label": point.href ? `${point.tooltip}. Открыть проверки` : point.tooltip,
+              className: pointControlClass,
+              style: { left: `${point.xPercent}%`, top: `${point.yPercent}%` },
+              onFocus: showPoint,
+              onBlur: hidePoint,
+              onMouseEnter: showPoint,
+              onMouseLeave: hidePoint,
+              onPointerEnter: showPoint,
+              onPointerLeave: hidePoint
+            };
 
-            return (
-              <span
-                key={`${point.label}:${index}:hit`}
-                tabIndex={0}
-                aria-label={point.tooltip}
-                className={pointControlClass}
-                style={{ left: `${point.xPercent}%`, top: `${point.yPercent}%` }}
-                onFocus={showPoint}
-                onBlur={hidePoint}
-                onMouseEnter={showPoint}
-                onMouseLeave={hidePoint}
-                onPointerEnter={showPoint}
-                onPointerLeave={hidePoint}
-              >
-                <span className="interactive-sparkline__point-tooltip" aria-hidden="true">
-                  <strong>{point.label}</strong>
-                  <span>{formatQualityScore(point.value)}</span>
-                  <small>{[point.detail, pointDeltaLabel(point.delta)].filter(Boolean).join(", ")}</small>
-                </span>
+            return point.href ? (
+              <Link key={`${point.label}:${index}:hit`} href={point.href} {...controlProps}>
+                {content}
+              </Link>
+            ) : (
+              <span key={`${point.label}:${index}:hit`} tabIndex={0} {...controlProps}>
+                {content}
               </span>
             );
           })}

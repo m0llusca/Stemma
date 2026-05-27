@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   } as CSSProperties;
 
   return (
-    <html lang="ru" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="ru" className={`${sans.variable} ${mono.variable}`} data-scroll-behavior="smooth">
       <body
         style={brandStyle}
         data-theme={appearance.uiTheme}

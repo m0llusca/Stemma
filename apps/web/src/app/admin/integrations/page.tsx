@@ -1,8 +1,10 @@
 import { ArrowUpRight, DatabaseZap, PlugZap } from "lucide-react";
 import Link from "next/link";
+import { CoachCallout } from "@/components/guidance/coach-callout";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { certificationStatusTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -382,6 +384,7 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
   const failedDiagnostics = diagnosticRuns.filter((run) => ["failed", "error"].includes(run.status)).length;
   const activeJobs = recentIntegrationJobs.filter((job) => ["QUEUED", "RUNNING"].includes(job.status)).length;
   const lastImportRun = recentRuns.find((run) => !run.dryRun);
+  const integrationSetupHint = activeSources.length > 0 ? null : getSettingCoachmark("integrations");
 
   return (
     <section className="page-shell admin-shell">
@@ -462,6 +465,21 @@ export default async function AdminIntegrationsPage({ searchParams }: AdminInteg
             </div>
           </div>
         </div>
+        {integrationSetupHint ? (
+          <div className="admin-setup-inline">
+            <CoachCallout
+              title={integrationSetupHint.title}
+              body={integrationSetupHint.body}
+              href={integrationSetupHint.href}
+              actionLabel={integrationSetupHint.actionLabel}
+              variant="spotlight"
+              placement="top"
+              anchorLabel="Подсказка к источникам"
+              stepIndex={1}
+              dismissId="settings:integrations"
+            />
+          </div>
+        ) : null}
         {integrations.length > 0 ? (
           <div className="ops-table-shell">
             <div className="ops-table ops-table--integrations" role="table" aria-label="Подключенные источники">

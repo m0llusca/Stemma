@@ -73,7 +73,7 @@ export function AutoSubmitFilterForm({
         }
 
         startTransition(() => {
-          router.push(filterFormUrl(form, action));
+          router.push(filterFormUrl(form, action), { scroll: false });
         });
       }, delay);
     },

@@ -120,7 +120,7 @@ export const customConversationSchemaRows = [
   { field: "samplingType", required: "Нет", type: "random | dsat | lead_signal | new_hire | low_score | manual", note: "Тип выборки. По умолчанию random." },
   { field: "csatScore", required: "Нет", type: "1 | 2 | 3 | 4 | 5", note: "Оценка клиента. 1-2 попадает в негативный CSAT." },
   { field: "supportLine", required: "Нет", type: "string", note: "Линия поддержки для квот и отчетности." },
-  { field: "teamName", required: "Нет", type: "string", note: "Команда оператора для будущей группировки отчетов." },
+  { field: "teamName", required: "Нет", type: "string", note: "Команда оператора для фильтров очереди и разрезов аналитики." },
   { field: "riskHint", required: "Нет", type: "string", note: "Подсказка для проверяющего." },
   { field: "openedAt", required: "Да", type: "ISO datetime", note: "Дата открытия с timezone offset." },
   { field: "closedAt", required: "Нет", type: "ISO datetime | null", note: "Дата закрытия, если есть." },

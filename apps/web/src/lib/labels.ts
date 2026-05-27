@@ -105,9 +105,11 @@ export function externalSourceLabel(source: string) {
     hubspot: "HubSpot Service Hub",
     intercom: "Intercom",
     integration: "Интеграция",
+    jira_service: "Jira Service Management",
     native_helpdesk: "Helpdesk API",
     otrs: "OTRS",
     otrs6: "OTRS 6 Community Edition",
+    salesforce: "Salesforce Service Cloud",
     otrs_family: "OTRS/Znuny",
     znuny: "Znuny",
     zendesk: "Zendesk"

@@ -27,6 +27,8 @@ describe("review queue frontend/backend contract", () => {
         assigneeName: "Иван Петров",
         channel: "CHAT",
         externalSource: "custom_api",
+        supportLine: "1ЛП",
+        teamName: "Возвраты",
         reviewDueAt: new Date("2026-05-05T12:00:00.000Z"),
         qaStatus: "FINALIZED",
         qaAssigneeName: "Проверяющий",
@@ -73,6 +75,8 @@ describe("review queue frontend/backend contract", () => {
         messageCount: 3,
         channel: "CHAT",
         externalSource: "custom_api",
+        supportLine: "1ЛП",
+        teamName: "Возвраты",
         reviewDueAt: "2026-05-05T12:00:00.000Z",
         qaStatus: "FINALIZED",
         qaAssigneeName: "Проверяющий",
@@ -104,6 +108,8 @@ describe("review queue frontend/backend contract", () => {
         assigneeName: "Иван Петров",
         channel: "CHAT",
         externalSource: "custom_api",
+        supportLine: "2ЛП",
+        teamName: "ФГИС",
         reviewDueAt: null,
         qaStatus: "REOPENED",
         qaAssigneeName: "Проверяющий",
@@ -304,6 +310,25 @@ describe("review queue frontend/backend contract", () => {
             })
           }
         }
+      ])
+    );
+  });
+
+  it("filters reviewed queues by support team of the checked agent", async () => {
+    mocks.prisma.conversation.findMany.mockResolvedValue([]);
+    const { getReviewQueue, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const filters = parseReviewQueueFilters({
+      teamName: "ФГИС",
+      supportLine: "2ЛП"
+    });
+
+    await getReviewQueue("workspace-1", filters);
+
+    expect(filters.teamName).toBe("ФГИС");
+    expect(mocks.prisma.conversation.findMany.mock.calls[0][0].where.AND).toEqual(
+      expect.arrayContaining([
+        { supportLine: "2ЛП" },
+        { teamName: "ФГИС" }
       ])
     );
   });

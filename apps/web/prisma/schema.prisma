@@ -526,6 +526,7 @@ model Conversation {
   @@index([workspaceId, samplingType])
   @@index([workspaceId, csatBucket])
   @@index([workspaceId, supportLine])
+  @@index([workspaceId, teamName])
 }
 
 model Message {

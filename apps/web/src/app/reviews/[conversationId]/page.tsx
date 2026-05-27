@@ -108,12 +108,12 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const returnTo = singleParam(rawSearchParams.returnTo);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
-  const canEvaluateReview = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveReviewDraft(user.role);
+  const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveReviewDraft(user.role);
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
   const [conversation, scorecard, qaAssignees] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
-    canEvaluateReview ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
+    canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
     canManageWorkflow
       ? prisma.user.findMany({
           where: {
@@ -145,6 +145,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   const currentDraftReview = conversation.reviews.find(
     (review) => review.status === "DRAFT" && review.reviewerId === user.id && review.reviewSource === reviewSource
   );
+  const canShowReviewPanel = canEvaluateReviewPermission && (reviewSource !== "HUMAN" || conversation.qaStatus !== "FINALIZED");
   const scorePreviewReview = latestFinalizedReview ?? currentDraftReview;
   const latestFinding = latestFinalizedReview?.findings[0];
   const reviewState = resolveReviewState({
@@ -269,7 +270,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
 
       <div className="review-main">
         <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
-        {canEvaluateReview && scorecard ? (
+        {canShowReviewPanel && scorecard ? (
           <div className="review-panel-column">
             <ReviewPanel
               conversationId={conversation.id}
@@ -462,7 +463,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
 
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
-      {canEvaluateReview && conversation.reviews.length > 0 ? (
+      {canEvaluateReviewPermission && conversation.reviews.length > 0 ? (
         <details className="review-secondary panel disclosure-panel overflow-hidden">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>

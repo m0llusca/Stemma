@@ -52,6 +52,7 @@ export function integrationRunStatusView(status: string): StatusView {
     dry_run_queued: view("Проверка в очереди", "warn"),
     retry_scheduled: view("Повтор запланирован", "warn"),
     succeeded: view("Импорт готов", "ok"),
+    imported: view("Импортировано", "ok"),
     dry_run_ok: view("Проверка готова", "ok"),
     failed: view("Ошибка", "error"),
     error: view("Ошибка", "error")

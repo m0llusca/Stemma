@@ -71,14 +71,44 @@ describe("SparklineChart", () => {
       />
     );
 
-    const point = screen.getByLabelText("02.05, 100 баллов, 2 проверки, +50 п. к предыдущей точке");
+    const point = screen.getByLabelText("02.05, 100 баллов, 2 проверки, +50 баллов к предыдущей точке");
     const tooltips = container.querySelectorAll(".interactive-sparkline__point-tooltip");
 
     expect(point).toHaveAttribute("tabindex", "0");
     expect(tooltips).toHaveLength(2);
     expect(tooltips[1]).toHaveTextContent("02.05");
     expect(tooltips[1]).toHaveTextContent("100 баллов");
-    expect(tooltips[1]).toHaveTextContent("2 проверки, +50 п. к предыдущей точке");
+    expect(tooltips[1]).toHaveTextContent("2 проверки, +50 баллов к предыдущей точке");
+  });
+
+  it("links trend points to the underlying filtered review queue", () => {
+    render(
+      <SparklineChart
+        points={[
+          { label: "01.05", value: 50, detail: "1 проверка", href: "/reviews?finalizedFrom=2026-05-01&finalizedTo=2026-05-01" },
+          { label: "02.05", value: 100, detail: "2 проверки", href: "/reviews?finalizedFrom=2026-05-02&finalizedTo=2026-05-02" }
+        ]}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "02.05, 100 баллов, 2 проверки, +50 баллов к предыдущей точке. Открыть проверки" })).toHaveAttribute(
+      "href",
+      "/reviews?finalizedFrom=2026-05-02&finalizedTo=2026-05-02"
+    );
+  });
+
+  it("uses displayed rounded score points for sparkline deltas", () => {
+    render(
+      <SparklineChart
+        points={[
+          { label: "01.05", value: 72.6, detail: "прошлый период" },
+          { label: "02.05", value: 74.4, detail: "текущий период" }
+        ]}
+      />
+    );
+
+    expect(screen.getByLabelText("02.05, 74 балла, текущий период, +1 балл к предыдущей точке")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/\+2 балла к предыдущей точке/)).not.toBeInTheDocument();
   });
 
   it("marks the focused point as active", () => {
@@ -91,7 +121,7 @@ describe("SparklineChart", () => {
       />
     );
 
-    const point = screen.getByLabelText("02.05, 100 баллов, 2 проверки, +50 п. к предыдущей точке");
+    const point = screen.getByLabelText("02.05, 100 баллов, 2 проверки, +50 баллов к предыдущей точке");
 
     fireEvent.focus(point);
 
@@ -138,7 +168,7 @@ describe("RankedList", () => {
 
     expect(screen.getByText("Демо-импорт")).toBeInTheDocument();
     expect(screen.getByText("82 балла")).toBeInTheDocument();
-    expect(screen.getByText("-4 п.")).toBeInTheDocument();
+    expect(screen.getByText("-4 балла")).toBeInTheDocument();
     expect(screen.getByText("3 проверки")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Открыть" })).toHaveAttribute("href", "/reviews?source=demo_import");
   });

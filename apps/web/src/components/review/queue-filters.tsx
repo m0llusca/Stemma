@@ -22,9 +22,24 @@ type QueueFiltersProps = {
   assignees: string[];
   qaAssignees: string[];
   supportLines: string[];
+  teamNames: string[];
 };
 
-export function QueueFilters({ filters, sources, assignees, qaAssignees, supportLines }: QueueFiltersProps) {
+const exactQueueFilterParameters = [
+  "channel",
+  "source",
+  "assignee",
+  "qaAssignee",
+  "samplingType",
+  "csatBucket",
+  "supportLine",
+  "teamName",
+  "process",
+  "due",
+  "riskLevel"
+] satisfies readonly (keyof ReviewQueueFilters)[];
+
+export function QueueFilters({ filters, sources, assignees, qaAssignees, supportLines, teamNames }: QueueFiltersProps) {
   const advancedFilterValues = [
     filters.channel,
     filters.source,
@@ -33,6 +48,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
     filters.samplingType,
     filters.csatBucket,
     filters.supportLine,
+    filters.teamName,
     filters.process,
     filters.due,
     filters.riskLevel,
@@ -68,6 +84,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
     filters.samplingType ? { label: "Выборка", value: samplingTypeLabels[filters.samplingType] ?? filters.samplingType } : null,
     filters.csatBucket ? { label: "CSAT", value: csatBucketLabels[filters.csatBucket] ?? filters.csatBucket } : null,
     filters.supportLine ? { label: "Линия", value: filters.supportLine } : null,
+    filters.teamName ? { label: "Команда", value: filters.teamName } : null,
     filters.process ? { label: "Процесс", value: processLabels[filters.process] } : null,
     filters.due ? { label: "Срок", value: "Просрочено" } : null,
     filters.riskLevel ? { label: "Риск", value: riskFilterLabels[filters.riskLevel] } : null,
@@ -107,6 +124,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
 
         <QueueAdvancedFilters
           activeCount={activeAdvancedFilterCount}
+          parameterCount={exactQueueFilterParameters.length}
           defaultOpen={hasAdvancedFilters}
           actions={
             <div className="queue-filterbar__actions">
@@ -196,6 +214,18 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
                 {supportLines.map((supportLine) => (
                   <option key={supportLine} value={supportLine}>
                     {supportLine}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Команда
+              <select name="teamName" defaultValue={filters.teamName ?? ""} className="form-control">
+                <option value="">Все</option>
+                {teamNames.map((teamName) => (
+                  <option key={teamName} value={teamName}>
+                    {teamName}
                   </option>
                 ))}
               </select>

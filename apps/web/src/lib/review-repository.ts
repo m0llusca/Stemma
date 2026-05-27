@@ -104,6 +104,7 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
       ? requestedCsatBucket
       : undefined,
     supportLine: cleanParam(searchParams.supportLine),
+    teamName: cleanParam(searchParams.teamName),
     process: queueProcessFilters.includes(requestedProcess as ReviewQueueProcessFilter)
       ? (requestedProcess as ReviewQueueProcessFilter)
       : undefined,
@@ -145,7 +146,8 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
         { customerName: { contains: filters.q } },
         { externalId: { contains: filters.q } },
         { tags: { contains: filters.q } },
-        { assigneeName: { contains: filters.q } }
+        { assigneeName: { contains: filters.q } },
+        { teamName: { contains: filters.q } }
       ]
     });
   }
@@ -212,6 +214,10 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
 
   if (filters.supportLine) {
     and.push({ supportLine: filters.supportLine });
+  }
+
+  if (filters.teamName) {
+    and.push({ teamName: filters.teamName });
   }
 
   if (filters.due === "overdue") {
@@ -402,6 +408,8 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
       assigneeName: true,
       channel: true,
       externalSource: true,
+      supportLine: true,
+      teamName: true,
       reviewDueAt: true,
       qaStatus: true,
       qaAssigneeName: true,
@@ -439,6 +447,8 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
     messageCount: conversation._count.messages,
     channel: conversation.channel,
     externalSource: conversation.externalSource,
+    supportLine: conversation.supportLine,
+    teamName: conversation.teamName,
     reviewDueAt: conversation.reviewDueAt?.toISOString() ?? null,
     qaStatus: conversation.qaStatus,
     qaAssigneeName: conversation.qaAssigneeName,
@@ -517,7 +527,7 @@ export async function getReviewQueueSummary(workspaceId: string, scope?: ReviewQ
 
 export async function getReviewQueueFilterOptions(workspaceId: string, scope?: ReviewQueueScope): Promise<ReviewQueueFilterOptionsDto> {
   const baseWhere = scopedConversationWhere(workspaceId, scope);
-  const [sourceRows, assigneeRows, qaAssigneeRows, supportLineRows] = await Promise.all([
+  const [sourceRows, assigneeRows, qaAssigneeRows, supportLineRows, teamNameRows] = await Promise.all([
     prisma.conversation.findMany({
       where: baseWhere,
       distinct: ["externalSource"],
@@ -574,6 +584,21 @@ export async function getReviewQueueFilterOptions(workspaceId: string, scope?: R
       orderBy: {
         supportLine: "asc"
       }
+    }),
+    prisma.conversation.findMany({
+      where: {
+        ...baseWhere,
+        teamName: {
+          not: null
+        }
+      },
+      distinct: ["teamName"],
+      select: {
+        teamName: true
+      },
+      orderBy: {
+        teamName: "asc"
+      }
     })
   ]);
 
@@ -587,7 +612,10 @@ export async function getReviewQueueFilterOptions(workspaceId: string, scope?: R
       .filter((qaAssigneeName): qaAssigneeName is string => Boolean(qaAssigneeName)),
     supportLines: supportLineRows
       .map((row) => row.supportLine)
-      .filter((supportLine): supportLine is string => Boolean(supportLine))
+      .filter((supportLine): supportLine is string => Boolean(supportLine)),
+    teamNames: teamNameRows
+      .map((row) => row.teamName)
+      .filter((teamName): teamName is string => Boolean(teamName))
   };
 }
 

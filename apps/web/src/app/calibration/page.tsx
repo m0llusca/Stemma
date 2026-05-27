@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, TriangleAlert, UsersRound } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -47,6 +47,21 @@ function scoreSpread(scores: number[]) {
   return Math.max(...scores) - Math.min(...scores);
 }
 
+function calibrationHref(params: { sessionId?: string; newSession?: boolean }) {
+  const searchParams = new URLSearchParams();
+
+  if (params.sessionId) {
+    searchParams.set("session", params.sessionId);
+  }
+
+  if (params.newSession) {
+    searchParams.set("new", "1");
+  }
+
+  const query = searchParams.toString();
+  return query ? `/calibration?${query}` : "/calibration";
+}
+
 export default async function CalibrationPage({ searchParams }: CalibrationPageProps) {
   const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("calibration:manage"), searchParams]);
   const selectedSessionId = firstParam(rawSearchParams.session);
@@ -92,7 +107,6 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
   const selectedCompletedCount = new Set(selectedCalibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
   const selectedExpectedCount = selectedItemCount * selectedParticipantCount;
   const selectedProgress = selectedExpectedCount > 0 ? Math.round((selectedCompletedCount / selectedExpectedCount) * 100) : 0;
-  const selectedWaitingCount = Math.max(selectedExpectedCount - selectedCompletedCount, 0);
   const activeSessionCount = sessions.filter((session) => session.status === "active" || session.status === "draft").length;
   const selectedItemStates =
     selectedSession?.items.map((item) => {
@@ -120,10 +134,37 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
       };
     }) ?? [];
   const selectedDisagreementCount = selectedItemStates.filter((state) => state.spread != null && state.spread > 10).length;
-  const selectedExceptions = selectedItemStates
-    .filter((state) => state.missingParticipants.length > 0 || (state.spread != null && state.spread > 10))
-    .sort((left, right) => (right.spread ?? 0) - (left.spread ?? 0) || right.missingParticipants.length - left.missingParticipants.length)
-    .slice(0, 3);
+  const sessionSummaries = sessions.map((session) => {
+    const participantIds = new Set(session.participants.map((participant) => participant.userId));
+    const calibrationReviews = session.items.flatMap((item) =>
+      item.conversation.reviews.filter(
+        (review) => review.reviewSource === "CALIBRATION" && review.status === "FINALIZED" && participantIds.has(review.reviewerId)
+      )
+    );
+    const completedCount = new Set(calibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
+    const expectedCount = session.items.length * session.participants.length;
+    const disagreementCount = session.items.filter((item) => {
+      const scores = item.conversation.reviews
+        .filter((review) => review.reviewSource === "CALIBRATION" && review.status === "FINALIZED" && participantIds.has(review.reviewerId))
+        .map((review) => Math.round(review.totalScore));
+      const spread = scoreSpread(scores);
+
+      return spread != null && spread > 10;
+    }).length;
+
+    return {
+      session,
+      completedCount,
+      disagreementCount,
+      expectedCount,
+      itemCount: session.items.length,
+      participantCount: session.participants.length,
+      progress: expectedCount > 0 ? Math.round((completedCount / expectedCount) * 100) : 0,
+      waitingCount: Math.max(expectedCount - completedCount, 0)
+    };
+  });
+  const newSessionHref = calibrationHref({ sessionId: selectedSession?.id, newSession: true });
+  const closeNewSessionHref = calibrationHref({ sessionId: selectedSession?.id });
 
   return (
     <section className="page-shell workspace-shell">
@@ -134,6 +175,12 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
           <p className="page-subtitle">
             Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило.
           </p>
+          <div className="admin-actions mt-5">
+            <Link href={openNewSession ? closeNewSessionHref : newSessionHref} className={`action-button ${openNewSession ? "" : "action-button--primary"}`}>
+              {openNewSession ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+              {openNewSession ? "Скрыть форму" : "Новая сессия"}
+            </Link>
+          </div>
         </div>
         <div className="learning-metrics" aria-label="Сводка калибровок">
           <div className="learning-metric">
@@ -154,105 +201,100 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
         </div>
       </div>
 
-      <details className="calibration-create-panel workflow-create-panel" open={openNewSession}>
-        <summary className="training-create-summary calibration-create-summary workflow-create-summary">
-          <span className="workflow-create-summary__text">
-            <span className="page-kicker">Сборка сессии</span>
-            <strong>Новая калибровка</strong>
-            <small>Выберите проверяющих и обращения из финальных проверок.</small>
-          </span>
-          <span className="action-button action-button--primary training-create-summary__button calibration-create-summary__button">
-            <PlusCircle size={18} aria-hidden="true" />
-            Новая сессия
-          </span>
-        </summary>
-        <form action={createCalibrationSession} className="calibration-create-form">
+      {openNewSession ? (
+        <section className="calibration-create-panel workflow-create-panel calibration-create-inline" aria-label="Новая калибровка">
           <div className="learning-section-header calibration-create-form__header">
             <div className="min-w-0">
               <h2>Новая калибровка</h2>
               <p>Выберите проверяющих и обращения. После создания участники получат один и тот же набор для оценки.</p>
             </div>
+            <Link href={closeNewSessionHref} className="action-button">
+              Скрыть
+            </Link>
           </div>
-          <div className="calibration-create-shell">
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Название
-              <input name="name" required defaultValue="Калибровка недели" className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Срок
-              <input name="dueAt" type="date" className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Заметки
-              <textarea name="notes" rows={2} className="form-control" />
-            </label>
+          <form action={createCalibrationSession} className="calibration-create-form">
+            <div className="calibration-create-shell">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+                Название
+                <input name="name" required defaultValue="Калибровка недели" className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+                Срок
+                <input name="dueAt" type="date" className="form-control" />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+                Заметки
+                <textarea name="notes" rows={2} className="form-control" />
+              </label>
+            </div>
+
+            <div className="calibration-create-columns">
+              <fieldset className="form-stack">
+                <legend className="text-sm font-semibold text-[var(--foreground)]">Участники</legend>
+                <div className="calibration-picker-grid">
+                  {qaUsers.map((qaUser) => (
+                    <label key={qaUser.id} className="compact-check-card">
+                      <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
+                      <span>{qaUser.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="form-stack">
+                <legend className="text-sm font-semibold text-[var(--foreground)]">Обращения</legend>
+                <div className="calibration-picker-grid calibration-picker-grid--scroll">
+                  {conversations.map((conversation) => (
+                    <label key={conversation.id} className="compact-check-card compact-check-card--tall">
+                      <input name="conversationId" type="checkbox" value={conversation.id} />
+                      <span>
+                        <strong>{conversation.externalId}</strong>
+                        {conversation.subject}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <ValidatedSubmitButton minCheckedNames={["participantId", "conversationId"]}>
+              Создать сессию
+            </ValidatedSubmitButton>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="calibration-session-strip panel" aria-label="Сессии калибровки">
+        <div className="learning-section-header calibration-session-strip__header">
+          <div className="min-w-0">
+            <h2>Сессии</h2>
+            <p>Выберите сессию, затем разберите ожидания и расхождения.</p>
           </div>
+          <span className="pill pill--neutral">{sessions.length}</span>
+        </div>
+        <div className="calibration-session-row">
+          {sessionSummaries.map((summary) => {
+            const isSelected = selectedSession?.id === summary.session.id;
 
-          <div className="calibration-create-columns">
-            <fieldset className="form-stack">
-              <legend className="text-sm font-semibold text-[var(--foreground)]">Участники</legend>
-              <div className="calibration-picker-grid">
-                {qaUsers.map((qaUser) => (
-                  <label key={qaUser.id} className="compact-check-card">
-                    <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
-                    <span>{qaUser.name}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <fieldset className="form-stack">
-              <legend className="text-sm font-semibold text-[var(--foreground)]">Обращения</legend>
-              <div className="calibration-picker-grid calibration-picker-grid--scroll">
-                {conversations.map((conversation) => (
-                  <label key={conversation.id} className="compact-check-card compact-check-card--tall">
-                    <input name="conversationId" type="checkbox" value={conversation.id} />
-                    <span>
-                      <strong>{conversation.externalId}</strong>
-                      {conversation.subject}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          </div>
-
-          <ValidatedSubmitButton minCheckedNames={["participantId", "conversationId"]}>
-            Создать сессию
-          </ValidatedSubmitButton>
-        </form>
-      </details>
+            return (
+              <Link
+                key={summary.session.id}
+                href={calibrationHref({ sessionId: summary.session.id })}
+                className={`calibration-session-chip ${isSelected ? "calibration-session-chip--selected" : ""}`}
+                aria-current={isSelected ? "page" : undefined}
+              >
+                <span className={`pill ${statusClassName(summary.session.status)}`}>{statusLabel(summary.session.status)}</span>
+                <strong>{summary.session.name}</strong>
+                <small>
+                  {summary.progress}% · {summary.waitingCount} ждут · {summary.disagreementCount} расх.
+                </small>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="calibration-workspace" aria-label="Рабочая область калибровки">
-        <aside className="calibration-rail panel">
-          <div className="learning-section-header">
-            <div className="min-w-0">
-              <h2>Сессии</h2>
-              <p>Активные и последние калибровки.</p>
-            </div>
-            <span className="pill pill--neutral">{sessions.length}</span>
-          </div>
-          <div className="calibration-session-list">
-            {sessions.map((session) => {
-              const isSelected = selectedSession?.id === session.id;
-              const itemCount = session.items.length;
-              const participantCount = session.participants.length;
-
-              return (
-                <Link
-                  key={session.id}
-                  href={`/calibration?session=${session.id}`}
-                  className={`calibration-session-card ${isSelected ? "calibration-session-card--selected" : ""}`}
-                >
-                  <span className={`pill ${statusClassName(session.status)}`}>{statusLabel(session.status)}</span>
-                  <h3>{session.name}</h3>
-                  <p>{itemCount} обращений · {participantCount} участников</p>
-                </Link>
-              );
-            })}
-          </div>
-        </aside>
-
         <div className="calibration-board panel">
           {selectedSession ? (
             <>
@@ -267,7 +309,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   </p>
                 </div>
                 <div className="calibration-board__actions">
-                  {selectedSession.status !== "completed" ? (
+                  {selectedSession.status === "active" || selectedSession.status === "draft" ? (
                     <form action={updateCalibrationSessionStatus}>
                       <input type="hidden" name="id" value={selectedSession.id} />
                       <input type="hidden" name="status" value="completed" />
@@ -276,7 +318,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                         Завершить
                       </button>
                     </form>
-                  ) : (
+                  ) : selectedSession.status === "completed" || selectedSession.status === "archived" ? (
                     <form action={updateCalibrationSessionStatus}>
                       <input type="hidden" name="id" value={selectedSession.id} />
                       <input type="hidden" name="status" value="active" />
@@ -284,7 +326,7 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                         Вернуть в работу
                       </button>
                     </form>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -313,44 +355,6 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   <CalendarClock size={16} aria-hidden="true" />
                   <span>{selectedSession.dueAt ? selectedSession.dueAt.toLocaleDateString("ru-RU") : "нет"}</span>
                   <small>срок</small>
-                </div>
-              </div>
-
-              <div className="calibration-exception-band">
-                <div className="calibration-exception-band__lead">
-                  <span className="page-kicker">Исключения</span>
-                  <strong>{selectedWaitingCount + selectedDisagreementCount}</strong>
-                  <small>ожидания и расхождения, которые мешают закрыть сессию</small>
-                </div>
-                <div className="calibration-exception-band__list">
-                  {selectedExceptions.length > 0 ? (
-                    selectedExceptions.map((state) => {
-                      const exceptionReason =
-                        state.spread != null && state.spread > 10
-                          ? "расхождение"
-                          : state.missingParticipants.length > 0
-                            ? "ждет оценку"
-                            : "проверить";
-
-                      return (
-                        <Link key={state.item.id} href={`/reviews/${state.item.conversationId}`} className="calibration-exception-card">
-                          <span>{state.item.conversation.externalId}</span>
-                          <strong>{exceptionReason}</strong>
-                          <small>
-                            {state.missingParticipants.length > 0
-                              ? `Ждут: ${state.missingParticipants.map((participant) => participant.user.name).join(", ")}`
-                              : "Нужно общее решение по правилу"}
-                          </small>
-                        </Link>
-                      );
-                    })
-                  ) : (
-                    <div className="calibration-exception-card calibration-exception-card--static">
-                      <span>Сессия ровная</span>
-                      <strong>0</strong>
-                      <small>Нет ожиданий и крупных расхождений</small>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -403,14 +407,18 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                       </div>
                       <div className="calibration-item-card__aside">
                         <span className={`pill ${spread != null && spread > 10 ? "pill--warn" : "pill--neutral"}`}>
-                          {spread == null ? "нет расхождения" : `${spread} п.п.`}
+                          {spread == null ? "нет расхождения" : formatQualityScore(spread)}
                         </span>
-                        <Link
-                          href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
-                          className="action-button"
-                        >
-                          Оценить
-                        </Link>
+                        {selectedSession.status === "active" || selectedSession.status === "draft" ? (
+                          <Link
+                            href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                            className="action-button"
+                          >
+                            Оценить
+                          </Link>
+                        ) : (
+                          <span className="pill pill--neutral">{selectedSession.status === "archived" ? "Архив" : "Завершена"}</span>
+                        )}
                       </div>
                     </article>
                   );

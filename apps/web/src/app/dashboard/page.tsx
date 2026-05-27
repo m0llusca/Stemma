@@ -1,10 +1,11 @@
 import type { ReviewEvent } from "@prisma/client";
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { CoachCallout } from "@/components/guidance/coach-callout";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
-import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
+import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -218,7 +219,7 @@ export default async function DashboardPage() {
 
   const currentAverage = currentScore._avg.totalScore ?? null;
   const previousAverage = previousScore._avg.totalScore ?? null;
-  const scoreDelta = currentAverage != null && previousAverage != null ? currentAverage - previousAverage : null;
+  const scoreDelta = qualityScoreDelta(currentAverage, previousAverage);
   const checkedDelta = checkedThisWeek - checkedPreviousWeek;
   const weekDays = Array.from({ length: 7 }, (_, index) => daysAgo(6 - index, now));
   const dailyCounts = weekDays.map((day) => {
@@ -289,6 +290,7 @@ export default async function DashboardPage() {
         }
       : null
   ].filter((item): item is { icon: typeof TriangleAlert; href: string; label: string; value: number; hint: string } => Boolean(item));
+  const primaryFocusHref = focusItems[0]?.href ?? "/reviews?status=unreviewed";
 
   return (
     <section className="page-shell dashboard-shell">
@@ -386,6 +388,19 @@ export default async function DashboardPage() {
                 </Link>
               );
             })}
+            <CoachCallout
+              title={focusItems.length ? "Начните с верхнего сигнала" : "Поддержите ритм контроля"}
+              body={
+                focusItems.length
+                  ? "Сначала закройте риск или просроченное обучение, затем возвращайтесь к обычной очереди."
+                  : "Критичных отклонений нет: выберите следующий разговор из очереди и сохраните темп проверок."
+              }
+              href={primaryFocusHref}
+              actionLabel={focusItems.length ? "Открыть фокус" : "Открыть очередь"}
+              tone={focusItems.length ? "warning" : "info"}
+              placement="right"
+              anchorLabel="Подсказка к текущему фокусу"
+            />
           </div>
         </div>
 

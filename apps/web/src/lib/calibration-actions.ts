@@ -16,6 +16,20 @@ function dateField(formData: FormData, key: string) {
   return value ? new Date(`${value}T12:00:00.000Z`) : undefined;
 }
 
+function assertCalibrationStatusTransition(fromStatus: string, toStatus: string) {
+  if (fromStatus === "archived" && toStatus === "completed") {
+    throw new Error("Архивную калибровку нельзя завершить. Верните ее в работу или оставьте в архиве.");
+  }
+
+  if (fromStatus === "completed" && toStatus === "completed") {
+    throw new Error("Калибровка уже завершена.");
+  }
+
+  if (fromStatus === "archived" && toStatus === "archived") {
+    throw new Error("Калибровка уже в архиве.");
+  }
+}
+
 export async function createCalibrationSession(formData: FormData) {
   const user = await getCurrentUser();
 
@@ -99,6 +113,23 @@ export async function updateCalibrationSessionStatus(formData: FormData) {
   if (!id || !["active", "completed", "archived"].includes(status)) {
     throw new Error("Некорректный статус калибровки.");
   }
+
+  const session = await prisma.calibrationSession.findFirst({
+    where: {
+      id,
+      workspaceId: user.workspaceId
+    },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (!session) {
+    throw new Error("Калибровка не найдена.");
+  }
+
+  assertCalibrationStatusTransition(session.status, status);
 
   await prisma.calibrationSession.updateMany({
     where: { id, workspaceId: user.workspaceId },

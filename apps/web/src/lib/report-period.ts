@@ -78,6 +78,17 @@ export function resolveReportPeriod(params: Record<string, string | string[] | u
     };
   }
 
+  if (preset === "custom") {
+    const current = currentVkPeriod(today);
+
+    return {
+      preset,
+      start: current.start,
+      end: current.end,
+      label: "Произвольный период"
+    };
+  }
+
   if (preset === "calendar-current") {
     const { start, end } = currentCalendarMonth(today);
     return { preset, start, end, label: "Календарный месяц" };
@@ -121,6 +132,10 @@ export function resolvePreviousReportPeriod(period: ReportPeriod): ReportPeriod 
 
 export function reportDateInputValue(value: Date) {
   return formatDateInput(value);
+}
+
+export function reportPeriodUsesCustomDates(period: ReportPeriod) {
+  return period.preset === "custom";
 }
 
 export function reportPeriodDateLabel(value: Date) {

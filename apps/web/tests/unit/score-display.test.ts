@@ -3,6 +3,7 @@ import {
   clampQualityScore,
   formatQualityScore,
   formatQualityScoreDelta,
+  qualityScoreDelta,
   qualityScorePointWord,
   qualityScoreUnit
 } from "@/lib/score-display";
@@ -47,22 +48,29 @@ describe("score display helpers", () => {
     expect(formatQualityScore(Number.NEGATIVE_INFINITY)).toBe("Нет оценки");
   });
 
-  it("formats deltas as point changes", () => {
-    expect(formatQualityScoreDelta(3.4)).toBe("+3 п.");
-    expect(formatQualityScoreDelta(-2.6)).toBe("-3 п.");
-    expect(formatQualityScoreDelta(0)).toBe("0 п.");
+  it("formats deltas as explicit score-point changes", () => {
+    expect(formatQualityScoreDelta(3.4)).toBe("+3 балла");
+    expect(formatQualityScoreDelta(-2.6)).toBe("-3 балла");
+    expect(formatQualityScoreDelta(0)).toBe("0 баллов");
   });
 
   it("rounds delta half points away from zero", () => {
-    expect(formatQualityScoreDelta(-0.5)).toBe("-1 п.");
-    expect(formatQualityScoreDelta(-2.5)).toBe("-3 п.");
-    expect(formatQualityScoreDelta(0.5)).toBe("+1 п.");
-    expect(formatQualityScoreDelta(2.5)).toBe("+3 п.");
+    expect(formatQualityScoreDelta(-0.5)).toBe("-1 балл");
+    expect(formatQualityScoreDelta(-2.5)).toBe("-3 балла");
+    expect(formatQualityScoreDelta(0.5)).toBe("+1 балл");
+    expect(formatQualityScoreDelta(2.5)).toBe("+3 балла");
   });
 
   it("formats non-finite deltas as zero point changes", () => {
-    expect(formatQualityScoreDelta(Number.NaN)).toBe("0 п.");
-    expect(formatQualityScoreDelta(Number.POSITIVE_INFINITY)).toBe("0 п.");
-    expect(formatQualityScoreDelta(Number.NEGATIVE_INFINITY)).toBe("0 п.");
+    expect(formatQualityScoreDelta(Number.NaN)).toBe("0 баллов");
+    expect(formatQualityScoreDelta(Number.POSITIVE_INFINITY)).toBe("0 баллов");
+    expect(formatQualityScoreDelta(Number.NEGATIVE_INFINITY)).toBe("0 баллов");
+  });
+
+  it("calculates deltas from the displayed rounded score points", () => {
+    expect(formatQualityScore(74.4)).toBe("74 балла");
+    expect(formatQualityScore(72.6)).toBe("73 балла");
+    expect(qualityScoreDelta(74.4, 72.6)).toBe(1);
+    expect(formatQualityScoreDelta(qualityScoreDelta(74.4, 72.6))).toBe("+1 балл");
   });
 });

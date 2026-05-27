@@ -3,6 +3,8 @@
 import type { CSSProperties, ChangeEvent } from "react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CheckCircle2, Gauge, ImageUp, Layers3, Palette, RotateCcw, Rows3, Type, X } from "lucide-react";
+import { CoachCallout } from "@/components/guidance/coach-callout";
+import { getSettingCoachmark, hasAppearancePaletteOverrides } from "@/lib/admin-setup-guidance";
 import { updateWorkspaceAppearance } from "@/lib/ui-theme-actions";
 import {
   maxBrandLogoUrlLength,
@@ -399,10 +401,12 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
 
   const logoIsUploaded = appearance.brandLogoUrl.startsWith("data:image/");
   const logoUrlValue = logoIsUploaded ? "" : appearance.brandLogoUrl;
+  const brandLogoHint = appearance.brandLogoUrl ? null : getSettingCoachmark("brandLogo");
+  const paletteHint = hasAppearancePaletteOverrides(appearance.uiPaletteOverridesJson) ? null : getSettingCoachmark("componentPalette");
 
   return (
     <div className="appearance-form">
-      <section className="appearance-section">
+      <section id="appearance-branding" className="appearance-section">
         <div className="appearance-section__header">
           <div className="min-w-0">
             <h3>Брендинг</h3>
@@ -411,159 +415,174 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
           <Type size={18} aria-hidden="true" />
         </div>
 
-        <div className="brand-settings-grid">
-          <div className="brand-preview-card" style={brandPreviewStyle(appearance)} aria-label="Предпросмотр бренда">
-            <div className="brand-preview-card__sidebar">
-              <span className={`brand-preview-card__logo ${appearance.brandLogoUrl ? "brand-preview-card__logo--image" : ""}`}>
-                {appearance.brandLogoUrl ? <img src={appearance.brandLogoUrl} alt="" /> : appearance.brandMark}
-              </span>
-              <span className="brand-preview-card__copy">
+        <div className={brandLogoHint ? "appearance-section__body-with-coach" : ""}>
+          <div className="brand-settings-grid">
+            <div className="brand-preview-card" style={brandPreviewStyle(appearance)} aria-label="Предпросмотр бренда">
+              <div className="brand-preview-card__sidebar">
+                <span className={`brand-preview-card__logo ${appearance.brandLogoUrl ? "brand-preview-card__logo--image" : ""}`}>
+                  {appearance.brandLogoUrl ? <img src={appearance.brandLogoUrl} alt="" /> : appearance.brandMark}
+                </span>
+                <span className="brand-preview-card__copy">
+                  <strong>{appearance.brandName}</strong>
+                  <span>{appearance.brandTagline}</span>
+                </span>
+                <span className="brand-preview-card__nav brand-preview-card__nav--active">Проверки</span>
+                <span className="brand-preview-card__nav">Аналитика</span>
+              </div>
+              <div className="brand-preview-card__surface">
+                <span className="brand-preview-card__kicker">Рабочее пространство</span>
                 <strong>{appearance.brandName}</strong>
-                <span>{appearance.brandTagline}</span>
-              </span>
-              <span className="brand-preview-card__nav brand-preview-card__nav--active">Проверки</span>
-              <span className="brand-preview-card__nav">Аналитика</span>
-            </div>
-            <div className="brand-preview-card__surface">
-              <span className="brand-preview-card__kicker">Рабочее пространство</span>
-              <strong>{appearance.brandName}</strong>
-              <span className="brand-preview-card__line brand-preview-card__line--wide" />
-              <span className="brand-preview-card__line" />
-              <button type="button">Основное действие</button>
-            </div>
-          </div>
-
-          <div className="brand-settings-panel">
-            <div className="brand-field-grid">
-              <label className="appearance-field">
-                <span>Название</span>
-                <input
-                  className="form-control"
-                  type="text"
-                  value={appearance.brandName}
-                  maxLength={64}
-                  placeholder="КК поддержки"
-                  onChange={handleChange("brandName")}
-                />
-              </label>
-              <label className="appearance-field">
-                <span>Подпись</span>
-                <input
-                  className="form-control"
-                  type="text"
-                  value={appearance.brandTagline}
-                  maxLength={96}
-                  placeholder="Ручная проверка"
-                  onChange={handleChange("brandTagline")}
-                />
-              </label>
-              <label className="appearance-field appearance-field--short">
-                <span>Знак</span>
-                <input className="form-control" type="text" value={appearance.brandMark} maxLength={3} onChange={handleChange("brandMark")} />
-              </label>
-              <label className="appearance-field">
-                <span>Alt логотипа</span>
-                <input
-                  className="form-control"
-                  type="text"
-                  value={appearance.brandLogoAlt}
-                  maxLength={96}
-                  placeholder={appearance.brandName}
-                  onChange={handleChange("brandLogoAlt")}
-                />
-              </label>
-            </div>
-
-            <div className="brand-logo-control">
-              <span className={`brand-logo-control__preview ${appearance.brandLogoUrl ? "brand-logo-control__preview--image" : ""}`}>
-                {appearance.brandLogoUrl ? <img src={appearance.brandLogoUrl} alt="" /> : appearance.brandMark}
-              </span>
-              <div className="brand-logo-control__body">
-                <div className="brand-logo-control__actions">
-                  <label className="action-button appearance-logo-upload">
-                    <ImageUp size={16} aria-hidden="true" />
-                    Загрузить
-                    <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} />
-                  </label>
-                  {appearance.brandLogoUrl ? (
-                    <button type="button" className="action-button appearance-logo-remove" onClick={() => patchAppearance({ brandLogoUrl: "" })}>
-                      <X size={15} aria-hidden="true" />
-                      Убрать
-                    </button>
-                  ) : null}
-                </div>
-                <label className="appearance-field">
-                  <span>URL логотипа</span>
-                  <input
-                    className="form-control"
-                    type="url"
-                    value={logoUrlValue}
-                    placeholder={logoIsUploaded ? "Загруженный файл сохранен" : "https://cdn.example.com/logo.png"}
-                    onChange={handleChange("brandLogoUrl")}
-                  />
-                </label>
-                <p className={`brand-logo-control__hint ${logoError ? "brand-logo-control__hint--error" : ""}`}>
-                  {logoError || "PNG, JPG или WebP до 240 КБ; HTTPS-ссылку можно оставить вместо файла."}
-                </p>
+                <span className="brand-preview-card__line brand-preview-card__line--wide" />
+                <span className="brand-preview-card__line" />
+                <button type="button">Основное действие</button>
               </div>
             </div>
 
-            <div className="brand-color-grid" aria-label="Цвета бренда">
-              <label className="brand-color-field">
-                <span>Основной</span>
-                <input type="color" value={appearance.brandPrimaryColor} onChange={handleChange("brandPrimaryColor")} />
-                <input className="form-control" type="text" value={appearance.brandPrimaryColor} onChange={handleChange("brandPrimaryColor")} />
-              </label>
-              <label className="brand-color-field">
-                <span>Акцент</span>
-                <input type="color" value={appearance.brandAccentColor} onChange={handleChange("brandAccentColor")} />
-                <input className="form-control" type="text" value={appearance.brandAccentColor} onChange={handleChange("brandAccentColor")} />
-              </label>
-            </div>
+            <div className="brand-settings-panel">
+              <div className="brand-field-grid">
+                <label className="appearance-field">
+                  <span>Название</span>
+                  <input
+                    className="form-control"
+                    type="text"
+                    value={appearance.brandName}
+                    maxLength={64}
+                    placeholder="КК поддержки"
+                    onChange={handleChange("brandName")}
+                  />
+                </label>
+                <label className="appearance-field">
+                  <span>Подпись</span>
+                  <input
+                    className="form-control"
+                    type="text"
+                    value={appearance.brandTagline}
+                    maxLength={96}
+                    placeholder="Ручная проверка"
+                    onChange={handleChange("brandTagline")}
+                  />
+                </label>
+                <label className="appearance-field appearance-field--short">
+                  <span>Знак</span>
+                  <input className="form-control" type="text" value={appearance.brandMark} maxLength={3} onChange={handleChange("brandMark")} />
+                </label>
+                <label className="appearance-field">
+                  <span>Alt логотипа</span>
+                  <input
+                    className="form-control"
+                    type="text"
+                    value={appearance.brandLogoAlt}
+                    maxLength={96}
+                    placeholder={appearance.brandName}
+                    onChange={handleChange("brandLogoAlt")}
+                  />
+                </label>
+              </div>
 
-            <div className="brand-preset-row" aria-label="Быстрые палитры">
-              {brandColorPresets.map((preset) => (
+              <div className="brand-logo-control">
+                <span className={`brand-logo-control__preview ${appearance.brandLogoUrl ? "brand-logo-control__preview--image" : ""}`}>
+                  {appearance.brandLogoUrl ? <img src={appearance.brandLogoUrl} alt="" /> : appearance.brandMark}
+                </span>
+                <div className="brand-logo-control__body">
+                  <div className="brand-logo-control__actions">
+                    <label className="action-button appearance-logo-upload">
+                      <ImageUp size={16} aria-hidden="true" />
+                      Загрузить
+                      <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} />
+                    </label>
+                    {appearance.brandLogoUrl ? (
+                      <button type="button" className="action-button appearance-logo-remove" onClick={() => patchAppearance({ brandLogoUrl: "" })}>
+                        <X size={15} aria-hidden="true" />
+                        Убрать
+                      </button>
+                    ) : null}
+                  </div>
+                  <label className="appearance-field">
+                    <span>URL логотипа</span>
+                    <input
+                      className="form-control"
+                      type="url"
+                      value={logoUrlValue}
+                      placeholder={logoIsUploaded ? "Загруженный файл сохранен" : "https://cdn.example.com/logo.png"}
+                      onChange={handleChange("brandLogoUrl")}
+                    />
+                  </label>
+                  <p className={`brand-logo-control__hint ${logoError ? "brand-logo-control__hint--error" : ""}`}>
+                    {logoError || "PNG, JPG или WebP до 240 КБ; HTTPS-ссылку можно оставить вместо файла."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="brand-color-grid" aria-label="Цвета бренда">
+                <label className="brand-color-field">
+                  <span>Основной</span>
+                  <input type="color" value={appearance.brandPrimaryColor} onChange={handleChange("brandPrimaryColor")} />
+                  <input className="form-control" type="text" value={appearance.brandPrimaryColor} onChange={handleChange("brandPrimaryColor")} />
+                </label>
+                <label className="brand-color-field">
+                  <span>Акцент</span>
+                  <input type="color" value={appearance.brandAccentColor} onChange={handleChange("brandAccentColor")} />
+                  <input className="form-control" type="text" value={appearance.brandAccentColor} onChange={handleChange("brandAccentColor")} />
+                </label>
+              </div>
+
+              <div className="brand-preset-row" aria-label="Быстрые палитры">
+                {brandColorPresets.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className="brand-preset-button"
+                    style={{ "--preset-primary": preset.primary, "--preset-accent": preset.accent } as CSSProperties}
+                    onClick={() => {
+                      const nextOverrides = {
+                        ...appearance.uiPaletteOverrides,
+                        accent: preset.primary,
+                        accentStrong: preset.button,
+                        buttonPrimaryBg: preset.button,
+                        buttonPrimaryHover: preset.primary,
+                        sidebarBg: preset.sidebar,
+                        sidebarAccent: preset.accent
+                      };
+
+                      patchAppearance({
+                        brandPrimaryColor: preset.primary,
+                        brandAccentColor: preset.accent,
+                        uiPaletteOverrides: nextOverrides,
+                        uiPaletteOverridesJson: serializeUiPaletteOverrides(nextOverrides)
+                      });
+                    }}
+                  >
+                    <span aria-hidden="true" />
+                    {preset.name}
+                  </button>
+                ))}
                 <button
-                  key={preset.name}
                   type="button"
-                  className="brand-preset-button"
-                  style={{ "--preset-primary": preset.primary, "--preset-accent": preset.accent } as CSSProperties}
+                  className="brand-preset-button brand-preset-button--reset"
                   onClick={() => {
-                    const nextOverrides = {
-                      ...appearance.uiPaletteOverrides,
-                      accent: preset.primary,
-                      accentStrong: preset.button,
-                      buttonPrimaryBg: preset.button,
-                      buttonPrimaryHover: preset.primary,
-                      sidebarBg: preset.sidebar,
-                      sidebarAccent: preset.accent
-                    };
-
-                    patchAppearance({
-                      brandPrimaryColor: preset.primary,
-                      brandAccentColor: preset.accent,
-                      uiPaletteOverrides: nextOverrides,
-                      uiPaletteOverridesJson: serializeUiPaletteOverrides(nextOverrides)
-                    });
+                    patchAppearance({ brandLogoUrl: "", brandPrimaryColor: "#3157d5", brandAccentColor: "#7c97ff" });
+                    resetPaletteOverrides();
                   }}
                 >
-                  <span aria-hidden="true" />
-                  {preset.name}
+                  <RotateCcw size={14} aria-hidden="true" />
+                  Сброс
                 </button>
-              ))}
-              <button
-                type="button"
-                className="brand-preset-button brand-preset-button--reset"
-                onClick={() => {
-                  patchAppearance({ brandLogoUrl: "", brandPrimaryColor: "#3157d5", brandAccentColor: "#7c97ff" });
-                  resetPaletteOverrides();
-                }}
-              >
-                <RotateCcw size={14} aria-hidden="true" />
-                Сброс
-              </button>
+              </div>
             </div>
           </div>
+          {brandLogoHint ? (
+            <CoachCallout
+              title={brandLogoHint.title}
+              body={brandLogoHint.body}
+              href="#appearance-branding"
+              actionLabel={brandLogoHint.actionLabel}
+              variant="spotlight"
+              placement="left"
+              anchorLabel="Подсказка к брендингу"
+              stepIndex={1}
+              dismissId="settings:brandLogo"
+            />
+          ) : null}
         </div>
       </section>
 
@@ -608,7 +627,7 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
         </div>
       </section>
 
-      <section className="appearance-section">
+      <section id="appearance-palette" className="appearance-section">
         <div className="appearance-section__header">
           <div className="min-w-0">
             <h3>Палитра компонентов</h3>
@@ -616,42 +635,59 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
           </div>
           <Palette size={18} aria-hidden="true" />
         </div>
-        <div className="palette-token-board">
-          {paletteGroups.map((group) => (
-            <section key={group.id} className="palette-token-group" aria-labelledby={`palette-token-${group.id}`}>
-              <div className="palette-token-group__header">
-                <h4 id={`palette-token-${group.id}`}>{group.title}</h4>
-                <p>{group.description}</p>
-              </div>
-              <div className="palette-token-list">
-                {group.tokens.map((token) => {
-                  const isCustom = Boolean(appearance.uiPaletteOverrides[token]);
+        <div className={paletteHint ? "appearance-section__body-with-coach" : ""}>
+          <div className="appearance-section__body-main">
+            <div className="palette-token-board">
+              {paletteGroups.map((group) => (
+                <section key={group.id} className="palette-token-group" aria-labelledby={`palette-token-${group.id}`}>
+                  <div className="palette-token-group__header">
+                    <h4 id={`palette-token-${group.id}`}>{group.title}</h4>
+                    <p>{group.description}</p>
+                  </div>
+                  <div className="palette-token-list">
+                    {group.tokens.map((token) => {
+                      const isCustom = Boolean(appearance.uiPaletteOverrides[token]);
 
-                  return (
-                    <label key={token} className={`palette-token-field ${isCustom ? "palette-token-field--custom" : ""}`}>
-                      <span className="palette-token-field__label">
-                        <span>{paletteTokenLabel(token)}</span>
-                        {isCustom ? (
-                          <button type="button" onClick={() => resetPaletteOverride(token)} aria-label={`Сбросить ${paletteTokenLabel(token)}`}>
-                            <RotateCcw size={13} aria-hidden="true" />
-                          </button>
-                        ) : null}
-                      </span>
-                      <span className="palette-token-field__control">
-                        <input type="color" value={paletteValue(appearance, token)} onChange={(event) => updatePaletteOverride(token, event.target.value)} />
-                        <code>{paletteValue(appearance, token).toUpperCase()}</code>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                      return (
+                        <label key={token} className={`palette-token-field ${isCustom ? "palette-token-field--custom" : ""}`}>
+                          <span className="palette-token-field__label">
+                            <span>{paletteTokenLabel(token)}</span>
+                            {isCustom ? (
+                              <button type="button" onClick={() => resetPaletteOverride(token)} aria-label={`Сбросить ${paletteTokenLabel(token)}`}>
+                                <RotateCcw size={13} aria-hidden="true" />
+                              </button>
+                            ) : null}
+                          </span>
+                          <span className="palette-token-field__control">
+                            <input type="color" value={paletteValue(appearance, token)} onChange={(event) => updatePaletteOverride(token, event.target.value)} />
+                            <code>{paletteValue(appearance, token).toUpperCase()}</code>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <button type="button" className="action-button action-button--small appearance-reset-palette" onClick={resetPaletteOverrides}>
+              <RotateCcw size={14} aria-hidden="true" />
+              Сбросить ручную палитру
+            </button>
+          </div>
+          {paletteHint ? (
+            <CoachCallout
+              title={paletteHint.title}
+              body={paletteHint.body}
+              href="#appearance-palette"
+              actionLabel={paletteHint.actionLabel}
+              variant="spotlight"
+              placement="left"
+              anchorLabel="Подсказка к палитре компонентов"
+              stepIndex={2}
+              dismissId="settings:componentPalette"
+            />
+          ) : null}
         </div>
-        <button type="button" className="action-button action-button--small appearance-reset-palette" onClick={resetPaletteOverrides}>
-          <RotateCcw size={14} aria-hidden="true" />
-          Сбросить ручную палитру
-        </button>
       </section>
 
       <section className="appearance-section">

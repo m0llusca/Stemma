@@ -2,9 +2,11 @@ import { History, KeyRound, Plug } from "lucide-react";
 import Link from "next/link";
 import { ApiTokenCreateForm } from "@/components/admin/api-token-create-form";
 import { CopyButton } from "@/components/copy-button";
+import { CoachCallout } from "@/components/guidance/coach-callout";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
+import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { isDemoAuthEnabled, requireCurrentUserPermission } from "@/lib/current-user";
 import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
@@ -92,6 +94,7 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
   const now = new Date();
   const activeTokens = apiTokens.filter((token) => !token.expiresAt || token.expiresAt > now).length;
   const tokensWithErrors = apiTokens.filter((token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)).length;
+  const apiTokenSetupHint = activeTokens > 0 ? null : getSettingCoachmark("apiTokens");
 
   return (
     <section className="page-shell admin-shell">
@@ -168,6 +171,19 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
             <span className="pill pill--neutral">{apiTokens.length}</span>
           </div>
           <div className="grid gap-2 p-4">
+            {apiTokenSetupHint ? (
+              <CoachCallout
+                title={apiTokenSetupHint.title}
+                body={apiTokenSetupHint.body}
+                href={apiTokenSetupHint.href}
+                actionLabel={apiTokenSetupHint.actionLabel}
+                variant="spotlight"
+                placement="top"
+                anchorLabel="Подсказка к API-ключам"
+                stepIndex={1}
+                dismissId="settings:apiTokens"
+              />
+            ) : null}
             {apiTokens.length > 0 ? (
               apiTokens.map((apiToken) => {
                 const health = tokenHealth(apiToken);

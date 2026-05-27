@@ -1,0 +1,463 @@
+.metricStrip {
+  display: grid;
+  min-height: 100%;
+  gap: 14px;
+  padding: 16px;
+}
+
+.metricStripHeader {
+  display: grid;
+  gap: 8px;
+}
+
+.metricStripHeader h2 {
+  margin-top: 5px;
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 840;
+  letter-spacing: 0;
+  line-height: 1.18;
+}
+
+.metricStripDescription {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.metricStripItems {
+  display: grid;
+  gap: 8px;
+}
+
+.metricInsight {
+  --insight-tone: var(--muted);
+  --insight-bg: var(--panel-muted);
+  --insight-border: var(--border);
+
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  border: 1px solid var(--insight-border);
+  border-radius: var(--radius-card);
+  background: var(--insight-bg);
+  color: inherit;
+  padding: 11px 12px;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.metricInsightLink:hover {
+  border-color: color-mix(in srgb, var(--insight-tone) 42%, var(--border));
+  background: color-mix(in srgb, var(--insight-tone) 8%, var(--panel));
+  transform: translateY(-1px);
+}
+
+.metricInsightTopline {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.metricInsightTopline span {
+  min-width: 0;
+}
+
+.metricInsightLabel {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.metricInsightLabel > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricInsightTopline strong {
+  flex-shrink: 0;
+  color: var(--foreground);
+  font-size: 22px;
+  font-weight: 860;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.metricInsight p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.metricProgress {
+  display: grid;
+  gap: 5px;
+}
+
+.metricProgressCaption,
+.metricProgressUnavailable {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.metricProgressCaption strong,
+.metricProgressUnavailable strong {
+  flex-shrink: 0;
+  color: var(--insight-tone);
+  font-variant-numeric: tabular-nums;
+}
+
+.metricProgressTrack {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--insight-tone) 10%, var(--border));
+}
+
+.metricProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--insight-tone);
+}
+
+.metricProgressUnavailable {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.metricInsightAction {
+  justify-self: start;
+  width: fit-content;
+  color: var(--insight-tone);
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
+.metricInsightAction:hover {
+  color: var(--foreground);
+}
+
+.metricInsightNeutral {
+  --insight-tone: #3157d5;
+  --insight-bg: color-mix(in srgb, #3157d5 5%, var(--panel));
+  --insight-border: color-mix(in srgb, #3157d5 22%, var(--border));
+}
+
+.metricInsightOk {
+  --insight-tone: #0f766e;
+  --insight-bg: color-mix(in srgb, #0f766e 6%, var(--panel));
+  --insight-border: color-mix(in srgb, #0f766e 24%, var(--border));
+}
+
+.metricInsightWarn {
+  --insight-tone: #b45309;
+  --insight-bg: color-mix(in srgb, #b45309 6%, var(--panel));
+  --insight-border: color-mix(in srgb, #b45309 26%, var(--border));
+}
+
+.metricInsightDanger {
+  --insight-tone: #b91c1c;
+  --insight-bg: color-mix(in srgb, #b91c1c 6%, var(--panel));
+  --insight-border: color-mix(in srgb, #b91c1c 24%, var(--border));
+}
+
+.criterionPanel {
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.criterionHeader {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--panel-header-border);
+  background: var(--panel-header);
+  padding: 16px 18px;
+}
+
+.criterionHeaderCopy {
+  min-width: 0;
+}
+
+.criterionHeader h2 {
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 780;
+  letter-spacing: 0;
+  line-height: 1.22;
+}
+
+.criterionHeader p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.criterionBody {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.criterionSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel-muted);
+}
+
+.criterionSummary article {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border-right: 1px solid var(--border);
+  padding: 11px 12px;
+}
+
+.criterionSummary article:last-child {
+  border-right: 0;
+}
+
+.criterionSummary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.criterionSummary strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 840;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criterionSummary small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.heatmapGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 164px), 1fr));
+  gap: 8px;
+}
+
+.heatmapCell {
+  --heatmap-tone: #64748b;
+  --heatmap-bg: var(--panel-muted);
+  --heatmap-border: var(--border);
+
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid var(--heatmap-border);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, var(--heatmap-bg), var(--panel));
+  padding: 12px;
+}
+
+.heatmapCell::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--heatmap-tone);
+  content: "";
+}
+
+.heatmapCellHeader {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.heatmapCell h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.heatmapCell strong {
+  color: var(--heatmap-tone);
+  font-size: 22px;
+  font-weight: 860;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.heatmapCell p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.heatmapMeter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--heatmap-tone) 10%, var(--border));
+}
+
+.heatmapMeter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--heatmap-tone);
+}
+
+.heatmapCellExcellent {
+  --heatmap-tone: #0f766e;
+  --heatmap-bg: color-mix(in srgb, #0f766e 7%, var(--panel));
+  --heatmap-border: color-mix(in srgb, #0f766e 25%, var(--border));
+}
+
+.heatmapCellStable {
+  --heatmap-tone: #3157d5;
+  --heatmap-bg: color-mix(in srgb, #3157d5 6%, var(--panel));
+  --heatmap-border: color-mix(in srgb, #3157d5 24%, var(--border));
+}
+
+.heatmapCellWatch {
+  --heatmap-tone: #b45309;
+  --heatmap-bg: color-mix(in srgb, #b45309 7%, var(--panel));
+  --heatmap-border: color-mix(in srgb, #b45309 25%, var(--border));
+}
+
+.heatmapCellCritical {
+  --heatmap-tone: #b91c1c;
+  --heatmap-bg: color-mix(in srgb, #b91c1c 7%, var(--panel));
+  --heatmap-border: color-mix(in srgb, #b91c1c 25%, var(--border));
+}
+
+.heatmapCellEmpty {
+  --heatmap-tone: #64748b;
+}
+
+.heatmapLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.heatmapLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.heatmapLegend i {
+  display: inline-flex;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.legendExcellent {
+  background: #0f766e;
+}
+
+.legendStable {
+  background: #3157d5;
+}
+
+.legendWatch {
+  background: #b45309;
+}
+
+.legendCritical {
+  background: #b91c1c;
+}
+
+.emptyState {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel-muted);
+  padding: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1200px) {
+  .metricStripItems {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .metricStripItems,
+  .criterionSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .criterionSummary article:nth-child(2) {
+    border-right: 0;
+  }
+
+  .criterionSummary article:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 640px) {
+  .metricStripItems,
+  .criterionSummary,
+  .criterionHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .criterionHeader {
+    display: grid;
+  }
+
+  .criterionSummary article,
+  .criterionSummary article:nth-child(2) {
+    border-right: 0;
+  }
+
+  .criterionSummary article:nth-child(n + 2) {
+    border-top: 1px solid var(--border);
+  }
+}

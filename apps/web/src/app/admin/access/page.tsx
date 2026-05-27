@@ -8,9 +8,11 @@ import {
   saveIdentityProvider,
   toggleGroupRoleMapping
 } from "@/lib/auth-provider-actions";
+import { CoachCallout } from "@/components/guidance/coach-callout";
 import { ScimTokenManager } from "@/components/admin/scim-token-manager";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { sanitizeProviderConfigForDisplay } from "@/lib/auth/provider-config-validation";
 import { buildEntraAuthorizationMetadata, getDirectoryIntegrationGuidance } from "@/lib/auth/providers";
 import { buildSamlServiceProviderUrls } from "@/lib/auth/saml";
@@ -381,6 +383,12 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
   const activeSessions = sessions.filter((session) => session.status === "ACTIVE").length;
   const activeMappings = selectedProvider?.groupRoleMappings.filter((mapping) => mapping.isActive).length ?? 0;
   const linkedUsers = providers.reduce((sum, provider) => sum + provider._count.externalIdentities, 0);
+  const activeSsoProviders = providers.filter((provider) => provider.type !== "DEMO" && provider.status === "active").length;
+  const accessSetupHint = activeSsoProviders > 0 ? null : getSettingCoachmark("access");
+  const groupMappingsHint =
+    selectedProvider && selectedProvider.type !== "DEMO" && selectedProvider.status === "active" && activeMappings === 0
+      ? getSettingCoachmark("groupMappings")
+      : null;
 
   return (
     <section className="page-shell admin-shell">
@@ -464,6 +472,21 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </div>
               <span className={`pill ${readiness.tone}`}>{readiness.label}</span>
             </div>
+            {accessSetupHint ? (
+              <div className="admin-setup-inline">
+                <CoachCallout
+                  title={accessSetupHint.title}
+                  body={accessSetupHint.body}
+                  href={accessSetupHint.href}
+                  actionLabel={accessSetupHint.actionLabel}
+                  variant="spotlight"
+                  placement="top"
+                  anchorLabel="Подсказка к SSO"
+                  stepIndex={1}
+                  dismissId="settings:access"
+                />
+              </div>
+            ) : null}
             <div className="ops-table-shell">
               <div className="ops-table ops-table--providers" role="table" aria-label="Провайдеры входа">
                 <div className="ops-table__row ops-table__row--head" role="row">
@@ -577,6 +600,21 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               </span>
             </div>
           </div>
+          {accessSetupHint ? (
+            <div className="admin-setup-inline">
+              <CoachCallout
+                title={accessSetupHint.title}
+                body={accessSetupHint.body}
+                href={accessSetupHint.href}
+                actionLabel={accessSetupHint.actionLabel}
+                variant="spotlight"
+                placement="top"
+                anchorLabel="Подсказка к настройке провайдера"
+                stepIndex={1}
+                dismissId="settings:access"
+              />
+            </div>
+          ) : null}
           <form action={saveIdentityProvider} className="grid gap-5 p-5">
           <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
           <input type="hidden" name="returnSection" value="provider" />
@@ -722,6 +760,21 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
             </div>
             <span className="pill pill--neutral">{selectedProvider.groupRoleMappings.length}</span>
           </div>
+          {groupMappingsHint ? (
+            <div className="admin-setup-inline">
+              <CoachCallout
+                title={groupMappingsHint.title}
+                body={groupMappingsHint.body}
+                href={groupMappingsHint.href}
+                actionLabel={groupMappingsHint.actionLabel}
+                variant="spotlight"
+                placement="top"
+                anchorLabel="Подсказка к группам и ролям"
+                stepIndex={2}
+                dismissId="settings:groupMappings"
+              />
+            </div>
+          ) : null}
           <div className="ops-table-shell">
             <div className="ops-table ops-table--mappings" role="table" aria-label="Группы и роли">
               <div className="ops-table__row ops-table__row--head" role="row">

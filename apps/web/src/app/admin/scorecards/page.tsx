@@ -1,7 +1,9 @@
 import { ChevronDown, Plus } from "lucide-react";
 import Link from "next/link";
+import { CoachCallout } from "@/components/guidance/coach-callout";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { criterionKindLabels } from "@/lib/labels";
@@ -42,9 +44,14 @@ function scorecardSectionHref(section: ScorecardSection) {
   return `/admin/scorecards?section=${section}`;
 }
 
+function activeScorecardEditHref(editing: boolean) {
+  return editing ? "/admin/scorecards?section=overview" : "/admin/scorecards?section=overview&edit=1";
+}
+
 export default async function AdminScorecardsPage({ searchParams }: AdminScorecardsPageProps) {
   const params = await searchParams;
   const activeSection = scorecardSectionParam(params.section, params.new);
+  const isEditingActiveScorecard = activeSection === "overview" && firstParam(params.edit) === "1";
   const user = await requireCurrentUserPermission("scorecards:manage");
   const activeScorecard = await prisma.scorecard.findFirst({
     where: {
@@ -79,6 +86,7 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
       }
     ]
   });
+  const scorecardSetupHint = activeScorecard ? null : getSettingCoachmark("scorecards");
 
   return (
     <section className="page-shell admin-shell">
@@ -87,10 +95,10 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Формы оценки</h1>
           <p className="page-subtitle">
-            Активная форма видна сразу. Редактирование новой версии открывается только тогда, когда нужно изменить методику.
+            Активную форму можно править точечно, а новую версию выпускать, когда нужно сохранить историческую методику без пересчета.
           </p>
           <div className="admin-actions mt-5">
-            <Link href={scorecardSectionHref("create")} className="action-button action-button--primary">
+            <Link href={scorecardSectionHref("create")} className="action-button">
               <Plus size={16} aria-hidden="true" />
               Новая версия
             </Link>
@@ -129,27 +137,89 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
               </div>
               <p className="ops-panel__subtitle">По этой версии создаются новые проверки.</p>
             </div>
+            {activeScorecard ? (
+              <div className="admin-actions">
+                <Link
+                  href={activeScorecardEditHref(isEditingActiveScorecard)}
+                  className={isEditingActiveScorecard ? "action-button" : "action-button action-button--primary"}
+                >
+                  {isEditingActiveScorecard ? "Отмена" : "Редактировать текущую"}
+                </Link>
+              </div>
+            ) : null}
           </div>
-          <div className="grid gap-2 p-4 md:grid-cols-2" aria-label="Сводка форм оценки">
-            <div className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">V</span>
-              <span className="admin-tile__body">
-                <span className="record-title record-title--tight">
-                  {activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет активной формы"}
-                </span>
-                <span className="record-meta">
-                  {activeScorecard ? `${activeScorecard.criteria.length} критериев` : "Создайте первую версию формы оценки"}
-                </span>
-              </span>
+          {isEditingActiveScorecard && activeScorecard ? (
+            <ScorecardVersionForm
+              mode="edit"
+              scorecardId={activeScorecard.id}
+              initialName={activeScorecard.name}
+              initialCriteria={activeScorecard.criteria.map((criterion) => ({
+                id: criterion.id,
+                key: criterion.key,
+                label: criterion.label,
+                block: criterion.block,
+                kind: criterion.kind,
+                weight: criterion.weight,
+                required: criterion.required
+              }))}
+            />
+          ) : (
+            <div className={scorecardSetupHint ? "setup-guide-layout p-4" : "p-4"}>
+              <div className={scorecardSetupHint ? "setup-guide-layout__main" : ""}>
+                <div className="grid gap-2 md:grid-cols-2" aria-label="Сводка форм оценки">
+                  <div className="admin-tile admin-tile--compact">
+                    <span className="admin-tile__icon admin-tile__icon--plain">V</span>
+                    <span className="admin-tile__body">
+                      <span className="record-title record-title--tight">
+                        {activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет активной формы"}
+                      </span>
+                      <span className="record-meta">
+                        {activeScorecard ? `${activeScorecard.criteria.length} критериев` : "Создайте первую версию формы оценки"}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="admin-tile admin-tile--compact">
+                    <span className="admin-tile__icon admin-tile__icon--plain">{scorecards.length}</span>
+                    <span className="admin-tile__body">
+                      <span className="record-title">Версий в системе</span>
+                      <span className="record-meta">Точечная правка меняет активную форму, новая версия сохраняет историю методики.</span>
+                    </span>
+                  </div>
+                </div>
+                {activeScorecard ? (
+                  <div className="admin-data-table admin-data-table--compact mt-3" aria-label="Критерии активной формы">
+                    <div className="admin-data-table__head">
+                      <span>Критерий</span>
+                      <span>Блок</span>
+                      <span>Тип</span>
+                      <span>Вес</span>
+                    </div>
+                    {activeScorecard.criteria.slice(0, 6).map((criterion) => (
+                      <div key={criterion.id} className="admin-data-table__row">
+                        <strong>{criterion.label}</strong>
+                        <span>{criterion.block}</span>
+                        <span>{criterionKindLabels[criterion.kind]}</span>
+                        <span>{criterion.weight}%</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {scorecardSetupHint ? (
+                <CoachCallout
+                  title={scorecardSetupHint.title}
+                  body={scorecardSetupHint.body}
+                  href={scorecardSetupHint.href}
+                  actionLabel={scorecardSetupHint.actionLabel}
+                  variant="spotlight"
+                  placement="left"
+                  anchorLabel="Подсказка к форме оценки"
+                  stepIndex={1}
+                  dismissId="settings:scorecards"
+                />
+              ) : null}
             </div>
-            <div className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">{scorecards.length}</span>
-              <span className="admin-tile__body">
-                <span className="record-title">Версий в системе</span>
-                <span className="record-meta">Изменения выпускаются новой версией и не пересчитывают прошлые проверки.</span>
-              </span>
-            </div>
-          </div>
+          )}
         </section>
       ) : null}
 
@@ -165,18 +235,25 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
             </div>
           </div>
           {activeScorecard ? (
-            <ScorecardVersionForm
-              initialName={activeScorecard.name}
-              initialCriteria={activeScorecard.criteria.map((criterion) => ({
-                id: criterion.id,
-                key: criterion.key,
-                label: criterion.label,
-                block: criterion.block,
-                kind: criterion.kind,
-                weight: criterion.weight,
-                required: criterion.required
-              }))}
-            />
+            <div className="p-4">
+              <div className="setup-stepper" aria-label="Шаги выпуска формы оценки">
+                <span className="setup-step setup-step--done">1. Критерии</span>
+                <span className="setup-step setup-step--active">2. Веса и шкалы</span>
+                <span className="setup-step">3. Выпуск версии</span>
+              </div>
+              <ScorecardVersionForm
+                initialName={activeScorecard.name}
+                initialCriteria={activeScorecard.criteria.map((criterion) => ({
+                  id: criterion.id,
+                  key: criterion.key,
+                  label: criterion.label,
+                  block: criterion.block,
+                  kind: criterion.kind,
+                  weight: criterion.weight,
+                  required: criterion.required
+                }))}
+              />
+            </div>
           ) : (
             <div className="soft-callout ops-empty m-4 text-sm leading-5 text-[#64748b]">
               Новую версию можно выпустить после появления активной формы. Создайте первую форму через начальную настройку проекта.

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 
 type MetricCardProps = {
   label: string;
@@ -23,6 +24,22 @@ function formatSignedValue(value: number, unit = "") {
   }
 
   return `${value > 0 ? "+" : "-"}${Math.abs(value)}${unit}`;
+}
+
+function formatAbsoluteDelta(value: number, unit: string) {
+  if (unit.trim().startsWith("бал")) {
+    return formatQualityScoreDelta(value);
+  }
+
+  return formatSignedValue(value, unit);
+}
+
+function comparisonDelta(current: number, previous: number, unit: string) {
+  if (unit.trim().startsWith("бал")) {
+    return qualityScoreDelta(current, previous) ?? 0;
+  }
+
+  return Math.round(current - previous);
 }
 
 function MetricComparison({
@@ -50,14 +67,11 @@ function MetricComparison({
     );
   }
 
-  const delta = Math.round(current - previous);
-  const relativeDelta = previous === 0 ? null : Math.round((delta / Math.abs(previous)) * 100);
+  const delta = comparisonDelta(current, previous, unit);
   const trend = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
   const TrendIcon = trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
-  const relativeLabel = relativeDelta == null ? (delta > 0 ? "новый рост" : "0%") : formatSignedValue(relativeDelta, "%");
-  const absoluteLabel = formatSignedValue(delta, unit);
-  const mainLabel = stable ? relativeLabel : absoluteLabel;
-  const detailLabel = stable ? absoluteLabel : "малая выборка";
+  const mainLabel = formatAbsoluteDelta(delta, unit);
+  const detailLabel = stable ? "изменение" : "малая выборка";
 
   return (
     <div className={`metric-card__trend metric-card__trend--${trend}`} aria-label={`К прошлому периоду: ${mainLabel}, ${detailLabel}`}>

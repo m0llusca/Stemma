@@ -3,7 +3,7 @@
 import type { CriterionKind } from "@prisma/client";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { createScorecardVersion } from "@/lib/scorecard-actions";
+import { createScorecardVersion, updateScorecardVersion } from "@/lib/scorecard-actions";
 
 type CriterionRow = {
   clientId: string;
@@ -16,6 +16,8 @@ type CriterionRow = {
 };
 
 type ScorecardVersionFormProps = {
+  mode?: "create" | "edit";
+  scorecardId?: string;
   initialName: string;
   initialCriteria: Array<{
     id: string;
@@ -43,7 +45,7 @@ function normalizeKeySeed(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-export function ScorecardVersionForm({ initialName, initialCriteria }: ScorecardVersionFormProps) {
+export function ScorecardVersionForm({ mode = "create", scorecardId, initialName, initialCriteria }: ScorecardVersionFormProps) {
   const [name, setName] = useState(initialName);
   const [criteria, setCriteria] = useState<CriterionRow[]>(
     initialCriteria.map((criterion) => ({
@@ -94,8 +96,11 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
     ]);
   }
 
+  const formAction = mode === "edit" ? updateScorecardVersion : createScorecardVersion;
+
   return (
-    <form action={createScorecardVersion} className="grid gap-4 p-5">
+    <form action={formAction} className="grid gap-4 p-5">
+      {mode === "edit" && scorecardId ? <input type="hidden" name="scorecardId" value={scorecardId} /> : null}
       <input type="hidden" name="criterionCount" value={criteria.length} />
       <label className="grid max-w-xl gap-1 text-sm font-medium text-[#334155]">
         Название
@@ -157,6 +162,9 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
                   pattern="[a-z0-9_]+"
                   className="form-control font-mono text-xs"
                 />
+                {mode === "edit" && !criterion.clientId.startsWith("new-") ? (
+                  <input type="hidden" name={`criterion.${index}.id`} value={criterion.clientId} />
+                ) : null}
               </label>
               <label className="grid gap-1 text-sm font-medium text-[#334155]">
                 Блок
@@ -239,7 +247,7 @@ export function ScorecardVersionForm({ initialName, initialCriteria }: Scorecard
           disabled={!canSubmit}
           className="action-button action-button--primary"
         >
-          Создать новую версию
+          {mode === "edit" ? "Сохранить текущую форму" : "Создать новую версию"}
         </button>
       </div>
     </form>

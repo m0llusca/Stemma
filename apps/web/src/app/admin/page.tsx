@@ -1,6 +1,8 @@
 import type { RoleName } from "@prisma/client";
 import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { CoachCallout } from "@/components/guidance/coach-callout";
+import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
@@ -23,10 +25,22 @@ function canSee(role: RoleName, roles: RoleName[]) {
 
 export default async function AdminHomePage() {
   const user = await requireCurrentUserPermission("audit:read");
-  const [workspace, activeScorecard, activeSamplingRules, integrations, users, providerWarnings, failedJobs, recentAuditLogs, apiTokens] = await Promise.all([
+  const [
+    workspace,
+    activeScorecard,
+    activeSamplingRules,
+    integrations,
+    users,
+    providerWarnings,
+    activeProviders,
+    activeGroupMappings,
+    failedJobs,
+    recentAuditLogs,
+    apiTokens
+  ] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { uiTheme: true, uiDensity: true }
+      select: { uiTheme: true, uiDensity: true, brandLogoUrl: true, uiPaletteOverridesJson: true }
     }),
     prisma.scorecard.findFirst({
       where: { workspaceId: user.workspaceId, isActive: true },
@@ -48,6 +62,19 @@ export default async function AdminHomePage() {
         status: { not: "active" }
       }
     }),
+    prisma.identityProvider.count({
+      where: {
+        workspaceId: user.workspaceId,
+        type: { not: "DEMO" },
+        status: "active"
+      }
+    }),
+    prisma.groupRoleMapping.count({
+      where: {
+        workspaceId: user.workspaceId,
+        isActive: true
+      }
+    }),
     prisma.backendJob.count({
       where: { workspaceId: user.workspaceId, status: "FAILED" }
     }),
@@ -60,6 +87,31 @@ export default async function AdminHomePage() {
   ]);
   const currentTheme = getUiThemeOption(workspace?.uiTheme);
   const currentDensity = getUiDensityOption(workspace?.uiDensity);
+  const setupCoachmarkRoles: Record<SettingCoachmarkId, RoleName[]> = {
+    scorecards: ["ADMIN", "TEAM_LEAD"],
+    sampling: ["ADMIN", "TEAM_LEAD"],
+    integrations: ["ADMIN"],
+    access: ["ADMIN"],
+    groupMappings: ["ADMIN"],
+    users: ["ADMIN"],
+    apiTokens: ["ADMIN"],
+    brandLogo: ["ADMIN"],
+    componentPalette: ["ADMIN"]
+  };
+  const setupCoachmarks = getMissingSettingsCoachmarks({
+    activeScorecardVersion: activeScorecard?.version ?? null,
+    activeSamplingRules,
+    integrationCount: integrations,
+    activeIntegrationCount: integrations,
+    nonDemoProviderCount: activeProviders + providerWarnings,
+    activeProviderCount: activeProviders,
+    activeGroupMappings,
+    apiTokenCount: apiTokens,
+    userCount: users,
+    brandLogoUrl: workspace?.brandLogoUrl,
+    uiPaletteOverridesJson: workspace?.uiPaletteOverridesJson
+  }).filter((item) => canSee(user.role, setupCoachmarkRoles[item.id]));
+  const primarySetupCoachmark = setupCoachmarks[0] ?? null;
   const cards: AdminCard[] = [
     {
       href: "/admin/scorecards",
@@ -273,6 +325,28 @@ export default async function AdminHomePage() {
           </div>
         </div>
       </div>
+
+      {primarySetupCoachmark ? (
+        <section className="setup-guide-layout admin-setup-guidance" aria-label="Подсказка по незавершенной настройке">
+          <div className="soft-callout admin-setup-guidance__summary">
+            <p className="ops-panel__eyebrow">Следующий шаг</p>
+            <h2>{primarySetupCoachmark.title}</h2>
+            <p>{primarySetupCoachmark.body}</p>
+            <span className="record-meta">Подсказка исчезнет, когда этот блок будет настроен.</span>
+          </div>
+          <CoachCallout
+            title={primarySetupCoachmark.title}
+            body={primarySetupCoachmark.body}
+            href={primarySetupCoachmark.href}
+            actionLabel={primarySetupCoachmark.actionLabel}
+            variant="spotlight"
+            placement="left"
+            anchorLabel="Подсказка по настройкам"
+            stepIndex={1}
+            dismissId={`settings:${primarySetupCoachmark.id}`}
+          />
+        </section>
+      ) : null}
 
       <section className="admin-attention-strip" aria-label="Что требует внимания">
         <div className="admin-attention-strip__lead">

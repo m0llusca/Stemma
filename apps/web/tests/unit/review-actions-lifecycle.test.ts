@@ -147,6 +147,24 @@ describe("review action lifecycle guards", () => {
     expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
   });
 
+  it("blocks HUMAN draft saves when the conversation is already FINALIZED", async () => {
+    const { saveReviewDraft } = await import("@/lib/review-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED",
+      qaAssigneeId: "reviewer-old",
+      qaAssigneeName: "Другой проверяющий"
+    });
+
+    await expect(saveReviewDraft(baseFinalizeForm())).rejects.toThrow(
+      "Завершенный диалог нужно сначала переоткрыть для нового цикла проверки."
+    );
+
+    expect(mocks.tx.review.create).not.toHaveBeenCalled();
+    expect(mocks.tx.review.update).not.toHaveBeenCalled();
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
+  });
+
   it("creates a new HUMAN review after REOPENED instead of reusing a finalized review from the previous cycle", async () => {
     const { finalizeReview } = await import("@/lib/review-actions");
     const latestReopenedAt = new Date("2026-05-09T12:00:00.000Z");

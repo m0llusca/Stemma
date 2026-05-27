@@ -1,14 +1,54 @@
 import Link from "next/link";
-import { BookOpenCheck, CheckCircle2, Clock3, PlusCircle, TriangleAlert } from "lucide-react";
+import {
+  Archive,
+  BookOpenCheck,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Link2,
+  MoreHorizontal,
+  PlusCircle,
+  Search,
+  SlidersHorizontal,
+  TriangleAlert,
+  UserRound,
+  X
+} from "lucide-react";
+import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
+import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
 import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
 import { createKnowledgeEntry } from "@/lib/quality-actions";
 import { formatQualityScore } from "@/lib/score-display";
-import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 
 export const dynamic = "force-dynamic";
+
+const dayMs = 24 * 60 * 60 * 1000;
+const coachingViewIds = ["active", "overdue", "week", "mine", "unlinked", "done", "all"] as const;
+
+type CoachingViewId = (typeof coachingViewIds)[number];
+const primaryCoachingViewIds: CoachingViewId[] = ["active", "overdue", "week", "done"];
+
+type CoachingPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function cleanParam(value: string | string[] | undefined) {
+  return firstParam(value)?.trim() ?? "";
+}
+
+function selectedView(value: string | string[] | undefined): CoachingViewId {
+  const candidate = firstParam(value);
+  return coachingViewIds.includes(candidate as CoachingViewId) ? (candidate as CoachingViewId) : "active";
+}
 
 function trainingStatusLabel(status: string) {
   const labels: Record<string, string> = {
@@ -36,17 +76,68 @@ function dueText(date: Date | null) {
   return date ? `до ${date.toLocaleDateString("ru-RU")}` : "без срока";
 }
 
-function isOverdue(date: Date | null, now: Date) {
-  return Boolean(date && date.getTime() < now.getTime());
+function startOfDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
-export default async function CoachingPage() {
-  const user = await requireCurrentUserPermission("training:manage");
+function isOverdue(date: Date | null, now: Date) {
+  return Boolean(date && date.getTime() < startOfDay(now).getTime());
+}
+
+function isDueThisWeek(date: Date | null, now: Date) {
+  if (!date) {
+    return false;
+  }
+
+  const today = startOfDay(now).getTime();
+  return date.getTime() >= today && date.getTime() < today + 7 * dayMs;
+}
+
+function viewHref(view: CoachingViewId, params: { q: string; assigneeId: string; category: string }) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("view", view);
+
+  if (params.q) {
+    searchParams.set("q", params.q);
+  }
+
+  if (params.assigneeId) {
+    searchParams.set("assigneeId", params.assigneeId);
+  }
+
+  if (params.category) {
+    searchParams.set("category", params.category);
+  }
+
+  return `/coaching?${searchParams.toString()}`;
+}
+
+function statusRank(status: string) {
+  if (status === "in_progress") {
+    return 0;
+  }
+
+  if (status === "open") {
+    return 1;
+  }
+
+  return 3;
+}
+
+export default async function CoachingPage({ searchParams }: CoachingPageProps) {
+  const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("training:manage"), searchParams]);
+  const now = new Date();
+  const view = selectedView(rawSearchParams.view);
+  const q = cleanParam(rawSearchParams.q);
+  const assigneeId = cleanParam(rawSearchParams.assigneeId);
+  const category = cleanParam(rawSearchParams.category);
+  const createTaskOpen = cleanParam(rawSearchParams.create) === "1";
+  const createRuleOpen = cleanParam(rawSearchParams.rule) === "1";
   const trainingWhere =
     user.role === "SUPPORT_AGENT"
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
       : { workspaceId: user.workspaceId };
-  const [assignments, knowledgeEntries, supportUsers, reviewCandidates] = await Promise.all([
+  const [rawAssignments, knowledgeEntries, supportUsers, reviewCandidates] = await Promise.all([
     prisma.trainingAssignment.findMany({
       where: trainingWhere,
       include: {
@@ -58,7 +149,7 @@ export default async function CoachingPage() {
         },
         assignedBy: true
       },
-      orderBy: [{ status: "asc" }, { dueAt: "asc" }, { createdAt: "desc" }]
+      orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }]
     }),
     prisma.qualityKnowledgeEntry.findMany({
       where: { workspaceId: user.workspaceId },
@@ -86,20 +177,134 @@ export default async function CoachingPage() {
       take: 20
     })
   ]);
-  const now = new Date();
-  const openCount = assignments.filter((assignment) => assignment.status !== "done").length;
-  const doneCount = assignments.filter((assignment) => assignment.status === "done").length;
-  const overdueCount = assignments.filter((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)).length;
+  const assignments = [...rawAssignments].sort((left, right) => {
+    const leftOverdue = left.status !== "done" && isOverdue(left.dueAt, now);
+    const rightOverdue = right.status !== "done" && isOverdue(right.dueAt, now);
+
+    if (leftOverdue !== rightOverdue) {
+      return leftOverdue ? -1 : 1;
+    }
+
+    const rankDiff = statusRank(left.status) - statusRank(right.status);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    const leftDue = left.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const rightDue = right.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    if (leftDue !== rightDue) {
+      return leftDue - rightDue;
+    }
+
+    return right.createdAt.getTime() - left.createdAt.getTime();
+  });
+  const openAssignments = assignments.filter((assignment) => assignment.status !== "done");
+  const doneAssignments = assignments.filter((assignment) => assignment.status === "done");
+  const overdueAssignments = openAssignments.filter((assignment) => isOverdue(assignment.dueAt, now));
+  const weekAssignments = openAssignments.filter((assignment) => isDueThisWeek(assignment.dueAt, now));
+  const mineAssignments = openAssignments.filter((assignment) => assignment.assigneeId === user.id || assignment.assigneeName === user.name);
+  const unlinkedAssignments = openAssignments.filter((assignment) => !assignment.reviewId);
   const criticalKnowledgeCount = knowledgeEntries.filter((entry) => entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH").length;
   const linkedAssignmentCount = assignments.filter((assignment) => assignment.reviewId).length;
-  const nextAssignment =
-    assignments.find((assignment) => assignment.status !== "done" && isOverdue(assignment.dueAt, now)) ??
-    assignments.find((assignment) => assignment.status !== "done");
-  const displayedAssignments = nextAssignment
-    ? [nextAssignment, ...assignments.filter((assignment) => assignment.id !== nextAssignment.id)]
-    : assignments;
+  const viewCounts: Record<CoachingViewId, number> = {
+    active: openAssignments.length,
+    overdue: overdueAssignments.length,
+    week: weekAssignments.length,
+    mine: mineAssignments.length,
+    unlinked: unlinkedAssignments.length,
+    done: doneAssignments.length,
+    all: assignments.length
+  };
+  const viewOptions: Array<{ id: CoachingViewId; label: string; helper: string; icon: typeof Clock3 }> = [
+    { id: "active", label: "Активные", helper: "Все незакрытые разборы", icon: ClipboardList },
+    { id: "overdue", label: "Просрочено", helper: "Нужно разобрать первым", icon: TriangleAlert },
+    { id: "week", label: "На неделе", helper: "Ближайшие сроки", icon: CalendarDays },
+    { id: "mine", label: "Мои", helper: "Назначено текущему пользователю", icon: UserRound },
+    { id: "unlinked", label: "Без проверки", helper: "Ручные задачи без тикета", icon: Link2 },
+    { id: "done", label: "Закрытые", helper: "История разборов", icon: Archive },
+    { id: "all", label: "Все", helper: "Полный список", icon: BookOpenCheck }
+  ];
+  const primaryViewOptions = viewOptions.filter((option) => primaryCoachingViewIds.includes(option.id));
+  const secondaryViewOptions = viewOptions.filter((option) => !primaryCoachingViewIds.includes(option.id));
+  const categoryOptions = Array.from(
+    new Set([
+      ...assignments.flatMap((assignment) => assignment.review?.findings.map((finding) => finding.category) ?? []),
+      ...knowledgeEntries.map((entry) => entry.category)
+    ])
+  ).sort((left, right) => left.localeCompare(right, "ru"));
+  const filteredAssignments = assignments.filter((assignment) => {
+    const finding = assignment.review?.findings[0];
+    const conversation = assignment.review?.conversation;
+    const searchableText = [
+      assignment.title,
+      assignment.description,
+      assignment.assigneeName,
+      assignment.assignedBy?.name,
+      conversation?.externalId,
+      conversation?.subject,
+      finding?.category,
+      finding ? riskLevelLabels[finding.riskLevel] : null
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("ru-RU");
+    const matchesQuery = q ? searchableText.includes(q.toLocaleLowerCase("ru-RU")) : true;
+    const matchesAssignee = assigneeId ? assignment.assigneeId === assigneeId : true;
+    const matchesCategory = category ? assignment.review?.findings.some((findingItem) => findingItem.category === category) : true;
+    const matchesView =
+      view === "active"
+        ? assignment.status !== "done"
+        : view === "overdue"
+          ? assignment.status !== "done" && isOverdue(assignment.dueAt, now)
+          : view === "week"
+            ? assignment.status !== "done" && isDueThisWeek(assignment.dueAt, now)
+            : view === "mine"
+              ? assignment.status !== "done" && (assignment.assigneeId === user.id || assignment.assigneeName === user.name)
+              : view === "unlinked"
+                ? assignment.status !== "done" && !assignment.reviewId
+                : view === "done"
+                  ? assignment.status === "done"
+                  : true;
+
+    return matchesQuery && matchesAssignee && matchesCategory && matchesView;
+  });
+  const selectedViewOption = viewOptions.find((option) => option.id === view) ?? viewOptions[0];
+  const nextAssignment = overdueAssignments[0] ?? openAssignments[0];
   const nextConversation = nextAssignment?.review?.conversation;
   const nextFinding = nextAssignment?.review?.findings[0];
+  const ruleFocusCategory = category || nextFinding?.category || "";
+  const ruleCategoryDefault = ruleFocusCategory && categoryOptions.includes(ruleFocusCategory) ? ruleFocusCategory : "";
+  const ruleFocusRiskLevel = nextFinding?.riskLevel ?? "MEDIUM";
+  const activeCategoryCounts = openAssignments.reduce((acc, assignment) => {
+    for (const finding of assignment.review?.findings ?? []) {
+      acc.set(finding.category, (acc.get(finding.category) ?? 0) + 1);
+    }
+
+    return acc;
+  }, new Map<string, number>());
+  const contextualKnowledge = knowledgeEntries
+    .filter((entry) => {
+      if (nextFinding && entry.category === nextFinding.category) {
+        return true;
+      }
+
+      if (category && entry.category === category) {
+        return true;
+      }
+
+      return entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH";
+    })
+    .slice(0, 5);
+  const topCategories = Array.from(activeCategoryCounts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "ru"))
+    .slice(0, 5);
+  const quickCategories = topCategories.slice(0, 4);
+  const isSecondaryViewSelected = secondaryViewOptions.some((option) => option.id === view);
+  const resetFiltersHref = view === "active" ? "/coaching" : `/coaching?view=${view}`;
+  const baseCoachingHref = viewHref(view, { q, assigneeId, category });
+  const createTaskHref = `${baseCoachingHref}&create=1`;
+  const createRuleHref = `${baseCoachingHref}&rule=1`;
+  const closeCreatePanelHref = baseCoachingHref;
 
   return (
     <section className="page-shell workspace-shell">
@@ -108,23 +313,33 @@ export default async function CoachingPage() {
           <p className="page-kicker">Развитие качества</p>
           <h1 className="page-title">Обучение</h1>
           <p className="page-subtitle">
-            Один экран для разбора ошибок: что назначено, какой тикет открыть и какое правило закрепить.
+            Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить.
           </p>
+          <div className="admin-actions coaching-command-actions mt-5">
+            <Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} className={`action-button ${createTaskOpen ? "" : "action-button--primary"}`}>
+              {createTaskOpen ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+              {createTaskOpen ? "Скрыть форму" : "Новая задача"}
+            </Link>
+            <Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} className={`action-button ${createRuleOpen ? "" : ""}`}>
+              {createRuleOpen ? <X size={18} aria-hidden="true" /> : <BookOpenCheck size={18} aria-hidden="true" />}
+              {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
+            </Link>
+          </div>
         </div>
         <div className="learning-metrics" aria-label="Сводка обучения">
           <div className="learning-metric">
             <Clock3 size={16} aria-hidden="true" />
-            <span>{openCount}</span>
+            <span>{openAssignments.length}</span>
             <small>в работе</small>
           </div>
-          <div className={`learning-metric ${overdueCount > 0 ? "learning-metric--danger" : "learning-metric--success"}`}>
+          <div className={`learning-metric ${overdueAssignments.length > 0 ? "learning-metric--danger" : "learning-metric--success"}`}>
             <TriangleAlert size={16} aria-hidden="true" />
-            <span>{overdueCount}</span>
+            <span>{overdueAssignments.length}</span>
             <small>просрочено</small>
           </div>
           <div className="learning-metric learning-metric--success">
             <CheckCircle2 size={16} aria-hidden="true" />
-            <span>{doneCount}</span>
+            <span>{doneAssignments.length}</span>
             <small>закрыто</small>
           </div>
           <div className="learning-metric">
@@ -135,30 +350,135 @@ export default async function CoachingPage() {
         </div>
       </div>
 
-      <section className="workflow-focus-strip" aria-label="Фокус обучения">
+      {createTaskOpen ? (
+        <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">
+          <div className="learning-section-header coaching-create-inline__header">
+            <div className="min-w-0">
+              <h2>Новая учебная задача</h2>
+              <p>Привяжите задачу к проверке, чтобы оператор сразу видел контекст ошибки.</p>
+            </div>
+            <Link href={closeCreatePanelHref} className="action-button">
+              Скрыть
+            </Link>
+          </div>
+          <form action={createTrainingAssignment} className="training-create-form coaching-create-inline__form">
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Исполнитель
+              <select name="assigneeId" required className="form-control">
+                <option value="">Выберите оператора</option>
+                {supportUsers.map((supportUser) => (
+                  <option key={supportUser.id} value={supportUser.id}>
+                    {supportUser.name}
+                    {supportUser.teamName ? ` / ${supportUser.teamName}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Проверка
+              <select name="reviewId" className="form-control">
+                <option value="">Без привязки</option>
+                {reviewCandidates.map((review) => (
+                  <option key={review.id} value={review.id}>
+                    {review.conversation.externalId} / {review.findings[0]?.category ?? review.conversation.subject}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Срок
+              <input name="dueAt" type="date" className="form-control" />
+            </label>
+            <label className="training-create-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Задача
+              <input name="title" required placeholder="Например: разбор маршрутизации" className="form-control" />
+            </label>
+            <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Что разобрать
+              <textarea
+                name="description"
+                required
+                rows={3}
+                placeholder="Коротко опишите ошибку, ожидаемое правило и результат разбора."
+                className="form-control"
+              />
+            </label>
+            <div className="training-create-form__action">
+              <ValidatedSubmitButton>Создать задачу</ValidatedSubmitButton>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      {createRuleOpen ? (
+        <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая типовая ошибка">
+          <div className="learning-section-header coaching-create-inline__header">
+            <div className="min-w-0">
+              <h2>Новая типовая ошибка</h2>
+              <p>
+                Правило появится в блоке “Правила для разбора”
+                {ruleFocusCategory ? ` для категории “${ruleFocusCategory}”` : " для похожих разборов"}.
+              </p>
+            </div>
+            <Link href={closeCreatePanelHref} className="action-button">
+              Скрыть
+            </Link>
+          </div>
+          <form action={createKnowledgeEntry} className="training-create-form coaching-create-inline__form coaching-rule-form">
+            <KnowledgeCategoryFields categories={categoryOptions} defaultCategory={ruleCategoryDefault} />
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Риск
+              <select name="riskLevel" defaultValue={ruleFocusRiskLevel} className="form-control">
+                {Object.entries(riskLevelLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="training-create-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Название правила
+              <input name="title" required placeholder="Например: передача без объяснения клиенту" className="form-control" />
+            </label>
+            <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Описание ошибки
+              <textarea name="description" required rows={3} placeholder="Что именно повторяется в проверках и почему это риск." className="form-control" />
+            </label>
+            <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Рекомендация
+              <textarea name="recommendation" required rows={3} placeholder="Как оператор должен действовать в похожем случае." className="form-control" />
+            </label>
+            <div className="training-create-form__action">
+              <ValidatedSubmitButton>Сохранить правило</ValidatedSubmitButton>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="workflow-focus-strip coaching-focus-strip" aria-label="Фокус обучения">
         <div className="workflow-focus-strip__lead">
           <span className="page-kicker">Что разобрать первым</span>
           <strong>{nextAssignment ? nextAssignment.title : "Нет срочных разборов"}</strong>
-          <small>{nextAssignment ? `${nextAssignment.assigneeName} · ${dueText(nextAssignment.dueAt)}` : "Учебные задачи и база ошибок остаются ниже."}</small>
+          <small>{nextAssignment ? `${nextAssignment.assigneeName} / ${dueText(nextAssignment.dueAt)}` : "Активные задачи появятся в очереди ниже."}</small>
         </div>
         <div className="workflow-focus-strip__items">
           {nextConversation ? (
             <Link href={`/reviews/${nextConversation.id}`} className="workflow-focus-card">
               <span>Открыть проверку</span>
               <strong>{nextConversation.externalId}</strong>
-              <small>{nextFinding ? `${nextFinding.category} · ${riskLevelLabels[nextFinding.riskLevel]}` : "Связанная проверка"}</small>
+              <small>{nextFinding ? `${nextFinding.category} / ${riskLevelLabels[nextFinding.riskLevel]}` : "Связанная проверка"}</small>
             </Link>
           ) : (
             <div className="workflow-focus-card workflow-focus-card--static">
               <span>Фокус</span>
-              <strong>{openCount}</strong>
+              <strong>{openAssignments.length}</strong>
               <small>Незакрытых учебных задач</small>
             </div>
           )}
-          <div className={`workflow-focus-card workflow-focus-card--static ${overdueCount > 0 ? "workflow-focus-card--warning" : ""}`}>
+          <div className={`workflow-focus-card workflow-focus-card--static ${overdueAssignments.length > 0 ? "workflow-focus-card--warning" : ""}`}>
             <span>Сроки</span>
-            <strong>{overdueCount}</strong>
-            <small>{overdueCount > 0 ? "Просроченных разборов" : "Нет просроченных задач"}</small>
+            <strong>{overdueAssignments.length}</strong>
+            <small>{overdueAssignments.length > 0 ? "Просроченных разборов" : "Нет просроченных задач"}</small>
           </div>
           <div className="workflow-focus-card workflow-focus-card--static">
             <span>Связь с проверками</span>
@@ -168,80 +488,177 @@ export default async function CoachingPage() {
         </div>
       </section>
 
-      <details className="training-create-panel workflow-create-panel">
-        <summary className="training-create-summary workflow-create-summary">
-          <span className="workflow-create-summary__text">
-            <span className="page-kicker">Назначение разбора</span>
-            <strong>Новая учебная задача</strong>
-            <small>Привяжите задачу к проверке, чтобы оператор сразу видел контекст ошибки.</small>
-          </span>
-          <span className="action-button action-button--primary training-create-summary__button">
-            <PlusCircle size={18} />
-            Новая задача
-          </span>
-        </summary>
-        <form action={createTrainingAssignment} className="training-create-form">
-          <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-            Исполнитель
-            <select name="assigneeId" required className="form-control">
-              <option value="">Выберите оператора</option>
-              {supportUsers.map((supportUser) => (
-                <option key={supportUser.id} value={supportUser.id}>
-                  {supportUser.name}
-                  {supportUser.teamName ? ` · ${supportUser.teamName}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-            Проверка
-            <select name="reviewId" className="form-control">
-              <option value="">Без привязки</option>
-              {reviewCandidates.map((review) => (
-                <option key={review.id} value={review.id}>
-                  {review.conversation.externalId} · {review.findings[0]?.category ?? review.conversation.subject}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-            Срок
-            <input name="dueAt" type="date" className="form-control" />
-          </label>
-          <label className="training-create-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
-            Задача
-            <input name="title" required placeholder="Например: разбор маршрутизации" className="form-control" />
-          </label>
-          <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
-            Что разобрать
-            <textarea
-              name="description"
-              required
-              rows={3}
-              placeholder="Коротко опишите ошибку, ожидаемое правило и результат разбора."
-              className="form-control"
-            />
-          </label>
-          <div className="training-create-form__action">
-            <ValidatedSubmitButton>Создать задачу</ValidatedSubmitButton>
+      <section className="coaching-rule-strip panel" aria-label="Правила для разбора">
+        <div className="learning-section-header coaching-rule-strip__header">
+          <div className="min-w-0">
+            <h2>Правила для разбора</h2>
+            <p>
+              {ruleFocusCategory
+                ? `Показываем правила для категории “${ruleFocusCategory}”.`
+                : "Показываем критичные правила, которые стоит держать перед глазами."}
+            </p>
           </div>
-        </form>
-      </details>
-
-      <section className="learning-layout" aria-label="Обучение и база ошибок">
-        <div className="learning-primary panel">
-          <div className="learning-section-header">
-            <div className="min-w-0">
-              <h2>Учебные задачи</h2>
-              <p>Разборы из проверок, переответов, апелляций и калибровок.</p>
+          <Link href={createRuleHref} className="action-button">
+            <BookOpenCheck size={16} aria-hidden="true" />
+            Добавить правило
+          </Link>
+        </div>
+        <div className="coaching-rule-list">
+          {contextualKnowledge.length > 0 ? (
+            contextualKnowledge.slice(0, 3).map((entry) => (
+              <article key={entry.id} className="coaching-rule-card">
+                <div className="knowledge-compact-card__head">
+                  <span className="pill pill--neutral">{entry.category}</span>
+                  <span className="text-xs font-semibold text-[#64748b]">{riskLevelLabels[entry.riskLevel]}</span>
+                </div>
+                <h3>{entry.title}</h3>
+                <p>{entry.recommendation}</p>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state empty-state--compact coaching-rule-empty">
+              <h3>Нет правила для текущего фокуса</h3>
+              <p>Добавьте типовую ошибку, и она будет показываться здесь для похожих разборов.</p>
             </div>
-            <span className="pill pill--neutral">{assignments.length}</span>
+          )}
+        </div>
+      </section>
+
+      <section className="coaching-control-panel panel" aria-label="Срезы и фильтры обучения">
+        <div className="learning-section-header coaching-control-panel__header">
+          <div className="min-w-0">
+            <h2>Очередь обучения</h2>
+            <p>{selectedViewOption.helper}. Показано {filteredAssignments.length} из {assignments.length}.</p>
+          </div>
+          <span className="pill pill--neutral">{filteredAssignments.length} показано</span>
+        </div>
+        <div className="coaching-control-stack">
+          <div className="coaching-segment-row">
+            <nav className="coaching-segment-list" aria-label="Основные срезы обучения">
+              {primaryViewOptions.map((option) => {
+                const Icon = option.icon;
+
+                return (
+                  <Link
+                    key={option.id}
+                    href={viewHref(option.id, { q, assigneeId, category })}
+                    aria-current={option.id === view ? "page" : undefined}
+                    className={`coaching-segment ${option.id === view ? "coaching-segment--active" : ""} ${
+                      option.id === "overdue" && viewCounts.overdue > 0 ? "coaching-segment--warning" : ""
+                    }`}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    <span>{option.label}</span>
+                    <strong>{viewCounts[option.id]}</strong>
+                  </Link>
+                );
+              })}
+            </nav>
+            <details className={`coaching-more-views ${isSecondaryViewSelected ? "coaching-more-views--active" : ""}`}>
+              <summary>
+                <MoreHorizontal size={16} aria-hidden="true" />
+                <span>{isSecondaryViewSelected ? selectedViewOption.label : "Еще"}</span>
+              </summary>
+              <div className="coaching-more-views__menu">
+                {secondaryViewOptions.map((option) => {
+                  const Icon = option.icon;
+
+                  return (
+                    <Link
+                      key={option.id}
+                      href={viewHref(option.id, { q, assigneeId, category })}
+                      aria-current={option.id === view ? "page" : undefined}
+                      className={option.id === view ? "coaching-more-views__item coaching-more-views__item--active" : "coaching-more-views__item"}
+                    >
+                      <Icon size={15} aria-hidden="true" />
+                      <span>{option.label}</span>
+                      <strong>{viewCounts[option.id]}</strong>
+                    </Link>
+                  );
+                })}
+              </div>
+            </details>
           </div>
 
-          <div className="learning-task-list">
-            {displayedAssignments.length > 0 ? (
-              displayedAssignments.map((assignment) => {
+          <AutoSubmitFilterForm action="/coaching" className="coaching-filter-bar" debounceMs={350}>
+            <input type="hidden" name="view" value={view} />
+            <label className="coaching-filter-bar__search">
+              Поиск
+              <span className="coaching-search-control">
+                <Search size={15} aria-hidden="true" />
+                <input name="q" type="search" defaultValue={q} placeholder="Задача, тикет, категория" className="form-control" />
+              </span>
+            </label>
+            <label>
+              Исполнитель
+              <select name="assigneeId" defaultValue={assigneeId} className="form-control">
+                <option value="">Все операторы</option>
+                {supportUsers.map((supportUser) => (
+                  <option key={supportUser.id} value={supportUser.id}>
+                    {supportUser.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Категория
+              <select name="category" defaultValue={category} className="form-control">
+                <option value="">Все категории</option>
+                {categoryOptions.map((categoryOption) => (
+                  <option key={categoryOption} value={categoryOption}>
+                    {categoryOption}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {q || assigneeId || category ? (
+              <Link href={resetFiltersHref} className="action-button coaching-filter-bar__reset">
+                <SlidersHorizontal size={15} aria-hidden="true" />
+                Сбросить
+              </Link>
+            ) : null}
+          </AutoSubmitFilterForm>
+
+          <div className="coaching-quick-categories" aria-label="Частые категории активных задач">
+            <span>Часто:</span>
+            {category ? (
+              <Link href={viewHref(view, { q, assigneeId, category: "" })} className="coaching-quick-chip">
+                Все категории
+              </Link>
+            ) : null}
+            {quickCategories.length > 0 ? (
+              quickCategories.map(([categoryName, count]) => (
+                <Link
+                  key={categoryName}
+                  href={viewHref(view, { q, assigneeId, category: categoryName })}
+                  className={`coaching-quick-chip ${category === categoryName ? "coaching-quick-chip--active" : ""}`}
+                >
+                  <span>{categoryName}</span>
+                  <strong>{count}</strong>
+                </Link>
+              ))
+            ) : (
+              <span className="coaching-quick-categories__empty">Категории появятся после привязки задач к проверкам.</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="coaching-workbench" aria-label="Рабочая область обучения">
+        <div className="coaching-board panel">
+          <div className="learning-section-header coaching-board__header">
+            <div className="min-w-0">
+              <h2>{selectedViewOption.label}</h2>
+              <p>{selectedViewOption.helper}. Показано {filteredAssignments.length} из {assignments.length}.</p>
+            </div>
+            <span className="pill pill--neutral">{filteredAssignments.length}</span>
+          </div>
+
+          <div className="learning-task-list coaching-task-list">
+            {filteredAssignments.length > 0 ? (
+              filteredAssignments.map((assignment) => {
                 const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
+                const dueThisWeek = assignment.status !== "done" && isDueThisWeek(assignment.dueAt, now);
                 const conversation = assignment.review?.conversation;
                 const finding = assignment.review?.findings[0];
                 const isPriority = nextAssignment?.id === assignment.id;
@@ -249,30 +666,35 @@ export default async function CoachingPage() {
                 return (
                   <article
                     key={assignment.id}
-                    className={`learning-task ${overdue ? "learning-task--urgent" : ""} ${isPriority ? "learning-task--priority" : ""}`}
+                    className={`learning-task coaching-task-row ${overdue ? "learning-task--urgent coaching-task-row--urgent" : ""} ${
+                      isPriority ? "learning-task--priority coaching-task-row--priority" : ""
+                    }`}
                   >
                     <div className="learning-task__marker" aria-hidden="true">
                       <BookOpenCheck size={17} />
                     </div>
                     <div className="learning-task__content">
-                      <div className="learning-task__head">
+                      <div className="learning-task__head coaching-task-row__head">
                         <h3>{assignment.title}</h3>
-                        {isPriority ? <span className="pill pill--warn">Следующий разбор</span> : null}
+                        {isPriority ? <span className="pill pill--warn">Следующий</span> : null}
                         <span className={`pill ${trainingStatusClassName(assignment.status)}`}>
                           {trainingStatusLabel(assignment.status)}
                         </span>
                       </div>
                       <p className="learning-task__description">{assignment.description}</p>
-                      <div className="learning-task__meta">
+                      <div className="learning-task__meta coaching-task-row__meta">
                         <span>{assignment.assigneeName}</span>
-                        <span className={overdue ? "learning-task__meta-chip--warning" : undefined}>{dueText(assignment.dueAt)}</span>
-                        {conversation ? <span>{conversation.externalId}</span> : null}
-                        {finding ? <span>{finding.category} · {riskLevelLabels[finding.riskLevel]}</span> : null}
+                        <span className={overdue ? "learning-task__meta-chip--warning" : dueThisWeek ? "coaching-task-row__meta-chip--soon" : undefined}>
+                          {dueText(assignment.dueAt)}
+                        </span>
+                        {conversation ? <span>{conversation.externalId}</span> : <span>без проверки</span>}
+                        {finding ? <span>{finding.category}</span> : null}
+                        {finding ? <span>{riskLevelLabels[finding.riskLevel]}</span> : null}
                         {assignment.review ? <span>{formatQualityScore(assignment.review.totalScore)}</span> : null}
                         {assignment.review?.needsReanswer ? <span>переответ</span> : null}
                       </div>
                     </div>
-                    <div className="learning-task__actions">
+                    <div className="learning-task__actions coaching-task-row__actions">
                       {conversation ? (
                         <Link href={`/reviews/${conversation.id}`} className="action-button">
                           Открыть
@@ -291,72 +713,12 @@ export default async function CoachingPage() {
               })
             ) : (
               <div className="empty-state">
-                <h3>Нет учебных задач</h3>
-                <p>После проверки с замечанием здесь появится задача на разбор с оператором.</p>
+                <h3>В этом срезе нет задач</h3>
+                <p>Измените фильтры или создайте учебную задачу из проверки с замечанием.</p>
               </div>
             )}
           </div>
         </div>
-
-        <section className="learning-knowledge-panel panel">
-          <div className="learning-section-header">
-            <div className="min-w-0">
-              <h2>База ошибок</h2>
-              <p>Короткие правила рядом с задачами, чтобы сразу закрепить норму.</p>
-            </div>
-            <span className="pill pill--warn">{criticalKnowledgeCount} важных</span>
-          </div>
-          <div className="knowledge-compact-list">
-            {knowledgeEntries.map((entry) => (
-              <article key={entry.id} className="knowledge-compact-card">
-                <div className="knowledge-compact-card__head">
-                  <span className="pill pill--neutral">{entry.category}</span>
-                  <span className="text-xs font-semibold text-[#64748b]">{riskLevelLabels[entry.riskLevel]}</span>
-                </div>
-                <h3>{entry.title}</h3>
-                <p>{entry.recommendation}</p>
-              </article>
-            ))}
-          </div>
-
-          <details className="compact-details knowledge-create-details">
-            <summary className="disclosure-summary knowledge-create-summary">
-              <span className="action-button knowledge-create-summary__button">
-                <PlusCircle size={17} aria-hidden="true" />
-                <span>Добавить типовую ошибку</span>
-              </span>
-            </summary>
-            <form action={createKnowledgeEntry} className="form-stack border-t border-[#d9e0ea] p-4">
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Категория
-                <input name="category" required className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Название
-                <input name="title" required className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Риск
-                <select name="riskLevel" defaultValue="MEDIUM" className="form-control">
-                  {Object.entries(riskLevelLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Описание
-                <textarea name="description" required rows={3} className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Рекомендация
-                <textarea name="recommendation" required rows={3} className="form-control" />
-              </label>
-              <ValidatedSubmitButton>Сохранить</ValidatedSubmitButton>
-            </form>
-          </details>
-        </section>
       </section>
     </section>
   );

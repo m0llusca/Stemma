@@ -27,15 +27,22 @@ export async function createKnowledgeEntry(formData: FormData) {
   await assertCanPersistSettings(user);
 
   const riskLevel = stringField(formData, "riskLevel") || "MEDIUM";
+  const selectedCategory = stringField(formData, "category");
+  const newCategory = stringField(formData, "newCategory");
+  const category = selectedCategory === "__new__" ? newCategory : selectedCategory || newCategory;
 
   if (!riskLevels.includes(riskLevel as RiskLevel)) {
     throw new Error("Некорректный уровень риска.");
   }
 
+  if (!category) {
+    throw new Error("Укажите категорию типовой ошибки.");
+  }
+
   await prisma.qualityKnowledgeEntry.create({
     data: {
       workspaceId: user.workspaceId,
-      category: stringField(formData, "category"),
+      category,
       title: stringField(formData, "title"),
       description: stringField(formData, "description"),
       recommendation: stringField(formData, "recommendation"),

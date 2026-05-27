@@ -151,6 +151,19 @@ describe("HelpTooltip", () => {
     expect(container.querySelector(".help-tooltip")).toHaveAttribute("data-placement", "top-start");
   });
 
+  it("renders the tooltip layer outside clipped ancestors", () => {
+    const { container } = render(
+      <div className="clipped-parent" style={{ overflow: "hidden" }}>
+        <HelpTooltip label="За пределами панели" content="Текст не должен обрезаться родителем." />
+      </div>
+    );
+
+    const tooltip = screen.getByRole("tooltip");
+
+    expect(container.querySelector(".clipped-parent .help-tooltip__content")).not.toBeInTheDocument();
+    expect(tooltip.parentElement).toBe(document.body);
+  });
+
   it("renders block markup inside tooltip content", () => {
     render(<HelpTooltip label="Разметка" content={<p>Блочный контент.</p>} />);
 
