@@ -37,6 +37,10 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
   const dataSourceContract = dataSourceContracts[source as keyof typeof dataSourceContracts];
   const enterpriseMessage = "Корпоративные источники требуют защищенной настройки OAuth-доступов.";
 
+  if (type === "enterprise") {
+    throw new Error(enterpriseMessage);
+  }
+
   if (dataSourceContract) {
     if (type !== dataSourceContract.type) {
       throw new Error("Тип интеграции не соответствует data source contract.");
@@ -45,12 +49,24 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
     return;
   }
 
-  if (type === "enterprise" || contract?.type === "enterprise") {
+  if (contract?.type === "enterprise") {
     throw new Error(enterpriseMessage);
   }
 
   if (contract && type !== contract.type) {
     throw new Error("Тип источника не соответствует контракту Phase B.");
+  }
+
+  if (contract) {
+    return;
+  }
+
+  if (type === "native_helpdesk") {
+    throw new Error("Источник справочной системы не поддерживается.");
+  }
+
+  if (type === "data_source") {
+    throw new Error("Источник данных не поддерживается.");
   }
 }
 

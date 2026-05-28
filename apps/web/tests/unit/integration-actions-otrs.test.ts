@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
       update: vi.fn()
     },
     integrationRun: {
+      findFirst: vi.fn(),
       create: vi.fn()
     },
     backendJob: {
@@ -295,6 +296,51 @@ describe("OTRS integration actions", () => {
       }),
       mocks.prisma
     );
+  });
+
+  it("reuses an in-flight setup dry-run instead of creating a duplicate backend job", async () => {
+    const { recordIntegrationDryRunState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("zendesk", "native_helpdesk");
+    mocks.prisma.integration.upsert.mockResolvedValueOnce({
+      id: "integration-1",
+      source: "zendesk",
+      displayName: "Zendesk",
+      status: "queued",
+      configJson: "{}"
+    });
+    mocks.prisma.integrationRun.findFirst.mockResolvedValueOnce({
+      id: "run-existing",
+      status: "dry_run_queued",
+      requestedLimit: 25,
+      dryRun: true
+    });
+
+    await expect(recordIntegrationDryRunState(null, formData)).resolves.toMatchObject({
+      ok: true,
+      message: "Проверка подключения уже находится в backend-очереди.",
+      integrationId: "integration-1",
+      runId: "run-existing"
+    });
+
+    expect(mocks.prisma.integrationRun.findFirst).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        source: "zendesk",
+        mode: "native_helpdesk",
+        dryRun: true,
+        status: { in: ["dry_run_queued", "queued", "running"] }
+      },
+      orderBy: { startedAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        requestedLimit: true,
+        dryRun: true
+      }
+    });
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
 
   it("accepts YDB data source setup with grpc endpoint and stores credentials in the data source slot", async () => {

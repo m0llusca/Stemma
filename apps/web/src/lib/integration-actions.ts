@@ -21,6 +21,9 @@ export type IntegrationActionState = {
   ok: boolean;
   message: string;
   integrationId?: string;
+  runId?: string;
+  jobId?: string;
+  reusedExistingRun?: boolean;
 } | null;
 
 export type IntegrationImportActionState = {
@@ -29,6 +32,7 @@ export type IntegrationImportActionState = {
   integrationId?: string;
   runId?: string;
   jobId?: string;
+  reusedExistingRun?: boolean;
 } | null;
 
 export type OtrsDiagnosticsActionState = {
@@ -239,6 +243,18 @@ function readIntegrationSetup(formData: FormData) {
 
 function assertSupportedSetupContract(setup: ReturnType<typeof readIntegrationSetup>) {
   assertSupportedSourceMode(setup.source, setup.mode);
+}
+
+const inFlightSetupRunStatuses = ["dry_run_queued", "queued", "running"] as const;
+
+function setupQueueMessage(dryRun: boolean, reusedExistingRun: boolean) {
+  if (reusedExistingRun) {
+    return dryRun ? "Проверка подключения уже находится в backend-очереди." : "Импорт уже находится в backend-очереди.";
+  }
+
+  return dryRun
+    ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит реальный connector runner."
+    : "Импорт поставлен в backend-очередь. Запуск выполнит реальный connector runner.";
 }
 
 const otrsSourceSchema = z
@@ -474,15 +490,43 @@ export async function recordIntegrationDryRun(formData: FormData) {
   assertSupportedSetupContract(setup);
   const runStatus = setup.dryRun ? "dry_run_queued" : "queued";
   const queuedAction = setup.dryRun ? "integration.dry_run_queued" : "integration.import_queued";
+  const now = new Date();
 
-  const integration = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const integration = await upsertIntegrationSetup(
       tx,
       user.workspaceId,
       setup,
       "queued",
-      setup.dryRun ? { lastDryRunAt: new Date() } : { lastImportAt: new Date() }
+      setup.dryRun ? { lastDryRunAt: now } : { lastImportAt: now }
     );
+
+    const existingRun = await tx.integrationRun.findFirst({
+      where: {
+        workspaceId: user.workspaceId,
+        integrationId: integration.id,
+        source: setup.source,
+        mode: setup.mode,
+        dryRun: setup.dryRun,
+        status: { in: [...inFlightSetupRunStatuses] }
+      },
+      orderBy: { startedAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        requestedLimit: true,
+        dryRun: true
+      }
+    });
+
+    if (existingRun) {
+      return {
+        integrationId: integration.id,
+        runId: existingRun.id,
+        reusedExistingRun: true,
+        message: setupQueueMessage(setup.dryRun, true)
+      };
+    }
 
     const run = await tx.integrationRun.create({
       data: {
@@ -541,15 +585,19 @@ export async function recordIntegrationDryRun(formData: FormData) {
       },
       tx
     );
-    return integration;
+    return {
+      integrationId: integration.id,
+      runId: run.id,
+      jobId: job.id,
+      reusedExistingRun: false,
+      message: setupQueueMessage(setup.dryRun, false)
+    };
   });
 
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/system");
 
-  return {
-    integrationId: integration.id
-  };
+  return result;
 }
 
 export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationImportActionState> {
@@ -570,10 +618,11 @@ export async function recordIntegrationDryRunFromInput(input: IntegrationSetupIn
 
   return {
     ok: true,
-    message: parsed.dryRun
-      ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner."
-      : "Импорт поставлен в backend-очередь. Запуск выполнит connector runner.",
-    integrationId: result.integrationId
+    message: result.message,
+    integrationId: result.integrationId,
+    runId: result.runId,
+    jobId: result.jobId,
+    reusedExistingRun: result.reusedExistingRun
   };
 }
 
@@ -849,14 +898,14 @@ export async function saveIntegrationConfigurationState(_state: IntegrationActio
 export async function recordIntegrationDryRunState(_state: IntegrationActionState, formData: FormData): Promise<IntegrationActionState> {
   try {
     const result = await recordIntegrationDryRun(formData);
-    const liveImport = stringField(formData, "dryRun") === "false";
 
     return {
       ok: true,
-      message: liveImport
-        ? "Импорт поставлен в backend-очередь. Запуск выполнит реальный connector runner."
-        : "Проверка подключения поставлена в backend-очередь. Запуск выполнит реальный connector runner.",
-      integrationId: result.integrationId
+      message: result.message,
+      integrationId: result.integrationId,
+      runId: result.runId,
+      jobId: result.jobId,
+      reusedExistingRun: result.reusedExistingRun
     };
   } catch (error) {
     return {
