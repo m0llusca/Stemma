@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import "@/auth/types";
+import { localCredentialsProvider } from "@/auth/providers/local";
 
 export const authConfig = {
   session: {
@@ -13,7 +14,7 @@ export const authConfig = {
     signOut: "/auth/login?loggedOut=1",
     error: "/auth/login"
   },
-  providers: [],
+  providers: [localCredentialsProvider],
   callbacks: {
     session({ session, user }) {
       if (user) {
