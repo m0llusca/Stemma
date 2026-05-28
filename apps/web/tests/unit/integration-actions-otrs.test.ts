@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const prisma = {
     $transaction: vi.fn(),
+    $executeRawUnsafe: vi.fn(),
     integration: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
@@ -120,6 +121,7 @@ describe("OTRS integration actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.prisma.$executeRawUnsafe.mockResolvedValue(0);
     mocks.getCurrentUser.mockResolvedValue(authorizedUser());
     mocks.canManageIntegrations.mockReturnValue(true);
     mocks.requireSessionApi.mockResolvedValue({
@@ -340,6 +342,57 @@ describe("OTRS integration actions", () => {
         dryRun: true
       }
     });
+    expect(mocks.prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      "integration_setup:workspace-1:integration-1:zendesk:native_helpdesk:true"
+    );
+    expect(mocks.prisma.$executeRawUnsafe.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.prisma.integrationRun.findFirst.mock.invocationCallOrder[0]
+    );
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects native setup queueing without a required token before creating a run", async () => {
+    const { recordIntegrationDryRunState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("zendesk", "native_helpdesk");
+    formData.delete("nativeToken");
+    mocks.prisma.integration.upsert.mockResolvedValueOnce({
+      id: "integration-1",
+      source: "zendesk",
+      displayName: "Zendesk",
+      status: "queued",
+      configJson: "{}"
+    });
+
+    await expect(recordIntegrationDryRunState(null, formData)).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining("secret slots")
+    });
+
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects data source setup queueing without a required secret before creating a run", async () => {
+    const { recordIntegrationDryRunState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("ytsaurus", "data_source");
+    formData.set("baseUrl", "https://yt.example.com");
+    formData.delete("nativeToken");
+    formData.delete("dataSourceSecret");
+    mocks.prisma.integration.upsert.mockResolvedValueOnce({
+      id: "integration-1",
+      source: "ytsaurus",
+      displayName: "YTsaurus",
+      status: "queued",
+      configJson: "{}"
+    });
+
+    await expect(recordIntegrationDryRunState(null, formData)).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining("secret slots")
+    });
+
     expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
@@ -441,6 +494,58 @@ describe("OTRS integration actions", () => {
         kind: "data_source_credentials",
         authMode: "data_source_secret",
         secret: JSON.stringify({ username: "qa", password: "secret" })
+      })
+    );
+  });
+
+  it("rejects YDB data source setup with http endpoint before queueing", async () => {
+    const { saveIntegrationConfigurationState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("ydb", "data_source");
+    formData.set("baseUrl", "https://ydb.example.com/local");
+    formData.set("dataSourceSecret", JSON.stringify({ username: "qa", password: "secret" }));
+
+    await expect(saveIntegrationConfigurationState(null, formData)).resolves.toMatchObject({
+      ok: false,
+      message: "Base URL должен начинаться с grpc:// или grpcs://."
+    });
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integration.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects YTsaurus data source setup with grpc endpoint", async () => {
+    const { saveIntegrationConfigurationState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("ytsaurus", "data_source");
+    formData.set("baseUrl", "grpc://yt.example.com");
+    formData.set("dataSourceSecret", "yt-token");
+
+    await expect(saveIntegrationConfigurationState(null, formData)).resolves.toMatchObject({
+      ok: false,
+      message: "Base URL должен начинаться с http:// или https://."
+    });
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integration.upsert).not.toHaveBeenCalled();
+  });
+
+  it("stores uppercase YTsaurus data source secrets in the token slot", async () => {
+    const { saveIntegrationConfigurationState } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("YTsaurus", "data_source");
+    formData.set("baseUrl", "https://yt.example.com");
+    formData.set("dataSourceSecret", "yt-oauth-token");
+    formData.set("dataSourceTablePath", "//home/support/conversations");
+
+    await expect(saveIntegrationConfigurationState(null, formData)).resolves.toMatchObject({
+      ok: true,
+      integrationId: "integration-1"
+    });
+
+    expect(mocks.upsertIntegrationSecretSlot).toHaveBeenCalledWith(
+      mocks.prisma,
+      expect.objectContaining({
+        kind: "data_source_token",
+        authMode: "data_source_secret",
+        secret: "yt-oauth-token"
       })
     );
   });
@@ -684,6 +789,34 @@ describe("OTRS integration actions", () => {
     });
   });
 
+  it("returns 409 from the selected OTRS import API when required secret slots are missing", async () => {
+    const { POST } = await import("@/app/api/v1/integrations/[integrationId]/import/route");
+    mocks.queueSelectedOtrsImportJob.mockRejectedValueOnce(new Error("Не заполнены требуемые secret slots: auth_password."));
+
+    const response = await POST(
+      new Request("https://qc.example.test/api/v1/integrations/integration-1/import", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-selected-missing-secret"
+        },
+        body: JSON.stringify({
+          integrationRunId: "run-1",
+          integrationRunItemIds: ["item-1"]
+        })
+      }),
+      { params: Promise.resolve({ integrationId: "integration-1" }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toMatchObject({
+      code: "conflict",
+      message: "Не заполнены требуемые secret slots: auth_password.",
+      requestId: "request-selected-missing-secret"
+    });
+  });
+
   it("maps enterprise connector import guard errors to a controlled REST import response", async () => {
     const { POST } = await import("@/app/api/v1/integrations/[integrationId]/imports/route");
     mocks.queueIntegrationImportJob.mockRejectedValueOnce(
@@ -720,6 +853,35 @@ describe("OTRS integration actions", () => {
       dryRun: false,
       requestedLimit: 10,
       runAfter: undefined
+    });
+  });
+
+  it("maps missing integration secret slot errors to a controlled REST import response", async () => {
+    const { POST } = await import("@/app/api/v1/integrations/[integrationId]/imports/route");
+    mocks.queueIntegrationImportJob.mockRejectedValueOnce(new Error("Не заполнены требуемые secret slots: auth_password."));
+
+    const response = await POST(
+      new Request("https://qc.example.test/api/v1/integrations/integration-1/imports", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-missing-secret"
+        },
+        body: JSON.stringify({
+          dryRun: true,
+          requestedLimit: 10
+        })
+      }),
+      { params: Promise.resolve({ integrationId: "integration-1" }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("x-request-id")).toBe("request-missing-secret");
+    expect(body.error).toMatchObject({
+      code: "conflict",
+      message: "Не заполнены требуемые secret slots: auth_password.",
+      requestId: "request-missing-secret"
     });
   });
 });

@@ -1,8 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import "@/auth/types";
 import { createQcAuthAdapter } from "@/auth/adapter";
-import { enterpriseAssertionProvider } from "@/auth/providers/assertion";
-import { localCredentialsProvider } from "@/auth/providers/local";
 
 export const authConfig = {
   adapter: createQcAuthAdapter(),
@@ -11,13 +9,18 @@ export const authConfig = {
     maxAge: 60 * 60 * 12,
     updateAge: 60 * 5
   },
+  cookies: {
+    sessionToken: {
+      name: "authjs.session-token"
+    }
+  },
   trustHost: true,
   pages: {
     signIn: "/auth/login",
     signOut: "/auth/login?loggedOut=1",
     error: "/auth/login"
   },
-  providers: [localCredentialsProvider, enterpriseAssertionProvider],
+  providers: [],
   callbacks: {
     session({ session, user }) {
       if (user) {

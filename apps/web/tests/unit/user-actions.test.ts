@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     }
   },
   authSignIn: vi.fn(),
+  authorizeLocalCredentials: vi.fn(),
   createAuthSession: vi.fn(),
   cookieDelete: vi.fn(),
   cookieSet: vi.fn(),
@@ -48,7 +49,8 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
-  revalidatePath: vi.fn()
+  revalidatePath: vi.fn(),
+  setAuthSessionCookies: vi.fn()
 }));
 
 vi.mock("next/cache", () => ({
@@ -74,12 +76,16 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/auth/session", () => ({
   createAuthSession: mocks.createAuthSession,
+  setAuthSessionCookies: mocks.setAuthSessionCookies,
   sessionCookieName: "qc_session"
 }));
 
 vi.mock("@/lib/auth/local-credentials", () => ({
-  normalizeLocalLogin: (value: string) => value.trim().toLowerCase(),
-  verifyLocalPassword: vi.fn(() => true)
+  normalizeLocalLogin: (value: string) => value.trim().toLowerCase()
+}));
+
+vi.mock("@/auth/providers/local", () => ({
+  authorizeLocalCredentials: mocks.authorizeLocalCredentials
 }));
 
 vi.mock("@/lib/current-user", () => ({
@@ -94,25 +100,39 @@ vi.mock("@/lib/db", () => ({
 describe("user actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.authSignIn.mockResolvedValue(undefined);
+    mocks.authSignIn.mockRejectedValue(new Error("Auth.js signIn should not be called by local credential actions."));
+    mocks.authorizeLocalCredentials.mockResolvedValue(null);
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.isDemoAuthEnabled.mockReturnValue(true);
     mocks.headerGet.mockReturnValue("vitest-agent");
     mocks.headers.mockResolvedValue({ get: mocks.headerGet });
     mocks.cookies.mockResolvedValue({ set: mocks.cookieSet, delete: mocks.cookieDelete });
     mocks.createAuthSession.mockResolvedValue({ token: "session-token" });
+    mocks.setAuthSessionCookies.mockImplementation(
+      (cookieStore: { set: (name: string, value: string, options: Record<string, unknown>) => void }, token: string) => {
+        const options = {
+          httpOnly: true,
+          maxAge: 60 * 60 * 12,
+          path: "/",
+          sameSite: "lax",
+          secure: false
+        };
+        cookieStore.set("authjs.session-token", token, options);
+        cookieStore.set("qc_session", token, options);
+      }
+    );
     mocks.prisma.externalIdentity.count.mockResolvedValue(0);
     mocks.prisma.identityProvider.count.mockResolvedValue(0);
     mocks.prisma.identityProvider.findFirst.mockResolvedValue({ id: "demo-provider" });
     mocks.prisma.localCredential.findFirst.mockResolvedValue(null);
+    mocks.prisma.user.findFirst.mockResolvedValue(null);
     mocks.prisma.user.findUnique.mockResolvedValue(null);
     mocks.prisma.workspace.create.mockResolvedValue({ id: "primary-workspace" });
     mocks.prisma.workspace.findFirst.mockResolvedValue({ id: "primary-workspace" });
   });
 
-  it("stores failed local sign-in state in a flash cookie instead of the URL when Auth.js rejects credentials", async () => {
-    const { AuthError } = await import("next-auth");
-    mocks.authSignIn.mockRejectedValue(new AuthError("CredentialsSignin"));
+  it("stores failed local sign-in state in a flash cookie instead of the URL when local authorization rejects credentials", async () => {
+    mocks.authorizeLocalCredentials.mockResolvedValue(null);
     const { signInWithLocalCredentials } = await import("@/lib/user-actions");
     const formData = new FormData();
     formData.set("login", " DUBROVSKYRK ");
@@ -121,10 +141,9 @@ describe("user actions", () => {
 
     await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/login?returnTo=%2F");
 
-    expect(mocks.authSignIn).toHaveBeenCalledWith("credentials", {
+    expect(mocks.authorizeLocalCredentials).toHaveBeenCalledWith({
       login: "dubrovskyrk",
-      password: "wrong-password",
-      redirectTo: "/"
+      password: "wrong-password"
     });
     expect(mocks.cookieSet).toHaveBeenCalledWith(
       "qc_login_flash",
@@ -136,9 +155,12 @@ describe("user actions", () => {
       })
     );
     expect(mocks.redirect).toHaveBeenCalledWith("/auth/login?returnTo=%2F");
+    expect(mocks.createAuthSession).not.toHaveBeenCalled();
+    expect(mocks.setAuthSessionCookies).not.toHaveBeenCalled();
+    expect(mocks.authSignIn).not.toHaveBeenCalled();
   });
 
-  it("rejects empty local credentials before calling Auth.js", async () => {
+  it("rejects empty local credentials before calling local authorization", async () => {
     const { signInWithLocalCredentials } = await import("@/lib/user-actions");
     const formData = new FormData();
     formData.set("login", " ");
@@ -147,6 +169,7 @@ describe("user actions", () => {
 
     await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/login?returnTo=%2Freviews");
 
+    expect(mocks.authorizeLocalCredentials).not.toHaveBeenCalled();
     expect(mocks.authSignIn).not.toHaveBeenCalled();
     expect(mocks.cookieSet).toHaveBeenCalledWith(
       "qc_login_flash",
@@ -159,8 +182,14 @@ describe("user actions", () => {
     );
   });
 
-  it("delegates local credentials to Auth.js signIn with normalized login and safe redirect", async () => {
-    mocks.authSignIn.mockRejectedValue(new Error("NEXT_REDIRECT:/reviews"));
+  it("creates an AuthSession and sets Auth.js plus legacy cookies for successful local sign-in", async () => {
+    mocks.authorizeLocalCredentials.mockResolvedValue({
+      id: "real-user",
+      workspaceId: "workspace-1",
+      email: "real.admin@example.com",
+      name: "Real Admin",
+      role: "ADMIN"
+    });
     const { signInWithLocalCredentials } = await import("@/lib/user-actions");
     const formData = new FormData();
     formData.set("login", " Real-Admin ");
@@ -169,31 +198,96 @@ describe("user actions", () => {
 
     await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/reviews");
 
-    expect(mocks.authSignIn).toHaveBeenCalledWith("credentials", {
+    expect(mocks.authorizeLocalCredentials).toHaveBeenCalledWith({
       login: "real-admin",
-      password: "local-password-123",
-      redirectTo: "/reviews"
+      password: "local-password-123"
     });
-    expect(mocks.cookieSet).not.toHaveBeenCalled();
-    expect(mocks.createAuthSession).not.toHaveBeenCalled();
+    expect(mocks.createAuthSession).toHaveBeenCalledWith({
+      userId: "real-user",
+      userAgent: "vitest-agent"
+    });
+    expect(mocks.setAuthSessionCookies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delete: mocks.cookieDelete,
+        set: mocks.cookieSet
+      }),
+      "session-token"
+    );
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      "authjs.session-token",
+      "session-token",
+      expect.objectContaining({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax"
+      })
+    );
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      "qc_session",
+      "session-token",
+      expect.objectContaining({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax"
+      })
+    );
+    expect(mocks.cookieDelete).toHaveBeenCalledWith("qc_login_flash");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+    expect(mocks.authSignIn).not.toHaveBeenCalled();
   });
 
-  it("preserves Auth.js server-action redirects for successful local sign-in", async () => {
-    mocks.authSignIn.mockRejectedValue(new Error("NEXT_REDIRECT:/reviews"));
-    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+  it("keeps demo sign-in behavior while using the shared session cookie helper", async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "demo-user",
+      workspaceId: "demo-workspace",
+      role: "SUPPORT_AGENT"
+    });
+    const { signInWithDemoUser } = await import("@/lib/user-actions");
     const formData = new FormData();
-    formData.set("login", " real-admin ");
-    formData.set("password", "local-password-123");
+    formData.set("userId", "demo-user");
     formData.set("returnTo", "/reviews");
 
-    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/reviews");
+    await expect(signInWithDemoUser(formData)).rejects.toThrow("NEXT_REDIRECT:/self-review");
 
-    expect(mocks.authSignIn).toHaveBeenCalledWith("credentials", {
-      login: "real-admin",
-      password: "local-password-123",
-      redirectTo: "/reviews"
+    expect(mocks.createAuthSession).toHaveBeenCalledWith({
+      providerId: "demo-provider",
+      userAgent: "vitest-agent",
+      userId: "demo-user"
     });
-    expect(mocks.cookieSet).not.toHaveBeenCalled();
+    expect(mocks.setAuthSessionCookies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delete: mocks.cookieDelete,
+        set: mocks.cookieSet
+      }),
+      "session-token"
+    );
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      "authjs.session-token",
+      "session-token",
+      expect.objectContaining({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax"
+      })
+    );
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      "qc_session",
+      "session-token",
+      expect.objectContaining({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax"
+      })
+    );
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      "qc_current_user_id",
+      "demo-user",
+      expect.objectContaining({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax"
+      })
+    );
   });
 
   it("keeps sidebar demo switching disabled when demo auth is off", async () => {

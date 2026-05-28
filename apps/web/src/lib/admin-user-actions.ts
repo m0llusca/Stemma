@@ -91,7 +91,6 @@ export async function createLocalUser(formData: FormData) {
 
     const existingCredential = await tx.localCredential.findFirst({
       where: {
-        workspaceId: actor.workspaceId,
         login
       },
       select: { id: true }

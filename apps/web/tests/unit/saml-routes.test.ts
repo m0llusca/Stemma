@@ -6,7 +6,9 @@ const mocks = vi.hoisted(() => ({
   generateSamlMetadata: vi.fn(),
   validateSamlPostResponse: vi.fn(),
   upsertUserFromSamlProfile: vi.fn(),
-  signIn: vi.fn(),
+  createEnterpriseAssertion: vi.fn(),
+  issueSessionFromEnterpriseAssertion: vi.fn(),
+  setAuthSessionCookies: vi.fn(),
   logBackendEvent: vi.fn(),
   requestIdFromHeaders: vi.fn(() => "req-1"),
   prisma: {
@@ -27,8 +29,13 @@ vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
 
-vi.mock("../../auth", () => ({
-  signIn: mocks.signIn
+vi.mock("@/auth/providers/assertion", () => ({
+  createEnterpriseAssertion: mocks.createEnterpriseAssertion,
+  issueSessionFromEnterpriseAssertion: mocks.issueSessionFromEnterpriseAssertion
+}));
+
+vi.mock("@/lib/auth/session", () => ({
+  setAuthSessionCookies: mocks.setAuthSessionCookies
 }));
 
 vi.mock("@/lib/observability", () => ({
@@ -55,7 +62,19 @@ describe("SAML auth routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.identityProvider.findFirst.mockResolvedValue(activeSamlProvider());
-    mocks.signIn.mockResolvedValue({ ok: true });
+    mocks.createEnterpriseAssertion.mockResolvedValue({
+      token: "assertion-token",
+      key: "assertion-token",
+      expiresAt: new Date("2026-05-28T10:00:00.000Z")
+    });
+    mocks.issueSessionFromEnterpriseAssertion.mockResolvedValue({
+      token: "db-session-token",
+      session: { id: "session-1", userId: "user-1" }
+    });
+    mocks.setAuthSessionCookies.mockImplementation((cookieStore, sessionToken) => {
+      cookieStore.set("authjs.session-token", sessionToken, { path: "/", maxAge: 43_200 });
+      cookieStore.set("qc_session", sessionToken, { path: "/", maxAge: 43_200 });
+    });
   });
 
   afterEach(() => {
@@ -109,35 +128,44 @@ describe("SAML auth routes", () => {
     });
   });
 
-  it("validates ACS responses and issues an Auth.js session with a safe RelayState redirect", async () => {
+  it("validates ACS responses and sets Auth.js plus legacy cookies with a safe RelayState redirect", async () => {
     const formData = new URLSearchParams();
     formData.set("SAMLResponse", "base64-response");
     formData.set("RelayState", "/reviews");
     mocks.validateSamlPostResponse.mockResolvedValue({ nameID: "name-id-1", mail: "agent@example.com" });
     mocks.upsertUserFromSamlProfile.mockResolvedValue({
-      session: {
-        token: "session-token",
-        session: { id: "session-1", userId: "user-1" }
-      }
+      user: { id: "user-1", workspaceId: "workspace-1", role: "QA_ANALYST" },
+      role: "QA_ANALYST"
     });
 
     const { POST } = await import("@/app/auth/saml/acs/route");
     const response = await POST(
       new NextRequest("https://app.example.com/auth/saml/acs?providerId=provider-1&workspaceId=workspace-1", {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-host": "attacker.example.com" },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "user-agent": "vitest-saml",
+          "x-forwarded-host": "attacker.example.com"
+        },
         body: formData
       })
     );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://app.example.com/reviews");
-    expect(response.cookies.get("qc_session")).toBeUndefined();
-    expect(mocks.signIn).toHaveBeenCalledWith("enterprise-assertion", {
+    expect(response.cookies.get("authjs.session-token")?.value).toBe("db-session-token");
+    expect(response.cookies.get("qc_session")?.value).toBe("db-session-token");
+    expect(mocks.createEnterpriseAssertion).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
       userId: "user-1",
-      providerId: "provider-1",
-      redirect: false
+      providerId: "provider-1"
     });
+    expect(mocks.issueSessionFromEnterpriseAssertion).toHaveBeenCalledWith({
+      token: "assertion-token",
+      providerId: "provider-1",
+      userAgent: "vitest-saml"
+    });
+    expect(mocks.setAuthSessionCookies).toHaveBeenCalledWith(expect.any(Object), "db-session-token");
     expect(mocks.validateSamlPostResponse).toHaveBeenCalledWith({
       provider: expect.objectContaining({ id: "provider-1" }),
       origin: "https://app.example.com",

@@ -1,5 +1,4 @@
-import type { RoleName, UserLifecycleStatus } from "@prisma/client";
-import Credentials from "next-auth/providers/credentials";
+import type { Prisma, RoleName, UserLifecycleStatus } from "@prisma/client";
 import type { AppAuthUser } from "@/auth/types";
 import { normalizeLocalLogin, verifyLocalPassword } from "@/lib/auth/local-credentials";
 import { prisma } from "@/lib/db";
@@ -27,6 +26,27 @@ type LocalCredentialForAuthorization = {
     lifecycleStatus: UserLifecycleStatus;
   };
 };
+type LocalCredentialLockClient = Pick<Prisma.TransactionClient, "$executeRawUnsafe" | "localCredential">;
+
+const localCredentialAuthorizationSelect = {
+  id: true,
+  passwordHash: true,
+  passwordSalt: true,
+  keyVersion: true,
+  failedLoginCount: true,
+  failedLoginWindowStart: true,
+  lockedUntil: true,
+  user: {
+    select: {
+      id: true,
+      workspaceId: true,
+      email: true,
+      name: true,
+      role: true,
+      lifecycleStatus: true
+    }
+  }
+} as const;
 
 function stringCredential(credentials: LocalCredentialsInput, key: "login" | "password") {
   const value = credentials?.[key];
@@ -47,13 +67,32 @@ function failedWindowStart(credential: LocalCredentialForAuthorization, now: Dat
   return windowStart;
 }
 
-async function recordFailedLogin(credential: LocalCredentialForAuthorization, now: Date) {
+async function withLocalCredentialLock<T>(
+  credentialId: string,
+  operation: (tx: LocalCredentialLockClient, credential: LocalCredentialForAuthorization, now: Date) => Promise<T>
+) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `local_credential:${credentialId}`);
+    const current = await tx.localCredential.findUnique({
+      where: { id: credentialId },
+      select: localCredentialAuthorizationSelect
+    });
+
+    if (!current) {
+      return null;
+    }
+
+    return operation(tx, current, new Date());
+  });
+}
+
+async function recordFailedLogin(tx: LocalCredentialLockClient, credential: LocalCredentialForAuthorization, now: Date) {
   const nextWindowStart = failedWindowStart(credential, now);
   const isExistingWindow = nextWindowStart === credential.failedLoginWindowStart;
   const failedLoginCount = isExistingWindow ? credential.failedLoginCount + 1 : 1;
   const lockedUntil = failedLoginCount >= failedLoginLimit ? new Date(now.getTime() + failedLoginLockoutMs) : null;
 
-  await prisma.localCredential.update({
+  await tx.localCredential.update({
     where: {
       id: credential.id
     },
@@ -66,8 +105,8 @@ async function recordFailedLogin(credential: LocalCredentialForAuthorization, no
   });
 }
 
-async function resetFailedLoginState(credential: LocalCredentialForAuthorization, now: Date) {
-  await prisma.localCredential.update({
+async function resetFailedLoginState(tx: LocalCredentialLockClient, credential: LocalCredentialForAuthorization, now: Date) {
+  await tx.localCredential.update({
     where: {
       id: credential.id
     },
@@ -99,68 +138,39 @@ export async function authorizeLocalCredentials(credentials: LocalCredentialsInp
     return null;
   }
 
-  const credential = await prisma.localCredential.findFirst({
+  const matchingCredentials = await prisma.localCredential.findMany({
     where: {
       login
     },
-    select: {
-      id: true,
-      passwordHash: true,
-      passwordSalt: true,
-      keyVersion: true,
-      failedLoginCount: true,
-      failedLoginWindowStart: true,
-      lockedUntil: true,
-      user: {
-        select: {
-          id: true,
-          workspaceId: true,
-          email: true,
-          name: true,
-          role: true,
-          lifecycleStatus: true
-        }
-      }
+    take: 2,
+    select: localCredentialAuthorizationSelect
+  });
+
+  const [credential] = matchingCredentials;
+
+  if (!credential || matchingCredentials.length > 1) {
+    return null;
+  }
+
+  return withLocalCredentialLock(credential.id, async (tx, current, lockedAt) => {
+    if (isLocked(current, lockedAt) || current.user.lifecycleStatus !== "ACTIVE") {
+      return null;
     }
+
+    const passwordMatches = await verifyLocalPassword({
+      password,
+      passwordHash: current.passwordHash,
+      passwordSalt: current.passwordSalt,
+      keyVersion: current.keyVersion
+    });
+
+    if (!passwordMatches) {
+      await recordFailedLogin(tx, current, lockedAt);
+      return null;
+    }
+
+    await resetFailedLoginState(tx, current, lockedAt);
+
+    return authUserFromCredential(current);
   });
-
-  if (!credential) {
-    return null;
-  }
-
-  const now = new Date();
-
-  if (isLocked(credential, now)) {
-    return null;
-  }
-
-  const passwordMatches = await verifyLocalPassword({
-    password,
-    passwordHash: credential.passwordHash,
-    passwordSalt: credential.passwordSalt,
-    keyVersion: credential.keyVersion
-  });
-
-  if (!passwordMatches) {
-    await recordFailedLogin(credential, now);
-    return null;
-  }
-
-  if (credential.user.lifecycleStatus !== "ACTIVE") {
-    return null;
-  }
-
-  await resetFailedLoginState(credential, now);
-
-  return authUserFromCredential(credential);
 }
-
-export const localCredentialsProvider = Credentials({
-  id: "credentials",
-  name: "Local credentials",
-  credentials: {
-    login: { label: "Login", type: "text" },
-    password: { label: "Password", type: "password" }
-  },
-  authorize: authorizeLocalCredentials
-});

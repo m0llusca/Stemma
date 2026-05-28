@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => ({
   exchangeAuthorizationCode: vi.fn(),
   validateIdToken: vi.fn(),
   upsertUserFromOidcClaims: vi.fn(),
-  signIn: vi.fn(),
+  createEnterpriseAssertion: vi.fn(),
+  issueSessionFromEnterpriseAssertion: vi.fn(),
+  setAuthSessionCookies: vi.fn(),
   logBackendEvent: vi.fn(),
   requestIdFromHeaders: vi.fn(() => "req-1"),
   prisma: {
@@ -34,8 +36,13 @@ vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
 
-vi.mock("../../auth", () => ({
-  signIn: mocks.signIn
+vi.mock("@/auth/providers/assertion", () => ({
+  createEnterpriseAssertion: mocks.createEnterpriseAssertion,
+  issueSessionFromEnterpriseAssertion: mocks.issueSessionFromEnterpriseAssertion
+}));
+
+vi.mock("@/lib/auth/session", () => ({
+  setAuthSessionCookies: mocks.setAuthSessionCookies
 }));
 
 vi.mock("@/lib/observability", () => ({
@@ -65,12 +72,28 @@ describe("OIDC callback route public origin", () => {
     });
     mocks.validateIdToken.mockResolvedValue({ sub: "user-1", email: "agent@example.com" });
     mocks.upsertUserFromOidcClaims.mockResolvedValue({
-      session: {
-        token: "session-token",
-        session: { id: "session-1", userId: "user-1" }
-      }
+      user: {
+        id: "user-1",
+        workspaceId: "workspace-1",
+        email: "agent@example.com",
+        name: "Agent One",
+        role: "SUPPORT_AGENT"
+      },
+      role: "SUPPORT_AGENT"
     });
-    mocks.signIn.mockResolvedValue({ ok: true });
+    mocks.createEnterpriseAssertion.mockResolvedValue({
+      token: "assertion-token-1",
+      key: "assertion-token-1",
+      expiresAt: new Date("2099-01-01T00:00:00.000Z")
+    });
+    mocks.issueSessionFromEnterpriseAssertion.mockResolvedValue({
+      token: "db-session-token",
+      session: { id: "session-1", userId: "user-1" }
+    });
+    mocks.setAuthSessionCookies.mockImplementation((cookieStore, sessionToken) => {
+      cookieStore.set("authjs.session-token", sessionToken, { path: "/", maxAge: 43_200 });
+      cookieStore.set("qc_session", sessionToken, { path: "/", maxAge: 43_200 });
+    });
   });
 
   afterEach(() => {
@@ -94,116 +117,41 @@ describe("OIDC callback route public origin", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(mocks.signIn).toHaveBeenCalledWith("enterprise-assertion", {
-      userId: "user-1",
-      providerId: "provider-1",
-      redirect: false
-    });
     expect(mocks.exchangeAuthorizationCode).toHaveBeenCalledWith({
       provider: expect.objectContaining({ id: "provider-1" }),
       code: "code-1",
       redirectUri: "https://app.example.com/auth/callback",
       codeVerifier: "verifier-1"
     });
+    expect(mocks.upsertUserFromOidcClaims).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      providerId: "provider-1",
+      claims: { sub: "user-1", email: "agent@example.com" },
+      accessToken: "access-token",
+      userAgent: null
+    });
+    expect(mocks.createEnterpriseAssertion).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      userId: "user-1",
+      providerId: "provider-1"
+    });
+    expect(mocks.issueSessionFromEnterpriseAssertion).toHaveBeenCalledWith({
+      token: "assertion-token-1",
+      providerId: "provider-1",
+      userAgent: null
+    });
+    expect(mocks.setAuthSessionCookies).toHaveBeenCalledWith(expect.any(Object), "db-session-token");
+    expect(response.cookies.get("authjs.session-token")?.value).toBe("db-session-token");
+    expect(response.cookies.get("qc_session")?.value).toBe("db-session-token");
     expect(response.headers.get("location")).toBe("https://app.example.com/reviews");
-  });
-});
-
-describe("enterprise assertion credentials provider", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("registers the assertion provider with database session projection for Auth.js issuance", async () => {
-    const { authConfig } = await import("@/auth/config");
-
-    expect(authConfig.session.strategy).toBe("database");
-    expect(authConfig.providers).toContainEqual(expect.objectContaining({ id: "enterprise-assertion", type: "credentials" }));
-
-    const session = await authConfig.callbacks.session({
-      session: { user: {}, expires: "2099-01-01T00:00:00.000Z" },
-      user: {
-        id: "user-1",
-        workspaceId: "workspace-1",
-        email: "agent@example.com",
-        emailVerified: null,
-        name: "Agent One",
-        role: "SUPPORT_AGENT"
-      }
-    } as never);
-
-    expect(session.user).toEqual({
-      id: "user-1",
+    expect(mocks.logBackendEvent).toHaveBeenCalledWith({
+      requestId: "req-1",
+      event: "auth.oidc.login_succeeded",
       workspaceId: "workspace-1",
-      email: "agent@example.com",
-      emailVerified: null,
-      name: "Agent One",
-      role: "SUPPORT_AGENT"
-    });
-  });
-
-  it("returns canonical Auth.js user fields for active assertion users", async () => {
-    mocks.prisma.user.findUnique.mockResolvedValue({
-      id: "user-1",
-      workspaceId: "workspace-1",
-      email: "agent@example.com",
-      name: "Agent One",
-      role: "SUPPORT_AGENT",
-      lifecycleStatus: "ACTIVE"
-    });
-    mocks.prisma.identityProvider.findFirst.mockResolvedValue({
-      id: "provider-1",
-      workspaceId: "workspace-1",
-      status: "active"
-    });
-
-    const { authorizeEnterpriseAssertion } = await import("@/auth/providers/assertion");
-
-    await expect(authorizeEnterpriseAssertion({ userId: "user-1", providerId: "provider-1" })).resolves.toEqual({
-      id: "user-1",
-      workspaceId: "workspace-1",
-      email: "agent@example.com",
-      name: "Agent One",
-      role: "SUPPORT_AGENT"
-    });
-  });
-
-  it("refuses inactive assertion users", async () => {
-    mocks.prisma.user.findUnique.mockResolvedValue({
-      id: "user-1",
-      workspaceId: "workspace-1",
-      email: "agent@example.com",
-      name: "Agent One",
-      role: "SUPPORT_AGENT",
-      lifecycleStatus: "SUSPENDED"
-    });
-
-    const { authorizeEnterpriseAssertion } = await import("@/auth/providers/assertion");
-
-    await expect(authorizeEnterpriseAssertion({ userId: "user-1" })).resolves.toBeNull();
-    expect(mocks.prisma.identityProvider.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("refuses assertions for providers outside the user workspace", async () => {
-    mocks.prisma.user.findUnique.mockResolvedValue({
-      id: "user-1",
-      workspaceId: "workspace-1",
-      email: "agent@example.com",
-      name: "Agent One",
-      role: "SUPPORT_AGENT",
-      lifecycleStatus: "ACTIVE"
-    });
-    mocks.prisma.identityProvider.findFirst.mockResolvedValue(null);
-
-    const { authorizeEnterpriseAssertion } = await import("@/auth/providers/assertion");
-
-    await expect(authorizeEnterpriseAssertion({ userId: "user-1", providerId: "provider-2" })).resolves.toBeNull();
-    expect(mocks.prisma.identityProvider.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "provider-2",
-        workspaceId: "workspace-1",
-        status: "active"
-      }
+      actorId: "user-1",
+      targetType: "identity_provider",
+      targetId: "provider-1",
+      metadata: { sessionId: "session-1" }
     });
   });
 });

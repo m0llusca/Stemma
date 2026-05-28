@@ -49,7 +49,8 @@ describe("integration import service", () => {
       workspaceId: "workspace-1",
       source: "zendesk",
       type: "native_helpdesk",
-      importLimit: 25
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
     });
     mocks.prisma.integrationRun.create.mockResolvedValue({
       id: "run-1",
@@ -73,6 +74,13 @@ describe("integration import service", () => {
       where: {
         id: "integration-1",
         workspaceId: "workspace-1"
+      },
+      include: {
+        credentials: {
+          select: {
+            kind: true
+          }
+        }
       }
     });
     expect(mocks.prisma.integrationRun.create).toHaveBeenCalledWith({
@@ -161,6 +169,56 @@ describe("integration import service", () => {
       })
     ).rejects.toThrow("Интеграция отключена.");
 
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects native connector imports without required secret slots before creating a run", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25,
+      credentials: []
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("secret slots");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects data source connector imports without required secret slots before creating a run", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "ytsaurus",
+      type: "data_source",
+      status: "ready",
+      importLimit: 25,
+      credentials: []
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("secret slots");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
@@ -302,7 +360,8 @@ describe("integration import service", () => {
       workspaceId: "workspace-1",
       source: "otrs",
       type: "otrs_family",
-      importLimit: 25
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
     });
     mocks.prisma.integrationRun.findFirst.mockResolvedValue({
       id: "run-1",
@@ -409,6 +468,34 @@ describe("integration import service", () => {
     });
   });
 
+  it("rejects selected OTRS imports without required password secret before claiming the preview run", async () => {
+    const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "otrs",
+      type: "otrs_family",
+      status: "ready",
+      importLimit: 25,
+      credentials: []
+    });
+
+    await expect(
+      queueSelectedOtrsImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        integrationRunItemIds: ["item-1"]
+      })
+    ).rejects.toThrow("secret slots");
+
+    expect(mocks.prisma.integrationRun.findFirst).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRunItem.findMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.updateMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
   it("rejects duplicate selected OTRS preview item ids before queueing", async () => {
     const { queueSelectedOtrsImportJob } = await import("@/lib/integration-import-service");
 
@@ -432,7 +519,8 @@ describe("integration import service", () => {
       workspaceId: "workspace-1",
       source: "otrs",
       type: "otrs_family",
-      importLimit: 25
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
     });
     mocks.prisma.integrationRun.findFirst.mockResolvedValue({
       id: "run-1",
@@ -477,7 +565,8 @@ describe("integration import service", () => {
       source: "otrs",
       type: "otrs_family",
       status: "disabled",
-      importLimit: 25
+      importLimit: 25,
+      credentials: []
     });
 
     await expect(
@@ -501,7 +590,8 @@ describe("integration import service", () => {
       workspaceId: "workspace-1",
       source: "otrs",
       type: "otrs_family",
-      importLimit: 25
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
     });
     mocks.prisma.integrationRun.findFirst.mockResolvedValue({
       id: "run-1",

@@ -4,21 +4,16 @@ const now = new Date("2026-05-28T09:30:00.000Z");
 const windowStart = new Date("2026-05-28T09:25:00.000Z");
 
 const mocks = vi.hoisted(() => ({
-  credentialsProvider: vi.fn((config) => ({
-    ...config,
-    type: "credentials"
-  })),
   prisma: {
+    $executeRawUnsafe: vi.fn(),
+    $transaction: vi.fn(),
     localCredential: {
-      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn()
     }
   },
   verifyLocalPassword: vi.fn()
-}));
-
-vi.mock("next-auth/providers/credentials", () => ({
-  default: mocks.credentialsProvider
 }));
 
 vi.mock("@/lib/auth/local-credentials", () => ({
@@ -56,12 +51,15 @@ function activeCredential(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("Auth.js local credentials provider", () => {
+describe("local credentials authorization", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     vi.resetModules();
     vi.clearAllMocks();
+    mocks.prisma.$executeRawUnsafe.mockResolvedValue(0);
+    mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.prisma.localCredential.findUnique.mockImplementation(async ({ where }) => activeCredential({ id: where.id }));
     mocks.prisma.localCredential.update.mockResolvedValue({});
   });
 
@@ -69,22 +67,25 @@ describe("Auth.js local credentials provider", () => {
     vi.useRealTimers();
   });
 
-  it("exports a credentials provider registered with the Auth.js config", async () => {
-    const { authorizeLocalCredentials, localCredentialsProvider } = await import("@/auth/providers/local");
+  it("keeps local credentials as a domain authorizer, not an Auth.js Credentials provider", async () => {
+    const localModule = await import("@/auth/providers/local");
     const { authConfig } = await import("@/auth/config");
 
-    expect(mocks.credentialsProvider).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "credentials",
-        authorize: authorizeLocalCredentials
-      })
-    );
-    expect(localCredentialsProvider.id).toBe("credentials");
-    expect(authConfig.providers).toContain(localCredentialsProvider);
+    expect(localModule.authorizeLocalCredentials).toEqual(expect.any(Function));
+    expect("localCredentialsProvider" in localModule).toBe(false);
+    expect(authConfig.session?.strategy).toBe("database");
+    expect(authConfig.providers).toEqual([]);
   });
 
   it("returns the app auth user shape and resets failed counters after successful authorization", async () => {
-    mocks.prisma.localCredential.findFirst.mockResolvedValue(
+    mocks.prisma.localCredential.findMany.mockResolvedValue([
+      activeCredential({
+        failedLoginCount: 3,
+        failedLoginWindowStart: windowStart,
+        lastFailedLoginAt: windowStart
+      })
+    ]);
+    mocks.prisma.localCredential.findUnique.mockResolvedValueOnce(
       activeCredential({
         failedLoginCount: 3,
         failedLoginWindowStart: windowStart,
@@ -99,13 +100,25 @@ describe("Auth.js local credentials provider", () => {
       password: " local-password-123 "
     });
 
-    expect(mocks.prisma.localCredential.findFirst).toHaveBeenCalledWith(
+    expect(mocks.prisma.localCredential.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           login: "admin.user"
-        }
+        },
+        take: 2
       })
     );
+    expect(mocks.prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      "local_credential:credential-1"
+    );
+    expect(mocks.prisma.localCredential.findUnique).toHaveBeenCalledWith({
+      where: { id: "credential-1" },
+      select: expect.objectContaining({
+        passwordHash: true,
+        lockedUntil: true
+      })
+    });
     expect(mocks.verifyLocalPassword).toHaveBeenCalledWith({
       password: "local-password-123",
       passwordHash: "hashed-password",
@@ -134,7 +147,14 @@ describe("Auth.js local credentials provider", () => {
   });
 
   it("records failed counters and returns null for a password mismatch", async () => {
-    mocks.prisma.localCredential.findFirst.mockResolvedValue(
+    mocks.prisma.localCredential.findMany.mockResolvedValue([
+      activeCredential({
+        failedLoginCount: 1,
+        failedLoginWindowStart: windowStart,
+        lastFailedLoginAt: windowStart
+      })
+    ]);
+    mocks.prisma.localCredential.findUnique.mockResolvedValueOnce(
       activeCredential({
         failedLoginCount: 1,
         failedLoginWindowStart: windowStart,
@@ -164,8 +184,68 @@ describe("Auth.js local credentials provider", () => {
     });
   });
 
+  it("serializes failed counter updates by reloading the credential under an advisory lock", async () => {
+    mocks.prisma.localCredential.findMany.mockResolvedValue([
+      activeCredential({
+        failedLoginCount: 1,
+        failedLoginWindowStart: windowStart
+      })
+    ]);
+    mocks.prisma.localCredential.findUnique.mockResolvedValueOnce(
+      activeCredential({
+        failedLoginCount: 4,
+        failedLoginWindowStart: windowStart
+      })
+    );
+    mocks.verifyLocalPassword.mockResolvedValue(false);
+    const { authorizeLocalCredentials } = await import("@/auth/providers/local");
+
+    await expect(
+      authorizeLocalCredentials({
+        login: "admin.user",
+        password: "wrong-password"
+      })
+    ).resolves.toBeNull();
+
+    expect(mocks.prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      "local_credential:credential-1"
+    );
+    expect(mocks.prisma.localCredential.findUnique).toHaveBeenCalledWith({
+      where: { id: "credential-1" },
+      select: expect.objectContaining({
+        failedLoginCount: true,
+        lockedUntil: true
+      })
+    });
+    expect(mocks.verifyLocalPassword).toHaveBeenCalledWith({
+      password: "wrong-password",
+      passwordHash: "hashed-password",
+      passwordSalt: "salt-value",
+      keyVersion: "scrypt-v1"
+    });
+    expect(mocks.prisma.localCredential.update).toHaveBeenCalledWith({
+      where: {
+        id: "credential-1"
+      },
+      data: {
+        failedLoginCount: 5,
+        failedLoginWindowStart: windowStart,
+        lastFailedLoginAt: now,
+        lockedUntil: new Date("2026-05-28T09:45:00.000Z")
+      }
+    });
+  });
+
   it("returns null for a locked credential without verifying the password", async () => {
-    mocks.prisma.localCredential.findFirst.mockResolvedValue(
+    mocks.prisma.localCredential.findMany.mockResolvedValue([
+      activeCredential({
+        failedLoginCount: 5,
+        failedLoginWindowStart: windowStart,
+        lockedUntil: new Date("2026-05-28T09:40:00.000Z")
+      })
+    ]);
+    mocks.prisma.localCredential.findUnique.mockResolvedValueOnce(
       activeCredential({
         failedLoginCount: 5,
         failedLoginWindowStart: windowStart,
@@ -182,11 +262,63 @@ describe("Auth.js local credentials provider", () => {
     ).resolves.toBeNull();
 
     expect(mocks.verifyLocalPassword).not.toHaveBeenCalled();
+    expect(mocks.prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      "local_credential:credential-1"
+    );
+    expect(mocks.prisma.localCredential.update).not.toHaveBeenCalled();
+  });
+
+  it("returns null for duplicate local credential logins without verifying the password", async () => {
+    mocks.prisma.localCredential.findMany.mockResolvedValue([
+      activeCredential(),
+      activeCredential({
+        id: "credential-2",
+        user: {
+          id: "user-2",
+          workspaceId: "workspace-2",
+          email: "admin@second.example",
+          name: "Second Admin",
+          role: "ADMIN",
+          lifecycleStatus: "ACTIVE"
+        }
+      })
+    ]);
+    const { authorizeLocalCredentials } = await import("@/auth/providers/local");
+
+    await expect(
+      authorizeLocalCredentials({
+        login: " Admin.User ",
+        password: "local-password-123"
+      })
+    ).resolves.toBeNull();
+
+    expect(mocks.prisma.localCredential.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          login: "admin.user"
+        },
+        take: 2
+      })
+    );
+    expect(mocks.verifyLocalPassword).not.toHaveBeenCalled();
     expect(mocks.prisma.localCredential.update).not.toHaveBeenCalled();
   });
 
   it("returns null for inactive users without resetting counters", async () => {
-    mocks.prisma.localCredential.findFirst.mockResolvedValue(
+    mocks.prisma.localCredential.findMany.mockResolvedValue([
+      activeCredential({
+        user: {
+          id: "user-1",
+          workspaceId: "workspace-1",
+          email: "admin@example.com",
+          name: "Admin User",
+          role: "ADMIN",
+          lifecycleStatus: "SUSPENDED"
+        }
+      })
+    ]);
+    mocks.prisma.localCredential.findUnique.mockResolvedValueOnce(
       activeCredential({
         user: {
           id: "user-1",
@@ -208,7 +340,11 @@ describe("Auth.js local credentials provider", () => {
       })
     ).resolves.toBeNull();
 
-    expect(mocks.verifyLocalPassword).toHaveBeenCalled();
+    expect(mocks.verifyLocalPassword).not.toHaveBeenCalled();
+    expect(mocks.prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      "local_credential:credential-1"
+    );
     expect(mocks.prisma.localCredential.update).not.toHaveBeenCalled();
   });
 });

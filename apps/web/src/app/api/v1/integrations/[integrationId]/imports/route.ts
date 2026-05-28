@@ -42,7 +42,7 @@ export async function POST(request: Request, context: { params: Promise<{ integr
 
     if (
       error instanceof Error &&
-      /защищенной настройки OAuth-доступов|не соответствует контракту Phase B/.test(error.message)
+      /защищенной настройки OAuth-доступов|не соответствует контракту Phase B|secret slots/.test(error.message)
     ) {
       return apiError("conflict", error.message, 409, requestId);
     }

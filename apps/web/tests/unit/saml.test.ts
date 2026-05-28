@@ -201,7 +201,7 @@ describe("SAML helpers", () => {
     await expect(cache.getAsync("request-1")).resolves.toBeNull();
   });
 
-  it("maps NameID, email, display name, groups, app roles, support line, and team into an auth session", async () => {
+  it("maps NameID, email, display name, groups, app roles, support line, and team without creating an auth session", async () => {
     const tx = {
       externalIdentity: {
         findUnique: vi.fn().mockResolvedValue(null),
@@ -257,11 +257,6 @@ describe("SAML helpers", () => {
       supportLine: "Premium",
       teamName: "Refunds"
     });
-    mocks.createAuthSession.mockResolvedValue({
-      token: "session-token",
-      session: { id: "session-1", userId: "user-1" }
-    });
-
     const { upsertUserFromSamlProfile } = await import("@/lib/auth/saml");
     await expect(
       upsertUserFromSamlProfile({
@@ -282,8 +277,9 @@ describe("SAML helpers", () => {
       })
     ).resolves.toMatchObject({
       user: { id: "user-1", role: "QA_ANALYST" },
-      session: { token: "session-token" }
+      role: "QA_ANALYST"
     });
+    expect(mocks.createAuthSession).not.toHaveBeenCalled();
 
     expect(mocks.resolveIdentityPolicyFromExternalClaims).toHaveBeenCalledWith("workspace-1", "provider-1", {
       appRoles: ["QC.Analyst"],

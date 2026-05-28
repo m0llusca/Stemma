@@ -14,7 +14,17 @@ const mocks = vi.hoisted(() => ({
       updateMany: vi.fn()
     },
     user: {
-      findUnique: vi.fn()
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn()
+    },
+    identityProvider: {
+      findFirst: vi.fn()
+    },
+    externalIdentity: {
+      findUnique: vi.fn(),
+      upsert: vi.fn()
     }
   }
 }));
@@ -44,6 +54,14 @@ type AuthSessionRow = {
   user: UserRow;
 };
 
+type ExternalIdentityRow = {
+  id: string;
+  userId: string;
+  providerId: string;
+  providerSubject: string;
+  user: UserRow;
+};
+
 function userRow(overrides: Partial<UserRow> = {}): UserRow {
   return {
     id: "user-1",
@@ -52,6 +70,19 @@ function userRow(overrides: Partial<UserRow> = {}): UserRow {
     name: "User One",
     role: "ADMIN",
     lifecycleStatus: "ACTIVE",
+    ...overrides
+  };
+}
+
+function externalIdentityRow(overrides: Partial<ExternalIdentityRow> = {}): ExternalIdentityRow {
+  const user = overrides.user ?? userRow();
+
+  return {
+    id: "identity-1",
+    userId: user.id,
+    providerId: "provider-1",
+    providerSubject: "subject-1",
+    user,
     ...overrides
   };
 }
@@ -95,11 +126,322 @@ describe("Auth.js AuthSession adapter", () => {
     expect(authConfig.adapter).toEqual(
       expect.objectContaining({
         createSession: expect.any(Function),
+        getUser: expect.any(Function),
+        getUserByEmail: expect.any(Function),
+        getUserByAccount: expect.any(Function),
+        updateUser: expect.any(Function),
+        linkAccount: expect.any(Function),
         getSessionAndUser: expect.any(Function),
         updateSession: expect.any(Function),
         deleteSession: expect.any(Function)
       })
     );
+  });
+
+  it("getUser maps active local users and ignores inactive users", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(
+      userRow({
+        name: null,
+        role: "QA_ANALYST"
+      })
+    );
+
+    expect(adapter.getUser).toEqual(expect.any(Function));
+    await expect(adapter.getUser?.("user-1")).resolves.toEqual({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "user@example.com",
+      emailVerified: null,
+      name: "user@example.com",
+      role: "QA_ANALYST"
+    });
+
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(userRow({ lifecycleStatus: "SUSPENDED" }));
+
+    await expect(adapter.getUser?.("user-1")).resolves.toBeNull();
+    expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      select: expect.objectContaining({
+        workspaceId: true,
+        lifecycleStatus: true
+      })
+    });
+  });
+
+  it("getUserByAccount maps provider account ownership to an active user", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.externalIdentity.findUnique.mockResolvedValue(
+      externalIdentityRow({
+        providerId: "provider-1",
+        providerSubject: "subject-1",
+        user: userRow({ role: "TEAM_LEAD" })
+      })
+    );
+
+    expect(adapter.getUserByAccount).toEqual(expect.any(Function));
+    await expect(
+      adapter.getUserByAccount?.({
+        provider: "provider-1",
+        providerAccountId: "subject-1"
+      })
+    ).resolves.toEqual({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "user@example.com",
+      emailVerified: null,
+      name: "User One",
+      role: "TEAM_LEAD"
+    });
+
+    expect(mocks.prisma.externalIdentity.findUnique).toHaveBeenCalledWith({
+      where: {
+        providerId_providerSubject: {
+          providerId: "provider-1",
+          providerSubject: "subject-1"
+        }
+      },
+      include: {
+        user: {
+          select: expect.objectContaining({
+            workspaceId: true,
+            lifecycleStatus: true
+          })
+        }
+      }
+    });
+  });
+
+  it("getUserByAccount returns null when ownership is missing or inactive", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.externalIdentity.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(externalIdentityRow({ user: userRow({ lifecycleStatus: "DEPROVISIONED" }) }));
+
+    expect(adapter.getUserByAccount).toEqual(expect.any(Function));
+    await expect(adapter.getUserByAccount?.({ provider: "provider-1", providerAccountId: "subject-1" })).resolves.toBeNull();
+    await expect(adapter.getUserByAccount?.({ provider: "provider-1", providerAccountId: "subject-1" })).resolves.toBeNull();
+  });
+
+  it("getUserByEmail maps a globally unique active user and rejects ambiguous emails", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.user.findMany
+      .mockResolvedValueOnce([userRow({ email: "user@example.com", role: "VIEWER" })])
+      .mockResolvedValueOnce([userRow({ id: "user-1" }), userRow({ id: "user-2", email: "user@example.com" })]);
+
+    expect(adapter.getUserByEmail).toEqual(expect.any(Function));
+    await expect(adapter.getUserByEmail?.(" User@Example.Com ")).resolves.toEqual({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "user@example.com",
+      emailVerified: null,
+      name: "User One",
+      role: "VIEWER"
+    });
+    await expect(adapter.getUserByEmail?.("user@example.com")).resolves.toBeNull();
+
+    expect(mocks.prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        email: "user@example.com",
+        lifecycleStatus: "ACTIVE"
+      },
+      take: 2,
+      select: expect.objectContaining({
+        workspaceId: true,
+        lifecycleStatus: true
+      })
+    });
+  });
+
+  it("createUser refuses Auth.js users without an explicit workspace assignment", async () => {
+    const adapter = await createAdapter();
+
+    expect(adapter.createUser).toEqual(expect.any(Function));
+    await expect(
+      adapter.createUser?.({
+        id: "created-user",
+        email: "new@example.com",
+        emailVerified: null,
+        name: "New User",
+        role: "QA_ANALYST"
+      } as Parameters<NonNullable<typeof adapter.createUser>>[0])
+    ).rejects.toThrow(/workspaceId/i);
+
+    expect(mocks.prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("createUser creates an active user only when workspace, email, and role are explicit", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.user.create.mockResolvedValue(
+      userRow({
+        id: "created-user",
+        email: "new@example.com",
+        name: "New User",
+        role: "QA_ANALYST"
+      })
+    );
+
+    expect(adapter.createUser).toEqual(expect.any(Function));
+    await expect(
+      adapter.createUser?.({
+        id: "created-user",
+        workspaceId: "workspace-1",
+        email: "new@example.com",
+        emailVerified: null,
+        name: "New User",
+        role: "QA_ANALYST"
+      })
+    ).resolves.toEqual({
+      id: "created-user",
+      workspaceId: "workspace-1",
+      email: "new@example.com",
+      emailVerified: null,
+      name: "New User",
+      role: "QA_ANALYST"
+    });
+
+    expect(mocks.prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        id: "created-user",
+        workspaceId: "workspace-1",
+        email: "new@example.com",
+        name: "New User",
+        role: "QA_ANALYST",
+        lifecycleStatus: "ACTIVE"
+      },
+      select: expect.objectContaining({
+        workspaceId: true,
+        lifecycleStatus: true
+      })
+    });
+  });
+
+  it("updateUser updates only the existing active user in place", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.user.findUnique.mockResolvedValue(userRow({ role: "SUPPORT_AGENT" }));
+    mocks.prisma.user.update.mockResolvedValue(
+      userRow({
+        email: "updated@example.com",
+        name: "Updated User",
+        role: "QA_ANALYST"
+      })
+    );
+
+    expect(adapter.updateUser).toEqual(expect.any(Function));
+    await expect(
+      adapter.updateUser?.({
+        id: "user-1",
+        workspaceId: "workspace-1",
+        email: " Updated@Example.Com ",
+        name: " Updated User ",
+        role: "QA_ANALYST"
+      })
+    ).resolves.toEqual({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "updated@example.com",
+      emailVerified: null,
+      name: "Updated User",
+      role: "QA_ANALYST"
+    });
+
+    expect(mocks.prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: {
+        email: "updated@example.com",
+        name: "Updated User",
+        role: "QA_ANALYST"
+      },
+      select: expect.objectContaining({
+        workspaceId: true,
+        lifecycleStatus: true
+      })
+    });
+  });
+
+  it("updateUser refuses inactive users and workspace moves", async () => {
+    const adapter = await createAdapter();
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(null);
+
+    await expect(adapter.updateUser?.({ id: "missing-user", name: "Missing" })).rejects.toThrow(/missing or inactive/i);
+
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(userRow());
+
+    await expect(
+      adapter.updateUser?.({
+        id: "user-1",
+        workspaceId: "workspace-2"
+      })
+    ).rejects.toThrow(/between workspaces/i);
+
+    expect(mocks.prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("linkAccount validates user and provider ownership before upserting an external identity", async () => {
+    const adapter = await createAdapter();
+    const account = {
+      userId: "user-1",
+      type: "oidc" as const,
+      provider: "provider-1",
+      providerAccountId: "subject-1"
+    };
+    mocks.prisma.user.findUnique.mockResolvedValue(userRow({ name: "User One" }));
+    mocks.prisma.identityProvider.findFirst.mockResolvedValue({ id: "provider-1" });
+    mocks.prisma.externalIdentity.findUnique.mockResolvedValue(null);
+    mocks.prisma.externalIdentity.upsert.mockResolvedValue(externalIdentityRow());
+
+    expect(adapter.linkAccount).toEqual(expect.any(Function));
+    await expect(adapter.linkAccount?.(account)).resolves.toEqual(account);
+
+    expect(mocks.prisma.identityProvider.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "provider-1",
+        workspaceId: "workspace-1",
+        status: "active"
+      },
+      select: { id: true }
+    });
+    expect(mocks.prisma.externalIdentity.upsert).toHaveBeenCalledWith({
+      where: {
+        providerId_providerSubject: {
+          providerId: "provider-1",
+          providerSubject: "subject-1"
+        }
+      },
+      update: {
+        userId: "user-1",
+        email: "user@example.com",
+        displayName: "User One",
+        disabledAt: null
+      },
+      create: {
+        userId: "user-1",
+        providerId: "provider-1",
+        providerSubject: "subject-1",
+        email: "user@example.com",
+        displayName: "User One"
+      }
+    });
+  });
+
+  it("linkAccount refuses to create orphan identities for missing users or providers", async () => {
+    const adapter = await createAdapter();
+    const account = {
+      userId: "user-1",
+      type: "oidc" as const,
+      provider: "provider-1",
+      providerAccountId: "subject-1"
+    };
+
+    expect(adapter.linkAccount).toEqual(expect.any(Function));
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(null);
+    await expect(adapter.linkAccount?.(account)).rejects.toThrow(/missing or inactive/i);
+
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(userRow());
+    mocks.prisma.identityProvider.findFirst.mockResolvedValueOnce(null);
+    await expect(adapter.linkAccount?.(account)).rejects.toThrow(/provider/i);
+
+    expect(mocks.prisma.externalIdentity.upsert).not.toHaveBeenCalled();
   });
 
   it("createSession stores a hashed token instead of the raw session token", async () => {
