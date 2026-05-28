@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import type { RoleName } from "@prisma/client";
-import { auth } from "../../auth";
 import { hasPermission, type Permission, requirePermission } from "@/lib/auth/permissions";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -25,8 +24,13 @@ export function isDemoAuthEnabled() {
   return process.env.QC_DEMO_AUTH === "enabled";
 }
 
+async function getAuthJsSession() {
+  const { auth } = await import("../../auth");
+  return auth();
+}
+
 export async function getCurrentUser() {
-  const authSession = await auth();
+  const authSession = await getAuthJsSession();
   const authUserId = authSession?.user?.id;
 
   if (authUserId) {

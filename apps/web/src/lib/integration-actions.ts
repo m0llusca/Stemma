@@ -11,7 +11,12 @@ import {
   queueIntegrationImportJob,
   queueSelectedOtrsImportJob
 } from "@/lib/integration-import-service";
-import { integrationSetupInputSchema, type IntegrationSetupInput } from "@/lib/integration-setup-schema";
+import {
+  integrationQueueImportOutputSchema,
+  integrationSetupInputSchema,
+  type IntegrationQueueImportOutput,
+  type IntegrationSetupInput
+} from "@/lib/integration-setup-schema";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
@@ -33,6 +38,7 @@ export type IntegrationImportActionState = {
   runId?: string;
   jobId?: string;
   reusedExistingRun?: boolean;
+  reusedQueuedRun?: boolean;
 } | null;
 
 export type OtrsDiagnosticsActionState = {
@@ -253,8 +259,8 @@ function setupQueueMessage(dryRun: boolean, reusedExistingRun: boolean) {
   }
 
   return dryRun
-    ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит реальный connector runner."
-    : "Импорт поставлен в backend-очередь. Запуск выполнит реальный connector runner.";
+    ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner."
+    : "Импорт поставлен в backend-очередь. Запуск выполнит connector runner.";
 }
 
 const otrsSourceSchema = z
@@ -483,7 +489,16 @@ export async function saveIntegrationConfiguration(formData: FormData) {
   return { integrationId: integration.id };
 }
 
-export async function recordIntegrationDryRun(formData: FormData) {
+type RecordedIntegrationDryRun = {
+  integrationId: string;
+  runId?: string;
+  jobId?: string;
+  reusedExistingRun: boolean;
+  reusedQueuedRun: boolean;
+  message: string;
+};
+
+export async function recordIntegrationDryRun(formData: FormData): Promise<RecordedIntegrationDryRun> {
   const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
@@ -524,6 +539,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
         integrationId: integration.id,
         runId: existingRun.id,
         reusedExistingRun: true,
+        reusedQueuedRun: true,
         message: setupQueueMessage(setup.dryRun, true)
       };
     }
@@ -590,6 +606,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
       runId: run.id,
       jobId: job.id,
       reusedExistingRun: false,
+      reusedQueuedRun: false,
       message: setupQueueMessage(setup.dryRun, false)
     };
   });
@@ -600,7 +617,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
   return result;
 }
 
-export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationImportActionState> {
+export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationQueueImportOutput> {
   const parsed = integrationSetupInputSchema.parse(input);
   const formData = new FormData();
 
@@ -616,14 +633,14 @@ export async function recordIntegrationDryRunFromInput(input: IntegrationSetupIn
 
   const result = await recordIntegrationDryRun(formData);
 
-  return {
+  return integrationQueueImportOutputSchema.parse({
     ok: true,
     message: result.message,
     integrationId: result.integrationId,
     runId: result.runId,
     jobId: result.jobId,
-    reusedExistingRun: result.reusedExistingRun
-  };
+    reusedQueuedRun: result.reusedQueuedRun
+  });
 }
 
 export async function saveOtrsIntegrationConfiguration(formData: FormData) {

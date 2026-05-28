@@ -21,3 +21,14 @@ export const secretlessIntegrationSetupInputSchema = integrationSetupInputSchema
   (value) => value.mode === "custom_api",
   "tRPC queueImport supports only secretless custom API setup. Credentialed sources must use the server-action setup flow."
 );
+
+export const integrationQueueImportOutputSchema = z.object({
+  ok: z.literal(true),
+  message: z.string().min(1),
+  integrationId: z.string().min(1),
+  runId: z.string().min(1).optional(),
+  jobId: z.string().min(1).optional(),
+  reusedQueuedRun: z.boolean().optional()
+});
+
+export type IntegrationQueueImportOutput = z.infer<typeof integrationQueueImportOutputSchema>;

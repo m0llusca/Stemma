@@ -147,6 +147,7 @@ describe("OTRS integration actions", () => {
       requestedLimit: 25,
       dryRun: false
     });
+    mocks.prisma.integrationRun.findFirst.mockResolvedValue(null);
     mocks.prisma.backendJob.create.mockResolvedValue({
       id: "job-1",
       status: "QUEUED"
@@ -339,6 +340,75 @@ describe("OTRS integration actions", () => {
         dryRun: true
       }
     });
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("preserves queued run and job ids when bridging tRPC input to the action", async () => {
+    const { recordIntegrationDryRunFromInput } = await import("@/lib/integration-actions");
+
+    await expect(
+      recordIntegrationDryRunFromInput({
+        source: "custom_api",
+        sourceLabel: "Custom API",
+        mode: "custom_api",
+        baseUrl: "https://support.example.com",
+        maxTickets: 25,
+        batchSize: 10,
+        dateRangeDays: 30,
+        ticketId: "",
+        userLogin: "",
+        dryRun: true,
+        deduplicate: true,
+        config: {}
+      })
+    ).resolves.toEqual({
+      ok: true,
+      message: "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner.",
+      integrationId: "integration-1",
+      runId: "run-1",
+      jobId: "job-1",
+      reusedQueuedRun: false
+    });
+
+    expect(mocks.prisma.integrationRun.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        actorId: "user-1",
+        source: "custom_api",
+        mode: "custom_api",
+        status: "dry_run_queued",
+        dryRun: true,
+        requestedLimit: 25
+      })
+    });
+    expect(mocks.prisma.backendJob.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        payloadJson: expect.stringContaining('"integrationRunId":"run-1"')
+      })
+    });
+  });
+
+  it("preserves reused queued run ids without inventing a backend job id", async () => {
+    const { recordIntegrationDryRun } = await import("@/lib/integration-actions");
+    const formData = baseSetupForm("custom_api", "custom_api");
+    formData.set("dryRun", "true");
+    mocks.prisma.integrationRun.findFirst.mockResolvedValueOnce({
+      id: "run-reused",
+      status: "dry_run_queued",
+      requestedLimit: 25,
+      dryRun: true
+    });
+
+    await expect(recordIntegrationDryRun(formData)).resolves.toEqual({
+      integrationId: "integration-1",
+      runId: "run-reused",
+      message: "Проверка подключения уже находится в backend-очереди.",
+      reusedExistingRun: true,
+      reusedQueuedRun: true
+    });
+
     expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
