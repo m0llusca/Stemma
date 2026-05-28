@@ -12,6 +12,7 @@ type YdbResultRow = Record<string, JSValue>;
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 2_000_000;
+const redactedValue = "[REDACTED]";
 const mutationKeywordPattern = /\b(UPSERT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|TRUNCATE|GRANT|REVOKE|CALL|PRAGMA)\b/i;
 const commentTokenPattern = /--|\/\*|\*\//;
 const trailingLimitPattern = /\s+LIMIT\s+(\d+)\s*$/i;
@@ -81,6 +82,28 @@ function queryText(config: Record<string, unknown>, limit: number) {
   }
 
   throw new Error("Для YDB укажите tableName/tablePath или read-only YQL query.");
+}
+
+function diagnosticUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (url.username) {
+      url.username = redactedValue;
+    }
+
+    if (url.password) {
+      url.password = redactedValue;
+    }
+
+    if (url.search) {
+      url.search = "?redacted=1";
+    }
+
+    return url.toString().replaceAll("%5BREDACTED%5D", redactedValue);
+  } catch {
+    return redactedValue;
+  }
 }
 
 function credentials(value: string | undefined, endpoint: string) {
@@ -177,7 +200,7 @@ export function createYdbAdapter() {
               {
                 operation: "query_execute",
                 method: "YQL",
-                url: input.baseUrl,
+                url: diagnosticUrl(input.baseUrl),
                 statusCode: 200
               }
             ]
