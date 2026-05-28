@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
-import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import {
   createOtrsGenericInterfaceServer,
@@ -11,6 +10,7 @@ import {
   otrsFixtureTicketIds,
   otrsFixtureUserLogin
 } from "../fixtures/otrs-ticket-fixtures";
+import { signInE2EUser } from "./helpers/auth";
 
 test.setTimeout(120_000);
 
@@ -57,19 +57,7 @@ test.beforeEach(async ({ context }) => {
     },
     select: { id: true }
   });
-  const { token, session } = await createAuthSession({ userId: user.id, userAgent: "playwright-otrs-e2e" });
-
-  await context.addCookies([
-    {
-      name: sessionCookieName,
-      value: token,
-      url: "http://localhost:3000",
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: false,
-      expires: Math.floor(session.expiresAt.getTime() / 1000)
-    }
-  ]);
+  await signInE2EUser(context, user, "playwright-otrs-e2e");
 });
 
 async function runIntegrationsQueueFromOverview(page: Page) {
