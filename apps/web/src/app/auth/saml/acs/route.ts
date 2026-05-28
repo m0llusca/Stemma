@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authCookieOptions, expiredCookieOptions } from "@/lib/auth/cookies";
+import { signIn } from "../../../../../auth";
+import { expiredCookieOptions } from "@/lib/auth/cookies";
 import { loginFlashCookieName, loginFlashCookieOptions } from "@/lib/auth/login-flash";
 import { validateSamlPostResponse, upsertUserFromSamlProfile } from "@/lib/auth/saml";
-import { sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
 import { resolvePublicOrigin } from "@/lib/public-origin";
@@ -76,9 +76,13 @@ export async function POST(request: NextRequest) {
       profile,
       userAgent: request.headers.get("user-agent")
     });
+    await signIn("enterprise-assertion", {
+      userId: authSession.session.userId,
+      providerId: provider.id,
+      redirect: false
+    });
     const response = NextResponse.redirect(new URL(safeReturnTo(formData?.get("RelayState")), origin));
 
-    response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
     logBackendEvent({
       requestId: requestIdFromHeaders(request.headers),

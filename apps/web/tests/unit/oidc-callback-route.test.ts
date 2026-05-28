@@ -5,11 +5,16 @@ const mocks = vi.hoisted(() => ({
   exchangeAuthorizationCode: vi.fn(),
   validateIdToken: vi.fn(),
   upsertUserFromOidcClaims: vi.fn(),
+  signIn: vi.fn(),
   logBackendEvent: vi.fn(),
   requestIdFromHeaders: vi.fn(() => "req-1"),
   prisma: {
-    identityProvider: {
+    user: {
       findUnique: vi.fn()
+    },
+    identityProvider: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn()
     }
   }
 }));
@@ -27,6 +32,10 @@ vi.mock("@/lib/auth/oidc", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
+}));
+
+vi.mock("../../auth", () => ({
+  signIn: mocks.signIn
 }));
 
 vi.mock("@/lib/observability", () => ({
@@ -61,6 +70,7 @@ describe("OIDC callback route public origin", () => {
         session: { id: "session-1", userId: "user-1" }
       }
     });
+    mocks.signIn.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -84,6 +94,11 @@ describe("OIDC callback route public origin", () => {
     );
 
     expect(response.status).toBe(307);
+    expect(mocks.signIn).toHaveBeenCalledWith("enterprise-assertion", {
+      userId: "user-1",
+      providerId: "provider-1",
+      redirect: false
+    });
     expect(mocks.exchangeAuthorizationCode).toHaveBeenCalledWith({
       provider: expect.objectContaining({ id: "provider-1" }),
       code: "code-1",
@@ -91,5 +106,107 @@ describe("OIDC callback route public origin", () => {
       codeVerifier: "verifier-1"
     });
     expect(response.headers.get("location")).toBe("https://app.example.com/reviews");
+  });
+});
+
+describe("enterprise assertion credentials provider", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("registers the assertion provider with JWT session projection for Auth.js issuance", async () => {
+    const { authConfig } = await import("@/auth/config");
+
+    expect(authConfig.session.strategy).toBe("jwt");
+    expect(authConfig.providers).toContainEqual(expect.objectContaining({ id: "enterprise-assertion", type: "credentials" }));
+
+    const token = await authConfig.callbacks.jwt({
+      token: {},
+      user: {
+        id: "user-1",
+        workspaceId: "workspace-1",
+        email: "agent@example.com",
+        name: "Agent One",
+        role: "SUPPORT_AGENT"
+      }
+    } as never);
+    const session = await authConfig.callbacks.session({
+      session: { user: {}, expires: "2099-01-01T00:00:00.000Z" },
+      token
+    } as never);
+
+    expect(session.user).toEqual({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      emailVerified: null,
+      name: "Agent One",
+      role: "SUPPORT_AGENT"
+    });
+  });
+
+  it("returns canonical Auth.js user fields for active assertion users", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Agent One",
+      role: "SUPPORT_AGENT",
+      lifecycleStatus: "ACTIVE"
+    });
+    mocks.prisma.identityProvider.findFirst.mockResolvedValue({
+      id: "provider-1",
+      workspaceId: "workspace-1",
+      status: "active"
+    });
+
+    const { authorizeEnterpriseAssertion } = await import("@/auth/providers/assertion");
+
+    await expect(authorizeEnterpriseAssertion({ userId: "user-1", providerId: "provider-1" })).resolves.toEqual({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Agent One",
+      role: "SUPPORT_AGENT"
+    });
+  });
+
+  it("refuses inactive assertion users", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Agent One",
+      role: "SUPPORT_AGENT",
+      lifecycleStatus: "SUSPENDED"
+    });
+
+    const { authorizeEnterpriseAssertion } = await import("@/auth/providers/assertion");
+
+    await expect(authorizeEnterpriseAssertion({ userId: "user-1" })).resolves.toBeNull();
+    expect(mocks.prisma.identityProvider.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("refuses assertions for providers outside the user workspace", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Agent One",
+      role: "SUPPORT_AGENT",
+      lifecycleStatus: "ACTIVE"
+    });
+    mocks.prisma.identityProvider.findFirst.mockResolvedValue(null);
+
+    const { authorizeEnterpriseAssertion } = await import("@/auth/providers/assertion");
+
+    await expect(authorizeEnterpriseAssertion({ userId: "user-1", providerId: "provider-2" })).resolves.toBeNull();
+    expect(mocks.prisma.identityProvider.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "provider-2",
+        workspaceId: "workspace-1",
+        status: "active"
+      }
+    });
   });
 });
