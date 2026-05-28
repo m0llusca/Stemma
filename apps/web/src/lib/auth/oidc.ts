@@ -1,7 +1,6 @@
 import { createHash, createPublicKey, createVerify, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IdentityProvider, RoleName } from "@prisma/client";
 import { buildEntraAuthorizationMetadata, resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
-import { createAuthSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 
 export const oidcStateCookieName = "qc_oidc_state";
@@ -654,15 +653,8 @@ export async function upsertUserFromOidcClaims(input: {
     return normalizedUser;
   });
 
-  const session = await createAuthSession({
-    userId: user.id,
-    providerId: input.providerId,
-    userAgent: input.userAgent
-  });
-
   return {
     user,
-    session,
     role: policy.role as RoleName
   };
 }

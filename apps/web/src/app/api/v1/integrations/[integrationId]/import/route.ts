@@ -60,6 +60,10 @@ export async function POST(request: Request, context: { params: Promise<{ integr
       return apiError("conflict", error.message, 409, requestId);
     }
 
+    if (error instanceof Error && /secret slots/.test(error.message)) {
+      return apiError("conflict", error.message, 409, requestId);
+    }
+
     if (error instanceof Error && /Выберите|дубликаты|previewed-строками|поддерживается/i.test(error.message)) {
       return apiError("bad_request", error.message, 400, requestId);
     }

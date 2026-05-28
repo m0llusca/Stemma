@@ -1,11 +1,21 @@
 import type { NextAuthConfig } from "next-auth";
 import "@/auth/types";
+import { createQcAuthAdapter } from "@/auth/adapter";
+
+const nonProductionAuthSecret = "qc-app-non-production-auth-secret";
 
 export const authConfig = {
+  adapter: createQcAuthAdapter(),
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? (process.env.NODE_ENV === "production" ? undefined : nonProductionAuthSecret),
   session: {
     strategy: "database",
     maxAge: 60 * 60 * 12,
     updateAge: 60 * 5
+  },
+  cookies: {
+    sessionToken: {
+      name: "authjs.session-token"
+    }
   },
   trustHost: true,
   pages: {

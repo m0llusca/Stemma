@@ -23,6 +23,27 @@ describe("YTsaurus adapter", () => {
       expect(server.requests[0]?.headers.accept).toBe("application/json");
       expect(server.requests[0]?.headers["x-yt-output-format"]).toBe("json");
       expect(server.requests[0]?.query.path).toBe("//home/qc/conversations");
+      expect(server.requests[0]?.query.limit).toBe("100");
+      expect(JSON.stringify(result.diagnostics)).not.toContain("yt-token");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("keeps table path secrets out of diagnostics", async () => {
+    const server = await createYTsaurusServer({ mode: "success" });
+
+    try {
+      const result = await createYTsaurusAdapter().loadRows({
+        source: "ytsaurus",
+        baseUrl: server.baseUrl,
+        config: { tablePath: "//home/qc/secret-segment/conversations" },
+        credential: "yt-token",
+        limit: 10
+      });
+
+      expect(server.requests[0]?.query.path).toBe("//home/qc/secret-segment/conversations");
+      expect(JSON.stringify(result.diagnostics)).not.toContain("secret-segment");
       expect(JSON.stringify(result.diagnostics)).not.toContain("yt-token");
     } finally {
       await server.close();

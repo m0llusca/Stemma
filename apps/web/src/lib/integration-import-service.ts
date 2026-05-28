@@ -31,12 +31,54 @@ function assertIntegrationImportSupported(integration: { type?: string | null })
   }
 }
 
+type IntegrationSecretSlot = {
+  kind?: string | null;
+};
+
+function requiredIntegrationSecretKinds(integration: { source?: string | null; type?: string | null }) {
+  const source = integration.source?.trim().toLowerCase() ?? "";
+  const type = integration.type?.trim() || "custom_api";
+  const contract = phaseBSourceContracts[source as keyof typeof phaseBSourceContracts];
+  const dataSourceContract = dataSourceContracts[source as keyof typeof dataSourceContracts];
+
+  if (dataSourceContract && type === dataSourceContract.type) {
+    return [...dataSourceContract.requiredSecrets];
+  }
+
+  if (contract && type === contract.type && contract.type !== "enterprise") {
+    return [...contract.requiredSecrets];
+  }
+
+  if (type === "otrs_family") {
+    return ["auth_password"];
+  }
+
+  return [];
+}
+
+function assertRequiredIntegrationSecretSlots(integration: {
+  source?: string | null;
+  type?: string | null;
+  credentials?: readonly IntegrationSecretSlot[];
+}) {
+  const availableKinds = new Set((integration.credentials ?? []).map((credential) => credential.kind).filter(Boolean));
+  const missingKinds = requiredIntegrationSecretKinds(integration).filter((kind) => !availableKinds.has(kind));
+
+  if (missingKinds.length > 0) {
+    throw new Error(`Не заполнены требуемые secret slots: ${missingKinds.join(", ")}.`);
+  }
+}
+
 export function assertIntegrationSourceContractSupported(integration: { source?: string | null; type?: string | null }) {
   const source = integration.source?.trim().toLowerCase() ?? "";
   const type = integration.type?.trim() || "custom_api";
   const contract = phaseBSourceContracts[source as keyof typeof phaseBSourceContracts];
   const dataSourceContract = dataSourceContracts[source as keyof typeof dataSourceContracts];
   const enterpriseMessage = "Корпоративные источники требуют защищенной настройки OAuth-доступов.";
+
+  if (type === "enterprise") {
+    throw new Error(enterpriseMessage);
+  }
 
   if (dataSourceContract) {
     if (type !== dataSourceContract.type) {
@@ -46,12 +88,24 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
     return;
   }
 
-  if (type === "enterprise" || contract?.type === "enterprise") {
+  if (contract?.type === "enterprise") {
     throw new Error(enterpriseMessage);
   }
 
   if (contract && type !== contract.type) {
     throw new Error("Тип источника не соответствует контракту Phase B.");
+  }
+
+  if (contract) {
+    return;
+  }
+
+  if (type === "native_helpdesk") {
+    throw new Error("Источник справочной системы не поддерживается.");
+  }
+
+  if (type === "data_source") {
+    throw new Error("Источник данных не поддерживается.");
   }
 }
 
@@ -68,6 +122,13 @@ export async function queueIntegrationImportJob(input: {
     where: {
       id: input.integrationId,
       workspaceId: input.workspaceId
+    },
+    include: {
+      credentials: {
+        select: {
+          kind: true
+        }
+      }
     }
   });
 
@@ -77,6 +138,7 @@ export async function queueIntegrationImportJob(input: {
   assertIntegrationEnabled(integration);
   assertIntegrationImportSupported(integration);
   assertIntegrationSourceContractSupported(integration);
+  assertRequiredIntegrationSecretSlots(integration);
 
   const dryRun = input.dryRun ?? false;
   const requestedLimit = input.requestedLimit ?? integration.importLimit;
@@ -194,6 +256,13 @@ export async function queueSelectedOtrsImportJob(input: {
     where: {
       id: input.integrationId,
       workspaceId: input.workspaceId
+    },
+    include: {
+      credentials: {
+        select: {
+          kind: true
+        }
+      }
     }
   });
 
@@ -205,6 +274,7 @@ export async function queueSelectedOtrsImportJob(input: {
   if (integration.type !== "otrs_family") {
     throw new Error("Выборочный импорт поддерживается только для OTRS-family интеграций.");
   }
+  assertRequiredIntegrationSecretSlots(integration);
 
   const run = await prisma.integrationRun.findFirst({
     where: {

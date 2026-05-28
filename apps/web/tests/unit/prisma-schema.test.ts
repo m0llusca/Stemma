@@ -29,6 +29,12 @@ const webhookIngestMigrationName = readdirSync(migrationsDir).find((name) => nam
 const webhookIngestMigration = webhookIngestMigrationName
   ? readFileSync(join(migrationsDir, webhookIngestMigrationName, "migration.sql"), "utf8")
   : "";
+const localCredentialLockoutMigrationName = readdirSync(migrationsDir).find((name) =>
+  name.endsWith("_add_local_credential_lockout")
+);
+const localCredentialLockoutMigration = localCredentialLockoutMigrationName
+  ? readFileSync(join(migrationsDir, localCredentialLockoutMigrationName, "migration.sql"), "utf8")
+  : "";
 const identityLifecycleMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_phase_c_identity_lifecycle"));
 const identityLifecycleMigration = identityLifecycleMigrationName
   ? readFileSync(join(migrationsDir, identityLifecycleMigrationName, "migration.sql"), "utf8")
@@ -185,6 +191,37 @@ describe("prisma schema database foundations", () => {
     }
 
     expect(guardrailsMigration).toContain('WHERE "status" = \'QUEUED\' AND "lockedAt" IS NULL');
+  });
+
+  it("stores local credential lockout counters and query index", () => {
+    const localCredentialModel = modelBlock("LocalCredential");
+
+    expect(localCredentialModel).toMatch(/failedLoginCount\s+Int\s+@default\(0\)/);
+    expect(localCredentialModel).toMatch(/failedLoginWindowStart\s+DateTime\?/);
+    expect(localCredentialModel).toMatch(/lastFailedLoginAt\s+DateTime\?/);
+    expect(localCredentialModel).toMatch(/lockedUntil\s+DateTime\?/);
+    expect(localCredentialModel).toContain("@@unique([login])");
+    expect(localCredentialModel).toContain("@@index([workspaceId, lockedUntil])");
+
+    expect(localCredentialLockoutMigrationName).toMatch(/^\d+_add_local_credential_lockout$/);
+    expect(localCredentialLockoutMigration).toContain(
+      'ALTER TABLE "LocalCredential" ADD COLUMN IF NOT EXISTS "failedLoginCount" INTEGER NOT NULL DEFAULT 0'
+    );
+    expect(localCredentialLockoutMigration).toContain(
+      'ALTER TABLE "LocalCredential" ADD COLUMN IF NOT EXISTS "failedLoginWindowStart" TIMESTAMP(3)'
+    );
+    expect(localCredentialLockoutMigration).toContain(
+      'ALTER TABLE "LocalCredential" ADD COLUMN IF NOT EXISTS "lastFailedLoginAt" TIMESTAMP(3)'
+    );
+    expect(localCredentialLockoutMigration).toContain('ALTER TABLE "LocalCredential" ADD COLUMN IF NOT EXISTS "lockedUntil" TIMESTAMP(3)');
+    expect(localCredentialLockoutMigration).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "LocalCredential_login_key" ON "LocalCredential"("login")'
+    );
+    expect(localCredentialLockoutMigration).toContain('GROUP BY "login"');
+    expect(localCredentialLockoutMigration).toContain("Cannot add global unique LocalCredential.login index");
+    expect(localCredentialLockoutMigration).toContain(
+      'CREATE INDEX IF NOT EXISTS "LocalCredential_workspaceId_lockedUntil_idx" ON "LocalCredential"("workspaceId", "lockedUntil")'
+    );
   });
 
   it("stores integration credentials as one secret slot per kind", () => {

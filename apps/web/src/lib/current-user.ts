@@ -24,7 +24,28 @@ export function isDemoAuthEnabled() {
   return process.env.QC_DEMO_AUTH === "enabled";
 }
 
+async function getAuthJsSession() {
+  const { auth } = await import("../../auth");
+  return auth();
+}
+
 export async function getCurrentUser() {
+  const authSession = await getAuthJsSession();
+  const authUserId = authSession?.user?.id;
+
+  if (authUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: authUserId },
+      include: { workspace: true }
+    });
+
+    if (!user || user.lifecycleStatus !== "ACTIVE") {
+      throw new AuthRequiredError();
+    }
+
+    return user;
+  }
+
   const cookieStore = await cookies();
   const session = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
 

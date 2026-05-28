@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
-import { createAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { signInE2EUser } from "./helpers/auth";
 
 const routes = [
   "/admin",
@@ -35,19 +35,7 @@ test.beforeEach(async ({ context }) => {
     orderBy: { createdAt: "asc" },
     select: { id: true }
   });
-  const { token, session } = await createAuthSession({ userId: admin.id, userAgent: "playwright-admin-layout" });
-
-  await context.addCookies([
-    {
-      name: sessionCookieName,
-      value: token,
-      url: "http://localhost:3000",
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: false,
-      expires: Math.floor(session.expiresAt.getTime() / 1000)
-    }
-  ]);
+  await signInE2EUser(context, admin, "playwright-admin-layout");
 });
 
 test("admin and work queue routes do not introduce page-level horizontal overflow", async ({ page }) => {

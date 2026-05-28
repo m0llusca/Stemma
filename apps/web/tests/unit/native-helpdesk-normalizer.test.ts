@@ -99,6 +99,57 @@ describe("native helpdesk normalizer", () => {
     );
   });
 
+  it("normalizes Jira object comment bodies into plain text", () => {
+    const [conversation] = normalizeNativeHelpdeskPayload(
+      {
+        request: {
+          issueId: "10045",
+          issueKey: "SUP-45",
+          reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+          currentStatus: { status: "Open" },
+          createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+          requestFieldValues: [{ fieldId: "summary", label: "Summary", value: "ADF body request" }]
+        },
+        comments: [
+          {
+            id: "10005",
+            body: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "First nested sentence." },
+                    { type: "text", value: "Second nested sentence." }
+                  ]
+                },
+                {
+                  type: "paragraph",
+                  value: {
+                    content: [{ type: "text", text: "Final nested sentence." }]
+                  }
+                }
+              ]
+            },
+            public: { value: true },
+            created: { iso8601: "2026-04-25T10:10:00+0000" },
+            author: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" }
+          }
+        ]
+      },
+      { source: "jira" }
+    );
+
+    expect(conversation?.messages).toEqual([
+      expect.objectContaining({
+        externalId: "10005",
+        participantType: "customer",
+        body: "First nested sentence.\nSecond nested sentence.\nFinal nested sentence.",
+        isPrivate: false
+      })
+    ]);
+  });
+
   it("imports Jira requests without comments from description-like request fields", () => {
     const [conversation] = normalizeNativeHelpdeskPayload(
       {

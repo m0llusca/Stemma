@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authCookieOptions, expiredCookieOptions } from "@/lib/auth/cookies";
+import { createEnterpriseAssertion, issueSessionFromEnterpriseAssertion } from "@/auth/providers/assertion";
+import { expiredCookieOptions } from "@/lib/auth/cookies";
 import { loginFlashCookieName, loginFlashCookieOptions, type LoginFlashCode } from "@/lib/auth/login-flash";
 import {
   exchangeAuthorizationCode,
@@ -11,7 +12,7 @@ import {
   upsertUserFromOidcClaims,
   validateIdToken
 } from "@/lib/auth/oidc";
-import { sessionCookieName } from "@/lib/auth/session";
+import { setAuthSessionCookies } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
 import { resolvePublicOrigin } from "@/lib/public-origin";
@@ -108,16 +109,31 @@ export async function GET(request: NextRequest) {
       provider,
       nonce
     });
-    const { session: authSession } = await upsertUserFromOidcClaims({
+    const { user } = await upsertUserFromOidcClaims({
       workspaceId: provider.workspaceId,
       providerId: provider.id,
       claims,
       accessToken: tokenResponse.access_token,
       userAgent: request.headers.get("user-agent")
     });
+    const assertion = await createEnterpriseAssertion({
+      workspaceId: provider.workspaceId,
+      userId: user.id,
+      providerId: provider.id
+    });
+    const authSession = await issueSessionFromEnterpriseAssertion({
+      token: assertion.token,
+      providerId: provider.id,
+      userAgent: request.headers.get("user-agent")
+    });
+
+    if (!authSession) {
+      throw new Error("Enterprise assertion did not issue a session.");
+    }
+
     const response = NextResponse.redirect(new URL(returnTo, origin));
 
-    response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
+    setAuthSessionCookies(response.cookies, authSession.token);
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
     clearOidcCookies(response);
     logBackendEvent({

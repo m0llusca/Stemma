@@ -13,6 +13,36 @@ vi.mock("next-auth", () => ({
 }));
 
 describe("Auth.js runtime wiring", () => {
+  it("keeps database sessions without Credentials providers in Auth.js runtime config", async () => {
+    const { authConfig } = await import("@/auth/config");
+
+    expect(authConfig.adapter).toBeDefined();
+    expect(authConfig.secret).toBeDefined();
+    expect(authConfig.session?.strategy).toBe("database");
+    expect(authConfig.cookies?.sessionToken?.name).toBe("authjs.session-token");
+    expect(authConfig.providers).toEqual([]);
+  });
+
+  it("sets Auth.js and legacy session cookies with the same database session token", async () => {
+    const cookieStore = {
+      set: vi.fn()
+    };
+    const { authJsSessionCookieName, authJsSessionTtlSeconds, sessionCookieName, setAuthSessionCookies } = await import(
+      "@/lib/auth/session"
+    );
+    const { authCookieOptions } = await import("@/lib/auth/cookies");
+
+    expect(authJsSessionCookieName).toBe("authjs.session-token");
+    expect(authJsSessionTtlSeconds).toBe(60 * 60 * 12);
+
+    setAuthSessionCookies(cookieStore, "db-session-token");
+
+    const expectedOptions = authCookieOptions(authJsSessionTtlSeconds);
+    expect(cookieStore.set).toHaveBeenCalledTimes(2);
+    expect(cookieStore.set).toHaveBeenNthCalledWith(1, authJsSessionCookieName, "db-session-token", expectedOptions);
+    expect(cookieStore.set).toHaveBeenNthCalledWith(2, sessionCookieName, "db-session-token", expectedOptions);
+  });
+
   it("exports Auth.js handlers and helpers from the root auth module", async () => {
     const runtime = await import("../../auth");
 

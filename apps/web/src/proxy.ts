@@ -1,6 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const sessionCookieName = "qc_session";
+const migrationSessionCookieNames = [
+  sessionCookieName,
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token"
+] as const;
 
 function isDemoAuthEnabled() {
   return process.env.QC_DEMO_AUTH === "enabled";
@@ -8,6 +15,11 @@ function isDemoAuthEnabled() {
 
 function isAuthPath(pathname: string) {
   return pathname === "/auth" || pathname.startsWith("/auth/");
+}
+
+function hasMigrationSessionCookie(request: NextRequest) {
+  // Optimistic shell routing only; getCurrentUser() and permission guards remain authoritative.
+  return migrationSessionCookieNames.some((cookieName) => Boolean(request.cookies.get(cookieName)?.value));
 }
 
 export function proxy(request: NextRequest) {
@@ -21,7 +33,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (request.cookies.get(sessionCookieName)?.value) {
+  if (hasMigrationSessionCookie(request)) {
     return NextResponse.next();
   }
 

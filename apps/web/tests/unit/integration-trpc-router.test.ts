@@ -14,7 +14,9 @@ const mocks = vi.hoisted(() => ({
     message: "Импорт поставлен в очередь.",
     integrationId: "integration-1",
     runId: "run-1",
-    jobId: "job-1"
+    jobId: "job-1",
+    reusedQueuedRun: false,
+    internalDebugToken: "must-not-cross-trpc"
   })
 }));
 
@@ -88,9 +90,13 @@ describe("integration tRPC router", () => {
         deduplicate: true,
         config: {}
       })
-    ).resolves.toMatchObject({
+    ).resolves.toEqual({
       ok: true,
-      runId: "run-1"
+      message: "Импорт поставлен в очередь.",
+      integrationId: "integration-1",
+      runId: "run-1",
+      jobId: "job-1",
+      reusedQueuedRun: false
     });
     expect(mocks.recordIntegrationDryRunFromInput).toHaveBeenCalledWith(
       expect.objectContaining({

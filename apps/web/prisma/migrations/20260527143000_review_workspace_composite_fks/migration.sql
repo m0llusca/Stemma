@@ -1,11 +1,3 @@
-ALTER TABLE "LocalCredential"
-  ADD COLUMN "failedLoginCount" INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN "failedLoginWindowStart" TIMESTAMP(3),
-  ADD COLUMN "lastFailedLoginAt" TIMESTAMP(3),
-  ADD COLUMN "lockedUntil" TIMESTAMP(3);
-
-CREATE INDEX "LocalCredential_workspaceId_lockedUntil_idx" ON "LocalCredential"("workspaceId", "lockedUntil");
-
 CREATE UNIQUE INDEX "Conversation_id_workspaceId_key" ON "Conversation"("id", "workspaceId");
 CREATE UNIQUE INDEX "Scorecard_id_workspaceId_key" ON "Scorecard"("id", "workspaceId");
 

@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  assertCanPersistSettings: vi.fn(),
+  redirect: vi.fn(),
+  revalidatePath: vi.fn(),
+  requireCurrentUserPermission: vi.fn(),
   prisma: {
     $transaction: vi.fn(),
     authSession: {
       create: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn()
@@ -27,14 +32,45 @@ vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: mocks.revalidatePath
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: mocks.redirect
+}));
+
+vi.mock("@/lib/current-user", () => ({
+  assertCanPersistSettings: mocks.assertCanPersistSettings,
+  requireCurrentUserPermission: mocks.requireCurrentUserPermission
+}));
+
 describe("auth session lifecycle hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.requireCurrentUserPermission.mockResolvedValue({ id: "actor-1", workspaceId: "workspace-1" });
+    mocks.assertCanPersistSettings.mockResolvedValue(undefined);
+    mocks.prisma.authSession.findFirst.mockResolvedValue(null);
     mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 0 });
     mocks.prisma.user.findFirst.mockResolvedValue({ id: "user-1" });
     mocks.prisma.identityProvider.findFirst.mockResolvedValue({ id: "provider-1" });
     mocks.prisma.auditLog.create.mockResolvedValue({});
+  });
+
+  it("exports all Auth.js and legacy NextAuth cookies that logout must clear", async () => {
+    const { authJsSessionCookieNames } = await import("@/lib/auth/session");
+
+    expect(authJsSessionCookieNames).toEqual([
+      "authjs.session-token",
+      "__Secure-authjs.session-token",
+      "next-auth.session-token",
+      "__Secure-next-auth.session-token",
+      "authjs.callback-url",
+      "__Secure-authjs.callback-url",
+      "authjs.csrf-token",
+      "__Host-authjs.csrf-token"
+    ]);
   });
 
   it("blocks new sessions for suspended users", async () => {
@@ -104,6 +140,41 @@ describe("auth session lifecycle hardening", () => {
         })
       })
     });
+  });
+
+  it("admin revocation marks an active AuthSession row revoked without deleting it", async () => {
+    mocks.prisma.authSession.findFirst.mockResolvedValue({
+      id: "session-1",
+      userId: "user-1",
+      providerId: "provider-1"
+    });
+    mocks.prisma.authSession.update.mockResolvedValue({
+      id: "session-1",
+      userId: "user-1",
+      providerId: "provider-1"
+    });
+    const formData = new FormData();
+    formData.set("sessionId", "session-1");
+    const { revokeAuthSessionById } = await import("@/lib/auth-provider-actions");
+
+    await revokeAuthSessionById(formData);
+
+    expect(mocks.prisma.authSession.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "session-1",
+        workspaceId: "workspace-1",
+        status: "ACTIVE"
+      }
+    });
+    expect(mocks.prisma.authSession.update).toHaveBeenCalledWith({
+      where: { id: "session-1" },
+      data: {
+        status: "REVOKED",
+        revokedAt: expect.any(Date)
+      }
+    });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/access");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
   });
 
   it("updates lifecycle status, revokes sessions, and audits the lifecycle change", async () => {

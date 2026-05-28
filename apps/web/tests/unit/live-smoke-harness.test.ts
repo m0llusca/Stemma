@@ -37,11 +37,17 @@ describe("Phase D live smoke harness", () => {
     expect(dataSourceLiveSmokeScript).toContain("tests/live/data-source-live-smoke.test.ts");
     expect(dataSourceLiveSmoke).toContain('process.env.DATA_SOURCE_LIVE_SMOKE === "1"');
     expect(dataSourceLiveSmoke).toContain("DATA_SOURCE_LIVE_SOURCE");
+    expect(dataSourceLiveSmoke).toContain('process.env.DATA_SOURCE_LIVE_CONNECTIVITY_ONLY === "1"');
+    expect(dataSourceLiveSmoke).toContain("toBeGreaterThan(0)");
     expect(dataSourceLiveSmoke).toContain("ydb");
     expect(dataSourceLiveSmoke).toContain("ytsaurus");
   });
 
   it("does not reuse a stale local Playwright server between e2e runs", () => {
     expect(playwrightConfig).toContain("reuseExistingServer: false");
+  });
+
+  it("includes data source live smoke in the Phase D live harness", () => {
+    expect(packageJson.scripts["test:live:phase-d"]).toContain("tests/live/data-source-live-smoke.test.ts");
   });
 });

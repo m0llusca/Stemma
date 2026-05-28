@@ -151,7 +151,35 @@ describe("admin user actions", () => {
       mocks.prisma
     );
     expect(JSON.stringify(mocks.prisma.localCredential.create.mock.calls[0][0])).not.toContain("local-password-123");
+    expect(mocks.prisma.localCredential.findFirst).toHaveBeenCalledWith({
+      where: {
+        login: "new.user"
+      },
+      select: { id: true }
+    });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/users");
+  });
+
+  it("blocks local user creation when the login already exists in another workspace", async () => {
+    const { createLocalUser } = await import("@/lib/admin-user-actions");
+    const formData = new FormData();
+    formData.set("name", "Новый пользователь");
+    formData.set("email", "new.user@example.com");
+    formData.set("login", "shared-login");
+    formData.set("password", "local-password-123");
+    formData.set("role", "QA_ANALYST");
+    mocks.prisma.localCredential.findFirst.mockResolvedValueOnce({ id: "foreign-credential" });
+
+    await expect(createLocalUser(formData)).rejects.toThrow("Пользователь с таким логином уже существует.");
+
+    expect(mocks.prisma.localCredential.findFirst).toHaveBeenCalledWith({
+      where: {
+        login: "shared-login"
+      },
+      select: { id: true }
+    });
+    expect(mocks.prisma.user.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.localCredential.create).not.toHaveBeenCalled();
   });
 
   it("returns to the user directory after creating a local user", async () => {

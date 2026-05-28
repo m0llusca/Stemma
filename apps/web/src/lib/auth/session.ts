@@ -1,10 +1,34 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { AuthSession, IdentityProviderType, Prisma, UserLifecycleStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
+import { authCookieOptions, type AuthCookieOptions } from "@/lib/auth/cookies";
 import { prisma } from "@/lib/db";
 
 export const sessionCookieName = "qc_session";
-const sessionTtlMs = 1000 * 60 * 60 * 12;
+export const authJsSessionCookieName = "authjs.session-token";
+export const authJsSessionTtlSeconds = 60 * 60 * 12;
+export const authJsSessionCookieNames = [
+  authJsSessionCookieName,
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+  "authjs.callback-url",
+  "__Secure-authjs.callback-url",
+  "authjs.csrf-token",
+  "__Host-authjs.csrf-token"
+] as const;
+const sessionTtlMs = 1000 * authJsSessionTtlSeconds;
+
+type WritableCookieStore = {
+  set(name: string, value: string, options: AuthCookieOptions): unknown;
+};
+
+export function setAuthSessionCookies(cookieStore: WritableCookieStore, sessionToken: string) {
+  const options = authCookieOptions(authJsSessionTtlSeconds);
+
+  cookieStore.set(authJsSessionCookieName, sessionToken, options);
+  cookieStore.set(sessionCookieName, sessionToken, options);
+}
 
 export function hashSessionToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");

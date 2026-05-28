@@ -227,6 +227,7 @@ model LocalCredential {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
+  @@unique([login])
   @@unique([workspaceId, login])
   @@index([workspaceId])
   @@index([workspaceId, lockedUntil])

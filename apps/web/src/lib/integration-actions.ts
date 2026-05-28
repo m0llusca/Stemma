@@ -11,7 +11,12 @@ import {
   queueIntegrationImportJob,
   queueSelectedOtrsImportJob
 } from "@/lib/integration-import-service";
-import { integrationSetupInputSchema, type IntegrationSetupInput } from "@/lib/integration-setup-schema";
+import {
+  integrationQueueImportOutputSchema,
+  integrationSetupInputSchema,
+  type IntegrationQueueImportOutput,
+  type IntegrationSetupInput
+} from "@/lib/integration-setup-schema";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
@@ -21,6 +26,9 @@ export type IntegrationActionState = {
   ok: boolean;
   message: string;
   integrationId?: string;
+  runId?: string;
+  jobId?: string;
+  reusedExistingRun?: boolean;
 } | null;
 
 export type IntegrationImportActionState = {
@@ -29,6 +37,8 @@ export type IntegrationImportActionState = {
   integrationId?: string;
   runId?: string;
   jobId?: string;
+  reusedExistingRun?: boolean;
+  reusedQueuedRun?: boolean;
 } | null;
 
 export type OtrsDiagnosticsActionState = {
@@ -134,7 +144,27 @@ function revalidateIntegrationAdminPaths(integrationId: string) {
   revalidatePath(`/admin/integrations/${integrationId}`);
 }
 
-function validateBaseUrl(baseUrl: string, mode: string) {
+function allowedBaseUrlProtocols(source: string, mode: string) {
+  const normalizedSource = source.trim().toLowerCase();
+
+  if (mode === "data_source" && normalizedSource === "ydb") {
+    return ["grpc:", "grpcs:"];
+  }
+
+  return ["http:", "https:"];
+}
+
+function baseUrlProtocolMessage(allowedProtocols: readonly string[]) {
+  if (allowedProtocols.length === 2 && allowedProtocols.includes("grpc:") && allowedProtocols.includes("grpcs:")) {
+    return "Base URL должен начинаться с grpc:// или grpcs://.";
+  }
+
+  return allowedProtocols.includes("grpc:")
+    ? "Base URL должен начинаться с http://, https://, grpc:// или grpcs://."
+    : "Base URL должен начинаться с http:// или https://.";
+}
+
+function validateBaseUrl(baseUrl: string, mode: string, source: string) {
   if (!baseUrl && mode !== "custom_api") {
     throw new Error("Укажите Base URL источника.");
   }
@@ -143,23 +173,21 @@ function validateBaseUrl(baseUrl: string, mode: string) {
     return null;
   }
 
+  let url: URL;
+
   try {
-    const url = new URL(baseUrl);
-
-    const allowedProtocols = mode === "data_source" ? ["http:", "https:", "grpc:", "grpcs:"] : ["http:", "https:"];
-
-    if (!allowedProtocols.includes(url.protocol)) {
-      throw new Error(
-        mode === "data_source"
-          ? "Base URL должен начинаться с http://, https://, grpc:// или grpcs://."
-          : "Base URL должен начинаться с http:// или https://."
-      );
-    }
-
-    return url.toString().replace(/\/$/, "");
+    url = new URL(baseUrl);
   } catch {
     throw new Error("Base URL должен быть корректным URL.");
   }
+
+  const allowedProtocols = allowedBaseUrlProtocols(source, mode);
+
+  if (!allowedProtocols.includes(url.protocol)) {
+    throw new Error(baseUrlProtocolMessage(allowedProtocols));
+  }
+
+  return url.toString().replace(/\/$/, "");
 }
 
 function assertSupportedSourceMode(source: string, mode: string) {
@@ -171,7 +199,7 @@ function readIntegrationSetup(formData: FormData) {
   const sourceLabel = stringField(formData, "sourceLabel") || source;
   const mode = stringField(formData, "mode") || "unknown";
   assertSupportedSourceMode(source, mode);
-  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), mode);
+  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), mode, source);
   const maxTickets = numberField(formData, "maxTickets", 100);
   const batchSize = numberField(formData, "batchSize", 25);
   const dateRangeDays = numberField(formData, "dateRangeDays", 30);
@@ -241,6 +269,18 @@ function assertSupportedSetupContract(setup: ReturnType<typeof readIntegrationSe
   assertSupportedSourceMode(setup.source, setup.mode);
 }
 
+const inFlightSetupRunStatuses = ["dry_run_queued", "queued", "running"] as const;
+
+function setupQueueMessage(dryRun: boolean, reusedExistingRun: boolean) {
+  if (reusedExistingRun) {
+    return dryRun ? "Проверка подключения уже находится в backend-очереди." : "Импорт уже находится в backend-очереди.";
+  }
+
+  return dryRun
+    ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner."
+    : "Импорт поставлен в backend-очередь. Запуск выполнит connector runner.";
+}
+
 const otrsSourceSchema = z
   .string()
   .trim()
@@ -251,7 +291,7 @@ const otrsSourceSchema = z
 function readOtrsIntegrationSetup(formData: FormData) {
   const source = otrsSourceSchema.parse(stringField(formData, "source") || "otrs");
   const displayName = stringField(formData, "displayName") || stringField(formData, "sourceLabel") || "OTRS";
-  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), "otrs_family");
+  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), "otrs_family", source);
   const product = stringField(formData, "product") || "otrs_ce_6";
   const userLogin = stringField(formData, "userLogin");
   const password = stringField(formData, "password");
@@ -373,19 +413,17 @@ async function upsertIntegrationSetup(
   });
 
   if (setup.credentialSecret) {
-    const secretKind =
-      setup.mode === "data_source"
-        ? setup.source === "ytsaurus"
-          ? "data_source_token"
-          : "data_source_credentials"
-        : "auth_password";
-    await upsertIntegrationSecretSlot(tx, {
-      workspaceId,
-      integrationId: integration.id,
-      kind: secretKind,
-      authMode: setup.mode === "otrs_family" ? "user_password" : setup.mode === "data_source" ? "data_source_secret" : "bearer_token",
-      secret: setup.credentialSecret
-    });
+    const secretKind = setupCredentialSecretKind(setup);
+
+    if (secretKind) {
+      await upsertIntegrationSecretSlot(tx, {
+        workspaceId,
+        integrationId: integration.id,
+        kind: secretKind,
+        authMode: setup.mode === "otrs_family" ? "user_password" : setup.mode === "data_source" ? "data_source_secret" : "bearer_token",
+        secret: setup.credentialSecret
+      });
+    }
   }
 
   if (setup.caBundle) {
@@ -416,6 +454,57 @@ async function upsertIntegrationSetup(
   }
 
   return integration;
+}
+
+function setupCredentialSecretKind(setup: Pick<ReturnType<typeof readIntegrationSetup>, "mode" | "source">) {
+  const source = setup.source.trim().toLowerCase();
+
+  if (setup.mode === "data_source") {
+    return source === "ytsaurus" ? "data_source_token" : "data_source_credentials";
+  }
+
+  if (setup.mode === "native_helpdesk" || setup.mode === "otrs_family") {
+    return "auth_password";
+  }
+
+  return null;
+}
+
+async function assertSetupRequiredSecretSlots(
+  tx: Prisma.TransactionClient,
+  integrationId: string,
+  setup: ReturnType<typeof readIntegrationSetup>
+) {
+  const requiredKind = setupCredentialSecretKind(setup);
+
+  if (!requiredKind || setup.credentialSecret) {
+    return;
+  }
+
+  const existing = await tx.integration.findUnique({
+    where: { id: integrationId },
+    select: {
+      credentials: {
+        select: {
+          kind: true
+        }
+      }
+    }
+  });
+  const hasRequiredSlot = existing?.credentials.some((credential) => credential.kind === requiredKind) ?? false;
+
+  if (!hasRequiredSlot) {
+    throw new Error(`Не заполнены требуемые secret slots: ${requiredKind}.`);
+  }
+}
+
+async function lockSetupRunClaim(
+  tx: Prisma.TransactionClient,
+  input: { workspaceId: string; integrationId: string; source: string; mode: string; dryRun: boolean }
+) {
+  const key = `integration_setup:${input.workspaceId}:${input.integrationId}:${input.source}:${input.mode}:${input.dryRun}`;
+
+  await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", key);
 }
 
 export async function saveIntegrationConfiguration(formData: FormData) {
@@ -467,22 +556,69 @@ export async function saveIntegrationConfiguration(formData: FormData) {
   return { integrationId: integration.id };
 }
 
-export async function recordIntegrationDryRun(formData: FormData) {
+type RecordedIntegrationDryRun = {
+  integrationId: string;
+  runId?: string;
+  jobId?: string;
+  reusedExistingRun: boolean;
+  reusedQueuedRun: boolean;
+  message: string;
+};
+
+export async function recordIntegrationDryRun(formData: FormData): Promise<RecordedIntegrationDryRun> {
   const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
   assertSupportedSetupContract(setup);
   const runStatus = setup.dryRun ? "dry_run_queued" : "queued";
   const queuedAction = setup.dryRun ? "integration.dry_run_queued" : "integration.import_queued";
+  const now = new Date();
 
-  const integration = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const integration = await upsertIntegrationSetup(
       tx,
       user.workspaceId,
       setup,
       "queued",
-      setup.dryRun ? { lastDryRunAt: new Date() } : { lastImportAt: new Date() }
+      setup.dryRun ? { lastDryRunAt: now } : { lastImportAt: now }
     );
+
+    await assertSetupRequiredSecretSlots(tx, integration.id, setup);
+    await lockSetupRunClaim(tx, {
+      workspaceId: user.workspaceId,
+      integrationId: integration.id,
+      source: setup.source,
+      mode: setup.mode,
+      dryRun: setup.dryRun
+    });
+
+    const existingRun = await tx.integrationRun.findFirst({
+      where: {
+        workspaceId: user.workspaceId,
+        integrationId: integration.id,
+        source: setup.source,
+        mode: setup.mode,
+        dryRun: setup.dryRun,
+        status: { in: [...inFlightSetupRunStatuses] }
+      },
+      orderBy: { startedAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        requestedLimit: true,
+        dryRun: true
+      }
+    });
+
+    if (existingRun) {
+      return {
+        integrationId: integration.id,
+        runId: existingRun.id,
+        reusedExistingRun: true,
+        reusedQueuedRun: true,
+        message: setupQueueMessage(setup.dryRun, true)
+      };
+    }
 
     const run = await tx.integrationRun.create({
       data: {
@@ -541,18 +677,23 @@ export async function recordIntegrationDryRun(formData: FormData) {
       },
       tx
     );
-    return integration;
+    return {
+      integrationId: integration.id,
+      runId: run.id,
+      jobId: job.id,
+      reusedExistingRun: false,
+      reusedQueuedRun: false,
+      message: setupQueueMessage(setup.dryRun, false)
+    };
   });
 
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/system");
 
-  return {
-    integrationId: integration.id
-  };
+  return result;
 }
 
-export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationImportActionState> {
+export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationQueueImportOutput> {
   const parsed = integrationSetupInputSchema.parse(input);
   const formData = new FormData();
 
@@ -568,13 +709,14 @@ export async function recordIntegrationDryRunFromInput(input: IntegrationSetupIn
 
   const result = await recordIntegrationDryRun(formData);
 
-  return {
+  return integrationQueueImportOutputSchema.parse({
     ok: true,
-    message: parsed.dryRun
-      ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner."
-      : "Импорт поставлен в backend-очередь. Запуск выполнит connector runner.",
-    integrationId: result.integrationId
-  };
+    message: result.message,
+    integrationId: result.integrationId,
+    runId: result.runId,
+    jobId: result.jobId,
+    reusedQueuedRun: result.reusedQueuedRun
+  });
 }
 
 export async function saveOtrsIntegrationConfiguration(formData: FormData) {
@@ -849,14 +991,14 @@ export async function saveIntegrationConfigurationState(_state: IntegrationActio
 export async function recordIntegrationDryRunState(_state: IntegrationActionState, formData: FormData): Promise<IntegrationActionState> {
   try {
     const result = await recordIntegrationDryRun(formData);
-    const liveImport = stringField(formData, "dryRun") === "false";
 
     return {
       ok: true,
-      message: liveImport
-        ? "Импорт поставлен в backend-очередь. Запуск выполнит реальный connector runner."
-        : "Проверка подключения поставлена в backend-очередь. Запуск выполнит реальный connector runner.",
-      integrationId: result.integrationId
+      message: result.message,
+      integrationId: result.integrationId,
+      runId: result.runId,
+      jobId: result.jobId,
+      reusedExistingRun: result.reusedExistingRun
     };
   } catch (error) {
     return {

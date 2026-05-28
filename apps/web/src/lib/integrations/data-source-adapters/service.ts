@@ -22,6 +22,10 @@ function parseConfig(value: string) {
   }
 }
 
+function isConnectivityOnly(config: Record<string, unknown>) {
+  return config.connectivityOnly === true;
+}
+
 function credentialSecret(credentials: IntegrationCredential[], kind: string) {
   const credential = credentials.find((item) => item.kind === kind);
 
@@ -48,16 +52,23 @@ export async function loadDataSourceAdapterConversations(input: {
     throw new Error("Тип интеграции не соответствует data source contract.");
   }
 
+  const config = parseConfig(input.integration.configJson);
   const adapter = source === "ydb" ? createYdbAdapter() : createYTsaurusAdapter();
   const [requiredSecret] = contract.requiredSecrets;
   const limit = Math.min(input.limit, contract.payloadLimits.rowLimit);
 
-  return adapter.loadRows({
+  const result = await adapter.loadRows({
     source,
     baseUrl: input.integration.baseUrl,
-    config: parseConfig(input.integration.configJson),
+    config,
     credential: requiredSecret ? credentialSecret(input.integration.credentials, requiredSecret) : undefined,
     limit,
     maxResponseBytes: contract.payloadLimits.maxResponseBytes
   });
+
+  if (result.conversations.length === 0 && !isConnectivityOnly(config)) {
+    throw new Error("Источник данных не вернул обращения в поддерживаемом формате.");
+  }
+
+  return result;
 }

@@ -339,3 +339,113 @@ describe("OIDC helpers", () => {
     ).rejects.toThrow(/Microsoft Graph/);
   });
 });
+
+describe("OIDC user upsert session boundary", () => {
+  afterEach(() => {
+    vi.doUnmock("@/lib/db");
+    vi.doUnmock("@/lib/auth/providers");
+    vi.doUnmock("@/lib/auth/session");
+    vi.resetModules();
+  });
+
+  it("returns the resolved user and role without creating an AuthSession", async () => {
+    vi.resetModules();
+
+    const updatedUser = {
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Agent One",
+      role: "TEAM_LEAD",
+      lifecycleStatus: "ACTIVE",
+      sourceOfTruthProviderId: "provider-1",
+      supportLine: "Tier 2",
+      teamName: "Escalations"
+    };
+    const tx = {
+      externalIdentity: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "identity-1",
+          userId: "user-1",
+          user: { id: "user-1" }
+        }),
+        update: vi.fn().mockResolvedValue({ id: "identity-1" }),
+        create: vi.fn()
+      },
+      user: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(updatedUser)
+      }
+    };
+    const prismaMock = {
+      identityProvider: {
+        findUnique: vi.fn().mockResolvedValue({ configJson: "{}" })
+      },
+      $transaction: vi.fn(async (callback) => callback(tx))
+    };
+    const resolveIdentityPolicyFromExternalClaims = vi.fn().mockResolvedValue({
+      role: "TEAM_LEAD",
+      supportLine: "Tier 2",
+      teamName: "Escalations"
+    });
+    const createAuthSession = vi.fn().mockResolvedValue({
+      token: "session-token",
+      session: { id: "session-1", userId: "user-1" }
+    });
+
+    vi.doMock("@/lib/db", () => ({
+      prisma: prismaMock
+    }));
+    vi.doMock("@/lib/auth/providers", () => ({
+      buildEntraAuthorizationMetadata: vi.fn(),
+      resolveIdentityPolicyFromExternalClaims
+    }));
+    vi.doMock("@/lib/auth/session", () => ({
+      createAuthSession
+    }));
+
+    const { upsertUserFromOidcClaims } = await import("@/lib/auth/oidc");
+
+    await expect(
+      upsertUserFromOidcClaims({
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        accessToken: "access-token-1",
+        userAgent: "test-agent",
+        claims: {
+          sub: "subject-1",
+          email: "agent@example.com",
+          name: "Agent One",
+          roles: ["QC.TeamLead"]
+        }
+      })
+    ).resolves.toEqual({
+      user: updatedUser,
+      role: "TEAM_LEAD"
+    });
+
+    expect(tx.externalIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-1" },
+      data: expect.objectContaining({
+        email: "agent@example.com",
+        displayName: "Agent One",
+        rawClaimsJson: expect.any(String),
+        lastLoginAt: expect.any(Date)
+      })
+    });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: expect.objectContaining({
+        email: "agent@example.com",
+        name: "Agent One",
+        role: "TEAM_LEAD",
+        sourceOfTruthProviderId: "provider-1",
+        supportLine: "Tier 2",
+        teamName: "Escalations",
+        lastDirectorySyncAt: expect.any(Date)
+      })
+    });
+    expect(createAuthSession).not.toHaveBeenCalled();
+  });
+});

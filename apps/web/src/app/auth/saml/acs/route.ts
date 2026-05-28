@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authCookieOptions, expiredCookieOptions } from "@/lib/auth/cookies";
+import { createEnterpriseAssertion, issueSessionFromEnterpriseAssertion } from "@/auth/providers/assertion";
+import { expiredCookieOptions } from "@/lib/auth/cookies";
 import { loginFlashCookieName, loginFlashCookieOptions } from "@/lib/auth/login-flash";
 import { validateSamlPostResponse, upsertUserFromSamlProfile } from "@/lib/auth/saml";
-import { sessionCookieName } from "@/lib/auth/session";
+import { setAuthSessionCookies } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
 import { resolvePublicOrigin } from "@/lib/public-origin";
@@ -70,21 +71,36 @@ export async function POST(request: NextRequest) {
       origin,
       samlResponse
     });
-    const { session: authSession } = await upsertUserFromSamlProfile({
+    const { user } = await upsertUserFromSamlProfile({
       workspaceId: provider.workspaceId,
       providerId: provider.id,
       profile,
       userAgent: request.headers.get("user-agent")
     });
+    const assertion = await createEnterpriseAssertion({
+      workspaceId: provider.workspaceId,
+      providerId: provider.id,
+      userId: user.id
+    });
+    const authSession = await issueSessionFromEnterpriseAssertion({
+      token: assertion.token,
+      providerId: provider.id,
+      userAgent: request.headers.get("user-agent")
+    });
+
+    if (!authSession) {
+      throw new Error("Enterprise assertion session was not issued.");
+    }
+
     const response = NextResponse.redirect(new URL(safeReturnTo(formData?.get("RelayState")), origin));
 
-    response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
+    setAuthSessionCookies(response.cookies, authSession.token);
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
     logBackendEvent({
       requestId: requestIdFromHeaders(request.headers),
       event: "auth.saml.login_succeeded",
       workspaceId: provider.workspaceId,
-      actorId: authSession.session.userId,
+      actorId: user.id,
       targetType: "identity_provider",
       targetId: provider.id,
       metadata: { sessionId: authSession.session.id }
