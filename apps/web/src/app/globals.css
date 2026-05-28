@@ -4046,6 +4046,73 @@ pre code {
   box-shadow: none;
 }
 
+/* ---- Sticky queue controls bar ---- */
+.queue-controls-bar__slot {
+  min-width: 0;
+}
+
+.queue-controls-bar {
+  position: relative;
+  z-index: 14;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-page);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: border-radius 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.queue-controls-bar .queue-filterbar {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.page:has(.queue-controls-bar) .app-topbar {
+  border-bottom-color: transparent;
+  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
+}
+
+.queue-controls-bar.queue-controls-bar--stuck {
+  --queue-sticky-width: calc(100vw - var(--app-sidebar-width));
+  --queue-sticky-inset: calc(
+    var(--app-topbar-inline) + max(0px, calc((var(--queue-sticky-width) - (var(--app-topbar-inline) * 2) - var(--content-max-width)) / 2))
+  );
+  position: fixed;
+  top: var(--app-topbar-height);
+  left: var(--app-sidebar-width);
+  z-index: 19;
+  width: var(--queue-sticky-width);
+  overflow: visible;
+  border-top: 1px solid var(--line-soft);
+  border-right: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
+  padding-inline: var(--queue-sticky-inset);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.queue-controls-bar.queue-controls-bar--stuck .queue-quick-views,
+.queue-controls-bar.queue-controls-bar--stuck .queue-filterbar__active {
+  display: none;
+}
+
+.queue-controls-bar.queue-controls-bar--stuck .queue-filterbar {
+  border-top: 0;
+}
+
+/* ---- end sticky queue controls bar ---- */
+
 .queue-quick-views {
   min-width: 0;
 }

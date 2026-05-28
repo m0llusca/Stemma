@@ -3,6 +3,7 @@ import Link from "next/link";
 import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
+import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
 import type { ReviewQueueSearchParams } from "@/lib/review-repository";
 
@@ -120,7 +121,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           )}
         </div>
       </section>
-      <section className="queue-controls panel">
+      <StickyCommandBarShell className="queue-controls-bar" ariaLabel="Фильтры и виды очереди">
         <QueueSavedViews currentAssigneeName={data.currentAssigneeName} currentHref={data.currentHref} savedViews={data.savedViews} />
         <QueueFilters
           filters={data.filters}
@@ -130,7 +131,7 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           supportLines={data.filterOptions.supportLines}
           teamNames={data.filterOptions.teamNames}
         />
-      </section>
+      </StickyCommandBarShell>
       <div className="grid min-w-0 gap-3">
         <QueueTable conversations={data.conversations} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
       </div>
