@@ -4,6 +4,16 @@ import { auditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 
 export const sessionCookieName = "qc_session";
+export const authJsSessionCookieNames = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+  "authjs.callback-url",
+  "__Secure-authjs.callback-url",
+  "authjs.csrf-token",
+  "__Host-authjs.csrf-token"
+] as const;
 const sessionTtlMs = 1000 * 60 * 60 * 12;
 
 export function hashSessionToken(token: string) {
