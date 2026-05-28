@@ -711,21 +711,30 @@ function jiraFieldText(value: unknown): string | undefined {
   }
 
   if (Array.isArray(value)) {
-    const values = uniqueValues(value.map(jiraFieldText));
-    return values.length > 0 ? values.join("\n") : undefined;
+    return joinJiraTextValues(value.map(jiraFieldText));
   }
 
   if (isRecord(value)) {
-    return (
-      jiraFieldText(value.text) ??
-      jiraFieldText(value.value) ??
-      jiraFieldText(value.renderedValue) ??
-      jiraFieldText(value.html) ??
+    return joinJiraTextValues([
+      jiraFieldText(value.renderedBody),
+      jiraFieldText(value.text),
+      jiraFieldText(value.plainText),
+      jiraFieldText(value.value),
+      jiraFieldText(value.renderedValue),
+      jiraFieldText(value.html),
       jiraFieldText(value.content)
-    );
+    ]);
   }
 
   return undefined;
+}
+
+function joinJiraTextValues(values: Array<string | undefined>) {
+  const normalized = values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return normalized.length > 0 ? normalized.join("\n") : undefined;
 }
 
 function jiraDescriptionBody(request: NativeRecord, requestFields: NativeRecord[]) {
@@ -798,14 +807,13 @@ function normalizeJiraMessage(comment: NativeRecord, index: number, reporter: Na
   const author = recordValue(comment.author);
   const publicFlag = recordValue(comment.public);
   const isPublic = boolValue(publicFlag?.value ?? comment.public) ?? true;
-  const bodyValue =
-    typeof comment.body === "object" ? firstString(comment.renderedBody) : firstString(comment.body, comment.renderedBody);
+  const bodyValue = jiraFieldText(comment.renderedBody) ?? jiraFieldText(comment.body);
 
   return {
     externalId: firstString(comment.id, `jira-comment-${index + 1}`) ?? `jira-comment-${index + 1}`,
     participantType: jiraParticipantType(author, reporter, isPublic),
     authorName: actorName(author, firstString(author?.displayName, author?.emailAddress, "Jira")),
-    body: stripHtml(bodyValue) ?? "Без текста",
+    body: bodyValue ?? "Без текста",
     sentAt: parseDate(recordValue(comment.created)?.iso8601 ?? comment.created, new Date(index)),
     isPrivate: !isPublic
   };
