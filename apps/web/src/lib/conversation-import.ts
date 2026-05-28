@@ -98,6 +98,15 @@ export async function upsertCustomConversation(
     });
   }
 
+  await client.message.deleteMany({
+    where: {
+      conversationId: conversation.id,
+      externalId: {
+        notIn: sampledPayload.messages.map((message) => message.externalId)
+      }
+    }
+  });
+
   return {
     id: conversation.id,
     externalSource: sampledPayload.externalSource,

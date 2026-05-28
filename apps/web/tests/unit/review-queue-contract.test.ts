@@ -250,11 +250,15 @@ describe("review queue frontend/backend contract", () => {
 
     expect(filters.riskLevel).toBe("HIGH_OR_CRITICAL");
     expect(filters.coachingStatus).toBe("open");
-    expect(and).toEqual(
-      expect.arrayContaining([
-        {
-          reviews: {
-            some: expect.objectContaining({
+    const finalizedReviewFilters = and.filter((clause: Record<string, unknown>) => "reviews" in clause);
+    expect(finalizedReviewFilters).toHaveLength(2);
+    expect(finalizedReviewFilters[1]).toEqual({
+      reviews: {
+        some: {
+          reviewSource: "HUMAN",
+          status: "FINALIZED",
+          AND: expect.arrayContaining([
+            {
               findings: {
                 some: {
                   riskLevel: {
@@ -262,12 +266,8 @@ describe("review queue frontend/backend contract", () => {
                   }
                 }
               }
-            })
-          }
-        },
-        {
-          reviews: {
-            some: expect.objectContaining({
+            },
+            {
               findings: {
                 some: {
                   coachingAction: {
@@ -275,43 +275,27 @@ describe("review queue frontend/backend contract", () => {
                   }
                 }
               }
-            })
-          }
-        },
-        {
-          reviews: {
-            some: expect.objectContaining({
+            },
+            {
               findings: {
                 some: {
                   category: "Маршрутизация"
                 }
               }
-            })
-          }
-        },
-        {
-          reviews: {
-            some: expect.objectContaining({
+            },
+            {
               feedbackStatus: "appeal"
-            })
-          }
-        },
-        {
-          reviews: {
-            some: expect.objectContaining({
+            },
+            {
               appealStatus: "open"
-            })
-          }
-        },
-        {
-          reviews: {
-            some: expect.objectContaining({
+            },
+            {
               reanswerStatus: "requested"
-            })
-          }
+            }
+          ])
         }
-      ])
-    );
+      }
+    });
   });
 
   it("filters reviewed queues by support team of the checked agent", async () => {

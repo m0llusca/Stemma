@@ -37,7 +37,7 @@ function filterFormUrl(form: HTMLFormElement, action: string) {
 
     const normalizedValue = value.trim();
 
-    if (!normalizedValue || (key === "status" && normalizedValue === "all")) {
+    if (!normalizedValue || ((key === "status" || key === "qaStatus") && normalizedValue === "all")) {
       continue;
     }
 

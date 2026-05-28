@@ -45,18 +45,42 @@ export async function createCalibrationSession(formData: FormData) {
   const participantIds = formData
     .getAll("participantId")
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  const uniqueConversationIds = Array.from(new Set(conversationIds));
+  const uniqueParticipantIds = Array.from(new Set(participantIds));
 
-  if (!name || conversationIds.length === 0 || participantIds.length === 0) {
+  if (!name || uniqueConversationIds.length === 0 || uniqueParticipantIds.length === 0) {
     throw new Error("Нужны название, хотя бы один диалог и участник.");
   }
 
-  const scorecard = await prisma.scorecard.findFirst({
-    where: { workspaceId: user.workspaceId, isActive: true },
-    select: { id: true }
-  });
+  const [scorecard, workspaceConversationCount, workspaceParticipantCount] = await Promise.all([
+    prisma.scorecard.findFirst({
+      where: { workspaceId: user.workspaceId, isActive: true },
+      select: { id: true }
+    }),
+    prisma.conversation.count({
+      where: {
+        id: { in: uniqueConversationIds },
+        workspaceId: user.workspaceId
+      }
+    }),
+    prisma.user.count({
+      where: {
+        id: { in: uniqueParticipantIds },
+        workspaceId: user.workspaceId
+      }
+    })
+  ]);
 
   if (!scorecard) {
     throw new Error("Активная форма оценки не найдена.");
+  }
+
+  if (workspaceConversationCount !== uniqueConversationIds.length) {
+    throw new Error("Диалоги калибровки должны принадлежать текущему рабочему пространству.");
+  }
+
+  if (workspaceParticipantCount !== uniqueParticipantIds.length) {
+    throw new Error("Участники калибровки должны принадлежать текущему рабочему пространству.");
   }
 
   const session = await prisma.$transaction(async (tx) => {
@@ -70,10 +94,10 @@ export async function createCalibrationSession(formData: FormData) {
         dueAt: dateField(formData, "dueAt"),
         notes,
         items: {
-          create: conversationIds.map((conversationId) => ({ conversationId }))
+          create: uniqueConversationIds.map((conversationId) => ({ conversationId }))
         },
         participants: {
-          create: participantIds.map((participantId) => ({ userId: participantId }))
+          create: uniqueParticipantIds.map((participantId) => ({ userId: participantId }))
         }
       }
     });
@@ -86,8 +110,8 @@ export async function createCalibrationSession(formData: FormData) {
         targetType: "calibration",
         targetId: created.id,
         metadata: {
-          conversationIds,
-          participantIds
+          conversationIds: uniqueConversationIds,
+          participantIds: uniqueParticipantIds
         }
       },
       tx

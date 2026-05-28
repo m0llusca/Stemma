@@ -17,6 +17,7 @@ export const backendJobQueueDefaults = {
 const requeueConflictMessage = "Можно вернуть в очередь только ошибочную задачу текущего рабочего пространства.";
 const cancelConflictMessage = "Можно отменить только задачу в очереди.";
 const lostLockMessage = "Задача уже перехвачена другим worker.";
+const cancelledIntegrationImportMessage = "Задача импорта отменена.";
 
 export class BackendJobRequeueConflictError extends Error {
   constructor() {
@@ -66,6 +67,64 @@ type JobClient = Pick<
 >;
 
 type EnqueueJobClient = Pick<Prisma.TransactionClient, "backendJob">;
+
+function parsePayloadJson(payloadJson: string): BackendJobPayload {
+  try {
+    const parsed = JSON.parse(payloadJson);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function restorableIntegrationStatus(value: unknown) {
+  return typeof value === "string" && ["planned", "ready", "active", "paused", "error"].includes(value) ? value : "ready";
+}
+
+async function restoreCancelledIntegrationImportState(
+  client: Pick<Prisma.TransactionClient, "integration" | "integrationRun">,
+  job: Pick<BackendJob, "workspaceId" | "type" | "payloadJson">,
+  finishedAt: Date
+) {
+  if (job.type !== "INTEGRATION_IMPORT") {
+    return;
+  }
+
+  const payload = parsePayloadJson(job.payloadJson);
+  const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
+  const integrationRunId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
+
+  if (integrationRunId) {
+    await client.integrationRun.updateMany({
+      where: {
+        id: integrationRunId,
+        workspaceId: job.workspaceId,
+        status: {
+          in: ["queued", "dry_run_queued"]
+        }
+      },
+      data: {
+        status: "cancelled",
+        errorMessage: cancelledIntegrationImportMessage,
+        finishedAt
+      }
+    });
+  }
+
+  if (integrationId) {
+    await client.integration.updateMany({
+      where: {
+        id: integrationId,
+        workspaceId: job.workspaceId,
+        status: "queued"
+      },
+      data: {
+        status: restorableIntegrationStatus(payload.previousStatus),
+        lastError: null
+      }
+    });
+  }
+}
 
 export async function enqueueBackendJob(input: {
   workspaceId: string;
@@ -188,7 +247,10 @@ export async function cancelBackendJob(input: { workspaceId: string; jobId: stri
     },
     select: {
       id: true,
-      status: true
+      status: true,
+      type: true,
+      payloadJson: true,
+      workspaceId: true
     }
   });
 
@@ -201,6 +263,7 @@ export async function cancelBackendJob(input: { workspaceId: string; jobId: stri
   }
 
   return prisma.$transaction(async (tx) => {
+    const finishedAt = new Date();
     const cancelled = await tx.backendJob.updateMany({
       where: {
         id: input.jobId,
@@ -209,7 +272,7 @@ export async function cancelBackendJob(input: { workspaceId: string; jobId: stri
       },
       data: {
         status: "CANCELLED",
-        finishedAt: new Date(),
+        finishedAt,
         lockedAt: null,
         lockedBy: null
       }
@@ -226,6 +289,8 @@ export async function cancelBackendJob(input: { workspaceId: string; jobId: stri
     if (!updated) {
       throw new BackendJobCancelConflictError();
     }
+
+    await restoreCancelledIntegrationImportState(tx, existing, finishedAt);
 
     await recordJobEvent(tx, updated.id, "warn", input.eventMessage ?? "Задача отменена администратором.", {
       actorId: input.actorId
@@ -382,12 +447,7 @@ export async function recoverStaleBackendJobs(input: {
 }
 
 function parsePayload(job: BackendJob): BackendJobPayload {
-  try {
-    const parsed = JSON.parse(job.payloadJson);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+  return parsePayloadJson(job.payloadJson);
 }
 
 function currentJobLockWhere(job: BackendJob) {

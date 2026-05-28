@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { decryptSecret, encryptSecret, maskSecret } from "@/lib/secrets";
 
 describe("secret encryption", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("round-trips integration credentials without storing plaintext", () => {
     const encrypted = encryptSecret("super-secret-token");
 
@@ -14,5 +18,11 @@ describe("secret encryption", () => {
     expect(maskSecret("short")).toBe("********");
     expect(maskSecret(null)).toBeNull();
   });
-});
 
+  it("refuses to use the local development fallback secret in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("QC_SECRET_KEY", "");
+
+    expect(() => encryptSecret("super-secret-token")).toThrow("QC_SECRET_KEY");
+  });
+});

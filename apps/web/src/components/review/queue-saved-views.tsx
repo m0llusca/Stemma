@@ -70,6 +70,7 @@ export function QueueSavedViews({
                     <input type="hidden" name="id" value={view.id} />
                     <button
                       type="submit"
+                      aria-label={`Удалить представление ${view.label}`}
                       title="Удалить представление"
                       className="icon-action-button icon-action-button--danger h-7 w-7 text-sm"
                     >

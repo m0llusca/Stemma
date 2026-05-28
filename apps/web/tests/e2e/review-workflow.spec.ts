@@ -34,17 +34,15 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByText("Найдено")).toBeVisible();
   await expect(page.getByText(/завершено/i).first()).toBeVisible();
 
-  await page.getByLabel("Поиск").fill("Мила");
+  await page.getByLabel("Поиск в очереди проверок").fill("Мила");
   await page.waitForURL((url) => url.searchParams.get("q") === "Мила");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
 
-  await page.getByLabel("Поиск").fill("несуществующий клиент");
+  await page.getByLabel("Поиск в очереди проверок").fill("несуществующий клиент");
   await page.waitForURL((url) => url.searchParams.get("q") === "несуществующий клиент");
   await expect(page.getByRole("heading", { name: "Очередь пуста" })).toBeVisible({ timeout: 10_000 });
 
-  await page.goto("/reviews");
-  await page.getByLabel("Статус проверки").selectOption("unreviewed");
-  await page.waitForURL((url) => url.searchParams.get("status") === "unreviewed");
+  await page.goto("/reviews?status=unreviewed");
   await expect(page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
 
   await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
@@ -126,8 +124,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/coaching");
   await expect(page.getByRole("heading", { name: "Обучение" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Учебные задачи" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "База ошибок" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Очередь обучения" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Правила для разбора" })).toBeVisible();
 
   await page.goto("/self-review");
   await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();

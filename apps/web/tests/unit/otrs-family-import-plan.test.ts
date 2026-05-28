@@ -220,6 +220,15 @@ function createFakeDb(existingExternalIds: string[] = []) {
         };
         state.messages.push(row);
         return row;
+      }),
+      deleteMany: vi.fn(async ({ where }) => {
+        const notIn = where.externalId?.notIn as string[] | undefined;
+        const before = state.messages.length;
+        state.messages = state.messages.filter(
+          (messageRow) =>
+            messageRow.conversationId !== where.conversationId || (notIn ? notIn.includes(String(messageRow.externalId)) : false)
+        );
+        return { count: before - state.messages.length };
       })
     },
     integration: {
@@ -648,6 +657,49 @@ describe("OTRS-family preview/import planning", () => {
       importedCount: 0,
       skippedCount: 1,
       errorCount: 1
+    });
+  });
+
+  it("marks preview diagnostic and integration run as failed when item creation aborts", async () => {
+    const { db, state } = createFakeDb();
+    const client = {
+      requestJson: vi.fn(async () => {
+        throw new Error("TicketGet timeout");
+      })
+    };
+
+    await expect(
+      createOtrsPreviewRun({
+        db,
+        client,
+        workspaceId: "workspace-1",
+        integration: {
+          id: "integration-1",
+          source: "otrs",
+          baseUrl: "https://support.example.com/otrs",
+          config: configWithLimits({ manualTicketIdLimit: 5 })
+        },
+        actorId: "user-1",
+        userLogin: "qa_api",
+        password: "secret",
+        mode: "ticket_search",
+        filters: {
+          Queue: "Raw"
+        }
+      })
+    ).rejects.toThrow("TicketGet timeout");
+
+    expect(state.diagnosticRuns[0]).toMatchObject({
+      status: "failed",
+      finishedAt: expect.any(Date),
+      errorMessage: "TicketGet timeout"
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "failed",
+      errorCount: 1,
+      checkedCount: 0,
+      errorMessage: "TicketGet timeout",
+      finishedAt: expect.any(Date)
     });
   });
 

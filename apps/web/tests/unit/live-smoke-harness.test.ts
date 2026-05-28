@@ -6,6 +6,7 @@ const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"),
   scripts: Record<string, string>;
 };
 const vitestConfig = readFileSync(join(process.cwd(), "vitest.config.ts"), "utf8");
+const playwrightConfig = readFileSync(join(process.cwd(), "playwright.config.ts"), "utf8");
 const helpdeskLiveSmoke = readFileSync(join(process.cwd(), "tests/live/helpdesk-live-smoke.test.ts"), "utf8");
 const identityLiveSmoke = readFileSync(join(process.cwd(), "tests/live/identity-live-smoke.test.ts"), "utf8");
 const dataSourceLiveSmokePath = join(process.cwd(), "tests/live/data-source-live-smoke.test.ts");
@@ -38,5 +39,9 @@ describe("Phase D live smoke harness", () => {
     expect(dataSourceLiveSmoke).toContain("DATA_SOURCE_LIVE_SOURCE");
     expect(dataSourceLiveSmoke).toContain("ydb");
     expect(dataSourceLiveSmoke).toContain("ytsaurus");
+  });
+
+  it("does not reuse a stale local Playwright server between e2e runs", () => {
+    expect(playwrightConfig).toContain("reuseExistingServer: false");
   });
 });

@@ -18,16 +18,19 @@ const mocks = vi.hoisted(() => ({
     $transaction: vi.fn(),
     conversation: {
       upsert: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn()
     },
     message: {
-      upsert: vi.fn()
+      upsert: vi.fn(),
+      deleteMany: vi.fn()
     },
     samplingRule: {
       findMany: vi.fn()
     },
     review: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn()
     }
@@ -109,6 +112,7 @@ describe("public v1 API contract", () => {
     mocks.prisma.samplingRule.findMany.mockResolvedValue([]);
     mocks.prisma.conversation.upsert.mockResolvedValue({ id: "conv-db-1" });
     mocks.prisma.message.upsert.mockResolvedValue({ id: "msg-db-1" });
+    mocks.prisma.message.deleteMany.mockResolvedValue({ count: 0 });
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
   });
 
@@ -187,6 +191,36 @@ describe("public v1 API contract", () => {
     expect(response.status).toBe(201);
     expect(mocks.prisma.conversation.upsert).not.toHaveBeenCalled();
     expect(mocks.prisma.idempotencyKey.create).not.toHaveBeenCalled();
+  });
+
+  it("removes source messages that disappeared during a conversation re-import", async () => {
+    const { POST } = await import("@/app/api/v1/conversations/route");
+    mocks.prisma.conversation.upsert.mockResolvedValue({ id: "conv-db-1" });
+    const payload = {
+      ...conversationPayload,
+      messages: [
+        {
+          externalId: "m-current",
+          participantType: "customer",
+          authorName: "Ava Customer",
+          body: "Still present upstream",
+          sentAt: "2026-04-25T10:00:00.000Z",
+          isPrivate: false
+        }
+      ]
+    };
+
+    const response = await POST(v1JsonRequest("/api/v1/conversations", payload));
+
+    expect(response.status).toBe(201);
+    expect(mocks.prisma.message.deleteMany).toHaveBeenCalledWith({
+      where: {
+        conversationId: "conv-db-1",
+        externalId: {
+          notIn: ["m-current"]
+        }
+      }
+    });
   });
 
   it("rejects a reused idempotency key with a different request payload", async () => {
@@ -365,5 +399,89 @@ describe("public v1 API contract", () => {
     });
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBe("req-v1-1");
+  });
+
+  it("returns review detail scores with the same explicit point-unit summary", async () => {
+    const { GET } = await import("@/app/api/v1/reviews/[reviewId]/route");
+    mocks.prisma.review.findFirst.mockResolvedValue({
+      id: "review-1",
+      status: "FINALIZED",
+      reviewSource: "HUMAN",
+      rubricVersion: 1,
+      totalScore: 21,
+      confidence: null,
+      summary: "Resolved.",
+      feedbackComment: "",
+      positiveNotes: "",
+      instructionLinks: "",
+      feedbackStatus: "pending",
+      feedbackAckAt: null,
+      feedbackAckBy: null,
+      appealStatus: "none",
+      appealDueAt: null,
+      appealResolvedAt: null,
+      criticalError: false,
+      criticalCategory: null,
+      needsReanswer: false,
+      reanswerStatus: "not_needed",
+      calibrationStatus: "none",
+      calibrationNotes: "",
+      selfReviewNotes: "",
+      finalizedAt: new Date("2026-04-26T12:00:00.000Z"),
+      createdAt: new Date("2026-04-26T11:50:00.000Z"),
+      updatedAt: new Date("2026-04-26T12:05:00.000Z"),
+      reviewer: {
+        id: "user-1",
+        name: "QA Analyst",
+        email: "qa@example.com",
+        role: "QA_ANALYST"
+      },
+      conversation: {
+        id: "conv-1",
+        externalSource: "custom_api",
+        externalId: "ticket-1",
+        externalUrl: null,
+        channel: "CHAT",
+        subject: "Refund",
+        status: "closed",
+        tags: "",
+        customerName: "Ava Customer",
+        assigneeName: "Sam Agent",
+        qaStatus: "FINALIZED",
+        samplingReason: "DSAT",
+        samplingType: "DSAT",
+        csatScore: null,
+        csatBucket: "NO_SCORE",
+        supportLine: "L1",
+        teamName: "Refunds",
+        openedAt: new Date("2026-04-25T10:00:00.000Z"),
+        closedAt: null
+      },
+      scores: [],
+      findings: [],
+      feedbackEvents: [],
+      trainingAssignments: [],
+      events: []
+    });
+
+    const response = await GET(v1Request("/api/v1/reviews/review-1"), {
+      params: Promise.resolve({ reviewId: "review-1" })
+    });
+
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        review: {
+          id: "review-1",
+          totalScore: 21,
+          score: {
+            totalScore: 21,
+            scoreUnit: "points",
+            scoreLabel: "21 балл"
+          }
+        }
+      },
+      requestId: "req-v1-1"
+    });
+    expect(response.status).toBe(200);
   });
 });

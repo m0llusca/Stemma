@@ -33,6 +33,7 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ context }) => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
+  await prisma.backendJob.deleteMany({});
 
   const workspace = await prisma.workspace.findFirstOrThrow({
     orderBy: { createdAt: "asc" },
@@ -86,7 +87,7 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await expect(page.getByRole("heading", { name: "Подключенные источники" })).toBeVisible();
   await expect(page.getByText("Готово к живой сертификации").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Что значит статус сертификации?" }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Диагностика" })).toBeVisible();
+  await expect(page.getByLabel("Разделы интеграций").getByRole("link", { name: "Диагностика" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Проверка и импорт" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Фоновые задачи" })).toBeVisible();
 

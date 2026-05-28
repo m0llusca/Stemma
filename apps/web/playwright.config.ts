@@ -32,6 +32,6 @@ export default defineConfig({
     env: webServerEnv,
     url: "http://localhost:3000",
     timeout: 120_000,
-    reuseExistingServer: !process.env.CI
+    reuseExistingServer: false
   }
 });

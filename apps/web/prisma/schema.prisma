@@ -210,21 +210,26 @@ model User {
 }
 
 model LocalCredential {
-  id           String    @id @default(cuid())
-  workspaceId  String
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  userId       String    @unique
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  login        String
-  passwordHash String
-  passwordSalt String
-  keyVersion   String    @default("scrypt-v1")
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                     String    @id @default(cuid())
+  workspaceId            String
+  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  login                  String
+  passwordHash           String
+  passwordSalt           String
+  keyVersion             String    @default("scrypt-v1")
+  lastLoginAt            DateTime?
+  failedLoginCount       Int       @default(0)
+  failedLoginWindowStart DateTime?
+  lastFailedLoginAt      DateTime?
+  lockedUntil            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   @@unique([workspaceId, login])
   @@index([workspaceId])
+  @@index([workspaceId, lockedUntil])
 }
 
 model IdentityProvider {
@@ -516,6 +521,7 @@ model Conversation {
   updatedAt           DateTime                 @updatedAt
 
   @@unique([workspaceId, externalSource, externalId])
+  @@unique([id, workspaceId])
   @@index([workspaceId, qaStatus])
   @@index([workspaceId, openedAt])
   @@index([workspaceId, updatedAt])
@@ -560,6 +566,7 @@ model Scorecard {
   updatedAt           DateTime             @updatedAt
 
   @@unique([workspaceId, version])
+  @@unique([id, workspaceId])
   @@index([workspaceId, isActive])
 }
 
@@ -585,11 +592,11 @@ model Review {
   workspaceId          String
   workspace            Workspace                @relation(fields: [workspaceId], references: [id])
   conversationId       String
-  conversation         Conversation             @relation(fields: [conversationId], references: [id])
+  conversation         Conversation             @relation(fields: [conversationId, workspaceId], references: [id, workspaceId])
   reviewerId           String
-  reviewer             User                     @relation(fields: [reviewerId], references: [id])
+  reviewer             User                     @relation(fields: [reviewerId, workspaceId], references: [id, workspaceId])
   scorecardId          String
-  scorecard            Scorecard                @relation(fields: [scorecardId], references: [id])
+  scorecard            Scorecard                @relation(fields: [scorecardId, workspaceId], references: [id, workspaceId])
   reviewSource         ReviewSource
   rubricVersion        Int
   status               ReviewStatus

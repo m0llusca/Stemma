@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   isDemoAuthEnabled: vi.fn(),
   prisma: {
     conversation: {
-      count: vi.fn()
+      count: vi.fn(),
+      findMany: vi.fn()
     },
     trainingAssignment: {
       count: vi.fn()
@@ -54,6 +55,7 @@ function mockCurrentUser() {
     }
   ]);
   mocks.prisma.conversation.count.mockResolvedValue(0);
+  mocks.prisma.conversation.findMany.mockResolvedValue([]);
   mocks.prisma.trainingAssignment.count.mockResolvedValue(0);
 }
 
@@ -66,18 +68,42 @@ describe("app sidebar", () => {
 
   it("counts only active-cycle finalized open appeals for badges", async () => {
     const { AppSidebar } = await import("@/components/app-sidebar");
+    mocks.prisma.conversation.findMany.mockResolvedValue([
+      {
+        reviews: [
+          {
+            appealStatus: "open"
+          }
+        ]
+      },
+      {
+        reviews: [
+          {
+            appealStatus: "none"
+          }
+        ]
+      }
+    ]);
     await AppSidebar();
 
-    expect(mocks.prisma.conversation.count).toHaveBeenCalledWith({
+    expect(mocks.prisma.conversation.findMany).toHaveBeenCalledWith({
       where: {
         workspaceId: "workspace-1",
         assigneeName: "Оператор",
-        qaStatus: "FINALIZED",
+        qaStatus: "FINALIZED"
+      },
+      select: {
         reviews: {
-          some: {
+          where: {
             reviewSource: "HUMAN",
-            status: "FINALIZED",
-            appealStatus: "open"
+            status: "FINALIZED"
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          take: 1,
+          select: {
+            appealStatus: true
           }
         }
       }

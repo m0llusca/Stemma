@@ -44,9 +44,21 @@ describe("openapi contract", () => {
     expect(document.components.schemas.ReviewListItem.properties.score).toEqual({
       $ref: "#/components/schemas/ScoreSummary"
     });
+    expect(document.components.schemas.ReviewDetail.properties.score).toEqual({
+      $ref: "#/components/schemas/ScoreSummary"
+    });
     expect(document.paths["/reviews"].get.responses["200"].content["application/json"].schema).toEqual({
       $ref: "#/components/schemas/ReviewListResponse"
     });
+    expect(document.paths["/reviews/{reviewId}"].get.responses["200"].content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/ReviewDetailResponse"
+    });
+    expect(document.paths["/conversations"].get.parameters.map((parameter) => parameter.name)).toEqual(
+      expect.arrayContaining(["createdFrom", "createdTo"])
+    );
+    expect(document.paths["/reviews"].get.parameters.map((parameter) => parameter.name)).toEqual(
+      expect.arrayContaining(["createdFrom", "createdTo"])
+    );
     expect(document.components.schemas.CertificationStatus).toEqual({
       type: "string",
       enum: [...certificationStatuses]

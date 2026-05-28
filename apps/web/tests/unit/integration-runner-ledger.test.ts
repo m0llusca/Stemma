@@ -22,7 +22,8 @@ const mocks = vi.hoisted(() => ({
       upsert: vi.fn()
     },
     message: {
-      upsert: vi.fn()
+      upsert: vi.fn(),
+      deleteMany: vi.fn()
     },
     samplingRule: {
       findMany: vi.fn()
@@ -119,7 +120,8 @@ function fakeClient() {
       upsert: vi.fn().mockResolvedValue({ id: "conversation-1" })
     },
     message: {
-      upsert: vi.fn().mockResolvedValue({ id: "message-1" })
+      upsert: vi.fn().mockResolvedValue({ id: "message-1" }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 })
     },
     samplingRule: {
       findMany: vi.fn().mockResolvedValue([])
