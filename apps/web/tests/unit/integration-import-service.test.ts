@@ -237,6 +237,54 @@ describe("integration import service", () => {
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
 
+  it("rejects unknown native helpdesk sources before queueing connector imports", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "unknown_helpdesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Источник справочной системы не поддерживается.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown data source sources before queueing connector imports", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "unknown_data_source",
+      type: "data_source",
+      status: "ready",
+      importLimit: 25
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Источник данных не поддерживается.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
   it("accepts data_source contracts for YDB and YTsaurus", async () => {
     const { assertIntegrationSourceContractSupported } = await import("@/lib/integration-import-service");
 
