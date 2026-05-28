@@ -114,25 +114,22 @@ describe("enterprise assertion credentials provider", () => {
     vi.clearAllMocks();
   });
 
-  it("registers the assertion provider with JWT session projection for Auth.js issuance", async () => {
+  it("registers the assertion provider with database session projection for Auth.js issuance", async () => {
     const { authConfig } = await import("@/auth/config");
 
-    expect(authConfig.session.strategy).toBe("jwt");
+    expect(authConfig.session.strategy).toBe("database");
     expect(authConfig.providers).toContainEqual(expect.objectContaining({ id: "enterprise-assertion", type: "credentials" }));
 
-    const token = await authConfig.callbacks.jwt({
-      token: {},
+    const session = await authConfig.callbacks.session({
+      session: { user: {}, expires: "2099-01-01T00:00:00.000Z" },
       user: {
         id: "user-1",
         workspaceId: "workspace-1",
         email: "agent@example.com",
+        emailVerified: null,
         name: "Agent One",
         role: "SUPPORT_AGENT"
       }
-    } as never);
-    const session = await authConfig.callbacks.session({
-      session: { user: {}, expires: "2099-01-01T00:00:00.000Z" },
-      token
     } as never);
 
     expect(session.user).toEqual({
