@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import "@/auth/types";
 import { createQcAuthAdapter } from "@/auth/adapter";
+import { enterpriseAssertionProvider } from "@/auth/providers/assertion";
 import { localCredentialsProvider } from "@/auth/providers/local";
 
 export const authConfig = {
@@ -16,7 +17,7 @@ export const authConfig = {
     signOut: "/auth/login?loggedOut=1",
     error: "/auth/login"
   },
-  providers: [localCredentialsProvider],
+  providers: [localCredentialsProvider, enterpriseAssertionProvider],
   callbacks: {
     session({ session, user }) {
       if (user) {

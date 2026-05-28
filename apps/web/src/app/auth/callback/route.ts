@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authCookieOptions, expiredCookieOptions } from "@/lib/auth/cookies";
+import { signIn } from "../../../../auth";
+import { expiredCookieOptions } from "@/lib/auth/cookies";
 import { loginFlashCookieName, loginFlashCookieOptions, type LoginFlashCode } from "@/lib/auth/login-flash";
 import {
   exchangeAuthorizationCode,
@@ -11,7 +12,6 @@ import {
   upsertUserFromOidcClaims,
   validateIdToken
 } from "@/lib/auth/oidc";
-import { sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
 import { resolvePublicOrigin } from "@/lib/public-origin";
@@ -115,9 +115,13 @@ export async function GET(request: NextRequest) {
       accessToken: tokenResponse.access_token,
       userAgent: request.headers.get("user-agent")
     });
+    await signIn("enterprise-assertion", {
+      userId: authSession.session.userId,
+      providerId: provider.id,
+      redirect: false
+    });
     const response = NextResponse.redirect(new URL(returnTo, origin));
 
-    response.cookies.set(sessionCookieName, authSession.token, authCookieOptions(60 * 60 * 12));
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());
     clearOidcCookies(response);
     logBackendEvent({
