@@ -462,7 +462,8 @@ export async function revokeAuthSessionById(formData: FormData) {
   const session = await prisma.authSession.findFirst({
     where: {
       id: sessionId,
-      workspaceId: user.workspaceId
+      workspaceId: user.workspaceId,
+      status: "ACTIVE"
     }
   });
 
