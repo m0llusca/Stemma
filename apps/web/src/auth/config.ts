@@ -1,7 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
 import "@/auth/types";
+import { createQcAuthAdapter } from "@/auth/adapter";
 
 export const authConfig = {
+  adapter: createQcAuthAdapter(),
   session: {
     strategy: "database",
     maxAge: 60 * 60 * 12,
