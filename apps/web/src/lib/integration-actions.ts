@@ -11,7 +11,12 @@ import {
   queueIntegrationImportJob,
   queueSelectedOtrsImportJob
 } from "@/lib/integration-import-service";
-import { integrationSetupInputSchema, type IntegrationSetupInput } from "@/lib/integration-setup-schema";
+import {
+  integrationQueueImportOutputSchema,
+  integrationSetupInputSchema,
+  type IntegrationQueueImportOutput,
+  type IntegrationSetupInput
+} from "@/lib/integration-setup-schema";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
@@ -29,6 +34,7 @@ export type IntegrationImportActionState = {
   integrationId?: string;
   runId?: string;
   jobId?: string;
+  reusedQueuedRun?: boolean;
 } | null;
 
 export type OtrsDiagnosticsActionState = {
@@ -467,7 +473,9 @@ export async function saveIntegrationConfiguration(formData: FormData) {
   return { integrationId: integration.id };
 }
 
-export async function recordIntegrationDryRun(formData: FormData) {
+type RecordedIntegrationDryRun = Pick<IntegrationQueueImportOutput, "integrationId" | "runId" | "jobId" | "reusedQueuedRun">;
+
+export async function recordIntegrationDryRun(formData: FormData): Promise<RecordedIntegrationDryRun> {
   const user = await requireIntegrationSettingsUser();
 
   const setup = readIntegrationSetup(formData);
@@ -475,7 +483,7 @@ export async function recordIntegrationDryRun(formData: FormData) {
   const runStatus = setup.dryRun ? "dry_run_queued" : "queued";
   const queuedAction = setup.dryRun ? "integration.dry_run_queued" : "integration.import_queued";
 
-  const integration = await prisma.$transaction(async (tx) => {
+  const queuedImport = await prisma.$transaction(async (tx) => {
     const integration = await upsertIntegrationSetup(
       tx,
       user.workspaceId,
@@ -483,6 +491,32 @@ export async function recordIntegrationDryRun(formData: FormData) {
       "queued",
       setup.dryRun ? { lastDryRunAt: new Date() } : { lastImportAt: new Date() }
     );
+
+    const existingQueuedRun = await tx.integrationRun.findFirst({
+      where: {
+        workspaceId: user.workspaceId,
+        integrationId: integration.id,
+        source: setup.source,
+        mode: setup.mode,
+        status: runStatus,
+        dryRun: setup.dryRun,
+        requestedLimit: setup.maxTickets
+      },
+      orderBy: {
+        startedAt: "desc"
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existingQueuedRun) {
+      return {
+        integrationId: integration.id,
+        runId: existingQueuedRun.id,
+        reusedQueuedRun: true
+      };
+    }
 
     const run = await tx.integrationRun.create({
       data: {
@@ -541,18 +575,21 @@ export async function recordIntegrationDryRun(formData: FormData) {
       },
       tx
     );
-    return integration;
+    return {
+      integrationId: integration.id,
+      runId: run.id,
+      jobId: job.id,
+      reusedQueuedRun: false
+    };
   });
 
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/system");
 
-  return {
-    integrationId: integration.id
-  };
+  return queuedImport;
 }
 
-export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationImportActionState> {
+export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationQueueImportOutput> {
   const parsed = integrationSetupInputSchema.parse(input);
   const formData = new FormData();
 
@@ -568,13 +605,13 @@ export async function recordIntegrationDryRunFromInput(input: IntegrationSetupIn
 
   const result = await recordIntegrationDryRun(formData);
 
-  return {
+  return integrationQueueImportOutputSchema.parse({
     ok: true,
     message: parsed.dryRun
       ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner."
       : "Импорт поставлен в backend-очередь. Запуск выполнит connector runner.",
-    integrationId: result.integrationId
-  };
+    ...result
+  });
 }
 
 export async function saveOtrsIntegrationConfiguration(formData: FormData) {
