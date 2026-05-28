@@ -1,5 +1,6 @@
 import { auditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { dataSourceContracts } from "@/lib/integrations/data-source-adapters/source-contracts";
 import { phaseBSourceContracts } from "@/lib/integrations/helpdesk-adapters/source-contracts";
 
 export type QueuedIntegrationImport = {
@@ -16,6 +17,7 @@ export type QueuedIntegrationImport = {
 };
 
 export type IntegrationJobOperation = "legacy_connector_run" | "otrs_selected_import";
+const importClaimableStatuses = ["ready", "active", "error", "paused"] as const;
 
 function assertIntegrationEnabled(integration: { status?: string | null }) {
   if (integration.status === "disabled") {
@@ -33,7 +35,16 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
   const source = integration.source?.trim().toLowerCase() ?? "";
   const type = integration.type?.trim() || "custom_api";
   const contract = phaseBSourceContracts[source as keyof typeof phaseBSourceContracts];
+  const dataSourceContract = dataSourceContracts[source as keyof typeof dataSourceContracts];
   const enterpriseMessage = "Корпоративные источники требуют защищенной настройки OAuth-доступов.";
+
+  if (dataSourceContract) {
+    if (type !== dataSourceContract.type) {
+      throw new Error("Тип интеграции не соответствует data source contract.");
+    }
+
+    return;
+  }
 
   if (type === "enterprise" || contract?.type === "enterprise") {
     throw new Error(enterpriseMessage);
@@ -72,6 +83,25 @@ export async function queueIntegrationImportJob(input: {
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
+    const claimedIntegration = await tx.integration.updateMany({
+      where: {
+        id: integration.id,
+        workspaceId: input.workspaceId,
+        status: {
+          in: [...importClaimableStatuses]
+        }
+      },
+      data: {
+        status: "queued",
+        ...(dryRun ? { lastDryRunAt: now } : { lastImportAt: now }),
+        lastError: null
+      }
+    });
+
+    if (claimedIntegration.count !== 1) {
+      throw new Error("Импорт интеграции уже стоит в очереди или выполняется.");
+    }
+
     const run = await tx.integrationRun.create({
       data: {
         workspaceId: input.workspaceId,
@@ -100,27 +130,12 @@ export async function queueIntegrationImportJob(input: {
           integrationRunId: run.id,
           source: integration.source,
           mode: integration.type,
+          previousStatus: integration.status,
           requestedLimit,
           dryRun
         })
       }
     });
-
-    const queuedIntegration = await tx.integration.updateMany({
-      where: {
-        id: integration.id,
-        workspaceId: input.workspaceId,
-        status: { not: "disabled" }
-      },
-      data: {
-        status: "queued",
-        ...(dryRun ? { lastDryRunAt: now } : { lastImportAt: now }),
-        lastError: null
-      }
-    });
-    if (queuedIntegration.count !== 1) {
-      throw new Error("Интеграция отключена.");
-    }
 
     await auditLog(
       {

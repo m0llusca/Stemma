@@ -2,7 +2,7 @@ import type { IntegrationCredential, Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { decryptSecret, encryptSecret } from "@/lib/secrets";
 
-export type OtrsCredentialKind = "auth_password" | "ca_bundle";
+export type OtrsCredentialKind = "auth_password" | "ca_bundle" | "data_source_credentials" | "data_source_token";
 
 type IntegrationCredentialUpsertClient = {
   integrationCredential: {

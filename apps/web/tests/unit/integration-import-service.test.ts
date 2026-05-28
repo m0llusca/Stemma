@@ -49,8 +49,10 @@ describe("integration import service", () => {
       workspaceId: "workspace-1",
       source: "zendesk",
       type: "native_helpdesk",
+      status: "ready",
       importLimit: 25
     });
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.integrationRun.create.mockResolvedValue({
       id: "run-1",
       status: "queued",
@@ -61,7 +63,6 @@ describe("integration import service", () => {
       id: "job-1",
       status: "QUEUED"
     });
-    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await queueIntegrationImportJob({
       workspaceId: "workspace-1",
@@ -75,6 +76,23 @@ describe("integration import service", () => {
         workspaceId: "workspace-1"
       }
     });
+    expect(mocks.prisma.integration.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "integration-1",
+        workspaceId: "workspace-1",
+        status: {
+          in: ["ready", "active", "error", "paused"]
+        }
+      },
+      data: expect.objectContaining({
+        status: "queued",
+        lastImportAt: expect.any(Date),
+        lastError: null
+      })
+    });
+    expect(mocks.prisma.integration.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.prisma.integrationRun.create.mock.invocationCallOrder[0]
+    );
     expect(mocks.prisma.integrationRun.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         workspaceId: "workspace-1",
@@ -95,19 +113,7 @@ describe("integration import service", () => {
         queueName: "integrations",
         priority: 50,
         createdById: "user-1",
-        payloadJson: expect.stringContaining('"integrationRunId":"run-1"')
-      })
-    });
-    expect(mocks.prisma.integration.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: "integration-1",
-        workspaceId: "workspace-1",
-        status: { not: "disabled" }
-      },
-      data: expect.objectContaining({
-        status: "queued",
-        lastImportAt: expect.any(Date),
-        lastError: null
+        payloadJson: expect.stringContaining('"previousStatus":"ready"')
       })
     });
     expect(mocks.auditLog).toHaveBeenCalledWith(
@@ -127,6 +133,30 @@ describe("integration import service", () => {
         status: "QUEUED"
       }
     });
+  });
+
+  it("does not create duplicate integration runs when an import is already queued", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "queued",
+      importLimit: 25
+    });
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1"
+      })
+    ).rejects.toThrow("Импорт интеграции уже стоит в очереди или выполняется.");
+
+    expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
   });
 
   it("throws when the integration does not belong to the workspace", async () => {
@@ -235,6 +265,16 @@ describe("integration import service", () => {
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.prisma.integrationRun.create).not.toHaveBeenCalled();
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts data_source contracts for YDB and YTsaurus", async () => {
+    const { assertIntegrationSourceContractSupported } = await import("@/lib/integration-import-service");
+
+    expect(() => assertIntegrationSourceContractSupported({ source: "ydb", type: "data_source" })).not.toThrow();
+    expect(() => assertIntegrationSourceContractSupported({ source: "ytsaurus", type: "data_source" })).not.toThrow();
+    expect(() => assertIntegrationSourceContractSupported({ source: "ydb", type: "custom_api" })).toThrow(
+      "Тип интеграции не соответствует data source contract."
+    );
   });
 
   it("queues a selected OTRS import job with explicit operation payload", async () => {

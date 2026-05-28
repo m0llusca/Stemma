@@ -4,6 +4,7 @@ import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { safeJsonParse } from "@/lib/api/query";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
+import { formatQualityScore, qualityScoreUnit } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ rev
         reviewSource: review.reviewSource,
         rubricVersion: review.rubricVersion,
         totalScore: review.totalScore,
+        score: {
+          totalScore: review.totalScore,
+          scoreUnit: qualityScoreUnit,
+          scoreLabel: formatQualityScore(review.totalScore)
+        },
         confidence: review.confidence,
         summary: review.summary,
         feedbackComment: review.feedbackComment,

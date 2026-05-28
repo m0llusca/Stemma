@@ -538,6 +538,65 @@ describe("backend job queue", () => {
     });
   });
 
+  it("cancels queued integration imports and restores run and integration state in the same transaction", async () => {
+    const { cancelBackendJob } = await import("@/lib/jobs/queue");
+    const queuedIntegrationJob = backendJob({
+      type: "INTEGRATION_IMPORT",
+      queueName: "integrations",
+      payloadJson: JSON.stringify({
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        previousStatus: "ready"
+      })
+    });
+    const cancelledJob = backendJob({
+      ...queuedIntegrationJob,
+      status: "CANCELLED",
+      finishedAt: new Date("2026-05-04T08:05:00.000Z")
+    });
+    mocks.prisma.backendJob.findFirst.mockResolvedValue(queuedIntegrationJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(cancelledJob);
+    mocks.prisma.backendJobEvent.create.mockResolvedValue({});
+    mocks.prisma.auditLog.create.mockResolvedValue({});
+    mocks.prisma.integrationRun.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      cancelBackendJob({
+        workspaceId: "workspace-1",
+        jobId: "job-1",
+        actorId: "user-1"
+      })
+    ).resolves.toEqual(cancelledJob);
+
+    expect(mocks.prisma.integrationRun.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "run-1",
+        workspaceId: "workspace-1",
+        status: {
+          in: ["queued", "dry_run_queued"]
+        }
+      },
+      data: {
+        status: "cancelled",
+        errorMessage: "Задача импорта отменена.",
+        finishedAt: expect.any(Date)
+      }
+    });
+    expect(mocks.prisma.integration.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "integration-1",
+        workspaceId: "workspace-1",
+        status: "queued"
+      },
+      data: {
+        status: "ready",
+        lastError: null
+      }
+    });
+  });
+
   it("does not record cancel events or audit logs when a worker wins the claim race", async () => {
     const { cancelBackendJob } = await import("@/lib/jobs/queue");
     mocks.prisma.backendJob.findFirst.mockResolvedValue(backendJob());

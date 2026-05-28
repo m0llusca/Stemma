@@ -445,6 +445,8 @@ export function buildOpenApiDocument() {
             { name: "qaAssigneeId", in: "query", required: false },
             { name: "openedFrom", in: "query", required: false },
             { name: "openedTo", in: "query", required: false },
+            { name: "createdFrom", in: "query", required: false },
+            { name: "createdTo", in: "query", required: false },
             { name: "page", in: "query", required: false },
             { name: "limit", in: "query", required: false }
           ],
@@ -478,6 +480,8 @@ export function buildOpenApiDocument() {
             { name: "maxScore", in: "query", required: false },
             { name: "finalizedFrom", in: "query", required: false },
             { name: "finalizedTo", in: "query", required: false },
+            { name: "createdFrom", in: "query", required: false },
+            { name: "createdTo", in: "query", required: false },
             { name: "page", in: "query", required: false },
             { name: "limit", in: "query", required: false }
           ],
@@ -522,7 +526,14 @@ export function buildOpenApiDocument() {
           security: bearerSecurity,
           summary: "Детали проверки, критерии, находки, обратная связь и события",
           responses: {
-            "200": { description: "Карточка проверки" },
+            "200": {
+              description: "Карточка проверки",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ReviewDetailResponse" }
+                }
+              }
+            },
             "404": { description: "Проверка не найдена" }
           }
         }
@@ -681,6 +692,56 @@ export function buildOpenApiDocument() {
                 events: { type: "integer", minimum: 0 }
               }
             }
+          }
+        },
+        ReviewDetailResponse: {
+          type: "object",
+          required: ["data", "requestId"],
+          properties: {
+            data: {
+              type: "object",
+              required: ["review"],
+              properties: {
+                review: { $ref: "#/components/schemas/ReviewDetail" }
+              }
+            },
+            requestId: { type: "string" }
+          }
+        },
+        ReviewDetail: {
+          type: "object",
+          required: ["id", "status", "reviewSource", "rubricVersion", "totalScore", "score"],
+          properties: {
+            id: { type: "string" },
+            status: { type: "string" },
+            reviewSource: { type: "string" },
+            rubricVersion: { type: "integer" },
+            totalScore: {
+              type: "number",
+              minimum: 0,
+              maximum: 100,
+              description: "Normalized final score 0..100. Treat as points for display, not percent."
+            },
+            score: { $ref: "#/components/schemas/ScoreSummary" },
+            confidence: { type: ["number", "null"] },
+            summary: { type: ["string", "null"] },
+            feedbackStatus: { type: "string" },
+            appealStatus: { type: "string" },
+            criticalError: { type: "boolean" },
+            criticalCategory: { type: ["string", "null"] },
+            needsReanswer: { type: "boolean" },
+            reanswerStatus: { type: "string" },
+            calibrationStatus: { type: "string" },
+            finalizedAt: { type: ["string", "null"], format: "date-time" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+            reviewer: { type: ["object", "null"] },
+            conversation: { type: "object" },
+            scores: { type: "array", items: { type: "object" } },
+            findings: { type: "array", items: { type: "object" } },
+            feedbackEvents: { type: "array", items: { type: "object" } },
+            trainingAssignments: { type: "array", items: { type: "object" } },
+            events: { type: "array", items: { type: "object" } }
           }
         },
         ScoreSummary: {
@@ -871,7 +932,7 @@ export function buildOpenApiDocument() {
         },
         IntegrationCapabilityType: {
           type: "string",
-          enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise"]
+          enum: ["otrs_family", "native_helpdesk", "custom_api", "webhook_bridge", "enterprise", "data_source"]
         },
         IntegrationReadiness: {
           type: "string",

@@ -14,6 +14,9 @@ import { currentUserCookieName, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 const primaryWorkspaceName = "Контроль качества";
+const localLoginFailureWindowMs = 15 * 60_000;
+const localLoginLockMs = 15 * 60_000;
+const localLoginMaxFailures = 5;
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -32,6 +35,35 @@ async function loginErrorRedirect(returnTo: string): Promise<never> {
 
   cookieStore.set(loginFlashCookieName, "invalid_credentials", loginFlashCookieOptions());
   redirect(`/auth/login?${params.toString()}`);
+}
+
+function isCredentialLocked(credential: { lockedUntil?: Date | null }, now = new Date()) {
+  return Boolean(credential.lockedUntil && credential.lockedUntil > now);
+}
+
+async function recordFailedLocalCredentialAttempt(
+  credential: {
+    id: string;
+    failedLoginCount?: number | null;
+    failedLoginWindowStart?: Date | null;
+  },
+  now = new Date()
+) {
+  const windowStart =
+    credential.failedLoginWindowStart && now.getTime() - credential.failedLoginWindowStart.getTime() <= localLoginFailureWindowMs
+      ? credential.failedLoginWindowStart
+      : now;
+  const failedLoginCount = windowStart === credential.failedLoginWindowStart ? (credential.failedLoginCount ?? 0) + 1 : 1;
+
+  await prisma.localCredential.update({
+    where: { id: credential.id },
+    data: {
+      failedLoginCount,
+      failedLoginWindowStart: windowStart,
+      lastFailedLoginAt: now,
+      lockedUntil: failedLoginCount >= localLoginMaxFailures ? new Date(now.getTime() + localLoginLockMs) : null
+    }
+  });
 }
 
 async function getOrCreatePrimaryWorkspace(tx: Prisma.TransactionClient) {
@@ -183,6 +215,10 @@ export async function signInWithLocalCredentials(formData: FormData) {
     return loginErrorRedirect(returnTo);
   }
 
+  if (isCredentialLocked(credential)) {
+    return loginErrorRedirect(returnTo);
+  }
+
   const passwordMatches = await verifyLocalPassword({
     password,
     passwordHash: credential.passwordHash,
@@ -191,6 +227,7 @@ export async function signInWithLocalCredentials(formData: FormData) {
   });
 
   if (!passwordMatches) {
+    await recordFailedLocalCredentialAttempt(credential);
     return loginErrorRedirect(returnTo);
   }
 
@@ -213,7 +250,13 @@ export async function signInWithLocalCredentials(formData: FormData) {
 
   await prisma.localCredential.update({
     where: { id: credential.id },
-    data: { lastLoginAt: new Date() }
+    data: {
+      failedLoginCount: 0,
+      failedLoginWindowStart: null,
+      lastFailedLoginAt: null,
+      lastLoginAt: new Date(),
+      lockedUntil: null
+    }
   });
 
   revalidatePath("/");

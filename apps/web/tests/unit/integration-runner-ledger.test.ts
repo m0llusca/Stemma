@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   loadHelpdeskAdapterConversations: vi.fn(),
+  loadDataSourceAdapterConversations: vi.fn(),
   prisma: {
     $transaction: vi.fn(),
     integration: {
@@ -21,7 +22,8 @@ const mocks = vi.hoisted(() => ({
       upsert: vi.fn()
     },
     message: {
-      upsert: vi.fn()
+      upsert: vi.fn(),
+      deleteMany: vi.fn()
     },
     samplingRule: {
       findMany: vi.fn()
@@ -35,6 +37,10 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/integrations/helpdesk-adapters/service", () => ({
   loadHelpdeskAdapterConversations: mocks.loadHelpdeskAdapterConversations
+}));
+
+vi.mock("@/lib/integrations/data-source-adapters/service", () => ({
+  loadDataSourceAdapterConversations: mocks.loadDataSourceAdapterConversations
 }));
 
 const now = new Date("2026-05-09T08:00:00.000Z");
@@ -114,7 +120,8 @@ function fakeClient() {
       upsert: vi.fn().mockResolvedValue({ id: "conversation-1" })
     },
     message: {
-      upsert: vi.fn().mockResolvedValue({ id: "message-1" })
+      upsert: vi.fn().mockResolvedValue({ id: "message-1" }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 })
     },
     samplingRule: {
       findMany: vi.fn().mockResolvedValue([])
@@ -291,6 +298,73 @@ describe("integration connector run ledger", () => {
     expect(result.checkedCount).toBe(1);
     expect(result.importedCount).toBe(1);
     expect(result.externalIds).toEqual(["35436"]);
+  });
+
+  it("routes data_source integrations through the data source service", async () => {
+    const client = fakeClient();
+    client.integration.findFirst.mockResolvedValue(
+      integration({
+        source: "ytsaurus",
+        displayName: "YTsaurus/YT",
+        type: "data_source",
+        baseUrl: "https://yt.example.com",
+        configJson: JSON.stringify({ tablePath: "//home/qc/conversations" })
+      })
+    );
+    mocks.loadDataSourceAdapterConversations.mockResolvedValue({
+      conversations: [
+        {
+          externalSource: "ytsaurus",
+          externalId: "yt-conv-1",
+          channel: "ticket",
+          subject: "YTsaurus refund",
+          status: "imported",
+          customerName: "Анна",
+          samplingReason: "Импорт YTsaurus.",
+          openedAt: "2026-04-25T10:00:00.000Z",
+          closedAt: null,
+          messages: [
+            {
+              externalId: "yt-msg-1",
+              participantType: "customer",
+              authorName: "Анна",
+              body: "Нужен возврат.",
+              sentAt: "2026-04-25T10:00:00.000Z",
+              isPrivate: false
+            }
+          ]
+        }
+      ],
+      diagnostics: { requests: [] }
+    });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const { runIntegrationConnector } = await import("@/lib/integrations/runner");
+
+    const result = await runIntegrationConnector({
+      workspaceId: "workspace-1",
+      integrationId: "integration-ytsaurus",
+      dryRun: true,
+      requestedLimit: 10,
+      client: client as never
+    });
+
+    expect(mocks.loadDataSourceAdapterConversations).toHaveBeenCalledWith({
+      integration: expect.objectContaining({
+        source: "ytsaurus",
+        type: "data_source"
+      }),
+      limit: 10
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      source: "ytsaurus",
+      mode: "data_source",
+      dryRun: true,
+      checkedCount: 1,
+      importedCount: 0,
+      externalIds: ["yt-conv-1"]
+    });
   });
 
   it("writes dry-run cursor data only to the run and leaves integration sync cursor/state unchanged", async () => {

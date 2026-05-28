@@ -160,6 +160,16 @@ function operationFor(source: PhaseBHelpdeskSource, method: string, pathname: st
     }
   }
 
+  if (source === "jira") {
+    if (/^\/rest\/servicedeskapi\/request\/[^/]+$/.test(pathname)) {
+      return "ticket_get";
+    }
+
+    if (/^\/rest\/servicedeskapi\/request\/[^/]+\/comment$/.test(pathname)) {
+      return "comments_get";
+    }
+  }
+
   if (source === "salesforce") {
     if (/^\/services\/data\/v[^/]+\/sobjects\/Case\/[^/]+$/.test(pathname)) {
       return "case_get";
@@ -246,6 +256,18 @@ function payloadFor(
 
     if (operation === "activities_get") {
       return hubspotActivityPayload(request.pathname, ticket);
+    }
+  }
+
+  if (source === "jira") {
+    const payload = record(fixture);
+
+    if (operation === "ticket_get") {
+      return payload.request;
+    }
+
+    if (operation === "comments_get") {
+      return { values: payload.comments, start: 0, limit: 100, isLastPage: true };
     }
   }
 

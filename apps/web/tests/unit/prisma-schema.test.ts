@@ -55,6 +55,10 @@ const workspacePaletteMigrationName = readdirSync(migrationsDir).find((name) => 
 const workspacePaletteMigration = workspacePaletteMigrationName
   ? readFileSync(join(migrationsDir, workspacePaletteMigrationName, "migration.sql"), "utf8")
   : "";
+const reviewWorkspaceFkMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith("_review_workspace_composite_fks"));
+const reviewWorkspaceFkMigration = reviewWorkspaceFkMigrationName
+  ? readFileSync(join(migrationsDir, reviewWorkspaceFkMigrationName, "migration.sql"), "utf8")
+  : "";
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -103,6 +107,29 @@ describe("prisma schema database foundations", () => {
   it("keeps versioned scorecards unique within a workspace", () => {
     expect(schema).toContain("@@unique([workspaceId, version])");
     expect(baselineMigration).toContain('CREATE UNIQUE INDEX "Scorecard_workspaceId_version_key" ON "Scorecard"("workspaceId", "version")');
+  });
+
+  it("keeps reviews tied to conversation, reviewer, and scorecard from the same workspace", () => {
+    const conversationModel = modelBlock("Conversation");
+    const scorecardModel = modelBlock("Scorecard");
+    const reviewModel = modelBlock("Review");
+
+    expect(conversationModel).toContain("@@unique([id, workspaceId])");
+    expect(scorecardModel).toContain("@@unique([id, workspaceId])");
+    expect(reviewModel).toContain(
+      "conversation         Conversation             @relation(fields: [conversationId, workspaceId], references: [id, workspaceId])"
+    );
+    expect(reviewModel).toContain("reviewer             User                     @relation(fields: [reviewerId, workspaceId], references: [id, workspaceId])");
+    expect(reviewModel).toContain(
+      "scorecard            Scorecard                @relation(fields: [scorecardId, workspaceId], references: [id, workspaceId])"
+    );
+    expect(reviewWorkspaceFkMigration).toContain('CREATE UNIQUE INDEX "Conversation_id_workspaceId_key"');
+    expect(reviewWorkspaceFkMigration).toContain('CREATE UNIQUE INDEX "Scorecard_id_workspaceId_key"');
+    expect(reviewWorkspaceFkMigration).toContain(
+      'FOREIGN KEY ("conversationId", "workspaceId") REFERENCES "Conversation"("id", "workspaceId")'
+    );
+    expect(reviewWorkspaceFkMigration).toContain('FOREIGN KEY ("reviewerId", "workspaceId") REFERENCES "User"("id", "workspaceId")');
+    expect(reviewWorkspaceFkMigration).toContain('FOREIGN KEY ("scorecardId", "workspaceId") REFERENCES "Scorecard"("id", "workspaceId")');
   });
 
   it("keeps hot-path indexes for queue, reports, jobs and audit", () => {

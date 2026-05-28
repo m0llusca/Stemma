@@ -134,6 +134,10 @@ function scopedConversationWhere(workspaceId: string, scope?: ReviewQueueScope):
 
 function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters, scope?: ReviewQueueScope): Prisma.ConversationWhereInput {
   const and: Prisma.ConversationWhereInput[] = [{ workspaceId }];
+  const finalizedHumanReviewAnd: Prisma.ReviewWhereInput[] = [];
+  const addFinalizedHumanReviewFilter = (where: Prisma.ReviewWhereInput) => {
+    finalizedHumanReviewAnd.push(where);
+  };
 
   if (scope?.assigneeName) {
     and.push({ assigneeName: scope.assigneeName });
@@ -228,42 +232,17 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.process === "critical") {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          criticalError: true
-        }
-      }
-    });
+    addFinalizedHumanReviewFilter({ criticalError: true });
   }
 
   if (filters.process === "reanswer") {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          needsReanswer: true
-        }
-      }
-    });
+    addFinalizedHumanReviewFilter({ needsReanswer: true });
   }
 
   if (filters.process === "appeal") {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          appealStatus: {
-            not: "none"
-          }
-        }
+    addFinalizedHumanReviewFilter({
+      appealStatus: {
+        not: "none"
       }
     });
   }
@@ -274,52 +253,31 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
         ? { in: ["HIGH", "CRITICAL"] satisfies RiskLevel[] }
         : filters.riskLevel;
 
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
+    addFinalizedHumanReviewFilter({
+      findings: {
         some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          findings: {
-            some: {
-              riskLevel: riskLevelWhere
-            }
-          }
+          riskLevel: riskLevelWhere
         }
       }
     });
   }
 
   if (filters.findingCategory) {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
+    addFinalizedHumanReviewFilter({
+      findings: {
         some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          findings: {
-            some: {
-              category: filters.findingCategory
-            }
-          }
+          category: filters.findingCategory
         }
       }
     });
   }
 
   if (filters.coachingStatus === "open") {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
+    addFinalizedHumanReviewFilter({
+      findings: {
         some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          findings: {
-            some: {
-              coachingAction: {
-                status: "open"
-              }
-            }
+          coachingAction: {
+            status: "open"
           }
         }
       }
@@ -327,69 +285,47 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   }
 
   if (filters.criticalCategory) {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          criticalError: true,
-          criticalCategory: filters.criticalCategory
-        }
-      }
+    addFinalizedHumanReviewFilter({
+      criticalError: true,
+      criticalCategory: filters.criticalCategory
     });
   }
 
   if (filters.feedbackStatus) {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          feedbackStatus: filters.feedbackStatus
-        }
-      }
+    addFinalizedHumanReviewFilter({
+      feedbackStatus: filters.feedbackStatus
     });
   }
 
   if (filters.appealStatus) {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          appealStatus: filters.appealStatus
-        }
-      }
+    addFinalizedHumanReviewFilter({
+      appealStatus: filters.appealStatus
     });
   }
 
   if (filters.reanswerStatus) {
-    and.push({ qaStatus: "FINALIZED" });
-    and.push({
-      reviews: {
-        some: {
-          reviewSource: "HUMAN",
-          status: "FINALIZED",
-          reanswerStatus: filters.reanswerStatus
-        }
-      }
+    addFinalizedHumanReviewFilter({
+      reanswerStatus: filters.reanswerStatus
     });
   }
 
   if (filters.finalizedFrom || filters.finalizedTo) {
+    addFinalizedHumanReviewFilter({
+      finalizedAt: {
+        ...(filters.finalizedFrom ? { gte: filters.finalizedFrom } : {}),
+        ...(filters.finalizedTo ? { lte: filters.finalizedTo } : {})
+      }
+    });
+  }
+
+  if (finalizedHumanReviewAnd.length > 0) {
     and.push({ qaStatus: "FINALIZED" });
     and.push({
       reviews: {
         some: {
           reviewSource: "HUMAN",
           status: "FINALIZED",
-          finalizedAt: {
-            ...(filters.finalizedFrom ? { gte: filters.finalizedFrom } : {}),
-            ...(filters.finalizedTo ? { lte: filters.finalizedTo } : {})
-          }
+          ...(finalizedHumanReviewAnd.length === 1 ? finalizedHumanReviewAnd[0] : { AND: finalizedHumanReviewAnd })
         }
       }
     });

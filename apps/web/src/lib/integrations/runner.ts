@@ -3,24 +3,20 @@ import { upsertCustomConversation, type ImportedConversation } from "@/lib/conve
 import { prisma } from "@/lib/db";
 import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { importSelectedOtrsRunItems } from "@/lib/integrations/otrs-family/import-plan";
-import {
-  buildOtrsFamilyTicketGetQueryParams,
-  extractOtrsFamilyTickets,
-  isOtrsFamilyTicketLike,
-  normalizeOtrsFamilyTicket,
-  otrsFamilyProfileForSource,
-  otrsFamilyTicketGetUrl,
-  otrsFamilyUrlWithQuery,
-  type OtrsFamilySource,
-  type OtrsFamilyTicketGetResponse
-} from "@/lib/normalizers/otrs-family";
+import { loadDataSourceAdapterConversations } from "@/lib/integrations/data-source-adapters/service";
 import { loadHelpdeskAdapterConversations } from "@/lib/integrations/helpdesk-adapters/service";
+import { createOtrsHttpClient } from "@/lib/integrations/otrs-family/client";
+import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { decryptIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
+import { normalizeOtrsFamilyTicketGetResponseForImport } from "@/lib/integrations/otrs-family/normalization";
+import { buildTicketGetRequest } from "@/lib/integrations/otrs-family/requests";
+import { createOtrsSession, operationUsesSessionAuth } from "@/lib/integrations/otrs-family/session-auth";
 import {
   buildIntegrationSyncState,
   integrationRunCursorPayload,
   serializeIntegrationSyncState
 } from "@/lib/integrations/sync-state";
+import type { OtrsFamilySource, OtrsFamilyTicketGetResponse } from "@/lib/normalizers/otrs-family";
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 type IntegrationWithCredential = Integration & {
@@ -141,35 +137,52 @@ function parseCustomApiPayload(payload: unknown, source: string) {
 
 async function loadOtrsFamilyConversations(integration: IntegrationWithCredential, config: IntegrationConfig) {
   const source = (integration.source || "otrs_family") as OtrsFamilySource;
-  const profile = otrsFamilyProfileForSource(source);
   const baseUrl = requireText(integration.baseUrl, "Для OTRS/Znuny укажите Base URL.");
   const ticketId = requireText(config.ticketId, "Для OTRS/Znuny укажите TicketID для проверки или первого импорта.");
   const userLogin = requireText(config.userLogin, "Для OTRS/Znuny укажите UserLogin.");
   const password = requireText(optionalCredentialSecret(integration.credentials), "Для OTRS/Znuny сохраните пароль или API-секрет.");
-  const ticketGetUrl = otrsFamilyTicketGetUrl(profile, ticketId, baseUrl);
-  const url = otrsFamilyUrlWithQuery(
-    ticketGetUrl,
-    buildOtrsFamilyTicketGetQueryParams(profile, {
+  const connectorConfig = parseOtrsConnectorConfig(integration.configJson);
+  const caBundle = decryptIntegrationSecretSlot(integration.credentials, "ca_bundle");
+  const client = createOtrsHttpClient({
+    config: connectorConfig,
+    baseUrl,
+    userLogin,
+    password,
+    caBundle
+  });
+  const sessionId = operationUsesSessionAuth(connectorConfig, "ticketGet")
+    ? await createOtrsSession({
+        client,
+        config: connectorConfig,
+        baseUrl,
+        userLogin,
+        password
+      })
+    : undefined;
+  const payload = await client.requestJson(
+    buildTicketGetRequest({
+      config: connectorConfig,
+      baseUrl,
       userLogin,
       password,
       ticketId,
+      sessionId,
       includeAttachments: false
     })
   );
-  const payload = (await fetchJson(url)) as OtrsFamilyTicketGetResponse;
-  const tickets = extractOtrsFamilyTickets(payload);
+  const normalizedTickets = normalizeOtrsFamilyTicketGetResponseForImport(payload as OtrsFamilyTicketGetResponse, {
+    source,
+    baseUrl,
+    samplingReason: `Импорт ${config.sourceLabel ?? integration.displayName}: TicketGet ${ticketId}.`
+  });
 
-  if (tickets.length === 0 || tickets.some((ticket) => !isOtrsFamilyTicketLike(ticket))) {
+  if (normalizedTickets.length === 0) {
     throw new Error("Источник не вернул TicketGet-ответ с тикетом и статьями.");
   }
 
-  return tickets.map((ticket) =>
+  return normalizedTickets.map(({ conversation }) =>
     customConversationSchema.parse(
-      normalizeOtrsFamilyTicket(ticket, {
-        source,
-        baseUrl,
-        samplingReason: `Импорт ${config.sourceLabel ?? integration.displayName}: TicketGet ${ticketId}.`
-      })
+      conversation
     )
   );
 }
@@ -181,6 +194,12 @@ async function loadHelpdeskConversations(integration: IntegrationWithCredential,
     ticketId,
     samplingReason: `Импорт ${integration.displayName}: обращение ${ticketId}.`
   });
+
+  return result.conversations;
+}
+
+async function loadDataSourceConversations(integration: IntegrationWithCredential, limit: number) {
+  const result = await loadDataSourceAdapterConversations({ integration, limit });
 
   return result.conversations;
 }
@@ -207,6 +226,10 @@ async function loadIntegrationConversations(integration: IntegrationWithCredenti
 
   if (integration.type === "native_helpdesk" || integration.type === "enterprise") {
     return loadHelpdeskConversations(integration, config);
+  }
+
+  if (integration.type === "data_source") {
+    return loadDataSourceConversations(integration, limit);
   }
 
   return loadCustomApiConversations(integration, limit);

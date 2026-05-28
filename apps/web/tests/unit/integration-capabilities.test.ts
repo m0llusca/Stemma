@@ -127,6 +127,25 @@ describe("integration capabilities and sync state", () => {
     });
   });
 
+  it("exposes YDB and YTsaurus as data source capabilities", () => {
+    expect(getIntegrationCapability("ydb")).toMatchObject({
+      source: "ydb",
+      displayName: "YDB",
+      type: "data_source",
+      supportsPaging: false,
+      supportsCursor: false,
+      readiness: "adapter_ready"
+    });
+    expect(getIntegrationCapability("ytsaurus")).toMatchObject({
+      source: "ytsaurus",
+      displayName: "YTsaurus/YT",
+      type: "data_source",
+      supportsPaging: false,
+      supportsCursor: false,
+      readiness: "adapter_ready"
+    });
+  });
+
   it("keeps OTRS-family alias fallback identity and certification conservative", () => {
     const otrs = getIntegrationCapability("otrs");
     const fallback = getIntegrationCapability("otrs_family", "otrs_family");

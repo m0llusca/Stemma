@@ -14,7 +14,7 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import type { ReviewQueueFilters } from "@/lib/review-repository";
-import { queueCsatBuckets, queueProcessFilters, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
+import { qaQueueStatuses, queueCsatBuckets, queueProcessFilters, queueSamplingTypes, reviewQueueStatuses } from "@/lib/review-repository";
 
 type QueueFiltersProps = {
   filters: ReviewQueueFilters;
@@ -27,6 +27,7 @@ type QueueFiltersProps = {
 
 const exactQueueFilterParameters = [
   "channel",
+  "qaStatus",
   "source",
   "assignee",
   "qaAssignee",
@@ -42,6 +43,7 @@ const exactQueueFilterParameters = [
 export function QueueFilters({ filters, sources, assignees, qaAssignees, supportLines, teamNames }: QueueFiltersProps) {
   const advancedFilterValues = [
     filters.channel,
+    filters.qaStatus,
     filters.source,
     filters.assignee,
     filters.qaAssignee,
@@ -106,6 +108,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           <input
             name="q"
             defaultValue={filters.q ?? ""}
+            aria-label="Поиск в очереди проверок"
             placeholder="Клиент, тема, тег или внешний ID"
             className="form-control"
           />
@@ -135,6 +138,17 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           }
         >
           <div className="queue-filterbar__advanced-grid">
+            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              Состояние
+              <select name="qaStatus" defaultValue={filters.qaStatus ?? "all"} className="form-control">
+                {qaQueueStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status === "all" ? "Все" : qaStatusLabels[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <label className="grid gap-1 text-sm font-medium text-[#334155]">
               Канал
               <select name="channel" defaultValue={filters.channel ?? ""} className="form-control">

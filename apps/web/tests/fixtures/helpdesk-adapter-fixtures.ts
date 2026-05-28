@@ -22,6 +22,10 @@ const helpdeskAdapterFixtureTemplates = deepFreeze(
       success: nativeHelpdeskImportExamples.hubspot,
       malformed: { ticket: { id: "987654321", properties: {} }, activities: [] }
     },
+    jira: {
+      success: nativeHelpdeskImportExamples.jira,
+      malformed: { request: { issueKey: "SUP-42" }, comments: [] }
+    },
     salesforce: {
       success: {
         case: {
@@ -124,6 +128,14 @@ export const helpdeskAdapterFixtures = {
     },
     get malformed() {
       return getHelpdeskAdapterFixture("hubspot", "malformed");
+    }
+  },
+  jira: {
+    get success() {
+      return getHelpdeskAdapterFixture("jira", "success");
+    },
+    get malformed() {
+      return getHelpdeskAdapterFixture("jira", "malformed");
     }
   },
   salesforce: {

@@ -7,7 +7,7 @@ import type {
   PhaseBHelpdeskSource
 } from "@/lib/integrations/helpdesk-adapters/types";
 
-const checkedAt = "2026-05-13";
+const defaultCheckedAt = "2026-05-13";
 const defaultPayloadLimits = { batchSize: 25, importLimit: 100 } as const;
 const phaseBGates = {
   docs: "docs_checked",
@@ -30,13 +30,14 @@ export const phaseBHelpdeskSources = [
   "freshdesk",
   "intercom",
   "hubspot",
+  "jira",
   "salesforce",
   "servicenow",
   "dynamics"
 ] as const satisfies readonly PhaseBHelpdeskSource[];
 
-function docs(officialDocs: readonly Omit<HelpdeskOfficialDoc, "checkedAt">[]) {
-  return officialDocs.map((doc) => ({ ...doc, checkedAt, notes: [...doc.notes] }));
+function docs(officialDocs: readonly (Omit<HelpdeskOfficialDoc, "checkedAt"> & { checkedAt?: string })[]) {
+  return officialDocs.map(({ checkedAt, ...doc }) => ({ ...doc, checkedAt: checkedAt ?? defaultCheckedAt, notes: [...doc.notes] }));
 }
 
 function liveCertification(
@@ -213,6 +214,40 @@ export const phaseBSourceContracts = {
     liveCertification: liveCertification(
       genericLiveSmokeEnvironment,
       "HELPDESK_LIVE_SOURCE=hubspot npm run test:live:helpdesk"
+    )
+  }),
+  jira: contract({
+    source: "jira",
+    displayName: "Jira Service Management",
+    type: "native_helpdesk",
+    authModes: ["basic_api_token"],
+    operations: ["ticket_get", "comments_get", "webhook_ingest", "diagnostics", "fixture_import"],
+    supportedEvents: ["request.created", "request.updated", "comment.created"],
+    requiredSecrets: nativeRuntimeSecrets,
+    docsHref: "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/",
+    officialDocs: docs([
+      {
+        label: "Jira Service Management Request API",
+        href: "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/",
+        context7Id: "/websites/developer_atlassian_cloud_jira_service-desk_rest_api-group-servicedesk",
+        checkedAt: "2026-05-27",
+        notes: [
+          "Official Atlassian docs confirmed request fields including issueId, issueKey, reporter, currentStatus, requestFieldValues, and paged values shapes."
+        ]
+      },
+      {
+        label: "Jira Service Management Request Comments API",
+        href: "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/#api-rest-servicedeskapi-request-issueidorkey-comment-get",
+        context7Id: "/websites/developer_atlassian_cloud_jira_service-desk_rest_api-group-servicedesk",
+        checkedAt: "2026-05-27",
+        notes: [
+          "Official Atlassian docs confirmed request comments include paged values, author/body/created fields, and public flags for internal versus public comment visibility."
+        ]
+      }
+    ]),
+    liveCertification: liveCertification(
+      genericLiveSmokeEnvironment,
+      "HELPDESK_LIVE_SOURCE=jira npm run test:live:helpdesk"
     )
   }),
   salesforce: contract({

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/current-user";
+import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 function stringField(formData: FormData, key: string) {
@@ -10,14 +10,36 @@ function stringField(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function safeReviewsHref(value: string) {
+  if (!value || !value.startsWith("/reviews") || value.startsWith("//")) {
+    return "/reviews";
+  }
+
+  try {
+    const parsed = new URL(value, "http://local.qc");
+
+    if (parsed.origin !== "http://local.qc" || parsed.pathname !== "/reviews") {
+      return "/reviews";
+    }
+
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return "/reviews";
+  }
+}
+
 export async function createSavedQueueView(formData: FormData) {
   const user = await getCurrentUser();
   const name = stringField(formData, "name");
-  const href = stringField(formData, "href") || "/reviews";
+  const href = safeReviewsHref(stringField(formData, "href"));
   const scope = stringField(formData, "scope") === "workspace" ? "workspace" : "private";
 
   if (!name) {
     throw new Error("Название представления обязательно.");
+  }
+
+  if (scope === "workspace" && !canManageReviewWorkflow(user.role)) {
+    throw new Error("Нет прав на общие представления очереди.");
   }
 
   await prisma.savedQueueView.create({
@@ -47,7 +69,7 @@ export async function deleteSavedQueueView(formData: FormData) {
     where: {
       id,
       workspaceId: user.workspaceId,
-      OR: [{ userId: user.id }, { scope: "workspace" }]
+      ...(canManageReviewWorkflow(user.role) ? { OR: [{ userId: user.id }, { scope: "workspace" }] } : { userId: user.id })
     }
   });
 

@@ -17,10 +17,25 @@ describe("Phase B helpdesk adapter source contracts", () => {
       "freshdesk",
       "intercom",
       "hubspot",
+      "jira",
       "salesforce",
       "servicenow",
       "dynamics"
     ]);
+  });
+
+  it("records Jira Service Management request and comment coverage", () => {
+    expect(phaseBSourceContracts.jira).toMatchObject({
+      source: "jira",
+      displayName: "Jira Service Management",
+      type: "native_helpdesk",
+      authModes: ["basic_api_token"],
+      requiredSecrets: ["auth_password"]
+    });
+    expect(phaseBSourceContracts.jira.operations).toEqual(
+      expect.arrayContaining(["ticket_get", "comments_get", "webhook_ingest", "diagnostics", "fixture_import"])
+    );
+    expect(phaseBSourceContracts.jira.certification.gates.live).toBe("waiting_for_access");
   });
 
   it("records conservative evidence and live certification gates for every source", () => {

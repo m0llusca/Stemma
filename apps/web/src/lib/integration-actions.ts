@@ -11,6 +11,7 @@ import {
   queueIntegrationImportJob,
   queueSelectedOtrsImportJob
 } from "@/lib/integration-import-service";
+import { integrationSetupInputSchema, type IntegrationSetupInput } from "@/lib/integration-setup-schema";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
@@ -25,6 +26,7 @@ export type IntegrationActionState = {
 export type IntegrationImportActionState = {
   ok: boolean;
   message: string;
+  integrationId?: string;
   runId?: string;
   jobId?: string;
 } | null;
@@ -144,8 +146,14 @@ function validateBaseUrl(baseUrl: string, mode: string) {
   try {
     const url = new URL(baseUrl);
 
-    if (!["http:", "https:"].includes(url.protocol)) {
-      throw new Error("Base URL должен начинаться с http:// или https://.");
+    const allowedProtocols = mode === "data_source" ? ["http:", "https:", "grpc:", "grpcs:"] : ["http:", "https:"];
+
+    if (!allowedProtocols.includes(url.protocol)) {
+      throw new Error(
+        mode === "data_source"
+          ? "Base URL должен начинаться с http://, https://, grpc:// или grpcs://."
+          : "Base URL должен начинаться с http:// или https://."
+      );
     }
 
     return url.toString().replace(/\/$/, "");
@@ -171,12 +179,27 @@ function readIntegrationSetup(formData: FormData) {
   const userLogin = stringField(formData, "userLogin");
   const password = stringField(formData, "password");
   const nativeToken = stringField(formData, "nativeToken");
+  const dataSourceSecret = stringField(formData, "dataSourceSecret");
+  const configJson = jsonField(formData, "configJson", {});
+  const dataSourceTablePath =
+    stringField(formData, "dataSourceTablePath") ||
+    (typeof configJson.tablePath === "string" ? configJson.tablePath.trim() : "");
+  const dataSourceQuery =
+    stringField(formData, "dataSourceQuery") ||
+    (typeof configJson.query === "string" ? configJson.query.trim() : "");
   const caBundle = stringField(formData, "caBundle");
   const queueFilter = stringField(formData, "queueFilter");
   const statusFilter = stringField(formData, "statusFilter");
   const dryRun = booleanField(formData, "dryRun", true);
   const deduplicate = booleanField(formData, "deduplicate", true);
-  const credentialSecret = mode === "otrs_family" ? password : mode === "native_helpdesk" ? nativeToken : "";
+  const credentialSecret =
+    mode === "otrs_family"
+      ? password
+      : mode === "native_helpdesk"
+        ? nativeToken
+        : mode === "data_source"
+          ? dataSourceSecret
+          : "";
 
   return {
     source,
@@ -205,6 +228,8 @@ function readIntegrationSetup(formData: FormData) {
         queue: queueFilter,
         status: statusFilter
       },
+      tablePath: dataSourceTablePath,
+      query: dataSourceQuery,
       dryRun,
       deduplicate,
       updatedFrom: "ui_setup_wizard"
@@ -348,11 +373,17 @@ async function upsertIntegrationSetup(
   });
 
   if (setup.credentialSecret) {
+    const secretKind =
+      setup.mode === "data_source"
+        ? setup.source === "ytsaurus"
+          ? "data_source_token"
+          : "data_source_credentials"
+        : "auth_password";
     await upsertIntegrationSecretSlot(tx, {
       workspaceId,
       integrationId: integration.id,
-      kind: "auth_password",
-      authMode: setup.mode === "otrs_family" ? "user_password" : "bearer_token",
+      kind: secretKind,
+      authMode: setup.mode === "otrs_family" ? "user_password" : setup.mode === "data_source" ? "data_source_secret" : "bearer_token",
       secret: setup.credentialSecret
     });
   }
@@ -518,6 +549,31 @@ export async function recordIntegrationDryRun(formData: FormData) {
 
   return {
     integrationId: integration.id
+  };
+}
+
+export async function recordIntegrationDryRunFromInput(input: IntegrationSetupInput): Promise<IntegrationImportActionState> {
+  const parsed = integrationSetupInputSchema.parse(input);
+  const formData = new FormData();
+
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key === "config") {
+      formData.set("configJson", JSON.stringify(value));
+    } else if (typeof value === "boolean") {
+      formData.set(key, value ? "true" : "false");
+    } else if (value !== null && value !== undefined) {
+      formData.set(key, String(value));
+    }
+  }
+
+  const result = await recordIntegrationDryRun(formData);
+
+  return {
+    ok: true,
+    message: parsed.dryRun
+      ? "Проверка подключения поставлена в backend-очередь. Запуск выполнит connector runner."
+      : "Импорт поставлен в backend-очередь. Запуск выполнит connector runner.",
+    integrationId: result.integrationId
   };
 }
 

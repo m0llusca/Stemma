@@ -29,6 +29,12 @@ export const nativeHelpdeskSources = [
     endpointHint: "/crm/v3/objects/tickets + associated activities"
   },
   {
+    value: "jira",
+    label: "Jira Service Management",
+    objectName: "Requests + Comments",
+    endpointHint: "/rest/servicedeskapi/request/{issueIdOrKey} + /comment"
+  },
+  {
     value: "salesforce",
     label: "Salesforce Service Cloud",
     objectName: "Case + CaseComment",
@@ -61,12 +67,14 @@ const sourceLabels: Record<NativeHelpdeskSource, string> = {
   intercom: "Intercom",
   freshdesk: "Freshdesk",
   hubspot: "HubSpot",
+  jira: "Jira Service Management",
   salesforce: "Salesforce",
   servicenow: "ServiceNow",
   dynamics: "Dynamics 365"
 };
 
 const highRiskPattern = /(urgent|high|critical|escalat|vip|высок|критич|сроч)/i;
+const jiraDescriptionFieldPattern = /(description|why|details|описание)/i;
 
 function isRecord(value: unknown): value is NativeRecord {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -158,6 +166,17 @@ function firstString(...values: unknown[]) {
   }
 
   return undefined;
+}
+
+function lowerString(value: unknown) {
+  return stringValue(value)?.toLowerCase();
+}
+
+function sameNormalizedString(left: unknown, right: unknown) {
+  const normalizedLeft = lowerString(left);
+  const normalizedRight = lowerString(right);
+
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
 }
 
 function parseDate(value: unknown, fallback = new Date(0)) {
@@ -638,6 +657,225 @@ function normalizeHubspot(payload: unknown, options: NativeHelpdeskNormalizeOpti
   });
 }
 
+function jiraRequest(payload: unknown) {
+  const root = recordValue(payload) ?? {};
+
+  return (
+    recordValue(root.request) ??
+    recordValue(root.issue) ??
+    (firstString(root.issueKey, root.issueId, root.id) ? root : undefined)
+  );
+}
+
+function jiraComments(payload: unknown) {
+  const root = recordValue(payload) ?? {};
+  const comments = root.comments;
+  const commentsRecord = recordValue(comments);
+
+  if (Array.isArray(comments)) {
+    return arrayRecords(comments);
+  }
+
+  if (commentsRecord) {
+    const values = oneOrManyRecords(commentsRecord.values);
+
+    if (values.length > 0) {
+      return values;
+    }
+
+    return oneOrManyRecords(commentsRecord.comments);
+  }
+
+  return oneOrManyRecords(recordValue(root.comment)?.values);
+}
+
+function jiraRequestFields(request: NativeRecord) {
+  const requestFieldValues = request.requestFieldValues;
+
+  if (Array.isArray(requestFieldValues)) {
+    return arrayRecords(requestFieldValues);
+  }
+
+  if (!isRecord(requestFieldValues)) {
+    return [];
+  }
+
+  return Object.entries(requestFieldValues).map(([fieldId, value]) =>
+    isRecord(value) ? { fieldId, ...value } : { fieldId, value }
+  );
+}
+
+function jiraFieldText(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return stripHtml(stringValue(value));
+  }
+
+  if (Array.isArray(value)) {
+    const values = uniqueValues(value.map(jiraFieldText));
+    return values.length > 0 ? values.join("\n") : undefined;
+  }
+
+  if (isRecord(value)) {
+    return (
+      jiraFieldText(value.text) ??
+      jiraFieldText(value.value) ??
+      jiraFieldText(value.renderedValue) ??
+      jiraFieldText(value.html) ??
+      jiraFieldText(value.content)
+    );
+  }
+
+  return undefined;
+}
+
+function jiraDescriptionBody(request: NativeRecord, requestFields: NativeRecord[]) {
+  const descriptionField = requestFields.find((field) => {
+    const fieldId = lowerString(field.fieldId ?? field.id);
+    const label = firstString(field.label, field.name, field.fieldName);
+
+    return fieldId === "description" || jiraDescriptionFieldPattern.test(label ?? "");
+  });
+  const fields = recordValue(request.fields);
+
+  return (
+    jiraFieldText(descriptionField?.value ?? descriptionField?.renderedValue) ??
+    jiraFieldText(request.description) ??
+    jiraFieldText(request.renderedDescription) ??
+    jiraFieldText(fields?.description)
+  );
+}
+
+function jiraHasApplicationRoles(author: NativeRecord | undefined) {
+  const applicationRoles = author ? author.applicationRoles : undefined;
+  const applicationRolesRecord = recordValue(applicationRoles);
+  const size = Number(firstString(applicationRolesRecord?.size));
+
+  if (Number.isFinite(size) && size > 0) {
+    return true;
+  }
+
+  if (oneOrManyRecords(applicationRolesRecord?.items).length > 0) {
+    return true;
+  }
+
+  return Array.isArray(applicationRoles) && applicationRoles.length > 0;
+}
+
+function jiraAuthorMatchesReporter(author: NativeRecord | undefined, reporter: NativeRecord | undefined) {
+  return Boolean(
+    author &&
+      reporter &&
+      (sameNormalizedString(author.emailAddress, reporter.emailAddress) ||
+        sameNormalizedString(author.displayName, reporter.displayName))
+  );
+}
+
+function jiraParticipantType(
+  author: NativeRecord | undefined,
+  reporter: NativeRecord | undefined,
+  isPublic: boolean
+): CustomMessageInput["participantType"] {
+  if (!isPublic) {
+    return "human_agent";
+  }
+
+  if (jiraAuthorMatchesReporter(author, reporter)) {
+    return "customer";
+  }
+
+  if (lowerString(author?.accountType)?.includes("customer")) {
+    return "customer";
+  }
+
+  if (jiraHasApplicationRoles(author)) {
+    return "human_agent";
+  }
+
+  return "human_agent";
+}
+
+function normalizeJiraMessage(comment: NativeRecord, index: number, reporter: NativeRecord | undefined): CustomMessageInput {
+  const author = recordValue(comment.author);
+  const publicFlag = recordValue(comment.public);
+  const isPublic = boolValue(publicFlag?.value ?? comment.public) ?? true;
+  const bodyValue =
+    typeof comment.body === "object" ? firstString(comment.renderedBody) : firstString(comment.body, comment.renderedBody);
+
+  return {
+    externalId: firstString(comment.id, `jira-comment-${index + 1}`) ?? `jira-comment-${index + 1}`,
+    participantType: jiraParticipantType(author, reporter, isPublic),
+    authorName: actorName(author, firstString(author?.displayName, author?.emailAddress, "Jira")),
+    body: stripHtml(bodyValue) ?? "Без текста",
+    sentAt: parseDate(recordValue(comment.created)?.iso8601 ?? comment.created, new Date(index)),
+    isPrivate: !isPublic
+  };
+}
+
+function normalizeJira(payload: unknown, options: NativeHelpdeskNormalizeOptions): CustomConversationInput[] {
+  const request = jiraRequest(payload);
+
+  if (!request) {
+    return [];
+  }
+
+  const requestId = firstString(request.issueKey, request.key, request.issueId, request.id) ?? "jira-request";
+  const fields = recordValue(request.fields);
+  const currentStatus = recordValue(request.currentStatus);
+  const fieldStatus = recordValue(fields?.status);
+  const requestFields = jiraRequestFields(request);
+  const reporter = recordValue(request.reporter);
+  const status =
+    firstString(
+      currentStatus?.status,
+      fieldStatus?.name,
+      typeof fields?.status === "object" ? undefined : fields?.status,
+      request.status
+    ) ?? "unknown";
+  const normalizedComments = jiraComments(payload)
+    .map((comment, index) => normalizeJiraMessage(comment, index, reporter))
+    .filter(hasNonEmptyMessageBody);
+  const descriptionBody = jiraDescriptionBody(request, requestFields);
+  const fallbackMessages: CustomMessageInput[] = descriptionBody
+    ? [
+        {
+          externalId: `${requestId}:description`,
+          participantType: "customer",
+          authorName: actorName(reporter, firstString(reporter?.displayName, reporter?.emailAddress, request.reporter)),
+          body: descriptionBody,
+          sentAt: parseDate(recordValue(request.createdDate)?.iso8601 ?? request.created),
+          isPrivate: false
+        }
+      ]
+    : [];
+  const messages = normalizedComments.length > 0 ? normalizedComments : fallbackMessages;
+  const summary = firstString(
+    request.summary,
+    request.subject,
+    requestFields.find((field) => firstString(field.fieldId) === "summary")?.value,
+    `Jira request ${requestId}`
+  ) ?? `Jira request ${requestId}`;
+  const assignee = recordValue(request.assignee) ?? recordValue(fields?.assignee);
+
+  return [{
+    externalSource: options.source,
+    externalId: requestId,
+    externalUrl: sourceUrl(options.baseUrl, `/browse/${encodeURIComponent(requestId)}`),
+    channel: "ticket",
+    subject: summary,
+    status,
+    tags: uniqueValues([firstString(request.requestTypeId), firstString(request.serviceDeskId), status]),
+    customerName: actorName(reporter, firstString(reporter?.displayName, reporter?.emailAddress, request.reporter)),
+    assigneeName: firstString(assignee?.displayName, assignee?.emailAddress),
+    samplingReason: options.samplingReason ?? defaultSamplingReason(options.source),
+    openedAt: parseDate(
+      recordValue(request.createdDate)?.iso8601 ?? request.created,
+      messages[0] ? new Date(messages[0].sentAt) : new Date(0)
+    ),
+    closedAt: statusFromClosed(status) ? parseDate(recordValue(currentStatus?.statusDate)?.iso8601 ?? request.updated) : null,
+    messages
+  }];
+}
+
 function normalizeSalesforceMessage(comment: NativeRecord, index: number): CustomMessageInput {
   const author = recordValue(comment.CreatedBy);
 
@@ -836,11 +1074,13 @@ export function normalizeNativeHelpdeskPayload(
           ? normalizeFreshdesk(payload, options)
           : options.source === "hubspot"
             ? normalizeHubspot(payload, options)
-            : options.source === "salesforce"
-              ? normalizeSalesforce(payload, options)
-              : options.source === "servicenow"
-                ? normalizeServiceNow(payload, options)
-                : normalizeDynamics(payload, options);
+            : options.source === "jira"
+              ? normalizeJira(payload, options)
+              : options.source === "salesforce"
+                ? normalizeSalesforce(payload, options)
+                : options.source === "servicenow"
+                  ? normalizeServiceNow(payload, options)
+                  : normalizeDynamics(payload, options);
 
   return conversations.filter((conversation) => conversation.externalId && conversation.subject && conversation.messages.length > 0);
 }
@@ -855,6 +1095,7 @@ export const nativeHelpdeskMappingRows = [
   { source: "Intercom conversation.id + source + conversation_parts", target: "conversation/messages", note: "Source становится первым сообщением, parts добавляются по created_at." },
   { source: "Freshdesk ticket.id + conversations[]", target: "conversation/messages", note: "incoming=true считается клиентом, private=true становится внутренней заметкой." },
   { source: "HubSpot ticket.properties + associated activities", target: "conversation/messages", note: "properties дают карточку тикета, activities/notes/emails дают историю." },
+  { source: "Jira request.issueKey + comments.values[]", target: "conversation/messages", note: "Request дает карточку обращения, comments становятся сообщениями." },
   { source: "Salesforce Case.Id + CaseComment[]", target: "conversation/messages", note: "Case дает карточку обращения, CaseComment становится историей." },
   { source: "ServiceNow case.sys_id + sys_journal_field[]", target: "conversation/messages", note: "comments становятся сообщениями, work_notes остаются внутренними." },
   { source: "Dynamics incident.incidentid + activitypointers[]", target: "conversation/messages", note: "Incident дает карточку обращения, ActivityPointer дает активность." },
@@ -992,6 +1233,34 @@ export const nativeHelpdeskImportExamples: Record<NativeHelpdeskSource, unknown>
         }
       ]
     }
+  },
+  jira: {
+    request: {
+      issueId: "10042",
+      issueKey: "SUP-42",
+      serviceDeskId: "15",
+      requestTypeId: "63",
+      reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+      currentStatus: { status: "Resolved", statusDate: { iso8601: "2026-04-25T10:18:00+0000" } },
+      createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+      requestFieldValues: [{ fieldId: "summary", label: "Summary", value: "Refund request from Jira" }]
+    },
+    comments: [
+      {
+        id: "10001",
+        body: "Заказ задержан, хочу возврат.",
+        public: { value: true },
+        created: "2026-04-25T10:00:00.000+0000",
+        author: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" }
+      },
+      {
+        id: "10002",
+        body: "Проверю перевозчика перед возвратом.",
+        public: { value: false },
+        created: "2026-04-25T10:08:00.000+0000",
+        author: { displayName: "Иван Петров", emailAddress: "ivan@example.com" }
+      }
+    ]
   },
   salesforce: {
     case: {

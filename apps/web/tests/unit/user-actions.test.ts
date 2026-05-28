@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   headerGet: vi.fn(),
   headers: vi.fn(),
   isDemoAuthEnabled: vi.fn(),
+  verifyLocalPassword: vi.fn(),
   prisma: {
     $transaction: vi.fn(),
     authSession: {
@@ -61,7 +62,7 @@ vi.mock("@/lib/auth/session", () => ({
 
 vi.mock("@/lib/auth/local-credentials", () => ({
   normalizeLocalLogin: (value: string) => value.trim().toLowerCase(),
-  verifyLocalPassword: vi.fn(() => true)
+  verifyLocalPassword: mocks.verifyLocalPassword
 }));
 
 vi.mock("@/lib/current-user", () => ({
@@ -82,6 +83,7 @@ describe("user actions", () => {
     mocks.headers.mockResolvedValue({ get: mocks.headerGet });
     mocks.cookies.mockResolvedValue({ set: mocks.cookieSet, delete: mocks.cookieDelete });
     mocks.createAuthSession.mockResolvedValue({ token: "session-token" });
+    mocks.verifyLocalPassword.mockResolvedValue(true);
     mocks.prisma.externalIdentity.count.mockResolvedValue(0);
     mocks.prisma.identityProvider.count.mockResolvedValue(0);
     mocks.prisma.identityProvider.findFirst.mockResolvedValue({ id: "demo-provider" });
@@ -110,6 +112,74 @@ describe("user actions", () => {
       })
     );
     expect(mocks.redirect).toHaveBeenCalledWith("/auth/login?returnTo=%2F");
+  });
+
+  it("records failed local password attempts and locks the credential after repeated failures", async () => {
+    const windowStart = new Date(Date.now() - 2 * 60_000);
+    mocks.verifyLocalPassword.mockResolvedValue(false);
+    mocks.prisma.localCredential.findFirst.mockResolvedValue({
+      id: "credential-1",
+      login: "real-admin",
+      userId: "real-user",
+      passwordHash: "hash",
+      passwordSalt: "salt",
+      keyVersion: "scrypt-v1",
+      failedLoginCount: 4,
+      failedLoginWindowStart: windowStart,
+      lockedUntil: null,
+      user: {
+        id: "real-user",
+        email: "real.admin@example.com",
+        workspaceId: "workspace-1"
+      }
+    });
+    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("login", "real-admin");
+    formData.set("password", "wrong-password");
+    formData.set("returnTo", "/reviews");
+
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/login?returnTo=%2Freviews");
+
+    expect(mocks.prisma.localCredential.update).toHaveBeenCalledWith({
+      where: { id: "credential-1" },
+      data: {
+        failedLoginCount: 5,
+        failedLoginWindowStart: windowStart,
+        lastFailedLoginAt: expect.any(Date),
+        lockedUntil: expect.any(Date)
+      }
+    });
+    expect(mocks.createAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("does not verify a locked local credential", async () => {
+    mocks.prisma.localCredential.findFirst.mockResolvedValue({
+      id: "credential-1",
+      login: "real-admin",
+      userId: "real-user",
+      passwordHash: "hash",
+      passwordSalt: "salt",
+      keyVersion: "scrypt-v1",
+      failedLoginCount: 5,
+      failedLoginWindowStart: new Date("2026-05-04T07:58:00.000Z"),
+      lockedUntil: new Date(Date.now() + 60_000),
+      user: {
+        id: "real-user",
+        email: "real.admin@example.com",
+        workspaceId: "workspace-1"
+      }
+    });
+    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("login", "real-admin");
+    formData.set("password", "local-password-123");
+    formData.set("returnTo", "/reviews");
+
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/login?returnTo=%2Freviews");
+
+    expect(mocks.verifyLocalPassword).not.toHaveBeenCalled();
+    expect(mocks.createAuthSession).not.toHaveBeenCalled();
   });
 
   it("moves real local users out of the demo workspace before creating a local session", async () => {
@@ -180,6 +250,16 @@ describe("user actions", () => {
     expect(mocks.createAuthSession).toHaveBeenCalledWith({
       userId: "real-user",
       userAgent: "vitest-agent"
+    });
+    expect(mocks.prisma.localCredential.update).toHaveBeenLastCalledWith({
+      where: { id: "credential-1" },
+      data: {
+        failedLoginCount: 0,
+        failedLoginWindowStart: null,
+        lastFailedLoginAt: null,
+        lastLoginAt: expect.any(Date),
+        lockedUntil: null
+      }
     });
   });
 

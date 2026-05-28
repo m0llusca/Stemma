@@ -4,6 +4,7 @@ import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
+import { TrpcProvider } from "@/components/trpc-provider";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { resolveUiAppearance, uiPaletteOverridesToCssVariables } from "@/lib/ui-theme";
 
@@ -61,7 +62,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <AppSidebar />
           <main id="main-content">
             <AppTopbar />
-            {children}
+            <TrpcProvider>{children}</TrpcProvider>
           </main>
         </div>
       </body>

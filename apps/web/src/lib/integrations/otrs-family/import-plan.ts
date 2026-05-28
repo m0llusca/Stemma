@@ -27,6 +27,7 @@ type ConversationImportClient = {
   };
   message: {
     upsert: (...args: any[]) => unknown;
+    deleteMany: (...args: any[]) => unknown;
   };
 };
 
@@ -146,19 +147,52 @@ export async function createOtrsPreviewRun(input: CreateOtrsPreviewRunInput) {
       errorCount: 0
     }
   });
-  const items = await createOtrsPreviewItems({
-    db,
-    client: input.client,
-    workspaceId: input.workspaceId,
-    integrationRunId: String(run.id),
-    diagnosticRunId: String(diagnosticRun.id),
-    integration: input.integration,
-    userLogin: input.userLogin,
-    password: input.password,
-    ...(input.mode === "manual_ticket_ids"
-      ? { mode: input.mode, manualTicketIds: input.manualTicketIds }
-      : { mode: input.mode, filters: input.filters })
-  });
+  let items: JsonRecord[];
+
+  try {
+    items = await createOtrsPreviewItems({
+      db,
+      client: input.client,
+      workspaceId: input.workspaceId,
+      integrationRunId: String(run.id),
+      diagnosticRunId: String(diagnosticRun.id),
+      integration: input.integration,
+      userLogin: input.userLogin,
+      password: input.password,
+      ...(input.mode === "manual_ticket_ids"
+        ? { mode: input.mode, manualTicketIds: input.manualTicketIds }
+        : { mode: input.mode, filters: input.filters })
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Не удалось создать preview интеграции.";
+    const finishedAt = new Date();
+
+    await db.integrationRun.update({
+      where: { id: String(run.id) },
+      data: {
+        status: "failed",
+        checkedCount: 0,
+        importedCount: 0,
+        skippedCount: 0,
+        errorCount: 1,
+        errorMessage,
+        finishedAt
+      }
+    });
+    await db.integrationDiagnosticRun.update({
+      where: { id: String(diagnosticRun.id) },
+      data: {
+        status: "failed",
+        errorMessage,
+        finishedAt,
+        summaryJson: JSON.stringify({
+          error: errorMessage
+        })
+      }
+    });
+
+    throw error;
+  }
   const progress = previewRunProgress(items);
   const updatedRun = await db.integrationRun.update({
     where: { id: String(run.id) },

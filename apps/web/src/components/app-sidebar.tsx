@@ -33,18 +33,26 @@ export async function AppSidebar() {
     return null;
   }
 
-  const [users, openAppealCount, queuedCount, activeTrainingCount] = await Promise.all([
+  const [users, finalizedAppealConversations, queuedCount, activeTrainingCount] = await Promise.all([
     getWorkspaceUsers(currentUser.workspaceId),
-    prisma.conversation.count({
+    prisma.conversation.findMany({
       where: {
         workspaceId: currentUser.workspaceId,
         ...(currentUser.role === "SUPPORT_AGENT" ? { assigneeName: currentUser.name } : {}),
-        qaStatus: "FINALIZED",
+        qaStatus: "FINALIZED"
+      },
+      select: {
         reviews: {
-          some: {
+          where: {
             reviewSource: "HUMAN",
-            status: "FINALIZED",
-            appealStatus: "open"
+            status: "FINALIZED"
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          take: 1,
+          select: {
+            appealStatus: true
           }
         }
       }
@@ -64,6 +72,7 @@ export async function AppSidebar() {
       }
     })
   ]);
+  const openAppealCount = finalizedAppealConversations.filter((conversation) => conversation.reviews[0]?.appealStatus === "open").length;
   const visibleItems = navItems
     .filter((item) => canSeeNavItem(currentUser.role, item.roles))
     .map((item) => ({

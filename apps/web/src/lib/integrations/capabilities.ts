@@ -7,6 +7,7 @@ import {
   phaseBHelpdeskSources,
   phaseBSourceContracts
 } from "@/lib/integrations/helpdesk-adapters/source-contracts";
+import { dataSourceContracts, dataSourceSources } from "@/lib/integrations/data-source-adapters/source-contracts";
 
 type IntegrationCertificationDoc = {
   label: string;
@@ -17,7 +18,7 @@ type IntegrationCertificationDoc = {
 export type IntegrationCapability = {
   source: string;
   displayName: string;
-  type: "otrs_family" | "native_helpdesk" | "custom_api" | "webhook_bridge" | "enterprise";
+  type: "otrs_family" | "native_helpdesk" | "custom_api" | "webhook_bridge" | "enterprise" | "data_source";
   authModes: string[];
   supportsPaging: boolean;
   supportsCursor: boolean;
@@ -141,6 +142,46 @@ const phaseBCapabilities = phaseBHelpdeskSources.map(phaseBCapability);
 const nativePhaseBCapabilities = phaseBCapabilities.filter((capability) => capability.type === "native_helpdesk");
 const enterprisePhaseBCapabilities = phaseBCapabilities.filter((capability) => capability.type === "enterprise");
 
+function dataSourceCapability(source: keyof typeof dataSourceContracts): IntegrationCapability {
+  const contract = dataSourceContracts[source];
+
+  return {
+    source: contract.source,
+    displayName: contract.displayName,
+    type: "data_source",
+    authModes: [...contract.authModes],
+    supportsPaging: false,
+    supportsCursor: false,
+    supportsDiagnostics: contract.operations.includes("diagnostics"),
+    supportsInboundWebhooks: false,
+    supportsOutboundWebhooks: false,
+    operations: [...contract.operations],
+    supportedEvents: defaultEvents,
+    requiredSecrets: [...contract.requiredSecrets],
+    docsHref: contract.docsHref,
+    setupStatus: "preview",
+    payloadLimits: {
+      batchSize: 100,
+      importLimit: contract.payloadLimits.rowLimit
+    },
+    readiness: "adapter_ready",
+    certification: {
+      gates: { ...contract.certification.gates },
+      summary: { ...contract.certification.summary },
+      docs: [
+        {
+          label: `${contract.displayName} documentation`,
+          href: contract.docsHref,
+          status: contract.certification.gates.docs
+        }
+      ],
+      limitations: [...contract.certification.limitations]
+    }
+  };
+}
+
+const dataSourceCapabilities = dataSourceSources.map(dataSourceCapability);
+
 export const integrationCapabilities: IntegrationCapability[] = [
   {
     source: "otrs",
@@ -230,6 +271,7 @@ export const integrationCapabilities: IntegrationCapability[] = [
     })
   },
   ...nativePhaseBCapabilities,
+  ...dataSourceCapabilities,
   {
     source: "custom_api",
     displayName: "Custom API",
