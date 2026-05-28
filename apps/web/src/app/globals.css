@@ -224,6 +224,196 @@ body[data-theme="ops"] {
   --button-primary-active: #1d4ed8;
   --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 32px rgba(0, 0, 0, 0.2);
   --shadow-raised: 0 18px 46px rgba(0, 0, 0, 0.28);
+  /* Derived vars re-declared so they re-compute with ops base colors, not :root #fff values */
+  --surface-raised: color-mix(in srgb, #151a24 96%, transparent);
+  --surface-soft: color-mix(in srgb, #101620 72%, #151a24);
+  --surface-hover: color-mix(in srgb, rgba(59, 130, 246, 0.16) 56%, #151a24);
+  --line-soft: color-mix(in srgb, #30394c 72%, transparent);
+  --control-selected-bg: color-mix(in srgb, #5ea0ff 12%, #151a24);
+  --control-selected-border: color-mix(in srgb, #5ea0ff 44%, #30394c);
+  --warning-soft: color-mix(in srgb, #b45309 12%, #151a24);
+  --success-soft: color-mix(in srgb, #15803d 12%, #151a24);
+  --danger-soft: color-mix(in srgb, #b91c1c 12%, #151a24);
+}
+
+/* Night Ops: apply dark-mode component overrides regardless of OS color scheme */
+body[data-theme="ops"] .bg-white,
+body[data-theme="ops"] [class~="bg-[#ffffff]"] {
+  background-color: var(--panel) !important;
+}
+
+body[data-theme="ops"] [class~="bg-[#f8fafc]"],
+body[data-theme="ops"] [class~="bg-[#edf2ff]"] {
+  background-color: var(--panel-muted) !important;
+}
+
+body[data-theme="ops"] [class~="bg-[#fff7ed]"] {
+  background-color: var(--warning-soft) !important;
+}
+
+body[data-theme="ops"] [class~="bg-[#fef2f2]"] {
+  background-color: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
+}
+
+body[data-theme="ops"] [class~="bg-[#ecfdf5]"] {
+  background-color: var(--success-soft) !important;
+}
+
+body[data-theme="ops"] [class~="text-[#111827]"],
+body[data-theme="ops"] [class~="text-[#334155]"] {
+  color: var(--foreground) !important;
+}
+
+body[data-theme="ops"] [class~="text-[#475569]"],
+body[data-theme="ops"] [class~="text-[#64748b]"] {
+  color: var(--muted) !important;
+}
+
+body[data-theme="ops"] [class~="text-[#b45309]"] {
+  color: var(--warning) !important;
+}
+
+body[data-theme="ops"] [class~="text-[#b91c1c]"] {
+  color: var(--danger) !important;
+}
+
+body[data-theme="ops"] [class~="border-[#d9e0ea]"] {
+  border-color: var(--border) !important;
+}
+
+body[data-theme="ops"] .skip-link {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--foreground);
+}
+
+body[data-theme="ops"] .disclosure-summary:hover {
+  background: var(--panel-tint);
+}
+
+body[data-theme="ops"] .meta-chip,
+body[data-theme="ops"] .queue-controls,
+body[data-theme="ops"] .inbox-list,
+body[data-theme="ops"] .queue-list,
+body[data-theme="ops"] .queue-bulk-actions,
+body[data-theme="ops"] .learning-metric,
+body[data-theme="ops"] .calibration-attention-strip,
+body[data-theme="ops"] .compact-check-card,
+body[data-theme="ops"] .criterion-card,
+body[data-theme="ops"] .review-actions-bar,
+body[data-theme="ops"] .inline-code-box,
+body[data-theme="ops"] .source-choice-row,
+body[data-theme="ops"] .source-next-steps span,
+body[data-theme="ops"] .report-command-bar,
+body[data-theme="ops"] .insight-summary,
+body[data-theme="ops"] .report-toolbar,
+body[data-theme="ops"] .report-view-selector {
+  background: var(--panel);
+  color: var(--foreground);
+}
+
+body[data-theme="ops"] .record-card--quiet,
+body[data-theme="ops"] .queue-bulk-actions__body,
+body[data-theme="ops"] .queue-filterbar__active,
+body[data-theme="ops"] .queue-filterbar__advanced-panel,
+body[data-theme="ops"] .soft-callout,
+body[data-theme="ops"] .compact-details,
+body[data-theme="ops"] .appearance-choice-group {
+  background: var(--panel-muted);
+}
+
+body[data-theme="ops"] .meta-chip--success,
+body[data-theme="ops"] .soft-callout--ok,
+body[data-theme="ops"] .learning-metric--success {
+  border-color: color-mix(in srgb, var(--success) 48%, var(--border));
+  background: var(--success-soft);
+}
+
+body[data-theme="ops"] .meta-chip--success .meta-chip__icon {
+  background: color-mix(in srgb, var(--success) 24%, transparent);
+}
+
+body[data-theme="ops"] .meta-chip--warning,
+body[data-theme="ops"] .soft-callout--warn,
+body[data-theme="ops"] .learning-next-panel--urgent {
+  border-color: color-mix(in srgb, var(--warning) 48%, var(--border));
+  background: var(--warning-soft);
+}
+
+body[data-theme="ops"] .learning-metric--danger {
+  border-color: color-mix(in srgb, var(--danger) 48%, var(--border));
+  background: color-mix(in srgb, var(--danger) 14%, var(--panel));
+}
+
+body[data-theme="ops"] .metric-card__label,
+body[data-theme="ops"] .metric-card__helper,
+body[data-theme="ops"] .queue-bulk-actions__field,
+body[data-theme="ops"] .source-choice-row__caption,
+body[data-theme="ops"] .calibration-attention-strip span {
+  color: var(--muted);
+}
+
+body[data-theme="ops"] .source-choice-row__title,
+body[data-theme="ops"] .source-choice-summary__body h4,
+body[data-theme="ops"] .source-choice-summary__body p,
+body[data-theme="ops"] .source-next-steps span,
+body[data-theme="ops"] .compact-check-card,
+body[data-theme="ops"] .inline-code-box {
+  color: var(--foreground);
+}
+
+body[data-theme="ops"] .review-score-surface,
+body[data-theme="ops"] .source-choice-summary {
+  background: linear-gradient(180deg, var(--panel-tint), var(--panel));
+}
+
+body[data-theme="ops"] .appearance-choice-card__density,
+body[data-theme="ops"] .appearance-choice-card__corner-preview {
+  background: var(--panel);
+}
+
+body[data-theme="ops"] .appearance-choice-card__contrast {
+  background:
+    linear-gradient(90deg, var(--foreground) 0 34%, transparent 34%),
+    linear-gradient(180deg, var(--panel) 0 50%, var(--panel-muted) 50%);
+}
+
+body[data-theme="ops"] .appearance-choice-card__contrast--high {
+  background:
+    linear-gradient(90deg, var(--foreground) 0 46%, transparent 46%),
+    linear-gradient(180deg, var(--panel) 0 50%, var(--border) 50%);
+}
+
+/* Additional hardcoded light colors not covered by the generic dark overrides */
+body[data-theme="ops"] [class~="bg-[#fff7f7]"],
+body[data-theme="ops"] [class~="bg-[#fef2f2]"] {
+  background-color: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
+}
+
+body[data-theme="ops"] [class~="bg-[#f0fdf4]"] {
+  background-color: var(--success-soft) !important;
+}
+
+body[data-theme="ops"] [class~="text-[#991b1b]"],
+body[data-theme="ops"] [class~="text-[#b91c1c]"] {
+  color: var(--danger) !important;
+}
+
+body[data-theme="ops"] [class~="text-[#166534]"],
+body[data-theme="ops"] [class~="text-[#15803d]"] {
+  color: var(--success) !important;
+}
+
+body[data-theme="ops"] [class~="border-[#fecaca]"] {
+  border-color: color-mix(in srgb, var(--danger) 48%, var(--border)) !important;
+}
+
+body[data-theme="ops"] [class~="border-[#bbf7d0]"] {
+  border-color: color-mix(in srgb, var(--success) 48%, var(--border)) !important;
+}
+
+body[data-theme="ops"] [class~="border-[#fed7aa]"] {
+  border-color: color-mix(in srgb, var(--warning) 48%, var(--border)) !important;
 }
 
 body[data-density="compact"] {
@@ -5222,6 +5412,38 @@ a.quiet-link:hover {
 
 .appearance-section__header > svg {
   color: var(--accent);
+}
+
+.appearance-section__header--toggle {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--panel-header-border);
+  border-radius: var(--radius-card);
+  background: var(--panel-header);
+  padding: 14px 16px;
+}
+
+.appearance-section__header--toggle:hover {
+  background: var(--panel-muted);
+}
+
+.appearance-section__header-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.appearance-section__chevron {
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.appearance-section__chevron--collapsed {
+  transform: rotate(-90deg);
 }
 
 .appearance-section__body-with-coach {

@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ChangeEvent } from "react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, Gauge, ImageUp, Layers3, Palette, RotateCcw, Rows3, Type, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Gauge, ImageUp, Layers3, Palette, RotateCcw, Rows3, Type, X } from "lucide-react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { getSettingCoachmark, hasAppearancePaletteOverrides } from "@/lib/admin-setup-guidance";
 import { updateWorkspaceAppearance } from "@/lib/ui-theme-actions";
@@ -220,6 +220,7 @@ function saveStatusLabel(state: SaveState) {
 
 export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettingsFormProps) {
   const [appearance, setAppearance] = useState<AppearanceState>(initialAppearance);
+  const [openSections, setOpenSections] = useState({ branding: false, theme: false, palette: false, ui: false });
   const [logoError, setLogoError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [, startTransition] = useTransition();
@@ -229,6 +230,10 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   const isSavingRef = useRef(false);
   const hasQueuedSaveRef = useRef(false);
   const hasMountedRef = useRef(false);
+
+  const toggleSection = (key: keyof typeof openSections) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const persistLatest = () => {
     if (isSavingRef.current) {
@@ -407,15 +412,23 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   return (
     <div className="appearance-form">
       <section id="appearance-branding" className="appearance-section">
-        <div className="appearance-section__header">
+        <button
+          type="button"
+          className="appearance-section__header appearance-section__header--toggle"
+          onClick={() => toggleSection("branding")}
+          aria-expanded={openSections.branding}
+        >
           <div className="min-w-0">
             <h3>Брендинг</h3>
             <p>Название, знак, логотип и фирменные акценты для навигации, превью и рабочих состояний интерфейса.</p>
           </div>
-          <Type size={18} aria-hidden="true" />
-        </div>
+          <span className="appearance-section__header-icons">
+            <Type size={18} aria-hidden="true" />
+            <ChevronDown size={16} className={`appearance-section__chevron${openSections.branding ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
+          </span>
+        </button>
 
-        <div className={brandLogoHint ? "appearance-section__body-with-coach" : ""}>
+        {openSections.branding && <div className={brandLogoHint ? "appearance-section__body-with-coach" : ""}>
           <div className="brand-settings-grid">
             <div className="brand-preview-card" style={brandPreviewStyle(appearance)} aria-label="Предпросмотр бренда">
               <div className="brand-preview-card__sidebar">
@@ -583,18 +596,26 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
               dismissId="settings:brandLogo"
             />
           ) : null}
-        </div>
+        </div>}
       </section>
 
       <section className="appearance-section">
-        <div className="appearance-section__header">
+        <button
+          type="button"
+          className="appearance-section__header appearance-section__header--toggle"
+          onClick={() => toggleSection("theme")}
+          aria-expanded={openSections.theme}
+        >
           <div className="min-w-0">
             <h3>Цветовая тема</h3>
             <p>Тема меняет фон приложения, сайдбар, шапки панелей, primary-кнопки, выбранные состояния, hover и акцентные панели; темный вариант включается по системной настройке устройства.</p>
           </div>
-          <Palette size={18} aria-hidden="true" />
-        </div>
-        <div className="theme-option-grid" role="radiogroup" aria-label="Цветовая тема">
+          <span className="appearance-section__header-icons">
+            <Palette size={18} aria-hidden="true" />
+            <ChevronDown size={16} className={`appearance-section__chevron${openSections.theme ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
+          </span>
+        </button>
+        {openSections.theme && <div className="theme-option-grid" role="radiogroup" aria-label="Цветовая тема">
           {uiThemeOptions.map((theme) => {
             const isSelected = theme.id === appearance.uiTheme;
 
@@ -624,18 +645,26 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
               </label>
             );
           })}
-        </div>
+        </div>}
       </section>
 
       <section id="appearance-palette" className="appearance-section">
-        <div className="appearance-section__header">
+        <button
+          type="button"
+          className="appearance-section__header appearance-section__header--toggle"
+          onClick={() => toggleSection("palette")}
+          aria-expanded={openSections.palette}
+        >
           <div className="min-w-0">
             <h3>Палитра компонентов</h3>
             <p>Ручные цвета переопределяют выбранную тему для кнопок, сайдбара, рабочих поверхностей и статусов. Смена темы сбрасывает эти переопределения.</p>
           </div>
-          <Palette size={18} aria-hidden="true" />
-        </div>
-        <div className={paletteHint ? "appearance-section__body-with-coach" : ""}>
+          <span className="appearance-section__header-icons">
+            <Palette size={18} aria-hidden="true" />
+            <ChevronDown size={16} className={`appearance-section__chevron${openSections.palette ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
+          </span>
+        </button>
+        {openSections.palette && <div className={paletteHint ? "appearance-section__body-with-coach" : ""}>
           <div className="appearance-section__body-main">
             <div className="palette-token-board">
               {paletteGroups.map((group) => (
@@ -687,19 +716,27 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
               dismissId="settings:componentPalette"
             />
           ) : null}
-        </div>
+        </div>}
       </section>
 
       <section className="appearance-section">
-        <div className="appearance-section__header">
+        <button
+          type="button"
+          className="appearance-section__header appearance-section__header--toggle"
+          onClick={() => toggleSection("ui")}
+          aria-expanded={openSections.ui}
+        >
           <div className="min-w-0">
             <h3>Интерфейс</h3>
             <p>Эти параметры помогают выбрать между более плотной рабочей средой и мягким презентационным видом.</p>
           </div>
-          <Layers3 size={18} aria-hidden="true" />
-        </div>
+          <span className="appearance-section__header-icons">
+            <Layers3 size={18} aria-hidden="true" />
+            <ChevronDown size={16} className={`appearance-section__chevron${openSections.ui ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
+          </span>
+        </button>
 
-        <div className="appearance-option-grid">
+        {openSections.ui && <div className="appearance-option-grid">
           <fieldset className="appearance-choice-group">
             <legend>
               <Rows3 size={15} aria-hidden="true" />
@@ -770,7 +807,7 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
               );
             })}
           </fieldset>
-        </div>
+        </div>}
       </section>
 
       <div className="appearance-form__footer">
