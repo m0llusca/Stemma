@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { RoleName } from "@prisma/client";
+import { auth } from "../../auth";
 import { hasPermission, type Permission, requirePermission } from "@/lib/auth/permissions";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -25,6 +26,22 @@ export function isDemoAuthEnabled() {
 }
 
 export async function getCurrentUser() {
+  const authSession = await auth();
+  const authUserId = authSession?.user?.id;
+
+  if (authUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: authUserId },
+      include: { workspace: true }
+    });
+
+    if (!user || user.lifecycleStatus !== "ACTIVE") {
+      throw new AuthRequiredError();
+    }
+
+    return user;
+  }
+
   const cookieStore = await cookies();
   const session = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
 
