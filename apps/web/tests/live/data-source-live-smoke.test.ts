@@ -8,6 +8,7 @@ import type {
 } from "@/lib/integrations/data-source-adapters/types";
 
 const liveSmokeAck = process.env.DATA_SOURCE_LIVE_SMOKE === "1";
+const connectivityOnly = process.env.DATA_SOURCE_LIVE_CONNECTIVITY_ONLY === "1";
 const liveSource = normalizeSource(process.env.DATA_SOURCE_LIVE_SOURCE);
 const unsupportedSourceConfigured = Boolean(process.env.DATA_SOURCE_LIVE_SOURCE && !liveSource);
 const missingLiveConfig = liveSmokeAck && !unsupportedSourceConfigured && missingRequiredEnvironment(liveSource).length > 0;
@@ -89,6 +90,12 @@ describe.skipIf(!liveSmokeAck)("live data source adapter smoke", () => {
     expect(result.source).toBe(liveSource);
     expect(result.rows).toEqual(expect.any(Array));
     expect(result.conversations).toEqual(expect.any(Array));
-    expect(result.conversations.length > 0 || hasSafeDiagnostics(result, credential)).toBe(true);
+
+    if (connectivityOnly) {
+      expect(result.conversations.length > 0 || hasSafeDiagnostics(result, credential)).toBe(true);
+      return;
+    }
+
+    expect(result.conversations.length).toBeGreaterThan(0);
   });
 });

@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Integration, IntegrationCredential } from "@prisma/client";
+import { encryptSecret } from "@/lib/secrets";
+
+type IntegrationWithCredentials = Integration & {
+  credentials: IntegrationCredential[];
+};
 
 const close = vi.fn();
 const ready = vi.fn();
@@ -20,6 +26,51 @@ const queryFn = vi.fn();
 const driverConstructor = vi.fn().mockImplementation(() => ({ ready, close }));
 const unsafe = vi.fn((value: string) => value);
 const staticCredentialsProvider = vi.fn().mockImplementation((value) => value);
+const now = new Date("2026-05-09T08:00:00.000Z");
+
+function credential(kind: string, secret: string): IntegrationCredential {
+  return {
+    id: `${kind}-credential`,
+    workspaceId: "workspace-1",
+    integrationId: "integration-1",
+    kind,
+    authMode: "static_credentials",
+    encryptedSecret: encryptSecret(secret),
+    keyVersion: "v1",
+    fingerprint: null,
+    lastRotatedAt: now,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function integration(overrides: Partial<IntegrationWithCredentials> = {}): IntegrationWithCredentials {
+  return {
+    id: "integration-1",
+    workspaceId: "workspace-1",
+    source: "ydb",
+    displayName: "YDB",
+    type: "data_source",
+    status: "ready",
+    baseUrl: "grpc://localhost:2136/local",
+    configJson: JSON.stringify({ query: "SELECT * FROM conversations" }),
+    syncStateJson: "{}",
+    authMode: "static_credentials",
+    importLimit: 100,
+    batchSize: 25,
+    dateRangeDays: 30,
+    schedule: null,
+    syncCursor: null,
+    lastSyncedAt: null,
+    lastDryRunAt: null,
+    lastImportAt: null,
+    lastError: null,
+    createdAt: now,
+    updatedAt: now,
+    credentials: [credential("data_source_credentials", JSON.stringify({ username: "user", password: "pass" }))],
+    ...overrides
+  };
+}
 
 vi.mock("@ydbjs/core", () => ({
   Driver: driverConstructor
@@ -66,6 +117,21 @@ describe("YDB adapter", () => {
     expect(unsafe).toHaveBeenCalledWith("SELECT * FROM conversations LIMIT 100");
     expect(ready).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("redacts YDB URL credentials from diagnostics", async () => {
+    const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
+    const result = await createYdbAdapter().loadRows({
+      source: "ydb",
+      baseUrl: "grpcs://db-user:secret-pass@ydb.example.com/local",
+      config: { query: "SELECT * FROM conversations LIMIT 100" },
+      credential: JSON.stringify({ username: "user", password: "pass" }),
+      limit: 100
+    });
+
+    expect(JSON.stringify(result.diagnostics)).not.toContain("db-user");
+    expect(JSON.stringify(result.diagnostics)).not.toContain("secret-pass");
+    expect(result.diagnostics.requests[0]?.url).toContain("ydb.example.com");
   });
 
   it("builds a constrained read query from tablePath and applies the input limit server-side", async () => {
@@ -201,5 +267,31 @@ describe("YDB adapter", () => {
       })
     ).rejects.toThrow("query failed");
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects empty normalized results unless connectivityOnly is explicit", async () => {
+    queryFn.mockResolvedValueOnce([[]]);
+    const { loadDataSourceAdapterConversations } = await import("@/lib/integrations/data-source-adapters/service");
+
+    await expect(
+      loadDataSourceAdapterConversations({
+        integration: integration(),
+        limit: 25
+      })
+    ).rejects.toThrow("Источник данных не вернул обращения в поддерживаемом формате.");
+
+    queryFn.mockResolvedValueOnce([[]]);
+    await expect(
+      loadDataSourceAdapterConversations({
+        integration: integration({
+          configJson: JSON.stringify({ query: "SELECT * FROM conversations", connectivityOnly: true })
+        }),
+        limit: 25
+      })
+    ).resolves.toMatchObject({
+      source: "ydb",
+      rows: [],
+      conversations: []
+    });
   });
 });

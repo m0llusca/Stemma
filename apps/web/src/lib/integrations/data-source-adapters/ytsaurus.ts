@@ -7,6 +7,11 @@ import type {
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 2_000_000;
+const redactedValue = "[REDACTED]";
+
+function inputLimit(limit: number) {
+  return Math.max(0, Math.floor(limit));
+}
 
 function textConfig(config: Record<string, unknown>, key: string) {
   const value = config[key];
@@ -43,6 +48,37 @@ function oauthToken(credential: string | undefined) {
   return token;
 }
 
+function readTableUrl(proxyUrl: string, tablePath: string, limit: number) {
+  const url = new URL(`${proxyUrl}/api/v3/read_table`);
+
+  url.searchParams.set("path", tablePath);
+  url.searchParams.set("limit", String(inputLimit(limit)));
+
+  return url.toString();
+}
+
+function diagnosticUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (url.username) {
+      url.username = redactedValue;
+    }
+
+    if (url.password) {
+      url.password = redactedValue;
+    }
+
+    if (url.searchParams.has("path")) {
+      url.searchParams.set("path", redactedValue);
+    }
+
+    return url.toString().replaceAll("%5BREDACTED%5D", redactedValue);
+  } catch {
+    return redactedValue;
+  }
+}
+
 export function createYTsaurusAdapter() {
   return {
     async loadRows(input: DataSourceAdapterLoadInput): Promise<DataSourceAdapterLoadResult> {
@@ -54,7 +90,7 @@ export function createYTsaurusAdapter() {
         throw new Error("Для YTsaurus укажите tablePath в формате //path/to/table.");
       }
 
-      const url = `${proxyUrl}/api/v3/read_table?path=${encodeURIComponent(tablePath)}`;
+      const url = readTableUrl(proxyUrl, tablePath, input.limit);
       const { response, text } = await fetchTextWithLimits(
         url,
         {
@@ -73,7 +109,7 @@ export function createYTsaurusAdapter() {
         throw new Error(`YTsaurus вернул HTTP ${response.status}.`);
       }
 
-      const rowArray = parseRows(text).slice(0, input.limit);
+      const rowArray = parseRows(text).slice(0, inputLimit(input.limit));
       const conversations = normalizeTabularConversationRows(rowArray, {
         source: "ytsaurus",
         samplingReason: "Импорт YTsaurus/YT: строки таблицы."
@@ -88,7 +124,7 @@ export function createYTsaurusAdapter() {
             {
               operation: "table_read",
               method: "GET",
-              url,
+              url: diagnosticUrl(url),
               statusCode: response.status
             }
           ]

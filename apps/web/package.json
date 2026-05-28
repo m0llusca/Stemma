@@ -13,7 +13,7 @@
     "test:live:helpdesk": "cross-env VITEST_INCLUDE_LIVE=1 vitest run tests/live/helpdesk-live-smoke.test.ts",
     "test:live:identity": "cross-env VITEST_INCLUDE_LIVE=1 vitest run tests/live/identity-live-smoke.test.ts",
     "test:live:data-source": "cross-env VITEST_INCLUDE_LIVE=1 vitest run tests/live/data-source-live-smoke.test.ts",
-    "test:live:phase-d": "cross-env VITEST_INCLUDE_LIVE=1 vitest run tests/live/helpdesk-live-smoke.test.ts tests/live/identity-live-smoke.test.ts",
+    "test:live:phase-d": "cross-env VITEST_INCLUDE_LIVE=1 vitest run tests/live/helpdesk-live-smoke.test.ts tests/live/identity-live-smoke.test.ts tests/live/data-source-live-smoke.test.ts",
     "db:up": "docker compose -f ../../compose.yaml up -d postgres",
     "db:down": "docker compose -f ../../compose.yaml down",
     "db:generate": "prisma generate",
