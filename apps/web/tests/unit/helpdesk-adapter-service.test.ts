@@ -410,6 +410,74 @@ describe("native helpdesk adapters", () => {
     }
   });
 
+  it("loads Jira comments across service desk paginated comment pages", async () => {
+    const server = await createJiraPaginatedCommentsServer();
+    const jiraCredential = "agent@example.com:jira-api-token";
+
+    try {
+      const adapter = createHelpdeskAdapter("jira");
+      const result = await adapter.loadConversation({
+        source: "jira",
+        baseUrl: server.baseUrl,
+        externalId: "SUP-101",
+        token: jiraCredential
+      });
+
+      expect(result.conversations[0]).toMatchObject({
+        externalSource: "jira",
+        externalId: "SUP-101"
+      });
+      expect(result.conversations[0]?.messages).toHaveLength(101);
+      expect(result.conversations[0]?.messages[100]).toMatchObject({
+        externalId: "10100",
+        body: "Paginated Jira comment 101",
+        isPrivate: false
+      });
+      expect(result.conversations[0]?.messages[99]).toMatchObject({
+        externalId: "10099",
+        isPrivate: true
+      });
+      expect(server.requests.map((request) => request.pathname)).toEqual([
+        "/rest/servicedeskapi/request/SUP-101",
+        "/rest/servicedeskapi/request/SUP-101/comment",
+        "/rest/servicedeskapi/request/SUP-101/comment"
+      ]);
+      expect(server.requests[1]?.query).toMatchObject({ limit: "100", start: "0" });
+      expect(server.requests[2]?.query).toMatchObject({ limit: "100", start: "100" });
+      expect(result.diagnostics.requests.map((request) => request.operation)).toEqual([
+        "ticket_get",
+        "comments_get",
+        "comments_get"
+      ]);
+      expect(decodedBasicCredential(server.requests[0]?.headers.authorization)).toBe(jiraCredential);
+      expect(JSON.stringify(result.diagnostics)).not.toContain("jira-api-token");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("enforces a local Jira comment limit when the caller provides one", async () => {
+    const server = await createJiraPaginatedCommentsServer();
+
+    try {
+      const adapter = createHelpdeskAdapter("jira");
+      const result = await adapter.loadConversation({
+        source: "jira",
+        baseUrl: server.baseUrl,
+        externalId: "SUP-101",
+        token: "agent@example.com:jira-api-token",
+        maxComments: 75
+      } as Parameters<typeof adapter.loadConversation>[0] & { maxComments: number });
+
+      expect(result.conversations[0]?.messages).toHaveLength(75);
+      expect(server.requests.map((request) => request.query)).toEqual([{}, { limit: "75", start: "0" }]);
+      expect(result.diagnostics.requests.map((request) => request.operation)).toEqual(["ticket_get", "comments_get"]);
+      expect(JSON.stringify(result.diagnostics)).not.toContain("jira-api-token");
+    } finally {
+      await server.close();
+    }
+  });
+
   it("loads a Jira request without comments from the request description fallback", async () => {
     const server = await createJiraRequestWithoutCommentsServer();
     const jiraCredential = "agent@example.com:jira-api-token";
@@ -551,6 +619,90 @@ describe("native helpdesk adapters", () => {
 function decodedBasicCredential(authorization: string | undefined) {
   expect(authorization).toMatch(/^Basic [A-Za-z0-9+/]+=*$/);
   return Buffer.from(authorization?.replace(/^Basic /, "") ?? "", "base64").toString("utf8");
+}
+
+async function createJiraPaginatedCommentsServer() {
+  const comments = Array.from({ length: 101 }, (_, index) => ({
+    id: String(10000 + index),
+    body: `Paginated Jira comment ${index + 1}`,
+    public: index === 99 ? { value: false } : { value: true },
+    created: { iso8601: `2026-04-25T10:${String(index % 60).padStart(2, "0")}:00+0000` },
+    author: {
+      displayName: index % 2 === 0 ? "Анна Смирнова" : "Иван Петров",
+      emailAddress: index % 2 === 0 ? "anna@example.com" : "ivan@example.com",
+      applicationRoles: index % 2 === 0 ? { size: 0, items: [] } : { size: 1, items: [{ key: "jira-servicedesk" }] }
+    }
+  }));
+  const requests: Array<{
+    pathname: string;
+    query: Record<string, string>;
+    headers: Record<string, string | undefined>;
+  }> = [];
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+    requests.push({
+      pathname: url.pathname,
+      query: Object.fromEntries(url.searchParams.entries()),
+      headers: Object.fromEntries(
+        Object.entries(request.headers).map(([key, value]) => [key, Array.isArray(value) ? value.join(",") : value])
+      )
+    });
+    response.setHeader("content-type", "application/json");
+
+    if (url.pathname === "/rest/servicedeskapi/request/SUP-101") {
+      response.end(
+        JSON.stringify({
+          issueId: "10100",
+          issueKey: "SUP-101",
+          reporter: { displayName: "Анна Смирнова", emailAddress: "anna@example.com" },
+          currentStatus: { status: "Open" },
+          createdDate: { iso8601: "2026-04-25T10:00:00+0000" },
+          requestFieldValues: [{ fieldId: "summary", label: "Summary", value: "Large Jira request" }]
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/rest/servicedeskapi/request/SUP-101/comment") {
+      const start = Number(url.searchParams.get("start") ?? "0");
+      const limit = Number(url.searchParams.get("limit") ?? "100");
+      const values = comments.slice(start, start + limit);
+
+      response.end(
+        JSON.stringify({
+          values,
+          start,
+          limit,
+          size: values.length,
+          isLastPage: start + values.length >= comments.length
+        })
+      );
+      return;
+    }
+
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: "not found" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  const address = server.address() as AddressInfo;
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    requests,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      })
+  };
 }
 
 async function createJiraRequestWithoutCommentsServer() {
