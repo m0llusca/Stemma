@@ -99,9 +99,6 @@ async function persistIntegration(args: {
       await upsertIntegrationSecretSlot(tx, {
         workspaceId,
         integrationId: integration.id,
-        // kind хранится как строковая колонка; профили могут эмитить виды за
-        // пределами OtrsCredentialKind (например, oauth_client_credentials у
-        // enterprise-профилей). Сужаем тип на call-site до строковой колонки.
         kind: slot.kind as OtrsCredentialKind,
         authMode,
         secret: slot.secret

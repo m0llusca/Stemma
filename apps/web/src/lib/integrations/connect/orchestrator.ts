@@ -45,11 +45,16 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
   const steps: ConnectStep[] = [];
 
   // 1. validate_url — нормализация и SSRF-проверка адреса.
-  const normalized = profile.normalizeUrl(rawUrl);
-  const baseUrl = normalized.baseUrl;
-  const hints = normalized.hints;
+  let baseUrl: string;
+  let hints: ConnectContext["hints"];
 
   try {
+    const normalized = profile.normalizeUrl(rawUrl);
+    baseUrl = normalized.baseUrl;
+    hints = normalized.hints;
+    if (!baseUrl) {
+      throw new Error("Не указан адрес источника.");
+    }
     assertPublicBaseUrl(new URL(baseUrl));
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Адрес источника отклонён.";
@@ -116,7 +121,7 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
   steps.push({ step: "persist", status: "ok", detail: "Источник сохранён и активирован." });
 
   // 6. test_import — пробный импорт; warning не отменяет подключение.
-  const ticketId = ctx.testTicketId ?? hints?.testTicketId;
+  const ticketId = ctx.testTicketId;
   if (profile.testImport && ticketId) {
     const tested = await profile.testImport(ctx);
     steps.push({ step: "test_import", status: tested.status, detail: tested.detail, hint: tested.hint });
