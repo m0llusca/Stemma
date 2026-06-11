@@ -26,6 +26,8 @@ type SmokeRuntime = {
   baseUrl: string;
   userLogin: string;
   password: string;
+  timeZone: string;
+  existingSessionId?: string;
   caBundle?: string;
   caBundleMetadata?: {
     path: string;
@@ -147,8 +149,9 @@ async function main() {
 
 async function buildRuntime(): Promise<SmokeRuntime> {
   const baseUrl = requiredEnv("OTRS_BASE_URL");
-  const userLogin = requiredEnv("OTRS_USER_LOGIN");
-  const password = requiredEnv("OTRS_PASSWORD");
+  const existingSessionId = process.env.OTRS_SESSION_ID?.trim();
+  const userLogin = existingSessionId ? (process.env.OTRS_USER_LOGIN?.trim() ?? "") : requiredEnv("OTRS_USER_LOGIN");
+  const password = existingSessionId ? (process.env.OTRS_PASSWORD?.trim() ?? "") : requiredEnv("OTRS_PASSWORD");
   const defaultConfig = buildDefaultOtrsConnectorConfig();
   const routeOverridesEnabled = Boolean(
     process.env.OTRS_TICKET_SEARCH_PATH?.trim() ||
@@ -159,6 +162,7 @@ async function buildRuntime(): Promise<SmokeRuntime> {
   const config = parseOtrsConnectorConfig({
     ...defaultConfig,
     webServiceName: process.env.OTRS_WEBSERVICE_NAME?.trim() || defaultConfig.webServiceName,
+    ...(process.env.OTRS_TIME_ZONE?.trim() ? { timeZone: process.env.OTRS_TIME_ZONE.trim() } : {}),
     advanced: {
       ...defaultConfig.advanced,
       routeOverridesEnabled: defaultConfig.advanced.routeOverridesEnabled || routeOverridesEnabled
@@ -192,6 +196,8 @@ async function buildRuntime(): Promise<SmokeRuntime> {
     baseUrl,
     userLogin,
     password,
+    timeZone: process.env.OTRS_TIME_ZONE?.trim() || config.timeZone,
+    existingSessionId,
     caBundle,
     caBundleMetadata
   };
@@ -377,7 +383,7 @@ async function runDiagnostics(runtime: SmokeRuntime): Promise<DiagnosticResult> 
       };
     }
 
-    const normalized = normalizePreview(mode, context.searchedTicketIds, targetTicketId, getRequest.result, runtime.baseUrl);
+    const normalized = normalizePreview(mode, context.searchedTicketIds, targetTicketId, getRequest.result, runtime.baseUrl, runtime.timeZone);
     context.fetchedTicketId = targetTicketId;
     normalizedConversations = normalized.conversations;
 
@@ -512,7 +518,8 @@ async function executeTicketSearchRequest(
       baseUrl: runtime.baseUrl,
       userLogin: runtime.userLogin,
       password: runtime.password,
-      operation: "ticketSearch"
+      operation: "ticketSearch",
+      existingSessionId: runtime.existingSessionId
     });
     const result = await client.requestJson(
       buildTicketSearchRequest({
@@ -550,7 +557,8 @@ async function executeTicketGetRequest(
       baseUrl: runtime.baseUrl,
       userLogin: runtime.userLogin,
       password: runtime.password,
-      operation: "ticketGet"
+      operation: "ticketGet",
+      existingSessionId: runtime.existingSessionId
     });
     const result = await client.requestJson(
       buildTicketGetRequest({
@@ -596,7 +604,8 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
       baseUrl: runtime.baseUrl,
       userLogin: runtime.userLogin,
       password: runtime.password,
-      operation: "ticketGet"
+      operation: "ticketGet",
+      existingSessionId: runtime.existingSessionId
     });
     const payload = await recordStep(steps, "ticket_get", () =>
       client.requestJson(
@@ -614,7 +623,7 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
     );
 
     return recordStep(steps, "normalize", () =>
-      normalizePreview("manual_ticket_id", [], manualTicketId, payload, runtime.baseUrl)
+      normalizePreview("manual_ticket_id", [], manualTicketId, payload, runtime.baseUrl, runtime.timeZone)
     );
   }
 
@@ -625,7 +634,8 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
     baseUrl: runtime.baseUrl,
     userLogin: runtime.userLogin,
     password: runtime.password,
-    operation: "ticketSearch"
+    operation: "ticketSearch",
+    existingSessionId: runtime.existingSessionId
   });
   const searchPayload = await recordStep(steps, "ticket_search", () =>
     client.requestJson(
@@ -671,7 +681,7 @@ async function runPreview(runtime: SmokeRuntime, steps: SmokeStep[]): Promise<Pr
     )
   );
 
-  return recordStep(steps, "normalize", () => normalizePreview("ticket_search", ticketIds, ticketId, getPayload, runtime.baseUrl));
+  return recordStep(steps, "normalize", () => normalizePreview("ticket_search", ticketIds, ticketId, getPayload, runtime.baseUrl, runtime.timeZone));
 }
 
 async function runSelectedImport(preview: PreviewResult, steps: SmokeStep[]) {
@@ -772,11 +782,13 @@ function normalizePreview(
   searchedTicketIds: string[],
   fetchedTicketId: string,
   payload: unknown,
-  baseUrl: string
+  baseUrl: string,
+  timeZone?: string
 ): PreviewResult {
   const normalized = normalizeOtrsFamilyTicketGetResponseForImport(payload as Parameters<typeof normalizeOtrsFamilyTicketGetResponseForImport>[0], {
     source: "otrs",
-    baseUrl
+    baseUrl,
+    ...(timeZone ? { timeZone } : {})
   });
 
   if (normalized.length === 0) {

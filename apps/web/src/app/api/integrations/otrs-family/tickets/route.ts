@@ -85,6 +85,7 @@ function parseOtrsFamilyImportBody(body: unknown) {
   const options: OtrsFamilyNormalizeOptions = {
     source: parseSource(body.source),
     baseUrl: optionalString(body.baseUrl),
+    timeZone: optionalString(body.timeZone),
     samplingReason: optionalString(body.samplingReason)
   };
   const qualityContext = parseQualityContext(body);

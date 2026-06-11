@@ -6,6 +6,13 @@ import { auditLog } from "@/lib/audit";
 import { upsertCustomConversation } from "@/lib/conversation-import";
 import { assertCanPersistSettings, canManageIntegrations, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { createOtrsHttpClient } from "@/lib/integrations/otrs-family/client";
+import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
+import {
+  detectOtrsRoutes,
+  type OtrsRouteDetectionResult
+} from "@/lib/integrations/otrs-family/route-detection";
+import type { OtrsOperation } from "@/lib/integrations/otrs-family/requests";
 import {
   extractOtrsFamilyTickets,
   isOtrsFamilyTicketLike,
@@ -78,6 +85,7 @@ export async function importOtrsFamilyTicketGet(formData: FormData) {
   const options: OtrsFamilyNormalizeOptions = {
     source,
     baseUrl: optionalStringField(formData, "baseUrl"),
+    timeZone: optionalStringField(formData, "timeZone"),
     samplingReason: optionalStringField(formData, "samplingReason")
   };
   const conversations = parseTicketGetPayload(rawPayload).map((ticket) => normalizeOtrsFamilyTicket(ticket, options));
@@ -112,4 +120,63 @@ export async function importOtrsFamilyTicketGet(formData: FormData) {
   revalidatePath("/admin/integrations");
   revalidatePath("/reviews");
   redirect(`/reviews?source=${encodeURIComponent(source)}&q=${encodeURIComponent(imported[0]?.externalId ?? "")}`);
+}
+
+export type DetectOtrsRoutesState =
+  | { ok: true; result: OtrsRouteDetectionResult }
+  | { ok: false; message: string }
+  | null;
+
+const detectOperationEnum: Record<"ticketGet" | "ticketSearch" | "sessionCreate", OtrsOperation> = {
+  ticketGet: "TicketGet",
+  ticketSearch: "TicketSearch",
+  sessionCreate: "SessionCreate"
+};
+
+export async function detectOtrsRoutesAction(
+  _prev: DetectOtrsRoutesState,
+  formData: FormData
+): Promise<DetectOtrsRoutesState> {
+  const user = await getCurrentUser();
+
+  if (!canManageIntegrations(user.role)) {
+    return { ok: false, message: "Недостаточно прав для определения маршрутов." };
+  }
+
+  const baseUrl = stringField(formData, "baseUrl");
+
+  if (!baseUrl) {
+    return { ok: false, message: "Укажите Base URL источника." };
+  }
+
+  const webServiceName = stringField(formData, "webServiceName") || "GenericTicketConnectorREST";
+  const testTicketId = stringField(formData, "testTicketId") || "1";
+
+  const config = parseOtrsConnectorConfig({ webServiceName });
+  const client = createOtrsHttpClient({ config, baseUrl, userLogin: "", password: "" });
+
+  try {
+    const result = await detectOtrsRoutes({
+      baseUrl,
+      webServiceName,
+      testTicketId,
+      probeRoute: (request) =>
+        client.probeRoute({
+          operation: detectOperationEnum[request.operation as keyof typeof detectOperationEnum],
+          method: request.method,
+          url: request.url,
+          headers:
+            request.method === "POST"
+              ? { accept: "application/json", "content-type": "application/json" }
+              : { accept: "application/json" },
+          body: request.method === "POST" ? {} : undefined,
+          timeoutMs: config.limits.requestTimeoutMs,
+          maxResponseBytes: config.limits.maxResponseBytes
+        })
+    });
+
+    return { ok: true, result };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Не удалось определить маршруты." };
+  }
 }

@@ -23,7 +23,9 @@ const mocks = vi.hoisted(() => {
     auditLog: vi.fn(),
     assertCanPersistSettings: vi.fn(),
     canManageIntegrations: vi.fn(),
+    createOtrsHttpClient: vi.fn(),
     createOtrsPreview: vi.fn(),
+    detectOtrsRoutes: vi.fn(),
     getCurrentUser: vi.fn(),
     prisma,
     queueIntegrationImportJob: vi.fn(),
@@ -75,6 +77,14 @@ vi.mock("@/lib/integrations/otrs-family/credentials", () => ({
 vi.mock("@/lib/integrations/otrs-family/service", () => ({
   createOtrsPreview: mocks.createOtrsPreview,
   runOtrsConnectorDiagnostics: mocks.runOtrsConnectorDiagnostics
+}));
+
+vi.mock("@/lib/integrations/otrs-family/client", () => ({
+  createOtrsHttpClient: mocks.createOtrsHttpClient
+}));
+
+vi.mock("@/lib/integrations/otrs-family/route-detection", () => ({
+  detectOtrsRoutes: mocks.detectOtrsRoutes
 }));
 
 vi.mock("@/lib/jobs/queue", () => ({
@@ -885,5 +895,85 @@ describe("OTRS integration actions", () => {
       message: "Не заполнены требуемые secret slots: auth_password.",
       requestId: "request-missing-secret"
     });
+  });
+
+  it("detects OTRS routes through the probe client and adapts the lowercase operation key", async () => {
+    const { detectOtrsRoutesAction } = await import("@/lib/otrs-import-actions");
+    const probeRoute = vi.fn(async (_request: Record<string, unknown>) => ({ statusCode: 200, bodyText: '{"TicketID":["1"]}' }));
+    mocks.createOtrsHttpClient.mockReturnValue({ probeRoute, requestJson: vi.fn() });
+    mocks.detectOtrsRoutes.mockImplementation(async (input) => {
+      // Drive the adapter exactly like the engine does: minimal lowercase op + GET/POST.
+      await input.probeRoute({ operation: "ticketGet", method: "GET", url: "https://otrs.example.ru/otrs/nph-genericinterface.pl/Webservice/api/Ticket/1" });
+      await input.probeRoute({ operation: "sessionCreate", method: "POST", url: "https://otrs.example.ru/otrs/nph-genericinterface.pl/Webservice/api/Session" });
+      return {
+        webServiceName: input.webServiceName,
+        ticketGet: { method: "GET", path: "/Ticket/{TicketID}" },
+        sessionCreate: { method: "POST", path: "/Session" },
+        undetected: ["ticketSearch"]
+      };
+    });
+
+    const formData = new FormData();
+    formData.set("baseUrl", "https://otrs.example.ru/otrs");
+    formData.set("webServiceName", "api");
+    formData.set("testTicketId", "1");
+
+    await expect(detectOtrsRoutesAction(null, formData)).resolves.toEqual({
+      ok: true,
+      result: {
+        webServiceName: "api",
+        ticketGet: { method: "GET", path: "/Ticket/{TicketID}" },
+        sessionCreate: { method: "POST", path: "/Session" },
+        undetected: ["ticketSearch"]
+      }
+    });
+
+    // The adapter must map the lowercase op to the OtrsOperation enum and build a full request.
+    expect(probeRoute).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      operation: "TicketGet",
+      method: "GET",
+      url: expect.stringContaining("/Ticket/1"),
+      headers: expect.objectContaining({ accept: "application/json" })
+    }));
+    const getCall = probeRoute.mock.calls[0][0];
+    expect(getCall.body).toBeUndefined();
+    expect(typeof getCall.timeoutMs).toBe("number");
+    expect(typeof getCall.maxResponseBytes).toBe("number");
+
+    expect(probeRoute).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      operation: "SessionCreate",
+      method: "POST",
+      headers: expect.objectContaining({ "content-type": "application/json" })
+    }));
+    const postCall = probeRoute.mock.calls[1][0];
+    expect(postCall.body).toBeDefined();
+  });
+
+  it("rejects route detection for users who cannot manage integrations", async () => {
+    const { detectOtrsRoutesAction } = await import("@/lib/otrs-import-actions");
+    mocks.canManageIntegrations.mockReturnValueOnce(false);
+    const formData = new FormData();
+    formData.set("baseUrl", "https://otrs.example.ru/otrs");
+
+    await expect(detectOtrsRoutesAction(null, formData)).resolves.toMatchObject({ ok: false });
+    expect(mocks.detectOtrsRoutes).not.toHaveBeenCalled();
+  });
+
+  it("requires a base url before probing routes", async () => {
+    const { detectOtrsRoutesAction } = await import("@/lib/otrs-import-actions");
+    const formData = new FormData();
+
+    await expect(detectOtrsRoutesAction(null, formData)).resolves.toMatchObject({ ok: false });
+    expect(mocks.createOtrsHttpClient).not.toHaveBeenCalled();
+  });
+
+  it("returns a controlled failure when detection throws", async () => {
+    const { detectOtrsRoutesAction } = await import("@/lib/otrs-import-actions");
+    mocks.createOtrsHttpClient.mockReturnValue({ probeRoute: vi.fn(), requestJson: vi.fn() });
+    mocks.detectOtrsRoutes.mockRejectedValueOnce(new Error("boom"));
+    const formData = new FormData();
+    formData.set("baseUrl", "https://otrs.example.ru/otrs");
+
+    await expect(detectOtrsRoutesAction(null, formData)).resolves.toEqual({ ok: false, message: "boom" });
   });
 });

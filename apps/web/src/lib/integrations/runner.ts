@@ -173,6 +173,7 @@ async function loadOtrsFamilyConversations(integration: IntegrationWithCredentia
   const normalizedTickets = normalizeOtrsFamilyTicketGetResponseForImport(payload as OtrsFamilyTicketGetResponse, {
     source,
     baseUrl,
+    timeZone: connectorConfig.timeZone,
     samplingReason: `Импорт ${config.sourceLabel ?? integration.displayName}: TicketGet ${ticketId}.`
   });
 

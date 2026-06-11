@@ -570,7 +570,8 @@ async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput &
 
     const normalized = normalizeOtrsFamilyTicketForImport(ticket, {
       source: input.integration.source as OtrsFamilySource,
-      baseUrl: input.integration.baseUrl ?? undefined
+      baseUrl: input.integration.baseUrl ?? undefined,
+      timeZone: input.integration.config.timeZone
     });
     const conversation = customConversationSchema.parse(normalized.conversation);
     const duplicate = await input.db.conversation.findUnique({
