@@ -4,6 +4,8 @@ import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdes
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 500_000;
+// Pins the Intercom REST API version sent via the Intercom-Version header. Can be
+// overridden per-environment with INTERCOM_VERSION / INTERCOM_API_VERSION.
 const defaultIntercomVersion = "2.15";
 
 export function createIntercomAdapter() {

@@ -42,6 +42,9 @@ export function createJiraAdapter() {
           ...requestDefaults,
           operation: "comments_get",
           url: `${baseUrl}/rest/servicedeskapi/request/${issueIdOrKey}/comment?${new URLSearchParams({
+            // Request HTML-rendered comment bodies so the normalizer can prefer renderedBody
+            // over the raw wiki-markup body.
+            expand: "renderedBody",
             limit: String(limit),
             start: String(start)
           })}`

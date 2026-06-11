@@ -600,6 +600,140 @@ describe("OTRS-family preview/import planning", () => {
     expect(state.items.map((item) => item.externalId)).toEqual(["201", "202"]);
   });
 
+  it("re-authenticates once and retries TicketGet when the session expires mid-import", async () => {
+    const { db, state } = createFakeDb();
+    const config: OtrsConnectorConfig = {
+      ...baseConfig,
+      auth: {
+        ticketSearch: "credentials",
+        ticketGet: "session",
+        sessionCreatePath: "/Session",
+        sessionCreateMethod: "POST"
+      }
+    };
+    let sessionCreateCalls = 0;
+    let ticketGetCalls = 0;
+    const client = {
+      requestJson: vi.fn(async (request: OtrsOperationRequest) => {
+        if (request.operation === "SessionCreate") {
+          sessionCreateCalls += 1;
+          return { SessionID: `session-${sessionCreateCalls}` };
+        }
+
+        // TicketGet: first attempt fails as if the cached session expired,
+        // the retry (after a fresh SessionCreate) succeeds.
+        ticketGetCalls += 1;
+        if (ticketGetCalls === 1) {
+          throw new OtrsConnectorError({
+            code: "auth_failed",
+            safeMessage: "OTRS rejected the configured credentials."
+          });
+        }
+
+        return ticket("301");
+      })
+    };
+
+    await createOtrsPreviewItems({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      diagnosticRunId: "diag-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config
+      },
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "manual_ticket_ids",
+      manualTicketIds: ["301"]
+    });
+
+    expect(client.requestJson.mock.calls.map(([request]) => request.operation)).toEqual([
+      "SessionCreate",
+      "TicketGet",
+      "SessionCreate",
+      "TicketGet"
+    ]);
+    expect(sessionCreateCalls).toBe(2);
+    expect(state.items.map((item) => item.externalId)).toEqual(["301"]);
+    expect(state.items.map((item) => item.status)).toEqual(["previewed"]);
+  });
+
+  it("reuses the refreshed session for subsequent tickets after a mid-import re-auth", async () => {
+    const { db, state } = createFakeDb();
+    const config: OtrsConnectorConfig = {
+      ...baseConfig,
+      auth: {
+        ticketSearch: "credentials",
+        ticketGet: "session",
+        sessionCreatePath: "/Session",
+        sessionCreateMethod: "POST"
+      }
+    };
+    let sessionCreateCalls = 0;
+    let ticketGetCalls = 0;
+    const sessionIdsSeenByTicketGet: Array<string | undefined> = [];
+    const client = {
+      requestJson: vi.fn(async (request: OtrsOperationRequest) => {
+        if (request.operation === "SessionCreate") {
+          sessionCreateCalls += 1;
+          return { SessionID: `session-${sessionCreateCalls}` };
+        }
+
+        ticketGetCalls += 1;
+        const body = request.body as { SessionID?: string } | undefined;
+        sessionIdsSeenByTicketGet.push(body?.SessionID ?? new URL(request.url).searchParams.get("SessionID") ?? undefined);
+
+        // First ticket's TicketGet expires; everything after the refresh succeeds.
+        if (ticketGetCalls === 1) {
+          throw new OtrsConnectorError({
+            code: "auth_failed",
+            safeMessage: "OTRS rejected the configured credentials."
+          });
+        }
+
+        return ticket(ticketGetCalls === 2 ? "401" : "402");
+      })
+    };
+
+    await createOtrsPreviewItems({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      diagnosticRunId: "diag-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config
+      },
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "manual_ticket_ids",
+      manualTicketIds: ["401", "402"]
+    });
+
+    // Only one re-auth even though two tickets are imported: the second ticket
+    // reuses the refreshed session instead of authenticating again.
+    expect(sessionCreateCalls).toBe(2);
+    expect(client.requestJson.mock.calls.map(([request]) => request.operation)).toEqual([
+      "SessionCreate",
+      "TicketGet",
+      "SessionCreate",
+      "TicketGet",
+      "TicketGet"
+    ]);
+    // ticket 401: original (session-1, expired) -> refreshed (session-2); ticket 402: session-2.
+    expect(sessionIdsSeenByTicketGet).toEqual(["session-1", "session-2", "session-2"]);
+    expect(state.items.map((item) => item.externalId)).toEqual(["401", "402"]);
+    expect(state.items.map((item) => item.status)).toEqual(["previewed", "previewed"]);
+  });
+
   it("deduplicates TicketSearch results before fetching and creating run items", async () => {
     const { db, state } = createFakeDb();
     const client = {

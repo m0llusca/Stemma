@@ -20,7 +20,8 @@ import {
   parseSessionCreateResponse,
   parseTicketSearchResponse
 } from "@/lib/integrations/otrs-family/requests";
-import { describe, expect, it } from "vitest";
+import { runWithSessionReauth } from "@/lib/integrations/otrs-family/session-auth";
+import { describe, expect, it, vi } from "vitest";
 
 const baseUrl = "https://support.example.com/otrs";
 const userLogin = "qa_api";
@@ -298,7 +299,7 @@ describe("OTRS-family HTTP client", () => {
     expect(requests[0].body).toBeUndefined();
 
     const url = new URL(requests[0].url);
-    expect(url.pathname).toBe("/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketSearch");
+    expect(url.pathname).toBe("/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket");
     expect(url.searchParams.get("UserLogin")).toBe(userLogin);
     expect(url.searchParams.get("Password")).toBe(password);
     expect(url.searchParams.get("Queue")).toBe("Raw");
@@ -995,5 +996,109 @@ describe("OTRS-family HTTP client", () => {
 
   it("parses TicketSearch response identifiers as strings", () => {
     expect(parseTicketSearchResponse({ TicketID: [42, "43"], TicketNumber: ["202605070001"] })).toEqual(["42", "43"]);
+  });
+
+  it("parses TicketSearch responses that use the documented TicketIDs key", () => {
+    expect(parseTicketSearchResponse({ TicketIDs: [55, "56"] })).toEqual(["55", "56"]);
+  });
+
+  it("parses a scalar TicketIDs identifier", () => {
+    expect(parseTicketSearchResponse({ TicketIDs: 57 })).toEqual(["57"]);
+  });
+
+  it("prefers TicketID over TicketIDs when both keys are present", () => {
+    expect(parseTicketSearchResponse({ TicketID: ["10"], TicketIDs: ["20"] })).toEqual(["10"]);
+  });
+});
+
+describe("runWithSessionReauth", () => {
+  const sessionTicketGetConfig = {
+    ...buildDefaultOtrsConnectorConfig("otrs_ce_6"),
+    auth: {
+      ticketSearch: "credentials" as const,
+      ticketGet: "session" as const,
+      sessionCreatePath: "/Session",
+      sessionCreateMethod: "POST" as const
+    }
+  };
+
+  it("re-authenticates once and retries the thunk after an auth_failed error", async () => {
+    let attempts = 0;
+    const refreshed: string[] = [];
+    const client = {
+      requestJson: vi.fn(async () => ({ SessionID: "fresh-session" }))
+    };
+
+    const result = await runWithSessionReauth({
+      client,
+      config: sessionTicketGetConfig,
+      baseUrl,
+      userLogin,
+      password,
+      operation: "ticketGet",
+      sessionId: "stale-session",
+      onSessionRefreshed: (id) => refreshed.push(id),
+      run: async (sessionId) => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new OtrsConnectorError({ code: "auth_failed", safeMessage: "expired" });
+        }
+        return sessionId;
+      }
+    });
+
+    expect(attempts).toBe(2);
+    expect(result).toBe("fresh-session");
+    expect(refreshed).toEqual(["fresh-session"]);
+    expect(client.requestJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry for non-auth_failed errors", async () => {
+    let attempts = 0;
+    const client = { requestJson: vi.fn(async () => ({ SessionID: "fresh-session" })) };
+
+    await expect(
+      runWithSessionReauth({
+        client,
+        config: sessionTicketGetConfig,
+        baseUrl,
+        userLogin,
+        password,
+        operation: "ticketGet",
+        sessionId: "stale-session",
+        run: async () => {
+          attempts += 1;
+          throw new OtrsConnectorError({ code: "ticket_get_failed", safeMessage: "boom" });
+        }
+      })
+    ).rejects.toMatchObject({ code: "ticket_get_failed" });
+
+    expect(attempts).toBe(1);
+    expect(client.requestJson).not.toHaveBeenCalled();
+  });
+
+  it("runs the thunk once without retry for credential-auth operations", async () => {
+    let attempts = 0;
+    const credentialConfig = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+    const client = { requestJson: vi.fn(async () => ({ SessionID: "fresh-session" })) };
+
+    await expect(
+      runWithSessionReauth({
+        client,
+        config: credentialConfig,
+        baseUrl,
+        userLogin,
+        password,
+        operation: "ticketGet",
+        sessionId: undefined,
+        run: async () => {
+          attempts += 1;
+          throw new OtrsConnectorError({ code: "auth_failed", safeMessage: "expired" });
+        }
+      })
+    ).rejects.toMatchObject({ code: "auth_failed" });
+
+    expect(attempts).toBe(1);
+    expect(client.requestJson).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,11 @@ import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdes
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 500_000;
+// The `include=conversations` embed caps at 10 conversations, so we always
+// page the dedicated conversations endpoint to capture the full thread. Bound
+// the paging so a runaway ticket cannot make unbounded requests.
+const conversationsPerPage = 100;
+const maxConversationPages = 10;
 
 export function createFreshdeskAdapter() {
   const client = createHelpdeskHttpClient();
@@ -23,22 +28,39 @@ export function createFreshdeskAdapter() {
       const ticketResponse = await client.requestJson({
         ...requestDefaults,
         operation: "ticket_get",
-        url: `${baseUrl}/api/v2/tickets/${ticketId}?include=conversations`
+        // `include=requester` embeds the requester object so the normalizer can
+        // resolve customerName instead of degrading to the numeric requester_id.
+        // `include=conversations` embeds the first conversations (capped at 10).
+        url: `${baseUrl}/api/v2/tickets/${ticketId}?include=conversations,requester`
       });
       const ticket = recordValue(ticketResponse.body);
       const diagnostics = [ticketResponse.diagnostic];
-      let conversations = arrayValue(ticket.conversations);
+      const embeddedConversations = arrayValue(ticket.conversations);
 
-      if (conversations.length === 0) {
+      // The embed caps at 10 conversations, so always page the dedicated
+      // conversations endpoint to capture the full thread. The paged result
+      // supersedes the (possibly truncated) embedded set when it returns data.
+      const pagedConversations: unknown[] = [];
+
+      for (let page = 1; page <= maxConversationPages; page += 1) {
         const conversationsResponse = await client.requestJson({
           ...requestDefaults,
           operation: "conversations_get",
-          url: `${baseUrl}/api/v2/tickets/${ticketId}/conversations`
+          url: `${baseUrl}/api/v2/tickets/${ticketId}/conversations?per_page=${conversationsPerPage}&page=${page}`
         });
 
         diagnostics.push(conversationsResponse.diagnostic);
-        conversations = arrayValue(conversationsResponse.body);
+
+        const pageConversations = arrayValue(conversationsResponse.body);
+        pagedConversations.push(...pageConversations);
+
+        // Stop once a short page (or empty page) signals the end of the list.
+        if (pageConversations.length < conversationsPerPage) {
+          break;
+        }
       }
+
+      const conversations = pagedConversations.length > 0 ? pagedConversations : embeddedConversations;
 
       const payload = {
         ticket: {

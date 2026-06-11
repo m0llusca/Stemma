@@ -137,8 +137,10 @@ export function buildOtrsFamilyTicketSearchRequest({
 } = {}) {
   return {
     UserLogin: userLogin,
+    // OTRS TicketSearch accepts `Queues` (array) / `QueueIDs`; the singular
+    // `Queue` is silently ignored by the operation.
     Password: password,
-    Queue: queue,
+    Queues: [queue],
     Title: title,
     StateType: ["open", "closed"],
     Limit: 50

@@ -263,6 +263,21 @@ describe("OTRS-family connector config", () => {
     expect(config.requestMode.ticketSearch).toBe("get_query");
   });
 
+  it("aligns OTOBO default routes to the stock GenericTicketConnectorREST.yml /Ticket mapping", () => {
+    const config = buildDefaultOtrsConnectorConfig("otobo");
+
+    expect(config.routes).toEqual({
+      ticketSearchPath: "/Ticket",
+      ticketGetPath: "/Ticket/{TicketID}",
+      ticketSearchMethod: "GET",
+      ticketGetMethod: "GET"
+    });
+    expect(config.requestMode).toEqual({
+      ticketSearch: "get_query",
+      ticketGet: "get_query"
+    });
+  });
+
   it("preserves explicit request modes over derived route method defaults", () => {
     expect(
       parseOtrsConnectorConfig({

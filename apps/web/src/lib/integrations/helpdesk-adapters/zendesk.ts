@@ -28,7 +28,10 @@ export function createZendeskAdapter() {
       const commentsResponse = await client.requestJson({
         ...requestDefaults,
         operation: "comments_get",
-        url: `${baseUrl}/api/v2/tickets/${ticketId}/comments.json`
+        // Sideload the `users` array so the normalizer can resolve author roles
+        // (agent/admin vs end-user) and author names instead of misclassifying
+        // every agent reply as a customer.
+        url: `${baseUrl}/api/v2/tickets/${ticketId}/comments.json?include=users`
       });
       const payload = {
         ...recordValue(ticketResponse.body),

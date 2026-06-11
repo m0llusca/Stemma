@@ -239,15 +239,19 @@ describe("native helpdesk adapters", () => {
         externalId: "20",
         status: "resolved"
       });
-      expect(server.requests[0]?.query.include).toBe("conversations");
-      expect(server.requests.map((request) => request.operation)).toContain("ticket_get");
+      // The adapter requests requester sideloading alongside the conversations embed.
+      expect(server.requests[0]?.query.include).toBe("conversations,requester");
+      // Conversations are always paged via the dedicated endpoint to capture the
+      // full thread (the embed caps at 10), so a paginated request follows the ticket.
+      expect(server.requests.map((request) => request.operation)).toEqual(["ticket_get", "conversations_get"]);
+      expect(server.requests[1]?.query).toMatchObject({ per_page: "100", page: "1" });
       expect(JSON.stringify(result.diagnostics)).not.toContain("freshdesk-token");
     } finally {
       await server.close();
     }
   });
 
-  it("falls back to Freshdesk conversations endpoint when inline conversations are missing", async () => {
+  it("pages the Freshdesk conversations endpoint even when inline conversations are present", async () => {
     const server = await createHelpdeskAdapterServer({
       source: "freshdesk",
       mode: "success",
@@ -269,18 +273,18 @@ describe("native helpdesk adapters", () => {
         status: "resolved"
       });
       expect(server.requests.map((request) => request.operation)).toEqual(["ticket_get", "conversations_get"]);
-      expect(server.requests[0]?.query.include).toBe("conversations");
+      expect(server.requests[0]?.query.include).toBe("conversations,requester");
       expect(result.diagnostics.requests).toEqual([
         {
           operation: "ticket_get",
           method: "GET",
-          url: `${server.baseUrl}/api/v2/tickets/20?include=conversations`,
+          url: `${server.baseUrl}/api/v2/tickets/20?include=conversations,requester`,
           statusCode: 200
         },
         {
           operation: "conversations_get",
           method: "GET",
-          url: `${server.baseUrl}/api/v2/tickets/20/conversations`,
+          url: `${server.baseUrl}/api/v2/tickets/20/conversations?per_page=100&page=1`,
           statusCode: 200
         }
       ]);
@@ -365,7 +369,7 @@ describe("native helpdesk adapters", () => {
         "/crm/objects/2026-03/notes/note_1",
         "/crm/objects/2026-03/emails/email_1",
         "/crm/objects/2026-03/emails/email_2",
-        "/crm/objects/2026-03/communications/communication_1"
+        "/crm/objects/2026-03/communication/communication_1"
       ]);
       expect(server.requests[4]?.query.properties).toContain("hs_note_body");
       expect(server.requests[5]?.query.properties).toContain("hs_email_text");
@@ -470,7 +474,10 @@ describe("native helpdesk adapters", () => {
       } as Parameters<typeof adapter.loadConversation>[0] & { maxComments: number });
 
       expect(result.conversations[0]?.messages).toHaveLength(75);
-      expect(server.requests.map((request) => request.query)).toEqual([{}, { limit: "75", start: "0" }]);
+      expect(server.requests.map((request) => request.query)).toEqual([
+        {},
+        { expand: "renderedBody", limit: "75", start: "0" }
+      ]);
       expect(result.diagnostics.requests.map((request) => request.operation)).toEqual(["ticket_get", "comments_get"]);
       expect(JSON.stringify(result.diagnostics)).not.toContain("jira-api-token");
     } finally {

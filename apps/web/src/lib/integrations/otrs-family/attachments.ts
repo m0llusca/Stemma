@@ -29,7 +29,10 @@ export function extractOtrsAttachmentMetadata(ticket: OtrsFamilyTicket, article:
       attachmentId: stringValue(record.AttachmentID ?? record.FileID ?? record.ID ?? record.Id),
       filename: stringValue(record.Filename ?? record.FileName ?? record.Name),
       contentType: stringValue(record.ContentType ?? record.MimeType),
-      size: numberValue(record.Filesize ?? record.FileSize ?? record.Size),
+      // OTRS returns the numeric byte count in `FilesizeRaw`; `Filesize` is a
+      // human-readable string like "4.6 KBytes" that parses to NaN. Prefer the
+      // raw value and keep the others as fallbacks.
+      size: numberValue(record.FilesizeRaw ?? record.Filesize ?? record.FileSize ?? record.Size),
       contentDiscarded: hasDiscardedContent(record)
     };
   });

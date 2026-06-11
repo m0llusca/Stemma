@@ -29,8 +29,11 @@ export const otrsFamilyProfiles = {
     label: "OTOBO",
     basePath: "/otobo",
     webServiceName: "GenericTicketConnectorREST",
-    ticketSearchPath: "/TicketSearch",
-    ticketGetPath: "/TicketGet",
+    // Stock OTOBO GenericTicketConnectorREST.yml maps TicketSearch -> GET /Ticket
+    // and TicketGet -> GET /Ticket/:TicketID (same canonical routes as Znuny).
+    // Non-standard instances are still covered by route auto-detection.
+    ticketSearchPath: "/Ticket",
+    ticketGetPath: "/Ticket/{TicketID}",
     ticketSearchMethod: "GET",
     ticketGetMethod: "GET",
     ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>"
@@ -95,7 +98,7 @@ export const otrsFamilyApiProfiles = [
     ticketSearchPath: otrsFamilyProfiles.otobo.ticketSearchPath,
     ticketZoomPath: otrsFamilyProfiles.otobo.ticketZoomPath,
     docsUrl: "https://otobo-docs.softoft.de/en/administration/automation/rest-api",
-    note: "В OTOBO web service создается в админке, поэтому часто встречается GET /TicketGet?TicketID=... вместо /Ticket/{TicketID}."
+    note: "Стоковый GenericTicketConnectorREST.yml в OTOBO мапит TicketGet на GET /Ticket/{TicketID} (как в Znuny); если web service настроили вручную, маршрут может отличаться — поможет авто-определение."
   }
 ] as const satisfies ReadonlyArray<{
   source: Exclude<OtrsFamilySource, "otrs_family">;

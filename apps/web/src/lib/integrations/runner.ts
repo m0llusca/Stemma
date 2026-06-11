@@ -10,7 +10,7 @@ import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config"
 import { decryptIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { normalizeOtrsFamilyTicketGetResponseForImport } from "@/lib/integrations/otrs-family/normalization";
 import { buildTicketGetRequest } from "@/lib/integrations/otrs-family/requests";
-import { createOtrsSession, operationUsesSessionAuth } from "@/lib/integrations/otrs-family/session-auth";
+import { createOtrsSession, operationUsesSessionAuth, runWithSessionReauth } from "@/lib/integrations/otrs-family/session-auth";
 import {
   buildIntegrationSyncState,
   integrationRunCursorPayload,
@@ -159,17 +159,28 @@ async function loadOtrsFamilyConversations(integration: IntegrationWithCredentia
         password
       })
     : undefined;
-  const payload = await client.requestJson(
-    buildTicketGetRequest({
-      config: connectorConfig,
-      baseUrl,
-      userLogin,
-      password,
-      ticketId,
-      sessionId,
-      includeAttachments: false
-    })
-  );
+  // Re-authenticate once if the cached SessionID has expired by the time TicketGet runs.
+  const payload = await runWithSessionReauth({
+    client,
+    config: connectorConfig,
+    baseUrl,
+    userLogin,
+    password,
+    operation: "ticketGet",
+    sessionId,
+    run: (activeSessionId) =>
+      client.requestJson(
+        buildTicketGetRequest({
+          config: connectorConfig,
+          baseUrl,
+          userLogin,
+          password,
+          ticketId,
+          sessionId: activeSessionId,
+          includeAttachments: false
+        })
+      )
+  });
   const normalizedTickets = normalizeOtrsFamilyTicketGetResponseForImport(payload as OtrsFamilyTicketGetResponse, {
     source,
     baseUrl,

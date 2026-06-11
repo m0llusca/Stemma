@@ -5,7 +5,7 @@ import type { OtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import type { OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
-import { createOtrsSession, operationUsesSessionAuth } from "@/lib/integrations/otrs-family/session-auth";
+import { createOtrsSession, operationUsesSessionAuth, runWithSessionReauth } from "@/lib/integrations/otrs-family/session-auth";
 import { normalizeOtrsFamilyTicketForImport } from "@/lib/integrations/otrs-family/normalization";
 import {
   buildIntegrationSyncState,
@@ -238,12 +238,24 @@ export async function createOtrsPreviewRun(input: CreateOtrsPreviewRunInput) {
 
 export async function createOtrsPreviewItems(input: CreateOtrsPreviewItemsInput) {
   const db = input.db ?? prisma;
-  const sessionId = await previewSessionId(input);
+  let sessionId = await previewSessionId(input);
   const ticketIds = await previewTicketIds(input, sessionId);
   const items: JsonRecord[] = [];
 
   for (const ticketId of ticketIds) {
-    items.push(await createPreviewItemForTicketId({ ...input, db, ticketId, sessionId }));
+    items.push(
+      await createPreviewItemForTicketId({
+        ...input,
+        db,
+        ticketId,
+        sessionId,
+        // A long import can outlive the cached SessionID; when TicketGet
+        // re-authenticates, reuse the fresh session for the remaining tickets.
+        onSessionRefreshed: (refreshedSessionId) => {
+          sessionId = refreshedSessionId;
+        }
+      })
+    );
   }
 
   return items;
@@ -543,20 +555,38 @@ function previewRunProgress(items: JsonRecord[]) {
   };
 }
 
-async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput & { db: PreviewDb; ticketId: string; sessionId?: string }) {
+async function createPreviewItemForTicketId(
+  input: CreateOtrsPreviewItemsInput & {
+    db: PreviewDb;
+    ticketId: string;
+    sessionId?: string;
+    onSessionRefreshed?: (sessionId: string) => void;
+  }
+) {
   try {
-    const ticketPayload = await input.client.requestJson(
-      buildTicketGetRequest({
-        config: input.integration.config,
-        baseUrl: input.integration.baseUrl ?? undefined,
-        userLogin: input.userLogin,
-        password: input.password,
-        sessionId: operationUsesSessionAuth(input.integration.config, "ticketGet") ? input.sessionId : undefined,
-        ticketId: input.ticketId,
-        allArticles: true,
-        includeAttachments: true
-      })
-    );
+    const ticketPayload = await runWithSessionReauth({
+      client: input.client,
+      config: input.integration.config,
+      baseUrl: input.integration.baseUrl ?? undefined,
+      userLogin: input.userLogin,
+      password: input.password,
+      operation: "ticketGet",
+      sessionId: input.sessionId,
+      onSessionRefreshed: input.onSessionRefreshed,
+      run: (sessionId) =>
+        input.client.requestJson(
+          buildTicketGetRequest({
+            config: input.integration.config,
+            baseUrl: input.integration.baseUrl ?? undefined,
+            userLogin: input.userLogin,
+            password: input.password,
+            sessionId: operationUsesSessionAuth(input.integration.config, "ticketGet") ? sessionId : undefined,
+            ticketId: input.ticketId,
+            allArticles: true,
+            includeAttachments: true
+          })
+        )
+    });
     const ticket = firstTicket(ticketPayload);
 
     if (!ticket) {

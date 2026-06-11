@@ -15,6 +15,20 @@ const ticketProperties = [
   "hs_lastmodifieddate"
 ];
 const activityAssociationTypes = ["notes", "emails", "communications"] as const;
+// HubSpot's date-versioned object surface (/crm/objects/2026-03/{object}) names the
+// communication object in the SINGULAR for the by-id GET, while notes and emails stay
+// plural. The association collection names (used in the v4 associations query) remain
+// plural, so map the object-GET segment separately rather than reusing the association
+// type string.
+const objectPathSegments = {
+  notes: "notes",
+  emails: "emails",
+  communications: "communication"
+} satisfies Record<(typeof activityAssociationTypes)[number], string>;
+// v4 associations paginate via paging.next.after (max 500 per page). Bound the follow-up
+// to avoid unbounded loops while still covering large tickets.
+const maxAssociationPages = 5;
+const maxAssociationsPerType = 2_500;
 const activityProperties = {
   notes: ["hs_note_body", "hs_timestamp", "hubspot_owner_id", "hs_created_by_user_id"],
   emails: ["hs_email_text", "hs_email_html", "hs_email_direction", "hs_timestamp", "hubspot_owner_id", "hs_created_by_user_id"],
@@ -47,26 +61,42 @@ export function createHubspotAdapter() {
         operation: "ticket_get",
         url: `${baseUrl}/crm/v3/objects/tickets/${ticketId}?properties=${encodeURIComponent(ticketProperties.join(","))}&associations=${encodeURIComponent("notes,emails,communications")}`
       });
-      const associationResponses = await Promise.all(
-        activityAssociationTypes.map(async (activityType) => ({
-          activityType,
-          response: await client.requestJson({
-            ...requestDefaults,
-            operation: "activities_get",
-            url: `${baseUrl}/crm/v4/objects/tickets/${ticketId}/associations/${activityType}`
-          })
-        }))
+      const associationDiagnostics: HelpdeskAdapterLoadResult["diagnostics"]["requests"] = [];
+      const associationResults = await Promise.all(
+        activityAssociationTypes.map(async (activityType) => {
+          const ids: string[] = [];
+          let after: string | undefined;
+          let pages = 0;
+
+          do {
+            const associationsUrl = `${baseUrl}/crm/v4/objects/tickets/${ticketId}/associations/${activityType}${
+              after ? `?after=${encodeURIComponent(after)}` : ""
+            }`;
+            const response = await client.requestJson({
+              ...requestDefaults,
+              operation: "activities_get",
+              url: associationsUrl
+            });
+
+            associationDiagnostics.push(response.diagnostic);
+            ids.push(...associationIds(response.body));
+            after = nextAfter(response.body);
+            pages += 1;
+          } while (after && pages < maxAssociationPages && ids.length < maxAssociationsPerType);
+
+          return { activityType, ids: ids.slice(0, maxAssociationsPerType) };
+        })
       );
       const activityResponses = await Promise.all(
-        associationResponses.flatMap(({ activityType, response }) =>
-          associationIds(response.body).map(async (activityId) => ({
+        associationResults.flatMap(({ activityType, ids }) =>
+          ids.map(async (activityId) => ({
             activityType,
             response: await client.requestJson({
               ...requestDefaults,
               operation: "activities_get",
-              url: `${baseUrl}/crm/objects/2026-03/${activityType}/${encodeURIComponent(activityId)}?properties=${encodeURIComponent(
-                activityProperties[activityType].join(",")
-              )}`
+              url: `${baseUrl}/crm/objects/2026-03/${objectPathSegments[activityType]}/${encodeURIComponent(
+                activityId
+              )}?properties=${encodeURIComponent(activityProperties[activityType].join(","))}`
             })
           }))
         )
@@ -91,7 +121,7 @@ export function createHubspotAdapter() {
         diagnostics: {
           requests: [
             ticketResponse.diagnostic,
-            ...associationResponses.map(({ response }) => response.diagnostic),
+            ...associationDiagnostics,
             ...activityResponses.map(({ response }) => response.diagnostic)
           ]
         }
@@ -129,6 +159,12 @@ function associationIds(value: unknown): string[] {
       return stringValue(association.toObjectId ?? associatedObject.id ?? association.id);
     })
     .filter((id): id is string => Boolean(id));
+}
+
+function nextAfter(value: unknown): string | undefined {
+  const paging = recordValue(recordValue(value).paging);
+  const next = recordValue(paging.next);
+  return stringValue(next.after);
 }
 
 function stringValue(value: unknown) {

@@ -168,7 +168,10 @@ export function parseTicketSearchResponse(payload: unknown): string[] {
   }
 
   const record = payload as Record<string, unknown>;
-  const ticketIds = arrayFromUnknown(record.TicketID);
+  // Znuny/OTOBO docs document the response key as `TicketIDs`, while the OTRS
+  // operation source returns `TicketID`. Accept both to stay robust across
+  // products; prefer `TicketID` to preserve existing behavior.
+  const ticketIds = arrayFromUnknown(record.TicketID ?? record.TicketIDs);
 
   if (ticketIds.length > 0) {
     return ticketIds.map(String).filter(Boolean);

@@ -305,11 +305,28 @@ function zendeskComments(root: NativeRecord, ticket: NativeRecord) {
   return oneOrManyRecords(ticket.comments).length > 0 ? oneOrManyRecords(ticket.comments) : oneOrManyRecords(root.comments);
 }
 
+function zendeskAuthorIsStaff(author: NativeRecord | undefined) {
+  // The Zendesk user object exposes a `role` of "end-user" | "agent" | "admin".
+  // Treat agents/admins as staff and end-users as customers; fall back to the
+  // boolean flags (is_staff/is_agent/agent) for payloads without an explicit role.
+  const role = lowerString(author?.role);
+
+  if (role === "agent" || role === "admin") {
+    return true;
+  }
+
+  if (role === "end-user") {
+    return false;
+  }
+
+  return boolValue(author?.is_staff ?? author?.is_agent ?? author?.agent);
+}
+
 function normalizeZendeskMessage(comment: NativeRecord, usersById: Map<string, NativeRecord>, index: number): CustomMessageInput {
   const authorId = firstString(comment.author_id, recordValue(comment.author)?.id);
   const author = recordValue(comment.author) ?? (authorId ? usersById.get(authorId) : undefined);
   const isPublic = boolValue(comment.public ?? comment.is_public) ?? true;
-  const isStaff = boolValue(author?.is_staff ?? author?.is_agent ?? author?.agent);
+  const isStaff = zendeskAuthorIsStaff(author);
   const body = firstString(comment.plain_body, comment.body, stripHtml(stringValue(comment.html_body)), comment.html_body);
 
   return {
@@ -327,7 +344,7 @@ function normalizeZendesk(payload: unknown, options: NativeHelpdeskNormalizeOpti
   const usersById = recordsById(arrayRecords(root.users).concat(arrayRecords(root.requesters), arrayRecords(root.agents)));
 
   return zendeskTickets(payload).map((ticket, ticketIndex) => {
-    const ticketId = firstString(ticket.external_id, ticket.id) ?? `zendesk-ticket-${ticketIndex + 1}`;
+    const ticketId = firstString(ticket.id, ticket.external_id) ?? `zendesk-ticket-${ticketIndex + 1}`;
     const comments = zendeskComments(root, ticket).map((comment, index) => normalizeZendeskMessage(comment, usersById, index));
     const description = stripHtml(firstString(ticket.description));
     const fallbackMessage: CustomMessageInput[] = description
@@ -349,7 +366,10 @@ function normalizeZendesk(payload: unknown, options: NativeHelpdeskNormalizeOpti
     return {
       externalSource: options.source,
       externalId: ticketId,
-      externalUrl: firstString(ticket.url) ?? zendeskTicketUrl(options.baseUrl, ticketId),
+      // Prefer the agent UI URL over the API `ticket.url` (which points at the
+      // REST resource, not the agent-facing ticket view). Fall back to the API
+      // url only when no agent base URL is available.
+      externalUrl: zendeskTicketUrl(options.baseUrl, ticketId) ?? firstString(ticket.url),
       channel: zendeskChannel(ticket),
       subject: firstString(ticket.subject, ticket.raw_subject, ticket.title, `Zendesk ticket ${ticketId}`) ?? `Zendesk ticket ${ticketId}`,
       status,
@@ -544,7 +564,12 @@ function normalizeFreshdesk(payload: unknown, options: NativeHelpdeskNormalizeOp
       subject: firstString(ticket.subject, `Freshdesk ticket ${ticketId}`) ?? `Freshdesk ticket ${ticketId}`,
       status,
       tags: uniqueValues([...scalarArray(ticket.tags), firstString(ticket.type), priority]),
+      // The adapter requests `include=requester`, so `ticket.requester` resolves
+      // the customer name/email; the legacy name/email/requester_id fields remain
+      // as fallbacks for payloads imported without the include.
       customerName: firstString(recordValue(ticket.requester)?.name, recordValue(ticket.requester)?.email, ticket.name, ticket.email, ticket.requester_id) ?? "Клиент",
+      // Freshdesk does not support `include=responder`, so the assignee name
+      // degrades to the numeric responder_id when no responder object is present.
       assigneeName: firstString(recordValue(ticket.responder)?.name, recordValue(ticket.responder)?.email, ticket.responder_id),
       samplingReason: options.samplingReason ?? defaultSamplingReason(options.source),
       riskHint: priority && highRiskPattern.test(priority) ? `Priority: ${priority}` : undefined,

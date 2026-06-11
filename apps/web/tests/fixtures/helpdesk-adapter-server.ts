@@ -155,7 +155,7 @@ function operationFor(source: PhaseBHelpdeskSource, method: string, pathname: st
       return "activities_get";
     }
 
-    if (/^\/crm\/objects\/2026-03\/(?:notes|emails|communications)\/[^/]+$/.test(pathname)) {
+    if (/^\/crm\/objects\/2026-03\/(?:notes|emails|communication)\/[^/]+$/.test(pathname)) {
       return "activities_get";
     }
   }
@@ -368,7 +368,7 @@ function hubspotActivityPayload(pathname: string, ticket: Record<string, unknown
     };
   }
 
-  if (activityType === "communications" && activityId === "communication_1") {
+  if (activityType === "communication" && activityId === "communication_1") {
     return {
       id: activityId,
       createdAt: "2026-04-25T10:12:00.000Z",

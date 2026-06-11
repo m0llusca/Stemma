@@ -142,7 +142,7 @@ describe("OTRS-family normalizer", () => {
     expect(otrsFamilyApiProfiles.map((profile) => otrsFamilyTicketGetUrl(profile, "42"))).toEqual([
       "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
       "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
-      "https://support.example.com/otobo/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketGet"
+      "https://support.example.com/otobo/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42"
     ]);
     expect(znunyProfile).toBeDefined();
     expect(otrsFamilyTicketSearchUrl(znunyProfile!)).toBe(
@@ -168,7 +168,7 @@ describe("OTRS-family normalizer", () => {
     expect(buildOtrsFamilyTicketSearchRequest()).toMatchObject({
       UserLogin: "qa_api",
       Password: "<PASSWORD>",
-      Queue: "Support::Refunds",
+      Queues: ["Support::Refunds"],
       Title: "%refund%",
       Limit: 50
     });
@@ -189,7 +189,9 @@ describe("OTRS-family normalizer", () => {
       })
     });
     expect(buildOtrsFamilyTicketGetQueryParams(otrsProfile, { ticketId: "42" })).not.toHaveProperty("TicketID");
-    expect(buildOtrsFamilyTicketGetQueryParams(otoboProfile, { ticketId: "42" })).toHaveProperty("TicketID", "42");
+    // OTOBO now defaults to the stock /Ticket/{TicketID} route, so the TicketID
+    // lives in the path rather than the query string (same as OTRS/Znuny).
+    expect(buildOtrsFamilyTicketGetQueryParams(otoboProfile, { ticketId: "42" })).not.toHaveProperty("TicketID");
     expect(
       otrsFamilyUrlWithQuery(otrsFamilyTicketGetUrl(otrsProfile, "42"), buildOtrsFamilyTicketGetQueryParams(otrsProfile))
     ).toContain("/Ticket/42?UserLogin=qa_api&Password=%3CPASSWORD%3E");
@@ -308,6 +310,43 @@ describe("OTRS-family normalizer", () => {
     expect(JSON.stringify(metadata)).not.toContain("JVBERi0xLjQKbase64");
     expect(JSON.stringify(metadata)).not.toContain("secret-base64");
     expect(JSON.stringify(warnings)).not.toContain("binary-shadow");
+  });
+
+  it("uses the numeric FilesizeRaw byte count and ignores the human-readable Filesize", () => {
+    const article = {
+      ArticleID: "101",
+      Attachment: [
+        {
+          AttachmentID: "1",
+          Filename: "receipt.pdf",
+          ContentType: "application/pdf",
+          Filesize: "4.6 KBytes",
+          FilesizeRaw: 4710
+        }
+      ]
+    } as unknown as OtrsFamilyArticle;
+
+    const metadata = extractOtrsAttachmentMetadata({ TicketID: "42" }, article);
+
+    expect(metadata[0].size).toBe(4710);
+  });
+
+  it("falls back to Filesize/FileSize/Size when FilesizeRaw is absent", () => {
+    const article = {
+      ArticleID: "101",
+      Attachment: [
+        {
+          AttachmentID: "1",
+          Filename: "receipt.pdf",
+          ContentType: "application/pdf",
+          Filesize: "2048"
+        }
+      ]
+    } as unknown as OtrsFamilyArticle;
+
+    const metadata = extractOtrsAttachmentMetadata({ TicketID: "42" }, article);
+
+    expect(metadata[0].size).toBe(2048);
   });
 
   it("warns with an external link for metadata-only attachments", () => {

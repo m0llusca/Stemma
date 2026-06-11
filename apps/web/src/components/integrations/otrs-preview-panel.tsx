@@ -115,7 +115,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
               <textarea
                 name="filtersJson"
                 rows={4}
-                defaultValue={JSON.stringify({ Queue: "Support::Refunds", StateType: "Open" }, null, 2)}
+                defaultValue={JSON.stringify({ Queues: ["Support::Refunds"], StateType: "Open" }, null, 2)}
                 className="form-control min-h-[94px] resize-y font-mono text-xs"
                 spellCheck={false}
               />
