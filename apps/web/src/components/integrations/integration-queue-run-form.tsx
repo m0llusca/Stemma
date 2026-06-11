@@ -33,7 +33,7 @@ export function IntegrationQueueRunForm() {
       <input type="hidden" name="limit" value="5" />
       <SubmitButton />
       {state ? (
-        <p ref={messageRef} tabIndex={-1} className={`text-xs font-medium ${state.ok ? "text-[#166534]" : "text-[#b91c1c]"}`}>
+        <p ref={messageRef} tabIndex={-1} className={`text-xs font-medium ${state.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
           {state.message}
         </p>
       ) : null}

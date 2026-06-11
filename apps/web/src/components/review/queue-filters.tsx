@@ -103,7 +103,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
   return (
     <AutoSubmitFilterForm action="/reviews" className="queue-filterbar">
       <div className="queue-filterbar__primary">
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Поиск
           <input
             name="q"
@@ -114,7 +114,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           />
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Статус проверки
           <select name="status" defaultValue={filters.status} className="form-control">
             {reviewQueueStatuses.map((status) => (
@@ -138,7 +138,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           }
         >
           <div className="queue-filterbar__advanced-grid">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Состояние
               <select name="qaStatus" defaultValue={filters.qaStatus ?? "all"} className="form-control">
                 {qaQueueStatuses.map((status) => (
@@ -149,7 +149,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Канал
               <select name="channel" defaultValue={filters.channel ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -161,7 +161,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Источник
               <select name="source" defaultValue={filters.source ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -173,7 +173,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Оператор
               <select name="assignee" defaultValue={filters.assignee ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -185,7 +185,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Проверяющий
               <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -197,7 +197,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Выборка
               <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -209,7 +209,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               CSAT
               <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -221,7 +221,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Линия
               <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -233,7 +233,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Команда
               <select name="teamName" defaultValue={filters.teamName ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -245,7 +245,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Процесс
               <select name="process" defaultValue={filters.process ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -257,7 +257,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Срок
               <select name="due" defaultValue={filters.due ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -265,7 +265,7 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Риск
               <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="form-control">
                 <option value="">Все</option>

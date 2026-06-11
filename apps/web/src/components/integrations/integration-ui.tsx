@@ -12,9 +12,9 @@ export function SectionHeader({
 }) {
   return (
     <div className="min-w-0">
-      {eyebrow ? <p className="text-xs font-semibold uppercase text-[#64748b]">{eyebrow}</p> : null}
-      <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[#111827]`}>{title}</h3>
-      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[#64748b] compact-text">{description}</p> : null}
+      {eyebrow ? <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">{eyebrow}</p> : null}
+      <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[var(--foreground)]`}>{title}</h3>
+      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--text-muted)] compact-text">{description}</p> : null}
     </div>
   );
 }
@@ -35,7 +35,7 @@ export function Surface({
   return (
     <div className={`panel min-w-0 overflow-hidden ${className}`}>
       {title ? (
-        <div className="border-b border-[#d9e0ea] px-5 py-4">
+        <div className="border-b border-[var(--border)] px-5 py-4">
           <SectionHeader title={title} description={description} />
         </div>
       ) : null}

@@ -187,7 +187,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                   })}
                 </div>
               ) : (
-                <div className="soft-callout ops-empty text-sm leading-5 text-[#64748b]">
+                <div className="soft-callout ops-empty text-sm leading-5 text-[var(--text-muted)]">
                   Правил пока нет. Добавьте правило, чтобы обращения автоматически попадали в очередь проверки.
                 </div>
               )}
@@ -226,11 +226,11 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                 <span className="setup-step">3. Доля</span>
               </div>
               <form action={createSamplingRule} className="grid gap-3">
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Название
                   <input name="name" required className="form-control" />
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Тип
                   <select name="type" defaultValue="random" className="form-control">
                     <option value="random">Случайная</option>
@@ -241,7 +241,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                   </select>
                 </label>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Канал
                     <select name="channel" defaultValue="" className="form-control">
                       <option value="">Любой</option>
@@ -252,7 +252,7 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                       ))}
                     </select>
                   </label>
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     CSAT
                     <select name="csatBucket" defaultValue="" className="form-control">
                       <option value="">Любой</option>
@@ -265,26 +265,26 @@ export default async function SamplingRulesPage({ searchParams }: SamplingRulesP
                   </label>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Линия
                     <input name="supportLine" placeholder="1ЛП" className="form-control" />
                   </label>
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Тег
                     <input name="tag" placeholder="new_hire" className="form-control" />
                   </label>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Доля, %
                     <input name="targetPercent" type="number" min="1" max="100" defaultValue="10" className="form-control" />
                   </label>
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Приоритет
                     <input name="priority" type="number" defaultValue="100" className="form-control" />
                   </label>
                 </div>
-                <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">
+                <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-body)]">
                   <input name="isActive" type="checkbox" defaultChecked />
                   Включить сразу
                 </label>

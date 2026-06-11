@@ -102,7 +102,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
     <form action={formAction} className="grid gap-4 p-5">
       {mode === "edit" && scorecardId ? <input type="hidden" name="scorecardId" value={scorecardId} /> : null}
       <input type="hidden" name="criterionCount" value={criteria.length} />
-      <label className="grid max-w-xl gap-1 text-sm font-medium text-[#334155]">
+      <label className="grid max-w-xl gap-1 text-sm font-medium text-[var(--text-body)]">
         Название
         <input
           name="name"
@@ -113,7 +113,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
         />
       </label>
 
-      <div className="record-list border-y border-[#d9e0ea]">
+      <div className="record-list border-y border-[var(--border)]">
         {criteria.map((criterion, index) => (
           <article key={criterion.clientId} className="record-card">
             <div className="record-row">
@@ -152,7 +152,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(150px,0.8fr)_minmax(160px,0.9fr)_minmax(220px,1.2fr)_minmax(140px,0.8fr)_96px_auto] xl:items-end">
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Ключ
                 <input
                   name={`criterion.${index}.key`}
@@ -166,7 +166,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                   <input type="hidden" name={`criterion.${index}.id`} value={criterion.clientId} />
                 ) : null}
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Блок
                 <input
                   name={`criterion.${index}.block`}
@@ -176,7 +176,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                   className="form-control"
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Название
                 <input
                   name={`criterion.${index}.label`}
@@ -186,7 +186,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                   className="form-control"
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Тип
                 <select
                   name={`criterion.${index}.kind`}
@@ -198,7 +198,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                   <option value="PASS_FAIL">Зачет/незачет</option>
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Вес
                 <input
                   name={`criterion.${index}.weight`}
@@ -211,7 +211,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                   className="form-control"
                 />
               </label>
-              <label className="flex min-h-[40px] items-center gap-2 text-sm font-medium text-[#334155]">
+              <label className="flex min-h-[40px] items-center gap-2 text-sm font-medium text-[var(--text-body)]">
                 <input
                   name={`criterion.${index}.required`}
                   type="checkbox"

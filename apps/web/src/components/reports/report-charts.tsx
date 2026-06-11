@@ -70,7 +70,7 @@ export function ChartPanel({
       <div className="chart-panel__header">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-[#64748b]">{description}</p> : null}
+          {description ? <p className="mt-1 text-sm text-[var(--text-muted)]">{description}</p> : null}
         </div>
         {actionHref ? (
           <Link href={actionHref} className="chart-panel__action">
@@ -105,7 +105,7 @@ export function HorizontalBarChart({
   emptyLabel?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[#64748b]">{emptyLabel}</p>;
+    return <p className="text-sm text-[var(--text-muted)]">{emptyLabel}</p>;
   }
 
   const computedMax = maxValue ?? Math.max(...rows.map((row) => row.value), 1);
@@ -118,15 +118,15 @@ export function HorizontalBarChart({
         return (
           <div key={row.label} className="grid gap-1">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">{row.label}</p>
-              <p className="shrink-0 text-sm font-semibold text-[#334155]">
+              <p className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]">{row.label}</p>
+              <p className="shrink-0 text-sm font-semibold text-[var(--text-body)]">
                 {valueFormatter ? valueFormatter(row.value) : `${Math.round(row.value)}${valueSuffix}`}
               </p>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">
               <div className="h-full rounded-full bg-[#3157d5]" style={{ width: `${percent}%` }} />
             </div>
-            {row.detail ? <p className="text-xs text-[#64748b]">{row.detail}</p> : null}
+            {row.detail ? <p className="text-xs text-[var(--text-muted)]">{row.detail}</p> : null}
           </div>
         );
       })}
@@ -138,7 +138,7 @@ export function ScoreDistribution({ rows }: { rows: ChartDatum[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-[#64748b]">Нет завершенных проверок для распределения.</p>;
+    return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок для распределения.</p>;
   }
 
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
@@ -170,7 +170,7 @@ export function RankedList({
   actionLabel?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[#64748b]">{emptyLabel}</p>;
+    return <p className="text-sm text-[var(--text-muted)]">{emptyLabel}</p>;
   }
 
   return (
@@ -217,7 +217,7 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-[#64748b]">Нет данных для распределения.</p>;
+    return <p className="text-sm text-[var(--text-muted)]">Нет данных для распределения.</p>;
   }
 
   return (
@@ -270,7 +270,7 @@ export function QuotaProgressBars({
   }>;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[#64748b]">Нормы на выбранный период пока не заданы.</p>;
+    return <p className="text-sm text-[var(--text-muted)]">Нормы на выбранный период пока не заданы.</p>;
   }
 
   return (

@@ -79,7 +79,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           <span className="queue-filterbar__summary-action">
             <span className="queue-filterbar__summary-closed">Раскрыть</span>
             <span className="queue-filterbar__summary-open">Скрыть</span>
-            <span className="text-[#64748b]">{conversations.length}</span>
+            <span className="text-[var(--text-muted)]">{conversations.length}</span>
           </span>
         </summary>
         <div className="queue-bulk-actions__body">
@@ -167,7 +167,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                 name="conversationId"
                 value={conversation.id}
                 aria-label={`Выбрать ${conversation.subject}`}
-                className="queue-ticket__checkbox h-6 w-6 shrink-0 rounded border-[#d9e0ea]"
+                className="queue-ticket__checkbox h-6 w-6 shrink-0 rounded border-[var(--border)]"
               />
 
               <div className="queue-ticket__main">

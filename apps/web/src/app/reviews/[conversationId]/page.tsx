@@ -285,9 +285,9 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
         ) : (
           <aside className="review-panel-column">
             <section className="panel overflow-hidden">
-              <div className="border-b border-[#d9e0ea] px-5 py-4">
+              <div className="border-b border-[var(--border)] px-5 py-4">
                 <h2 className="text-lg font-semibold">Итог проверки</h2>
-                <p className="mt-1 text-sm text-[#64748b]">Оператор видит только собственное обращение и финальную обратную связь.</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Оператор видит только собственное обращение и финальную обратную связь.</p>
               </div>
               <div className="grid gap-3 p-5 text-sm">
                 <DetailItem label="Оценка">{scoreLabel}</DetailItem>
@@ -308,7 +308,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Последнее замечание</h2>
-              <p className="mt-1 truncate text-sm text-[#64748b]">{latestFinalizedReview.summary}</p>
+              <p className="mt-1 truncate text-sm text-[var(--text-muted)]">{latestFinalizedReview.summary}</p>
             </div>
             <span
               className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
@@ -317,35 +317,35 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <ChevronDown className="h-4 w-4" />
             </span>
           </summary>
-          <div className="border-t border-[#d9e0ea] p-5">
-            <p className="text-sm leading-6 text-[#334155]">{latestFinalizedReview.summary}</p>
+          <div className="border-t border-[var(--border)] p-5">
+            <p className="text-sm leading-6 text-[var(--text-body)]">{latestFinalizedReview.summary}</p>
             {latestFinding ? (
               <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
                 <div>
-                  <p className="font-semibold text-[#64748b]">Ответственность</p>
+                  <p className="font-semibold text-[var(--text-muted)]">Ответственность</p>
                   <p className="mt-1">{ownerTypeLabels[latestFinding.ownerType]}</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-[#64748b]">Риск</p>
+                  <p className="font-semibold text-[var(--text-muted)]">Риск</p>
                   <p className="mt-1">{riskLevelLabels[latestFinding.riskLevel]}</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-[#64748b]">Категория</p>
+                  <p className="font-semibold text-[var(--text-muted)]">Категория</p>
                   <p className="mt-1">{latestFinding.category}</p>
                 </div>
               </div>
             ) : null}
             <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
               <div>
-                <p className="font-semibold text-[#64748b]">Критическая ошибка</p>
+                <p className="font-semibold text-[var(--text-muted)]">Критическая ошибка</p>
                 <p className="mt-1">{latestFinalizedReview.criticalError ? latestFinalizedReview.criticalCategory ?? "Да" : "Нет"}</p>
               </div>
               <div>
-                <p className="font-semibold text-[#64748b]">Апелляция</p>
+                <p className="font-semibold text-[var(--text-muted)]">Апелляция</p>
                 <p className="mt-1">{appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus}</p>
               </div>
               <div>
-                <p className="font-semibold text-[#64748b]">Переответ</p>
+                <p className="font-semibold text-[var(--text-muted)]">Переответ</p>
                 <p className="mt-1">{reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? latestFinalizedReview.reanswerStatus}</p>
               </div>
             </div>
@@ -354,23 +354,23 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             <div className="soft-callout mx-5 mb-5 text-sm">
               {latestFinalizedReview.feedbackComment ? (
                 <div>
-                  <p className="font-semibold text-[#64748b]">Обратная связь</p>
-                  <p className="mt-1 text-[#111827]">{latestFinalizedReview.feedbackComment}</p>
+                  <p className="font-semibold text-[var(--text-muted)]">Обратная связь</p>
+                  <p className="mt-1 text-[var(--foreground)]">{latestFinalizedReview.feedbackComment}</p>
                 </div>
               ) : null}
               {latestFinalizedReview.positiveNotes ? (
                 <div>
-                  <p className="font-semibold text-[#64748b]">Положительные моменты</p>
-                  <p className="mt-1 text-[#111827]">{latestFinalizedReview.positiveNotes}</p>
+                  <p className="font-semibold text-[var(--text-muted)]">Положительные моменты</p>
+                  <p className="mt-1 text-[var(--foreground)]">{latestFinalizedReview.positiveNotes}</p>
                 </div>
               ) : null}
             </div>
           ) : null}
           {latestFinding?.coachingAction ? (
             <div className="soft-callout mx-5 mb-5 text-sm">
-              <p className="font-semibold text-[#64748b]">Разбор с оператором</p>
-              <p className="mt-1 text-[#111827]">{latestFinding.coachingAction.action}</p>
-              <p className="mt-2 text-[#64748b]">
+              <p className="font-semibold text-[var(--text-muted)]">Разбор с оператором</p>
+              <p className="mt-1 text-[var(--foreground)]">{latestFinding.coachingAction.action}</p>
+              <p className="mt-2 text-[var(--text-muted)]">
                 {latestFinding.coachingAction.assignee}
                 {latestFinding.coachingAction.dueAt
                   ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
@@ -379,7 +379,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             </div>
           ) : null}
           {latestFinalizedReview.needsReanswer ? (
-            <div className="soft-callout soft-callout--warn mx-5 mb-5 grid-cols-[auto_minmax(0,1fr)] text-sm text-[#b45309]">
+            <div className="soft-callout soft-callout--warn mx-5 mb-5 grid-cols-[auto_minmax(0,1fr)] text-sm text-[var(--warning)]">
               <RotateCcw className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
               <p>Нужен переответ клиенту: проверьте, что руководитель получил сигнал и обращение переоткрыто при необходимости.</p>
             </div>
@@ -387,8 +387,8 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           <div className="soft-callout mx-5 mb-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#111827]">Обратная связь и апелляция</p>
-                <p className="mt-1 text-sm text-[#64748b]">
+                <p className="text-sm font-semibold text-[var(--foreground)]">Обратная связь и апелляция</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
                   Статус: {feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus}
                   {latestFinalizedReview.feedbackAckAt
                     ? ` · ознакомлен ${latestFinalizedReview.feedbackAckAt.toLocaleString("ru-RU")}`
@@ -432,15 +432,15 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <form action={createTrainingAssignmentFromReview} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end">
                 <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                 <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Учебная задача
                   <input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Описание
                   <input name="description" required defaultValue={latestFinalizedReview.summary} className="form-control" />
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Срок
                   <input name="dueAt" type="date" className="form-control" />
                 </label>
@@ -450,7 +450,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
             {latestFinalizedReview.feedbackEvents.length > 0 ? (
               <div className="grid gap-2 text-sm">
                 {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="inline-code-box text-[#334155]">
+                  <div key={event.id} className="inline-code-box text-[var(--text-body)]">
                     {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {event.action}
                     {event.comment ? ` · ${event.comment}` : ""}
                   </div>
@@ -468,7 +468,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">История проверок</h2>
-              <p className="mt-1 text-sm text-[#64748b]">{conversation.reviews.length} записей</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">{conversation.reviews.length} записей</p>
             </div>
             <span
               className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
@@ -477,7 +477,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <ChevronDown className="h-4 w-4" />
             </span>
           </summary>
-          <div className="record-list border-t border-[#d9e0ea] px-5">
+          <div className="record-list border-t border-[var(--border)] px-5">
             {conversation.reviews.map((review) => (
               <article key={review.id} className="record-card">
                 <div className="record-row">

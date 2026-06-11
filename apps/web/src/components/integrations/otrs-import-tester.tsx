@@ -81,13 +81,13 @@ export function OtrsImportTester() {
   return (
     <form action={importOtrsFamilyTicketGet} className="grid gap-4">
       <div className="grid gap-4">
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Источник
           <select
             name="source"
             value={source}
             onChange={(event) => updateSource(event.target.value as OtrsFamilySource)}
-            className="w-full min-w-0 rounded border border-[#d9e0ea] bg-white px-3 py-2"
+            className="w-full min-w-0 rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
           >
             {otrsFamilySourceOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -96,27 +96,27 @@ export function OtrsImportTester() {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Base URL
           <input
             name="baseUrl"
             value={baseUrl}
             onChange={(event) => setBaseUrl(event.target.value)}
-            className="w-full min-w-0 rounded border border-[#d9e0ea] bg-white px-3 py-2"
+            className="w-full min-w-0 rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Причина выборки
           <input
             name="samplingReason"
             value={samplingReason}
             onChange={(event) => setSamplingReason(event.target.value)}
-            className="w-full min-w-0 rounded border border-[#d9e0ea] bg-white px-3 py-2"
+            className="w-full min-w-0 rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
           />
         </label>
       </div>
 
-      <label className="grid gap-1 text-sm font-medium text-[#334155]">
+      <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
         TicketGet JSON
         <textarea
           name="payload"
@@ -124,13 +124,13 @@ export function OtrsImportTester() {
           onChange={(event) => setPayload(event.target.value)}
           rows={14}
           spellCheck={false}
-          className="min-h-[280px] w-full min-w-0 resize-y rounded border border-[#d9e0ea] bg-white px-3 py-2 font-mono text-xs leading-5"
+          className="min-h-[280px] w-full min-w-0 resize-y rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2 font-mono text-xs leading-5"
         />
       </label>
 
-      <div className="grid gap-3 rounded-md border border-[#d9e0ea] bg-[#f8fafc] px-4 py-3">
+      <div className="grid gap-3 rounded-md border border-[var(--border)] bg-[#f8fafc] px-4 py-3">
         {preview.ok ? (
-          <div className="flex min-w-0 items-start gap-3 text-sm text-[#334155]">
+          <div className="flex min-w-0 items-start gap-3 text-sm text-[var(--text-body)]">
             <CheckCircle2 size={18} className="text-[#3157d5]" aria-hidden="true" />
             <span className="min-w-0 break-words">
               {preview.count} тикет(ов), {preview.messageCount} сообщени(й), первый: {preview.firstExternalId} ·{" "}
@@ -138,7 +138,7 @@ export function OtrsImportTester() {
             </span>
           </div>
         ) : (
-          <div className="flex min-w-0 items-start gap-3 text-sm text-[#b45309]">
+          <div className="flex min-w-0 items-start gap-3 text-sm text-[var(--warning)]">
             <AlertTriangle size={18} aria-hidden="true" />
             <span className="min-w-0 break-words">{preview.error}</span>
           </div>

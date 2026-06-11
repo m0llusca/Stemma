@@ -60,7 +60,7 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
   { value: "ACTIVE_DIRECTORY_LDAPS", label: "Active Directory через LDAPS" }
 ];
 
-const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[#64748b]";
+const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[var(--text-muted)]";
 const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
 const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"];
 
@@ -293,7 +293,7 @@ function ProviderField({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-1 text-sm font-medium text-[#334155]">
+    <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
       {label}
       <input
         type={type}
@@ -619,7 +619,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
           <input type="hidden" name="returnSection" value="provider" />
           <div className="ops-form-grid">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Тип
               <select name="type" defaultValue={selectedProviderType} className="form-control">
                 {providerTypes.map((type) => (
@@ -629,7 +629,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Статус
               <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="form-control">
                 <option value="draft">Черновик</option>
@@ -646,10 +646,10 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </div>
 
           <details className="compact-details">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
               Адреса OIDC/SAML и расширенная настройка
             </summary>
-            <div className="ops-form-grid border-t border-[#d9e0ea] p-4">
+            <div className="ops-form-grid border-t border-[var(--border)] p-4">
               <ProviderField label="Издатель токенов" name="issuer" defaultValue={selectedProvider?.issuer} placeholder="https://login.microsoftonline.com/{tenantId}/v2.0" />
               <ProviderField label="Адрес авторизации" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
               <ProviderField label="Адрес токена" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
@@ -659,7 +659,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
               <ProviderField label="LDAPS URL" name="ldapsUrl" defaultValue={selectedProvider?.ldapsUrl} placeholder="ldaps://dc01.example.com:636" />
               <ProviderField label="LDAPS bind DN" name="ldapsBindDn" defaultValue={selectedProvider?.ldapsBindDn} placeholder="CN=qc-sync,OU=Service Accounts,DC=example,DC=com" />
               <ProviderField label="LDAPS bind secret ref" name="ldapsBindSecretRef" defaultValue={selectedProvider?.ldapsBindSecretRef} placeholder="env:QC_AD_BIND_PASSWORD" />
-              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 SAML сертификаты IdP
                 <textarea
                   name="samlCertificateRef"
@@ -669,7 +669,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                   placeholder="env:SAML_IDP_CERT_CURRENT&#10;env:SAML_IDP_CERT_NEXT"
                 />
               </label>
-              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Настройка JSON
                 <textarea
                   name="configJson"
@@ -683,8 +683,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </details>
 
           {entraMetadata ? (
-            <div className="soft-callout text-sm text-[#64748b]">
-              <p className="font-semibold text-[#334155]">Метаданные Entra/OIDC</p>
+            <div className="soft-callout text-sm text-[var(--text-muted)]">
+              <p className="font-semibold text-[var(--text-body)]">Метаданные Entra/OIDC</p>
               <p className="compact-text">Авторизация: {entraMetadata.authorizationUrl}</p>
               <p className="compact-text">Токен: {entraMetadata.tokenUrl}</p>
               <p>Сценарий: {entraMetadata.recommendedFlow}</p>
@@ -693,8 +693,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           ) : null}
 
           {samlMetadata ? (
-            <div className="soft-callout text-sm text-[#64748b]">
-              <p className="font-semibold text-[#334155]">Метаданные SAML SP</p>
+            <div className="soft-callout text-sm text-[var(--text-muted)]">
+              <p className="font-semibold text-[var(--text-body)]">Метаданные SAML SP</p>
               <p className="compact-text">Entity ID: {samlMetadata.entityId}</p>
               <p className="compact-text">ACS: {samlMetadata.acsUrl}</p>
               <p className="compact-text">Metadata: {samlMetadata.metadataUrl}</p>
@@ -703,8 +703,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           ) : null}
 
           {selectedProvider?.type === "ACTIVE_DIRECTORY_LDAPS" ? (
-            <div className="soft-callout text-sm text-[#64748b]">
-              <p className="font-semibold text-[#334155]">Active Directory LDAPS</p>
+            <div className="soft-callout text-sm text-[var(--text-muted)]">
+              <p className="font-semibold text-[var(--text-body)]">Active Directory LDAPS</p>
               <p>LDAPS здесь используется только для синхронизации пользователей и групп. LDAP password login не включается.</p>
               <p className="compact-text">TLS обязателен: используйте ldaps:// на 636/3269; bind secret и CA сейчас исполняются только через env:-ссылки.</p>
               <p className="compact-text">Готовность означает возможность dry-run или live-проверки, а не подтвержденный production-live статус.</p>
@@ -825,15 +825,15 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </div>
           <details className="compact-details m-4">
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-              <h3 className="font-semibold text-[#111827]">Добавить группу</h3>
+              <h3 className="font-semibold text-[var(--foreground)]">Добавить группу</h3>
               <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
             </summary>
-            <form action={saveGroupRoleMapping} className="ops-form-grid border-t border-[#d9e0ea] p-4">
+            <form action={saveGroupRoleMapping} className="ops-form-grid border-t border-[var(--border)] p-4">
               <input type="hidden" name="providerId" value={selectedProvider.id} />
               <input type="hidden" name="returnSection" value="mappings" />
               <ProviderField label="Идентификатор группы" name="externalGroupId" required placeholder="QC_Analysts или GUID группы" />
               <ProviderField label="Название группы" name="externalGroupName" required placeholder="Аналитики контроля качества" />
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Роль
                 <select name="role" defaultValue="QA_ANALYST" className="form-control">
                   {roles.map((role) => (
@@ -844,7 +844,7 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
                 </select>
               </label>
               <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
-              <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">
+              <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-body)]">
                 <input type="checkbox" name="isActive" defaultChecked />
                 Активна
               </label>
@@ -942,20 +942,20 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
           </div>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-3">
-          <div className="soft-callout text-sm leading-6 text-[#64748b]">
+          <div className="soft-callout text-sm leading-6 text-[var(--text-muted)]">
             <h3 className="record-title">Основной путь</h3>
             <p>{guidance.preferred}</p>
           </div>
-          <div className="soft-callout text-sm leading-6 text-[#64748b]">
+          <div className="soft-callout text-sm leading-6 text-[var(--text-muted)]">
             <h3 className="record-title">Локальный AD</h3>
             <p>{guidance.onPremDirectory}</p>
           </div>
-          <div className="soft-callout text-sm leading-6 text-[#64748b]">
+          <div className="soft-callout text-sm leading-6 text-[var(--text-muted)]">
             <h3 className="record-title">Роли</h3>
             <p>{guidance.authorization}</p>
           </div>
         </div>
-        <div className="soft-callout m-5 mt-0 text-sm text-[#64748b]">
+        <div className="soft-callout m-5 mt-0 text-sm text-[var(--text-muted)]">
           <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
           Для входа через выбранный провайдер используйте:
           <code className="inline-code-box inline-code-box--wrap mt-2 font-mono compact-text">

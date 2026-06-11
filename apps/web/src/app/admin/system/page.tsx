@@ -52,18 +52,18 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (["ok", "active", "SUCCEEDED", "READY"].includes(status)) {
-    return "border-[#bbf7d0] bg-[#ecfdf5] text-[#15803d]";
+    return "border-[#bbf7d0] bg-[#ecfdf5] text-[var(--success)]";
   }
 
   if (["warn", "queued", "RUNNING", "QUEUED", "draft"].includes(status)) {
-    return "border-[#fed7aa] bg-[#fff7ed] text-[#b45309]";
+    return "border-[#fed7aa] bg-[#fff7ed] text-[var(--warning)]";
   }
 
   if (["error", "FAILED", "disabled"].includes(status)) {
-    return "border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]";
+    return "border-[#fecaca] bg-[#fef2f2] text-[var(--danger)]";
   }
 
-  return "border-[#d9e0ea] bg-[#f8fafc] text-[#334155]";
+  return "border-[var(--border)] bg-[#f8fafc] text-[var(--text-body)]";
 }
 
 function runtimeStatusLabel(status: string) {
@@ -130,14 +130,14 @@ function renderReadinessItem(item: PhaseDReadinessItem) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`pill ${certificationStatusTone(item.status)}`}>{item.label}</span>
-          <h3 className="font-semibold text-[#111827]">{item.displayName}</h3>
+          <h3 className="font-semibold text-[var(--foreground)]">{item.displayName}</h3>
         </div>
-        <p className="mt-1 text-sm text-[#64748b]">
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           {item.targetType === "identity_provider" ? "Провайдер удостоверений" : "Интеграция"} · {item.source}
         </p>
-        <p className="mt-2 font-mono text-xs text-[#64748b]">{item.liveSmokeCommand}</p>
+        <p className="mt-2 font-mono text-xs text-[var(--text-muted)]">{item.liveSmokeCommand}</p>
         {item.latestEvidence ? (
-          <div className="mt-2 space-y-1 text-sm text-[#64748b]">
+          <div className="mt-2 space-y-1 text-sm text-[var(--text-muted)]">
             <p>
               Evidence {item.latestEvidence.runId} · {evidenceResultLabel(item.latestEvidence.result)} ·{" "}
               {new Date(item.latestEvidence.recordedAt).toLocaleString("ru-RU")}
@@ -146,7 +146,7 @@ function renderReadinessItem(item: PhaseDReadinessItem) {
             <p className="compact-text font-mono text-xs">Diagnostics: {evidenceDiagnosticsText(item.latestEvidence.redactedDiagnostics)}</p>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-[#64748b]">Protected live smoke evidence еще не записан.</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Protected live smoke evidence еще не записан.</p>
         )}
       </div>
       <div className="record-row">
@@ -357,7 +357,7 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
           </div>
           <div className="record-list px-5">
             {recentJobs.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[#64748b]">Фоновых задач пока нет.</div>
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Фоновых задач пока нет.</div>
             ) : (
               recentJobs.map((job) => {
                 const status = backendJobStatusView(job.status);
@@ -367,13 +367,13 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`pill ${status.pillClass}`}>{status.label}</span>
-                        <h3 className="font-semibold text-[#111827]">{backendJobTypeLabel(job.type)}</h3>
+                        <h3 className="font-semibold text-[var(--foreground)]">{backendJobTypeLabel(job.type)}</h3>
                       </div>
-                      <p className="mt-1 text-sm text-[#64748b]">
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">
                         {queueNameLabel(job.queueName)} · попытка {job.attempts}/{job.maxAttempts} · {job.createdBy?.name ?? "Автоматика"}
                       </p>
-                      {job.events[0] ? <p className="mt-2 text-sm text-[#64748b]">{job.events[0].message}</p> : null}
-                      {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[#b91c1c]">{job.errorMessage}</p> : null}
+                      {job.events[0] ? <p className="mt-2 text-sm text-[var(--text-muted)]">{job.events[0].message}</p> : null}
+                      {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{job.errorMessage}</p> : null}
                     </div>
                     <div className="record-row">
                       <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
@@ -411,8 +411,8 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
                     <Icon size={17} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#111827]">{check.key}</p>
-                    <p className="mt-1 text-sm leading-5 text-[#64748b]">{check.message}</p>
+                    <p className="font-semibold text-[var(--foreground)]">{check.key}</p>
+                    <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">{check.message}</p>
                   </div>
                 </div>
               );
@@ -443,7 +443,7 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
           </section>
           <div className="grid gap-5 p-5 pt-0 lg:grid-cols-2">
             <section aria-labelledby="phase-d-integrations-title">
-              <h3 id="phase-d-integrations-title" className="mb-3 text-sm font-semibold uppercase text-[#64748b]">
+              <h3 id="phase-d-integrations-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">
                 Интеграции
               </h3>
               <div className="record-list">
@@ -451,20 +451,20 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
               </div>
             </section>
             <section aria-labelledby="phase-d-identity-title">
-              <h3 id="phase-d-identity-title" className="mb-3 text-sm font-semibold uppercase text-[#64748b]">
+              <h3 id="phase-d-identity-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">
                 Провайдеры удостоверений
               </h3>
               <div className="record-list">
                 {phaseDReport.identityProviders.length > 0 ? (
                   phaseDReport.identityProviders.map(renderReadinessItem)
                 ) : (
-                  <div className="soft-callout ops-empty text-sm text-[#64748b]">Провайдеры удостоверений еще не настроены.</div>
+                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Провайдеры удостоверений еще не настроены.</div>
                 )}
               </div>
             </section>
           </div>
-          <div className="soft-callout mx-5 mb-5 text-sm text-[#64748b]">
-            <p className="font-semibold text-[#334155]">Evidence model</p>
+          <div className="soft-callout mx-5 mb-5 text-sm text-[var(--text-muted)]">
+            <p className="font-semibold text-[var(--text-body)]">Evidence model</p>
             <p className="compact-text">Поля: {phaseDReport.evidenceModel.requiredFields.join(", ")}.</p>
             <p className="compact-text">Protected gates: {phaseDReport.evidenceModel.protectedEnvGates.slice(0, 5).join(", ")}.</p>
           </div>
@@ -492,8 +492,8 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
               <article key={provider.id} className="record-card">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-[#111827]">{provider.name}</h3>
-                    <p className="mt-1 text-sm text-[#64748b]">
+                    <h3 className="font-semibold text-[var(--foreground)]">{provider.name}</h3>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
                       {providerTypeLabel(provider.type)} · {provider.slug}
                     </p>
                   </div>
@@ -501,7 +501,7 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
                     {providerStatusLabel(provider.status)}
                   </span>
                 </div>
-                <p className="text-sm text-[#64748b]">
+                <p className="text-sm text-[var(--text-muted)]">
                   Маппингов: {provider._count.groupRoleMappings} · сессий: {provider._count.authSessions} · последняя синхронизация:{" "}
                   {formatDate(provider.lastSyncAt)}
                 </p>
@@ -538,32 +538,32 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
           </div>
           <div className="record-list px-5">
             {integrations.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[#64748b]">Интеграции еще не настроены.</div>
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Интеграции еще не настроены.</div>
             ) : (
               integrations.map((integration) => (
                 <article key={integration.id} className="record-card">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-[#111827]">{integration.displayName}</h3>
-                      <p className="mt-1 text-sm text-[#64748b]">{externalSourceLabel(integration.source)}</p>
+                      <h3 className="font-semibold text-[var(--foreground)]">{integration.displayName}</h3>
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">{externalSourceLabel(integration.source)}</p>
                     </div>
                     <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(integration.status)}`}>
                       {integrationStatusLabel(integration.status)}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm text-[#64748b]">
+                  <p className="mt-3 text-sm text-[var(--text-muted)]">
                     Лимит: {integration.importLimit} · батч: {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
                   </p>
-                  {integration.lastError ? <p className="mt-2 text-sm font-medium text-[#b91c1c]">{integration.lastError}</p> : null}
+                  {integration.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{integration.lastError}</p> : null}
                 </article>
               ))
             )}
           </div>
-          <div className="border-t border-[#d9e0ea] px-5 py-4">
-            <h3 className="font-semibold text-[#111827]">Последние импорты</h3>
-            <div className="record-list mt-3 border-y border-[#d9e0ea]">
+          <div className="border-t border-[var(--border)] px-5 py-4">
+            <h3 className="font-semibold text-[var(--foreground)]">Последние импорты</h3>
+            <div className="record-list mt-3 border-y border-[var(--border)]">
               {recentRuns.length === 0 ? (
-                <p className="soft-callout text-sm text-[#64748b]">Запусков пока нет.</p>
+                <p className="soft-callout text-sm text-[var(--text-muted)]">Запусков пока нет.</p>
               ) : (
                 recentRuns.map((run) => {
                   const status = integrationRunStatusView(run.status);
@@ -571,10 +571,10 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
                   return (
                     <div key={run.id} className="record-card text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold text-[#111827]">{run.integration?.displayName ?? run.source}</p>
+                        <p className="font-semibold text-[var(--foreground)]">{run.integration?.displayName ?? run.source}</p>
                         <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${status.badgeClass}`}>{status.label}</span>
                       </div>
-                      <p className="mt-2 text-[#64748b]">
+                      <p className="mt-2 text-[var(--text-muted)]">
                         {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
                       </p>
                     </div>
@@ -599,11 +599,11 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
             <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
             <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
             <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
-            <div className="soft-callout text-sm text-[#64748b]">
+            <div className="soft-callout text-sm text-[var(--text-muted)]">
               <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
               Для cron-запуска фоновых задач используйте{" "}
-              <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run -- --once</code>.
-              Команда <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[#334155]">npm run jobs:run</code> запускает постоянный worker.
+              <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[var(--text-body)]">npm run jobs:run -- --once</code>.
+              Команда <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[var(--text-body)]">npm run jobs:run</code> запускает постоянный worker.
             </div>
           </div>
         </section>

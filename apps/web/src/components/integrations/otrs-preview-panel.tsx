@@ -83,9 +83,9 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
 
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Preview / импорт</h2>
-        <p className="mt-1 text-sm leading-5 text-[#64748b]">
+        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
           Создайте preview по ручным TicketID или TicketSearch, затем поставьте выбранные обращения в backend-очередь.
         </p>
       </div>
@@ -95,7 +95,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
           <form action={previewAction} className="soft-callout grid gap-3">
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="mode" value="manual_ticket_ids" />
-            <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
               Manual TicketID
               <textarea
                 name="manualTicketIds"
@@ -110,7 +110,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
           <form action={previewAction} className="soft-callout grid gap-3">
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="mode" value="ticket_search" />
-            <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
               TicketSearch filters JSON
               <textarea
                 name="filtersJson"
@@ -125,7 +125,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
         </div>
 
         {previewState ? (
-          <div className={`soft-callout text-sm font-medium ${previewState.ok ? "text-[#166534]" : "text-[#b91c1c]"}`}>
+          <div className={`soft-callout text-sm font-medium ${previewState.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
             {previewState.message}
             {previewState.ok && typeof previewState.itemCount === "number" ? ` Строк: ${previewState.itemCount}.` : ""}
           </div>
@@ -147,7 +147,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
 
             <div className="scroll-area">
               <table className="table-fixed-copy w-full min-w-[820px] border-collapse text-left text-sm">
-                <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
+                <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Выбор</th>
                     <th className="px-4 py-3 font-semibold">External ID</th>
@@ -175,10 +175,10 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
                       <td className="px-4 py-3">
                         <span className={`pill ${item.status === "previewed" ? "pill--ok" : "pill--neutral"}`}>{item.status}</span>
                       </td>
-                      <td className="px-4 py-3 text-[#334155]">
+                      <td className="px-4 py-3 text-[var(--text-body)]">
                         {item.articleCount} · private {item.privateArticleCount}
                       </td>
-                      <td className="px-4 py-3 text-[#334155]">{item.attachmentCount}</td>
+                      <td className="px-4 py-3 text-[var(--text-body)]">{item.attachmentCount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -186,20 +186,20 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
             </div>
 
             {previewedItems.length === 0 ? (
-              <div className="soft-callout text-sm leading-5 text-[#64748b]">
+              <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
                 В последнем preview-run нет строк со статусом previewed для выборочного импорта.
               </div>
             ) : null}
 
             {importState ? (
-              <div className={`soft-callout text-sm font-medium ${importState.ok ? "text-[#166534]" : "text-[#b91c1c]"}`}>
+              <div className={`soft-callout text-sm font-medium ${importState.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
                 {importState.message}
                 {importState.jobId ? ` Job: ${importState.jobId.slice(0, 8)}.` : ""}
               </div>
             ) : null}
           </form>
         ) : (
-          <div className="soft-callout text-sm leading-5 text-[#64748b]">
+          <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
             Preview-run еще не создан. Сначала проверьте один или несколько TicketID.
           </div>
         )}

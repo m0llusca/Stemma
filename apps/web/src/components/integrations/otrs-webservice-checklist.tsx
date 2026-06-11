@@ -83,13 +83,13 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
 
         <div className="soft-callout">
           <p className="soft-callout__label">GenericInterface URL pattern</p>
-          <code className="mt-1 block break-all text-xs text-[#334155]">
+          <code className="mt-1 block break-all text-xs text-[var(--text-body)]">
             {genericInterfaceUrl || "/nph-genericinterface.pl/Webservice/<WebService>"}
           </code>
         </div>
 
         <DataTable minWidth="min-w-[680px]">
-          <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
+          <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
             <tr>
               <th className="px-4 py-3 font-semibold">Operation</th>
               <th className="px-4 py-3 font-semibold">Method</th>
@@ -100,10 +100,10 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
           <tbody className="divide-y divide-[#d9e0ea]">
             {operations.map((operation) => (
               <tr key={operation.name}>
-                <td className="px-4 py-3 font-semibold text-[#111827]">{operation.name}</td>
+                <td className="px-4 py-3 font-semibold text-[var(--foreground)]">{operation.name}</td>
                 <td className="px-4 py-3 font-mono text-xs">{operation.method}</td>
                 <td className="px-4 py-3 font-mono text-xs">{operation.route}</td>
-                <td className="px-4 py-3 text-[#334155]">{operation.required}</td>
+                <td className="px-4 py-3 text-[var(--text-body)]">{operation.required}</td>
               </tr>
             ))}
           </tbody>

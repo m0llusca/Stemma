@@ -42,8 +42,8 @@ export function QueueSavedViews({
     <details className="queue-quick-views">
       <summary className="queue-quick-views__summary">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-[#111827]">Быстрые виды</h2>
-          <p className="mt-1 truncate text-sm text-[#64748b]">
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">Быстрые виды</h2>
+          <p className="mt-1 truncate text-sm text-[var(--text-muted)]">
             {currentView?.label ?? "Текущий фильтр"}
           </p>
         </div>
@@ -82,13 +82,13 @@ export function QueueSavedViews({
             );
           })}
         </div>
-        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
+        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[var(--border)] bg-[#f8fafc] p-4">
           <input type="hidden" name="href" value={currentHref} />
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
             Сохранить текущий вид
             <input name="name" required placeholder="Например, 2ЛП критические" className="form-control" />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
             Доступ
             <select name="scope" defaultValue="private" className="form-control">
               <option value="private">Только мне</option>

@@ -143,24 +143,24 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="panel overflow-hidden">
-            <div className="border-b border-[#d9e0ea] px-5 py-4">
+            <div className="border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f0fdf4] text-[#166534]">
                   <UserRoundCheck size={20} aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-[#111827]">Вход по учетной записи</h2>
-                  <p className="mt-1 text-sm text-[#64748b]">Основной вход для пользователей с назначенной ролью.</p>
+                  <h2 className="text-base font-semibold text-[var(--foreground)]">Вход по учетной записи</h2>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">Основной вход для пользователей с назначенной ролью.</p>
                 </div>
               </div>
             </div>
             <form action={signInWithLocalCredentials} className="grid gap-3 p-5">
               <input type="hidden" name="returnTo" value={returnTo} />
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Логин
                 <input name="login" autoComplete="username" required className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Пароль
                 <input name="password" type="password" autoComplete="current-password" required className="form-control" />
               </label>
@@ -170,11 +170,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </form>
 
             {demoUsers.length > 0 ? (
-              <details className="border-t border-[#d9e0ea]">
-                <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-[#334155]">Демо-вход</summary>
-                <form action={signInWithDemoUser} className="grid gap-3 border-t border-[#d9e0ea] p-5">
+              <details className="border-t border-[var(--border)]">
+                <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-[var(--text-body)]">Демо-вход</summary>
+                <form action={signInWithDemoUser} className="grid gap-3 border-t border-[var(--border)] p-5">
                   <input type="hidden" name="returnTo" value={returnTo} />
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Пользователь
                     <select name="userId" className="form-control">
                       {demoUsers.map((user) => (
@@ -193,14 +193,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </section>
 
           <section className="panel overflow-hidden">
-            <div className="border-b border-[#d9e0ea] px-5 py-4">
+            <div className="border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#edf2ff] text-[#1d3fae]">
                   <ShieldCheck size={20} aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-[#111827]">SSO</h2>
-                  <p className="mt-1 text-sm text-[#64748b]">Отдельная опция для корпоративного провайдера.</p>
+                  <h2 className="text-base font-semibold text-[var(--foreground)]">SSO</h2>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">Отдельная опция для корпоративного провайдера.</p>
                 </div>
               </div>
             </div>
@@ -257,7 +257,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   ) : null}
                 </>
               ) : (
-                <div className="rounded-lg border border-dashed border-[#d9e0ea] p-5 text-sm text-[#64748b]">
+                <div className="rounded-lg border border-dashed border-[var(--border)] p-5 text-sm text-[var(--text-muted)]">
                   SSO-провайдер пока не настроен.
                 </div>
               )}

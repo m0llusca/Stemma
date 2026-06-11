@@ -47,14 +47,14 @@ function statusClass(status: string) {
 
 function statusIcon(status: string) {
   if (["succeeded", "ok"].includes(status)) {
-    return <CheckCircle2 size={16} className="text-[#15803d]" aria-hidden="true" />;
+    return <CheckCircle2 size={16} className="text-[var(--success)]" aria-hidden="true" />;
   }
 
   if (["failed", "error"].includes(status)) {
-    return <AlertTriangle size={16} className="text-[#b91c1c]" aria-hidden="true" />;
+    return <AlertTriangle size={16} className="text-[var(--danger)]" aria-hidden="true" />;
   }
 
-  return <Activity size={16} className="text-[#64748b]" aria-hidden="true" />;
+  return <Activity size={16} className="text-[var(--text-muted)]" aria-hidden="true" />;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -77,9 +77,9 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
 
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Диагностика</h2>
-        <p className="mt-1 text-sm leading-5 text-[#64748b]">
+        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
           Проверяет конфиг, GenericInterface endpoint, авторизацию, TicketGet и безопасный dry-run.
         </p>
       </div>
@@ -87,7 +87,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
       <div className="grid gap-4 p-4">
         <form action={formAction} className="soft-callout grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <input type="hidden" name="integrationId" value={integrationId} />
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Manual TicketID для TicketGet
             <input name="manualTicketId" placeholder="42" className="form-control h-10 text-sm" />
           </label>
@@ -95,7 +95,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
         </form>
 
         {state ? (
-          <div className={`soft-callout text-sm font-medium ${state.ok ? "text-[#166534]" : "text-[#b91c1c]"}`}>
+          <div className={`soft-callout text-sm font-medium ${state.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
             {state.message}
             {state.status ? ` Статус: ${state.status}.` : ""}
           </div>
@@ -122,7 +122,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
 
             <div className="scroll-area">
               <table className="table-fixed-copy w-full min-w-[720px] border-collapse text-left text-sm">
-                <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
+                <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Step</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
@@ -140,8 +140,8 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
                           <span className={`pill ${statusClass(step.status)}`}>{step.status}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[#334155]">{step.durationMs} ms</td>
-                      <td className="px-4 py-3 text-[#334155]">{step.remediationHint ?? "Нет подсказки."}</td>
+                      <td className="px-4 py-3 text-[var(--text-body)]">{step.durationMs} ms</td>
+                      <td className="px-4 py-3 text-[var(--text-body)]">{step.remediationHint ?? "Нет подсказки."}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -149,14 +149,14 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
             </div>
 
             {latestDiagnostic.errorMessage ? (
-              <div className="soft-callout soft-callout--warn text-sm leading-5 text-[#b45309]">
+              <div className="soft-callout soft-callout--warn text-sm leading-5 text-[var(--warning)]">
                 {latestDiagnostic.errorCode ? `${latestDiagnostic.errorCode}: ` : ""}
                 {latestDiagnostic.errorMessage}
               </div>
             ) : null}
           </div>
         ) : (
-          <div className="soft-callout text-sm leading-5 text-[#64748b]">
+          <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
             Диагностика еще не запускалась. Первый запуск создаст redacted endpoint и пошаговый отчет.
           </div>
         )}

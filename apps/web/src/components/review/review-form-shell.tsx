@@ -44,7 +44,7 @@ export function ReviewFormShell({ className, children }: { className?: string; c
         <SaveDraftButton />
         <FinalizeButton />
         {state ? (
-          <p ref={messageRef} tabIndex={-1} className="basis-full text-xs font-medium text-[#b91c1c]">
+          <p ref={messageRef} tabIndex={-1} className="basis-full text-xs font-medium text-[var(--danger)]">
             {state.message}
           </p>
         ) : null}

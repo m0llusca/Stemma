@@ -320,7 +320,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           </div>
           <div className="grid gap-2 p-4">
             {logs.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[#64748b]">События не найдены.</div>
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">События не найдены.</div>
             ) : (
               logs.map((log) => (
                 <article key={log.id} className="admin-tile admin-tile--compact">
@@ -337,10 +337,10 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                     </span>
                     <details className="compact-details bg-[#f8fafc]">
                       <summary>
-                        <span className="text-sm font-semibold text-[#334155]">Детали события</span>
+                        <span className="text-sm font-semibold text-[var(--text-body)]">Детали события</span>
                         <span className="text-sm font-semibold text-[#1d3fae]">Показать</span>
                       </summary>
-                      <pre className="m-0 overflow-x-auto rounded-b-md bg-[#f8fafc] p-3 text-xs leading-5 text-[#334155]">
+                      <pre className="m-0 overflow-x-auto rounded-b-md bg-[#f8fafc] p-3 text-xs leading-5 text-[var(--text-body)]">
                         <code>{parseMetadata(log.metadata)}</code>
                       </pre>
                     </details>
@@ -349,7 +349,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
               ))
             )}
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-[#d9e0ea] px-5 py-4 text-sm">
+          <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-4 text-sm">
             {page > 1 ? (
               <Link href={buildAuditHref(page - 1, action, targetType, start, end)} className="action-button action-button--small">
                 Назад
@@ -380,7 +380,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           <AutoSubmitFilterForm action="/admin/audit" className="ops-form-grid p-5">
             <input type="hidden" name="section" value="events" />
             <input type="hidden" name="page" value="1" />
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Действие
               <select name="action" defaultValue={action ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -391,7 +391,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Тип объекта
               <select name="targetType" defaultValue={targetType ?? ""} className="form-control">
                 <option value="">Все</option>
@@ -402,11 +402,11 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               С даты
               <input type="date" name="start" defaultValue={dateInputValue(start)} className="form-control" />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               По дату
               <input type="date" name="end" defaultValue={dateInputValue(end)} className="form-control" />
             </label>
@@ -441,7 +441,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                 </div>
               </article>
             ))}
-            {apiTokens.length === 0 ? <div className="soft-callout ops-empty text-sm text-[#64748b]">Ключи еще не созданы.</div> : null}
+            {apiTokens.length === 0 ? <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Ключи еще не созданы.</div> : null}
           </div>
         </section>
       ) : null}

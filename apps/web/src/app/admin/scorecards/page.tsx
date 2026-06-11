@@ -255,7 +255,7 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
               />
             </div>
           ) : (
-            <div className="soft-callout ops-empty m-4 text-sm leading-5 text-[#64748b]">
+            <div className="soft-callout ops-empty m-4 text-sm leading-5 text-[var(--text-muted)]">
               Новую версию можно выпустить после появления активной формы. Создайте первую форму через начальную настройку проекта.
             </div>
           )}
@@ -294,7 +294,7 @@ export default async function AdminScorecardsPage({ searchParams }: AdminScoreca
                     <ChevronDown className="h-4 w-4" />
                   </span>
                 </summary>
-                <div className="border-t border-[#d9e0ea] p-3">
+                <div className="border-t border-[var(--border)] p-3">
                   <div className="grid gap-2">
                     {scorecard.criteria.map((criterion) => (
                       <article key={criterion.id} className="soft-callout">

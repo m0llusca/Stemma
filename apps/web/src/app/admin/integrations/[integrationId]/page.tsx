@@ -270,13 +270,13 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
         <div className="grid gap-3 md:grid-cols-2">
           <div className="soft-callout">
             <p className="soft-callout__label">Операции</p>
-            <p className="mt-1 text-sm leading-5 text-[#334155]">
+            <p className="mt-1 text-sm leading-5 text-[var(--text-body)]">
               {capability.operations.map(operationLabel).join(", ")}
             </p>
           </div>
           <div className="soft-callout">
             <p className="soft-callout__label">Секреты</p>
-            <div className="mt-1 grid gap-1 text-sm leading-5 text-[#334155]">
+            <div className="mt-1 grid gap-1 text-sm leading-5 text-[var(--text-body)]">
               {capability.requiredSecrets.length > 0 ? (
                 capability.requiredSecrets.map((secret) => {
                   const credential = integration.credentials.find((item) => item.kind === secret);
@@ -315,7 +315,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
           </div>
           <div className="soft-callout">
             <p className="soft-callout__label">Диагностика</p>
-            <p className="mt-1 text-sm leading-5 text-[#334155]">
+            <p className="mt-1 text-sm leading-5 text-[var(--text-body)]">
               {readinessActionLabel(hasBaseUrl, hasRequiredSecrets)}.
               {hasRunnableDiagnostics
                 ? " Можно запускать безопасную диагностику из доступного cockpit-действия."
@@ -329,7 +329,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
         {capability.certification.limitations.length > 0 ? (
           <div className="soft-callout">
             <p className="soft-callout__label">Ограничения</p>
-            <ul className="mt-1 grid gap-1 pl-4 text-sm leading-5 text-[#64748b]">
+            <ul className="mt-1 grid gap-1 pl-4 text-sm leading-5 text-[var(--text-muted)]">
               {capability.certification.limitations.map((limitation) => (
                 <li key={limitation} className="list-disc break-words">
                   {limitation}
@@ -502,7 +502,7 @@ function NonOtrsIntegrationSummary({
               );
             })
           ) : (
-            <div className="soft-callout text-sm leading-5 text-[#64748b]">Задач пока нет.</div>
+            <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">Задач пока нет.</div>
           )}
         </div>
       </section>
@@ -627,7 +627,7 @@ export default async function IntegrationDetailsPage({ params, searchParams }: I
               <span className="admin-tile__body">
                 <span className="record-title record-title--tight">{integrationStatusLabel(integration.status)}</span>
                 <span className="record-meta">Dry-run: {formatDate(integration.lastDryRunAt)} · импорт: {formatDate(integration.lastImportAt)}</span>
-                {integration.lastError ? <span className="record-meta text-[#b91c1c]">{integration.lastError}</span> : null}
+                {integration.lastError ? <span className="record-meta text-[var(--danger)]">{integration.lastError}</span> : null}
               </span>
             </div>
             <div className="admin-tile admin-tile--compact">
@@ -747,14 +747,14 @@ function OtrsDetailCockpit({
           <OtrsDiagnosticsPanel integrationId={integration.id} latestDiagnostic={toDiagnosticRun(integration.diagnosticRuns[0])} />
         ) : (
           <section className="panel overflow-hidden">
-            <div className="border-b border-[#d9e0ea] px-5 py-4">
+            <div className="border-b border-[var(--border)] px-5 py-4">
               <h2 className="text-lg font-semibold">Диагностика</h2>
-              <p className="mt-1 text-sm leading-5 text-[#64748b]">
+              <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
                 Действие запуска появится после сохранения Base URL и секрета auth_password.
               </p>
             </div>
             <div className="p-4">
-              <div className="soft-callout text-sm leading-5 text-[#64748b]">
+              <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
                 Ожидает доступы. Raw секреты не отображаются; сохраните пароль или API-секрет в настройке подключения.
               </div>
             </div>
@@ -766,10 +766,10 @@ function OtrsDetailCockpit({
       <OtrsRunHistory runs={toRunHistoryRuns(integration.runs, integration.workspaceId)} jobsByRunId={jobByRunId} />
 
       <details className="compact-details overflow-hidden">
-        <summary className="disclosure-summary cursor-pointer list-none border-b border-[#d9e0ea] px-5 py-4">
+        <summary className="disclosure-summary cursor-pointer list-none border-b border-[var(--border)] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Ручная проверка payload</h2>
-            <p className="mt-1 text-sm leading-5 text-[#64748b]">
+            <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
               Legacy/manual JSON path: вставка TicketGet payload без connector preview. Server action оставлен без изменений.
             </p>
           </div>
@@ -777,8 +777,8 @@ function OtrsDetailCockpit({
         <div className="grid gap-5 p-4">
           <section className="integration-payload-section">
             <div className="integration-payload-section__header">
-              <h3 className="text-base font-semibold text-[#111827]">OTRS-family TicketGet payload</h3>
-              <p className="mt-1 text-sm leading-5 text-[#64748b]">
+              <h3 className="text-base font-semibold text-[var(--foreground)]">OTRS-family TicketGet payload</h3>
+              <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
                 Используйте только для ручной проверки JSON, когда connector-путь недоступен.
               </p>
             </div>
@@ -787,10 +787,10 @@ function OtrsDetailCockpit({
             </div>
           </section>
           <details className="compact-details overflow-hidden">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
               Native helpdesk legacy payload
             </summary>
-            <div className="border-t border-[#d9e0ea] p-4">
+            <div className="border-t border-[var(--border)] p-4">
               <NativeHelpdeskImportTester />
             </div>
           </details>

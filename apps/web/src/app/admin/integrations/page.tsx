@@ -29,7 +29,7 @@ const integrationSections: Array<{ value: IntegrationSection; label: string }> =
   { value: "catalog", label: "План источников" }
 ];
 
-const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[#64748b]";
+const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[var(--text-muted)]";
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;

@@ -204,7 +204,7 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
                       </span>
                       <span className="record-meta">Истекает: {formatDate(apiToken.expiresAt)}</span>
                       {apiToken.lastError ? (
-                        <span className="record-meta compact-text text-[#b91c1c]">
+                        <span className="record-meta compact-text text-[var(--danger)]">
                           Ошибка: {formatDate(apiToken.lastErrorAt)} · {apiToken.lastError}
                         </span>
                       ) : null}
@@ -224,7 +224,7 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
                 );
               })
             ) : (
-              <div className="soft-callout ops-empty text-sm text-[#64748b]">Ключи еще не созданы.</div>
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Ключи еще не созданы.</div>
             )}
           </div>
         </section>
@@ -279,7 +279,7 @@ export default async function AdminTokensPage({ searchParams }: AdminTokensPageP
             </div>
           ) : (
             <div className="p-4">
-              <div className="soft-callout ops-empty text-sm text-[#64748b]">
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">
                 Демо-ключ доступен только при включенном демо-режиме.
               </div>
             </div>

@@ -163,8 +163,8 @@ export default async function JobDetailsPage({ params, searchParams }: JobDetail
             </article>
             {job.errorMessage ? (
               <article className="record-card border-[#fecaca] bg-[#fef2f2]">
-                <p className="font-semibold text-[#b91c1c]">Ошибка</p>
-                <p className="mt-1 text-sm leading-5 text-[#b91c1c]">{job.errorMessage}</p>
+                <p className="font-semibold text-[var(--danger)]">Ошибка</p>
+                <p className="mt-1 text-sm leading-5 text-[var(--danger)]">{job.errorMessage}</p>
               </article>
             ) : null}
           </div>
@@ -182,18 +182,18 @@ export default async function JobDetailsPage({ params, searchParams }: JobDetail
           </div>
           <div className="record-list px-5">
             {job.events.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[#64748b]">Событий пока нет.</div>
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Событий пока нет.</div>
             ) : (
               job.events.map((event) => (
                 <article key={event.id} className="record-card">
                   <div className="record-row">
-                    <p className="font-semibold text-[#111827]">{event.message}</p>
+                    <p className="font-semibold text-[var(--foreground)]">{event.message}</p>
                     <span className="pill pill--neutral">{event.level}</span>
                   </div>
                   <p className="record-meta">{formatDate(event.createdAt)}</p>
                   <details className="compact-details mt-2">
-                    <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-[#334155]">Метаданные</summary>
-                    <pre className="max-h-[220px] overflow-auto border-t border-[#d9e0ea] bg-[#111827] p-3 text-xs leading-5 text-white">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-[var(--text-body)]">Метаданные</summary>
+                    <pre className="max-h-[220px] overflow-auto border-t border-[var(--border)] bg-[#111827] p-3 text-xs leading-5 text-white">
                       {parseJson(event.metadata)}
                     </pre>
                   </details>

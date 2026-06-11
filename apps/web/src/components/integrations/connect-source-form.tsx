@@ -15,7 +15,7 @@ export type ConnectSourceItem = {
   limited?: boolean;
 };
 
-const labelClass = "grid gap-1.5 text-sm font-medium text-[#334155]";
+const labelClass = "grid gap-1.5 text-sm font-medium text-[var(--text-body)]";
 const fieldClass = "form-control h-10 w-full text-sm";
 
 const STEP_LABELS: Record<string, string> = {
@@ -36,9 +36,9 @@ const STATUS_ICONS: Record<ConnectStepStatus, string> = {
 
 const STATUS_COLORS: Record<ConnectStepStatus, string> = {
   ok: "text-[#166534]",
-  warning: "text-[#b45309]",
-  failed: "text-[#b91c1c]",
-  skipped: "text-[#64748b]"
+  warning: "text-[var(--warning)]",
+  failed: "text-[var(--danger)]",
+  skipped: "text-[var(--text-muted)]"
 };
 
 // Шаги, которые можно поправить вручную в расширенных настройках — при их сбое
@@ -88,16 +88,16 @@ export function ConnectSourceForm({
 
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Подключение источника</h2>
-        <p className="mt-1 text-sm leading-5 text-[#64748b]">
+        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
           Выберите тип источника, укажите адрес и учётные данные — подключение пройдёт автоматически.
         </p>
       </div>
 
       {sources.length > 0 ? (
-        <div className="grid gap-2 border-b border-[#d9e0ea] px-4 py-4">
-          <p className="text-sm font-medium text-[#334155]">Тип источника</p>
+        <div className="grid gap-2 border-b border-[var(--border)] px-4 py-4">
+          <p className="text-sm font-medium text-[var(--text-body)]">Тип источника</p>
           <div className="flex flex-wrap gap-2">
             {sources.map((item) => {
               const isActive = item.source === selectedSource;
@@ -110,7 +110,7 @@ export function ConnectSourceForm({
                   className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition ${
                     isActive
                       ? "border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]"
-                      : "border-[#d9e0ea] bg-white text-[#334155] hover:border-[#94a3b8]"
+                      : "border-[var(--border)] bg-[var(--panel)] text-[var(--text-body)] hover:border-[#94a3b8]"
                   }`}
                 >
                   {item.label}
@@ -156,7 +156,7 @@ export function ConnectSourceForm({
                 autoComplete={field.secret ? "new-password" : "off"}
                 className={fieldClass}
               />
-              {field.hint ? <span className="text-xs font-normal text-[#64748b]">{field.hint}</span> : null}
+              {field.hint ? <span className="text-xs font-normal text-[var(--text-muted)]">{field.hint}</span> : null}
             </label>
           ))}
 
@@ -170,16 +170,16 @@ export function ConnectSourceForm({
           </div>
         </form>
       ) : sources.length > 0 ? (
-        <p className="px-4 py-4 text-sm text-[#64748b]">Выберите тип источника, чтобы продолжить.</p>
+        <p className="px-4 py-4 text-sm text-[var(--text-muted)]">Выберите тип источника, чтобы продолжить.</p>
       ) : null}
 
       {hasError(state) ? (
-        <p className="px-4 pb-4 text-sm font-medium text-[#b91c1c]">{state.error}</p>
+        <p className="px-4 pb-4 text-sm font-medium text-[var(--danger)]">{state.error}</p>
       ) : null}
 
       {steps.length > 0 ? (
-        <div className="grid gap-2 border-t border-[#d9e0ea] px-4 py-4">
-          <p className="text-sm font-semibold text-[#334155]">Ход подключения</p>
+        <div className="grid gap-2 border-t border-[var(--border)] px-4 py-4">
+          <p className="text-sm font-semibold text-[var(--text-body)]">Ход подключения</p>
           <ul className="grid gap-2">
             {steps.map((step) => (
               <li key={step.step} className="flex items-start gap-2 text-sm">
@@ -187,10 +187,10 @@ export function ConnectSourceForm({
                   {STATUS_ICONS[step.status]}
                 </span>
                 <span className="grid gap-0.5">
-                  <span className="font-medium text-[#334155]">{STEP_LABELS[step.step] ?? step.step}</span>
-                  {step.detail ? <span className="text-[#475569]">{step.detail}</span> : null}
+                  <span className="font-medium text-[var(--text-body)]">{STEP_LABELS[step.step] ?? step.step}</span>
+                  {step.detail ? <span className="text-[var(--text-subtle)]">{step.detail}</span> : null}
                   {step.hint ? (
-                    <span className={`text-xs ${step.status === "failed" ? "text-[#b91c1c]" : "text-[#64748b]"}`}>
+                    <span className={`text-xs ${step.status === "failed" ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}>
                       {step.hint}
                     </span>
                   ) : null}
@@ -204,13 +204,13 @@ export function ConnectSourceForm({
         </div>
       ) : null}
 
-      <details open={fallbackOpen} className="compact-details disclosure-panel overflow-hidden border-t border-[#d9e0ea]">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
+      <details open={fallbackOpen} className="compact-details disclosure-panel overflow-hidden border-t border-[var(--border)]">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
           Расширенные настройки
         </summary>
-        <div className="grid gap-2 border-t border-[#d9e0ea] p-4 text-sm text-[#475569]">
+        <div className="grid gap-2 border-t border-[var(--border)] p-4 text-sm text-[var(--text-subtle)]">
           {fallbackOpen ? (
-            <p className="font-medium text-[#b45309]">Заполните параметры вручную и повторите.</p>
+            <p className="font-medium text-[var(--warning)]">Заполните параметры вручную и повторите.</p>
           ) : (
             <p>Ручная настройка параметров подключения для нестандартных конфигураций.</p>
           )}

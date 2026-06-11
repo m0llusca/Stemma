@@ -12,9 +12,9 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
 
   return (
     <section className="review-conversation-panel panel overflow-hidden">
-      <div className="review-conversation-panel__header flex items-center justify-between gap-3 border-b border-[#d9e0ea] px-5 py-4">
+      <div className="review-conversation-panel__header flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Таймлайн диалога</h2>
-        <span className="text-sm text-[#64748b]">{formatMessageCount(messages.length)}</span>
+        <span className="text-sm text-[var(--text-muted)]">{formatMessageCount(messages.length)}</span>
       </div>
       <div className="review-conversation-panel__body record-list px-5">
         {messages.map((message) => {
@@ -37,7 +37,7 @@ export function ConversationTimeline({ messages, highlightedMessageIds = [] }: C
                   <span className="conversation-message__private">Приватно</span>
                 ) : null}
                 <div className="message-toolbar">
-                  <time className="text-xs text-[#64748b]" dateTime={message.sentAt.toISOString()}>
+                  <time className="text-xs text-[var(--text-muted)]" dateTime={message.sentAt.toISOString()}>
                     {message.sentAt.toLocaleString("ru-RU")}
                   </time>
                   <EvidenceMessageButton messageId={message.id} />

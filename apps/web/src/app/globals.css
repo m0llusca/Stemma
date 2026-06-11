@@ -8,6 +8,9 @@
   --page-sheen: rgba(255, 255, 255, 0.74);
   --foreground: #111827;
   --muted: #657386;
+  --text-body: #334155;
+  --text-subtle: #475569;
+  --text-muted: #64748b;
   --panel: #ffffff;
   --panel-muted: #f5f7fa;
   --panel-tint: #f4f8ff;
@@ -201,6 +204,9 @@ body[data-theme="ops"] {
   --page-sheen: rgba(59, 130, 246, 0.1);
   --foreground: #f8fafc;
   --muted: #93a4bb;
+  --text-body: #ccd5e2;
+  --text-subtle: #aab6c8;
+  --text-muted: #93a4bb;
   --panel: #151a24;
   --panel-muted: #101620;
   --panel-tint: #1c2534;
@@ -236,12 +242,8 @@ body[data-theme="ops"] {
   --danger-soft: color-mix(in srgb, #b91c1c 12%, #151a24);
 }
 
-/* Night Ops: apply dark-mode component overrides regardless of OS color scheme */
-body[data-theme="ops"] .bg-white,
-body[data-theme="ops"] [class~="bg-[#ffffff]"] {
-  background-color: var(--panel) !important;
-}
-
+/* Night Ops: dark-mode overrides for the few status backgrounds still hardcoded in
+   components. Text/panel/border colors now flow through semantic tokens (no overrides). */
 body[data-theme="ops"] [class~="bg-[#f8fafc]"],
 body[data-theme="ops"] [class~="bg-[#edf2ff]"] {
   background-color: var(--panel-muted) !important;
@@ -259,27 +261,6 @@ body[data-theme="ops"] [class~="bg-[#ecfdf5]"] {
   background-color: var(--success-soft) !important;
 }
 
-body[data-theme="ops"] [class~="text-[#111827]"],
-body[data-theme="ops"] [class~="text-[#334155]"] {
-  color: var(--foreground) !important;
-}
-
-body[data-theme="ops"] [class~="text-[#475569]"],
-body[data-theme="ops"] [class~="text-[#64748b]"] {
-  color: var(--muted) !important;
-}
-
-body[data-theme="ops"] [class~="text-[#b45309]"] {
-  color: var(--warning) !important;
-}
-
-body[data-theme="ops"] [class~="text-[#b91c1c]"] {
-  color: var(--danger) !important;
-}
-
-body[data-theme="ops"] [class~="border-[#d9e0ea]"] {
-  border-color: var(--border) !important;
-}
 
 body[data-theme="ops"] .skip-link {
   border: 1px solid var(--border);
@@ -394,13 +375,11 @@ body[data-theme="ops"] [class~="bg-[#f0fdf4]"] {
   background-color: var(--success-soft) !important;
 }
 
-body[data-theme="ops"] [class~="text-[#991b1b]"],
-body[data-theme="ops"] [class~="text-[#b91c1c]"] {
+body[data-theme="ops"] [class~="text-[#991b1b]"] {
   color: var(--danger) !important;
 }
 
-body[data-theme="ops"] [class~="text-[#166534]"],
-body[data-theme="ops"] [class~="text-[#15803d]"] {
+body[data-theme="ops"] [class~="text-[#166534]"] {
   color: var(--success) !important;
 }
 
@@ -656,10 +635,6 @@ body[data-contrast="high"] {
     --shadow-raised: none;
   }
 
-  body .bg-white,
-  body [class~="bg-[#ffffff]"] {
-    background-color: var(--panel) !important;
-  }
 
   body [class~="bg-[#f8fafc]"],
   body [class~="bg-[#edf2ff]"] {
@@ -676,28 +651,6 @@ body[data-contrast="high"] {
 
   body [class~="bg-[#ecfdf5]"] {
     background-color: var(--success-soft) !important;
-  }
-
-  body [class~="text-[#111827]"],
-  body [class~="text-[#334155]"] {
-    color: var(--foreground) !important;
-  }
-
-  body [class~="text-[#475569]"],
-  body [class~="text-[#64748b]"] {
-    color: var(--muted) !important;
-  }
-
-  body [class~="text-[#b45309]"] {
-    color: var(--warning) !important;
-  }
-
-  body [class~="text-[#b91c1c]"] {
-    color: var(--danger) !important;
-  }
-
-  body [class~="border-[#d9e0ea]"] {
-    border-color: var(--border) !important;
   }
 
   body .skip-link {

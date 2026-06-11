@@ -481,9 +481,9 @@ function BreakdownTable({
 }) {
   return (
     <section id={id} className="panel overflow-hidden breakdown-panel">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-[#64748b]">
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           {rows.length > 0 ? `${rows.length} строк в разрезе` : "Нет данных для выбранного периода"}
         </p>
       </div>
@@ -506,7 +506,7 @@ function BreakdownTable({
             </article>
           ))
         ) : (
-          <div className="soft-callout text-sm text-[#64748b]">
+          <div className="soft-callout text-sm text-[var(--text-muted)]">
             Нет завершенных проверок.
           </div>
         )}
@@ -542,7 +542,7 @@ function ReportCommandBar({
         className={`report-command-bar__form ${showDateInputs ? "report-command-bar__form--custom" : ""}`}
       >
         <input type="hidden" name="view" value={view} />
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           <span className="report-command-bar__label-text">Период</span>
           <select name="period" defaultValue={period.preset} className="form-control">
             <option value="vk-current">Текущий 22-21</option>
@@ -555,7 +555,7 @@ function ReportCommandBar({
         </label>
         {showDateInputs ? (
           <>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               <span className="report-command-bar__label-text">С даты</span>
               <input
                 name="start"
@@ -564,7 +564,7 @@ function ReportCommandBar({
                 className="form-control"
               />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               <span className="report-command-bar__label-text">По дату</span>
               <input
                 name="end"
@@ -580,7 +580,7 @@ function ReportCommandBar({
             <strong>{formatPeriod(period)}</strong>
           </div>
         )}
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           <span className="report-command-bar__label-text">График</span>
           <select name="trend" defaultValue={trendGranularity} className="form-control">
             <option value="day">По дням</option>
@@ -664,9 +664,9 @@ function QuotaTable({
 }) {
   return (
     <section id={id} className="panel overflow-hidden breakdown-panel quota-table-panel">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Нормы проверок</h2>
-        <p className="mt-1 text-sm text-[#64748b]">План, факт и доля негативного CSAT по операторам.</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">План, факт и доля негативного CSAT по операторам.</p>
       </div>
       <div className="record-list px-5">
         {quotas.length > 0 ? (
@@ -715,7 +715,7 @@ function QuotaTable({
             );
           })
         ) : (
-          <div className="soft-callout text-sm text-[#64748b]">
+          <div className="soft-callout text-sm text-[var(--text-muted)]">
             Нормы на выбранный период пока не заданы.
           </div>
         )}
@@ -1012,7 +1012,7 @@ function TrendVerdict({
 
 function TrendSignals({ points, target = 90 }: { points: ChartDatum[]; target?: number }) {
   if (points.length === 0) {
-    return <p className="text-sm text-[#64748b]">Нет завершенных проверок за выбранный период.</p>;
+    return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок за выбранный период.</p>;
   }
 
   const pointsWithDeltas = points.map((point, index) => ({

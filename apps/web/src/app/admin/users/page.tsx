@@ -294,17 +294,17 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
                       </span>
                       <span className="record-meta compact-text">{managedUser.email}</span>
                     </div>
-                    <label className="ops-table__cell text-sm font-medium text-[#334155]">
+                    <label className="ops-table__cell text-sm font-medium text-[var(--text-body)]">
                       <span className="ops-table__label">Роль</span>
                       <RoleSelect defaultValue={managedUser.role} />
                       <span className={`pill ${roleTone(managedUser.role)}`}>{roleLabels[managedUser.role]}</span>
                     </label>
                     <div className="ops-table__cell ops-table__cell--stacked">
-                      <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                      <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                         Команда
                         <input name="teamName" defaultValue={managedUser.teamName ?? ""} className="form-control" placeholder="Команда" />
                       </label>
-                      <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                      <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                         Линия поддержки
                         <input name="supportLine" defaultValue={managedUser.supportLine ?? ""} className="form-control" placeholder="Линия" />
                       </label>
@@ -347,31 +347,31 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
           </div>
           <form action={createLocalUser} className="grid gap-4 p-5">
             <div className="ops-form-grid ops-form-grid--three">
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Имя
                 <input name="name" required className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Email
                 <input name="email" type="email" autoComplete="email" required className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Логин
                 <input name="login" autoComplete="username" className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Временный пароль
                 <input name="password" type="password" autoComplete="new-password" minLength={8} required className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Роль
                 <RoleSelect defaultValue="QA_ANALYST" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Команда
                 <input name="teamName" className="form-control" />
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Линия поддержки
                 <input name="supportLine" className="form-control" />
               </label>

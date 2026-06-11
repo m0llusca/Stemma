@@ -509,7 +509,7 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
               <article key={entry.id} className="coaching-rule-card">
                 <div className="knowledge-compact-card__head">
                   <span className="pill pill--neutral">{entry.category}</span>
-                  <span className="text-xs font-semibold text-[#64748b]">{riskLevelLabels[entry.riskLevel]}</span>
+                  <span className="text-xs font-semibold text-[var(--text-muted)]">{riskLevelLabels[entry.riskLevel]}</span>
                 </div>
                 <h3>{entry.title}</h3>
                 <p>{entry.recommendation}</p>

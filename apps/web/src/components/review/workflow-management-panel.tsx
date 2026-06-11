@@ -29,7 +29,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
       <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">Управление проверкой</h2>
-          <p className="mt-1 truncate text-sm text-[#64748b]">
+          <p className="mt-1 truncate text-sm text-[var(--text-muted)]">
             {qaStatusLabels[conversation.qaStatus]} · {conversation.qaAssigneeName ?? "Проверяющий не назначен"} ·{" "}
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "без срока"}
           </p>
@@ -44,11 +44,11 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
 
       <form
         action={updateConversationWorkflow}
-        className="grid gap-3 border-t border-[#d9e0ea] p-4 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto]"
+        className="grid gap-3 border-t border-[var(--border)] p-4 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto]"
       >
         <input type="hidden" name="conversationId" value={conversation.id} />
 
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Состояние проверки
           <select
             name="qaStatus"
@@ -63,7 +63,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           </select>
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Проверяющий
           <select
             name="qaAssigneeId"
@@ -82,7 +82,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           </select>
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Срок
           <input
             name="reviewDueAt"

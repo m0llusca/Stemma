@@ -9,7 +9,7 @@ import { saveOtrsIntegrationConfigurationState, type IntegrationActionState } fr
 import { detectOtrsRoutesAction, type DetectOtrsRoutesState } from "@/lib/otrs-import-actions";
 
 const initialState: IntegrationActionState = null;
-const labelClass = "grid gap-1.5 text-sm font-medium text-[#334155]";
+const labelClass = "grid gap-1.5 text-sm font-medium text-[var(--text-body)]";
 const fieldClass = "form-control h-10 w-full text-sm";
 const textareaClass = "form-control min-h-[110px] w-full resize-y text-sm";
 
@@ -141,29 +141,29 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
 
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Настройка подключения</h2>
-        <p className="mt-1 text-sm leading-5 text-[#64748b]">
+        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
           Секреты вводятся только для обновления. Сохраненные пароль и CA PEM не отображаются обратно в UI.
         </p>
       </div>
 
-      <form action={detectAction} className="grid gap-2 border-b border-[#d9e0ea] px-4 py-4">
+      <form action={detectAction} className="grid gap-2 border-b border-[var(--border)] px-4 py-4">
         <input type="hidden" name="baseUrl" value={integration.baseUrl ?? ""} />
         <input type="hidden" name="webServiceName" value={webServiceName} />
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" className="action-button" disabled={detecting}>
             {detecting ? "Определяем..." : "Определить маршруты автоматически"}
           </button>
-          <span className="text-xs text-[#64748b]">
+          <span className="text-xs text-[var(--text-muted)]">
             Пробует стандартные маршруты GenericInterface и заполняет route overrides.
           </span>
         </div>
         {detectState?.ok === false ? (
-          <p className="text-sm font-medium text-[#b91c1c]">{detectState.message}</p>
+          <p className="text-sm font-medium text-[var(--danger)]">{detectState.message}</p>
         ) : null}
         {detectState?.ok && detectState.result.undetected.length > 0 ? (
-          <p className="text-sm text-[#b45309]">
+          <p className="text-sm text-[var(--warning)]">
             Не определены: {detectState.result.undetected.join(", ")} — введите вручную.
           </p>
         ) : null}
@@ -174,11 +174,11 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth, timeZone)} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Название
             <input name="displayName" defaultValue={integration.displayName} required className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Product profile
             <select name="product" defaultValue={config.product} className={fieldClass}>
               {products.map((product) => (
@@ -188,11 +188,11 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               ))}
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Base URL
             <input name="baseUrl" defaultValue={integration.baseUrl ?? ""} required className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             WebService name
             <input
               name="webServiceName"
@@ -217,23 +217,23 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               ))}
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Base path
             <input name="basePath" defaultValue={config.basePath} required className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             UserLogin
             <input name="userLogin" defaultValue={defaultUserLogin} required className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Пароль или API-секрет
             <input name="password" type="password" autoComplete="new-password" className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Search limit
             <input name="searchLimit" type="number" min="1" max="100" defaultValue={config.limits.searchLimit} className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Manual TicketID limit
             <input
               name="manualTicketIdLimit"
@@ -244,22 +244,22 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               className={fieldClass}
             />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Import limit
             <input name="importLimit" type="number" min="1" max="100" defaultValue={integration.importLimit} className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Размер батча
             <input name="batchSize" type="number" min="1" max="50" defaultValue={integration.batchSize} className={fieldClass} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             Период, дней
             <input name="dateRangeDays" type="number" min="1" max="365" defaultValue={integration.dateRangeDays} className={fieldClass} />
           </label>
         </div>
 
         <div className="soft-callout grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]">
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             SessionCreate path
             <input
               value={sessionCreatePath}
@@ -268,7 +268,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               className={`${fieldClass} font-mono text-xs`}
             />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             TicketSearch auth
             <select
               value={ticketSearchAuth}
@@ -279,7 +279,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               <option value="session">SessionCreate + SessionID</option>
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             TicketGet auth
             <select
               value={ticketGetAuth}
@@ -293,7 +293,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
             CA bundle PEM
             <textarea name="caBundle" rows={5} spellCheck={false} className={textareaClass} />
           </label>
@@ -314,11 +314,11 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         </div>
 
         <details className="compact-details disclosure-panel overflow-hidden">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#334155]">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
             Advanced route overrides
           </summary>
-          <div className="grid gap-4 border-t border-[#d9e0ea] p-4">
-            <label className="soft-callout grid-cols-[auto_minmax(0,1fr)] items-start text-sm text-[#334155]">
+          <div className="grid gap-4 border-t border-[var(--border)] p-4">
+            <label className="soft-callout grid-cols-[auto_minmax(0,1fr)] items-start text-sm text-[var(--text-body)]">
               <input
                 type="checkbox"
                 checked={routeOverridesEnabled}
@@ -333,7 +333,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               <fieldset className="soft-callout grid gap-3">
                 <legend className="soft-callout__label">TicketSearch route</legend>
                 <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Method
                     <select
                       value={ticketSearchMethod}
@@ -345,7 +345,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
                       <option value="GET">GET</option>
                     </select>
                   </label>
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Path
                     <input
                       value={ticketSearchPath}
@@ -360,7 +360,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
               <fieldset className="soft-callout grid gap-3">
                 <legend className="soft-callout__label">TicketGet route</legend>
                 <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Method
                     <select
                       value={ticketGetMethod}
@@ -372,7 +372,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
                       <option value="POST">POST</option>
                     </select>
                   </label>
-                  <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                     Path
                     <input
                       value={ticketGetPath}
@@ -391,7 +391,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         <div className="flex flex-wrap items-center gap-3">
           <SubmitButton />
           {state ? (
-            <p className={`text-sm font-medium ${state.ok ? "text-[#166534]" : "text-[#b91c1c]"}`}>{state.message}</p>
+            <p className={`text-sm font-medium ${state.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>{state.message}</p>
           ) : null}
         </div>
       </form>

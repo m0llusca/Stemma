@@ -45,25 +45,25 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
   return (
     <div className="grid gap-4">
       <form ref={formRef} action={formAction} className="grid gap-3">
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Название
           <input name="name" required minLength={2} maxLength={120} placeholder="Например, Helpdesk import" className="form-control" />
         </label>
 
-        <label className="grid gap-1 text-sm font-medium text-[#334155]">
+        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
           Истекает
           <input name="expiresAt" type="date" className="form-control" />
         </label>
 
         <fieldset className="grid gap-2">
-          <legend className="text-sm font-semibold text-[#334155]">Права</legend>
+          <legend className="text-sm font-semibold text-[var(--text-body)]">Права</legend>
           <div className="grid gap-2 md:grid-cols-2">
             {scopes.map((scope) => (
-              <label key={scope} className="flex items-start gap-2 rounded-lg border border-[#d9e0ea] bg-white px-3 py-2 text-sm text-[#334155]">
+              <label key={scope} className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-body)]">
                 <input type="checkbox" name="scopes" value={scope} defaultChecked={scope === "all"} className="mt-1" />
                 <span>
                   <span className="block font-semibold">{apiScopeLabels[scope]}</span>
-                  <span className="block font-mono text-xs text-[#64748b]">{scope}</span>
+                  <span className="block font-mono text-xs text-[var(--text-muted)]">{scope}</span>
                 </span>
               </label>
             ))}

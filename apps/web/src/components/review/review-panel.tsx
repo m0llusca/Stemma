@@ -472,7 +472,7 @@ export function ReviewPanel({
           <SummaryTemplatePicker templates={summaryTemplates} defaultValue={draftReview?.summary ?? ""} />
 
           <div className="grid gap-4 md:grid-cols-3">
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Категория
               <input
                 name="category"
@@ -483,7 +483,7 @@ export function ReviewPanel({
               />
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Ответственность
               <select
                 name="ownerType"
@@ -499,7 +499,7 @@ export function ReviewPanel({
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
               Риск
               <select
                 name="riskLevel"
@@ -530,23 +530,23 @@ export function ReviewPanel({
         defaultOpen={hasOptionalDetails}
       >
         <div className="grid gap-3">
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d9e0ea]" open={hasCriticalDetails}>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[var(--border)]" open={hasCriticalDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[#111827]">Критическая ошибка и переответ</h4>
-                <p className="mt-1 text-xs text-[#64748b]">Открывайте только для обнуления оценки или переответа клиенту.</p>
+                <h4 className="text-sm font-semibold text-[var(--foreground)]">Критическая ошибка и переответ</h4>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Открывайте только для обнуления оценки или переответа клиенту.</p>
               </div>
               <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
-              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[#334155]">
+            <div className="grid gap-4 border-t border-[var(--border)] bg-[#f8fafc] p-4">
+              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[var(--text-body)]">
                 <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
                 Критическая ошибка: обнулить итоговую оценку
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Тип критической ошибки
                 <input
                   name="criticalCategory"
@@ -560,7 +560,7 @@ export function ReviewPanel({
                   <option key={template} value={template} />
                 ))}
               </datalist>
-              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[#334155]">
+              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[var(--text-body)]">
                 <input name="needsReanswer" type="checkbox" defaultChecked={draftReview?.needsReanswer ?? false} />
                 Нужен переответ клиенту
               </label>
@@ -568,19 +568,19 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d9e0ea]" open={hasFeedbackDetails}>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[var(--border)]" open={hasFeedbackDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[#111827]">Обратная связь</h4>
-                <p className="mt-1 text-xs text-[#64748b]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
+                <h4 className="text-sm font-semibold text-[var(--foreground)]">Обратная связь</h4>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
               </div>
               <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+            <div className="grid gap-4 border-t border-[var(--border)] bg-[#f8fafc] p-4">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Комментарий для обратной связи
                 <textarea
                   name="feedbackComment"
@@ -592,7 +592,7 @@ export function ReviewPanel({
               </label>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Положительные моменты
                   <textarea
                     name="positiveNotes"
@@ -602,7 +602,7 @@ export function ReviewPanel({
                   />
                 </label>
 
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Ссылки на инструкции и материалы
                   <textarea
                     name="instructionLinks"
@@ -615,20 +615,20 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[#d9e0ea]" open={hasAnalysisDetails}>
+          <details className="disclosure-panel overflow-hidden rounded-md border border-[var(--border)]" open={hasAnalysisDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[#111827]">Разбор и калибровка</h4>
-                <p className="mt-1 text-xs text-[#64748b]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
+                <h4 className="text-sm font-semibold text-[var(--foreground)]">Разбор и калибровка</h4>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
               </div>
               <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[#d9e0ea] bg-[#f8fafc] p-4">
+            <div className="grid gap-4 border-t border-[var(--border)] bg-[#f8fafc] p-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Корневая причина
                   <textarea
                     name="rootCause"
@@ -638,7 +638,7 @@ export function ReviewPanel({
                   />
                 </label>
 
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Краткое доказательство
                   <textarea
                     name="evidenceSummary"
@@ -650,7 +650,7 @@ export function ReviewPanel({
               </div>
 
               <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Действие для разбора
                   <input
                     name="coachingAction"
@@ -664,7 +664,7 @@ export function ReviewPanel({
                     <option key={template} value={template} />
                   ))}
                 </datalist>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Ответственный за разбор
                   <input
                     name="coachingAssignee"
@@ -672,7 +672,7 @@ export function ReviewPanel({
                     className={fieldClassName}
                   />
                 </label>
-                <label className="grid gap-1 text-sm font-medium text-[#334155]">
+                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Срок
                   <input
                     name="coachingDueAt"
@@ -683,7 +683,7 @@ export function ReviewPanel({
                 </label>
               </div>
 
-              <label className="grid gap-1 text-sm font-medium text-[#334155]">
+              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Заметки для калибровки
                 <textarea
                   name="calibrationNotes"

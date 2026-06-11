@@ -54,14 +54,14 @@ function formatDate(value: Date | null | undefined) {
 export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
   return (
     <section className="panel overflow-hidden">
-      <div className="border-b border-[#d9e0ea] px-5 py-4">
+      <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">История запусков</h2>
-        <p className="mt-1 text-sm leading-5 text-[#64748b]">Preview, выбранные импорты и связанные backend jobs.</p>
+        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">Preview, выбранные импорты и связанные backend jobs.</p>
       </div>
 
       <div className="record-list px-5">
         {runs.length === 0 ? (
-          <div className="soft-callout text-sm leading-5 text-[#64748b]">Запусков для этого источника пока нет.</div>
+          <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">Запусков для этого источника пока нет.</div>
         ) : (
           runs.map((run) => {
             const runStatus = integrationRunStatusView(run.status);
@@ -105,13 +105,13 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
                 </div>
 
                 {run.errorMessage ? (
-                  <div className="soft-callout soft-callout--warn mt-3 text-sm leading-5 text-[#b45309]">{run.errorMessage}</div>
+                  <div className="soft-callout soft-callout--warn mt-3 text-sm leading-5 text-[var(--warning)]">{run.errorMessage}</div>
                 ) : null}
 
                 {run.items.length > 0 ? (
                   <div className="scroll-area mt-3">
                     <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
-                      <thead className="bg-[#edf2ff] text-xs uppercase text-[#475569]">
+                      <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
                         <tr>
                           <th className="px-3 py-2 font-semibold">External ID</th>
                           <th className="px-3 py-2 font-semibold">Ticket</th>
@@ -130,7 +130,7 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
                                 {item.status}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-[#334155]">
+                            <td className="px-3 py-2 text-[var(--text-body)]">
                               {item.articleCount} · private {item.privateArticleCount} · files {item.attachmentCount}
                             </td>
                             <td className="px-3 py-2">

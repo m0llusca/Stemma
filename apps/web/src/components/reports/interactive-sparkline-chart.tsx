@@ -95,7 +95,7 @@ export function InteractiveSparklineChart({
   }, [points, target]);
 
   if (!chart) {
-    return <p className="text-sm text-[#64748b]">Нет завершенных проверок за выбранный период.</p>;
+    return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок за выбранный период.</p>;
   }
 
   const firstPoint = chart.points[0];
