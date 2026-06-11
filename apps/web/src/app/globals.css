@@ -207,6 +207,12 @@ body[data-theme="ops"] {
   --text-body: #ccd5e2;
   --text-subtle: #aab6c8;
   --text-muted: #93a4bb;
+  /* Status hues brightened for dark panels (the light #b91c1c/#b45309/#15803d fail
+     WCAG AA as text on #151a24). Used for status text, borders, indicator dots and
+     low-opacity soft backgrounds. */
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #4ade80;
   --panel: #151a24;
   --panel-muted: #101620;
   --panel-tint: #1c2534;
