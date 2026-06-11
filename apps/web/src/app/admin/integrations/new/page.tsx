@@ -1,54 +1,41 @@
 import { ArrowLeft, KeyRound } from "lucide-react";
 import Link from "next/link";
-import { IntegrationSetupWorkspace } from "@/components/integrations/integration-setup-workspace";
+import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
+import { limitedSupportSources, listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { requireCurrentUserPermission } from "@/lib/current-user";
-import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-function badgeClass(tone: "ok" | "warn" | "neutral") {
-  const classes = {
-    ok: "bg-[#ecfdf5] text-[#15803d]",
-    warn: "bg-[#fff7ed] text-[#b45309]",
-    neutral: "bg-[#f8fafc] text-[#334155]"
-  };
-
-  return classes[tone];
-}
-
-function customApiHealth(
-  apiTokens: Array<{ lastSuccessAt: Date | null; lastErrorAt: Date | null; lastError: string | null }>
-) {
-  const hasCurrentError = apiTokens.some(
-    (token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
-  );
-
-  if (hasCurrentError) {
-    return { label: "Есть ошибка", className: badgeClass("warn") };
-  }
-
-  if (apiTokens.some((token) => token.lastSuccessAt)) {
-    return { label: "Работает", className: badgeClass("ok") };
-  }
-
-  return { label: "Готов", className: badgeClass("ok") };
-}
+const SOURCE_LABELS: Record<string, string> = {
+  otrs: "OTRS Community Edition 6",
+  znuny: "Znuny",
+  otobo: "OTOBO",
+  zendesk: "Zendesk",
+  freshdesk: "Freshdesk",
+  intercom: "Intercom",
+  hubspot: "HubSpot",
+  jira: "Jira Service Management",
+  ydb: "YDB",
+  ytsaurus: "YTsaurus",
+  salesforce: "Salesforce",
+  servicenow: "ServiceNow",
+  dynamics: "Microsoft Dynamics 365"
+};
 
 export default async function NewIntegrationPage() {
-  const user = await requireCurrentUserPermission("integrations:manage");
-  const apiTokens = await prisma.apiToken.findMany({
-    where: {
-      workspaceId: user.workspaceId
-    },
-    orderBy: {
-      createdAt: "desc"
-    },
-    select: {
-      lastSuccessAt: true,
-      lastErrorAt: true,
-      lastError: true
-    }
-  });
+  await requireCurrentUserPermission("integrations:manage");
+
+  // Реестр профилей серверный (тянет адаптеры/prisma) — на клиент уходят только
+  // сериализуемые метаданные.
+  const sources = listConnectionProfiles().map((profile) => ({
+    source: profile.source,
+    label: SOURCE_LABELS[profile.source] ?? profile.source,
+    type: profile.type,
+    urlPolicy: profile.urlPolicy,
+    fixedBaseUrl: profile.fixedBaseUrl,
+    fields: profile.credentialFields,
+    limited: limitedSupportSources.has(profile.source)
+  }));
 
   return (
     <section className="page-shell admin-shell">
@@ -57,7 +44,7 @@ export default async function NewIntegrationPage() {
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Новый источник</h1>
           <p className="page-subtitle">
-            Пошаговая настройка для OTRS CE 6, Znuny, OTOBO, native helpdesk и своего API.
+            Выберите тип, вставьте ссылку на источник — система сама определит параметры и проверит доступ.
           </p>
           <div className="admin-actions mt-5">
             <Link href="/admin/integrations" className="action-button">
@@ -76,12 +63,12 @@ export default async function NewIntegrationPage() {
         <div className="ops-panel__header">
           <div>
             <p className="ops-panel__eyebrow">Источник</p>
-            <h2 id="new-integration-title" className="ops-panel__title">Настройка источника</h2>
-            <p className="ops-panel__subtitle">Выберите тип подключения и заполните параметры импорта.</p>
+            <h2 id="new-integration-title" className="ops-panel__title">Подключение источника</h2>
+            <p className="ops-panel__subtitle">Тип + адрес + минимум учётных данных — остальное определяется автоматически.</p>
           </div>
         </div>
         <div className="p-4">
-          <IntegrationSetupWorkspace apiTokenCount={apiTokens.length} apiHealth={customApiHealth(apiTokens)} />
+          <ConnectSourceForm sources={sources} />
         </div>
       </section>
     </section>
