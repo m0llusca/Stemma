@@ -20,11 +20,11 @@ describe("OTRS-family connector config", () => {
       routes: {
         ticketSearchPath: "/Ticket",
         ticketGetPath: "/Ticket/{TicketID}",
-        ticketSearchMethod: "POST",
+        ticketSearchMethod: "GET",
         ticketGetMethod: "GET"
       },
       requestMode: {
-        ticketSearch: "post_json",
+        ticketSearch: "get_query",
         ticketGet: "get_query"
       },
       auth: {
@@ -254,6 +254,14 @@ describe("OTRS-family connector config", () => {
     });
   });
 
+  it("resolves otrs_ce_6 default TicketSearch to GET /Ticket with get_query mode (regression: was POST)", () => {
+    const config = buildDefaultOtrsConnectorConfig("otrs_ce_6");
+
+    expect(config.routes.ticketSearchMethod).toBe("GET");
+    expect(config.routes.ticketSearchPath).toBe("/Ticket");
+    expect(config.requestMode.ticketSearch).toBe("get_query");
+  });
+
   it("preserves explicit request modes over derived route method defaults", () => {
     expect(
       parseOtrsConnectorConfig({
@@ -280,7 +288,7 @@ describe("OTRS-family connector config", () => {
     ).toEqual({
       ticketSearchPath: "/Ticket",
       ticketGetPath: "/Ticket/{TicketID}",
-      ticketSearchMethod: "POST",
+      ticketSearchMethod: "GET",
       ticketGetMethod: "GET"
     });
   });

@@ -34,6 +34,52 @@ describe("native helpdesk normalizer", () => {
     expect(hubspot?.tags).toContain("HIGH");
   });
 
+  it("maps Dynamics prioritycode per the incident schema (1=High, 2=Normal, 3=Low)", () => {
+    const high = normalizeNativeHelpdeskPayload(
+      {
+        incident: {
+          incidentid: "11111111-2222-3333-4444-555555555555",
+          title: "High priority Dynamics case",
+          statecode: 0,
+          prioritycode: 1,
+          createdon: "2026-04-25T10:00:00Z"
+        },
+        activities: [
+          { activityid: "a1", description: "Срочно нужен возврат.", createdon: "2026-04-25T10:00:00Z" }
+        ]
+      },
+      { source: "dynamics" }
+    )[0];
+
+    expect(high?.tags).toContain("high");
+    expect(high?.riskHint).toBe("Priority: high");
+
+    const low = normalizeNativeHelpdeskPayload(
+      {
+        incident: {
+          incidentid: "11111111-2222-3333-4444-555555555555",
+          title: "Low priority Dynamics case",
+          statecode: 0,
+          prioritycode: 3,
+          createdon: "2026-04-25T10:00:00Z"
+        },
+        activities: [
+          { activityid: "a1", description: "Можно не торопиться.", createdon: "2026-04-25T10:00:00Z" }
+        ]
+      },
+      { source: "dynamics" }
+    )[0];
+
+    expect(low?.tags).toContain("low");
+    expect(low?.riskHint).toBeUndefined();
+  });
+
+  it("falls back to a neutral Dynamics author when activitypointer has no sender column", () => {
+    const dynamics = normalizeNativeHelpdeskPayload(nativeHelpdeskImportExamples.dynamics, { source: "dynamics" })[0];
+
+    expect(dynamics?.messages.map((message) => message.authorName)).toEqual(["Dynamics 365", "Dynamics 365"]);
+  });
+
   it("maps Jira public and internal comments to message privacy", () => {
     const [conversation] = normalizeNativeHelpdeskPayload(
       {

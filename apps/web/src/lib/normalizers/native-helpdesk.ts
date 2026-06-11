@@ -1013,16 +1013,16 @@ const dynamicsStateLabels: Record<string, string> = {
 };
 
 const dynamicsPriorityLabels: Record<string, string> = {
-  "0": "low",
-  "1": "normal",
-  "2": "high"
+  "1": "high",
+  "2": "normal",
+  "3": "low"
 };
 
 function normalizeDynamicsMessage(activity: NativeRecord, index: number): CustomMessageInput {
   return {
     externalId: firstString(activity.activityid, activity.id, `activity-${index + 1}`) ?? `activity-${index + 1}`,
     participantType: "human_agent",
-    authorName: firstString(activity.sender, recordValue(activity.from)?.name, recordValue(activity.ownerid)?.name) ?? "Dynamics 365",
+    authorName: firstString(recordValue(activity.ownerid)?.name, recordValue(activity.from)?.name) ?? "Dynamics 365",
     body: enterpriseMessageBody(activity.description, activity.body),
     sentAt: parseDate(activity.createdon, new Date(index)),
     isPrivate: false
@@ -1343,15 +1343,13 @@ export const nativeHelpdeskImportExamples: Record<NativeHelpdeskSource, unknown>
         activityid: "activity-1",
         subject: "Customer message",
         description: "Заказ задержан, хочу возврат.",
-        createdon: "2026-04-25T10:00:00Z",
-        sender: "Анна Смирнова"
+        createdon: "2026-04-25T10:00:00Z"
       },
       {
         activityid: "activity-2",
         subject: "Agent reply",
         description: "Проверю статус и предложу вариант возврата.",
-        createdon: "2026-04-25T10:08:00Z",
-        sender: "Иван Петров"
+        createdon: "2026-04-25T10:08:00Z"
       }
     ]
   }

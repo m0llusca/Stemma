@@ -87,8 +87,7 @@ const helpdeskAdapterFixtureTemplates = deepFreeze(
             activityid: "activity-1",
             subject: "Customer message",
             description: "Заказ задержан, хочу возврат.",
-            createdon: "2026-04-25T10:00:00Z",
-            sender: "Анна Смирнова"
+            createdon: "2026-04-25T10:00:00Z"
           }
         ]
       },

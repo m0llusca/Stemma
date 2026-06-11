@@ -593,9 +593,10 @@ describe("OTRS-family preview/import planning", () => {
       "TicketGet",
       "TicketGet"
     ]);
-    expect(client.requestJson.mock.calls[1][0].body).toMatchObject({
-      SessionID: "session-1"
-    });
+    const searchRequest = client.requestJson.mock.calls[1][0];
+    const searchBody = searchRequest.body as { SessionID?: string } | undefined;
+    const searchSessionId = searchBody?.SessionID ?? new URL(searchRequest.url).searchParams.get("SessionID");
+    expect(searchSessionId).toBe("session-1");
     expect(state.items.map((item) => item.externalId)).toEqual(["201", "202"]);
   });
 

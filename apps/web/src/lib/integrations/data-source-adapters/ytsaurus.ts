@@ -48,11 +48,22 @@ function oauthToken(credential: string | undefined) {
   return token;
 }
 
+function rowRangePath(tablePath: string, limit: number) {
+  // read_table не имеет параметра limit: ограничение строк задаётся диапазоном
+  // в YPath — //path/to/table[#0:#N] (строки 0..N-1). Если путь уже содержит
+  // диапазон [...] или атрибуты <...>, дописывать диапазон нельзя — уважаем
+  // заданный пользователем YPath.
+  if (tablePath.includes("[") || tablePath.includes("<")) {
+    return tablePath;
+  }
+
+  return `${tablePath}[#0:#${inputLimit(limit)}]`;
+}
+
 function readTableUrl(proxyUrl: string, tablePath: string, limit: number) {
   const url = new URL(`${proxyUrl}/api/v3/read_table`);
 
-  url.searchParams.set("path", tablePath);
-  url.searchParams.set("limit", String(inputLimit(limit)));
+  url.searchParams.set("path", rowRangePath(tablePath, limit));
 
   return url.toString();
 }

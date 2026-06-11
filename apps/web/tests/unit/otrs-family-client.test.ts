@@ -117,7 +117,7 @@ async function withOtrsGenericInterfaceServer<T>(
 }
 
 describe("OTRS-family HTTP client", () => {
-  it("builds TicketSearch as default OTRS CE 6 POST JSON with auth, filters, and limit", async () => {
+  it("builds TicketSearch as default OTRS CE 6 GET query with auth, filters, and limit", async () => {
     const { client, config, requests } = createRecordingClient({ TicketID: ["1", "2"] });
 
     await client.requestJson(
@@ -135,16 +135,16 @@ describe("OTRS-family HTTP client", () => {
     );
 
     expect(requests).toHaveLength(1);
-    expect(requests[0].method).toBe("POST");
-    expect(requests[0].url).toBe(`${baseUrl}/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket`);
-    expect(requests[0].headers["content-type"]).toBe("application/json");
-    expect(JSON.parse(requests[0].body ?? "")).toEqual({
-      UserLogin: userLogin,
-      Password: password,
-      Queue: "Support::Refunds",
-      StateType: "Open",
-      Limit: 25
-    });
+    expect(requests[0].method).toBe("GET");
+    expect(requests[0].body).toBeUndefined();
+
+    const url = new URL(requests[0].url);
+    expect(url.pathname).toBe("/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket");
+    expect(url.searchParams.get("UserLogin")).toBe(userLogin);
+    expect(url.searchParams.get("Password")).toBe(password);
+    expect(url.searchParams.get("Queue")).toBe("Support::Refunds");
+    expect(url.searchParams.get("StateType")).toBe("Open");
+    expect(url.searchParams.get("Limit")).toBe("25");
   });
 
   it("builds SessionCreate and then session-authenticated TicketSearch requests", async () => {
@@ -204,12 +204,14 @@ describe("OTRS-family HTTP client", () => {
       UserLogin: userLogin,
       Password: password
     });
-    expect(requests[1].url).toBe(`${baseUrl}/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketSearch`);
-    expect(JSON.parse(requests[1].body ?? "")).toEqual({
-      SessionID: "sid-1",
-      Queue: "Raw",
-      Limit: 50
-    });
+
+    const searchUrl = new URL(requests[1].url);
+    expect(searchUrl.pathname).toBe("/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/TicketSearch");
+    expect(requests[1].method).toBe("GET");
+    expect(requests[1].body).toBeUndefined();
+    expect(searchUrl.searchParams.get("SessionID")).toBe("sid-1");
+    expect(searchUrl.searchParams.get("Queue")).toBe("Raw");
+    expect(searchUrl.searchParams.get("Limit")).toBe("50");
   });
 
   it("honors a POST route override with post_json serialization", async () => {
@@ -727,14 +729,14 @@ describe("OTRS-family HTTP client", () => {
       ).resolves.toEqual({ Success: 1, TicketID: ["42"] });
       expect(server.requests).toHaveLength(1);
       expect(server.requests[0]).toMatchObject({
-        method: "POST",
+        method: "GET",
         operation: "TicketSearch",
         pathname: "/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket",
-        bodyJson: {
+        query: {
           UserLogin: userLogin,
           Password: password,
           Queue: "Raw",
-          Limit: 50
+          Limit: "50"
         }
       });
     });

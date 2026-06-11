@@ -179,6 +179,10 @@ async function readRequest(request: http.IncomingMessage): Promise<OtrsGenericIn
 }
 
 function operationFor(method: string, pathname: string): OtrsGenericInterfaceRequest["operation"] {
+  if (method === "GET" && pathname === ticketRoute) {
+    return "TicketSearch";
+  }
+
   if (method === "POST" && pathname === ticketRoute) {
     return "TicketSearch";
   }
@@ -296,7 +300,7 @@ function authDoesNotMatch(
 }
 
 function authValue(request: OtrsGenericInterfaceRequest, key: "UserLogin" | "Password") {
-  if (request.operation === "TicketSearch" && request.bodyJson && typeof request.bodyJson === "object") {
+  if (request.operation === "TicketSearch" && request.method === "POST" && request.bodyJson && typeof request.bodyJson === "object") {
     const value = (request.bodyJson as Record<string, unknown>)[key];
 
     return value === undefined || value === null ? undefined : String(value);

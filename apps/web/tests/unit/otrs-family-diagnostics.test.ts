@@ -212,7 +212,7 @@ describe("OTRS-family diagnostics", () => {
 
       expect(server.requests.map((request) => request.operation)).toEqual(["TicketSearch", "TicketGet"]);
       expect(server.requests[0]).toMatchObject({
-        method: "POST",
+        method: "GET",
         pathname: "/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket"
       });
       expect(server.requests[1]).toMatchObject({
@@ -252,6 +252,10 @@ describe("OTRS-family diagnostics", () => {
         ticketGetPath: "/Ticket/{TicketID}",
         ticketSearchMethod: "POST" as const,
         ticketGetMethod: "GET" as const
+      },
+      requestMode: {
+        ticketSearch: "post_json" as const,
+        ticketGet: "get_query" as const
       }
     };
     const { client, requests } = createFakeClient([{ SessionID: "session-1" }, { TicketID: ["102"] }, ticketGetPayload("102")]);
@@ -501,7 +505,10 @@ describe("OTRS-family diagnostics", () => {
 
     expect(finalRunUpdate(tx).data.status).toBe("succeeded");
     expect(client.requestJson).toHaveBeenCalled();
-    expect((requests[0] as { body?: { Password?: string } }).body?.Password).toBe(savedPassword);
+    const firstRequest = requests[0] as { body?: { Password?: string }; url?: string };
+    const sentPassword =
+      firstRequest.body?.Password ?? (firstRequest.url ? new URL(firstRequest.url).searchParams.get("Password") ?? undefined : undefined);
+    expect(sentPassword).toBe(savedPassword);
     expect(finalRunUpdate(tx).data.errorCode).toBeNull();
   });
 

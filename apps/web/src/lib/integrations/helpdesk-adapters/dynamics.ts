@@ -6,7 +6,7 @@ import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdes
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 500_000;
 const incidentColumns = ["incidentid", "ticketnumber", "title", "statecode", "prioritycode", "createdon", "modifiedon"];
-const activityColumns = ["activityid", "subject", "description", "createdon", "sender"];
+const activityColumns = ["activityid", "subject", "description", "createdon"];
 const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createDynamicsAdapter() {

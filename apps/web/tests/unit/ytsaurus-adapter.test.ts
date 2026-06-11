@@ -22,8 +22,9 @@ describe("YTsaurus adapter", () => {
       expect(server.requests[0]?.headers.authorization).toBe("OAuth yt-token");
       expect(server.requests[0]?.headers.accept).toBe("application/json");
       expect(server.requests[0]?.headers["x-yt-output-format"]).toBe("json");
-      expect(server.requests[0]?.query.path).toBe("//home/qc/conversations");
-      expect(server.requests[0]?.query.limit).toBe("100");
+      // read_table не имеет параметра limit: ограничение задаётся диапазоном строк в YPath.
+      expect(server.requests[0]?.query.path).toBe("//home/qc/conversations[#0:#100]");
+      expect(server.requests[0]?.query.limit).toBeUndefined();
       expect(JSON.stringify(result.diagnostics)).not.toContain("yt-token");
     } finally {
       await server.close();
@@ -42,9 +43,48 @@ describe("YTsaurus adapter", () => {
         limit: 10
       });
 
-      expect(server.requests[0]?.query.path).toBe("//home/qc/secret-segment/conversations");
+      expect(server.requests[0]?.query.path).toBe("//home/qc/secret-segment/conversations[#0:#10]");
       expect(JSON.stringify(result.diagnostics)).not.toContain("secret-segment");
       expect(JSON.stringify(result.diagnostics)).not.toContain("yt-token");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("builds the read_table row range from the requested limit", async () => {
+    const server = await createYTsaurusServer({ mode: "success" });
+
+    try {
+      await createYTsaurusAdapter().loadRows({
+        source: "ytsaurus",
+        baseUrl: server.baseUrl,
+        config: { tablePath: "//home/qc/conversations" },
+        credential: "yt-token",
+        limit: 25
+      });
+
+      expect(server.requests[0]?.query.path).toBe("//home/qc/conversations[#0:#25]");
+      expect(server.requests[0]?.query.limit).toBeUndefined();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("respects a YPath that already carries a row range", async () => {
+    const server = await createYTsaurusServer({ mode: "success" });
+
+    try {
+      await createYTsaurusAdapter().loadRows({
+        source: "ytsaurus",
+        baseUrl: server.baseUrl,
+        config: { tablePath: "//home/qc/conversations[#5:#15]" },
+        credential: "yt-token",
+        limit: 100
+      });
+
+      expect(server.requests[0]?.query.path).toBe("//home/qc/conversations[#5:#15]");
+      expect(server.requests[0]?.query.path).not.toContain("[#0:#100]");
+      expect(server.requests[0]?.query.limit).toBeUndefined();
     } finally {
       await server.close();
     }

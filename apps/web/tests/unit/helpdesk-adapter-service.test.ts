@@ -553,6 +553,9 @@ describe("native helpdesk adapters", () => {
         if (source === "dynamics") {
           expect(server.requests[0]?.query.$select).toContain("incidentid");
           expect(server.requests[1]?.query.$filter).toBe(`_regardingobjectid_value eq ${externalId}`);
+          // activitypointer has no `sender` column; selecting it would 400 in Dataverse.
+          expect(server.requests[1]?.query.$select).not.toContain("sender");
+          expect(server.requests[1]?.query.$select).toContain("activityid");
         }
 
         expect(JSON.stringify(result.diagnostics)).not.toContain("enterprise-token");

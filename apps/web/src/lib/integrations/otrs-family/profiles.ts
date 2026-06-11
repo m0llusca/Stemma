@@ -7,7 +7,7 @@ export const otrsFamilyProfiles = {
     webServiceName: "GenericTicketConnectorREST",
     ticketSearchPath: "/Ticket",
     ticketGetPath: "/Ticket/{TicketID}",
-    ticketSearchMethod: "POST",
+    ticketSearchMethod: "GET",
     ticketGetMethod: "GET",
     ticketZoomPath: "/index.pl?Action=AgentTicketZoom;TicketID=<TicketID>"
   },

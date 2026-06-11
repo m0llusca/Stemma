@@ -138,7 +138,7 @@ describe("OTRS-family normalizer", () => {
     const znunyProfile = otrsFamilyApiProfiles.find((profile) => profile.source === "znuny");
 
     expect(otrsFamilyApiProfiles.map((profile) => profile.source)).toEqual(["otrs", "znuny", "otobo"]);
-    expect(otrsProfile?.ticketSearchMethod).toBe("POST");
+    expect(otrsProfile?.ticketSearchMethod).toBe("GET");
     expect(otrsFamilyApiProfiles.map((profile) => otrsFamilyTicketGetUrl(profile, "42"))).toEqual([
       "https://support.example.com/otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
       "https://support.example.com/znuny/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST/Ticket/42",
@@ -156,7 +156,7 @@ describe("OTRS-family normalizer", () => {
       label: "OTRS Community Edition 6",
       basePath: "/otrs",
       webService: "GenericTicketConnectorREST",
-      ticketSearchMethod: "POST",
+      ticketSearchMethod: "GET",
       ticketSearchPath: "/Ticket"
     });
   });
