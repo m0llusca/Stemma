@@ -24,8 +24,11 @@ export type OtrsTransportResponse = {
 
 export type OtrsTransport = (request: OtrsTransportRequest) => Promise<OtrsTransportResponse>;
 
+export type OtrsRouteProbeResult = { statusCode: number; bodyText: string };
+
 export type OtrsHttpClient = {
   requestJson: (operationRequest: OtrsOperationRequest) => Promise<unknown>;
+  probeRoute: (operationRequest: OtrsOperationRequest) => Promise<OtrsRouteProbeResult>;
 };
 
 type RequestJsonRuntime = {
@@ -60,38 +63,63 @@ export function createOtrsHttpClient(input: {
   const transport = input.transport ?? nodeTransport;
   const secrets = [input.userLogin, input.password, input.caBundle].filter((value): value is string => Boolean(value));
 
+  const withLimits = (operationRequest: OtrsOperationRequest): OtrsOperationRequest => ({
+    ...operationRequest,
+    timeoutMs: operationRequest.timeoutMs ?? input.config.limits.requestTimeoutMs,
+    maxResponseBytes: operationRequest.maxResponseBytes ?? input.config.limits.maxResponseBytes
+  });
+  const runtime: RequestJsonRuntime = {
+    transport,
+    caBundle: input.caBundle,
+    secrets
+  };
+
   return {
-    requestJson: (operationRequest) =>
-      requestJson(
-        {
-          ...operationRequest,
-          timeoutMs: operationRequest.timeoutMs ?? input.config.limits.requestTimeoutMs,
-          maxResponseBytes: operationRequest.maxResponseBytes ?? input.config.limits.maxResponseBytes
-        },
-        {
-          transport,
-          caBundle: input.caBundle,
-          secrets
-        }
-      )
+    requestJson: (operationRequest) => requestJson(withLimits(operationRequest), runtime),
+    probeRoute: async (operationRequest) => {
+      const { statusCode, body } = await sendRaw(withLimits(operationRequest), runtime);
+      return {
+        statusCode,
+        bodyText: body.toString("utf8")
+      };
+    }
   };
 }
 
-export async function requestJson(operationRequest: OtrsOperationRequest, runtime: RequestJsonRuntime = {}) {
+async function sendRaw(
+  operationRequest: OtrsOperationRequest,
+  runtime: RequestJsonRuntime
+): Promise<{ statusCode: number; body: Buffer; request: OtrsTransportRequest }> {
   const transport = runtime.transport ?? nodeTransport;
   const request = buildTransportRequest(operationRequest, runtime.caBundle);
 
   try {
     const response = await transport(request);
-    const responseBody = responseBodyToBuffer(response.body);
+    return {
+      statusCode: response.statusCode,
+      body: responseBodyToBuffer(response.body),
+      request
+    };
+  } catch (error) {
+    if (error instanceof OtrsConnectorError) {
+      throw error;
+    }
 
+    throw mapTransportError(error, request, runtime.secrets);
+  }
+}
+
+export async function requestJson(operationRequest: OtrsOperationRequest, runtime: RequestJsonRuntime = {}) {
+  const { statusCode, body: responseBody, request } = await sendRaw(operationRequest, runtime);
+
+  try {
     if (responseBody.byteLength > request.maxResponseBytes) {
       throw buildConnectorError({
         code: "response_too_large",
         safeMessage: "OTRS response exceeded the configured size limit.",
         request,
         detail: {
-          statusCode: response.statusCode,
+          statusCode,
           responseBytes: responseBody.byteLength,
           maxResponseBytes: request.maxResponseBytes
         },
@@ -101,26 +129,26 @@ export async function requestJson(operationRequest: OtrsOperationRequest, runtim
 
     const text = responseBody.toString("utf8");
 
-    if (response.statusCode === 401) {
+    if (statusCode === 401) {
       throw buildConnectorError({
         code: "auth_failed",
         safeMessage: "OTRS rejected the configured credentials.",
         request,
         detail: {
-          statusCode: response.statusCode,
+          statusCode,
           responseBody: text
         },
         secrets: runtime.secrets
       });
     }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (statusCode < 200 || statusCode >= 300) {
       throw buildConnectorError({
         code: operationFailureCode(request.operation),
-        safeMessage: `OTRS ${request.operation} request failed with HTTP ${response.statusCode}.`,
+        safeMessage: `OTRS ${request.operation} request failed with HTTP ${statusCode}.`,
         request,
         detail: {
-          statusCode: response.statusCode,
+          statusCode,
           responseBody: text
         },
         secrets: runtime.secrets

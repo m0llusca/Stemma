@@ -53,7 +53,8 @@ describe("OTRS-family connector config", () => {
       },
       advanced: {
         routeOverridesEnabled: false
-      }
+      },
+      timeZone: "UTC"
     });
   });
 
@@ -327,5 +328,21 @@ describe("OTRS-family connector config", () => {
       caBundleSecretId: null,
       caFingerprint: "AA:BB"
     });
+  });
+});
+
+describe("timeZone config", () => {
+  it("defaults timeZone to UTC", () => {
+    const config = parseOtrsConnectorConfig({ product: "otrs_ce_6" });
+    expect(config.timeZone).toBe("UTC");
+  });
+
+  it("accepts a valid IANA timezone", () => {
+    const config = parseOtrsConnectorConfig({ product: "otrs_ce_6", timeZone: "Europe/Moscow" });
+    expect(config.timeZone).toBe("Europe/Moscow");
+  });
+
+  it("rejects an invalid timezone", () => {
+    expect(() => parseOtrsConnectorConfig({ product: "otrs_ce_6", timeZone: "Mars/Phobos" })).toThrow();
   });
 });

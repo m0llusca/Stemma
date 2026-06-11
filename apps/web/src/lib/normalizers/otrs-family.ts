@@ -221,6 +221,7 @@ export type OtrsFamilyNormalizeOptions = {
   source?: OtrsFamilySource;
   baseUrl?: string;
   samplingReason?: string;
+  timeZone?: string;
 };
 
 const highRiskPriorityPattern = /(high|critical|urgent|escalat|высок|критич|сроч)/i;
@@ -242,7 +243,43 @@ function arrayValue<T>(value: T | T[] | undefined) {
   return Array.isArray(value) ? value : [value];
 }
 
-function parseOtrsDate(value: OtrsScalar, fallback = new Date(0)) {
+function zoneOffsetMs(instant: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  const parts: Record<string, number> = {};
+  for (const part of dtf.formatToParts(instant)) {
+    if (part.type !== "literal") {
+      parts[part.type] = Number(part.value);
+    }
+  }
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return asUtc - instant.getTime();
+}
+
+export function naiveOtrsDateToUtcIso(naive: string, timeZone: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(naive);
+  if (!match) {
+    const fallback = new Date(`${naive}Z`);
+    return Number.isNaN(fallback.getTime()) ? new Date(0).toISOString() : fallback.toISOString();
+  }
+  const [, y, mo, d, h, mi, s] = match.map(Number);
+  const guess = Date.UTC(y, mo - 1, d, h, mi, s);
+  // Two passes converge the zone offset for DST transitions; for fixed-offset
+  // zones (e.g. Europe/Moscow) the first pass is already exact.
+  let utc = guess - zoneOffsetMs(new Date(guess), timeZone);
+  utc = guess - zoneOffsetMs(new Date(utc), timeZone);
+  return new Date(utc).toISOString();
+}
+
+export function parseOtrsDate(value: OtrsScalar, fallback = new Date(0), timeZone = "UTC") {
   const normalized = stringValue(value);
 
   if (!normalized) {
@@ -256,10 +293,14 @@ function parseOtrsDate(value: OtrsScalar, fallback = new Date(0)) {
   }
 
   const isoLikeValue = normalized.includes("T") ? normalized : normalized.replace(" ", "T");
-  const withZone = /(Z|[+-]\d{2}:\d{2})$/.test(isoLikeValue) ? isoLikeValue : `${isoLikeValue}Z`;
-  const date = new Date(withZone);
 
-  return Number.isNaN(date.getTime()) ? fallback.toISOString() : date.toISOString();
+  if (/(Z|[+-]\d{2}:\d{2})$/.test(isoLikeValue)) {
+    const date = new Date(isoLikeValue);
+    return Number.isNaN(date.getTime()) ? fallback.toISOString() : date.toISOString();
+  }
+
+  const iso = naiveOtrsDateToUtcIso(isoLikeValue, timeZone);
+  return Number.isNaN(Date.parse(iso)) ? fallback.toISOString() : iso;
 }
 
 function isVisibleForCustomer(value: OtrsScalar) {
@@ -354,10 +395,10 @@ export function isOtrsFamilyTicketLike(ticket: OtrsFamilyTicket) {
   );
 }
 
-export function normalizeOtrsFamilyArticle(article: OtrsFamilyArticle, index = 0): CustomMessageInput {
+export function normalizeOtrsFamilyArticle(article: OtrsFamilyArticle, index = 0, timeZone = "UTC"): CustomMessageInput {
   const externalId =
     stringValue(article.ArticleID) ?? stringValue(article.ArticleNumber) ?? `article-${String(index + 1).padStart(3, "0")}`;
-  const sentAt = parseOtrsDate(article.Created ?? article.CreateTime ?? article.IncomingTime, new Date(index));
+  const sentAt = parseOtrsDate(article.Created ?? article.CreateTime ?? article.IncomingTime, new Date(index), timeZone);
   const senderType = participantType(article);
 
   return {
@@ -374,17 +415,18 @@ export function normalizeOtrsFamilyTicket(
   ticket: OtrsFamilyTicket,
   options: OtrsFamilyNormalizeOptions = {}
 ): CustomConversationInput {
+  const timeZone = options.timeZone ?? "UTC";
   const articles = arrayValue(ticket.Article).sort((left, right) => {
-    const leftTime = new Date(parseOtrsDate(left.Created ?? left.CreateTime ?? left.IncomingTime)).getTime();
-    const rightTime = new Date(parseOtrsDate(right.Created ?? right.CreateTime ?? right.IncomingTime)).getTime();
+    const leftTime = new Date(parseOtrsDate(left.Created ?? left.CreateTime ?? left.IncomingTime, new Date(0), timeZone)).getTime();
+    const rightTime = new Date(parseOtrsDate(right.Created ?? right.CreateTime ?? right.IncomingTime, new Date(0), timeZone)).getTime();
     return leftTime - rightTime;
   });
-  const messages = articles.map(normalizeOtrsFamilyArticle);
+  const messages = articles.map((article, index) => normalizeOtrsFamilyArticle(article, index, timeZone));
   const ticketId = stringValue(ticket.TicketID);
   const ticketNumber = stringValue(ticket.TicketNumber);
   const priority = stringValue(ticket.Priority);
-  const createdAt = parseOtrsDate(ticket.Created ?? ticket.CreateTime, messages[0] ? new Date(messages[0].sentAt) : new Date(0));
-  const closedAt = ticket.Closed || ticket.ClosedTime ? parseOtrsDate(ticket.Closed ?? ticket.ClosedTime) : null;
+  const createdAt = parseOtrsDate(ticket.Created ?? ticket.CreateTime, messages[0] ? new Date(messages[0].sentAt) : new Date(0), timeZone);
+  const closedAt = ticket.Closed || ticket.ClosedTime ? parseOtrsDate(ticket.Closed ?? ticket.ClosedTime, new Date(0), timeZone) : null;
   const firstCustomerMessage = messages.find((message) => message.participantType === "customer");
 
   return {

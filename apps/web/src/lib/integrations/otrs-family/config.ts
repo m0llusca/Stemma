@@ -92,7 +92,8 @@ const rawConfigSchema = z
         routeOverridesEnabled: z.boolean().optional()
       })
       .passthrough()
-      .optional()
+      .optional(),
+    timeZone: z.string().trim().min(1).optional()
   })
   .passthrough()
   .superRefine((value, ctx) => {
@@ -118,6 +119,18 @@ const rawConfigSchema = z
         code: z.ZodIssueCode.custom,
         message: `OTRS route overrides require advanced.routeOverridesEnabled for ${profile.label}.`
       });
+    }
+
+    if (value.timeZone) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: value.timeZone });
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Некорректная таймзона OTRS: ${value.timeZone}.`,
+          path: ["timeZone"]
+        });
+      }
     }
   })
   .transform((value) => {
@@ -165,7 +178,8 @@ const rawConfigSchema = z
       },
       advanced: {
         routeOverridesEnabled: value.advanced?.routeOverridesEnabled ?? false
-      }
+      },
+      timeZone: value.timeZone ?? "UTC"
     };
   });
 
