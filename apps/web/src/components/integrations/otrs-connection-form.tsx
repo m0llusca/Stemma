@@ -1,15 +1,28 @@
 "use client";
 
 import { Save } from "lucide-react";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { type OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { otrsFamilyProfiles } from "@/lib/integrations/otrs-family/profiles";
 import { saveOtrsIntegrationConfigurationState, type IntegrationActionState } from "@/lib/integration-actions";
+import { detectOtrsRoutesAction, type DetectOtrsRoutesState } from "@/lib/otrs-import-actions";
 
 const initialState: IntegrationActionState = null;
+const labelClass = "grid gap-1.5 text-sm font-medium text-[#334155]";
 const fieldClass = "form-control h-10 w-full text-sm";
 const textareaClass = "form-control min-h-[110px] w-full resize-y text-sm";
+
+const OTRS_TIME_ZONES = [
+  "UTC",
+  "Europe/Moscow",
+  "Europe/Kaliningrad",
+  "Asia/Yekaterinburg",
+  "Asia/Novosibirsk",
+  "Asia/Krasnoyarsk",
+  "Asia/Irkutsk",
+  "Asia/Vladivostok"
+] as const;
 
 type CredentialSummary = {
   id: string;
@@ -58,10 +71,12 @@ function routeConfigJson(
     ticketGetMethod: "GET" | "POST";
   },
   routeOverridesEnabled: boolean,
-  auth: OtrsConnectorConfig["auth"]
+  auth: OtrsConnectorConfig["auth"],
+  timeZone: string
 ) {
   return JSON.stringify({
     auth,
+    timeZone,
     articlePolicy: config.articlePolicy,
     attachmentPolicy: config.attachmentPolicy,
     advanced: {
@@ -74,6 +89,12 @@ function routeConfigJson(
 
 export function OtrsConnectionForm({ integration, config, userLogin, credentials }: OtrsConnectionFormProps) {
   const [state, formAction] = useActionState(saveOtrsIntegrationConfigurationState, initialState);
+  const [detectState, detectAction, detecting] = useActionState<DetectOtrsRoutesState, FormData>(
+    detectOtrsRoutesAction,
+    null
+  );
+  const [webServiceName, setWebServiceName] = useState(config.webServiceName);
+  const [timeZone, setTimeZone] = useState(config.timeZone ?? "UTC");
   const [routeOverridesEnabled, setRouteOverridesEnabled] = useState(config.advanced.routeOverridesEnabled);
   const [ticketSearchMethod, setTicketSearchMethod] = useState<"GET" | "POST">(config.routes.ticketSearchMethod);
   const [ticketGetMethod, setTicketGetMethod] = useState<"GET" | "POST">(config.routes.ticketGetMethod);
@@ -82,6 +103,23 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
   const [ticketSearchAuth, setTicketSearchAuth] = useState<"credentials" | "session">(config.auth.ticketSearch);
   const [ticketGetAuth, setTicketGetAuth] = useState<"credentials" | "session">(config.auth.ticketGet);
   const [sessionCreatePath, setSessionCreatePath] = useState(config.auth.sessionCreatePath);
+
+  useEffect(() => {
+    if (detectState?.ok) {
+      const { ticketGet, ticketSearch } = detectState.result;
+      if (ticketGet) {
+        setTicketGetMethod(ticketGet.method);
+        setTicketGetPath(ticketGet.path);
+      }
+      if (ticketSearch) {
+        setTicketSearchMethod(ticketSearch.method);
+        setTicketSearchPath(ticketSearch.path);
+      }
+      if (ticketGet || ticketSearch) {
+        setRouteOverridesEnabled(true);
+      }
+    }
+  }, [detectState]);
   const products = Object.values(otrsFamilyProfiles);
   const credentialByKind = useMemo(() => new Map(credentials.map((credential) => [credential.kind, credential])), [credentials]);
   const passwordSlot = credentialByKind.get("auth_password");
@@ -110,9 +148,30 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         </p>
       </div>
 
+      <form action={detectAction} className="grid gap-2 border-b border-[#d9e0ea] px-4 py-4">
+        <input type="hidden" name="baseUrl" value={integration.baseUrl ?? ""} />
+        <input type="hidden" name="webServiceName" value={webServiceName} />
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" className="action-button" disabled={detecting}>
+            {detecting ? "Определяем..." : "Определить маршруты автоматически"}
+          </button>
+          <span className="text-xs text-[#64748b]">
+            Пробует стандартные маршруты GenericInterface и заполняет route overrides.
+          </span>
+        </div>
+        {detectState?.ok === false ? (
+          <p className="text-sm font-medium text-[#b91c1c]">{detectState.message}</p>
+        ) : null}
+        {detectState?.ok && detectState.result.undetected.length > 0 ? (
+          <p className="text-sm text-[#b45309]">
+            Не определены: {detectState.result.undetected.join(", ")} — введите вручную.
+          </p>
+        ) : null}
+      </form>
+
       <form action={formAction} className="grid gap-5 p-4">
         <input type="hidden" name="source" value={integration.source} />
-        <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth)} />
+        <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth, timeZone)} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
@@ -135,7 +194,28 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
             WebService name
-            <input name="webServiceName" defaultValue={config.webServiceName} required className={fieldClass} />
+            <input
+              name="webServiceName"
+              value={webServiceName}
+              onChange={(event) => setWebServiceName(event.target.value)}
+              required
+              className={fieldClass}
+            />
+          </label>
+          <label className={labelClass}>
+            Таймзона OTRS-сервера
+            <select
+              name="timeZone"
+              value={timeZone}
+              onChange={(event) => setTimeZone(event.target.value)}
+              className={fieldClass}
+            >
+              {OTRS_TIME_ZONES.map((zone) => (
+                <option key={zone} value={zone}>
+                  {zone}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-[#334155]">
             Base path
