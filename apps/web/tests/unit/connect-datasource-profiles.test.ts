@@ -47,7 +47,6 @@ describe("ytsaurus verifyAuth", () => {
       baseUrl: "https://yt.example.net",
       credentials: { oauthToken: "yt-tok" },
       config: {},
-      // @ts-expect-error test injects transport via the profile's optional probe override
       __transport: transport
     });
     expect(result.status).toBe("ok");
@@ -62,7 +61,6 @@ describe("ytsaurus verifyAuth", () => {
       baseUrl: "https://yt.example.net",
       credentials: { oauthToken: "bad" },
       config: {},
-      // @ts-expect-error test transport
       __transport: transport
     });
     expect(result.status).toBe("failed");
@@ -76,11 +74,10 @@ describe("ytsaurus verifyAuth", () => {
       baseUrl: "https://yt.example.net",
       credentials: { oauthToken: "yt-tok" },
       config: {},
-      // @ts-expect-error test transport
       __transport: transport
     });
     expect(transport).toHaveBeenCalledOnce();
-    const request = transport.mock.calls[0][0] as {
+    const request = (transport.mock.calls[0] as unknown[])[0] as {
       method: string;
       url: string;
       headers: Record<string, string>;
@@ -98,7 +95,6 @@ describe("ydb verifyAuth", () => {
       credentials: { username: "u", password: "p" },
       config: {},
       // keep the probe fast so the test never hangs on a real dial
-      // @ts-expect-error optional override consumed only by the ydb profile
       __timeoutMs: 250
     });
     expect(result.status).toBe("failed");

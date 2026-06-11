@@ -60,7 +60,7 @@ describe("enterprise connection profiles", () => {
     expect(result.secretSlots[0].kind).toBe("oauth_client_credentials");
     expect(JSON.parse(result.secretSlots[0].secret)).toEqual({ clientId: "id", clientSecret: "secret" });
     // POST to the salesforce token endpoint with a client_credentials grant
-    const req = transport.mock.calls[0][0] as { method: string; url: string; body?: string };
+    const req = (transport.mock.calls[0] as unknown[])[0] as { method: string; url: string; body?: string };
     expect(req.method).toBe("POST");
     expect(req.url).toBe("https://example.my.salesforce.com/services/oauth2/token");
     expect(req.body).toContain("grant_type=client_credentials");
