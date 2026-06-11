@@ -5,6 +5,7 @@ import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdes
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 500_000;
+const maxActivityPages = 50;
 const incidentColumns = ["incidentid", "ticketnumber", "title", "statecode", "prioritycode", "createdon", "modifiedon"];
 const activityColumns = ["activityid", "subject", "description", "createdon"];
 const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,17 +33,31 @@ export function createDynamicsAdapter() {
           $select: incidentColumns.join(",")
         }).toString()}`
       });
-      const activitiesResponse = await client.requestJson({
-        ...requestDefaults,
-        operation: "activities_get",
-        url: `${baseUrl}/api/data/v9.2/activitypointers?${new URLSearchParams({
-          $filter: `_regardingobjectid_value eq ${incidentId}`,
-          $select: activityColumns.join(",")
-        }).toString()}`
-      });
+      const activityDiagnostics = [];
+      const allActivities: unknown[] = [];
+      let activitiesUrl: string | undefined = `${baseUrl}/api/data/v9.2/activitypointers?${new URLSearchParams({
+        $filter: `_regardingobjectid_value eq ${incidentId}`,
+        $select: activityColumns.join(",")
+      }).toString()}`;
+
+      for (let page = 0; page < maxActivityPages && activitiesUrl !== undefined; page++) {
+        const activitiesResponse = await client.requestJson({
+          ...requestDefaults,
+          operation: "activities_get",
+          url: activitiesUrl
+        });
+
+        activityDiagnostics.push(activitiesResponse.diagnostic);
+        allActivities.push(...valueArray(activitiesResponse.body));
+
+        const nextLink = recordValue(activitiesResponse.body)["@odata.nextLink"];
+
+        activitiesUrl = typeof nextLink === "string" ? nextLink : undefined;
+      }
+
       const payload = {
         incident: recordValue(incidentResponse.body),
-        activities: valueArray(activitiesResponse.body)
+        activities: allActivities
       };
 
       return {
@@ -51,7 +66,7 @@ export function createDynamicsAdapter() {
         payload,
         conversations: normalizeNativeHelpdeskPayload(payload, { source: "dynamics", baseUrl: input.baseUrl }),
         diagnostics: {
-          requests: [incidentResponse.diagnostic, activitiesResponse.diagnostic]
+          requests: [incidentResponse.diagnostic, ...activityDiagnostics]
         }
       };
     }

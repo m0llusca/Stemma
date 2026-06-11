@@ -384,4 +384,108 @@ describe("native helpdesk normalizer", () => {
       )
     ).toEqual([]);
   });
+
+  it("merges Salesforce EmailMessage records into the message thread with direction-based participants", () => {
+    const [conversation] = normalizeNativeHelpdeskPayload(
+      {
+        case: {
+          Id: "500xx0000012345",
+          Subject: "Refund request",
+          Status: "Closed",
+          CreatedDate: "2026-04-25T10:00:00.000+0000",
+          LastModifiedDate: "2026-04-25T10:30:00.000+0000"
+        },
+        comments: [
+          {
+            Id: "00axx000001",
+            CommentBody: "Internal triage note.",
+            IsPublished: false,
+            CreatedDate: "2026-04-25T10:20:00.000+0000",
+            CreatedBy: { Name: "Агент Поддержки" }
+          }
+        ],
+        emails: [
+          {
+            Id: "02sxx000001",
+            TextBody: "Заказ задержан, хочу возврат.",
+            Subject: "Refund",
+            FromName: "Анна Смирнова",
+            FromAddress: "anna@example.com",
+            Incoming: true,
+            MessageDate: "2026-04-25T10:05:00.000+0000",
+            CreatedDate: "2026-04-25T10:05:00.000+0000"
+          },
+          {
+            Id: "02sxx000002",
+            TextBody: "Оформили возврат, средства поступят в течение 3 дней.",
+            Subject: "RE: Refund",
+            FromName: "Агент Поддержки",
+            FromAddress: "agent@example.com",
+            Incoming: false,
+            MessageDate: "2026-04-25T10:25:00.000+0000",
+            CreatedDate: "2026-04-25T10:25:00.000+0000"
+          }
+        ]
+      },
+      { source: "salesforce" }
+    );
+
+    expect(conversation?.externalSource).toBe("salesforce");
+    // Ordered by time: incoming email (10:05) -> internal comment (10:20) -> outgoing email (10:25).
+    expect(conversation?.messages).toEqual([
+      expect.objectContaining({
+        externalId: "02sxx000001",
+        participantType: "customer",
+        authorName: "Анна Смирнова",
+        body: "Заказ задержан, хочу возврат.",
+        isPrivate: false
+      }),
+      expect.objectContaining({
+        externalId: "00axx000001",
+        participantType: "human_agent",
+        body: "Internal triage note.",
+        isPrivate: true
+      }),
+      expect.objectContaining({
+        externalId: "02sxx000002",
+        participantType: "human_agent",
+        authorName: "Агент Поддержки",
+        body: "Оформили возврат, средства поступят в течение 3 дней.",
+        isPrivate: false
+      })
+    ]);
+  });
+
+  it("marks unpublished Salesforce CaseComments as private and published ones as public", () => {
+    const [conversation] = normalizeNativeHelpdeskPayload(
+      {
+        case: {
+          Id: "500xx0000012345",
+          Subject: "Visibility",
+          Status: "New",
+          CreatedDate: "2026-04-25T10:00:00.000+0000"
+        },
+        comments: [
+          {
+            Id: "pub",
+            CommentBody: "Public reply.",
+            IsPublished: true,
+            CreatedDate: "2026-04-25T10:00:00.000+0000"
+          },
+          {
+            Id: "priv",
+            CommentBody: "Private note.",
+            IsPublished: false,
+            CreatedDate: "2026-04-25T10:05:00.000+0000"
+          }
+        ]
+      },
+      { source: "salesforce" }
+    );
+
+    expect(conversation?.messages).toEqual([
+      expect.objectContaining({ externalId: "pub", isPrivate: false }),
+      expect.objectContaining({ externalId: "priv", isPrivate: true })
+    ]);
+  });
 });

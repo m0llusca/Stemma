@@ -924,6 +924,21 @@ function normalizeSalesforceMessage(comment: NativeRecord, index: number): Custo
     authorName: firstString(author?.Name, author?.Email, comment.CreatedById) ?? "Salesforce",
     body: enterpriseMessageBody(comment.CommentBody, comment.body),
     sentAt: parseDate(comment.CreatedDate, new Date(index)),
+    // CaseComment.IsPublished === false marks an internal/unpublished comment as private.
+    isPrivate: comment.IsPublished === false
+  };
+}
+
+function normalizeSalesforceEmail(email: NativeRecord, index: number): CustomMessageInput {
+  // EmailMessage.Incoming distinguishes inbound customer email from outbound agent email.
+  const incoming = email.Incoming === true;
+
+  return {
+    externalId: firstString(email.Id, `email-message-${index + 1}`) ?? `email-message-${index + 1}`,
+    participantType: incoming ? "customer" : "human_agent",
+    authorName: firstString(email.FromName, email.FromAddress) ?? "Salesforce",
+    body: enterpriseMessageBody(email.TextBody, email.body),
+    sentAt: parseDate(email.MessageDate ?? email.CreatedDate, new Date(index)),
     isPrivate: false
   };
 }
@@ -945,11 +960,20 @@ function normalizeSalesforce(payload: unknown, options: NativeHelpdeskNormalizeO
       return [];
     }
 
-    const messages = (
-      oneOrManyRecords(caseRecord.comments).length > 0
-        ? oneOrManyRecords(caseRecord.comments).map(normalizeSalesforceMessage)
-        : oneOrManyRecords(root.comments).map(normalizeSalesforceMessage)
-    ).filter(hasNonEmptyMessageBody);
+    const commentRecords = oneOrManyRecords(caseRecord.comments).length > 0
+      ? oneOrManyRecords(caseRecord.comments)
+      : oneOrManyRecords(root.comments);
+    const emailRecords = oneOrManyRecords(caseRecord.emails).length > 0
+      ? oneOrManyRecords(caseRecord.emails)
+      : oneOrManyRecords(root.emails);
+    const messages = [
+      ...commentRecords.map(normalizeSalesforceMessage),
+      ...emailRecords.map(normalizeSalesforceEmail)
+    ]
+      .filter(hasNonEmptyMessageBody)
+      // CaseComments and EmailMessages are fetched in separate queries; merge them into a
+      // single chronologically ordered thread by sent time.
+      .sort((left, right) => Date.parse(left.sentAt) - Date.parse(right.sentAt));
     const status = firstString(caseRecord.Status) ?? "unknown";
     const priority = firstString(caseRecord.Priority);
 

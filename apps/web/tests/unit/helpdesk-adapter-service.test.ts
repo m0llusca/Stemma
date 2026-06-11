@@ -106,7 +106,12 @@ describe("helpdesk adapter runner service", () => {
         "salesforce"
       ]);
       expect(result.conversations[0]?.messages.length).toBeGreaterThan(0);
-      expect(result.diagnostics.requests.map((request) => request.operation)).toEqual(["case_get", "activities_get"]);
+      // Two activities_get queries: CaseComment thread plus the EmailMessage thread.
+      expect(result.diagnostics.requests.map((request) => request.operation)).toEqual([
+        "case_get",
+        "activities_get",
+        "activities_get"
+      ]);
       expect(server.requests[0]?.headers.authorization).toBe("Bearer enterprise-token");
       expect(JSON.stringify(result.diagnostics)).not.toContain("enterprise-token");
     } finally {
@@ -543,16 +548,25 @@ describe("native helpdesk adapters", () => {
 
         expect(result.conversations[0]?.externalSource).toBe(source);
         expect(result.conversations[0]?.messages.length).toBeGreaterThan(0);
-        expect(server.requests.map((request) => request.operation)).toEqual(["case_get", "activities_get"]);
+        // Salesforce now issues a second SOQL query for the EmailMessage thread in addition
+        // to the CaseComment query, so it reads via two activities_get requests.
+        expect(server.requests.map((request) => request.operation)).toEqual(
+          source === "salesforce" ? ["case_get", "activities_get", "activities_get"] : ["case_get", "activities_get"]
+        );
         expect(server.requests[0]?.headers.authorization).toBe("Bearer enterprise-token");
 
         if (source === "salesforce") {
           expect(server.requests[1]?.query.q).toContain("FROM CaseComment");
           expect(server.requests[1]?.query.q).toContain(externalId);
+          expect(server.requests[2]?.query.q).toContain("FROM EmailMessage");
+          expect(server.requests[2]?.query.q).toContain(externalId);
         }
 
         if (source === "servicenow") {
-          expect(server.requests[1]?.query.sysparm_query).toBe(`element_id=${externalId}^element=comments`);
+          expect(server.requests[0]?.query.sysparm_display_value).toBe("all");
+          expect(server.requests[1]?.query.sysparm_query).toBe(
+            `element_id=${externalId}^element=comments^ORelement=work_notes`
+          );
           expect(server.requests[1]?.query.sysparm_limit).toBe("100");
           expect(server.requests[1]?.query.sysparm_offset).toBe("0");
         }
@@ -624,6 +638,213 @@ describe("native helpdesk adapters", () => {
       }
     });
   }
+
+  it("accumulates Dynamics activities across OData @odata.nextLink pages", async () => {
+    const server = await createDynamicsNextLinkServer({ pages: 2 });
+
+    try {
+      const adapter = createHelpdeskAdapter("dynamics");
+      const result = await adapter.loadConversation({
+        source: "dynamics",
+        baseUrl: server.baseUrl,
+        externalId: "11111111-2222-3333-4444-555555555555",
+        token: "enterprise-token"
+      });
+
+      // Both pages' activities must be present in the payload
+      const page = result.payload as { activities: { activityid: string }[] };
+      expect(page.activities).toHaveLength(2);
+      expect(page.activities.map((a) => a.activityid)).toEqual([
+        "activity-page1",
+        "activity-page2"
+      ]);
+
+      // Adapter must have issued three requests: case_get + 2 × activities_get
+      expect(server.requests).toHaveLength(3);
+      expect(server.requests[0]?.operation).toBe("case_get");
+      expect(server.requests[1]?.operation).toBe("activities_get");
+      expect(server.requests[2]?.operation).toBe("activities_get");
+      // Second activities request must use the absolute nextLink URL
+      expect(server.requests[2]?.pathname).toBe("/api/data/v9.2/activitypointers-page2");
+
+      // Diagnostics must include one entry per activities request
+      expect(result.diagnostics.requests.map((r) => r.operation)).toEqual([
+        "case_get",
+        "activities_get",
+        "activities_get"
+      ]);
+
+      expect(JSON.stringify(result.diagnostics)).not.toContain("enterprise-token");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("issues only one Dynamics activities request when the response has no @odata.nextLink", async () => {
+    const server = await createDynamicsNextLinkServer({ pages: 1 });
+
+    try {
+      const adapter = createHelpdeskAdapter("dynamics");
+      const result = await adapter.loadConversation({
+        source: "dynamics",
+        baseUrl: server.baseUrl,
+        externalId: "11111111-2222-3333-4444-555555555555",
+        token: "enterprise-token"
+      });
+
+      expect((result.payload as { activities: unknown[] }).activities).toHaveLength(1);
+      expect(server.requests.filter((r) => r.operation === "activities_get")).toHaveLength(1);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("requests display values on the ServiceNow case and queries both comments and work_notes", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "servicenow", mode: "success" });
+    const externalId = "0123456789abcdef0123456789abcdef";
+
+    try {
+      const adapter = createHelpdeskAdapter("servicenow");
+      await adapter.loadConversation({
+        source: "servicenow",
+        baseUrl: server.baseUrl,
+        externalId,
+        token: "enterprise-token"
+      });
+
+      const caseRequest = server.requests.find((request) => request.operation === "case_get");
+      const journalRequest = server.requests.find((request) => request.operation === "activities_get");
+
+      // Reference fields (consumer, assigned_to, state, priority) only arrive as
+      // { display_value, value } when display_value=all is requested on the case table.
+      expect(caseRequest?.query.sysparm_display_value).toBe("all");
+
+      // The journal query must include both customer comments and internal work notes.
+      expect(journalRequest?.query.sysparm_query).toBe(
+        `element_id=${externalId}^element=comments^ORelement=work_notes`
+      );
+      expect(journalRequest?.query.sysparm_query).toContain("element=comments");
+      expect(journalRequest?.query.sysparm_query).toContain("work_notes");
+
+      // display_value=all must NOT be applied to the journal: the body lives in the raw
+      // `value` field, and an object shape would corrupt the message text.
+      expect(journalRequest?.query.sysparm_display_value).toBeUndefined();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("maps ServiceNow work_notes journal entries to private internal messages", async () => {
+    const server = await createServiceNowJournalServer({
+      journal: [
+        {
+          sys_id: "journal-1",
+          element: "comments",
+          value: "Заказ задержан, хочу возврат.",
+          sys_created_on: "2026-04-25 10:00:00",
+          sys_created_by: "anna@example.com"
+        },
+        {
+          sys_id: "journal-2",
+          element: "work_notes",
+          value: "Внутренняя заметка: одобрить возврат.",
+          sys_created_on: "2026-04-25 10:05:00",
+          sys_created_by: "agent@example.com"
+        }
+      ]
+    });
+
+    try {
+      const adapter = createHelpdeskAdapter("servicenow");
+      const result = await adapter.loadConversation({
+        source: "servicenow",
+        baseUrl: server.baseUrl,
+        externalId: "0123456789abcdef0123456789abcdef",
+        token: "enterprise-token"
+      });
+
+      const messages = result.conversations[0]?.messages ?? [];
+      expect(messages).toHaveLength(2);
+      expect(messages[0]).toMatchObject({ body: "Заказ задержан, хочу возврат.", isPrivate: false });
+      expect(messages[1]).toMatchObject({
+        body: "Внутренняя заметка: одобрить возврат.",
+        isPrivate: true,
+        participantType: "human_agent"
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("paginates the ServiceNow journal until a short page is returned", async () => {
+    // 150 rows ⇒ a full first page (100) plus a short second page (50).
+    const journal = Array.from({ length: 150 }, (_, index) => ({
+      sys_id: `journal-${index + 1}`,
+      element: index % 2 === 0 ? "comments" : "work_notes",
+      value: `Message ${index + 1}`,
+      sys_created_on: `2026-04-25 10:${String(index % 60).padStart(2, "0")}:00`,
+      sys_created_by: index % 2 === 0 ? "anna@example.com" : "agent@example.com"
+    }));
+    const server = await createServiceNowJournalServer({ journal });
+
+    try {
+      const adapter = createHelpdeskAdapter("servicenow");
+      const result = await adapter.loadConversation({
+        source: "servicenow",
+        baseUrl: server.baseUrl,
+        externalId: "0123456789abcdef0123456789abcdef",
+        token: "enterprise-token"
+      });
+
+      const journalRequests = server.requests.filter(
+        (request) => request.pathname === "/api/now/table/sys_journal_field"
+      );
+
+      // First page at offset 0, second page at offset 100, then stop (50 < 100).
+      expect(journalRequests).toHaveLength(2);
+      expect(journalRequests[0]?.query.sysparm_offset).toBe("0");
+      expect(journalRequests[0]?.query.sysparm_limit).toBe("100");
+      expect(journalRequests[1]?.query.sysparm_offset).toBe("100");
+
+      // Every journal row from both pages must be accumulated into the payload.
+      expect((result.payload as { journal: unknown[] }).journal).toHaveLength(150);
+      expect(result.conversations[0]?.messages).toHaveLength(150);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("stops after a single ServiceNow journal request when the first page is short", async () => {
+    const server = await createServiceNowJournalServer({
+      journal: [
+        {
+          sys_id: "journal-1",
+          element: "comments",
+          value: "Single page message.",
+          sys_created_on: "2026-04-25 10:00:00",
+          sys_created_by: "anna@example.com"
+        }
+      ]
+    });
+
+    try {
+      const adapter = createHelpdeskAdapter("servicenow");
+      await adapter.loadConversation({
+        source: "servicenow",
+        baseUrl: server.baseUrl,
+        externalId: "0123456789abcdef0123456789abcdef",
+        token: "enterprise-token"
+      });
+
+      const journalRequests = server.requests.filter(
+        (request) => request.pathname === "/api/now/table/sys_journal_field"
+      );
+      expect(journalRequests).toHaveLength(1);
+      expect(journalRequests[0]?.query.sysparm_offset).toBe("0");
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 function decodedBasicCredential(authorization: string | undefined) {
@@ -750,6 +971,171 @@ async function createJiraRequestWithoutCommentsServer() {
 
     if (url.pathname === "/rest/servicedeskapi/request/SUP-77/comment") {
       response.end(JSON.stringify({ values: [], start: 0, limit: 100, isLastPage: true }));
+      return;
+    }
+
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: "not found" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  const address = server.address() as AddressInfo;
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    requests,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      })
+  };
+}
+
+async function createDynamicsNextLinkServer({ pages }: { pages: 1 | 2 }) {
+  type StubRequest = {
+    operation: "case_get" | "activities_get" | "unknown";
+    pathname: string;
+    headers: Record<string, string | undefined>;
+  };
+  const requests: StubRequest[] = [];
+
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const headers = Object.fromEntries(
+      Object.entries(request.headers).map(([key, value]) => [key, Array.isArray(value) ? value.join(",") : value])
+    );
+
+    const operation: StubRequest["operation"] = /^\/api\/data\/v9\.2\/incidents(?:\/[^/]+|\([^)]+\))$/.test(url.pathname)
+      ? "case_get"
+      : url.pathname === "/api/data/v9.2/activitypointers" || url.pathname === "/api/data/v9.2/activitypointers-page2"
+        ? "activities_get"
+        : "unknown";
+
+    requests.push({ operation, pathname: url.pathname, headers });
+    response.setHeader("content-type", "application/json");
+
+    if (operation === "case_get") {
+      response.end(
+        JSON.stringify({
+          incidentid: "11111111-2222-3333-4444-555555555555",
+          ticketnumber: "CAS-99001",
+          title: "Pagination test case",
+          statecode: 0,
+          prioritycode: 2,
+          createdon: "2026-04-25T10:00:00Z",
+          modifiedon: "2026-04-25T10:18:00Z"
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/api/data/v9.2/activitypointers") {
+      const serverAddress = server.address() as AddressInfo;
+      const body: Record<string, unknown> = {
+        value: [{ activityid: "activity-page1", subject: "First page", description: "desc1", createdon: "2026-04-25T10:00:00Z" }]
+      };
+
+      if (pages === 2) {
+        body["@odata.nextLink"] = `http://127.0.0.1:${serverAddress.port}/api/data/v9.2/activitypointers-page2`;
+      }
+
+      response.end(JSON.stringify(body));
+      return;
+    }
+
+    if (url.pathname === "/api/data/v9.2/activitypointers-page2") {
+      response.end(
+        JSON.stringify({
+          value: [{ activityid: "activity-page2", subject: "Second page", description: "desc2", createdon: "2026-04-25T10:01:00Z" }]
+        })
+      );
+      return;
+    }
+
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: "not found" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  const address = server.address() as AddressInfo;
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    requests,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      })
+  };
+}
+
+async function createServiceNowJournalServer({ journal }: { journal: Record<string, unknown>[] }) {
+  type StubRequest = {
+    operation: "case_get" | "activities_get" | "unknown";
+    pathname: string;
+    query: Record<string, string>;
+    headers: Record<string, string | undefined>;
+  };
+  const requests: StubRequest[] = [];
+
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const operation: StubRequest["operation"] = /^\/api\/now\/table\/(?:sn_customerservice_case|case)\/[^/]+$/.test(
+      url.pathname
+    )
+      ? "case_get"
+      : url.pathname === "/api/now/table/sys_journal_field"
+        ? "activities_get"
+        : "unknown";
+
+    requests.push({
+      operation,
+      pathname: url.pathname,
+      query: Object.fromEntries(url.searchParams.entries()),
+      headers: Object.fromEntries(
+        Object.entries(request.headers).map(([key, value]) => [key, Array.isArray(value) ? value.join(",") : value])
+      )
+    });
+    response.setHeader("content-type", "application/json");
+
+    if (operation === "case_get") {
+      response.end(
+        JSON.stringify({
+          result: {
+            sys_id: "sn-case-1",
+            number: "CS0001001",
+            short_description: "Refund request from ServiceNow",
+            state: { display_value: "Closed", value: "3" },
+            priority: { display_value: "2 - High", value: "2" },
+            consumer: { display_value: "Анна Смирнова", value: "consumer-sys-id" },
+            assigned_to: { display_value: "Иван Петров", value: "agent-sys-id" },
+            opened_at: { display_value: "2026-04-25 10:00:00", value: "2026-04-25 10:00:00" },
+            sys_updated_on: { display_value: "2026-04-25 10:18:00", value: "2026-04-25 10:18:00" }
+          }
+        })
+      );
+      return;
+    }
+
+    if (operation === "activities_get") {
+      const limit = Number.parseInt(url.searchParams.get("sysparm_limit") ?? "100", 10);
+      const offset = Number.parseInt(url.searchParams.get("sysparm_offset") ?? "0", 10);
+
+      response.end(JSON.stringify({ result: journal.slice(offset, offset + limit) }));
       return;
     }
 

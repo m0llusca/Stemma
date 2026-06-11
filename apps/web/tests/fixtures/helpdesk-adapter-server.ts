@@ -291,7 +291,17 @@ function payloadFor(
     }
 
     if (operation === "activities_get") {
-      return { result: payload.journal ?? [] };
+      const journal = Array.isArray(payload.journal) ? payload.journal : [];
+      const limit = Number.parseInt(request.query.sysparm_limit ?? "", 10);
+      const offset = Number.parseInt(request.query.sysparm_offset ?? "", 10);
+
+      // Mirror ServiceNow Table API pagination so adapters that page through
+      // sys_journal_field with sysparm_offset/sysparm_limit can be exercised.
+      if (Number.isFinite(limit) && Number.isFinite(offset)) {
+        return { result: journal.slice(offset, offset + limit) };
+      }
+
+      return { result: journal };
     }
   }
 

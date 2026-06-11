@@ -1,7 +1,8 @@
 import { createOtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
+import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import { detectOtrsRoutes } from "@/lib/integrations/otrs-family/route-detection";
-import type { OtrsOperation } from "@/lib/integrations/otrs-family/requests";
+import { buildTicketSearchRequest, type OtrsOperation } from "@/lib/integrations/otrs-family/requests";
 import { createOtrsSession } from "@/lib/integrations/otrs-family/session-auth";
 import { normalizeHelpdeskBaseUrl } from "@/lib/integrations/connect/url-normalize";
 import type {
@@ -84,22 +85,28 @@ export const otrsConnectionProfile: SourceConnectionProfile = {
     }
   },
   async verifyAuth(ctx: ConnectContext): Promise<VerifyResult> {
-    const config = parseOtrsConnectorConfig({
-      webServiceName: String(ctx.config.webServiceName ?? "GenericTicketConnectorREST"),
-      ...(ctx.config.routes ? { routes: ctx.config.routes } : {}),
-      ...(ctx.config.advanced ? { advanced: ctx.config.advanced } : {}),
+    const webServiceName = String(ctx.config.webServiceName ?? "GenericTicketConnectorREST");
+    const detectedRoutes = ctx.config.routes ? { routes: ctx.config.routes } : {};
+    const detectedAdvanced = ctx.config.advanced ? { advanced: ctx.config.advanced } : {};
+
+    // 1. Сессионный режим — работает на установках с включённой операцией
+    //    SessionCreate (проверено в живую на on-prem ФСА).
+    const sessionConfig = parseOtrsConnectorConfig({
+      webServiceName,
+      ...detectedRoutes,
+      ...detectedAdvanced,
       auth: { ticketGet: "session", ticketSearch: "session" }
     });
-    const client = createOtrsHttpClient({
-      config,
+    const sessionClient = createOtrsHttpClient({
+      config: sessionConfig,
       baseUrl: ctx.baseUrl,
       userLogin: ctx.credentials.userLogin,
       password: ctx.credentials.password
     });
     try {
       await createOtrsSession({
-        client,
-        config,
+        client: sessionClient,
+        config: sessionConfig,
         baseUrl: ctx.baseUrl,
         userLogin: ctx.credentials.userLogin,
         password: ctx.credentials.password
@@ -110,14 +117,73 @@ export const otrsConnectionProfile: SourceConnectionProfile = {
         authMode: "session",
         secretSlots: [{ kind: "auth_password", secret: ctx.credentials.password }]
       };
-    } catch (error) {
-      return {
-        status: "failed",
-        detail: "OTRS отклонил учётные данные.",
-        hint: error instanceof Error ? error.message : "Проверьте логин и пароль.",
-        authMode: "session",
-        secretSlots: []
-      };
+    } catch {
+      // 2. Fallback: на установках без SessionCreate (credentials-режим, а также
+      //    тестовый фикстур) сессия недоступна. Источником истины делаем пробу
+      //    TicketSearch с UserLogin/Password — она проходит на обоих типах
+      //    установок: либо вернёт результат, либо явный auth_failed.
+      return verifyOtrsCredentials({
+        ctx,
+        webServiceName,
+        detectedRoutes,
+        detectedAdvanced
+      });
     }
   }
 };
+
+async function verifyOtrsCredentials(input: {
+  ctx: ConnectContext;
+  webServiceName: string;
+  detectedRoutes: { routes?: unknown };
+  detectedAdvanced: { advanced?: unknown };
+}): Promise<VerifyResult> {
+  const { ctx, webServiceName, detectedRoutes, detectedAdvanced } = input;
+  const config = parseOtrsConnectorConfig({
+    webServiceName,
+    ...detectedRoutes,
+    ...detectedAdvanced,
+    auth: { ticketGet: "credentials", ticketSearch: "credentials" }
+  });
+  const client = createOtrsHttpClient({
+    config,
+    baseUrl: ctx.baseUrl,
+    userLogin: ctx.credentials.userLogin,
+    password: ctx.credentials.password
+  });
+
+  try {
+    await client.requestJson(
+      buildTicketSearchRequest({
+        config,
+        baseUrl: ctx.baseUrl,
+        userLogin: ctx.credentials.userLogin,
+        password: ctx.credentials.password,
+        limit: 1
+      })
+    );
+    return {
+      status: "ok",
+      detail: "OTRS принял учётные данные.",
+      authMode: "credentials",
+      secretSlots: [{ kind: "auth_password", secret: ctx.credentials.password }]
+    };
+  } catch (error) {
+    if (error instanceof OtrsConnectorError && error.code === "auth_failed") {
+      return {
+        status: "failed",
+        detail: "OTRS отклонил учётные данные.",
+        hint: "Проверьте логин и пароль.",
+        authMode: "credentials",
+        secretSlots: []
+      };
+    }
+    return {
+      status: "failed",
+      detail: "Не удалось проверить учётные данные OTRS.",
+      hint: error instanceof OtrsConnectorError ? error.safeMessage : "Проверьте логин и пароль.",
+      authMode: "credentials",
+      secretSlots: []
+    };
+  }
+}
