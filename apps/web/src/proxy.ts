@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isDemoAuthEnabled } from "@/lib/auth/demo";
 
+// Дублирует имена session-кук из src/lib/auth/session.ts (sessionCookieName,
+// authJsSessionCookieNames): импортировать оттуда нельзя — модуль тянет prisma
+// и недоступен в edge runtime middleware. При изменении списка правьте оба места.
 const sessionCookieName = "qc_session";
 const migrationSessionCookieNames = [
   sessionCookieName,
@@ -8,10 +12,6 @@ const migrationSessionCookieNames = [
   "next-auth.session-token",
   "__Secure-next-auth.session-token"
 ] as const;
-
-function isDemoAuthEnabled() {
-  return process.env.QC_DEMO_AUTH === "enabled";
-}
 
 function isAuthPath(pathname: string) {
   return pathname === "/auth" || pathname.startsWith("/auth/");

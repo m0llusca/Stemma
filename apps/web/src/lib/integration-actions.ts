@@ -21,6 +21,7 @@ import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config"
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
 import { runDueBackendJobs } from "@/lib/jobs/queue";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 
 export type IntegrationActionState = {
   ok: boolean;
@@ -186,6 +187,8 @@ function validateBaseUrl(baseUrl: string, mode: string, source: string) {
   if (!allowedProtocols.includes(url.protocol)) {
     throw new Error(baseUrlProtocolMessage(allowedProtocols));
   }
+
+  assertPublicBaseUrl(url);
 
   return url.toString().replace(/\/$/, "");
 }

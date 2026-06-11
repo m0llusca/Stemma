@@ -1,5 +1,5 @@
-import { apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,15 @@ function parseJson(value: string) {
   }
 }
 
-export async function GET() {
-  const user = await requireCurrentUserPermission("reports:read");
+export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "reports:read", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const snapshots = await prisma.reportSnapshot.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ createdAt: "desc" }],
@@ -29,21 +36,24 @@ export async function GET() {
     }
   });
 
-  return apiJson({
-    snapshots: snapshots.map((snapshot) => ({
-      id: snapshot.id,
-      name: snapshot.name,
-      periodStart: snapshot.periodStart.toISOString(),
-      periodEnd: snapshot.periodEnd.toISOString(),
-      filters: parseJson(snapshot.filtersJson),
-      metrics: parseJson(snapshot.metricsJson),
-      exportFormat: snapshot.exportFormat,
-      status: snapshot.status,
-      filePath: snapshot.filePath,
-      fileSize: snapshot.fileSize,
-      createdBy: snapshot.createdBy,
-      createdAt: snapshot.createdAt.toISOString()
-    }))
-  });
+  return apiJson(
+    {
+      snapshots: snapshots.map((snapshot) => ({
+        id: snapshot.id,
+        name: snapshot.name,
+        periodStart: snapshot.periodStart.toISOString(),
+        periodEnd: snapshot.periodEnd.toISOString(),
+        filters: parseJson(snapshot.filtersJson),
+        metrics: parseJson(snapshot.metricsJson),
+        exportFormat: snapshot.exportFormat,
+        status: snapshot.status,
+        filePath: snapshot.filePath,
+        fileSize: snapshot.fileSize,
+        createdBy: snapshot.createdBy,
+        createdAt: snapshot.createdAt.toISOString()
+      }))
+    },
+    200,
+    requestId
+  );
 }
-

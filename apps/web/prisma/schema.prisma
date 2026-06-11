@@ -633,6 +633,7 @@ model Review {
   @@index([workspaceId, status, finalizedAt])
   @@index([workspaceId, reviewSource, status, createdAt])
   @@index([workspaceId, reviewerId, createdAt])
+  @@index([workspaceId, conversationId])
   @@index([conversationId, createdAt])
   @@index([scorecardId])
 }

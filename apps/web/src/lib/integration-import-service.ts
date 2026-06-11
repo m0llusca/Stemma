@@ -69,6 +69,12 @@ function assertRequiredIntegrationSecretSlots(integration: {
   }
 }
 
+/**
+ * Нарушение контракта источника. Сообщения этого класса курируемые и безопасны
+ * для показа клиенту API — в отличие от прочих внутренних ошибок.
+ */
+export class IntegrationContractError extends Error {}
+
 export function assertIntegrationSourceContractSupported(integration: { source?: string | null; type?: string | null }) {
   const source = integration.source?.trim().toLowerCase() ?? "";
   const type = integration.type?.trim() || "custom_api";
@@ -77,23 +83,23 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
   const enterpriseMessage = "Корпоративные источники требуют защищенной настройки OAuth-доступов.";
 
   if (type === "enterprise") {
-    throw new Error(enterpriseMessage);
+    throw new IntegrationContractError(enterpriseMessage);
   }
 
   if (dataSourceContract) {
     if (type !== dataSourceContract.type) {
-      throw new Error("Тип интеграции не соответствует data source contract.");
+      throw new IntegrationContractError("Тип интеграции не соответствует data source contract.");
     }
 
     return;
   }
 
   if (contract?.type === "enterprise") {
-    throw new Error(enterpriseMessage);
+    throw new IntegrationContractError(enterpriseMessage);
   }
 
   if (contract && type !== contract.type) {
-    throw new Error("Тип источника не соответствует контракту Phase B.");
+    throw new IntegrationContractError("Тип источника не соответствует контракту Phase B.");
   }
 
   if (contract) {
@@ -101,11 +107,11 @@ export function assertIntegrationSourceContractSupported(integration: { source?:
   }
 
   if (type === "native_helpdesk") {
-    throw new Error("Источник справочной системы не поддерживается.");
+    throw new IntegrationContractError("Источник справочной системы не поддерживается.");
   }
 
   if (type === "data_source") {
-    throw new Error("Источник данных не поддерживается.");
+    throw new IntegrationContractError("Источник данных не поддерживается.");
   }
 }
 
@@ -288,23 +294,33 @@ export async function queueSelectedOtrsImportJob(input: {
     throw new Error("Preview-run интеграции не найден.");
   }
 
-  const validItems = await prisma.integrationRunItem.findMany({
+  const requestedItems = await prisma.integrationRunItem.findMany({
     where: {
       workspaceId: input.workspaceId,
       integrationRunId: run.id,
       id: {
         in: integrationRunItemIds
-      },
-      status: "previewed"
+      }
     },
     select: {
-      id: true
+      id: true,
+      externalId: true,
+      status: true
     }
   });
-  const validItemIds = new Set(validItems.map((item) => item.id));
+  const requestedItemsById = new Map(requestedItems.map((item) => [item.id, item]));
+  const missingItemIds = integrationRunItemIds.filter((itemId) => !requestedItemsById.has(itemId));
+  const nonPreviewedItems = requestedItems.filter((item) => item.status !== "previewed");
 
-  if (validItemIds.size !== integrationRunItemIds.length || integrationRunItemIds.some((itemId) => !validItemIds.has(itemId))) {
-    throw new Error("Выбранные обращения должны быть previewed-строками указанного preview-run.");
+  if (missingItemIds.length > 0 || nonPreviewedItems.length > 0) {
+    const offendingItems = [
+      ...missingItemIds.map((itemId) => `${itemId} (не найден в preview-run)`),
+      ...nonPreviewedItems.map((item) => `${item.externalId || item.id} (статус: ${item.status})`)
+    ];
+
+    throw new Error(
+      `Выбранные обращения должны быть previewed-строками указанного preview-run. Недоступные обращения: ${offendingItems.join("; ")}.`
+    );
   }
 
   const now = new Date();

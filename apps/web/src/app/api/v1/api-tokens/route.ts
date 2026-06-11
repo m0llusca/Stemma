@@ -3,7 +3,6 @@ import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { allowedApiScopes, createApiToken } from "@/lib/api-token-service";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +13,15 @@ const createApiTokenSchema = z.object({
   expiresAt: z.string().datetime().optional().nullable()
 });
 
-export async function GET() {
-  const user = await requireCurrentUserPermission("api_tokens:manage");
+export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "api_tokens:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const tokens = await prisma.apiToken.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ createdAt: "desc" }],
@@ -27,25 +33,29 @@ export async function GET() {
     }
   });
 
-  return apiJson({
-    tokens: tokens.map((token) => ({
-      id: token.id,
-      name: token.name,
-      tokenPrefix: token.tokenPrefix,
-      scopes: token.scopes.split(",").filter(Boolean),
-      lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
-      lastSuccessAt: token.lastSuccessAt?.toISOString() ?? null,
-      lastErrorAt: token.lastErrorAt?.toISOString() ?? null,
-      lastError: token.lastError,
-      expiresAt: token.expiresAt?.toISOString() ?? null,
-      createdAt: token.createdAt.toISOString(),
-      recentRateLimits: token.rateLimits.map((bucket) => ({
-        routeKey: bucket.routeKey,
-        windowStart: bucket.windowStart.toISOString(),
-        requestCount: bucket.requestCount
+  return apiJson(
+    {
+      tokens: tokens.map((token) => ({
+        id: token.id,
+        name: token.name,
+        tokenPrefix: token.tokenPrefix,
+        scopes: token.scopes.split(",").filter(Boolean),
+        lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+        lastSuccessAt: token.lastSuccessAt?.toISOString() ?? null,
+        lastErrorAt: token.lastErrorAt?.toISOString() ?? null,
+        lastError: token.lastError,
+        expiresAt: token.expiresAt?.toISOString() ?? null,
+        createdAt: token.createdAt.toISOString(),
+        recentRateLimits: token.rateLimits.map((bucket) => ({
+          routeKey: bucket.routeKey,
+          windowStart: bucket.windowStart.toISOString(),
+          requestCount: bucket.requestCount
+        }))
       }))
-    }))
-  });
+    },
+    200,
+    requestId
+  );
 }
 
 export async function POST(request: Request) {

@@ -27,7 +27,6 @@ const sensitiveKeyPattern = /authorization|password|secret|token|api[_-]?key|cli
 const sensitiveStringAssignmentPattern =
   /\b(access[_-]?token|token|password|api[_-]?key|client[_-]?secret|secret)\b(\s*[:=]\s*)(["']?)([^"',\s;&}]+)/gi;
 const authorizationStringPattern = /\b(authorization)\b(\s*[:=]\s*)(["']?)(Bearer|Basic)\s+([^"',\s;&}]+)/gi;
-const bareSensitiveStringPattern = /\b(secret|token|api[-_]?key|apikey|client[-_]?secret|bearer)\b/i;
 const redactedValue = "[REDACTED]";
 const redactedBodyValue = "[REDACTED_BODY]";
 const timeoutErrorMessage = "Request timed out.";
@@ -170,18 +169,10 @@ function redactDiagnosticEntry(key: string, value: unknown): unknown {
 }
 
 function redactString(value: string) {
-  const redactedUrl = redactUrl(value);
-  const redactedFragments = redactSecretFragments(redactedUrl);
-
-  if (redactedFragments !== redactedUrl) {
-    return redactedFragments;
-  }
-
-  if (redactedUrl !== value) {
-    return redactedUrl;
-  }
-
-  return bareSensitiveStringPattern.test(value) ? redactedValue : value;
+  // Redact secret values (credentials in URLs, key=value assignments, Authorization
+  // fragments) but keep the rest of the string readable: whole-string redaction of any
+  // text merely containing words like "token" destroys diagnostics such as "Token expired".
+  return redactSecretFragments(redactUrl(value));
 }
 
 function redactUrl(value: string) {
@@ -220,8 +211,8 @@ function redactSecretFragments(value: string) {
 
 function serializeError(error: unknown) {
   return error instanceof Error
-    ? { name: error.name, message: safeDiagnosticText(error.message) }
-    : { message: safeDiagnosticText(String(error)) };
+    ? { name: error.name, message: redactString(error.message) }
+    : { message: redactString(String(error)) };
 }
 
 function safeDiagnosticBody(text: string) {
@@ -236,12 +227,6 @@ function safeDiagnosticBody(text: string) {
 
     return redactedText === text ? { value: redactedBodyValue, bytes: Buffer.byteLength(text, "utf8") } : redactedText;
   }
-}
-
-function safeDiagnosticText(text: string) {
-  const redactedText = redactString(text);
-
-  return redactedText === text && sensitiveKeyPattern.test(text) ? redactedBodyValue : redactedText;
 }
 
 function isTimeoutError(error: unknown) {

@@ -3,7 +3,7 @@ import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
-import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
+import { IntegrationContractError, assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
 import {
   applyCaBundleCredentialReference,
@@ -13,6 +13,7 @@ import {
   upsertIntegrationSecretSlot
 } from "@/lib/integrations/otrs-family/credentials";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,46 @@ function parseJson(value: string) {
   } catch {
     return {};
   }
+}
+
+function allowedBaseUrlProtocols(source: string, type: string) {
+  if (type === "data_source" && source.trim().toLowerCase() === "ydb") {
+    return ["grpc:", "grpcs:"];
+  }
+
+  return ["http:", "https:"];
+}
+
+function validateIncomingBaseUrl(rawBaseUrl: string | undefined, source: string, type: string) {
+  const baseUrl = rawBaseUrl?.trim();
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  let url: URL;
+
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    return "Base URL должен быть корректным URL.";
+  }
+
+  const allowedProtocols = allowedBaseUrlProtocols(source, type);
+
+  if (!allowedProtocols.includes(url.protocol)) {
+    return allowedProtocols.includes("grpc:")
+      ? "Base URL должен начинаться с grpc:// или grpcs://."
+      : "Base URL должен начинаться с http:// или https://.";
+  }
+
+  try {
+    assertPublicBaseUrl(url);
+  } catch (error) {
+    return error instanceof Error ? error.message : "Base URL указывает на запрещённый адрес сети.";
+  }
+
+  return null;
 }
 
 export async function GET(request: Request) {
@@ -150,12 +191,18 @@ export async function POST(request: Request) {
       type: integrationType
     });
   } catch (error) {
-    return apiError(
-      "conflict",
-      error instanceof Error ? error.message : "Интеграция не соответствует контракту источника.",
-      409,
-      requestId
-    );
+    // Сообщения IntegrationContractError курируемые — их можно отдавать клиенту;
+    // любые другие ошибки скрываем за фиксированным текстом.
+    const message =
+      error instanceof IntegrationContractError ? error.message : "Интеграция не соответствует контракту источника.";
+
+    return apiError("conflict", message, 409, requestId);
+  }
+
+  const baseUrlValidationError = validateIncomingBaseUrl(parsed.data.baseUrl, parsed.data.source, integrationType);
+
+  if (baseUrlValidationError) {
+    return apiError("bad_request", baseUrlValidationError, 400, requestId);
   }
 
   const sanitizedConfig = sanitizeIntegrationCredentialConfig(parsed.data.config ?? {});
@@ -209,7 +256,7 @@ export async function POST(request: Request) {
       update: {
         displayName: parsed.data.displayName,
         type: integrationType,
-        status: parsed.data.status ?? "ready",
+        ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         baseUrl: optionalString(parsed.data.baseUrl),
         authMode: parsed.data.authMode ?? "token",
         importLimit: parsed.data.importLimit ?? 100,

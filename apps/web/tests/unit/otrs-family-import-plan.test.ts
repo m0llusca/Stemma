@@ -5,6 +5,7 @@ import {
 import { otrsFixtureAttachmentBase64 } from "../fixtures/otrs-ticket-fixtures";
 import { createOtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import { buildDefaultOtrsConnectorConfig, type OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
+import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import {
   createOtrsPreviewItems,
   createOtrsPreviewRun,
@@ -99,7 +100,11 @@ function createFakeDb(existingExternalIds: string[] = []) {
     }
 
     if (where.status !== undefined) {
-      if (typeof where.status === "object" && where.status !== null && "not" in where.status) {
+      if (typeof where.status === "object" && where.status !== null && "in" in where.status) {
+        if (!(where.status.in as string[]).includes(String(item.status))) {
+          return false;
+        }
+      } else if (typeof where.status === "object" && where.status !== null && "not" in where.status) {
         if (item.status === where.status.not) {
           return false;
         }
@@ -243,8 +248,14 @@ function createFakeDb(existingExternalIds: string[] = []) {
       })
     }
   };
+  const dbWithTransaction = Object.assign(db, {
+    $transaction: vi.fn(async (fn: (tx: typeof db) => Promise<unknown>) => fn(db)) as unknown as (<T>(
+      fn: (tx: typeof db) => Promise<T>
+    ) => Promise<T>) &
+      ReturnType<typeof vi.fn>
+  });
 
-  return { db, state };
+  return { db: dbWithTransaction, state };
 }
 
 async function withOtrsGenericInterfaceServer<T>(
@@ -738,6 +749,83 @@ describe("OTRS-family preview/import planning", () => {
     ]);
   });
 
+  it("preserves connector error codes on skipped preview items when TicketGet fails", async () => {
+    const { db, state } = createFakeDb();
+    const client = {
+      requestJson: vi.fn(async () => {
+        throw new OtrsConnectorError({
+          code: "timeout",
+          safeMessage: "OTRS did not respond in time."
+        });
+      })
+    };
+
+    await createOtrsPreviewItems({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integrationRunId: "integration-run-1",
+      diagnosticRunId: "diagnostic-run-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "https://support.example.com/otrs",
+        config: configWithLimits({ manualTicketIdLimit: 5 })
+      },
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "manual_ticket_ids",
+      manualTicketIds: ["801"]
+    });
+
+    expect(state.items[0]).toMatchObject({
+      externalId: "801",
+      status: "skipped"
+    });
+    expect(JSON.parse(String(state.items[0].errorsJson))).toEqual([
+      {
+        code: "timeout",
+        message: "TicketGet failed for TicketID 801: OTRS did not respond in time."
+      }
+    ]);
+  });
+
+  it("marks normalization and validation failures with a dedicated normalization_failed code", async () => {
+    const { db, state } = createFakeDb();
+    const client = {
+      requestJson: vi.fn(async () => ticket("802"))
+    };
+
+    await createOtrsPreviewItems({
+      db,
+      client,
+      workspaceId: "workspace-1",
+      integrationRunId: "integration-run-1",
+      diagnosticRunId: "diagnostic-run-1",
+      integration: {
+        id: "integration-1",
+        source: "otrs",
+        baseUrl: "not-a-valid-base-url",
+        config: configWithLimits({ manualTicketIdLimit: 5 })
+      },
+      userLogin: "qa_api",
+      password: "secret",
+      mode: "manual_ticket_ids",
+      manualTicketIds: ["802"]
+    });
+
+    expect(state.items[0]).toMatchObject({
+      externalId: "802",
+      status: "skipped"
+    });
+    expect(JSON.parse(String(state.items[0].errorsJson))).toEqual([
+      {
+        code: "normalization_failed",
+        message: "Normalization or validation failed for TicketID 802."
+      }
+    ]);
+  });
+
   it("selected import only imports selected preview rows from the same workspace and run", async () => {
     const { db, state } = createFakeDb();
     state.runs.push({
@@ -820,7 +908,7 @@ describe("OTRS-family preview/import planning", () => {
         id: {
           in: ["item-1", "item-2", "item-other-workspace", "item-other-run"]
         },
-        status: "previewed"
+        status: { in: ["previewed", "selected"] }
       },
       data: {
         status: "selected"
@@ -864,9 +952,106 @@ describe("OTRS-family preview/import planning", () => {
       lastSyncedAt: expect.any(Date),
       syncCursor: "401"
     });
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       importedCount: 1,
       errorCount: 1
+    });
+  });
+
+  it("finalizes the run even when the integration is disabled mid-import", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "501",
+      status: "previewed",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("501"))
+    });
+    const importer = vi.fn(async (_workspaceId: string, payload: CustomConversationInput) => {
+      state.integrations[0].status = "disabled";
+
+      return {
+        id: `conversation-${payload.externalId}`,
+        externalSource: payload.externalSource,
+        externalId: payload.externalId,
+        subject: payload.subject,
+        messageCount: payload.messages.length
+      };
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      importer
+    });
+
+    expect(result).toEqual({ importedCount: 1, errorCount: 0 });
+    expect(state.runs[0]).toMatchObject({
+      status: "imported",
+      importedCount: 1,
+      errorCount: 0,
+      finishedAt: expect.any(Date)
+    });
+    expect(state.integrationUpdates).toEqual([]);
+  });
+
+  it("re-claims and imports items stuck in selected status after a crashed import run", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+    state.items.push({
+      id: "item-stuck",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "411",
+      status: "selected",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("411"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-stuck"]
+    });
+
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 0
+    });
+    expect(state.items[0]).toMatchObject({
+      id: "item-stuck",
+      status: "imported",
+      conversationId: "conversation-411"
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "imported",
+      importedCount: 1,
+      errorCount: 0
     });
   });
 

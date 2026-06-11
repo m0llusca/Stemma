@@ -9,6 +9,23 @@ export function firstQueryParam(searchParams: URLSearchParams, key: string) {
   return searchParams.get(key)?.trim() || undefined;
 }
 
+export function enumParam<T extends string>(searchParams: URLSearchParams, key: string, allowed: readonly T[]) {
+  const value = firstQueryParam(searchParams, key)?.toUpperCase();
+
+  if (!value) {
+    return { ok: true as const, value: undefined };
+  }
+
+  return allowed.includes(value as T) ? { ok: true as const, value: value as T } : { ok: false as const, value };
+}
+
+export function splitTags(value: string) {
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
 export function parsePositiveInteger(value: string | null | undefined, fallback: number, max?: number) {
   const parsed = Number(value ?? "");
   const normalized = Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;

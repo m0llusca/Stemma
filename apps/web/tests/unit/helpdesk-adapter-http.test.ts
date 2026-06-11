@@ -59,7 +59,7 @@ describe("helpdesk adapter HTTP boundary", () => {
     const authClient = createHelpdeskHttpClient({
       transport: async () => ({
         statusCode: 401,
-        body: JSON.stringify({ message: "secret-token", authHint: "Authorization: Bearer secret-token" })
+        body: JSON.stringify({ message: "Invalid access token format", authHint: "Authorization: Bearer secret-token" })
       })
     });
 
@@ -80,7 +80,7 @@ describe("helpdesk adapter HTTP boundary", () => {
       safeMessage: "Источник отклонил учетные данные."
     });
     expect(JSON.stringify(authError.diagnostic)).not.toContain("secret-token");
-    expect(JSON.stringify(authError.diagnostic)).toContain("\"message\":\"[REDACTED]\"");
+    expect(JSON.stringify(authError.diagnostic)).toContain("\"message\":\"Invalid access token format\"");
 
     const invalidJsonClient = createHelpdeskHttpClient({
       transport: async () => ({ statusCode: 200, body: "token=secret-token" })
@@ -153,34 +153,57 @@ describe("helpdesk adapter HTTP boundary", () => {
     expect(JSON.stringify(networkError.diagnostic)).not.toContain("secret-token");
   });
 
-  it("redacts auth fragments from diagnostics", () => {
+  it("redacts auth fragments from diagnostics while keeping non-secret messages readable", () => {
     expect(
       redactHelpdeskDiagnostic({
         url: "https://user:pass@example.test/path?access_token=secret-token",
         headers: { authorization: "Bearer secret-token" },
         body: {
           password: "secret-token",
-          bareMessage: "secret-token",
+          bareMessage: "Token expired",
           message: "token=secret-token",
           authorizationNote: "Authorization: Bearer secret-token",
           keep: "visible"
         },
-        requestBody: JSON.stringify({ message: "secret-token", note: "api_key=secret-token", keep: "visible" }),
-        responseBody: JSON.stringify({ message: "secret-token", note: "password=secret-token", keep: "visible" })
+        requestBody: JSON.stringify({ message: "Invalid access token format", note: "api_key=abc123", keep: "visible" }),
+        responseBody: JSON.stringify({ message: "Invalid access token format", note: "password=secret-token", keep: "visible" })
       })
     ).toEqual({
       url: "https://[REDACTED]:[REDACTED]@example.test/path?access_token=[REDACTED]",
       headers: { authorization: "[REDACTED]" },
       body: {
         password: "[REDACTED]",
-        bareMessage: "[REDACTED]",
+        bareMessage: "Token expired",
         message: "token=[REDACTED]",
         authorizationNote: "[REDACTED]",
         keep: "visible"
       },
-      requestBody: { message: "[REDACTED]", note: "api_key=[REDACTED]", keep: "visible" },
-      responseBody: { message: "[REDACTED]", note: "password=[REDACTED]", keep: "visible" }
+      requestBody: { message: "Invalid access token format", note: "api_key=[REDACTED]", keep: "visible" },
+      responseBody: { message: "Invalid access token format", note: "password=[REDACTED]", keep: "visible" }
     });
+  });
+
+  it("keeps non-secret error messages readable in network error diagnostics", async () => {
+    const client = createHelpdeskHttpClient({
+      transport: async () => {
+        throw new Error("Token expired");
+      }
+    });
+
+    const error = await expectHelpdeskError(
+      client.requestJson({
+        source: "zendesk",
+        operation: "ticket_get",
+        method: "GET",
+        url: "https://example.zendesk.com/api/v2/tickets/1.json",
+        headers: {},
+        timeoutMs: 15000,
+        maxResponseBytes: 500000
+      })
+    );
+
+    expect(error).toMatchObject({ code: "network_error" });
+    expect(JSON.stringify(error.diagnostic)).toContain("\"message\":\"Token expired\"");
   });
 
   it("enforces response size limits while streaming with the default transport", async () => {

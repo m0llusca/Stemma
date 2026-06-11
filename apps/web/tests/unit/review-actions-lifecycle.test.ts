@@ -36,6 +36,9 @@ const mocks = vi.hoisted(() => {
       },
       scorecard: {
         findFirst: vi.fn()
+      },
+      user: {
+        count: vi.fn()
       }
     },
     recordReviewEvent: vi.fn(),
@@ -68,9 +71,13 @@ vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
 
-vi.mock("@/lib/review-events", () => ({
-  recordReviewEvent: mocks.recordReviewEvent
-}));
+vi.mock("@/lib/review-events", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/review-events")>();
+  return {
+    ...actual,
+    recordReviewEvent: mocks.recordReviewEvent
+  };
+});
 
 function reviewerUser() {
   return {
@@ -113,6 +120,7 @@ describe("review action lifecycle guards", () => {
       version: 3,
       criteria: []
     });
+    mocks.prisma.user.count.mockResolvedValue(1);
     mocks.tx.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
       qaStatus: "IN_PROGRESS",
@@ -208,6 +216,61 @@ describe("review action lifecycle guards", () => {
           id: "conversation-1",
           workspaceId: "workspace-1",
           qaStatus: "REOPENED"
+        })
+      })
+    );
+  });
+
+  it("rejects self-review when several active users share the reviewer's name", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    mocks.prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      assigneeName: "Проверяющий",
+      qaStatus: "IN_PROGRESS",
+      qaAssigneeId: null,
+      qaAssigneeName: null,
+      messages: []
+    });
+    mocks.prisma.user.count.mockResolvedValue(2);
+    const formData = baseFinalizeForm();
+    formData.set("reviewSource", "SELF_REVIEW");
+
+    await expect(finalizeReview(formData)).rejects.toThrow(
+      "В рабочем пространстве несколько активных пользователей с вашим именем"
+    );
+
+    expect(mocks.prisma.user.count).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        name: "Проверяющий",
+        lifecycleStatus: "ACTIVE"
+      }
+    });
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.tx.review.create).not.toHaveBeenCalled();
+  });
+
+  it("allows self-review when the reviewer's name is unique among active users", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    mocks.prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      assigneeName: "Проверяющий",
+      qaStatus: "IN_PROGRESS",
+      qaAssigneeId: null,
+      qaAssigneeName: null,
+      messages: []
+    });
+    mocks.prisma.user.count.mockResolvedValue(1);
+    const formData = baseFinalizeForm();
+    formData.set("reviewSource", "SELF_REVIEW");
+
+    await finalizeReview(formData);
+
+    expect(mocks.tx.review.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          reviewSource: "SELF_REVIEW",
+          status: "FINALIZED"
         })
       })
     );

@@ -32,7 +32,8 @@ export async function GET(_request: Request, context: { params: Promise<{ review
       workspaceId: user.workspaceId,
       reviewId
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }],
+    take: 500,
     include: {
       actor: {
         select: {

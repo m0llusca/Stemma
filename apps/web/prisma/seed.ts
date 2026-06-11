@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { PrismaClient, type ConversationChannel, type FindingOwnerType, type ReviewSource, type RiskLevel } from "@prisma/client";
 import { demoApiToken } from "../src/lib/custom-api-docs";
+import { assertSeedAllowed } from "./seed-guard";
 import {
   buildDemoOperationalStatusPlan,
   buildOperationalConversationSeeds,
@@ -20,6 +21,8 @@ function isDemoAuthEnabled() {
 }
 
 async function main() {
+  assertSeedAllowed(process.env as Record<string, string | undefined>);
+
   await prisma.auditLog.deleteMany();
   await prisma.reportSnapshot.deleteMany();
   await prisma.idempotencyKey.deleteMany();

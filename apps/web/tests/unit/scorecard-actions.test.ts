@@ -141,4 +141,81 @@ describe("scorecard actions", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/scorecards");
     expect(mocks.redirect).toHaveBeenCalledWith("/admin/scorecards?section=overview");
   });
+
+  it("computes the next version inside the transaction when creating a scorecard version", async () => {
+    const { createScorecardVersion } = await import("@/lib/scorecard-actions");
+    mocks.prisma.scorecard.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.scorecard.create.mockResolvedValue({ id: "scorecard-new" });
+
+    await createScorecardVersion(validScorecardFormData());
+
+    expect(mocks.prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.scorecard.findFirst).toHaveBeenCalledWith({
+      where: { workspaceId: "workspace-1" },
+      orderBy: { version: "desc" },
+      select: { version: true }
+    });
+    expect(mocks.prisma.scorecard.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ version: 4, isActive: true })
+      })
+    );
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "scorecard.version_created",
+        metadata: expect.objectContaining({ version: 4 })
+      }),
+      mocks.prisma
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith("/admin/scorecards");
+  });
+
+  it("retries once with a recomputed version when the unique version constraint rejects a duplicate", async () => {
+    const { createScorecardVersion } = await import("@/lib/scorecard-actions");
+    const conflict = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+    mocks.prisma.scorecard.findFirst
+      .mockResolvedValueOnce({ version: 3 })
+      .mockResolvedValueOnce({ version: 4 });
+    mocks.prisma.scorecard.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.scorecard.create
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({ id: "scorecard-new" });
+
+    await createScorecardVersion(validScorecardFormData());
+
+    expect(mocks.prisma.scorecard.findFirst).toHaveBeenCalledTimes(2);
+    expect(mocks.prisma.scorecard.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ data: expect.objectContaining({ version: 4 }) })
+    );
+    expect(mocks.prisma.scorecard.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ data: expect.objectContaining({ version: 5 }) })
+    );
+    expect(mocks.auditLog).toHaveBeenCalledTimes(1);
+    expect(mocks.redirect).toHaveBeenCalledWith("/admin/scorecards");
+  });
+
+  it("does not retry scorecard version creation on non-unique errors", async () => {
+    const { createScorecardVersion } = await import("@/lib/scorecard-actions");
+    mocks.prisma.scorecard.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.scorecard.create.mockRejectedValue(new Error("База данных недоступна."));
+
+    await expect(createScorecardVersion(validScorecardFormData())).rejects.toThrow("База данных недоступна.");
+
+    expect(mocks.prisma.scorecard.create).toHaveBeenCalledTimes(1);
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the unique constraint error when the retry also collides", async () => {
+    const { createScorecardVersion } = await import("@/lib/scorecard-actions");
+    const conflict = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+    mocks.prisma.scorecard.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.scorecard.create.mockRejectedValue(conflict);
+
+    await expect(createScorecardVersion(validScorecardFormData())).rejects.toThrow("Unique constraint failed");
+
+    expect(mocks.prisma.scorecard.create).toHaveBeenCalledTimes(2);
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
 });

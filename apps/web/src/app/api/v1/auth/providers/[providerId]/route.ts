@@ -157,8 +157,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ provi
         targetId: result.id,
         metadata: {
           status: result.status,
-          clientSecretRef: result.clientSecretRef,
-          ldapsBindSecretRef: result.ldapsBindSecretRef
+          credentialConfigured: Boolean(result.clientSecretRef),
+          ldapsBindCredentialConfigured: Boolean(result.ldapsBindSecretRef)
         }
       },
       tx

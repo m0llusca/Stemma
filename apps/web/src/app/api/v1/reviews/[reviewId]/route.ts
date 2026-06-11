@@ -1,19 +1,12 @@
 import { NextRequest } from "next/server";
 import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
 import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
-import { safeJsonParse } from "@/lib/api/query";
+import { safeJsonParse, splitTags } from "@/lib/api/query";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { formatQualityScore, qualityScoreUnit } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
-
-function splitTags(value: string) {
-  return value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
 
 export async function GET(request: NextRequest, context: { params: Promise<{ reviewId: string }> }) {
   const requestId = requestIdFromHeaders(request.headers);

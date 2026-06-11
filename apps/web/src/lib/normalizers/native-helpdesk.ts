@@ -196,6 +196,12 @@ function parseDate(value: unknown, fallback = new Date(0)) {
     /([+-]\d{2})(\d{2})$/,
     "$1:$2"
   );
+  // Naive datetimes without a timezone designator (e.g. ServiceNow "2026-04-25 10:00:00")
+  // are assumed to be UTC: appending "Z" keeps parsing deterministic regardless of the
+  // server timezone. If the source instance reports timestamps in a local timezone,
+  // the imported timestamps will be shifted by that offset. The normalize result shape
+  // (CustomConversationInput[]) has no warnings channel, so this assumption is documented
+  // here instead of being surfaced per conversation.
   const withZone = /(Z|[+-]\d{2}:\d{2})$/.test(isoLikeValue) ? isoLikeValue : `${isoLikeValue}Z`;
   const date = new Date(withZone);
 

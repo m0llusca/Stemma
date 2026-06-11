@@ -634,6 +634,10 @@ describe("custom conversation API", () => {
     const response = await GET(apiRequest());
 
     await expect(response.json()).resolves.toEqual({
+      meta: {
+        count: 1,
+        truncated: false
+      },
       reviews: [
         {
           id: "review-1",

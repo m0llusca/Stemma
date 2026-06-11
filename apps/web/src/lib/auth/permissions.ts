@@ -9,6 +9,7 @@ export type Permission =
   | "self_review:write"
   | "calibration:manage"
   | "reports:read"
+  | "reports:manage"
   | "scorecards:manage"
   | "sampling:manage"
   | "integrations:manage"
@@ -33,6 +34,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "self_review:write",
     "calibration:manage",
     "reports:read",
+    "reports:manage",
     "scorecards:manage",
     "sampling:manage",
     "integrations:manage",
@@ -54,6 +56,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "self_review:write",
     "calibration:manage",
     "reports:read",
+    "reports:manage",
     "scorecards:manage",
     "sampling:manage",
     "audit:read",
@@ -68,6 +71,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "self_review:write",
     "calibration:manage",
     "reports:read",
+    "reports:manage",
     "training:manage"
   ],
   SUPPORT_AGENT: ["reviews:read", "feedback:acknowledge", "self_review:write", "training:manage"],

@@ -117,6 +117,35 @@ describe("review lifecycle policy", () => {
     ).not.toThrow();
   });
 
+  it("normalizes whitespace and rejects unassigned conversations in self-review scope", () => {
+    expect(() =>
+      assertSelfReviewScope({
+        reviewSource: "SELF_REVIEW",
+        userRole: "SUPPORT_AGENT",
+        userName: "Анна ",
+        conversationAssigneeName: " Анна"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      assertSelfReviewScope({
+        reviewSource: "SELF_REVIEW",
+        userRole: "SUPPORT_AGENT",
+        userName: "Анна",
+        conversationAssigneeName: null
+      })
+    ).toThrow("Оператор может отправить самопроверку только по своему диалогу.");
+
+    expect(() =>
+      assertSelfReviewScope({
+        reviewSource: "HUMAN",
+        userRole: "QA_ANALYST",
+        userName: "Мария",
+        conversationAssigneeName: null
+      })
+    ).not.toThrow();
+  });
+
   it("maps feedback transitions into event status changes", () => {
     expect(
       reviewFeedbackTransitionStatuses({

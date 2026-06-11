@@ -292,9 +292,25 @@ export async function updateTrainingAssignmentStatus(formData: FormData) {
       ? { id, workspaceId: user.workspaceId }
       : { id, workspaceId: user.workspaceId, assigneeId: user.id };
 
-  await prisma.trainingAssignment.updateMany({
-    where,
-    data: { status }
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.trainingAssignment.updateMany({
+      where,
+      data: { status }
+    });
+
+    if (updated.count > 0) {
+      await auditLog(
+        {
+          workspaceId: user.workspaceId,
+          actorId: user.id,
+          action: "training.assignment_status_updated",
+          targetType: "training_assignment",
+          targetId: id,
+          metadata: { status }
+        },
+        tx
+      );
+    }
   });
 
   revalidatePath("/coaching");

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, requestIdFromHeaders } from "@/lib/api/response";
+import { isDemoAuthEnabled } from "@/lib/auth/demo";
 import { demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 
@@ -70,7 +71,7 @@ function authErrorResponse(request: NextRequest, message: string, status: 401 | 
 }
 
 function isDisabledDemoApiToken(token: string) {
-  return token === demoApiToken && process.env.QC_DEMO_AUTH !== "enabled";
+  return token === demoApiToken && !isDemoAuthEnabled();
 }
 
 export async function requireApiToken(

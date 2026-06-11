@@ -155,9 +155,30 @@ export async function updateCalibrationSessionStatus(formData: FormData) {
 
   assertCalibrationStatusTransition(session.status, status);
 
-  await prisma.calibrationSession.updateMany({
-    where: { id, workspaceId: user.workspaceId },
-    data: { status }
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.calibrationSession.updateMany({
+      where: { id, workspaceId: user.workspaceId, status: session.status },
+      data: { status }
+    });
+
+    if (updated.count === 0) {
+      throw new Error("Статус калибровки уже изменен другим пользователем. Обновите страницу и повторите действие.");
+    }
+
+    await auditLog(
+      {
+        workspaceId: user.workspaceId,
+        actorId: user.id,
+        action: "calibration.session_status_updated",
+        targetType: "calibration",
+        targetId: session.id,
+        metadata: {
+          fromStatus: session.status,
+          toStatus: status
+        }
+      },
+      tx
+    );
   });
 
   revalidatePath("/calibration");

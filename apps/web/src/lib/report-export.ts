@@ -150,13 +150,30 @@ function worksheetXml(rows: string[][]) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${body}</sheetData></worksheet>`;
 }
 
+let cyrillicFontWarningLogged = false;
+
 function fontPath() {
-  return [
+  const found = [
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Arial.ttf",
     "/Library/Fonts/Arial Unicode.ttf",
-    "/Library/Fonts/Arial.ttf"
+    "/Library/Fonts/Arial.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/noto/NotoSans-Regular.ttf"
   ].find((path) => fs.existsSync(path));
+
+  if (!found && !cyrillicFontWarningLogged) {
+    cyrillicFontWarningLogged = true;
+    console.warn(
+      "Не найден TTF-шрифт с поддержкой кириллицы: кириллица в PDF-отчете может отображаться некорректно."
+    );
+  }
+
+  return found;
 }
 
 export async function loadReportExportRows(workspaceId: string, rawParams: Record<string, string>) {

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => {
     $transaction: vi.fn(),
     $executeRawUnsafe: vi.fn(),
     integration: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       upsert: vi.fn(),
       update: vi.fn()
@@ -128,6 +129,7 @@ describe("OTRS integration actions", () => {
       ok: true,
       user: authorizedUser()
     });
+    mocks.prisma.integration.findFirst.mockResolvedValue({ id: "integration-1" });
     mocks.prisma.integration.findUnique.mockResolvedValue(null);
     mocks.prisma.integration.upsert.mockResolvedValue({
       id: "integration-1",
@@ -469,7 +471,7 @@ describe("OTRS integration actions", () => {
   it("accepts YDB data source setup with grpc endpoint and stores credentials in the data source slot", async () => {
     const { saveIntegrationConfigurationState } = await import("@/lib/integration-actions");
     const formData = baseSetupForm("ydb", "data_source");
-    formData.set("baseUrl", "grpc://localhost:2136/local");
+    formData.set("baseUrl", "grpc://ydb.example.com:2136/local");
     formData.set("dataSourceSecret", JSON.stringify({ username: "qa", password: "secret" }));
     formData.set("dataSourceQuery", "SELECT * FROM conversations LIMIT 100");
 
@@ -483,7 +485,7 @@ describe("OTRS integration actions", () => {
         create: expect.objectContaining({
           source: "ydb",
           type: "data_source",
-          baseUrl: "grpc://localhost:2136/local",
+          baseUrl: "grpc://ydb.example.com:2136/local",
           configJson: expect.stringContaining("SELECT * FROM conversations LIMIT 100")
         })
       })

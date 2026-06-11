@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination, safeJsonParse } from "@/lib/api/query";
+import { enumParam, firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination, safeJsonParse, splitTags } from "@/lib/api/query";
 
 describe("api query helpers", () => {
   it("normalizes pagination within configured limits", () => {
@@ -31,5 +31,18 @@ describe("api query helpers", () => {
     expect(parseIsoDateParam(params, "to", true)?.toISOString()).toBe("2026-05-03T23:59:59.999Z");
     expect(safeJsonParse(params.get("broken"))).toEqual({});
     expect(safeJsonParse('{"ok":true}')).toEqual({ ok: true });
+  });
+
+  it("validates enum params case-insensitively and rejects unknown values", () => {
+    const params = new URLSearchParams("status=draft&unknown=BROKEN");
+
+    expect(enumParam(params, "status", ["DRAFT", "FINALIZED"] as const)).toEqual({ ok: true, value: "DRAFT" });
+    expect(enumParam(params, "missing", ["DRAFT", "FINALIZED"] as const)).toEqual({ ok: true, value: undefined });
+    expect(enumParam(params, "unknown", ["DRAFT", "FINALIZED"] as const)).toEqual({ ok: false, value: "BROKEN" });
+  });
+
+  it("splits comma-separated tags and drops empty entries", () => {
+    expect(splitTags("vip, refund , ,billing")).toEqual(["vip", "refund", "billing"]);
+    expect(splitTags("")).toEqual([]);
   });
 });

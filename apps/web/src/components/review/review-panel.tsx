@@ -11,12 +11,11 @@ import type {
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
+import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
 import { ScoreBar } from "@/components/ui/score-bar";
 import { StatusChip } from "@/components/ui/status-chip";
-import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
-import { finalizeReview, saveReviewDraft } from "@/lib/review-actions";
 import styles from "./review-panel-workbench.module.css";
 
 type ReviewPanelProps = {
@@ -251,7 +250,7 @@ export function ReviewPanel({
   }, []);
 
   return (
-    <form action={saveReviewDraft} className={`review-panel-form panel overflow-hidden ${styles.workbench}`}>
+    <ReviewFormShell className={`review-panel-form panel overflow-hidden ${styles.workbench}`}>
       <EvidencePickerListener />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
@@ -698,19 +697,6 @@ export function ReviewPanel({
         </div>
       </StepDisclosure>
       </div>
-
-      <div className="review-actions-bar">
-        <button
-          type="submit"
-          formNoValidate
-          className="action-button"
-        >
-          Сохранить черновик
-        </button>
-        <ValidatedSubmitButton formAction={finalizeReview}>
-          Завершить проверку
-        </ValidatedSubmitButton>
-      </div>
-    </form>
+    </ReviewFormShell>
   );
 }

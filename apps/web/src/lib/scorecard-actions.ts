@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, canManageScorecards, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { validateScorecardDraft, type ScorecardCriterionDraft } from "@/lib/scorecard-validation";
+import { validateScorecardDraft, type ScorecardCriterionDraft, type ScorecardDraft } from "@/lib/scorecard-validation";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -58,21 +58,37 @@ export async function createScorecardVersion(formData: FormData) {
     criteria: Array.from({ length: criterionCount }, (_, index) => parseCriterionDraft(formData, index))
   });
 
-  const latestScorecard = await prisma.scorecard.findFirst({
-    where: {
-      workspaceId: user.workspaceId
-    },
-    orderBy: {
-      version: "desc"
-    },
-    select: {
-      version: true
-    }
-  });
+  await persistScorecardVersionWithRetry(user, draft);
 
-  const nextVersion = (latestScorecard?.version ?? 0) + 1;
+  revalidatePath("/admin/scorecards");
+  redirect("/admin/scorecards");
+}
 
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+}
+
+async function persistScorecardVersion(user: { id: string; workspaceId: string }, draft: ScorecardDraft) {
   await prisma.$transaction(async (tx) => {
+    const latestScorecard = await tx.scorecard.findFirst({
+      where: {
+        workspaceId: user.workspaceId
+      },
+      orderBy: {
+        version: "desc"
+      },
+      select: {
+        version: true
+      }
+    });
+
+    const nextVersion = (latestScorecard?.version ?? 0) + 1;
+
     await tx.scorecard.updateMany({
       where: {
         workspaceId: user.workspaceId,
@@ -115,9 +131,21 @@ export async function createScorecardVersion(formData: FormData) {
       tx
     );
   });
+}
 
-  revalidatePath("/admin/scorecards");
-  redirect("/admin/scorecards");
+async function persistScorecardVersionWithRetry(user: { id: string; workspaceId: string }, draft: ScorecardDraft) {
+  try {
+    await persistScorecardVersion(user, draft);
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    // Под READ COMMITTED две параллельные транзакции могут прочитать одинаковую
+    // максимальную версию: уникальный индекс (workspaceId, version) отбрасывает
+    // дубликат, поэтому пересчитываем версию и повторяем попытку один раз.
+    await persistScorecardVersion(user, draft);
+  }
 }
 
 export async function updateScorecardVersion(formData: FormData) {

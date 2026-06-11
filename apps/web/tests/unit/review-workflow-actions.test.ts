@@ -56,9 +56,13 @@ vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
 
-vi.mock("@/lib/review-events", () => ({
-  recordReviewEvent: mocks.recordReviewEvent
-}));
+vi.mock("@/lib/review-events", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/review-events")>();
+  return {
+    ...actual,
+    recordReviewEvent: mocks.recordReviewEvent
+  };
+});
 
 function managerUser() {
   return {

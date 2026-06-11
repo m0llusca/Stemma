@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { recordReviewEvent } from "@/lib/review-events";
+import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
   ReviewLifecycleTransitionError,
   assertReviewCanFinalize,
@@ -239,18 +239,24 @@ async function findCurrentReview(
   });
 }
 
-async function findLatestReopenedAt(tx: Prisma.TransactionClient, workspaceId: string, conversationId: string) {
-  const event = await tx.reviewEvent.findFirst({
+async function assertSelfReviewIdentityResolvable(reviewSource: ReviewSource, user: { workspaceId: string; name: string }) {
+  if (reviewSource !== "SELF_REVIEW") {
+    return;
+  }
+
+  const activeUsersWithSameName = await prisma.user.count({
     where: {
-      workspaceId,
-      conversationId,
-      toStatus: "REOPENED"
-    },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true }
+      workspaceId: user.workspaceId,
+      name: user.name,
+      lifecycleStatus: "ACTIVE"
+    }
   });
 
-  return event?.createdAt ?? null;
+  if (activeUsersWithSameName > 1) {
+    throw new ReviewLifecycleTransitionError(
+      "В рабочем пространстве несколько активных пользователей с вашим именем, поэтому принадлежность диалога нельзя определить однозначно. Обратитесь к тимлиду."
+    );
+  }
 }
 
 async function assertCurrentReviewStillWritable(
@@ -290,6 +296,7 @@ export async function saveReviewDraft(formData: FormData) {
     userName: user.name,
     conversationAssigneeName: conversation.assigneeName
   });
+  await assertSelfReviewIdentityResolvable(reviewSource, user);
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
@@ -474,6 +481,7 @@ export async function finalizeReview(formData: FormData) {
     userName: user.name,
     conversationAssigneeName: conversation.assigneeName
   });
+  await assertSelfReviewIdentityResolvable(reviewSource, user);
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const coachingAction = optionalString(formData, "coachingAction");
   const coachingAssignee = optionalString(formData, "coachingAssignee");

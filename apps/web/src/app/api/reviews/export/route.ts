@@ -3,6 +3,7 @@ import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/l
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const maxExportRows = 5000;
 
 function isoDate(value: Date | null) {
   return value ? value.toISOString() : null;
@@ -40,10 +41,15 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: maxExportRows
     });
 
     const response = NextResponse.json({
+      meta: {
+        count: reviews.length,
+        truncated: reviews.length === maxExportRows
+      },
       reviews: reviews.map((review) => ({
         id: review.id,
         status: review.status,

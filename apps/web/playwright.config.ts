@@ -2,13 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 
 const defaultDatabaseUrl = "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public";
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? defaultDatabaseUrl;
-process.env.QC_DEMO_AUTH = process.env.QC_DEMO_AUTH ?? "enabled";
 // Playwright forces FORCE_COLOR for workers and webServer. Empty NO_COLOR avoids Node 25 warnings in that child env.
 process.env.NO_COLOR = "";
 
-const webServerEnv = Object.fromEntries(
-  Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
-);
+const webServerEnv: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  ),
+  // Force demo auth and allow seed to run for e2e without relying on the caller's shell.
+  QC_DEMO_AUTH: "enabled",
+  ALLOW_SEED: "1"
+};
 
 export default defineConfig({
   testDir: "tests/e2e",

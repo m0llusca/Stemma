@@ -85,6 +85,58 @@ describe("calibration actions", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("rejects the status change when a parallel update already moved the session", async () => {
+    const { updateCalibrationSessionStatus } = await import("@/lib/calibration-actions");
+    mocks.prisma.calibrationSession.findFirst.mockResolvedValue({
+      id: "calibration-1",
+      status: "active"
+    });
+    mocks.prisma.calibrationSession.updateMany.mockResolvedValue({ count: 0 });
+    const formData = new FormData();
+    formData.set("id", "calibration-1");
+    formData.set("status", "completed");
+
+    await expect(updateCalibrationSessionStatus(formData)).rejects.toThrow(
+      "Статус калибровки уже изменен другим пользователем. Обновите страницу и повторите действие."
+    );
+
+    expect(mocks.prisma.calibrationSession.updateMany).toHaveBeenCalledWith({
+      where: { id: "calibration-1", workspaceId: "workspace-1", status: "active" },
+      data: { status: "completed" }
+    });
+    expect(mocks.auditLog).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("updates the status conditionally and writes an audit log entry in the same transaction", async () => {
+    const { updateCalibrationSessionStatus } = await import("@/lib/calibration-actions");
+    mocks.prisma.calibrationSession.findFirst.mockResolvedValue({
+      id: "calibration-1",
+      status: "active"
+    });
+    mocks.prisma.calibrationSession.updateMany.mockResolvedValue({ count: 1 });
+    const formData = new FormData();
+    formData.set("id", "calibration-1");
+    formData.set("status", "completed");
+
+    await updateCalibrationSessionStatus(formData);
+
+    expect(mocks.prisma.calibrationSession.updateMany).toHaveBeenCalledWith({
+      where: { id: "calibration-1", workspaceId: "workspace-1", status: "active" },
+      data: { status: "completed" }
+    });
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "calibration.session_status_updated",
+        targetType: "calibration",
+        targetId: "calibration-1",
+        metadata: { fromStatus: "active", toStatus: "completed" }
+      }),
+      mocks.prisma
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/calibration");
+  });
+
   it("rejects calibration conversations outside the current workspace before creating nested rows", async () => {
     const { createCalibrationSession } = await import("@/lib/calibration-actions");
     const formData = new FormData();

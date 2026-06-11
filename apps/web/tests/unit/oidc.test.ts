@@ -367,7 +367,7 @@ describe("OIDC user upsert session boundary", () => {
         findUnique: vi.fn().mockResolvedValue({
           id: "identity-1",
           userId: "user-1",
-          user: { id: "user-1" }
+          user: { id: "user-1", lifecycleStatus: "ACTIVE" }
         }),
         update: vi.fn().mockResolvedValue({ id: "identity-1" }),
         create: vi.fn()
@@ -447,5 +447,181 @@ describe("OIDC user upsert session boundary", () => {
       })
     });
     expect(createAuthSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("OIDC user lifecycle enforcement", () => {
+  afterEach(() => {
+    vi.doUnmock("@/lib/db");
+    vi.doUnmock("@/lib/auth/providers");
+    vi.resetModules();
+  });
+
+  function buildUpsertMocks(input: {
+    existingIdentity?: { id: string; userId: string; user: { id: string; lifecycleStatus: string } } | null;
+    userByEmail?: { id: string; lifecycleStatus: string; role?: string; name?: string; sourceOfTruthProviderId?: string } | null;
+  }) {
+    const tx = {
+      externalIdentity: {
+        findUnique: vi.fn().mockResolvedValue(input.existingIdentity ?? null),
+        update: vi.fn().mockResolvedValue({ id: "identity-1" }),
+        create: vi.fn().mockResolvedValue({ id: "identity-1" })
+      },
+      user: {
+        findUnique: vi.fn().mockResolvedValue(input.userByEmail ?? null),
+        create: vi.fn(),
+        update: vi.fn()
+      }
+    };
+    const prismaMock = {
+      identityProvider: {
+        findUnique: vi.fn().mockResolvedValue({ configJson: "{}" })
+      },
+      $transaction: vi.fn(async (callback: (tx: unknown) => unknown) => callback(tx))
+    };
+
+    vi.doMock("@/lib/db", () => ({
+      prisma: prismaMock
+    }));
+    vi.doMock("@/lib/auth/providers", () => ({
+      buildEntraAuthorizationMetadata: vi.fn(),
+      resolveIdentityPolicyFromExternalClaims: vi.fn().mockResolvedValue({
+        role: "AGENT"
+      })
+    }));
+
+    return tx;
+  }
+
+  it("rejects login through an existing identity when the user is suspended and does not update records", async () => {
+    vi.resetModules();
+
+    const tx = buildUpsertMocks({
+      existingIdentity: {
+        id: "identity-1",
+        userId: "user-1",
+        user: { id: "user-1", lifecycleStatus: "SUSPENDED" }
+      }
+    });
+
+    const { upsertUserFromOidcClaims } = await import("@/lib/auth/oidc");
+
+    await expect(
+      upsertUserFromOidcClaims({
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        claims: {
+          sub: "subject-1",
+          email: "agent@example.com",
+          name: "Agent One",
+          roles: ["QC.Agent"]
+        }
+      })
+    ).rejects.toThrow("Пользователь приостановлен или деактивирован.");
+
+    expect(tx.externalIdentity.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects login through an existing identity when the user is deprovisioned", async () => {
+    vi.resetModules();
+
+    const tx = buildUpsertMocks({
+      existingIdentity: {
+        id: "identity-1",
+        userId: "user-1",
+        user: { id: "user-1", lifecycleStatus: "DEPROVISIONED" }
+      }
+    });
+
+    const { upsertUserFromOidcClaims } = await import("@/lib/auth/oidc");
+
+    await expect(
+      upsertUserFromOidcClaims({
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        claims: {
+          sub: "subject-1",
+          email: "agent@example.com",
+          roles: ["QC.Agent"]
+        }
+      })
+    ).rejects.toThrow("Пользователь приостановлен или деактивирован.");
+
+    expect(tx.externalIdentity.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects linking a new identity by email when the matched user is suspended", async () => {
+    vi.resetModules();
+
+    const tx = buildUpsertMocks({
+      existingIdentity: null,
+      userByEmail: {
+        id: "user-1",
+        lifecycleStatus: "SUSPENDED"
+      }
+    });
+
+    const { upsertUserFromOidcClaims } = await import("@/lib/auth/oidc");
+
+    await expect(
+      upsertUserFromOidcClaims({
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        claims: {
+          sub: "subject-1",
+          email: "agent@example.com",
+          roles: ["QC.Agent"]
+        }
+      })
+    ).rejects.toThrow("Пользователь приостановлен или деактивирован.");
+
+    expect(tx.externalIdentity.create).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps repeat login working for an active linked user", async () => {
+    vi.resetModules();
+
+    const updatedUser = {
+      id: "user-1",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Agent One",
+      role: "AGENT",
+      lifecycleStatus: "ACTIVE"
+    };
+    const tx = buildUpsertMocks({
+      existingIdentity: {
+        id: "identity-1",
+        userId: "user-1",
+        user: { id: "user-1", lifecycleStatus: "ACTIVE" }
+      }
+    });
+
+    tx.user.update.mockResolvedValue(updatedUser);
+
+    const { upsertUserFromOidcClaims } = await import("@/lib/auth/oidc");
+
+    await expect(
+      upsertUserFromOidcClaims({
+        workspaceId: "workspace-1",
+        providerId: "provider-1",
+        claims: {
+          sub: "subject-1",
+          email: "agent@example.com",
+          name: "Agent One",
+          roles: ["QC.Agent"]
+        }
+      })
+    ).resolves.toEqual({
+      user: updatedUser,
+      role: "AGENT"
+    });
+
+    expect(tx.externalIdentity.update).toHaveBeenCalledTimes(1);
+    expect(tx.user.update).toHaveBeenCalledTimes(1);
   });
 });

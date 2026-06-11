@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { recordReviewEvent } from "@/lib/review-events";
+import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
   assertConditionalWorkflowWrite,
   assertQaWorkflowTransition,
@@ -31,20 +31,6 @@ function statusField(formData: FormData): QaStatus {
   }
 
   return value as QaStatus;
-}
-
-async function findLatestReopenedAt(tx: Prisma.TransactionClient, workspaceId: string, conversationId: string) {
-  const event = await tx.reviewEvent.findFirst({
-    where: {
-      workspaceId,
-      conversationId,
-      toStatus: "REOPENED"
-    },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true }
-  });
-
-  return event?.createdAt ?? null;
 }
 
 async function hasCurrentCycleFinalizedHumanReview(tx: Prisma.TransactionClient, workspaceId: string, conversationId: string) {

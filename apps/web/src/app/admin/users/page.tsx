@@ -34,6 +34,7 @@ const permissionLabels: Record<Permission, string> = {
   "self_review:write": "Самопроверка",
   "calibration:manage": "Калибровки",
   "reports:read": "Отчеты",
+  "reports:manage": "Экспорт отчетов",
   "scorecards:manage": "Формы оценки",
   "sampling:manage": "Выборки",
   "integrations:manage": "Интеграции",
@@ -61,7 +62,7 @@ const permissionGroups: Array<{ title: string; description: string; permissions:
   {
     title: "Аналитика",
     description: "Отчеты и чтение операционной истории.",
-    permissions: ["reports:read", "audit:read"]
+    permissions: ["reports:read", "reports:manage", "audit:read"]
   },
   {
     title: "Администрирование",

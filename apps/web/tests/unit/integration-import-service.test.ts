@@ -400,7 +400,7 @@ describe("integration import service", () => {
       requestedLimit: 1,
       dryRun: true
     });
-    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1" }]);
+    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1", externalId: "101", status: "previewed" }]);
     mocks.prisma.integrationRun.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.backendJob.create.mockResolvedValue({
       id: "job-1",
@@ -422,11 +422,12 @@ describe("integration import service", () => {
         integrationRunId: "run-1",
         id: {
           in: ["item-1"]
-        },
-        status: "previewed"
+        }
       },
       select: {
-        id: true
+        id: true,
+        externalId: true,
+        status: true
       }
     });
     expect(mocks.prisma.integrationRun.updateMany).toHaveBeenCalledWith({
@@ -559,7 +560,10 @@ describe("integration import service", () => {
       requestedLimit: 3,
       dryRun: true
     });
-    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-valid" }]);
+    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([
+      { id: "item-valid", externalId: "101", status: "previewed" },
+      { id: "item-non-previewed", externalId: "102", status: "skipped" }
+    ]);
 
     await expect(
       queueSelectedOtrsImportJob({
@@ -569,7 +573,10 @@ describe("integration import service", () => {
         integrationRunId: "run-1",
         integrationRunItemIds: ["item-valid", "item-foreign", "item-non-previewed"]
       })
-    ).rejects.toThrow("Выбранные обращения должны быть previewed-строками указанного preview-run.");
+    ).rejects.toThrow(
+      "Выбранные обращения должны быть previewed-строками указанного preview-run. " +
+        "Недоступные обращения: item-foreign (не найден в preview-run); 102 (статус: skipped)."
+    );
 
     expect(mocks.prisma.integrationRunItem.findMany).toHaveBeenCalledWith({
       where: {
@@ -577,11 +584,12 @@ describe("integration import service", () => {
         integrationRunId: "run-1",
         id: {
           in: ["item-valid", "item-foreign", "item-non-previewed"]
-        },
-        status: "previewed"
+        }
       },
       select: {
-        id: true
+        id: true,
+        externalId: true,
+        status: true
       }
     });
     expect(mocks.prisma.backendJob.create).not.toHaveBeenCalled();
@@ -630,7 +638,7 @@ describe("integration import service", () => {
       requestedLimit: 1,
       dryRun: false
     });
-    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1" }]);
+    mocks.prisma.integrationRunItem.findMany.mockResolvedValue([{ id: "item-1", externalId: "101", status: "previewed" }]);
     mocks.prisma.integrationRun.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
@@ -649,11 +657,12 @@ describe("integration import service", () => {
         integrationRunId: "run-1",
         id: {
           in: ["item-1"]
-        },
-        status: "previewed"
+        }
       },
       select: {
-        id: true
+        id: true,
+        externalId: true,
+        status: true
       }
     });
     expect(mocks.prisma.integrationRun.updateMany).toHaveBeenCalledWith({

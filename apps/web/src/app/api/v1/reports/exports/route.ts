@@ -18,7 +18,7 @@ const exportSchema = z.object({
 
 export async function POST(request: Request) {
   const requestId = requestIdFromHeaders(request.headers);
-  const session = await requireSessionApi(request, "reports:read", { requestId });
+  const session = await requireSessionApi(request, "reports:manage", { requestId });
 
   if (!session.ok) {
     return session.response;

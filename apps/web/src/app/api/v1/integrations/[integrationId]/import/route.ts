@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
+import { prisma } from "@/lib/db";
 import { queueSelectedOtrsImportJob } from "@/lib/integration-import-service";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,14 @@ export async function POST(request: Request, context: { params: Promise<{ integr
   }
 
   const { integrationId } = await context.params;
+  const integration = await prisma.integration.findFirst({
+    where: { id: integrationId, workspaceId: session.user.workspaceId },
+    select: { id: true }
+  });
+
+  if (!integration) {
+    return apiError("not_found", "Интеграция не найдена.", 404, requestId);
+  }
 
   try {
     const result = await queueSelectedOtrsImportJob({
@@ -52,8 +61,8 @@ export async function POST(request: Request, context: { params: Promise<{ integr
       requestId
     );
   } catch (error) {
-    if (error instanceof Error && /не найд|not found/i.test(error.message)) {
-      return apiError("not_found", "Интеграция или preview-run не найдены.", 404, requestId);
+    if (error instanceof Error && error.message === "Preview-run интеграции не найден.") {
+      return apiError("not_found", error.message, 404, requestId);
     }
 
     if (error instanceof Error && /уже поставлен|недоступен/i.test(error.message)) {

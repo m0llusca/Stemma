@@ -2,7 +2,7 @@ import type { ConversationChannel, Prisma, QaStatus } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { hashRequestBody, readIdempotencyKey, reserveIdempotencyKey, completeIdempotencyKey } from "@/lib/api/idempotency";
-import { firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination } from "@/lib/api/query";
+import { enumParam, firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination, splitTags } from "@/lib/api/query";
 import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
 import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
@@ -14,23 +14,6 @@ export const dynamic = "force-dynamic";
 
 const qaStatuses = ["QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const satisfies readonly QaStatus[];
 const channels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
-
-function enumParam<T extends string>(searchParams: URLSearchParams, key: string, allowed: readonly T[]) {
-  const value = firstQueryParam(searchParams, key)?.toUpperCase();
-
-  if (!value) {
-    return { ok: true as const, value: undefined };
-  }
-
-  return allowed.includes(value as T) ? { ok: true as const, value: value as T } : { ok: false as const, value };
-}
-
-function splitTags(value: string) {
-  return value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
 
 export async function GET(request: NextRequest) {
   const requestId = requestIdFromHeaders(request.headers);

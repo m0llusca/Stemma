@@ -15,6 +15,30 @@ type ReviewEventClient = {
   };
 };
 
+type ReviewEventReaderClient = {
+  reviewEvent: {
+    findFirst: (args: {
+      where: { workspaceId: string; conversationId: string; toStatus: string };
+      orderBy: { createdAt: "desc" };
+      select: { createdAt: true };
+    }) => Promise<{ createdAt: Date } | null>;
+  };
+};
+
+export async function findLatestReopenedAt(client: ReviewEventReaderClient, workspaceId: string, conversationId: string) {
+  const event = await client.reviewEvent.findFirst({
+    where: {
+      workspaceId,
+      conversationId,
+      toStatus: "REOPENED"
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true }
+  });
+
+  return event?.createdAt ?? null;
+}
+
 export async function recordReviewEvent(
   client: ReviewEventClient,
   input: {

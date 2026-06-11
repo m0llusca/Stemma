@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { RoleName } from "@prisma/client";
+import { isDemoAuthEnabled } from "@/lib/auth/demo";
 import { hasPermission, type Permission, requirePermission } from "@/lib/auth/permissions";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -20,9 +21,7 @@ export class DemoSettingsMutationError extends Error {
   }
 }
 
-export function isDemoAuthEnabled() {
-  return process.env.QC_DEMO_AUTH === "enabled";
-}
+export { isDemoAuthEnabled };
 
 async function getAuthJsSession() {
   const { auth } = await import("../../auth");

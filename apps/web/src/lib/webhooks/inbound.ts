@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -80,7 +80,8 @@ export function verifyWebhookSignature(input: {
 }
 
 export function webhookRequestHash(payload: string) {
-  return createHmac("sha256", "qc_webhook_request").update(payload, "utf8").digest("hex");
+  // Контрольная сумма для идемпотентности, а не MAC: ключ здесь не нужен.
+  return createHash("sha256").update(payload, "utf8").digest("hex");
 }
 
 export function parseWebhookConversationPayload(payload: unknown): { eventType: string; conversation: CustomConversationInput } {

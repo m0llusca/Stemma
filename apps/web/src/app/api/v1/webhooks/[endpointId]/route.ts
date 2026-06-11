@@ -40,6 +40,18 @@ export async function POST(request: Request, context: RouteContext) {
     return apiError("bad_request", "Idempotency-Key header is required.", 400, requestId);
   }
 
+  const timestamp = request.headers.get("x-qc-webhook-timestamp")?.trim();
+
+  if (!timestamp) {
+    return apiError("bad_request", "x-qc-webhook-timestamp header is required.", 400, requestId);
+  }
+
+  const signature = request.headers.get("x-qc-webhook-signature")?.trim();
+
+  if (!signature) {
+    return apiError("bad_request", "x-qc-webhook-signature header is required.", 400, requestId);
+  }
+
   const contentLength = contentLengthBytes(request.headers);
 
   if (contentLength !== null && contentLength > maxWebhookBodyBytes) {
@@ -57,8 +69,8 @@ export async function POST(request: Request, context: RouteContext) {
       endpointId,
       rawBody,
       idempotencyKey,
-      timestamp: request.headers.get("x-qc-webhook-timestamp"),
-      signature: request.headers.get("x-qc-webhook-signature")
+      timestamp,
+      signature
     });
 
     return apiJson(

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
+import { prisma } from "@/lib/db";
 import { queueIntegrationImportJob } from "@/lib/integration-import-service";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,15 @@ export async function POST(request: Request, context: { params: Promise<{ integr
     return apiError("bad_request", "Некорректные параметры запуска импорта.", 400, requestId, parsed.error.flatten());
   }
 
+  const integration = await prisma.integration.findFirst({
+    where: { id: integrationId, workspaceId: user.workspaceId },
+    select: { id: true }
+  });
+
+  if (!integration) {
+    return apiError("not_found", "Интеграция не найдена.", 404, requestId);
+  }
+
   const result = await queueIntegrationImportJob({
     workspaceId: user.workspaceId,
     actorId: user.id,
@@ -36,10 +46,6 @@ export async function POST(request: Request, context: { params: Promise<{ integr
     requestedLimit: parsed.data.requestedLimit,
     runAfter: parsed.data.runAfter ? new Date(parsed.data.runAfter) : undefined
   }).catch((error: unknown) => {
-    if (error instanceof Error && error.message === "Интеграция не найдена.") {
-      return null;
-    }
-
     if (
       error instanceof Error &&
       /защищенной настройки OAuth-доступов|не соответствует контракту Phase B|secret slots/.test(error.message)
@@ -52,10 +58,6 @@ export async function POST(request: Request, context: { params: Promise<{ integr
 
   if (result instanceof Response) {
     return result;
-  }
-
-  if (!result) {
-    return apiError("not_found", "Интеграция не найдена.", 404, requestId);
   }
 
   return apiJson(

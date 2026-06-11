@@ -258,6 +258,34 @@ describe("auth provider server actions", () => {
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  it("does not embed the client secret ref in provider audit metadata", async () => {
+    mocks.prisma.identityProvider.upsert.mockResolvedValue({
+      id: "provider-1",
+      type: "OIDC",
+      slug: "generic-oidc",
+      status: "draft",
+      clientSecretRef: "env:OIDC_CLIENT_SECRET"
+    });
+    const { saveIdentityProvider } = await import("@/lib/auth-provider-actions");
+    const formData = new FormData();
+    formData.set("type", "OIDC");
+    formData.set("name", "Generic OIDC");
+    formData.set("slug", "generic-oidc");
+    formData.set("status", "draft");
+    formData.set("issuer", "https://issuer.example.com");
+    formData.set("clientSecretRef", "env:OIDC_CLIENT_SECRET");
+
+    await expect(saveIdentityProvider(formData)).rejects.toThrow("NEXT_REDIRECT:/admin/access?section=provider&provider=provider-1");
+
+    expect(mocks.prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    const metadataJson = mocks.prisma.auditLog.create.mock.calls[0][0].data.metadata as string;
+    const metadata = JSON.parse(metadataJson);
+
+    expect(metadataJson).not.toContain("env:OIDC_CLIENT_SECRET");
+    expect(metadata).not.toHaveProperty("clientSecretRef");
+    expect(metadata.credentialConfigured).toBe(true);
+  });
+
   it("rejects non-HTTPS provider endpoints except localhost", async () => {
     const { saveIdentityProvider } = await import("@/lib/auth-provider-actions");
     const formData = new FormData();

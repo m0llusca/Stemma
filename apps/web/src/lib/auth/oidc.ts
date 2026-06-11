@@ -572,6 +572,10 @@ export async function upsertUserFromOidcClaims(input: {
     });
 
     if (existingIdentity) {
+      if (existingIdentity.user.lifecycleStatus !== "ACTIVE") {
+        throw new Error("Пользователь приостановлен или деактивирован.");
+      }
+
       await tx.externalIdentity.update({
         where: { id: existingIdentity.id },
         data: {
@@ -603,6 +607,11 @@ export async function upsertUserFromOidcClaims(input: {
         }
       }
     });
+
+    if (userByEmail && userByEmail.lifecycleStatus !== "ACTIVE") {
+      throw new Error("Пользователь приостановлен или деактивирован.");
+    }
+
     const linkedUser =
       userByEmail ??
       (await tx.user.create({

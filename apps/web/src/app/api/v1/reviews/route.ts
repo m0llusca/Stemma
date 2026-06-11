@@ -1,6 +1,6 @@
 import type { Prisma, ReviewSource, ReviewStatus } from "@prisma/client";
 import { NextRequest } from "next/server";
-import { firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination } from "@/lib/api/query";
+import { enumParam, firstQueryParam, paginationMeta, parseIsoDateParam, parsePagination } from "@/lib/api/query";
 import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
 import { apiData, apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
@@ -11,16 +11,6 @@ export const dynamic = "force-dynamic";
 
 const reviewStatuses = ["DRAFT", "FINALIZED"] as const satisfies readonly ReviewStatus[];
 const reviewSources = ["HUMAN", "AI", "CALIBRATION", "SELF_REVIEW"] as const satisfies readonly ReviewSource[];
-
-function enumParam<T extends string>(searchParams: URLSearchParams, key: string, allowed: readonly T[]) {
-  const value = firstQueryParam(searchParams, key)?.toUpperCase();
-
-  if (!value) {
-    return { ok: true as const, value: undefined };
-  }
-
-  return allowed.includes(value as T) ? { ok: true as const, value: value as T } : { ok: false as const, value };
-}
 
 function scoreParam(searchParams: URLSearchParams, key: string) {
   const value = firstQueryParam(searchParams, key);

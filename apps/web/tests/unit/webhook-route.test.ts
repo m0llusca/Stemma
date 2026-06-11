@@ -32,6 +32,8 @@ describe("public webhook route", () => {
         headers: {
           "content-length": String(maxWebhookBodyBytes + 1),
           "idempotency-key": "idem-1",
+          "x-qc-webhook-timestamp": "1750000000",
+          "x-qc-webhook-signature": "v1=signature",
           "x-request-id": "req-webhook-size"
         }
       }),
@@ -57,6 +59,8 @@ describe("public webhook route", () => {
         method: "POST",
         headers: {
           "idempotency-key": "idem-1",
+          "x-qc-webhook-timestamp": "1750000000",
+          "x-qc-webhook-signature": "v1=signature",
           "x-request-id": "req-webhook-raw-size"
         },
         body: "x".repeat(maxWebhookBodyBytes + 1)
@@ -65,6 +69,56 @@ describe("public webhook route", () => {
     );
 
     expect(response.status).toBe(413);
+    expect(mocks.ingestWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests without signature headers with explicit 400 responses", async () => {
+    const { POST } = await import("@/app/api/v1/webhooks/[endpointId]/route");
+
+    const missingTimestamp = await POST(
+      new Request("https://qc.example.test/api/v1/webhooks/endpoint-1", {
+        method: "POST",
+        headers: {
+          "idempotency-key": "idem-1",
+          "x-qc-webhook-signature": "v1=signature",
+          "x-request-id": "req-webhook-no-timestamp"
+        },
+        body: "{}"
+      }),
+      context()
+    );
+
+    expect(missingTimestamp.status).toBe(400);
+    await expect(missingTimestamp.json()).resolves.toMatchObject({
+      error: {
+        code: "bad_request",
+        message: "x-qc-webhook-timestamp header is required.",
+        requestId: "req-webhook-no-timestamp"
+      }
+    });
+
+    const missingSignature = await POST(
+      new Request("https://qc.example.test/api/v1/webhooks/endpoint-1", {
+        method: "POST",
+        headers: {
+          "idempotency-key": "idem-1",
+          "x-qc-webhook-timestamp": "1750000000",
+          "x-request-id": "req-webhook-no-signature"
+        },
+        body: "{}"
+      }),
+      context()
+    );
+
+    expect(missingSignature.status).toBe(400);
+    await expect(missingSignature.json()).resolves.toMatchObject({
+      error: {
+        code: "bad_request",
+        message: "x-qc-webhook-signature header is required.",
+        requestId: "req-webhook-no-signature"
+      }
+    });
+
     expect(mocks.ingestWebhookEvent).not.toHaveBeenCalled();
   });
 });

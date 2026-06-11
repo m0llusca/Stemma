@@ -21,7 +21,14 @@ export function assertSelfReviewScope(input: {
   userName: string;
   conversationAssigneeName: string | null;
 }) {
-  if (input.reviewSource === "SELF_REVIEW" && input.conversationAssigneeName !== input.userName) {
+  if (input.reviewSource !== "SELF_REVIEW") {
+    return;
+  }
+
+  const assigneeName = input.conversationAssigneeName?.trim() ?? null;
+  const userName = input.userName.trim();
+
+  if (assigneeName === null || assigneeName !== userName) {
     throw new ReviewLifecycleTransitionError("Оператор может отправить самопроверку только по своему диалогу.");
   }
 }

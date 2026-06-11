@@ -234,8 +234,8 @@ export async function POST(request: Request) {
           type: result.type,
           slug: result.slug,
           status: result.status,
-          clientSecretRef: result.clientSecretRef,
-          ldapsBindSecretRef: result.ldapsBindSecretRef
+          credentialConfigured: Boolean(result.clientSecretRef),
+          ldapsBindCredentialConfigured: Boolean(result.ldapsBindSecretRef)
         }
       },
       tx

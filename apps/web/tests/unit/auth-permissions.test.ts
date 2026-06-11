@@ -9,6 +9,14 @@ describe("auth permissions", () => {
     expect(hasPermission("TEAM_LEAD", "users:manage")).toBe(false);
   });
 
+  it("restricts report export management to admin, team lead and QA analyst roles", () => {
+    expect(hasPermission("ADMIN", "reports:manage")).toBe(true);
+    expect(hasPermission("TEAM_LEAD", "reports:manage")).toBe(true);
+    expect(hasPermission("QA_ANALYST", "reports:manage")).toBe(true);
+    expect(hasPermission("SUPPORT_AGENT", "reports:manage")).toBe(false);
+    expect(hasPermission("VIEWER", "reports:manage")).toBe(false);
+  });
+
   it("allows support agents to read their scoped review queue plus self-review, feedback and training", () => {
     expect(getPermissions("SUPPORT_AGENT")).toEqual(["reviews:read", "feedback:acknowledge", "self_review:write", "training:manage"]);
     expect(hasPermission("SUPPORT_AGENT", "integrations:manage")).toBe(false);

@@ -3,6 +3,7 @@ import { upsertCustomConversation, type ImportedConversation } from "@/lib/conve
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
 import type { OtrsHttpClient } from "@/lib/integrations/otrs-family/client";
 import type { OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
+import { OtrsConnectorError } from "@/lib/integrations/otrs-family/errors";
 import { buildTicketGetRequest, buildTicketSearchRequest, parseTicketSearchResponse } from "@/lib/integrations/otrs-family/requests";
 import { createOtrsSession, operationUsesSessionAuth } from "@/lib/integrations/otrs-family/session-auth";
 import { normalizeOtrsFamilyTicketForImport } from "@/lib/integrations/otrs-family/normalization";
@@ -57,6 +58,15 @@ type PreviewDb = {
   };
 };
 
+type ImportTransactionDb = {
+  integrationRun: {
+    update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
+  };
+  integration: {
+    updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
+  };
+};
+
 type ImportDb = {
   integrationRun: {
     findFirst(args: { where: JsonRecord }): Promise<JsonRecord | null>;
@@ -71,6 +81,7 @@ type ImportDb = {
     findFirst(args: { where: JsonRecord }): Promise<JsonRecord | null>;
     updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
   };
+  $transaction?<T>(fn: (tx: ImportTransactionDb) => Promise<T>): Promise<T>;
 } & ConversationImportClient;
 
 type OtrsPreviewIntegration = {
@@ -239,7 +250,7 @@ export async function createOtrsPreviewItems(input: CreateOtrsPreviewItemsInput)
 }
 
 export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunItemsInput) {
-  const db = input.db ?? prisma;
+  const db: ImportDb = input.db ?? prisma;
   const importer =
     input.importer ??
     ((workspaceId: string, payload: CustomConversationInput, client: ConversationImportClient) =>
@@ -270,6 +281,8 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     throw new Error("Интеграция отключена.");
   }
 
+  // Claim both "previewed" rows and rows stuck in "selected" from a previous
+  // crashed import attempt, so a re-run can resume them instead of hanging forever.
   await db.integrationRunItem.updateMany({
     where: {
       workspaceId: input.workspaceId,
@@ -277,7 +290,7 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
       id: {
         in: input.selectedItemIds
       },
-      status: "previewed"
+      status: { in: ["previewed", "selected"] }
     },
     data: {
       status: "selected"
@@ -384,36 +397,59 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     updatedAt: finishedAt
   });
 
-  await db.integrationRun.update({
-    where: { id: input.integrationRunId },
-    data: {
-      status,
-      dryRun: false,
-      checkedCount,
-      importedCount,
-      skippedCount: 0,
-      errorCount,
-      cursorJson: JSON.stringify(integrationRunCursorPayload(syncState)),
-      checkpointJson: JSON.stringify(syncState.checkpoint),
-      errorMessage,
-      finishedAt
-    }
-  });
+  const finalizeImportRun = async (tx: ImportTransactionDb) => {
+    await tx.integrationRun.update({
+      where: { id: input.integrationRunId },
+      data: {
+        status,
+        dryRun: false,
+        checkedCount,
+        importedCount,
+        skippedCount: 0,
+        errorCount,
+        cursorJson: JSON.stringify(integrationRunCursorPayload(syncState)),
+        checkpointJson: JSON.stringify(syncState.checkpoint),
+        errorMessage,
+        finishedAt
+      }
+    });
 
-  if (lastSuccessfulExternalId) {
-    await updateEnabledIntegration(db, input, {
-      status: integrationStatus,
-      lastError: null,
-      lastImportAt: finishedAt,
-      lastSyncedAt: finishedAt,
-      syncCursor: lastSuccessfulExternalId,
-      syncStateJson: serializeIntegrationSyncState(syncState)
-    });
+    // tolerateDisabled: если интеграцию отключили во время импорта, итог run
+    // всё равно должен зафиксироваться — иначе транзакция откатит финализацию
+    // и run навсегда зависнет с захваченными items.
+    if (lastSuccessfulExternalId) {
+      await updateEnabledIntegration(
+        tx,
+        input,
+        {
+          status: integrationStatus,
+          lastError: null,
+          lastImportAt: finishedAt,
+          lastSyncedAt: finishedAt,
+          syncCursor: lastSuccessfulExternalId,
+          syncStateJson: serializeIntegrationSyncState(syncState)
+        },
+        { tolerateDisabled: true }
+      );
+    } else {
+      await updateEnabledIntegration(
+        tx,
+        input,
+        {
+          status: integrationStatus,
+          lastError: errorMessage
+        },
+        { tolerateDisabled: true }
+      );
+    }
+  };
+
+  // Finalize the run and integration sync state atomically so the run can't
+  // end half-finalized (run updated but integration status/cursor missing).
+  if (db.$transaction) {
+    await db.$transaction((tx) => finalizeImportRun(tx));
   } else {
-    await updateEnabledIntegration(db, input, {
-      status: integrationStatus,
-      lastError: errorMessage
-    });
+    await finalizeImportRun(db);
   }
 
   return {
@@ -423,9 +459,10 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
 }
 
 async function updateEnabledIntegration(
-  db: ImportDb,
+  db: Pick<ImportTransactionDb, "integration">,
   input: Pick<ImportSelectedOtrsRunItemsInput, "workspaceId" | "integrationId">,
-  data: JsonRecord
+  data: JsonRecord,
+  options: { tolerateDisabled?: boolean } = {}
 ) {
   const result = await db.integration.updateMany({
     where: {
@@ -436,7 +473,7 @@ async function updateEnabledIntegration(
     data
   });
 
-  if (result.count !== 1) {
+  if (result.count !== 1 && !options.tolerateDisabled) {
     throw new Error("Интеграция отключена.");
   }
 }
@@ -579,11 +616,20 @@ async function createPreviewItemForTicketId(input: CreateOtrsPreviewItemsInput &
         normalizedPreviewJson: JSON.stringify(conversation)
       }
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof OtrsConnectorError) {
+      return createSkippedPreviewItem(input, input.ticketId, [
+        {
+          code: error.code,
+          message: `TicketGet failed for TicketID ${input.ticketId}: ${error.safeMessage}`
+        }
+      ]);
+    }
+
     return createSkippedPreviewItem(input, input.ticketId, [
       {
-        code: "ticket_get_failed",
-        message: `TicketGet failed for TicketID ${input.ticketId}.`
+        code: "normalization_failed",
+        message: `Normalization or validation failed for TicketID ${input.ticketId}.`
       }
     ]);
   }
