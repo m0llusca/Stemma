@@ -39,8 +39,10 @@ export function createServiceNowAdapter() {
       // Fetch both customer comments AND internal work notes. The normalizer maps
       // element === "work_notes" entries to private (internal) messages, so restricting
       // the journal query to comments alone silently drops every internal note.
-      // ServiceNow encoded queries OR within the same field with `^OR`.
-      const journalQuery = `element_id=${sysId}^element=comments^ORelement=work_notes`;
+      // Use the IN operator (not `^OR`) so the element filter is unambiguously grouped
+      // under element_id — `^OR` would split the query and pull work_notes from EVERY
+      // case on the instance (cross-case data leak).
+      const journalQuery = `element_id=${sysId}^elementINcomments,work_notes`;
       const journalDiagnostics = [];
       const journal = [];
 

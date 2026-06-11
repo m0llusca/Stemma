@@ -108,7 +108,13 @@ async function runQuery({
 
     // SOQL signals more pages with done:false plus an absolute nextRecordsUrl path.
     const nextRecordsUrl = body.done === false ? firstString(body.nextRecordsUrl) : undefined;
-    nextUrl = nextRecordsUrl ? `${baseUrl}${nextRecordsUrl}` : undefined;
+    // Normally a relative path (/services/data/...); tolerate a fully-qualified URL
+    // (proxy/OAuth routings) instead of double-prefixing baseUrl into a broken link.
+    nextUrl = nextRecordsUrl
+      ? /^https?:\/\//i.test(nextRecordsUrl)
+        ? nextRecordsUrl
+        : `${baseUrl}${nextRecordsUrl}`
+      : undefined;
   }
 
   return { records, diagnostics };

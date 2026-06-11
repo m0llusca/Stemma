@@ -925,7 +925,9 @@ function normalizeSalesforceMessage(comment: NativeRecord, index: number): Custo
     body: enterpriseMessageBody(comment.CommentBody, comment.body),
     sentAt: parseDate(comment.CreatedDate, new Date(index)),
     // CaseComment.IsPublished === false marks an internal/unpublished comment as private.
-    isPrivate: comment.IsPublished === false
+    // boolValue also coerces "false"/"0" strings from manual-import payloads; a missing
+    // flag stays public (undefined !== false).
+    isPrivate: boolValue(comment.IsPublished) === false
   };
 }
 

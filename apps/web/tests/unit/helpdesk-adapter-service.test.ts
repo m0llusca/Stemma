@@ -565,7 +565,7 @@ describe("native helpdesk adapters", () => {
         if (source === "servicenow") {
           expect(server.requests[0]?.query.sysparm_display_value).toBe("all");
           expect(server.requests[1]?.query.sysparm_query).toBe(
-            `element_id=${externalId}^element=comments^ORelement=work_notes`
+            `element_id=${externalId}^elementINcomments,work_notes`
           );
           expect(server.requests[1]?.query.sysparm_limit).toBe("100");
           expect(server.requests[1]?.query.sysparm_offset).toBe("0");
@@ -721,10 +721,9 @@ describe("native helpdesk adapters", () => {
 
       // The journal query must include both customer comments and internal work notes.
       expect(journalRequest?.query.sysparm_query).toBe(
-        `element_id=${externalId}^element=comments^ORelement=work_notes`
+        `element_id=${externalId}^elementINcomments,work_notes`
       );
-      expect(journalRequest?.query.sysparm_query).toContain("element=comments");
-      expect(journalRequest?.query.sysparm_query).toContain("work_notes");
+      expect(journalRequest?.query.sysparm_query).toContain("elementINcomments,work_notes");
 
       // display_value=all must NOT be applied to the journal: the body lives in the raw
       // `value` field, and an object shape would corrupt the message text.
