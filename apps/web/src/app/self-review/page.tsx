@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MessageSquareText, ShieldQuestion } from "lucide-react";
+import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -10,7 +11,7 @@ import {
   externalSourceLabel,
   riskLevelLabels
 } from "@/lib/labels";
-import { formatQualityScore } from "@/lib/score-display";
+import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ function feedbackTone(status: string) {
 export default async function SelfReviewPage() {
   const user = await requireCurrentUserPermission("feedback:acknowledge");
   const scopedToAgent = user.role === "SUPPORT_AGENT";
-  const [conversations, assignments] = await Promise.all([
+  const [conversations, assignments, teamScoreAggregate] = await Promise.all([
     prisma.conversation.findMany({
       where: {
         workspaceId: user.workspaceId,
@@ -62,8 +63,25 @@ export default async function SelfReviewPage() {
       },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 6
+    }),
+    prisma.review.aggregate({
+      where: { workspaceId: user.workspaceId, status: "FINALIZED", reviewSource: "HUMAN" },
+      _avg: { totalScore: true }
     })
   ]);
+  // Personal score trend: the agent's finalized review scores oldest -> newest.
+  const myReviewScores = conversations
+    .map((conversation) => conversation.reviews[0])
+    .filter((review): review is NonNullable<typeof review> => Boolean(review))
+    .slice()
+    .reverse()
+    .map((review) => review.totalScore);
+  const myAverage = myReviewScores.length > 0 ? myReviewScores.reduce((sum, value) => sum + value, 0) / myReviewScores.length : null;
+  const recentHalf = myReviewScores.slice(Math.ceil(myReviewScores.length / 2));
+  const earlierHalf = myReviewScores.slice(0, Math.floor(myReviewScores.length / 2));
+  const recentAverage = recentHalf.length > 0 ? recentHalf.reduce((sum, value) => sum + value, 0) / recentHalf.length : null;
+  const earlierAverage = earlierHalf.length > 0 ? earlierHalf.reduce((sum, value) => sum + value, 0) / earlierHalf.length : null;
+  const teamAverage = teamScoreAggregate._avg.totalScore;
   const waitingFeedback = conversations.filter((conversation) => {
     const review = conversation.reviews[0];
     return review && review.feedbackStatus !== "acknowledged" && review.feedbackStatus !== "corrected";
@@ -207,6 +225,35 @@ export default async function SelfReviewPage() {
           { icon: <ShieldQuestion size={14} aria-hidden="true" />, value: appealCount, label: "апелляции" }
         ]}
       />
+
+      {myAverage != null ? (
+        <section className="panel personal-score" aria-label="Личный результат качества">
+          <div className="personal-score__head">
+            <div className="personal-score__value">
+              <span className="personal-score__number">{formatQualityScore(myAverage)}</span>
+              <span className="personal-score__caption">средний балл · {myReviewScores.length} проверок</span>
+            </div>
+            {recentAverage != null && earlierAverage != null ? (
+              <span
+                className={`personal-score__delta ${recentAverage - earlierAverage >= 0 ? "personal-score__delta--up" : "personal-score__delta--down"}`}
+              >
+                {recentAverage - earlierAverage >= 0 ? "▲" : "▼"} {formatQualityScoreDelta(recentAverage - earlierAverage)} к началу периода
+              </span>
+            ) : null}
+          </div>
+          <ScoreSparkline points={myReviewScores} />
+          {teamAverage != null ? (
+            <p className="personal-score__benchmark">
+              {Math.round(myAverage - teamAverage) === 0
+                ? "На уровне среднего по команде."
+                : myAverage - teamAverage > 0
+                  ? `Выше среднего по команде на ${formatQualityScore(Math.abs(myAverage - teamAverage))}.`
+                  : `Ниже среднего по команде на ${formatQualityScore(Math.abs(myAverage - teamAverage))}.`}{" "}
+              Средний балл команды — {formatQualityScore(teamAverage)}.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="workflow-focus-strip" aria-label="Фокус обратной связи">
         <div className="workflow-focus-strip__lead">

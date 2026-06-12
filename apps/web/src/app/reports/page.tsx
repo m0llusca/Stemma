@@ -121,6 +121,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const riskGroups = new Map<string, number>();
   const samplingGroups = new Map<string, number>();
   const csatGroups = new Map<string, number>();
+  const csatScoreGroups = new Map<string, number[]>();
   const feedbackGroups = new Map<string, number>();
   const appealGroups = new Map<string, number>();
   const reanswerGroups = new Map<string, number>();
@@ -136,6 +137,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     addScoreGroup(reviewerGroups, review.reviewer.name, review.totalScore);
     addCountGroup(samplingGroups, samplingTypeLabels[review.conversation.samplingType] ?? review.conversation.samplingType);
     addCountGroup(csatGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket);
+    if (review.conversation.csatBucket !== "NO_SCORE") {
+      addScoreGroup(csatScoreGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket, review.totalScore);
+    }
     addCountGroup(feedbackGroups, feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus);
     addCountGroup(appealGroups, appealStatusLabels[review.appealStatus] ?? review.appealStatus);
     addCountGroup(reanswerGroups, reanswerStatusLabels[review.reanswerStatus] ?? review.reanswerStatus);
@@ -206,6 +210,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     };
   });
   const csatRows = countGroupRows(csatGroups).map((row) => {
+    const csatBucket = csatBucketByLabel.get(row.label);
+
+    return {
+      ...row,
+      href: csatBucket ? reportReviewHref(period, { csatBucket }) : undefined
+    };
+  });
+  const csatScoreRows = scoreGroupRows(csatScoreGroups).map((row) => {
     const csatBucket = csatBucketByLabel.get(row.label);
 
     return {
@@ -659,6 +671,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
             <BreakdownTable id="details-statuses" title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
             <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
+            <BreakdownTable
+              title="Средний балл по CSAT"
+              rows={csatScoreRows}
+              countLabel="Проверок"
+              showAverage
+            />
             <BreakdownTable title="Риски" rows={riskRows} countLabel="Замечаний" />
           </div>
         </div>

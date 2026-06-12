@@ -3314,6 +3314,85 @@ pre code {
   }
 }
 
+/* Personal score panel (self-review): the agent's own QA trend + team benchmark. */
+.personal-score {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.personal-score__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.personal-score__value {
+  display: grid;
+  gap: 2px;
+}
+
+.personal-score__number {
+  font-size: 30px;
+  font-weight: 780;
+  line-height: 1;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.personal-score__caption {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.personal-score__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.personal-score__delta--up {
+  color: var(--success);
+}
+
+.personal-score__delta--down {
+  color: var(--danger);
+}
+
+.personal-score__benchmark {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.score-sparkline {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: 40px;
+}
+
+.score-sparkline__area {
+  fill: color-mix(in srgb, var(--accent) 14%, transparent);
+  stroke: none;
+}
+
+.score-sparkline__line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.score-sparkline__dot {
+  fill: var(--accent);
+}
+
 .queue-controls-bar.queue-controls-bar--stuck .queue-filterbar {
   border-top: 0;
 }
