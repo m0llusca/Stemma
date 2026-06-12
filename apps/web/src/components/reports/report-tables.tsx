@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReportPeriod } from "@/lib/report-period";
 import type { BreakdownRow, ReviewForReport } from "@/lib/reports/report-aggregation";
 import { formatAverageScore, reportReviewHref } from "@/lib/reports/report-format";
+import { formatQualityScoreDelta } from "@/lib/score-display";
 
 export function BreakdownTable({
   id,
@@ -36,7 +37,16 @@ export function BreakdownTable({
                   {row.count} {countLabel.toLowerCase()}
                 </span>
               </div>
-              {showAverage ? <p className="record-meta">Средняя оценка: {formatAverageScore(row.averageScore)}</p> : null}
+              {showAverage ? (
+                <p className="record-meta">
+                  Средняя оценка: {formatAverageScore(row.averageScore)}
+                  {row.delta != null && row.delta !== 0 ? (
+                    <span className={`delta-chip delta-chip--${row.delta > 0 ? "up" : "down"}`}>
+                      {formatQualityScoreDelta(row.delta)}
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
               {row.href ? (
                 <Link href={row.href} className="record-card__action">
                   {actionLabel}

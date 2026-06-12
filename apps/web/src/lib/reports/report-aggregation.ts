@@ -51,6 +51,17 @@ export function countGroupRows(groups: Map<string, number>): BreakdownRow[] {
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "ru"));
 }
 
+// Attach period-over-period deltas: each row gets averageScore minus the
+// matching label's averageScore from the previous period.
+export function withScoreDeltas(rows: BreakdownRow[], previousRows: BreakdownRow[]): BreakdownRow[] {
+  const previousAverageByLabel = new Map(previousRows.map((row) => [row.label, row.averageScore ?? null]));
+
+  return rows.map((row) => ({
+    ...row,
+    delta: scoreDelta(row.averageScore, previousAverageByLabel.get(row.label))
+  }));
+}
+
 export function rankedScoreRows(rows: BreakdownRow[], previousRows: BreakdownRow[], limit = 6): BreakdownRow[] {
   const previousAverageByLabel = new Map(previousRows.map((row) => [row.label, row.averageScore ?? null]));
 

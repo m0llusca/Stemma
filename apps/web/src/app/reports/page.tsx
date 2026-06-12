@@ -50,6 +50,7 @@ import {
   blockRows,
   countGroupRows,
   rankedScoreRows,
+  withScoreDeltas,
   riskSegments,
   scoreDistributionRows,
   scoreGroupRows
@@ -698,11 +699,34 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <div className="details-workbench">
           <DetailsIndexPanel items={detailsIndexItems} />
           <div className="reports-table-grid reports-table-grid--details">
-            <BreakdownTable id="details-blocks" title="Блоки критериев" rows={blockScoreRows} countLabel="Оценок" showAverage />
+            <BreakdownTable
+              id="details-blocks"
+              title="Блоки критериев"
+              rows={withScoreDeltas(blockScoreRows, previousBlockScoreRows)}
+              countLabel="Оценок"
+              showAverage
+            />
             <QuotaTable id="details-quotas" quotas={quotas} reviews={finalizedReviews} period={period} />
-            <BreakdownTable id="details-sources" title="Источники" rows={sourceRows} countLabel="Проверок" showAverage />
-            <BreakdownTable id="details-people" title="Операторы" rows={assigneeRows} countLabel="Проверок" showAverage />
-            <BreakdownTable title="Команды операторов" rows={teamRows} countLabel="Проверок" showAverage />
+            <BreakdownTable
+              id="details-sources"
+              title="Источники"
+              rows={withScoreDeltas(sourceRows, previousSourceRows)}
+              countLabel="Проверок"
+              showAverage
+            />
+            <BreakdownTable
+              id="details-people"
+              title="Операторы"
+              rows={withScoreDeltas(assigneeRows, previousAssigneeRows)}
+              countLabel="Проверок"
+              showAverage
+            />
+            <BreakdownTable
+              title="Команды операторов"
+              rows={withScoreDeltas(teamRows, previousTeamRows)}
+              countLabel="Проверок"
+              showAverage
+            />
             <BreakdownTable title="Проверяющие" rows={reviewerRows} countLabel="Проверок" showAverage />
             <BreakdownTable id="details-statuses" title="Типы выборки" rows={samplingRows} countLabel="Проверок" />
             <BreakdownTable title="CSAT" rows={csatRows} countLabel="Проверок" />
