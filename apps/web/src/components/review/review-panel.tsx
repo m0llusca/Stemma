@@ -541,7 +541,7 @@ export function ReviewPanel({
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[var(--border)] bg-[#f8fafc] p-4">
+            <div className="grid gap-4 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
               <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[var(--text-body)]">
                 <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
                 Критическая ошибка: обнулить итоговую оценку
@@ -579,7 +579,7 @@ export function ReviewPanel({
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[var(--border)] bg-[#f8fafc] p-4">
+            <div className="grid gap-4 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
               <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                 Комментарий для обратной связи
                 <textarea
@@ -626,7 +626,7 @@ export function ReviewPanel({
               </span>
             </summary>
 
-            <div className="grid gap-4 border-t border-[var(--border)] bg-[#f8fafc] p-4">
+            <div className="grid gap-4 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
                   Корневая причина

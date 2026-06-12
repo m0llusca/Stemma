@@ -52,18 +52,18 @@ function formatDate(value: Date | null | undefined) {
 
 function statusTone(status: string) {
   if (["ok", "active", "SUCCEEDED", "READY"].includes(status)) {
-    return "border-[#bbf7d0] bg-[#ecfdf5] text-[var(--success)]";
+    return "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success)]";
   }
 
   if (["warn", "queued", "RUNNING", "QUEUED", "draft"].includes(status)) {
-    return "border-[#fed7aa] bg-[#fff7ed] text-[var(--warning)]";
+    return "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--warning)]";
   }
 
   if (["error", "FAILED", "disabled"].includes(status)) {
-    return "border-[#fecaca] bg-[#fef2f2] text-[var(--danger)]";
+    return "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--danger)]";
   }
 
-  return "border-[var(--border)] bg-[#f8fafc] text-[var(--text-body)]";
+  return "border-[var(--border)] bg-[var(--panel-muted)] text-[var(--text-body)]";
 }
 
 function runtimeStatusLabel(status: string) {
@@ -172,7 +172,7 @@ function StatCard({
   const toneClass = {
     ok: "soft-callout--ok",
     warn: "soft-callout--warn",
-    error: "border-[#fecaca] bg-[#fef2f2]",
+    error: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]",
     neutral: ""
   }[tone];
 
@@ -602,8 +602,8 @@ export default async function AdminSystemPage({ searchParams }: AdminSystemPageP
             <div className="soft-callout text-sm text-[var(--text-muted)]">
               <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
               Для cron-запуска фоновых задач используйте{" "}
-              <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[var(--text-body)]">npm run jobs:run -- --once</code>.
-              Команда <code className="rounded bg-[#f8fafc] px-1.5 py-0.5 text-xs text-[var(--text-body)]">npm run jobs:run</code> запускает постоянный worker.
+              <code className="rounded bg-[var(--panel-muted)] px-1.5 py-0.5 text-xs text-[var(--text-body)]">npm run jobs:run -- --once</code>.
+              Команда <code className="rounded bg-[var(--panel-muted)] px-1.5 py-0.5 text-xs text-[var(--text-body)]">npm run jobs:run</code> запускает постоянный worker.
             </div>
           </div>
         </section>

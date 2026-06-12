@@ -128,7 +128,7 @@ export function OtrsImportTester() {
         />
       </label>
 
-      <div className="grid gap-3 rounded-md border border-[var(--border)] bg-[#f8fafc] px-4 py-3">
+      <div className="grid gap-3 rounded-md border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-3">
         {preview.ok ? (
           <div className="flex min-w-0 items-start gap-3 text-sm text-[var(--text-body)]">
             <CheckCircle2 size={18} className="text-[#3157d5]" aria-hidden="true" />

@@ -82,7 +82,7 @@ export function QueueSavedViews({
             );
           })}
         </div>
-        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[var(--border)] bg-[#f8fafc] p-4">
+        <form action={createSavedQueueView} className="grid min-w-0 gap-2 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
           <input type="hidden" name="href" value={currentHref} />
           <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
             Сохранить текущий вид

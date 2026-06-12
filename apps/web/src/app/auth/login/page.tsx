@@ -135,17 +135,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         {authError ? (
-          <div className="panel border-[#fecaca] bg-[#fff7f7] px-5 py-4 text-sm font-medium text-[#991b1b]">{authError}</div>
+          <div className="panel border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-5 py-4 text-sm font-medium text-[#991b1b]">{authError}</div>
         ) : null}
         {loggedOut ? (
-          <div className="panel border-[#bbf7d0] bg-[#f0fdf4] px-5 py-4 text-sm font-medium text-[#166534]">Сессия завершена.</div>
+          <div className="panel border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-5 py-4 text-sm font-medium text-[#166534]">Сессия завершена.</div>
         ) : null}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="panel overflow-hidden">
             <div className="border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f0fdf4] text-[#166534]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--status-success-bg)] text-[#166534]">
                   <UserRoundCheck size={20} aria-hidden="true" />
                 </span>
                 <div>
@@ -195,7 +195,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <section className="panel overflow-hidden">
             <div className="border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#edf2ff] text-[#1d3fae]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[#1d3fae]">
                   <ShieldCheck size={20} aria-hidden="true" />
                 </span>
                 <div>

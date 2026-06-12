@@ -149,7 +149,7 @@ export function ScimTokenManager({
       </div>
 
       {plainToken ? (
-        <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] p-4 text-sm text-[#166534]">
+        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[#166534]">
           <div className="mb-3 font-semibold">Скопируйте SCIM bearer token сейчас. Повторно он не отображается.</div>
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -170,11 +170,11 @@ export function ScimTokenManager({
       ) : null}
 
       {message ? (
-        <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] p-3 text-sm font-medium text-[#166534]">{message}</div>
+        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm font-medium text-[#166534]">{message}</div>
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-[#fecaca] bg-[#fff7f7] p-3 text-sm font-medium text-[#991b1b]">{error}</div>
+        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3 text-sm font-medium text-[#991b1b]">{error}</div>
       ) : null}
     </div>
   );

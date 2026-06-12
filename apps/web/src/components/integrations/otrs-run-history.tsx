@@ -111,7 +111,7 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
                 {run.items.length > 0 ? (
                   <div className="scroll-area mt-3">
                     <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
-                      <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
+                      <thead className="bg-[var(--accent-soft)] text-xs uppercase text-[var(--text-subtle)]">
                         <tr>
                           <th className="px-3 py-2 font-semibold">External ID</th>
                           <th className="px-3 py-2 font-semibold">Ticket</th>

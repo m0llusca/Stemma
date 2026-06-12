@@ -52,6 +52,14 @@
   --success: #15803d;
   --success-soft: color-mix(in srgb, var(--success) 12%, var(--panel));
   --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--panel));
+  /* Status surface tokens. Light values match the dominant hardcoded hex so the default
+     theme is unchanged; dark theme derives tinted equivalents from the status hue. */
+  --status-success-bg: #ecfdf5;
+  --status-success-border: #bbf7d0;
+  --status-danger-bg: #fef2f2;
+  --status-danger-border: #fecaca;
+  --status-warning-bg: #fff7ed;
+  --status-warning-border: #fed7aa;
   --content-max-width: 1420px;
   --app-topbar-height: 52px;
   --app-topbar-inline: 34px;
@@ -213,6 +221,12 @@ body[data-theme="ops"] {
   --danger: #f87171;
   --warning: #fbbf24;
   --success: #4ade80;
+  --status-success-bg: color-mix(in srgb, #15803d 16%, #151a24);
+  --status-success-border: color-mix(in srgb, #15803d 44%, #30394c);
+  --status-danger-bg: color-mix(in srgb, #b91c1c 16%, #151a24);
+  --status-danger-border: color-mix(in srgb, #b91c1c 44%, #30394c);
+  --status-warning-bg: color-mix(in srgb, #b45309 16%, #151a24);
+  --status-warning-border: color-mix(in srgb, #b45309 44%, #30394c);
   --panel: #151a24;
   --panel-muted: #101620;
   --panel-tint: #1c2534;
@@ -247,26 +261,6 @@ body[data-theme="ops"] {
   --success-soft: color-mix(in srgb, #15803d 12%, #151a24);
   --danger-soft: color-mix(in srgb, #b91c1c 12%, #151a24);
 }
-
-/* Night Ops: dark-mode overrides for the few status backgrounds still hardcoded in
-   components. Text/panel/border colors now flow through semantic tokens (no overrides). */
-body[data-theme="ops"] [class~="bg-[#f8fafc]"],
-body[data-theme="ops"] [class~="bg-[#edf2ff]"] {
-  background-color: var(--panel-muted) !important;
-}
-
-body[data-theme="ops"] [class~="bg-[#fff7ed]"] {
-  background-color: var(--warning-soft) !important;
-}
-
-body[data-theme="ops"] [class~="bg-[#fef2f2]"] {
-  background-color: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
-}
-
-body[data-theme="ops"] [class~="bg-[#ecfdf5]"] {
-  background-color: var(--success-soft) !important;
-}
-
 
 body[data-theme="ops"] .skip-link {
   border: 1px solid var(--border);
@@ -371,34 +365,13 @@ body[data-theme="ops"] .appearance-choice-card__contrast--high {
     linear-gradient(180deg, var(--panel) 0 50%, var(--border) 50%);
 }
 
-/* Additional hardcoded light colors not covered by the generic dark overrides */
-body[data-theme="ops"] [class~="bg-[#fff7f7]"],
-body[data-theme="ops"] [class~="bg-[#fef2f2]"] {
-  background-color: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
-}
-
-body[data-theme="ops"] [class~="bg-[#f0fdf4]"] {
-  background-color: var(--success-soft) !important;
-}
-
+/* A few status text colors are still hardcoded in components (no semantic token yet). */
 body[data-theme="ops"] [class~="text-[#991b1b]"] {
   color: var(--danger) !important;
 }
 
 body[data-theme="ops"] [class~="text-[#166534]"] {
   color: var(--success) !important;
-}
-
-body[data-theme="ops"] [class~="border-[#fecaca]"] {
-  border-color: color-mix(in srgb, var(--danger) 48%, var(--border)) !important;
-}
-
-body[data-theme="ops"] [class~="border-[#bbf7d0]"] {
-  border-color: color-mix(in srgb, var(--success) 48%, var(--border)) !important;
-}
-
-body[data-theme="ops"] [class~="border-[#fed7aa]"] {
-  border-color: color-mix(in srgb, var(--warning) 48%, var(--border)) !important;
 }
 
 body[data-density="compact"] {

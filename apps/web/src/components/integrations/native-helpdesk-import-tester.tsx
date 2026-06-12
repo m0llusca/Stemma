@@ -117,7 +117,7 @@ export function NativeHelpdeskImportTester({ initialSource = "zendesk" }: { init
         />
       </label>
 
-      <div className="grid gap-3 rounded-md border border-[var(--border)] bg-[#f8fafc] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="grid gap-3 rounded-md border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         {preview.ok ? (
           <div className="flex min-w-0 items-start gap-3 text-sm text-[var(--text-body)]">
             <CheckCircle2 size={18} className="text-[#3157d5]" aria-hidden="true" />

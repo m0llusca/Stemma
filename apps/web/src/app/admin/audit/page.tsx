@@ -335,12 +335,12 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
                     <span className="record-meta">
                       {auditTargetTypeLabel(log.targetType)} · {log.actor?.name ?? "Системное событие"}
                     </span>
-                    <details className="compact-details bg-[#f8fafc]">
+                    <details className="compact-details bg-[var(--panel-muted)]">
                       <summary>
                         <span className="text-sm font-semibold text-[var(--text-body)]">Детали события</span>
                         <span className="text-sm font-semibold text-[#1d3fae]">Показать</span>
                       </summary>
-                      <pre className="m-0 overflow-x-auto rounded-b-md bg-[#f8fafc] p-3 text-xs leading-5 text-[var(--text-body)]">
+                      <pre className="m-0 overflow-x-auto rounded-b-md bg-[var(--panel-muted)] p-3 text-xs leading-5 text-[var(--text-body)]">
                         <code>{parseMetadata(log.metadata)}</code>
                       </pre>
                     </details>

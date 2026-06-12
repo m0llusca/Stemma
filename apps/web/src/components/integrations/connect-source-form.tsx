@@ -109,7 +109,7 @@ export function ConnectSourceForm({
                   aria-pressed={isActive}
                   className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition ${
                     isActive
-                      ? "border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]"
+                      ? "border-[#2563eb] bg-[var(--accent-soft)] text-[#1d4ed8]"
                       : "border-[var(--border)] bg-[var(--panel)] text-[var(--text-body)] hover:border-[#94a3b8]"
                   }`}
                 >

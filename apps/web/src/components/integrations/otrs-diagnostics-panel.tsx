@@ -122,7 +122,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
 
             <div className="scroll-area">
               <table className="table-fixed-copy w-full min-w-[720px] border-collapse text-left text-sm">
-                <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
+                <thead className="bg-[var(--accent-soft)] text-xs uppercase text-[var(--text-subtle)]">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Step</th>
                     <th className="px-4 py-3 font-semibold">Status</th>

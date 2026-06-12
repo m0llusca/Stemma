@@ -5,11 +5,11 @@ type StatusChipSize = "xs" | "sm";
 
 const toneClassNames: Record<StatusChipTone, string> = {
   neutral: "border-[var(--border)] bg-[var(--panel)] text-[var(--text-subtle)]",
-  success: "border-[#bbf7d0] bg-[#ecfdf5] text-[var(--success)]",
-  warning: "border-[#fed7aa] bg-[#fff7ed] text-[var(--warning)]",
-  danger: "border-[#fecaca] bg-[#fef2f2] text-[var(--danger)]",
-  info: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
-  accent: "border-[#c7d2fe] bg-[#edf2ff] text-[#1d3fae]"
+  success: "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success)]",
+  warning: "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--warning)]",
+  danger: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--danger)]",
+  info: "border-[#bfdbfe] bg-[var(--accent-soft)] text-[#1d4ed8]",
+  accent: "border-[#c7d2fe] bg-[var(--accent-soft)] text-[#1d3fae]"
 };
 
 const sizeClassNames: Record<StatusChipSize, string> = {

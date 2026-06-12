@@ -162,7 +162,7 @@ export default async function JobDetailsPage({ params, searchParams }: JobDetail
               <p className="record-meta">Финиш: {formatDate(job.finishedAt)}</p>
             </article>
             {job.errorMessage ? (
-              <article className="record-card border-[#fecaca] bg-[#fef2f2]">
+              <article className="record-card border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]">
                 <p className="font-semibold text-[var(--danger)]">Ошибка</p>
                 <p className="mt-1 text-sm leading-5 text-[var(--danger)]">{job.errorMessage}</p>
               </article>

@@ -154,7 +154,7 @@ export function OtrsSetupWizard() {
                 Проверить подключение
               </button>
               {checked && isReady ? (
-                <span className="inline-flex items-center gap-2 rounded-md bg-[#edf2ff] px-3 py-2 text-sm font-medium text-[#3157d5]">
+                <span className="inline-flex items-center gap-2 rounded-md bg-[var(--accent-soft)] px-3 py-2 text-sm font-medium text-[#3157d5]">
                   <CheckCircle2 size={16} aria-hidden="true" />
                   Preflight готов для {source}
                 </span>
@@ -203,7 +203,7 @@ export function OtrsSetupWizard() {
         </div>
       </div>
 
-      <div className="border-t border-[var(--border)] bg-[#f8fafc] p-4">
+      <div className="border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
         <div className="mb-3 flex items-center gap-2">
           <span className="grid size-6 place-items-center rounded bg-[#64748b] text-xs font-semibold text-white">3</span>
           <h4 className="text-sm font-semibold text-[var(--foreground)]">Как читать форму запроса</h4>

@@ -89,7 +89,7 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
         </div>
 
         <DataTable minWidth="min-w-[680px]">
-          <thead className="bg-[#edf2ff] text-xs uppercase text-[var(--text-subtle)]">
+          <thead className="bg-[var(--accent-soft)] text-xs uppercase text-[var(--text-subtle)]">
             <tr>
               <th className="px-4 py-3 font-semibold">Operation</th>
               <th className="px-4 py-3 font-semibold">Method</th>
