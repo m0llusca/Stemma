@@ -71,6 +71,14 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
           <p className="page-subtitle">
             Найдено {filteredCount} из {total}. Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия.
           </p>
+          <div className="admin-actions mt-4">
+            <form action={takeNextReview}>
+              <button type="submit" className="action-button action-button--primary">
+                <ArrowRight size={18} aria-hidden="true" />
+                Взять следующий
+              </button>
+            </form>
+          </div>
         </div>
         <div className="learning-metrics review-queue-metrics" aria-label="Сводка очереди проверок">
           <div className="learning-metric">
@@ -123,11 +131,6 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         </div>
       </section>
       <StickyCommandBarShell className="queue-controls-bar" ariaLabel="Фильтры и виды очереди">
-        <form action={takeNextReview} className="flex min-w-0">
-          <button type="submit" className="action-button action-button--primary">
-            Взять следующий
-          </button>
-        </form>
         <QueueSavedViews currentAssigneeName={data.currentAssigneeName} currentHref={data.currentHref} savedViews={data.savedViews} />
         <QueueFilters
           filters={data.filters}
