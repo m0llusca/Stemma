@@ -37,7 +37,7 @@ export default async function AdminAppearancePage() {
           <h1 className="page-title">Внешний вид</h1>
           <p className="page-subtitle">
             Настройки применяются ко всему рабочему пространству: навигация, кнопки, панели, выбранные состояния и плотность используют один набор токенов.
-            Если на устройстве включена темная тема, выбранная палитра автоматически использует темный вариант.
+            Палитры всегда светлые; тёмное оформление даёт отдельная тема Night Ops.
           </p>
           <div className="admin-actions mt-5">
             <Link href="/admin" className="action-button">

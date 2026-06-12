@@ -38,15 +38,7 @@ export const uiThemeOptions = [
     panel: "#ffffff",
     panelHeader: "#f6f8fb",
     sidebar: "#121a26",
-    primary: "#274fc7",
-    dark: {
-      accent: "#60a5fa",
-      surface: "#070b12",
-      panel: "#111827",
-      panelHeader: "#152033",
-      sidebar: "#020617",
-      primary: "#2563eb"
-    }
+    primary: "#274fc7"
   },
   {
     id: "azure",
@@ -57,15 +49,7 @@ export const uiThemeOptions = [
     panel: "#fbfdff",
     panelHeader: "#eaf2ff",
     sidebar: "#071a33",
-    primary: "#1d4ed8",
-    dark: {
-      accent: "#60a5fa",
-      surface: "#061326",
-      panel: "#0b1f3a",
-      panelHeader: "#0d2b50",
-      sidebar: "#020b1a",
-      primary: "#2563eb"
-    }
+    primary: "#1d4ed8"
   },
   {
     id: "emerald",
@@ -76,15 +60,7 @@ export const uiThemeOptions = [
     panel: "#fbfffd",
     panelHeader: "#e8f7f3",
     sidebar: "#06231f",
-    primary: "#0b6f66",
-    dark: {
-      accent: "#34d399",
-      surface: "#031712",
-      panel: "#08231d",
-      panelHeader: "#0b332a",
-      sidebar: "#02120f",
-      primary: "#0f766e"
-    }
+    primary: "#0b6f66"
   },
   {
     id: "violet",
@@ -95,15 +71,7 @@ export const uiThemeOptions = [
     panel: "#fefcff",
     panelHeader: "#efecff",
     sidebar: "#17112c",
-    primary: "#5338d5",
-    dark: {
-      accent: "#a78bfa",
-      surface: "#120b24",
-      panel: "#1d1535",
-      panelHeader: "#281e49",
-      sidebar: "#0d071c",
-      primary: "#7c3aed"
-    }
+    primary: "#5338d5"
   },
   {
     id: "amber",
@@ -114,15 +82,7 @@ export const uiThemeOptions = [
     panel: "#fffdf8",
     panelHeader: "#fff0dd",
     sidebar: "#24180b",
-    primary: "#9a4312",
-    dark: {
-      accent: "#f59e0b",
-      surface: "#1c1206",
-      panel: "#2a1a08",
-      panelHeader: "#3a250c",
-      sidebar: "#140c04",
-      primary: "#b45309"
-    }
+    primary: "#9a4312"
   },
   {
     id: "rose",
@@ -133,15 +93,7 @@ export const uiThemeOptions = [
     panel: "#fffafb",
     panelHeader: "#ffedf1",
     sidebar: "#2a0e19",
-    primary: "#a41437",
-    dark: {
-      accent: "#fb7185",
-      surface: "#210914",
-      panel: "#34111d",
-      panelHeader: "#471827",
-      sidebar: "#17050d",
-      primary: "#be123c"
-    }
+    primary: "#a41437"
   },
   {
     id: "ops",
@@ -152,15 +104,7 @@ export const uiThemeOptions = [
     panel: "#151a24",
     panelHeader: "#1c2230",
     sidebar: "#0a0e15",
-    primary: "#2563eb",
-    dark: {
-      accent: "#60a5fa",
-      surface: "#070b12",
-      panel: "#111827",
-      panelHeader: "#172033",
-      sidebar: "#050810",
-      primary: "#3b82f6"
-    }
+    primary: "#2563eb"
   }
 ] as const;
 

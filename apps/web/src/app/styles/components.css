@@ -427,16 +427,6 @@ pre code {
   color: #ffffff !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  .app-sidebar .app-sidebar__role-submit {
-    background: var(--button-primary-bg);
-  }
-
-  .app-sidebar .app-sidebar__role-submit:hover:not(:disabled):not([aria-disabled="true"]) {
-    background: var(--button-primary-hover);
-  }
-}
-
 .app-sidebar__footer {
   display: grid;
   min-width: 0;

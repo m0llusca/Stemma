@@ -114,13 +114,7 @@ function themePreviewStyle(theme: (typeof uiThemeOptions)[number]) {
     "--theme-panel": theme.panel,
     "--theme-panel-header": theme.panelHeader,
     "--theme-sidebar": theme.sidebar,
-    "--theme-primary": theme.primary,
-    "--theme-dark-accent": theme.dark.accent,
-    "--theme-dark-surface": theme.dark.surface,
-    "--theme-dark-panel": theme.dark.panel,
-    "--theme-dark-panel-header": theme.dark.panelHeader,
-    "--theme-dark-sidebar": theme.dark.sidebar,
-    "--theme-dark-primary": theme.dark.primary
+    "--theme-primary": theme.primary
   } as CSSProperties;
 }
 
@@ -608,7 +602,7 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
         >
           <div className="min-w-0">
             <h3>Цветовая тема</h3>
-            <p>Тема меняет фон приложения, сайдбар, шапки панелей, primary-кнопки, выбранные состояния, hover и акцентные панели; темный вариант включается по системной настройке устройства.</p>
+            <p>Тема меняет фон приложения, сайдбар, шапки панелей, primary-кнопки, выбранные состояния, hover и акцентные панели. Палитры светлые; тёмное оформление — тема Night Ops.</p>
           </div>
           <span className="appearance-section__header-icons">
             <Palette size={18} aria-hidden="true" />
