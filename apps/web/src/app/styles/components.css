@@ -796,18 +796,18 @@ pre code {
 }
 
 .meta-chip--success {
-  border-color: #bbf7d0;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
   background: var(--success-soft);
 }
 
 .meta-chip--success .meta-chip__icon {
-  background: #dcfce7;
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .meta-chip--warning {
-  border-color: #fed7aa;
-  background: #fff7ed;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
 }
 
 .meta-chip--warning .meta-chip__icon {
@@ -1785,9 +1785,9 @@ pre code {
 }
 
 .icon-action-button--danger:hover {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 @media (any-pointer: coarse) {
@@ -2669,13 +2669,13 @@ pre code {
 }
 
 .soft-callout--ok {
-  border-color: #bbf7d0;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
   background: var(--success-soft);
 }
 
 .soft-callout--warn {
-  border-color: #fed7aa;
-  background: #fff7ed;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
 }
 
 .soft-callout__label {
@@ -2859,14 +2859,14 @@ pre code {
 }
 
 .pill--ok {
-  border-color: #bbf7d0;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
   background: var(--success-soft);
   color: var(--success);
 }
 
 .pill--warn {
-  border-color: #fed7aa;
-  background: #fff7ed;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
   color: var(--warning);
 }
 
@@ -3090,7 +3090,7 @@ pre code {
 
 .workflow-focus-card--warning,
 .admin-attention-card--warn {
-  background: #fff7ed;
+  background: var(--warning-soft);
 }
 
 .workflow-focus-card--warning strong,
@@ -3901,18 +3901,18 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .queue-ticket__due--good {
-  border-color: #bbf7d0 !important;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border)) !important;
   background: var(--success-soft) !important;
 }
 
 .queue-ticket__due--warning {
-  border-color: #fed7aa !important;
-  background: #fff7ed !important;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border)) !important;
+  background: var(--warning-soft) !important;
 }
 
 .queue-ticket__due--danger {
-  border-color: #fecaca !important;
-  background: #fef2f2 !important;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border)) !important;
+  background: var(--danger-soft) !important;
 }
 
 .queue-ticket__due--danger strong {
@@ -3935,7 +3935,7 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .queue-ticket__signal-group--warn {
-  color: #9a3412;
+  color: var(--warning);
 }
 
 .queue-ticket__priority {
@@ -3952,14 +3952,14 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .queue-ticket__priority--warn {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .queue-ticket__priority--danger {
-  border-color: #fecaca;
-  background: #fef2f2;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
@@ -4077,9 +4077,9 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .inbox-signal--good {
-  border-color: #bbf7d0;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
   background: #ecfdf5;
-  color: #15803d;
+  color: var(--success);
 }
 
 .inbox-signal--good::before {
@@ -4088,9 +4088,9 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .inbox-signal--warn {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .inbox-signal--warn::before {
@@ -4099,9 +4099,9 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .inbox-signal--danger {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .inbox-signal--danger::before {
@@ -4296,11 +4296,11 @@ a.quiet-link:hover {
   gap: 12px;
   align-items: center;
   order: 1;
-  border: 1px solid #fed7aa;
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
   border-radius: var(--radius-page);
-  background: #fff7ed;
+  background: var(--warning-soft);
   padding: 14px;
-  color: #9a3412;
+  color: var(--warning);
 }
 
 .appeal-alert__icon {
@@ -4310,7 +4310,7 @@ a.quiet-link:hover {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-control);
-  background: #ffffff;
+  background: var(--panel);
   color: var(--warning);
 }
 
@@ -4326,7 +4326,7 @@ a.quiet-link:hover {
 
 .appeal-alert__body p {
   margin-top: 3px;
-  color: #9a3412;
+  color: var(--warning);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -4406,8 +4406,8 @@ a.quiet-link:hover {
 }
 
 .conversation-message__private {
-  background: #fff7ed;
-  color: #b45309;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .conversation-message__body {
@@ -5703,13 +5703,13 @@ a.quiet-link:hover {
 }
 
 .appearance-save-status--saved {
-  border-color: #bbf7d0;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
   background: var(--success-soft);
   color: var(--success);
 }
 
 .appearance-save-status--error {
-  border-color: #fecaca;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
   background: #fff7f7;
   color: var(--danger);
 }
@@ -7257,6 +7257,10 @@ a.agent-leaderboard__row:hover {
   color: var(--accent-strong);
 }
 
+.record-meta .delta-chip {
+  margin-left: 8px;
+}
+
 .ranked-list__body p {
   color: var(--muted);
   font-size: 12px;
@@ -7522,8 +7526,8 @@ a.agent-leaderboard__row:hover {
 }
 
 .learning-metric--danger {
-  border-color: #fecaca;
-  background: #fef2f2;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: var(--danger-soft);
 }
 
 .learning-metric--danger svg,
@@ -7532,7 +7536,7 @@ a.agent-leaderboard__row:hover {
 }
 
 .learning-metric--success {
-  border-color: #bbf7d0;
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
   background: var(--success-soft);
 }
 
@@ -8476,8 +8480,8 @@ a.agent-leaderboard__row:hover {
 }
 
 .learning-next-panel--urgent {
-  border-color: #fed7aa;
-  background: #fff7ed;
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
 }
 
 .learning-next-panel__main {

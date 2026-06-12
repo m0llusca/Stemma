@@ -17,7 +17,7 @@
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--coach-accent) 9%, transparent), transparent 46%),
     var(--coach-surface);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .callout[data-variant="spotlight"] {
@@ -43,24 +43,24 @@
 }
 
 .callout[data-tone="info"] {
-  --coach-accent: #2563eb;
-  --coach-accent-strong: #1d4ed8;
-  --coach-surface: color-mix(in srgb, #eff6ff 62%, var(--surface-soft));
-  --coach-border: color-mix(in srgb, #93c5fd 42%, var(--line-soft));
+  --coach-accent: var(--accent);
+  --coach-accent-strong: var(--accent-strong);
+  --coach-surface: color-mix(in srgb, var(--accent) 9%, var(--surface-soft));
+  --coach-border: color-mix(in srgb, var(--accent) 32%, var(--line-soft));
 }
 
 .callout[data-tone="success"] {
-  --coach-accent: #16a34a;
-  --coach-accent-strong: #15803d;
-  --coach-surface: color-mix(in srgb, #ecfdf5 58%, var(--surface-soft));
-  --coach-border: color-mix(in srgb, #86efac 42%, var(--line-soft));
+  --coach-accent: var(--success);
+  --coach-accent-strong: var(--success);
+  --coach-surface: color-mix(in srgb, var(--success) 9%, var(--surface-soft));
+  --coach-border: color-mix(in srgb, var(--success) 32%, var(--line-soft));
 }
 
 .callout[data-tone="warning"] {
-  --coach-accent: #d97706;
-  --coach-accent-strong: #b45309;
-  --coach-surface: color-mix(in srgb, #fff7ed 62%, var(--surface-soft));
-  --coach-border: color-mix(in srgb, #fdba74 42%, var(--line-soft));
+  --coach-accent: var(--warning);
+  --coach-accent-strong: var(--warning);
+  --coach-surface: color-mix(in srgb, var(--warning) 9%, var(--surface-soft));
+  --coach-border: color-mix(in srgb, var(--warning) 36%, var(--line-soft));
 }
 
 .content {
