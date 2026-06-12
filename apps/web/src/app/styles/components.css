@@ -1372,21 +1372,21 @@ pre code {
 }
 
 .page-title {
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--foreground);
-  font-size: clamp(30px, 3vw, 42px);
+  font-size: clamp(22px, 2.2vw, 30px);
   font-weight: 780;
-  line-height: 1.08;
+  line-height: 1.12;
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
 .page-subtitle {
-  margin-top: 10px;
+  margin-top: 6px;
   max-width: 700px;
   color: var(--muted);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.55;
   text-wrap: pretty;
 }
 
@@ -1426,13 +1426,13 @@ pre code {
   position: relative;
   display: grid;
   min-width: 0;
-  gap: 18px;
+  gap: 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-page);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-raised) 86%, var(--page-sheen)), var(--surface-raised) 78%),
     var(--surface-raised);
-  padding: 22px;
+  padding: 18px 20px;
   box-shadow: var(--shadow-panel);
   overflow: hidden;
 }
