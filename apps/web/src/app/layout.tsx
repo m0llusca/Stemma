@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { CSSProperties, ReactNode } from "react";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
 // Order is load-bearing: Tailwind layers, then tokens/themes, then component styles.
@@ -27,6 +27,14 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Контроль качества поддержки",
   description: "Проверка качества диалогов поддержки"
+};
+
+// Declares that the app manages its own light/dark theming. This emits
+// <meta name="color-scheme" content="light dark">, which tells Chrome's
+// "Auto Dark Mode for Web Contents" (force-dark) to leave the page alone
+// instead of washing out text on the light theme.
+export const viewport: Viewport = {
+  colorScheme: "light dark"
 };
 
 async function getLayoutAppearance() {
