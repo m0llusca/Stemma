@@ -75,6 +75,26 @@
   --shadow-raised: 0 14px 36px rgba(30, 41, 59, 0.08);
 }
 
+/* Derived tokens are re-declared on body so they re-compute from the
+   body-level cascade. Themes and the dark-mode media block override the base
+   tokens on body, not on :root — var() substitution inside a custom-property
+   declaration happens at the declaring element, so :root-level derivations
+   would stay baked with the light #fff values (white panels under dark text). */
+body {
+  --surface-raised: color-mix(in srgb, var(--panel) 96%, transparent);
+  --surface-soft: color-mix(in srgb, var(--panel-muted) 72%, var(--panel));
+  --surface-hover: color-mix(in srgb, var(--accent-soft) 56%, var(--panel));
+  --line-soft: color-mix(in srgb, var(--border) 72%, transparent);
+  --button-secondary-hover: color-mix(in srgb, var(--accent) 9%, transparent);
+  --button-secondary-active: color-mix(in srgb, var(--accent) 14%, transparent);
+  --button-focus-ring: color-mix(in srgb, var(--accent) 76%, #ffffff);
+  --control-selected-bg: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  --control-selected-border: color-mix(in srgb, var(--accent) 44%, var(--border));
+  --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--panel));
+  --success-soft: color-mix(in srgb, var(--success) 12%, var(--panel));
+  --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--panel));
+}
+
 body[data-theme="azure"] {
   --background: #edf5ff;
   --page-sheen: rgba(219, 234, 254, 0.9);
