@@ -14,7 +14,9 @@ function makeRequest(cookie: string) {
 
 describe("auth shell layout", () => {
   it("removes workspace chrome while the login shell is rendered", () => {
-    const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+    // Component styles live in styles/components.css (globals.css holds only the
+    // @tailwind layers, theme.css holds tokens/themes — see layout.tsx import order).
+    const css = readFileSync(join(process.cwd(), "src/app/styles/components.css"), "utf8");
 
     expect(css).toContain(".page:has(.auth-shell) .app-sidebar");
     expect(css).toContain(".page:has(.auth-shell) .app-topbar");

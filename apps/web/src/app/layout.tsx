@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
+// Order is load-bearing: Tailwind layers, then tokens/themes, then component styles.
 import "./globals.css";
+import "./styles/theme.css";
+import "./styles/components.css";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
 import { TrpcProvider } from "@/components/trpc-provider";
