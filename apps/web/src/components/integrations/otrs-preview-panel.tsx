@@ -82,7 +82,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
   const previewedItems = latestPreviewRun?.items.filter((item) => item.status === "previewed") ?? [];
 
   return (
-    <section className="panel overflow-hidden">
+    <section className="panel overflow-clip">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Preview / импорт</h2>
         <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">

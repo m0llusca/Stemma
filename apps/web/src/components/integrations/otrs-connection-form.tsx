@@ -140,7 +140,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
   };
 
   return (
-    <section className="panel overflow-hidden">
+    <section className="panel overflow-clip">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Настройка подключения</h2>
         <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
@@ -313,7 +313,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
           </div>
         </div>
 
-        <details className="compact-details disclosure-panel overflow-hidden">
+        <details className="compact-details disclosure-panel overflow-clip">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
             Advanced route overrides
           </summary>

@@ -34,7 +34,7 @@ export function ScoreBar({
       <div className="flex items-baseline justify-between gap-2">
         <span className={`${compact ? "text-xs" : "text-sm"} font-semibold text-[var(--foreground)]`}>{label ? `${label}: ` : ""}{formatQualityScore(score)}</span>
       </div>
-      <div className={`${compact ? "h-1" : "h-1.5"} overflow-hidden rounded-full bg-[#e2e8f0]`} aria-hidden="true">
+      <div className={`${compact ? "h-1" : "h-1.5"} overflow-clip rounded-full bg-[#e2e8f0]`} aria-hidden="true">
         <div className={`h-full rounded-full ${scoreTone(score)}`} style={{ width: `${score}%` }} />
       </div>
     </div>

@@ -63,7 +63,7 @@ export function OtrsSetupWizard() {
   }
 
   return (
-    <section className="panel overflow-hidden">
+    <section className="panel overflow-clip">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Preflight</p>

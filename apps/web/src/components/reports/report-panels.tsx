@@ -52,7 +52,7 @@ export function ProcessSummary({
   ];
 
   return (
-    <section className="panel process-summary overflow-hidden">
+    <section className="panel process-summary overflow-clip">
       <div className="process-summary__layout">
         <div className="process-summary__lead">
           <p className="page-kicker">Процесс</p>

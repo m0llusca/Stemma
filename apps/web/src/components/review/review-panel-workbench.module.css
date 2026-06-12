@@ -163,7 +163,7 @@
 }
 
 .processGroup {
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--workbench-line);
   border-radius: var(--radius-card);
   background: var(--panel);
@@ -289,7 +289,7 @@
 }
 
 .workbench .criterionCard {
-  overflow: hidden;
+  overflow: clip;
   border: 0;
   border-top: 1px solid var(--workbench-line);
   border-radius: 0;
@@ -607,7 +607,7 @@
 
 .summaryTemplateButton span {
   display: -webkit-box;
-  overflow: hidden;
+  overflow: clip;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;

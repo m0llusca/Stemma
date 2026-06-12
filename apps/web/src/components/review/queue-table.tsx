@@ -70,7 +70,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
   }
 
   return (
-    <form action={bulkUpdateReviewQueue} className="panel overflow-hidden">
+    <form action={bulkUpdateReviewQueue} className="panel overflow-clip">
       <input type="hidden" name="returnTo" value={returnTo} />
 
       <details className="queue-bulk-actions">

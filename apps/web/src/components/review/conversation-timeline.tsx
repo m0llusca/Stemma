@@ -44,7 +44,7 @@ export function ConversationTimeline({
   }
 
   return (
-    <section className="review-conversation-panel panel overflow-hidden">
+    <section className="review-conversation-panel panel overflow-clip">
       <div className="review-conversation-panel__header flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Таймлайн диалога</h2>
         <span className="text-sm text-[var(--text-muted)]">{formatMessageCount(messages.length)}</span>

@@ -66,7 +66,7 @@ export function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="panel chart-panel overflow-hidden">
+    <section className="panel chart-panel overflow-clip">
       <div className="chart-panel__header">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold">{title}</h2>
@@ -123,7 +123,7 @@ export function HorizontalBarChart({
                 {valueFormatter ? valueFormatter(row.value) : `${Math.round(row.value)}${valueSuffix}`}
               </p>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">
+            <div className="h-2 overflow-clip rounded-full bg-[#e2e8f0]">
               <div className="h-full rounded-full bg-[#3157d5]" style={{ width: `${percent}%` }} />
             </div>
             {row.detail ? <p className="text-xs text-[var(--text-muted)]">{row.detail}</p> : null}

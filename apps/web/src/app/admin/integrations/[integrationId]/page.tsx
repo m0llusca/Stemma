@@ -746,7 +746,7 @@ function OtrsDetailCockpit({
         {canRunDiagnostics ? (
           <OtrsDiagnosticsPanel integrationId={integration.id} latestDiagnostic={toDiagnosticRun(integration.diagnosticRuns[0])} />
         ) : (
-          <section className="panel overflow-hidden">
+          <section className="panel overflow-clip">
             <div className="border-b border-[var(--border)] px-5 py-4">
               <h2 className="text-lg font-semibold">Диагностика</h2>
               <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
@@ -765,7 +765,7 @@ function OtrsDetailCockpit({
 
       <OtrsRunHistory runs={toRunHistoryRuns(integration.runs, integration.workspaceId)} jobsByRunId={jobByRunId} />
 
-      <details className="compact-details overflow-hidden">
+      <details className="compact-details overflow-clip">
         <summary className="disclosure-summary cursor-pointer list-none border-b border-[var(--border)] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Ручная проверка payload</h2>
@@ -786,7 +786,7 @@ function OtrsDetailCockpit({
               <OtrsImportTester />
             </div>
           </section>
-          <details className="compact-details overflow-hidden">
+          <details className="compact-details overflow-clip">
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
               Native helpdesk legacy payload
             </summary>

@@ -76,7 +76,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
   const [state, formAction] = useActionState(runOtrsDiagnosticsActionState, initialState);
 
   return (
-    <section className="panel overflow-hidden">
+    <section className="panel overflow-clip">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Диагностика</h2>
         <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">

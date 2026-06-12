@@ -68,7 +68,7 @@ export function ReportAgentLeaderboard({
     .slice(0, max);
 
   return (
-    <section className="panel overflow-hidden breakdown-panel agent-leaderboard">
+    <section className="panel overflow-clip breakdown-panel agent-leaderboard">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-[var(--text-muted)]">

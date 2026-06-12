@@ -295,7 +295,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           </div>
         ) : (
           <aside className="review-panel-column">
-            <section className="panel overflow-hidden">
+            <section className="panel overflow-clip">
               <div className="border-b border-[var(--border)] px-5 py-4">
                 <h2 className="text-lg font-semibold">Итог проверки</h2>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">Оператор видит только собственное обращение и финальную обратную связь.</p>
@@ -315,7 +315,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       </div>
 
       {latestFinalizedReview ? (
-        <details className="review-secondary panel disclosure-panel overflow-hidden">
+        <details className="review-secondary panel disclosure-panel overflow-clip">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Последнее замечание</h2>
@@ -475,7 +475,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
 
       {canEvaluateReviewPermission && conversation.reviews.length > 0 ? (
-        <details className="review-secondary panel disclosure-panel overflow-hidden">
+        <details className="review-secondary panel disclosure-panel overflow-clip">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">История проверок</h2>

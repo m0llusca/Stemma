@@ -250,7 +250,7 @@ export function ReviewPanel({
   }, []);
 
   return (
-    <ReviewFormShell className={`review-panel-form panel overflow-hidden ${styles.workbench}`}>
+    <ReviewFormShell className={`review-panel-form panel overflow-clip ${styles.workbench}`}>
       <EvidencePickerListener />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
@@ -530,7 +530,7 @@ export function ReviewPanel({
         defaultOpen={hasOptionalDetails}
       >
         <div className="grid gap-3">
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[var(--border)]" open={hasCriticalDetails}>
+          <details className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasCriticalDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">Критическая ошибка и переответ</h4>
@@ -568,7 +568,7 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[var(--border)]" open={hasFeedbackDetails}>
+          <details className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasFeedbackDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">Обратная связь</h4>
@@ -615,7 +615,7 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-hidden rounded-md border border-[var(--border)]" open={hasAnalysisDetails}>
+          <details className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasAnalysisDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">Разбор и калибровка</h4>

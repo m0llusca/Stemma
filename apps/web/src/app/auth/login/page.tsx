@@ -142,7 +142,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         ) : null}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="panel overflow-hidden">
+          <section className="panel overflow-clip">
             <div className="border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--status-success-bg)] text-[#166534]">
@@ -192,7 +192,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             ) : null}
           </section>
 
-          <section className="panel overflow-hidden">
+          <section className="panel overflow-clip">
             <div className="border-b border-[var(--border)] px-5 py-4">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[#1d3fae]">

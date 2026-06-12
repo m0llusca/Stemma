@@ -20,7 +20,7 @@ export function BreakdownTable({
   actionLabel?: string;
 }) {
   return (
-    <section id={id} className="panel overflow-hidden breakdown-panel">
+    <section id={id} className="panel overflow-clip breakdown-panel">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -83,7 +83,7 @@ export function QuotaTable({
   period: ReportPeriod;
 }) {
   return (
-    <section id={id} className="panel overflow-hidden breakdown-panel quota-table-panel">
+    <section id={id} className="panel overflow-clip breakdown-panel quota-table-panel">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Нормы проверок</h2>
         <p className="mt-1 text-sm text-[var(--text-muted)]">План, факт и доля негативного CSAT по операторам.</p>
