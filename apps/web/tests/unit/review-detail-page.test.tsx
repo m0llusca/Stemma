@@ -69,6 +69,7 @@ function conversation() {
     channel: "CHAT",
     status: "closed",
     messages: [],
+    coachingPins: [],
     reviews: [],
     reviewDueAt: null,
     qaStatus: "IN_PROGRESS",
@@ -110,7 +111,10 @@ describe("review detail page", () => {
 
     render(page);
 
-    expect(mocks.canSaveReviewDraft).not.toHaveBeenCalled();
+    // canSaveReviewDraft now gates the coaching-pin composer; for a support agent it
+    // returns false, so the timeline stays read-only. The self-review permission path
+    // itself still flows through canSelfReview.
+    expect(mocks.canSaveReviewDraft).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.canSelfReview).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.getActiveScorecard).toHaveBeenCalledWith("workspace-1");
     expect(screen.getByTestId("review-panel").textContent).toBe("Комментарий оператора");

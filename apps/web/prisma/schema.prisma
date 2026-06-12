@@ -161,6 +161,7 @@ model Workspace {
   samplingRules             SamplingRule[]
   knowledgeEntries          QualityKnowledgeEntry[]
   trainingAssignments       TrainingAssignment[]
+  coachingPins              CoachingPin[]
   auditLogs                 AuditLog[]
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
@@ -198,6 +199,7 @@ model User {
   createdTrainingAssignments  TrainingAssignment[]       @relation("TrainingAssignedBy")
   integrationRuns             IntegrationRun[]
   integrationDiagnosticRuns   IntegrationDiagnosticRun[]
+  coachingPins                CoachingPin[]
   auditLogs                   AuditLog[]
   createdAt                   DateTime                   @default(now())
   updatedAt                   DateTime                   @updatedAt
@@ -515,6 +517,7 @@ model Conversation {
   closedAt            DateTime?
   messages            Message[]
   reviews             Review[]
+  coachingPins        CoachingPin[]
   calibrationItems    CalibrationSessionItem[]
   integrationRunItems IntegrationRunItem[]
   webhookIngestEvents WebhookIngestEvent[]
@@ -547,10 +550,32 @@ model Message {
   sentAt          DateTime
   isPrivate       Boolean          @default(false)
   evidenceScores  CriterionScore[] @relation("CriterionScoreEvidenceMessage")
+  coachingPins    CoachingPin[]
   createdAt       DateTime         @default(now())
 
   @@unique([conversationId, externalId])
   @@index([conversationId, sentAt])
+}
+
+// A coaching note pinned to a specific message in a conversation timeline.
+// Authored by reviewers/coaches, visible to the agent on the review board.
+model CoachingPin {
+  id             String       @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace    @relation(fields: [workspaceId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  messageId      String
+  message        Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User         @relation(fields: [authorId, workspaceId], references: [id, workspaceId])
+  body           String
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([workspaceId, conversationId])
+  @@index([messageId])
 }
 
 model Scorecard {

@@ -565,6 +565,10 @@ export async function getConversationForReview(workspaceId: string, conversation
       messages: {
         orderBy: { sentAt: "asc" }
       },
+      coachingPins: {
+        include: { author: { select: { id: true, name: true, role: true } } },
+        orderBy: { createdAt: "asc" }
+      },
       reviews: {
         orderBy: { createdAt: "desc" },
         include: {

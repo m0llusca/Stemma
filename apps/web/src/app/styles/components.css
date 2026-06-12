@@ -4351,6 +4351,119 @@ a.quiet-link:hover {
   line-height: 1.7;
 }
 
+.conversation-message__pin-count {
+  display: inline-flex;
+  min-height: 24px;
+  width: fit-content;
+  align-items: center;
+  border-radius: var(--radius-small);
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.2;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-strong);
+}
+
+/* Coaching pins: message-level coaching notes shown beneath a timeline message. */
+.coaching-pins {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coaching-pin {
+  border: 1px solid var(--accent-border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+  padding: 10px 12px;
+}
+
+.coaching-pin--resolved {
+  border-left-color: var(--success);
+  background: color-mix(in srgb, var(--success) 7%, var(--panel));
+}
+
+.coaching-pin__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.coaching-pin__author {
+  font-weight: 720;
+  color: var(--foreground);
+}
+
+.coaching-pin__role,
+.coaching-pin__time {
+  color: var(--muted);
+}
+
+.coaching-pin__time {
+  font-variant-numeric: tabular-nums;
+}
+
+.coaching-pin__status {
+  margin-left: auto;
+  border-radius: var(--radius-small);
+  padding: 2px 8px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.coaching-pin__body {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+
+.coaching-pin--resolved .coaching-pin__body {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.coaching-pin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.coaching-pin-add {
+  margin-top: 10px;
+}
+
+.coaching-pin-composer {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.coaching-pin-composer__input {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.coaching-pin-composer__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-button--danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
 .work-section {
   border-bottom: 1px solid var(--border);
   padding: 18px 20px;

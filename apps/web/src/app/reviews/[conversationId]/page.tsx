@@ -269,7 +269,15 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
       ) : null}
 
       <div className="review-main">
-        <ConversationTimeline messages={conversation.messages} highlightedMessageIds={evidenceMessageIds} />
+        <ConversationTimeline
+          messages={conversation.messages}
+          highlightedMessageIds={evidenceMessageIds}
+          conversationId={conversation.id}
+          coachingPins={conversation.coachingPins}
+          canCoach={canSaveReviewDraft(user.role)}
+          canManagePins={canManageWorkflow}
+          currentUserId={user.id}
+        />
         {canShowReviewPanel && scorecard ? (
           <div className="review-panel-column">
             <ReviewPanel
