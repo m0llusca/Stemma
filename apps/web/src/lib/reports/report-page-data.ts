@@ -25,6 +25,7 @@ export async function loadFinalizedReviews(workspaceId: string, period: ReportPe
       reanswerStatus: true,
       appealStatus: true,
       feedbackStatus: true,
+      feedbackAckAt: true,
       reviewer: {
         select: {
           name: true

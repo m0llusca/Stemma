@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardCheck, Crosshair, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
@@ -144,6 +144,39 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
       };
     }) ?? [];
   const selectedDisagreementCount = selectedItemStates.filter((state) => state.spread != null && state.spread > 10).length;
+  // Alignment vs baseline: industry practice expects 85–90% of calibration scores
+  // to land within ±10 points of the reference review.
+  const alignmentPairs = selectedItemStates.flatMap((state) => {
+    const baseline = state.baselineReview;
+    if (!baseline) {
+      return [];
+    }
+    const baselineScore = Math.round(baseline.totalScore);
+    return state.reviews.map((review) => ({
+      reviewerId: review.reviewerId,
+      delta: Math.round(review.totalScore) - baselineScore
+    }));
+  });
+  const alignedPairCount = alignmentPairs.filter((pair) => Math.abs(pair.delta) <= 10).length;
+  const selectedAlignmentPercent =
+    alignmentPairs.length > 0 ? Math.round((alignedPairCount / alignmentPairs.length) * 100) : null;
+  const participantBiasRows = (selectedSession?.participants ?? [])
+    .map((participant) => {
+      const deltas = alignmentPairs
+        .filter((pair) => pair.reviewerId === participant.userId)
+        .map((pair) => pair.delta);
+
+      if (deltas.length === 0) {
+        return null;
+      }
+
+      return {
+        id: participant.id,
+        name: participant.user.name,
+        averageDelta: Math.round(deltas.reduce((sum, value) => sum + value, 0) / deltas.length)
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
   const sessionSummaries = sessions.map((session) => {
     const participantIds = new Set(session.participants.map((participant) => participant.userId));
     const calibrationReviews = session.items.flatMap((item) =>
@@ -375,12 +408,35 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                   <span>{selectedDisagreementCount}</span>
                   <small>расхождений</small>
                 </div>
+                {selectedAlignmentPercent != null ? (
+                  <div>
+                    <Crosshair size={16} aria-hidden="true" />
+                    <span>{selectedAlignmentPercent}%</span>
+                    <small>согласованность</small>
+                  </div>
+                ) : null}
                 <div>
                   <CalendarClock size={16} aria-hidden="true" />
                   <span>{selectedSession.dueAt ? selectedSession.dueAt.toLocaleDateString("ru-RU") : "нет"}</span>
                   <small>срок</small>
                 </div>
               </div>
+
+              {participantBiasRows.length > 0 ? (
+                <div className="calibration-bias-row" aria-label="Отклонение участников от эталона">
+                  <small>Отклонение от эталона (цель согласованности — 85–90%):</small>
+                  {participantBiasRows.map((row) => (
+                    <span key={row.id} className={`pill ${Math.abs(row.averageDelta) <= 10 ? "pill--ok" : "pill--warn"}`}>
+                      {row.name}:{" "}
+                      {row.averageDelta === 0
+                        ? "в эталоне"
+                        : row.averageDelta > 0
+                          ? `мягче на ${row.averageDelta}`
+                          : `строже на ${Math.abs(row.averageDelta)}`}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="calibration-item-list">
                 {selectedItemStates.map(({ item, baselineReview, reviews, spread, missingParticipants }) => {

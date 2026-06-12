@@ -233,6 +233,27 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       href: feedbackStatus ? reportReviewHref(period, { feedbackStatus }) : undefined
     };
   });
+  // Feedback-loop speed: how fast agents acknowledge finalized reviews.
+  const ackDelaysHours = finalizedReviews
+    .flatMap((review) =>
+      review.feedbackAckAt && review.finalizedAt
+        ? [(review.feedbackAckAt.getTime() - review.finalizedAt.getTime()) / 3_600_000]
+        : []
+    )
+    .filter((hours) => hours >= 0)
+    .sort((a, b) => a - b);
+  const medianAckHours = ackDelaysHours.length > 0 ? ackDelaysHours[Math.floor(ackDelaysHours.length / 2)] : null;
+  const ackWithin48Percent =
+    ackDelaysHours.length > 0
+      ? Math.round((ackDelaysHours.filter((hours) => hours <= 48).length / ackDelaysHours.length) * 100)
+      : null;
+  const pendingFeedbackCount = finalizedReviews.filter(
+    (review) => review.feedbackStatus !== "acknowledged" && review.feedbackStatus !== "corrected"
+  ).length;
+  const formatAckDuration = (hours: number) =>
+    hours < 48
+      ? `${Math.max(1, Math.round(hours))} ч`
+      : `${(hours / 24).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} дн`;
   const appealRows = countGroupRows(appealGroups).map((row) => {
     const appealStatus = appealStatusByLabel.get(row.label);
 
@@ -650,6 +671,20 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             </ChartPanel>
             <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
             <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
+          </div>
+          <div className="metric-strip" aria-label="Скорость обратной связи">
+            <div className="metric-strip__item">
+              <div className="metric-strip__label">Медиана до ознакомления</div>
+              <div className="metric-strip__value">{medianAckHours != null ? formatAckDuration(medianAckHours) : "—"}</div>
+            </div>
+            <div className="metric-strip__item">
+              <div className="metric-strip__label">Ознакомлены за 48 ч</div>
+              <div className="metric-strip__value">{ackWithin48Percent != null ? `${ackWithin48Percent}%` : "—"}</div>
+            </div>
+            <div className="metric-strip__item">
+              <div className="metric-strip__label">Ожидают ответа оператора</div>
+              <div className="metric-strip__value">{pendingFeedbackCount}</div>
+            </div>
           </div>
           <div className="reports-panel-grid reports-panel-grid--three">
             <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />

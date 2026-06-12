@@ -11,6 +11,7 @@ import {
   externalSourceLabel,
   riskLevelLabels
 } from "@/lib/labels";
+import { criterionEarnedPercent } from "@/lib/reports/report-aggregation";
 import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,8 @@ export default async function SelfReviewPage() {
           where: { reviewSource: "HUMAN", status: "FINALIZED" },
           include: {
             findings: true,
-            reviewer: true
+            reviewer: true,
+            scores: { include: { criterion: true } }
           },
           orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
           take: 1
@@ -82,6 +84,33 @@ export default async function SelfReviewPage() {
   const recentAverage = recentHalf.length > 0 ? recentHalf.reduce((sum, value) => sum + value, 0) / recentHalf.length : null;
   const earlierAverage = earlierHalf.length > 0 ? earlierHalf.reduce((sum, value) => sum + value, 0) / earlierHalf.length : null;
   const teamAverage = teamScoreAggregate._avg.totalScore;
+  // Per-criterion strengths and focus areas from the agent's finalized reviews.
+  const criterionGroups = new Map<string, { label: string; percents: number[] }>();
+  for (const conversation of conversations) {
+    for (const score of conversation.reviews[0]?.scores ?? []) {
+      const percent = criterionEarnedPercent(score);
+      if (percent == null) {
+        continue;
+      }
+      const group = criterionGroups.get(score.criterionId);
+      if (group) {
+        group.percents.push(percent);
+      } else {
+        criterionGroups.set(score.criterionId, { label: score.criterion.label, percents: [percent] });
+      }
+    }
+  }
+  const criterionStats = [...criterionGroups.values()]
+    .filter((group) => group.percents.length >= 3)
+    .map((group) => ({
+      label: group.label,
+      count: group.percents.length,
+      averagePercent: Math.round(group.percents.reduce((sum, value) => sum + value, 0) / group.percents.length)
+    }))
+    .sort((a, b) => b.averagePercent - a.averagePercent);
+  // Head and tail never overlap: together they take at most criterionStats.length entries.
+  const strengthCriteria = criterionStats.slice(0, Math.min(3, Math.floor(criterionStats.length / 2)));
+  const focusCriteria = criterionStats.slice(-Math.min(3, criterionStats.length - strengthCriteria.length)).reverse();
   const waitingFeedback = conversations.filter((conversation) => {
     const review = conversation.reviews[0];
     return review && review.feedbackStatus !== "acknowledged" && review.feedbackStatus !== "corrected";
@@ -242,6 +271,40 @@ export default async function SelfReviewPage() {
             ) : null}
           </div>
           <ScoreSparkline points={myReviewScores} />
+          {focusCriteria.length > 0 ? (
+            <div className="criterion-insights">
+              {strengthCriteria.length > 0 ? (
+                <div className="criterion-insights__column">
+                  <h3 className="criterion-insights__title">Сильные стороны</h3>
+                  <ul className="criterion-insights__list">
+                    {strengthCriteria.map((stat) => (
+                      <li key={stat.label} className="criterion-insight">
+                        <span className="criterion-insight__label">{stat.label}</span>
+                        <span className="criterion-insight__bar" aria-hidden="true">
+                          <span className="criterion-insight__fill" style={{ width: `${stat.averagePercent}%` }} />
+                        </span>
+                        <span className="criterion-insight__value">{stat.averagePercent}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="criterion-insights__column">
+                <h3 className="criterion-insights__title">Зоны роста</h3>
+                <ul className="criterion-insights__list">
+                  {focusCriteria.map((stat) => (
+                    <li key={stat.label} className="criterion-insight criterion-insight--focus">
+                      <span className="criterion-insight__label">{stat.label}</span>
+                      <span className="criterion-insight__bar" aria-hidden="true">
+                        <span className="criterion-insight__fill" style={{ width: `${stat.averagePercent}%` }} />
+                      </span>
+                      <span className="criterion-insight__value">{stat.averagePercent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
           {teamAverage != null ? (
             <p className="personal-score__benchmark">
               {Math.round(myAverage - teamAverage) === 0

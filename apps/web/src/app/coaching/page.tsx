@@ -11,6 +11,7 @@ import {
   PlusCircle,
   Search,
   SlidersHorizontal,
+  TrendingUp,
   TriangleAlert,
   UserRound,
   X
@@ -24,7 +25,7 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
 import { createKnowledgeEntry } from "@/lib/quality-actions";
-import { formatQualityScore } from "@/lib/score-display";
+import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -138,7 +139,7 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
     user.role === "SUPPORT_AGENT"
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
       : { workspaceId: user.workspaceId };
-  const [rawAssignments, knowledgeEntries, supportUsers, reviewCandidates] = await Promise.all([
+  const [rawAssignments, knowledgeEntries, supportUsers, reviewCandidates, agentScoreHistory] = await Promise.all([
     prisma.trainingAssignment.findMany({
       where: trainingWhere,
       include: {
@@ -176,6 +177,21 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
       },
       orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
       take: 20
+    }),
+    prisma.review.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        status: "FINALIZED",
+        reviewSource: "HUMAN",
+        finalizedAt: { not: null }
+      },
+      select: {
+        totalScore: true,
+        finalizedAt: true,
+        conversation: { select: { assigneeName: true } }
+      },
+      orderBy: { finalizedAt: "desc" },
+      take: 600
     })
   ]);
   const assignments = [...rawAssignments].sort((left, right) => {
@@ -202,6 +218,33 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
   const openAssignments = assignments.filter((assignment) => assignment.status !== "done");
   const doneAssignments = assignments.filter((assignment) => assignment.status === "done");
   const overdueAssignments = openAssignments.filter((assignment) => isOverdue(assignment.dueAt, now));
+  // Training effect: the agent's average score before the task was created vs after it was closed.
+  // updatedAt of a done assignment approximates its completion moment.
+  const trainingEffects = new Map<string, number>();
+  for (const assignment of doneAssignments) {
+    const before: number[] = [];
+    const after: number[] = [];
+    for (const review of agentScoreHistory) {
+      if (!review.finalizedAt || review.conversation.assigneeName !== assignment.assigneeName) {
+        continue;
+      }
+      if (review.finalizedAt < assignment.createdAt) {
+        before.push(review.totalScore);
+      } else if (review.finalizedAt > assignment.updatedAt) {
+        after.push(review.totalScore);
+      }
+    }
+    if (before.length >= 2 && after.length >= 2) {
+      const beforeAverage = before.reduce((sum, value) => sum + value, 0) / before.length;
+      const afterAverage = after.reduce((sum, value) => sum + value, 0) / after.length;
+      trainingEffects.set(assignment.id, Math.round(afterAverage - beforeAverage));
+    }
+  }
+  const trainingEffectValues = [...trainingEffects.values()];
+  const averageTrainingEffect =
+    trainingEffectValues.length > 0
+      ? Math.round(trainingEffectValues.reduce((sum, value) => sum + value, 0) / trainingEffectValues.length)
+      : null;
   const weekAssignments = openAssignments.filter((assignment) => isDueThisWeek(assignment.dueAt, now));
   const mineAssignments = openAssignments.filter((assignment) => assignment.assigneeId === user.id || assignment.assigneeName === user.name);
   const unlinkedAssignments = openAssignments.filter((assignment) => !assignment.reviewId);
@@ -343,6 +386,13 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
             <span>{doneAssignments.length}</span>
             <small>закрыто</small>
           </div>
+          {averageTrainingEffect != null ? (
+            <div className={`learning-metric ${averageTrainingEffect >= 0 ? "learning-metric--success" : "learning-metric--danger"}`}>
+              <TrendingUp size={16} aria-hidden="true" />
+              <span>{formatQualityScoreDelta(averageTrainingEffect)}</span>
+              <small>эффект обучения</small>
+            </div>
+          ) : null}
           <div className="learning-metric">
             <BookOpenCheck size={16} aria-hidden="true" />
             <span>{criticalKnowledgeCount}</span>
@@ -678,6 +728,7 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
                 const conversation = assignment.review?.conversation;
                 const finding = assignment.review?.findings[0];
                 const isPriority = nextAssignment?.id === assignment.id;
+                const trainingEffect = trainingEffects.get(assignment.id);
 
                 return (
                   <article
@@ -708,6 +759,11 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
                         {finding ? <span>{riskLevelLabels[finding.riskLevel]}</span> : null}
                         {assignment.review ? <span>{formatQualityScore(assignment.review.totalScore)}</span> : null}
                         {assignment.review?.needsReanswer ? <span>переответ</span> : null}
+                        {trainingEffect != null ? (
+                          <span className={trainingEffect >= 0 ? "training-effect training-effect--up" : "training-effect training-effect--down"}>
+                            {formatQualityScoreDelta(trainingEffect)} после разбора
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="learning-task__actions coaching-task-row__actions">

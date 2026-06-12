@@ -3370,6 +3370,72 @@ pre code {
   color: var(--muted);
 }
 
+/* Agent's per-criterion strengths / focus areas inside the personal score panel. */
+.criterion-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 14px 24px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+
+.criterion-insights__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.criterion-insights__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.criterion-insight {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 44px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.criterion-insight__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.criterion-insight__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  overflow: hidden;
+}
+
+.criterion-insight__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+}
+
+.criterion-insight--focus .criterion-insight__fill {
+  background: var(--warning, var(--danger));
+}
+
+.criterion-insight__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .score-sparkline {
   display: block;
   width: 100%;
@@ -9008,6 +9074,35 @@ a.agent-leaderboard__row:hover {
   color: var(--muted);
   font-size: 11px;
   font-weight: 720;
+}
+
+/* Score delta after a closed training assignment (coaching task meta row). */
+.training-effect {
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.training-effect--up {
+  color: var(--success);
+}
+
+.training-effect--down {
+  color: var(--danger);
+}
+
+/* Per-participant deviation from the baseline review inside a calibration session. */
+.calibration-bias-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.calibration-bias-row > small {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .calibration-item-card {
