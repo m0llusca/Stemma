@@ -21,7 +21,7 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
   if (!open) {
     return (
       <button type="button" className="action-button action-button--small coaching-pin-add" onClick={() => setOpen(true)}>
-        + Заметка коучинга
+        + Заметка к сообщению
       </button>
     );
   }
@@ -45,7 +45,7 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
         maxLength={2000}
         required
         autoFocus
-        placeholder="Что подсветить оператору в этом сообщении?"
+        placeholder="Что обсудить по этому сообщению на калибровке?"
       />
       <div className="coaching-pin-composer__actions">
         <SubmitButton />

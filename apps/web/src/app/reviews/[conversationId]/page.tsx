@@ -111,6 +111,9 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
   const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveReviewDraft(user.role);
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
+  // Calibration pins are internal alignment notes: visible to QA roles only,
+  // and new ones can be added only while evaluating in calibration mode.
+  const canSeeCoachingPins = canSaveReviewDraft(user.role);
   const [conversation, scorecard, qaAssignees] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
     canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
@@ -273,8 +276,8 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
           messages={conversation.messages}
           highlightedMessageIds={evidenceMessageIds}
           conversationId={conversation.id}
-          coachingPins={conversation.coachingPins}
-          canCoach={canSaveReviewDraft(user.role)}
+          coachingPins={canSeeCoachingPins ? conversation.coachingPins : []}
+          canCoach={canSeeCoachingPins && reviewSource === "CALIBRATION"}
           canManagePins={canManageWorkflow}
           currentUserId={user.id}
         />

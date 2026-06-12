@@ -557,8 +557,9 @@ model Message {
   @@index([conversationId, sentAt])
 }
 
-// A coaching note pinned to a specific message in a conversation timeline.
-// Authored by reviewers/coaches, visible to the agent on the review board.
+// A note pinned to a specific message in a conversation timeline.
+// Internal calibration-alignment notes: authored while evaluating in
+// calibration mode, visible to QA roles only (never to support agents).
 model CoachingPin {
   id             String       @id @default(cuid())
   workspaceId    String

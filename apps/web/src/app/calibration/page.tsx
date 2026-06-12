@@ -74,7 +74,16 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
         owner: true,
         scorecard: true,
         participants: { include: { user: true }, orderBy: { createdAt: "asc" } },
-        items: { include: { conversation: { include: { reviews: { include: { reviewer: true } } } } } }
+        items: {
+          include: {
+            conversation: {
+              include: {
+                reviews: { include: { reviewer: true } },
+                _count: { select: { coachingPins: true } }
+              }
+            }
+          }
+        }
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       take: 12
@@ -398,6 +407,12 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
                             <strong>Готово</strong>
                             {completedCount}/{expectedCount}
                           </span>
+                          {item.conversation._count.coachingPins > 0 ? (
+                            <span>
+                              <strong>Заметки</strong>
+                              {item.conversation._count.coachingPins}
+                            </span>
+                          ) : null}
                           {waiting ? (
                             <span className="calibration-info-chip--warning">
                               <strong>Ждут</strong>

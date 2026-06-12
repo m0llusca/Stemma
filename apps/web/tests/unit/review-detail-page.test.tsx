@@ -111,9 +111,9 @@ describe("review detail page", () => {
 
     render(page);
 
-    // canSaveReviewDraft now gates the coaching-pin composer; for a support agent it
-    // returns false, so the timeline stays read-only. The self-review permission path
-    // itself still flows through canSelfReview.
+    // canSaveReviewDraft gates calibration-pin visibility; for a support agent it
+    // returns false, so pins stay hidden. The self-review permission path itself
+    // still flows through canSelfReview.
     expect(mocks.canSaveReviewDraft).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.canSelfReview).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.getActiveScorecard).toHaveBeenCalledWith("workspace-1");
