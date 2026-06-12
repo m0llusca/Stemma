@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, ClipboardCheck, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
+import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -200,6 +201,20 @@ export default async function CalibrationPage({ searchParams }: CalibrationPageP
           </div>
         </div>
       </div>
+
+      <StickyMetricsBar
+        ariaLabel="Сводка калибровок"
+        items={[
+          { icon: <ClipboardCheck size={14} aria-hidden="true" />, value: activeSessionCount, label: "активных" },
+          { icon: <Gauge size={14} aria-hidden="true" />, value: `${selectedProgress}%`, label: "готовность" },
+          {
+            icon: <TriangleAlert size={14} aria-hidden="true" />,
+            value: selectedDisagreementCount,
+            label: "расхождений",
+            tone: selectedDisagreementCount > 0 ? "danger" : "success"
+          }
+        ]}
+      />
 
       {openNewSession ? (
         <section className="calibration-create-panel workflow-create-panel calibration-create-inline" aria-label="Новая калибровка">

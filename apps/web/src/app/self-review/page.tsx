@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MessageSquareText, ShieldQuestion } from "lucide-react";
+import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -198,6 +199,14 @@ export default async function SelfReviewPage() {
           </div>
         </div>
       </div>
+
+      <StickyMetricsBar
+        ariaLabel="Сводка обратной связи"
+        items={[
+          { icon: <MessageSquareText size={14} aria-hidden="true" />, value: waitingFeedback, label: "ожидают ответа" },
+          { icon: <ShieldQuestion size={14} aria-hidden="true" />, value: appealCount, label: "апелляции" }
+        ]}
+      />
 
       <section className="workflow-focus-strip" aria-label="Фокус обратной связи">
         <div className="workflow-focus-strip__lead">

@@ -132,19 +132,19 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
       </section>
       <StickyCommandBarShell className="queue-controls-bar" ariaLabel="Фильтры и виды очереди">
         <div className="queue-sticky-metrics" aria-label="Сводка очереди">
-          <span className="queue-sticky-metric">
+          <span className="sticky-metric">
             <Inbox size={14} aria-hidden="true" />
             <strong>{queued}</strong>ожидают
           </span>
-          <span className="queue-sticky-metric">
+          <span className="sticky-metric">
             <Clock3 size={14} aria-hidden="true" />
             <strong>{inWork}</strong>в работе
           </span>
-          <span className="queue-sticky-metric queue-sticky-metric--danger">
+          <span className="sticky-metric sticky-metric--danger">
             <TriangleAlert size={14} aria-hidden="true" />
             <strong>{overdue}</strong>просрочено
           </span>
-          <span className="queue-sticky-metric queue-sticky-metric--success">
+          <span className="sticky-metric sticky-metric--success">
             <CheckCircle2 size={14} aria-hidden="true" />
             <strong>{reviewed}</strong>завершено
           </span>

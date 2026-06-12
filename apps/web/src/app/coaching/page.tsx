@@ -16,6 +16,7 @@ import {
   X
 } from "lucide-react";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
+import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
 import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
@@ -349,6 +350,21 @@ export default async function CoachingPage({ searchParams }: CoachingPageProps) 
           </div>
         </div>
       </div>
+
+      <StickyMetricsBar
+        ariaLabel="Сводка обучения"
+        items={[
+          { icon: <Clock3 size={14} aria-hidden="true" />, value: openAssignments.length, label: "в работе" },
+          {
+            icon: <TriangleAlert size={14} aria-hidden="true" />,
+            value: overdueAssignments.length,
+            label: "просрочено",
+            tone: overdueAssignments.length > 0 ? "danger" : "success"
+          },
+          { icon: <CheckCircle2 size={14} aria-hidden="true" />, value: doneAssignments.length, label: "закрыто", tone: "success" },
+          { icon: <BookOpenCheck size={14} aria-hidden="true" />, value: criticalKnowledgeCount, label: "важных правил" }
+        ]}
+      />
 
       {createTaskOpen ? (
         <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">

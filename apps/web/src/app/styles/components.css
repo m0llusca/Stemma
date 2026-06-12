@@ -3209,8 +3209,43 @@ pre code {
   display: none;
 }
 
-/* Compact queue metrics: only visible once the controls bar is stuck, so the key
-   counts stay in view while the reviewer scrolls the list. Hidden at rest. */
+/* Compact metrics chip — shared by the reviews sticky filter bar and the reusable
+   StickyMetricsBar so every section's on-scroll metrics look identical. */
+.sticky-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.sticky-metric svg {
+  color: var(--muted);
+}
+
+.sticky-metric strong {
+  color: var(--foreground);
+  font-weight: 720;
+}
+
+.sticky-metric--danger svg,
+.sticky-metric--danger strong {
+  color: var(--danger);
+}
+
+.sticky-metric--success svg,
+.sticky-metric--success strong {
+  color: var(--success);
+}
+
+.sticky-metric--warning svg,
+.sticky-metric--warning strong {
+  color: var(--warning);
+}
+
+/* Reviews: metrics ride inside the already-sticky filter bar — shown only once the
+   bar is stuck, hidden at rest. */
 .queue-sticky-metrics {
   display: none;
 }
@@ -3225,32 +3260,58 @@ pre code {
   font-variant-numeric: tabular-nums;
 }
 
-.queue-sticky-metric {
-  display: inline-flex;
+/* Reusable standalone sticky metrics strip for sections without a sticky filter bar
+   (coaching, calibration, self-review). Sentinel sits in flow; the bar is fixed below
+   the topbar and fades in once the sentinel scrolls under it. */
+.sticky-metrics-sentinel {
+  height: 0;
+  margin: 0;
+}
+
+.sticky-metrics-bar {
+  position: fixed;
+  top: var(--app-topbar-height);
+  left: var(--app-sidebar-width);
+  z-index: 18;
+  width: calc(100vw - var(--app-sidebar-width));
+  border-bottom: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.sticky-metrics-bar--shown {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.sticky-metrics-bar__inner {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1;
+  gap: 8px 18px;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 9px var(--app-topbar-inline);
+  font-variant-numeric: tabular-nums;
 }
 
-.queue-sticky-metric svg {
-  color: var(--muted);
+@media (prefers-reduced-motion: reduce) {
+  .sticky-metrics-bar {
+    transition: none;
+  }
 }
 
-.queue-sticky-metric strong {
-  color: var(--foreground);
-  font-weight: 720;
-}
-
-.queue-sticky-metric--danger svg,
-.queue-sticky-metric--danger strong {
-  color: var(--danger);
-}
-
-.queue-sticky-metric--success svg,
-.queue-sticky-metric--success strong {
-  color: var(--success);
+@media (max-width: 900px) {
+  .sticky-metrics-bar {
+    left: 0;
+    width: 100vw;
+  }
 }
 
 .queue-controls-bar.queue-controls-bar--stuck .queue-filterbar {
