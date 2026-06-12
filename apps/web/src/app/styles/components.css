@@ -5578,6 +5578,92 @@ a.quiet-link:hover {
   background: var(--panel-tint);
 }
 
+.agent-leaderboard__list {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  padding-bottom: 16px;
+}
+
+.agent-leaderboard__row {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "avatar name score"
+    "avatar bar score";
+  align-items: center;
+  gap: 4px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+  padding: 10px;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+a.agent-leaderboard__row:hover {
+  border-color: var(--accent-border);
+  background: var(--panel-tint);
+}
+
+.agent-leaderboard__row > span {
+  grid-area: avatar;
+  display: inline-flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 880;
+}
+
+.agent-leaderboard__row strong {
+  grid-area: name;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-leaderboard__row em {
+  grid-area: score;
+  color: var(--accent-strong);
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 880;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Bar cell: full-width subtle track via the grid cell, fill width set inline on <i>. */
+.agent-leaderboard__row::before {
+  content: "";
+  grid-area: bar;
+  align-self: center;
+  height: 6px;
+  border-radius: 999px;
+  /* Subtle track: a light blend of muted over the panel surface. */
+  background: color-mix(in srgb, var(--muted) 22%, var(--panel));
+}
+
+.agent-leaderboard__row i {
+  grid-area: bar;
+  align-self: center;
+  display: block;
+  height: 6px;
+  max-width: 100%;
+  border-radius: 999px;
+  /* Score fill width is set inline (score as a percentage of 100). */
+  background: var(--accent);
+}
+
 .insight-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

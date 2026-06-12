@@ -23,6 +23,7 @@ import {
   type ReportFocusItem
 } from "@/components/reports/report-panels";
 import { PrimaryScorePanel } from "@/components/reports/report-score-panel";
+import { ReportAgentLeaderboard } from "@/components/reports/report-agent-leaderboard";
 import { BreakdownTable, QuotaTable } from "@/components/reports/report-tables";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -604,6 +605,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
             <RankedList rows={operatorRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>
+          <ReportAgentLeaderboard title="Баллы по агентам" rows={assigneeRows} />
           <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
             <RankedList rows={sourceRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>
