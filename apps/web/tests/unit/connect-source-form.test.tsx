@@ -24,7 +24,10 @@ describe("ConnectSourceForm", () => {
       />
     );
 
-    expect(screen.getByText("Zendesk")).toBeInTheDocument();
+    // The single source is auto-selected, so its label shows both in the
+    // picker card and in the form's current-source chip.
+    expect(screen.getAllByText("Zendesk").length).toBeGreaterThan(0);
+    expect(screen.getByRole("radio", { name: /Zendesk/i })).toBeChecked();
     expect(screen.getByRole("button", { name: /Подключить/i })).toBeInTheDocument();
   });
 

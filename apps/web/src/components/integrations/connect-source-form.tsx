@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Check } from "lucide-react";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
 import type { ConnectStep, ConnectStepStatus, CredentialField } from "@/lib/integrations/connect/types";
 
@@ -35,11 +36,46 @@ const STATUS_ICONS: Record<ConnectStepStatus, string> = {
 };
 
 const STATUS_COLORS: Record<ConnectStepStatus, string> = {
-  ok: "text-[#166534]",
+  ok: "text-[var(--success)]",
   warning: "text-[var(--warning)]",
   failed: "text-[var(--danger)]",
   skipped: "text-[var(--text-muted)]"
 };
+
+// Presentational metadata for the source picker: brand-toned monogram + a
+// one-line descriptor. Purely visual — the connection profiles stay server-side.
+const SOURCE_META: Record<string, { mark: string; color: string; hint: string }> = {
+  otrs: { mark: "OT", color: "#0a6c9e", hint: "Тикеты через GenericInterface" },
+  znuny: { mark: "Zn", color: "#d97706", hint: "Форк OTRS — совместимый API" },
+  otobo: { mark: "OB", color: "#0d9488", hint: "Форк OTRS — совместимый API" },
+  zendesk: { mark: "Zd", color: "#03363d", hint: "Тикеты Zendesk Support" },
+  freshdesk: { mark: "Fd", color: "#15803d", hint: "Тикеты Freshdesk" },
+  intercom: { mark: "Ic", color: "#1f6feb", hint: "Диалоги Intercom" },
+  hubspot: { mark: "Hs", color: "#d9480f", hint: "Тикеты Service Hub" },
+  jira: { mark: "Ji", color: "#2563eb", hint: "Заявки Jira Service Management" },
+  salesforce: { mark: "Sf", color: "#0176d3", hint: "Кейсы Service Cloud" },
+  servicenow: { mark: "Sn", color: "#1f8476", hint: "Инциденты ITSM" },
+  dynamics: { mark: "Dy", color: "#0b53ce", hint: "Кейсы Customer Service" },
+  ydb: { mark: "YD", color: "#1d4ed8", hint: "Таблицы диалогов в YDB" },
+  ytsaurus: { mark: "YT", color: "#c2410c", hint: "Таблицы диалогов в YTsaurus" }
+};
+
+const SOURCE_GROUPS: Array<{ type: string; title: string }> = [
+  { type: "otrs_family", title: "Семейство OTRS" },
+  { type: "native_helpdesk", title: "Хелпдески и CRM" },
+  { type: "enterprise", title: "Enterprise-платформы" },
+  { type: "data_source", title: "Хранилища данных" }
+];
+
+function sourceMeta(item: ConnectSourceItem) {
+  return (
+    SOURCE_META[item.source] ?? {
+      mark: item.label.slice(0, 2).toUpperCase(),
+      color: "var(--accent)",
+      hint: "Импорт диалогов"
+    }
+  );
+}
 
 // Шаги, которые можно поправить вручную в расширенных настройках — при их сбое
 // блок «Расширенные настройки» открывается автоматически.
@@ -79,6 +115,15 @@ export function ConnectSourceForm({
     () => sources.find((item) => item.source === selectedSource) ?? null,
     [sources, selectedSource]
   );
+  const groups = useMemo(() => {
+    const known = SOURCE_GROUPS.map((group) => ({
+      ...group,
+      items: sources.filter((item) => item.type === group.type)
+    })).filter((group) => group.items.length > 0);
+    const knownTypes = new Set(SOURCE_GROUPS.map((group) => group.type));
+    const rest = sources.filter((item) => !knownTypes.has(item.type));
+    return rest.length > 0 ? [...known, { type: "other", title: "Другие источники", items: rest }] : known;
+  }, [sources]);
 
   const steps = hasSteps(state) ? state.steps : [];
   const fallbackOpen = steps.some(
@@ -96,39 +141,59 @@ export function ConnectSourceForm({
       </div>
 
       {sources.length > 0 ? (
-        <div className="grid gap-2 border-b border-[var(--border)] px-4 py-4">
-          <p className="text-sm font-medium text-[var(--text-body)]">Тип источника</p>
-          <div className="flex flex-wrap gap-2">
-            {sources.map((item) => {
-              const isActive = item.source === selectedSource;
-              return (
-                <button
-                  key={item.source}
-                  type="button"
-                  onClick={() => setSelectedSource(item.source)}
-                  aria-pressed={isActive}
-                  className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? "border-[#2563eb] bg-[var(--accent-soft)] text-[#1d4ed8]"
-                      : "border-[var(--border)] bg-[var(--panel)] text-[var(--text-body)] hover:border-[#94a3b8]"
-                  }`}
-                >
-                  {item.label}
-                  {item.limited ? (
-                    <span className="rounded-full bg-[#fef3c7] px-2 py-0.5 text-[11px] font-semibold text-[#92400e]">
-                      ограниченная поддержка
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
+        <div className="connect-source-groups border-b border-[var(--border)] px-4 py-4">
+          {groups.map((group) => (
+            <div key={group.type} className="connect-source-group">
+              <p className="connect-source-group__title">{group.title}</p>
+              <div className="connect-source-grid" role="radiogroup" aria-label={group.title}>
+                {group.items.map((item) => {
+                  const isActive = item.source === selectedSource;
+                  const meta = sourceMeta(item);
+
+                  return (
+                    <button
+                      key={item.source}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      onClick={() => setSelectedSource(item.source)}
+                      className={`connect-source-card ${isActive ? "connect-source-card--selected" : ""}`}
+                    >
+                      <span className="connect-source-card__mark" style={{ backgroundColor: meta.color }} aria-hidden="true">
+                        {meta.mark}
+                      </span>
+                      <span className="connect-source-card__body">
+                        <span className="connect-source-card__name">
+                          {item.label}
+                          {item.limited ? <span className="connect-source-card__flag">ограниченно</span> : null}
+                        </span>
+                        <span className="connect-source-card__hint">{meta.hint}</span>
+                      </span>
+                      <span className={`connect-source-card__check ${isActive ? "connect-source-card__check--on" : ""}`} aria-hidden="true">
+                        <Check size={14} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       ) : null}
 
       {selected ? (
         <form action={formAction} className="grid gap-4 px-4 py-4">
           <input type="hidden" name="source" value={selected.source} />
+
+          <div className="connect-source-current" aria-live="polite">
+            <span className="connect-source-card__mark" style={{ backgroundColor: sourceMeta(selected).color }} aria-hidden="true">
+              {sourceMeta(selected).mark}
+            </span>
+            <span className="connect-source-current__body">
+              <strong>{selected.label}</strong>
+              <span>{sourceMeta(selected).hint}</span>
+            </span>
+          </div>
 
           {selected.urlPolicy === "fixed" ? (
             <input type="hidden" name="baseUrl" value={selected.fixedBaseUrl ?? ""} />
@@ -199,7 +264,7 @@ export function ConnectSourceForm({
             ))}
           </ul>
           {connected ? (
-            <p className="text-sm font-semibold text-[#166534]">Источник подключён</p>
+            <p className="text-sm font-semibold text-[var(--success)]">Источник подключён</p>
           ) : null}
         </div>
       ) : null}
