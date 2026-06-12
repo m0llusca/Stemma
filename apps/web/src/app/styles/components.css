@@ -3209,6 +3209,50 @@ pre code {
   display: none;
 }
 
+/* Compact queue metrics: only visible once the controls bar is stuck, so the key
+   counts stay in view while the reviewer scrolls the list. Hidden at rest. */
+.queue-sticky-metrics {
+  display: none;
+}
+
+.queue-controls-bar.queue-controls-bar--stuck .queue-sticky-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 9px 2px 7px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-sticky-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.queue-sticky-metric svg {
+  color: var(--muted);
+}
+
+.queue-sticky-metric strong {
+  color: var(--foreground);
+  font-weight: 720;
+}
+
+.queue-sticky-metric--danger svg,
+.queue-sticky-metric--danger strong {
+  color: var(--danger);
+}
+
+.queue-sticky-metric--success svg,
+.queue-sticky-metric--success strong {
+  color: var(--success);
+}
+
 .queue-controls-bar.queue-controls-bar--stuck .queue-filterbar {
   border-top: 0;
 }
