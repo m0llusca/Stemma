@@ -1,8 +1,9 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
+import { canManageReviewWorkflow, getCurrentUser, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 function stringField(formData: FormData, key: string) {
@@ -74,4 +75,30 @@ export async function deleteSavedQueueView(formData: FormData) {
   });
 
   revalidatePath("/reviews");
+}
+
+// Открывает самое срочное непроверенное обращение для ручной проверки.
+// Только навигация: ничего не назначает и не меняет, чтобы избежать гонок при параллельной работе.
+// where + orderBy зеркалят приоритет очереди проверок (reviewDueAt — SLA-срочность, см. фильтр due=overdue).
+export async function takeNextReview() {
+  const user = await requireCurrentUserPermission("reviews:read");
+
+  const supportAgentScope: Prisma.ConversationWhereInput =
+    user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : {};
+
+  const conversation = await prisma.conversation.findFirst({
+    where: {
+      workspaceId: user.workspaceId,
+      qaStatus: { not: "FINALIZED" },
+      ...supportAgentScope
+    },
+    orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
+    select: { id: true }
+  });
+
+  if (!conversation) {
+    redirect("/reviews?empty=1");
+  }
+
+  redirect(`/reviews/${conversation.id}`);
 }

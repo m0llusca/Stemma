@@ -4,6 +4,7 @@ import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
 import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
+import { takeNextReview } from "@/lib/queue-view-actions";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
 import type { ReviewQueueSearchParams } from "@/lib/review-repository";
 
@@ -122,6 +123,11 @@ export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
         </div>
       </section>
       <StickyCommandBarShell className="queue-controls-bar" ariaLabel="Фильтры и виды очереди">
+        <form action={takeNextReview} className="flex min-w-0">
+          <button type="submit" className="action-button action-button--primary">
+            Взять следующий
+          </button>
+        </form>
         <QueueSavedViews currentAssigneeName={data.currentAssigneeName} currentHref={data.currentHref} savedViews={data.savedViews} />
         <QueueFilters
           filters={data.filters}
