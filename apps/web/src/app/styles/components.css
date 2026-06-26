@@ -992,6 +992,9 @@ pre code {
 }
 
 .dashboard-kpi {
+  --dashboard-kpi-icon-size: 34px;
+  --dashboard-kpi-glyph-size: 18px;
+  --dashboard-kpi-copy-offset: calc((var(--dashboard-kpi-icon-size) - var(--dashboard-kpi-glyph-size)) / 2);
   position: relative;
   display: grid;
   min-width: 0;
@@ -1022,8 +1025,8 @@ pre code {
 
 .dashboard-kpi__icon {
   display: inline-flex;
-  height: 34px;
-  width: 34px;
+  height: var(--dashboard-kpi-icon-size);
+  width: var(--dashboard-kpi-icon-size);
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-control);
@@ -1040,9 +1043,14 @@ pre code {
 }
 
 .dashboard-kpi > span:not(.dashboard-kpi__icon):not(.metric-value) {
+  margin-inline-start: var(--dashboard-kpi-copy-offset);
   color: var(--foreground);
   font-size: 13px;
   font-weight: 820;
+}
+
+.dashboard-kpi > .metric-value {
+  margin-inline-start: var(--dashboard-kpi-copy-offset);
 }
 
 .dashboard-kpi .metric-value__value {
@@ -1052,6 +1060,7 @@ pre code {
 }
 
 .dashboard-kpi small {
+  margin-inline-start: var(--dashboard-kpi-copy-offset);
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;

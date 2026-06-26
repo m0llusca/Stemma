@@ -136,6 +136,7 @@ test("authenticated app shell routes render stable chrome and content", async ({
       const kpiAlignments = await page.locator(".dashboard-kpi").evaluateAll((cards) =>
         cards.map((card, index) => {
           const icon = card.querySelector(".dashboard-kpi__icon");
+          const iconGlyph = card.querySelector(".dashboard-kpi__icon svg");
           const value = card.querySelector(".metric-value__value");
           const title = card.querySelector(":scope > span:not(.dashboard-kpi__icon):not(.metric-value)");
           const footnote = card.querySelector(":scope > small");
@@ -143,6 +144,7 @@ test("authenticated app shell routes render stable chrome and content", async ({
           return {
             index,
             iconLeft: icon?.getBoundingClientRect().left ?? 0,
+            iconGlyphLeft: iconGlyph?.getBoundingClientRect().left ?? 0,
             valueLeft: value?.getBoundingClientRect().left ?? 0,
             titleLeft: title?.getBoundingClientRect().left ?? 0,
             footnoteLeft: footnote?.getBoundingClientRect().left ?? 0
@@ -151,9 +153,10 @@ test("authenticated app shell routes render stable chrome and content", async ({
       );
 
       for (const alignment of kpiAlignments) {
-        expect(Math.abs(alignment.valueLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} value should align with icon`).toBeLessThanOrEqual(1);
-        expect(Math.abs(alignment.titleLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} title should align with icon`).toBeLessThanOrEqual(1);
-        expect(Math.abs(alignment.footnoteLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} footnote should align with icon`).toBeLessThanOrEqual(1);
+        expect(alignment.iconGlyphLeft - alignment.iconLeft, `dashboard KPI ${alignment.index} icon glyph should be centered inside badge`).toBeGreaterThan(0);
+        expect(Math.abs(alignment.valueLeft - alignment.iconGlyphLeft), `dashboard KPI ${alignment.index} value should optically align with icon glyph`).toBeLessThanOrEqual(1);
+        expect(Math.abs(alignment.titleLeft - alignment.iconGlyphLeft), `dashboard KPI ${alignment.index} title should optically align with icon glyph`).toBeLessThanOrEqual(1);
+        expect(Math.abs(alignment.footnoteLeft - alignment.iconGlyphLeft), `dashboard KPI ${alignment.index} footnote should optically align with icon glyph`).toBeLessThanOrEqual(1);
       }
 
       const focusMetric = page.locator(".dashboard-focus-row__metric.status-tone--negative em, .dashboard-focus-row__metric.status-tone--warning em").first();
