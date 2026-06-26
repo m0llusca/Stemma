@@ -18,7 +18,7 @@ vi.mock("@/lib/db", () => ({
 
 describe("i18n runtime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("normalizes supported locale codes and rejects unsafe values", async () => {
@@ -75,5 +75,17 @@ describe("i18n runtime", () => {
 
     expect(dict.locale).toBe("ru");
     expect(dict.t("dashboard.title")).toBe("Дашборд качества");
+  });
+
+  it("falls back to base built-in language for enabled regional locales", async () => {
+    mocks.localeFindFirst.mockResolvedValue({ id: "locale-en-us", code: "en-US" });
+    mocks.translationValueFindMany.mockResolvedValue([]);
+
+    const { getDictionary } = await import("@/lib/i18n/dictionary");
+    const dict = await getDictionary("workspace-1", "en-US");
+
+    expect(dict.locale).toBe("en-US");
+    expect(dict.t("dashboard.title")).toBe("Quality dashboard");
+    expect(dict.t("shell.nav.dashboard")).toBe("Dashboard");
   });
 });

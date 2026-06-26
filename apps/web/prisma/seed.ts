@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { PrismaClient, type ConversationChannel, type FindingOwnerType, type ReviewSource, type RiskLevel } from "@prisma/client";
 import { demoApiToken } from "../src/lib/custom-api-docs";
+import { translationKeySeeds } from "../src/lib/i18n/keys";
 import { assertSeedAllowed } from "./seed-guard";
 import {
   buildDemoOperationalStatusPlan,
@@ -143,46 +144,9 @@ async function main() {
     })
   ]);
 
-  const translationSeeds = [
-    {
-      namespace: "shell",
-      key: "nav.dashboard",
-      defaultText: "Дашборд",
-      ownerArea: "shell",
-      en: "Dashboard"
-    },
-    {
-      namespace: "shell",
-      key: "nav.reviews",
-      defaultText: "Проверки",
-      ownerArea: "shell",
-      en: "Reviews"
-    },
-    {
-      namespace: "auth",
-      key: "login.title",
-      defaultText: "Вход в систему",
-      ownerArea: "auth",
-      en: "Sign in"
-    },
-    {
-      namespace: "dashboard",
-      key: "focus.title",
-      defaultText: "Фокус сейчас",
-      ownerArea: "dashboard",
-      en: "Focus now"
-    },
-    {
-      namespace: "integrations",
-      key: "sources.connected.title",
-      defaultText: "Подключенные источники",
-      ownerArea: "integrations",
-      en: "Connected sources"
-    }
-  ] as const;
   const translationsPublishedAt = new Date();
 
-  for (const seed of translationSeeds) {
+  for (const seed of translationKeySeeds) {
     const key = await prisma.translationKey.create({
       data: {
         namespace: seed.namespace,

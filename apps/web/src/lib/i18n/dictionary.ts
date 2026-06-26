@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 
 import {
   builtInDefaultLocale,
-  builtInDictionaries,
+  getBuiltInEntries,
   type TranslationEntries
 } from "./built-in";
 import { normalizeLocaleCode } from "./locale-codes";
@@ -55,9 +55,7 @@ export async function getDictionary(
     (await findEnabledLocale(workspaceId, normalizedRequestedLocale)) ??
     (await findDefaultEnabledLocale(workspaceId));
   const selectedLocaleCode = locale?.code ?? builtInDefaultLocale;
-  const builtInEntries =
-    builtInDictionaries[selectedLocaleCode as keyof typeof builtInDictionaries] ??
-    builtInDictionaries[builtInDefaultLocale];
+  const builtInEntries = getBuiltInEntries(selectedLocaleCode);
 
   if (!locale) {
     const entries = { ...builtInEntries };
