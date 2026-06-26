@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="stemma-bg" x1="11" x2="55" y1="8" y2="57" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#153C7A"/>
+      <stop offset=".58" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="stemma-leaf" x1="20" x2="46" y1="17" y2="47" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8F7FF"/>
+      <stop offset="1" stop-color="#B7F7D8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#stemma-bg)"/>
+  <path
+    fill="none"
+    stroke="#BFE6FF"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="4"
+    d="M32 47V30m0 0-10-9m10 9 10-9"
+  />
+  <circle cx="22" cy="21" r="6" fill="url(#stemma-leaf)"/>
+  <circle cx="42" cy="21" r="6" fill="url(#stemma-leaf)"/>
+  <circle cx="32" cy="47" r="6" fill="#ECFEFF"/>
+  <path fill="none" stroke="#0F766E" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="m28.7 46.8 2.4 2.4 4.6-5.1"/>
+  <path fill="none" stroke="#FFFFFF" stroke-opacity=".42" stroke-width="1.5" d="M17 50c8 5 22 6 31-1"/>
+</svg>

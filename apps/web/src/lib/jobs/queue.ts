@@ -1,13 +1,13 @@
-import type { BackendJob, BackendJobStatus, BackendJobType, Prisma } from "@prisma/client";
+import type { BackendJob, BackendJobStatus, Prisma } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
-import { syncDirectoryProvider } from "@/lib/auth/directory-sync";
 import { prisma } from "@/lib/db";
 import type { IntegrationJobOperation } from "@/lib/integration-import-service";
-import { runIntegrationConnector, runSelectedOtrsImportConnector } from "@/lib/integrations/runner";
+import type { BackendJobPayload } from "@/lib/jobs/enqueue";
 import { logBackendEvent } from "@/lib/observability";
-import { ingestWebhookEvent } from "@/lib/webhooks/inbound";
 
-export type BackendJobPayload = Record<string, unknown>;
+export { enqueueBackendJob } from "@/lib/jobs/enqueue";
+export type { BackendJobPayload } from "@/lib/jobs/enqueue";
+
 export const backendJobQueueDefaults = {
   claimRetries: 3,
   retryBaseDelayMs: 60_000,
@@ -66,8 +66,6 @@ type JobClient = Pick<
   | "auditLog"
 >;
 
-type EnqueueJobClient = Pick<Prisma.TransactionClient, "backendJob">;
-
 function parsePayloadJson(payloadJson: string): BackendJobPayload {
   try {
     const parsed = JSON.parse(payloadJson);
@@ -124,30 +122,6 @@ async function restoreCancelledIntegrationImportState(
       }
     });
   }
-}
-
-export async function enqueueBackendJob(input: {
-  workspaceId: string;
-  type: BackendJobType;
-  payload?: BackendJobPayload;
-  queueName?: string;
-  priority?: number;
-  runAfter?: Date;
-  maxAttempts?: number;
-  createdById?: string;
-}, client: EnqueueJobClient = prisma) {
-  return client.backendJob.create({
-    data: {
-      workspaceId: input.workspaceId,
-      type: input.type,
-      payloadJson: JSON.stringify(input.payload ?? {}),
-      queueName: input.queueName ?? "default",
-      priority: input.priority ?? 100,
-      runAfter: input.runAfter ?? new Date(),
-      maxAttempts: input.maxAttempts ?? 3,
-      createdById: input.createdById
-    }
-  });
 }
 
 export async function getBackendQueueMetrics(workspaceId: string): Promise<Array<{ queueName: string; status: BackendJobStatus; count: number }>> {
@@ -510,6 +484,7 @@ async function runLegacyIntegrationImportJob(job: BackendJob, payload: BackendJo
   }
 
   let pendingLockState: JobLockState | null = null;
+  const { runIntegrationConnector } = await import("@/lib/integrations/runner");
   const result = await runIntegrationConnector({
     workspaceId: job.workspaceId,
     integrationId,
@@ -563,6 +538,7 @@ async function runSelectedOtrsImportJob(job: BackendJob, payload: BackendJobPayl
   }
 
   let pendingLockState: JobLockState | null = null;
+  const { runSelectedOtrsImportConnector } = await import("@/lib/integrations/runner");
   const result = await runSelectedOtrsImportConnector({
     workspaceId: job.workspaceId,
     integrationId,
@@ -637,6 +613,7 @@ async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: 
   }
 
   const lockState = await assertCurrentJobLock(client, job);
+  const { syncDirectoryProvider } = await import("@/lib/auth/directory-sync");
 
   const result = await syncDirectoryProvider({
     workspaceId: job.workspaceId,
@@ -710,6 +687,7 @@ async function runWebhookIngestJob(job: BackendJob, payload: BackendJobPayload) 
   }
 
   let pendingLockState: JobLockState | null = null;
+  const { ingestWebhookEvent } = await import("@/lib/webhooks/inbound");
   const result = await ingestWebhookEvent({
     endpointId,
     workspaceId: job.workspaceId,

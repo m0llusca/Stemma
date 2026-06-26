@@ -8,7 +8,8 @@ import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
-import { queueDirectorySync, queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
+import { queueDirectorySync, queueRetentionCleanup } from "@/lib/system-enqueue-actions";
+import { runQueuedBackendJobs } from "@/lib/system-actions";
 
 export const dynamic = "force-dynamic";
 

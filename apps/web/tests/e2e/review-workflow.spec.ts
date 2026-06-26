@@ -147,25 +147,25 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Интеграции" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Подключенные источники" })).toBeVisible();
-  await page.getByRole("link", { name: "План источников" }).click();
-  await expect(page.getByRole("heading", { name: "План источников" })).toBeVisible();
+  await page.getByRole("link", { name: "Каталог" }).click();
+  await expect(page.getByRole("heading", { name: "Каталог источников" })).toBeVisible();
   await expect(page.getByText("Общие вебхуки")).toBeVisible();
 
   await page.getByRole("link", { name: "Новый источник" }).click();
   await expect(page.getByRole("heading", { name: "Новый источник" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Шаг 1. Источник" })).toBeVisible();
-  const setupPanel = page.getByRole("heading", { name: "Мастер подключения источника" }).locator("xpath=ancestor::section[1]");
-  await expect(setupPanel.getByLabel("Система-источник")).toHaveValue("otrs:znuny");
-  await setupPanel.getByLabel("Система-источник").selectOption("custom_api");
-  await expect(page.getByRole("heading", { name: "Своя система через API" })).toBeVisible();
-  await setupPanel.getByLabel("Система-источник").selectOption("native:zendesk");
-  await expect(page.getByRole("heading", { name: "Zendesk" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Подключение источника" }).first()).toBeVisible();
+  await expect(page.getByRole("radiogroup", { name: "Семейство OTRS" })).toBeVisible();
+  const setupPanel = page.getByRole("region", { name: "Подключение источника" });
+  await setupPanel.getByRole("radio", { name: /YDB/ }).click();
+  await expect(page.locator(".connect-source-current")).toContainText("YDB");
+  await setupPanel.getByRole("radio", { name: /Zendesk/ }).click();
+  await expect(page.locator(".connect-source-current")).toContainText("Zendesk");
 
   await page.goto("/admin/integrations");
   const znunyIntegrationCard = page.getByRole("row").filter({ hasText: "Znuny / OTRS / OTOBO" }).first();
-  await expect(znunyIntegrationCard).toContainText("OTRS/Znuny · В плане · курсор есть · вебхуки нет");
-  await expect(znunyIntegrationCard).toContainText("Не готово к промышленной эксплуатации");
+  await expect(znunyIntegrationCard).toContainText("Семейство OTRS");
+  await expect(znunyIntegrationCard).toContainText("В плане");
+  await expect(znunyIntegrationCard).toContainText("Не готово");
   await expect(znunyIntegrationCard).toContainText("Проверка готова");
   await znunyIntegrationCard.getByRole("link", { name: "Открыть панель" }).click();
   await expect(page.getByRole("heading", { name: "Сводка источника" })).toBeVisible();

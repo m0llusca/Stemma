@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Check } from "lucide-react";
+import { SourceLogoMark, sourceLogoMeta } from "@/components/integrations/source-logo-mark";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
 import type { ConnectStep, ConnectStepStatus, CredentialField } from "@/lib/integrations/connect/types";
 
@@ -42,24 +43,6 @@ const STATUS_COLORS: Record<ConnectStepStatus, string> = {
   skipped: "text-[var(--text-muted)]"
 };
 
-// Presentational metadata for the source picker: brand-toned monogram + a
-// one-line descriptor. Purely visual — the connection profiles stay server-side.
-const SOURCE_META: Record<string, { mark: string; color: string; hint: string }> = {
-  otrs: { mark: "OT", color: "#0a6c9e", hint: "Тикеты через GenericInterface" },
-  znuny: { mark: "Zn", color: "#d97706", hint: "Форк OTRS — совместимый API" },
-  otobo: { mark: "OB", color: "#0d9488", hint: "Форк OTRS — совместимый API" },
-  zendesk: { mark: "Zd", color: "#03363d", hint: "Тикеты Zendesk Support" },
-  freshdesk: { mark: "Fd", color: "#15803d", hint: "Тикеты Freshdesk" },
-  intercom: { mark: "Ic", color: "#1f6feb", hint: "Диалоги Intercom" },
-  hubspot: { mark: "Hs", color: "#d9480f", hint: "Тикеты Service Hub" },
-  jira: { mark: "Ji", color: "#2563eb", hint: "Заявки Jira Service Management" },
-  salesforce: { mark: "Sf", color: "#0176d3", hint: "Кейсы Service Cloud" },
-  servicenow: { mark: "Sn", color: "#1f8476", hint: "Инциденты ITSM" },
-  dynamics: { mark: "Dy", color: "#0b53ce", hint: "Кейсы Customer Service" },
-  ydb: { mark: "YD", color: "#1d4ed8", hint: "Таблицы диалогов в YDB" },
-  ytsaurus: { mark: "YT", color: "#c2410c", hint: "Таблицы диалогов в YTsaurus" }
-};
-
 const SOURCE_GROUPS: Array<{ type: string; title: string }> = [
   { type: "otrs_family", title: "Семейство OTRS" },
   { type: "native_helpdesk", title: "Хелпдески и CRM" },
@@ -68,13 +51,7 @@ const SOURCE_GROUPS: Array<{ type: string; title: string }> = [
 ];
 
 function sourceMeta(item: ConnectSourceItem) {
-  return (
-    SOURCE_META[item.source] ?? {
-      mark: item.label.slice(0, 2).toUpperCase(),
-      color: "var(--accent)",
-      hint: "Импорт диалогов"
-    }
-  );
+  return sourceLogoMeta(item.source, item.label);
 }
 
 // Шаги, которые можно поправить вручную в расширенных настройках — при их сбое
@@ -159,9 +136,7 @@ export function ConnectSourceForm({
                       onClick={() => setSelectedSource(item.source)}
                       className={`connect-source-card ${isActive ? "connect-source-card--selected" : ""}`}
                     >
-                      <span className="connect-source-card__mark" style={{ backgroundColor: meta.color }} aria-hidden="true">
-                        {meta.mark}
-                      </span>
+                      <SourceLogoMark meta={meta} />
                       <span className="connect-source-card__body">
                         <span className="connect-source-card__name">
                           {item.label}
@@ -186,9 +161,7 @@ export function ConnectSourceForm({
           <input type="hidden" name="source" value={selected.source} />
 
           <div className="connect-source-current" aria-live="polite">
-            <span className="connect-source-card__mark" style={{ backgroundColor: sourceMeta(selected).color }} aria-hidden="true">
-              {sourceMeta(selected).mark}
-            </span>
+            <SourceLogoMark meta={sourceMeta(selected)} />
             <span className="connect-source-current__body">
               <strong>{selected.label}</strong>
               <span>{sourceMeta(selected).hint}</span>

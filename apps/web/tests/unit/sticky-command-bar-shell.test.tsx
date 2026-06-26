@@ -12,10 +12,12 @@ describe("StickyCommandBarShell", () => {
   const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
   let scrollY = 0;
   let commandBarTop = 240;
+  let commandBarHeight = 126;
 
   beforeEach(() => {
     scrollY = 0;
     commandBarTop = 240;
+    commandBarHeight = 126;
     document.documentElement.style.setProperty("--app-topbar-height", "52px");
     Object.defineProperty(window, "scrollY", {
       configurable: true,
@@ -41,7 +43,7 @@ describe("StickyCommandBarShell", () => {
         bottom: 0,
         left: 0,
         width: 0,
-        height: isCommandBar ? (isStuck ? 54 : 126) : 0,
+        height: isCommandBar ? (isStuck ? 54 : commandBarHeight) : 0,
         toJSON: () => ({})
       } as DOMRect;
     };
@@ -111,6 +113,29 @@ describe("StickyCommandBarShell", () => {
     });
 
     expect(shell).toHaveClass("report-command-bar--stuck");
+    expect(slot).toHaveStyle({ minHeight: "126px" });
+  });
+
+  it("shrinks the reserved flow height after expanded controls collapse", () => {
+    commandBarHeight = 360;
+
+    render(
+      <StickyCommandBarShell className="report-command-bar" ariaLabel="Настройки аналитики">
+        Панель
+      </StickyCommandBarShell>
+    );
+
+    const shell = screen.getByLabelText("Настройки аналитики");
+    const slot = shell.parentElement;
+
+    expect(slot).toHaveStyle({ minHeight: "360px" });
+
+    act(() => {
+      commandBarHeight = 126;
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    expect(shell).not.toHaveClass("report-command-bar--stuck");
     expect(slot).toHaveStyle({ minHeight: "126px" });
   });
 });

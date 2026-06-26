@@ -25,6 +25,30 @@ type ReviewEventReaderClient = {
   };
 };
 
+const REVIEW_EVENT_ACTION_LABELS: Record<string, string> = {
+  "appeal.opened": "Открыта апелляция",
+  "appeal.resolved": "Апелляция закрыта",
+  "conversation.bulk_workflow_updated": "Очередь проверок обновлена",
+  "conversation.workflow_updated": "Маршрут проверки обновлен",
+  "feedback.acknowledged": "Обратная связь принята",
+  "privacy.conversation_redacted": "Обращение обезличено",
+  "qa.reopened": "Проверка возвращена в работу",
+  "review.assigned": "Проверка назначена",
+  "review.draft_saved": "Черновик проверки",
+  "review.feedback.acknowledged": "Обратная связь подтверждена",
+  "review.feedback.appeal_confirmed": "Апелляция подтверждена",
+  "review.feedback.appeal_opened": "Открыта апелляция",
+  "review.feedback.reanswer_completed": "Переответ выполнен",
+  "review.feedback.reanswer_requested": "Запрошен переответ",
+  "review.finalized": "Проверка завершена",
+  "review.reopened": "Проверка переоткрыта",
+  "training.assignment_created": "Учебная задача создана"
+};
+
+export function reviewEventActionLabel(action: string) {
+  return REVIEW_EVENT_ACTION_LABELS[action] ?? action;
+}
+
 export async function findLatestReopenedAt(client: ReviewEventReaderClient, workspaceId: string, conversationId: string) {
   const event = await client.reviewEvent.findFirst({
     where: {

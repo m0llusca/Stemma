@@ -2,25 +2,10 @@ import { ArrowLeft, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
 import { limitedSupportSources, listConnectionProfiles } from "@/lib/integrations/connect/profiles";
+import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
-
-const SOURCE_LABELS: Record<string, string> = {
-  otrs: "OTRS Community Edition 6",
-  znuny: "Znuny",
-  otobo: "OTOBO",
-  zendesk: "Zendesk",
-  freshdesk: "Freshdesk",
-  intercom: "Intercom",
-  hubspot: "HubSpot",
-  jira: "Jira Service Management",
-  ydb: "YDB",
-  ytsaurus: "YTsaurus",
-  salesforce: "Salesforce",
-  servicenow: "ServiceNow",
-  dynamics: "Microsoft Dynamics 365"
-};
 
 export default async function NewIntegrationPage() {
   await requireCurrentUserPermission("integrations:manage");
@@ -29,7 +14,7 @@ export default async function NewIntegrationPage() {
   // сериализуемые метаданные.
   const sources = listConnectionProfiles().map((profile) => ({
     source: profile.source,
-    label: SOURCE_LABELS[profile.source] ?? profile.source,
+    label: connectionSourceLabel(profile.source),
     type: profile.type,
     urlPolicy: profile.urlPolicy,
     fixedBaseUrl: profile.fixedBaseUrl,

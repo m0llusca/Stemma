@@ -9,6 +9,7 @@ import {
 } from "@/lib/integrations/otrs-family/credentials";
 import { getConnectionProfile } from "@/lib/integrations/connect/profiles";
 import { runConnectPipeline } from "@/lib/integrations/connect/orchestrator";
+import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
 import type {
   ConnectStepStatus,
   SourceConnectionProfile
@@ -78,7 +79,7 @@ async function persistIntegration(args: {
       create: {
         workspaceId,
         source: profile.source,
-        displayName: profile.source,
+        displayName: connectionSourceLabel(profile.source),
         type: profile.type,
         status: "active",
         baseUrl,
@@ -86,6 +87,7 @@ async function persistIntegration(args: {
         configJson: JSON.stringify(config)
       },
       update: {
+        displayName: connectionSourceLabel(profile.source),
         type: profile.type,
         status: "active",
         baseUrl,

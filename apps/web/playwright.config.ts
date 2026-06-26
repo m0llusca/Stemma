@@ -11,6 +11,8 @@ const webServerEnv: Record<string, string> = {
   ),
   // Force demo auth and allow seed to run for e2e without relying on the caller's shell.
   QC_DEMO_AUTH: "enabled",
+  // E2E OTRS uses a local GenericInterface fixture; production keeps private URLs blocked by default.
+  QC_ALLOW_PRIVATE_BASE_URLS: "1",
   ALLOW_SEED: "1"
 };
 

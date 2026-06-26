@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
+import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps-config";
 import { assertProviderEndpointUrls, assertSafeProviderConfig } from "@/lib/auth/provider-config-validation";
-import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps";
 import { assertProductionSecretReference, validateOidcProviderConfigForSave } from "@/lib/auth/oidc";
 import { getDirectoryIntegrationGuidance, buildEntraAuthorizationMetadata } from "@/lib/auth/providers";
 import { buildSamlServiceProviderUrls, validateSamlProviderConfigForSave } from "@/lib/auth/saml";

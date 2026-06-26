@@ -37,6 +37,7 @@ import {
   riskLevelLabels,
   samplingTypeLabels
 } from "@/lib/labels";
+import { reviewEventActionLabel } from "@/lib/review-events";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
@@ -462,7 +463,7 @@ export default async function ReviewDetailPage({ params, searchParams }: ReviewD
               <div className="grid gap-2 text-sm">
                 {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
                   <div key={event.id} className="inline-code-box text-[var(--text-body)]">
-                    {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {event.action}
+                    {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {reviewEventActionLabel(event.action)}
                     {event.comment ? ` · ${event.comment}` : ""}
                   </div>
                 ))}

@@ -25,8 +25,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Контроль качества поддержки",
-  description: "Проверка качества диалогов поддержки"
+  title: "Stemma",
+  description: "Контроль качества поддержки и подключение источников"
 };
 
 // Declares that the app manages its own light/dark theming. This emits

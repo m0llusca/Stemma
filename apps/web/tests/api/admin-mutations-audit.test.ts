@@ -26,8 +26,11 @@ vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
 
+vi.mock("@/lib/jobs/enqueue", () => ({
+  enqueueBackendJob: mocks.enqueueBackendJob
+}));
+
 vi.mock("@/lib/jobs/queue", () => ({
-  enqueueBackendJob: mocks.enqueueBackendJob,
   runDueBackendJobs: mocks.runDueBackendJobs
 }));
 

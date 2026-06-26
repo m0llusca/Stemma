@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   logBackendEvent: vi.fn(),
   requireCurrentUserPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  enqueueBackendJob: vi.fn(),
   cancelBackendJob: vi.fn(),
   runDueBackendJobs: vi.fn()
 }));
@@ -27,9 +28,12 @@ vi.mock("@/lib/db", () => ({
   prisma: {}
 }));
 
+vi.mock("@/lib/jobs/enqueue", () => ({
+  enqueueBackendJob: mocks.enqueueBackendJob
+}));
+
 vi.mock("@/lib/jobs/queue", () => ({
   cancelBackendJob: mocks.cancelBackendJob,
-  enqueueBackendJob: vi.fn(),
   runDueBackendJobs: mocks.runDueBackendJobs
 }));
 
@@ -46,6 +50,12 @@ describe("system actions", () => {
     });
     mocks.runDueBackendJobs.mockResolvedValue([{ jobId: "job-1" }, { jobId: "job-2" }]);
     mocks.cancelBackendJob.mockResolvedValue({ id: "job-1" });
+    mocks.enqueueBackendJob.mockResolvedValue({
+      id: "job-queued",
+      queueName: "directory",
+      type: "DIRECTORY_SYNC",
+      status: "QUEUED"
+    });
     mocks.auditLog.mockResolvedValue({});
   });
 
@@ -115,5 +125,38 @@ describe("system actions", () => {
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system/jobs/job-1");
+  });
+
+  it("queues directory sync through the enqueue-only action module", async () => {
+    const { queueDirectorySync } = await import("@/lib/system-enqueue-actions");
+    const formData = new FormData();
+    formData.set("providerId", "provider-1");
+    formData.set("dryRun", "true");
+
+    await expect(queueDirectorySync(formData)).resolves.toBeUndefined();
+
+    expect(mocks.enqueueBackendJob).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      type: "DIRECTORY_SYNC",
+      queueName: "directory",
+      priority: 70,
+      createdById: "user-1234567890",
+      payload: {
+        providerId: "provider-1",
+        dryRun: true
+      }
+    });
+    expect(mocks.auditLog).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      actorId: "user-1234567890",
+      action: "auth.directory_sync_queued",
+      targetType: "identity_provider",
+      targetId: "provider-1",
+      metadata: {
+        jobId: "job-queued",
+        dryRun: true
+      }
+    });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
   });
 });

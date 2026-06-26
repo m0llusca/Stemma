@@ -5,7 +5,7 @@ import { requireSessionApi } from "@/lib/api/session";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
-import { enqueueBackendJob } from "@/lib/jobs/queue";
+import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 
 export const dynamic = "force-dynamic";
 

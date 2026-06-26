@@ -4,7 +4,7 @@ import {
   assertSafeProviderConfig,
   sanitizeProviderConfigForDisplay
 } from "@/lib/auth/provider-config-validation";
-import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps";
+import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps-config";
 
 describe("provider config validation", () => {
   it("rejects sensitive config keys recursively with a safe error", () => {

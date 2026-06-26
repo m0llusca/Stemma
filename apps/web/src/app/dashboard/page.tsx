@@ -1,10 +1,10 @@
-import type { ReviewEvent } from "@prisma/client";
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { reviewEventActionLabel } from "@/lib/review-events";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
@@ -45,20 +45,6 @@ function formatSignedNumber(value: number, suffix = "") {
   }
 
   return `${value > 0 ? "+" : ""}${value}${suffix}`;
-}
-
-function eventLabel(action: ReviewEvent["action"]) {
-  const labels: Record<string, string> = {
-    "review.draft_saved": "Черновик проверки",
-    "review.finalized": "Проверка завершена",
-    "review.assigned": "Проверка назначена",
-    "review.reopened": "Проверка переоткрыта",
-    "feedback.acknowledged": "Обратная связь принята",
-    "appeal.opened": "Открыта апелляция",
-    "appeal.resolved": "Апелляция закрыта"
-  };
-
-  return labels[action] ?? action;
 }
 
 function weekdayLabel(value: Date) {
@@ -291,19 +277,19 @@ export default async function DashboardPage() {
       : null
   ].filter((item): item is { icon: typeof TriangleAlert; href: string; label: string; value: number; hint: string } => Boolean(item));
   const primaryFocusHref = focusItems[0]?.href ?? "/reviews?status=unreviewed";
+  const dashboardFocusLabel = highRiskCount > 0 || overdueTrainingCount > 0 ? "Есть фокус на сегодня" : "Команда в норме";
 
   return (
     <section className="page-shell dashboard-shell">
       <div className="command-center dashboard-hero">
-        <div className="min-w-0">
+        <div className="dashboard-hero__copy">
           <p className="page-kicker">Рабочее пространство</p>
           <h1 className="page-title">Дашборд качества</h1>
           <p className="page-subtitle">
             Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам.
           </p>
           <div className="dashboard-hero__meta">
-            <span>{now.toLocaleDateString("ru-RU", { weekday: "long", day: "2-digit", month: "long" })}</span>
-            <span>{highRiskCount > 0 || overdueTrainingCount > 0 ? "Есть фокус на сегодня" : "Команда в норме"}</span>
+            <span>{dashboardFocusLabel}</span>
           </div>
         </div>
       </div>
@@ -349,7 +335,7 @@ export default async function DashboardPage() {
               <Link key={event.id} href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"} className="dashboard-activity-row">
                 <span className="dashboard-activity-row__avatar">{event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}</span>
                 <span className="dashboard-activity-row__body">
-                  <strong>{event.actor?.name ?? "Система"} · {eventLabel(event.action)}</strong>
+                  <strong>{event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}</strong>
                   <small>
                     {event.review?.conversation.externalId ?? event.review?.conversation.subject ?? "Проверка"}{event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
                   </small>
@@ -380,11 +366,15 @@ export default async function DashboardPage() {
 
               return (
                 <Link key={item.href} href={item.href} className="dashboard-focus-row">
-                  <span><Icon size={16} aria-hidden="true" /></span>
-                  <strong>{item.label}</strong>
-                  <em>{item.value}</em>
-                  <small>{item.hint}</small>
-                  <ArrowRight size={14} aria-hidden="true" />
+                  <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
+                  <span className="dashboard-focus-row__copy">
+                    <strong>{item.label}</strong>
+                    <small>{item.hint}</small>
+                  </span>
+                  <span className="dashboard-focus-row__metric">
+                    <em>{item.value}</em>
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </span>
                 </Link>
               );
             })}

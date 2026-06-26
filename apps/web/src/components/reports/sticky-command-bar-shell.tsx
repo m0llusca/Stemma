@@ -36,7 +36,7 @@ export function StickyCommandBarShell({
 
       const nextHeight = Math.ceil(ref.current.getBoundingClientRect().height);
 
-      if (nextHeight <= 0 || (reservedHeightRef.current !== null && nextHeight <= reservedHeightRef.current)) {
+      if (nextHeight <= 0 || nextHeight === reservedHeightRef.current) {
         return;
       }
 
@@ -92,12 +92,24 @@ export function StickyCommandBarShell({
       scheduleUpdate();
     };
 
+    const observedElement = ref.current;
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" || !observedElement
+        ? null
+        : new ResizeObserver(() => {
+            scheduleUpdate();
+          });
+
     update();
+    if (observedElement) {
+      resizeObserver?.observe(observedElement);
+    }
     window.addEventListener("scroll", scheduleUpdate, { passive: true });
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
       window.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", handleResize);
     };
