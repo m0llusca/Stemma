@@ -53,7 +53,8 @@ async function findDefaultEnabledLocale(workspaceId: string): Promise<WorkspaceL
     select: {
       id: true,
       code: true
-    }
+    },
+    orderBy: [{ code: "asc" }, { id: "asc" }]
   });
 }
 
@@ -106,7 +107,7 @@ export async function getDictionary(
   const entries = { ...builtInEntries };
 
   for (const value of values) {
-    if (value.publishedText) {
+    if (value.publishedText !== null) {
       entries[`${value.key.namespace}.${value.key.key}`] = value.publishedText;
     }
   }

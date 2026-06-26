@@ -70,6 +70,22 @@ describe("i18n runtime", () => {
     });
   });
 
+  it("preserves empty published workspace translations", async () => {
+    mocks.localeFindMany.mockResolvedValue([{ id: "locale-en", code: "en" }]);
+    mocks.translationValueFindMany.mockResolvedValue([
+      {
+        publishedText: "",
+        key: { namespace: "dashboard", key: "title" }
+      }
+    ]);
+
+    const { getDictionary } = await import("@/lib/i18n/dictionary");
+    const dict = await getDictionary("workspace-1", "en");
+
+    expect(dict.locale).toBe("en");
+    expect(dict.t("dashboard.title")).toBe("");
+  });
+
   it("falls back to default enabled workspace locale and built-in ru", async () => {
     mocks.localeFindMany.mockResolvedValue([]);
     mocks.localeFindFirst.mockResolvedValue({ id: "locale-ru", code: "ru" });
@@ -80,6 +96,18 @@ describe("i18n runtime", () => {
 
     expect(dict.locale).toBe("ru");
     expect(dict.t("dashboard.title")).toBe("Дашборд качества");
+    expect(mocks.localeFindFirst).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        isDefault: true,
+        isEnabled: true
+      },
+      select: {
+        id: true,
+        code: true
+      },
+      orderBy: [{ code: "asc" }, { id: "asc" }]
+    });
   });
 
   it("falls back to base built-in language for enabled regional locales", async () => {
@@ -92,6 +120,19 @@ describe("i18n runtime", () => {
     expect(dict.locale).toBe("en-US");
     expect(dict.t("dashboard.title")).toBe("Quality dashboard");
     expect(dict.t("shell.nav.dashboard")).toBe("Dashboard");
+    expect(mocks.localeFindMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        code: {
+          in: ["en-US", "en"]
+        },
+        isEnabled: true
+      },
+      select: {
+        id: true,
+        code: true
+      }
+    });
   });
 
   it("uses base workspace locale before the default locale", async () => {
@@ -103,6 +144,19 @@ describe("i18n runtime", () => {
 
     expect(dict.locale).toBe("en");
     expect(dict.t("dashboard.title")).toBe("Quality dashboard");
+    expect(mocks.localeFindMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        code: {
+          in: ["en-US", "en"]
+        },
+        isEnabled: true
+      },
+      select: {
+        id: true,
+        code: true
+      }
+    });
     expect(mocks.localeFindFirst).not.toHaveBeenCalled();
     expect(mocks.translationValueFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
