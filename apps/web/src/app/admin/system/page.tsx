@@ -366,9 +366,9 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
         </div>
         <div className="ops-metric">
           <span className="ops-metric__label">Очередь задач</span>
-          <MetricValue value={queuedJobs} tone={toneForCount(queuedJobs, { zero: "positive", nonZero: "info" })} />
+          <MetricValue value={queuedJobs} tone={toneForCount(queuedJobs, { zero: "positive", nonZero: "warning" })} />
           <span className="ops-metric__note">
-            <StatusBadge label="Выполняется" value={runningJobs} tone={toneForCount(runningJobs, { zero: "positive", nonZero: "info" })} />
+            <StatusBadge label="Выполняется" value={runningJobs} tone={toneForCount(runningJobs, { zero: "positive", nonZero: "warning" })} />
           </span>
         </div>
         <div className="ops-metric">
