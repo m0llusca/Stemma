@@ -18,10 +18,15 @@ export async function AppSidebar() {
     return null;
   }
 
+  const [signals, demoSwitcher] = await Promise.all([
+    SidebarAsyncSignals({ user: snapshot.user, navItems: snapshot.navItems }),
+    isDemoAuthEnabled() ? DemoUserSwitcher({ user: snapshot.user }) : null
+  ]);
+
   return (
     <AppSidebarShell items={snapshot.navItems} branding={snapshot.branding}>
-      <SidebarAsyncSignals user={snapshot.user} navItems={snapshot.navItems} />
-      {isDemoAuthEnabled() ? <DemoUserSwitcher user={snapshot.user} /> : null}
+      {signals}
+      {demoSwitcher}
     </AppSidebarShell>
   );
 }
