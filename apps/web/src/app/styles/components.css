@@ -1051,11 +1051,6 @@ pre code {
   line-height: 1.05;
 }
 
-.dashboard-kpi .metric-value--numeric .metric-value__value {
-  display: inline-block;
-  transform: translateX(-4px);
-}
-
 .dashboard-kpi small {
   color: var(--muted);
   font-size: 12px;

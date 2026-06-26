@@ -136,7 +136,6 @@ test("authenticated app shell routes render stable chrome and content", async ({
       const kpiAlignments = await page.locator(".dashboard-kpi").evaluateAll((cards) =>
         cards.map((card, index) => {
           const icon = card.querySelector(".dashboard-kpi__icon");
-          const valueWrapper = card.querySelector(".metric-value");
           const value = card.querySelector(".metric-value__value");
           const title = card.querySelector(":scope > span:not(.dashboard-kpi__icon):not(.metric-value)");
           const footnote = card.querySelector(":scope > small");
@@ -144,8 +143,6 @@ test("authenticated app shell routes render stable chrome and content", async ({
           return {
             index,
             iconLeft: icon?.getBoundingClientRect().left ?? 0,
-            isNumeric: valueWrapper?.classList.contains("metric-value--numeric") ?? false,
-            valueWrapperLeft: valueWrapper?.getBoundingClientRect().left ?? 0,
             valueLeft: value?.getBoundingClientRect().left ?? 0,
             titleLeft: title?.getBoundingClientRect().left ?? 0,
             footnoteLeft: footnote?.getBoundingClientRect().left ?? 0
@@ -154,13 +151,7 @@ test("authenticated app shell routes render stable chrome and content", async ({
       );
 
       for (const alignment of kpiAlignments) {
-        expect(Math.abs(alignment.valueWrapperLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} value wrapper should align with icon badge box`).toBeLessThanOrEqual(1);
-        if (alignment.isNumeric) {
-          expect(alignment.iconLeft - alignment.valueLeft, `dashboard KPI ${alignment.index} numeric value should compensate digit side bearing`).toBeGreaterThanOrEqual(3);
-          expect(alignment.iconLeft - alignment.valueLeft, `dashboard KPI ${alignment.index} numeric value compensation should stay subtle`).toBeLessThanOrEqual(5);
-        } else {
-          expect(Math.abs(alignment.valueLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} text value should align with icon badge box`).toBeLessThanOrEqual(1);
-        }
+        expect(Math.abs(alignment.valueLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} value should align with icon badge box`).toBeLessThanOrEqual(1);
         expect(Math.abs(alignment.titleLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} title should align with icon badge box`).toBeLessThanOrEqual(1);
         expect(Math.abs(alignment.footnoteLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} footnote should align with icon badge box`).toBeLessThanOrEqual(1);
       }
