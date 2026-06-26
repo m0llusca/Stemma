@@ -73,7 +73,7 @@ async function NewIntegrationPageContent() {
         <div className="ops-panel__header">
           <div>
             <p className="ops-panel__eyebrow">Источник</p>
-            <h2 id="new-integration-title" className="ops-panel__title">Подключение источника</h2>
+            <h2 id="new-integration-title" className="ops-panel__title">Мастер подключения источника</h2>
             <p className="ops-panel__subtitle">Тип + адрес + минимум учётных данных — остальное определяется автоматически.</p>
           </div>
         </div>
