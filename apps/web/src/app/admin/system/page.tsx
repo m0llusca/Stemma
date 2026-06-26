@@ -79,7 +79,7 @@ function integrationTone(status: string): StatusTone {
 
 function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
   if (tone === "ok") return "positive";
-  if (tone === "warn") return "info";
+  if (tone === "warn") return "warning";
   if (tone === "error") return "negative";
   return "neutral";
 }
