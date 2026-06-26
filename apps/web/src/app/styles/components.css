@@ -3141,6 +3141,7 @@ pre code {
 /* ---- Sticky queue controls bar ---- */
 .queue-controls-bar__slot {
   min-width: 0;
+  min-height: 0 !important;
 }
 
 .queue-controls-bar {
@@ -3628,9 +3629,19 @@ pre code {
 }
 
 .queue-quick-views__content {
+  display: grid;
   min-width: 0;
   border-top: 1px solid var(--border);
   background: var(--panel);
+}
+
+.queue-quick-views__content form {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) max-content;
+  align-items: end;
+}
+
+.queue-quick-views__content form label {
+  min-width: 0;
 }
 
 .queue-filterbar__primary {
@@ -3727,6 +3738,10 @@ pre code {
 
   .queue-filterbar__actions {
     justify-content: flex-start;
+  }
+
+  .queue-quick-views__content form {
+    grid-template-columns: 1fr;
   }
 }
 
