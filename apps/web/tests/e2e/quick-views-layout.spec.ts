@@ -149,8 +149,10 @@ test("reviews quick views do not accumulate vertical layout gap when toggled", a
 
   expect(stickyLayout.isStuck, "queue controls should enter sticky state after scrolling").toBe(true);
   expect(stickyLayout.controlsPosition, "sticky queue controls should be fixed").toBe("fixed");
-  expect(stickyLayout.controlsPaddingLeft, "sticky queue controls should not keep a desktop left gutter").toBeLessThanOrEqual(1);
-  expect(stickyLayout.controlsPaddingRight, "sticky queue controls should not keep a desktop right gutter").toBeLessThanOrEqual(1);
+  expect(stickyLayout.controlsPaddingLeft, "sticky queue controls should keep a small desktop left padding").toBeGreaterThanOrEqual(8);
+  expect(stickyLayout.controlsPaddingLeft, "sticky queue controls should keep only a small desktop left padding").toBeLessThanOrEqual(12);
+  expect(stickyLayout.controlsPaddingRight, "sticky queue controls should keep a small desktop right padding").toBeGreaterThanOrEqual(8);
+  expect(stickyLayout.controlsPaddingRight, "sticky queue controls should keep only a small desktop right padding").toBeLessThanOrEqual(12);
   expect(
     queueClearsFixedControls || slotStillReservesSpace,
     `queueTop=${stickyLayout.queueTop}, controlsBottom=${stickyLayout.controlsBottom}, slotHeight=${stickyLayout.slotHeight}, slotMinHeight=${stickyLayout.slotMinHeight}`

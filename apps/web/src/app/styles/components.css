@@ -3497,7 +3497,7 @@ pre code {
 
 .queue-controls-bar.queue-controls-bar--stuck {
   --queue-sticky-width: calc(100vw - var(--app-sidebar-width));
-  --queue-sticky-inset: 0px;
+  --queue-sticky-inset: var(--app-topbar-inline);
   position: fixed;
   top: var(--app-topbar-height);
   left: var(--app-sidebar-width);
@@ -6380,7 +6380,7 @@ a.quiet-link:hover {
 
 .report-command-bar.report-command-bar--stuck {
   --report-sticky-main-width: calc(100vw - var(--app-sidebar-width));
-  --report-sticky-content-inset: 0px;
+  --report-sticky-content-inset: var(--app-topbar-inline);
   grid-template-areas: "title form export";
   grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr) auto;
   align-items: center;

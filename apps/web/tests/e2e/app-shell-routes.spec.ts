@@ -112,9 +112,9 @@ test("authenticated app shell routes render stable chrome and content", async ({
           return { left: rect.left, right: rect.right };
         })
       ]);
-      expect(searchBox.left - topbarBox.left, "topbar search should not keep a desktop left gutter").toBeLessThanOrEqual(2);
+      expect(searchBox.left - topbarBox.left, "topbar search should keep only a small desktop left padding").toBeLessThanOrEqual(12);
       expect(signalBox.left - searchBox.right, "topbar search should fill the space before right actions").toBeLessThanOrEqual(16);
-      expect(topbarBox.right - userBox.right, "topbar actions should not keep a desktop right gutter").toBeLessThanOrEqual(2);
+      expect(topbarBox.right - userBox.right, "topbar actions should keep only a small desktop right padding").toBeLessThanOrEqual(12);
     }
 
     if (route === "/dashboard") {
