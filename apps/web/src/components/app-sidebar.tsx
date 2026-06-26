@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AppSidebarShell } from "@/components/app-sidebar-shell";
 import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -18,14 +19,13 @@ export async function AppSidebar() {
     return null;
   }
 
-  const [signals, demoSwitcher] = await Promise.all([
-    SidebarAsyncSignals({ user: snapshot.user, navItems: snapshot.navItems }),
-    isDemoAuthEnabled() ? DemoUserSwitcher({ user: snapshot.user }) : null
-  ]);
+  const demoSwitcher = isDemoAuthEnabled() ? await DemoUserSwitcher({ user: snapshot.user }) : null;
 
   return (
     <AppSidebarShell items={snapshot.navItems} branding={snapshot.branding}>
-      {signals}
+      <Suspense fallback={null}>
+        <SidebarAsyncSignals user={snapshot.user} navItems={snapshot.navItems} />
+      </Suspense>
       {demoSwitcher}
     </AppSidebarShell>
   );

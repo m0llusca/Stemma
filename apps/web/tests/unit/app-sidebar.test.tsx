@@ -66,48 +66,13 @@ describe("app sidebar", () => {
     mockCurrentUser();
   });
 
-  it("counts only active-cycle finalized open appeals for badges", async () => {
+  it("does not block immediate shell rendering on sidebar signal counts", async () => {
     const { AppSidebar } = await import("@/components/app-sidebar");
-    mocks.prisma.conversation.findMany.mockResolvedValue([
-      {
-        reviews: [
-          {
-            appealStatus: "open"
-          }
-        ]
-      },
-      {
-        reviews: [
-          {
-            appealStatus: "none"
-          }
-        ]
-      }
-    ]);
     await AppSidebar();
 
-    expect(mocks.prisma.conversation.findMany).toHaveBeenCalledWith({
-      where: {
-        workspaceId: "workspace-1",
-        assigneeName: "Оператор",
-        qaStatus: "FINALIZED"
-      },
-      select: {
-        reviews: {
-          where: {
-            reviewSource: "HUMAN",
-            status: "FINALIZED"
-          },
-          orderBy: {
-            createdAt: "desc"
-          },
-          take: 1,
-          select: {
-            appealStatus: true
-          }
-        }
-      }
-    });
+    expect(mocks.prisma.conversation.findMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
   });
 
   it("does not show the demo user switcher by default", async () => {
