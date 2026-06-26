@@ -1,4 +1,3 @@
-import type { ReviewEvent } from "@prisma/client";
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -9,8 +8,9 @@ import { MetricValue } from "@/components/ui/metric-value";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { reviewEventActionLabel } from "@/lib/review-events";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
-import { toneForCount, toneForScore, type StatusTone } from "@/lib/ui/status-tone";
+import { statusToneClass, toneForCount, toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -50,20 +50,6 @@ function formatSignedNumber(value: number, suffix = "") {
   }
 
   return `${value > 0 ? "+" : ""}${value}${suffix}`;
-}
-
-function eventLabel(action: ReviewEvent["action"]) {
-  const labels: Record<string, string> = {
-    "review.draft_saved": "Черновик проверки",
-    "review.finalized": "Проверка завершена",
-    "review.assigned": "Проверка назначена",
-    "review.reopened": "Проверка переоткрыта",
-    "feedback.acknowledged": "Обратная связь принята",
-    "appeal.opened": "Открыта апелляция",
-    "appeal.resolved": "Апелляция закрыта"
-  };
-
-  return labels[action] ?? action;
 }
 
 function weekdayLabel(value: Date) {
@@ -389,7 +375,7 @@ async function DashboardPageContent() {
               <Link key={event.id} href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"} className="dashboard-activity-row">
                 <span className="dashboard-activity-row__avatar">{event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}</span>
                 <span className="dashboard-activity-row__body">
-                  <strong>{event.actor?.name ?? "Система"} · {eventLabel(event.action)}</strong>
+                  <strong>{event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}</strong>
                   <small>
                     {event.review?.conversation.externalId ?? event.review?.conversation.subject ?? "Проверка"}{event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
                   </small>
@@ -419,7 +405,7 @@ async function DashboardPageContent() {
                     <strong>{item.label}</strong>
                     <small>{item.hint}</small>
                   </span>
-                  <span className="dashboard-focus-row__metric">
+                  <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
                     <em>{item.value}</em>
                     <ArrowRight size={14} aria-hidden="true" />
                   </span>

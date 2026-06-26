@@ -88,5 +88,19 @@ test("authenticated app shell routes render stable chrome and content", async ({
 
     const mainHeight = await page.locator("#main-content").evaluate((element) => element.getBoundingClientRect().height);
     expect.soft(mainHeight, `${route} main content height`).toBeGreaterThan(200);
+
+    if (route === "/dashboard") {
+      await expect(page.getByText(/qa\.reopened/)).toHaveCount(0);
+      await expect(page.getByText(/conversation\.workflow_updated/)).toHaveCount(0);
+      await expect(page.getByText("Проверка возвращена в работу").first()).toBeVisible();
+
+      const focusMetric = page.locator(".dashboard-focus-row__metric.status-tone--negative em, .dashboard-focus-row__metric.status-tone--warning em").first();
+      await expect(focusMetric).toBeVisible();
+      const [metricColor, bodyColor] = await Promise.all([
+        focusMetric.evaluate((element) => getComputedStyle(element).color),
+        page.locator("body").evaluate((element) => getComputedStyle(element).color)
+      ]);
+      expect(metricColor, "dashboard focus metric should use semantic status color").not.toBe(bodyColor);
+    }
   }
 });

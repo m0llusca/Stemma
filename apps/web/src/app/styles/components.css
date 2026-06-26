@@ -1227,7 +1227,7 @@ pre code {
   justify-content: end;
   gap: 10px;
   min-height: 42px;
-  color: var(--foreground);
+  color: var(--status-tone-fg);
 }
 
 .dashboard-focus-row__metric em {
@@ -1235,7 +1235,7 @@ pre code {
   min-width: 20px;
   align-items: center;
   justify-content: center;
-  color: var(--foreground);
+  color: var(--status-tone-fg);
   font-size: 17px;
   font-style: normal;
   font-weight: 880;
@@ -1244,7 +1244,7 @@ pre code {
 }
 
 .dashboard-focus-row__metric svg {
-  color: var(--muted);
+  color: color-mix(in srgb, var(--status-tone-fg) 62%, var(--muted));
 }
 
 .dashboard-week-chart {

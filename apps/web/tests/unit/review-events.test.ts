@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
+import { findLatestReopenedAt, recordReviewEvent, reviewEventActionLabel } from "@/lib/review-events";
 
 describe("review event recorder", () => {
+  it("localizes seeded and workflow event actions", () => {
+    expect(reviewEventActionLabel("qa.reopened")).toBe("Проверка возвращена в работу");
+    expect(reviewEventActionLabel("conversation.workflow_updated")).toBe("Маршрут проверки обновлен");
+    expect(reviewEventActionLabel("unknown.action")).toBe("unknown.action");
+  });
+
   it("stores metadata as JSON and preserves lifecycle statuses", async () => {
     const client = {
       reviewEvent: {
@@ -65,4 +71,3 @@ describe("review event recorder", () => {
     await expect(findLatestReopenedAt(client, "workspace-1", "conversation-1")).resolves.toBeNull();
   });
 });
-
