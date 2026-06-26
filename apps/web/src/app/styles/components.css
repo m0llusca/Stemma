@@ -993,6 +993,7 @@ pre code {
 }
 
 .dashboard-kpi {
+  --dashboard-kpi-copy-offset: 7px;
   position: relative;
   display: grid;
   min-width: 0;
@@ -1041,9 +1042,14 @@ pre code {
 }
 
 .dashboard-kpi > span:not(.dashboard-kpi__icon):not(.metric-value) {
+  margin-inline-start: var(--dashboard-kpi-copy-offset);
   color: var(--foreground);
   font-size: 13px;
   font-weight: 820;
+}
+
+.dashboard-kpi > .metric-value {
+  margin-inline-start: var(--dashboard-kpi-copy-offset);
 }
 
 .dashboard-kpi .metric-value__value {
@@ -1053,6 +1059,7 @@ pre code {
 }
 
 .dashboard-kpi small {
+  margin-inline-start: var(--dashboard-kpi-copy-offset);
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;

@@ -105,6 +105,17 @@ test("authenticated app shell routes render stable chrome and content", async ({
       expect(kpiValueFontSize, "dashboard KPI value should keep large metric typography").toBeGreaterThanOrEqual(28);
       expect(kpiValueFontSize, "dashboard KPI value should be visibly larger than its label").toBeGreaterThan(kpiLabelFontSize * 2);
 
+      const kpiFootnote = firstKpi.locator(":scope > small");
+      const [iconLeft, valueLeft, labelLeft, footnoteLeft] = await Promise.all([
+        firstKpi.locator(".dashboard-kpi__icon").evaluate((element) => element.getBoundingClientRect().left),
+        kpiValue.evaluate((element) => element.getBoundingClientRect().left),
+        kpiLabel.evaluate((element) => element.getBoundingClientRect().left),
+        kpiFootnote.evaluate((element) => element.getBoundingClientRect().left)
+      ]);
+      expect(valueLeft, "dashboard KPI value should align to the icon glyph axis, not the icon box edge").toBeGreaterThan(iconLeft);
+      expect(Math.abs(valueLeft - labelLeft), "dashboard KPI value and title should share the same inset").toBeLessThanOrEqual(1);
+      expect(Math.abs(valueLeft - footnoteLeft), "dashboard KPI value and footnote should share the same inset").toBeLessThanOrEqual(1);
+
       const focusMetric = page.locator(".dashboard-focus-row__metric.status-tone--negative em, .dashboard-focus-row__metric.status-tone--warning em").first();
       await expect(focusMetric).toBeVisible();
       const [metricColor, bodyColor] = await Promise.all([
