@@ -371,7 +371,7 @@ pre code {
   display: grid;
   min-width: 0;
   width: 100%;
-  grid-template-columns: minmax(320px, 520px) minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(320px, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
 }
@@ -382,7 +382,6 @@ pre code {
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  max-width: 520px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-control);
   background: var(--surface-soft);
@@ -404,7 +403,7 @@ pre code {
   min-width: 0;
   flex-wrap: wrap;
   gap: 6px;
-  grid-column: 3;
+  justify-content: flex-end;
 }
 
 .app-topbar__signal,
