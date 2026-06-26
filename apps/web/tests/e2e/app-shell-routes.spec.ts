@@ -133,18 +133,28 @@ test("authenticated app shell routes render stable chrome and content", async ({
       expect(kpiValueFontSize, "dashboard KPI value should keep large metric typography").toBeGreaterThanOrEqual(28);
       expect(kpiValueFontSize, "dashboard KPI value should be visibly larger than its label").toBeGreaterThan(kpiLabelFontSize * 2);
 
-      const kpiFootnote = firstKpi.locator(":scope > small");
-      const [iconLeft, valueLeft, labelLeft, footnoteLeft] = await Promise.all([
-        firstKpi.locator(".dashboard-kpi__icon").evaluate((element) => element.getBoundingClientRect().left),
-        kpiValue.evaluate((element) => element.getBoundingClientRect().left),
-        kpiLabel.evaluate((element) => element.getBoundingClientRect().left),
-        kpiFootnote.evaluate((element) => element.getBoundingClientRect().left)
-      ]);
-      const kpiCopyInset = valueLeft - iconLeft;
-      expect(kpiCopyInset, "dashboard KPI copy should move slightly inward from the icon box edge").toBeGreaterThanOrEqual(2);
-      expect(kpiCopyInset, "dashboard KPI copy should not drift too far right from the icon").toBeLessThanOrEqual(5);
-      expect(Math.abs(valueLeft - labelLeft), "dashboard KPI value and title should share the same inset").toBeLessThanOrEqual(1);
-      expect(Math.abs(valueLeft - footnoteLeft), "dashboard KPI value and footnote should share the same inset").toBeLessThanOrEqual(1);
+      const kpiAlignments = await page.locator(".dashboard-kpi").evaluateAll((cards) =>
+        cards.map((card, index) => {
+          const icon = card.querySelector(".dashboard-kpi__icon");
+          const value = card.querySelector(".metric-value__value");
+          const title = card.querySelector(":scope > span:not(.dashboard-kpi__icon):not(.metric-value)");
+          const footnote = card.querySelector(":scope > small");
+
+          return {
+            index,
+            iconLeft: icon?.getBoundingClientRect().left ?? 0,
+            valueLeft: value?.getBoundingClientRect().left ?? 0,
+            titleLeft: title?.getBoundingClientRect().left ?? 0,
+            footnoteLeft: footnote?.getBoundingClientRect().left ?? 0
+          };
+        })
+      );
+
+      for (const alignment of kpiAlignments) {
+        expect(Math.abs(alignment.valueLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} value should align with icon`).toBeLessThanOrEqual(1);
+        expect(Math.abs(alignment.titleLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} title should align with icon`).toBeLessThanOrEqual(1);
+        expect(Math.abs(alignment.footnoteLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} footnote should align with icon`).toBeLessThanOrEqual(1);
+      }
 
       const focusMetric = page.locator(".dashboard-focus-row__metric.status-tone--negative em, .dashboard-focus-row__metric.status-tone--warning em").first();
       await expect(focusMetric).toBeVisible();
