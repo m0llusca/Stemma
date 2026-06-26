@@ -25,6 +25,16 @@ function requiredField(formData: FormData, key: string, message: string) {
   return value;
 }
 
+function rawStringField(formData: FormData, key: string, message: string) {
+  const value = formData.get(key);
+
+  if (typeof value !== "string") {
+    throw new Error(message);
+  }
+
+  return value;
+}
+
 function isUniqueConstraintError(error: unknown) {
   return (
     typeof error === "object" &&
@@ -95,7 +105,7 @@ export async function saveTranslationDraftAction(formData: FormData) {
   const user = await requireCurrentUserPermission(manageLocalizationPermission);
   const localeId = requiredField(formData, "localeId", "Не выбран язык перевода.");
   const keyId = requiredField(formData, "keyId", "Не выбран ключ перевода.");
-  const draftText = requiredField(formData, "draftText", "Текст перевода не может быть пустым.");
+  const draftText = rawStringField(formData, "draftText", "Текст перевода не передан.");
 
   await prisma.$transaction(async (tx) => {
     await assertWorkspaceLocale(tx, user.workspaceId, localeId);
@@ -177,9 +187,9 @@ export async function publishTranslationAction(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     const value = await findWorkspaceTranslationValue(tx, valueId, user.workspaceId);
-    const publishedText = value.draftText?.trim();
+    const publishedText = value.draftText;
 
-    if (!publishedText) {
+    if (publishedText == null) {
       throw new Error("Нет черновика перевода для публикации.");
     }
 

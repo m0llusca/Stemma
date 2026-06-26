@@ -85,7 +85,7 @@ describe("i18n admin actions", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/localization");
   });
 
-  it("upserts a draft translation and records draft audit before and after text", async () => {
+  it("upserts a draft translation with exact text and records draft audit before and after text", async () => {
     mocks.prisma.locale.findFirst.mockResolvedValue({ id: "locale-en" });
     mocks.prisma.translationKey.findUnique.mockResolvedValue({ id: "key-title" });
     mocks.prisma.translationValue.findUnique.mockResolvedValue({
@@ -100,7 +100,7 @@ describe("i18n admin actions", () => {
       formData({
         localeId: "locale-en",
         keyId: "key-title",
-        draftText: "New draft"
+        draftText: "  New draft  "
       })
     );
 
@@ -113,13 +113,13 @@ describe("i18n admin actions", () => {
         }
       },
       update: {
-        draftText: "New draft"
+        draftText: "  New draft  "
       },
       create: {
         workspaceId: "workspace-1",
         localeId: "locale-en",
         keyId: "key-title",
-        draftText: "New draft"
+        draftText: "  New draft  "
       }
     });
     expect(mocks.prisma.translationAudit.create).toHaveBeenCalledWith({
@@ -130,19 +130,67 @@ describe("i18n admin actions", () => {
         actorId: "admin-1",
         action: "draft_save",
         beforeText: "Old draft",
-        afterText: "New draft"
+        afterText: "  New draft  "
       }
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/localization");
   });
 
-  it("publishes a draft, increments version and records publish audit", async () => {
+  it("saves an intentionally empty draft translation", async () => {
+    mocks.prisma.locale.findFirst.mockResolvedValue({ id: "locale-en" });
+    mocks.prisma.translationKey.findUnique.mockResolvedValue({ id: "key-title" });
+    mocks.prisma.translationValue.findUnique.mockResolvedValue(null);
+    mocks.prisma.translationValue.upsert.mockResolvedValue({ id: "value-1" });
+
+    const { saveTranslationDraftAction } = await import("@/lib/i18n/actions");
+
+    await saveTranslationDraftAction(
+      formData({
+        localeId: "locale-en",
+        keyId: "key-title",
+        draftText: ""
+      })
+    );
+
+    expect(mocks.prisma.translationValue.upsert).toHaveBeenCalledWith({
+      where: {
+        workspaceId_localeId_keyId: {
+          workspaceId: "workspace-1",
+          localeId: "locale-en",
+          keyId: "key-title"
+        }
+      },
+      update: {
+        draftText: ""
+      },
+      create: {
+        workspaceId: "workspace-1",
+        localeId: "locale-en",
+        keyId: "key-title",
+        draftText: ""
+      }
+    });
+    expect(mocks.prisma.translationAudit.create).toHaveBeenCalledWith({
+      data: {
+        workspaceId: "workspace-1",
+        localeId: "locale-en",
+        keyId: "key-title",
+        actorId: "admin-1",
+        action: "draft_save",
+        beforeText: null,
+        afterText: ""
+      }
+    });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/localization");
+  });
+
+  it("publishes a draft with exact text, increments version and records publish audit", async () => {
     mocks.prisma.translationValue.findUnique.mockResolvedValue({
       id: "value-1",
       workspaceId: "workspace-1",
       localeId: "locale-en",
       keyId: "key-title",
-      draftText: "Ready text",
+      draftText: "  Ready text  ",
       publishedText: "Old published",
       version: 2
     });
@@ -155,7 +203,7 @@ describe("i18n admin actions", () => {
     expect(mocks.prisma.translationValue.update).toHaveBeenCalledWith({
       where: { id: "value-1" },
       data: {
-        publishedText: "Ready text",
+        publishedText: "  Ready text  ",
         publishedAt: expect.any(Date),
         publishedById: "admin-1",
         version: { increment: 1 }
@@ -169,7 +217,46 @@ describe("i18n admin actions", () => {
         actorId: "admin-1",
         action: "publish",
         beforeText: "Old published",
-        afterText: "Ready text"
+        afterText: "  Ready text  "
+      }
+    });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/localization");
+  });
+
+  it("publishes an intentionally empty draft translation", async () => {
+    mocks.prisma.translationValue.findUnique.mockResolvedValue({
+      id: "value-1",
+      workspaceId: "workspace-1",
+      localeId: "locale-en",
+      keyId: "key-title",
+      draftText: "",
+      publishedText: "Old published",
+      version: 2
+    });
+    mocks.prisma.translationValue.update.mockResolvedValue({ id: "value-1", version: 3 });
+
+    const { publishTranslationAction } = await import("@/lib/i18n/actions");
+
+    await publishTranslationAction(formData({ valueId: "value-1" }));
+
+    expect(mocks.prisma.translationValue.update).toHaveBeenCalledWith({
+      where: { id: "value-1" },
+      data: {
+        publishedText: "",
+        publishedAt: expect.any(Date),
+        publishedById: "admin-1",
+        version: { increment: 1 }
+      }
+    });
+    expect(mocks.prisma.translationAudit.create).toHaveBeenCalledWith({
+      data: {
+        workspaceId: "workspace-1",
+        localeId: "locale-en",
+        keyId: "key-title",
+        actorId: "admin-1",
+        action: "publish",
+        beforeText: "Old published",
+        afterText: ""
       }
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/localization");
