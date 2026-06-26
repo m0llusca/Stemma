@@ -156,47 +156,97 @@ export function ReportFocusPanel({
   );
 }
 
-export function ImprovementPanel({ items }: { items: ImprovementHighlight[] }) {
+function MovementHighlightGrid({
+  items,
+  tone,
+  emptyTitle,
+  emptyBody
+}: {
+  items: ImprovementHighlight[];
+  tone: "negative" | "positive";
+  emptyTitle: string;
+  emptyBody: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="improvement-panel__empty">
+        <strong>{emptyTitle}</strong>
+        <span>{emptyBody}</span>
+      </div>
+    );
+  }
+
   return (
-    <section className="panel improvement-panel" aria-labelledby="analytics-improvements-title">
+    <div className={`improvement-panel__grid improvement-panel__grid--${tone}`}>
+      {items.map((item) => {
+        const content = (
+          <>
+            <span>{item.scope}</span>
+            <strong>{item.label}</strong>
+            <small>
+              {formatQualityScore(item.currentScore)}, {formatQualityScoreDelta(item.delta)} к прошлому периоду, {formatReviewCount(item.count)}
+            </small>
+          </>
+        );
+        const className = `improvement-panel__item improvement-panel__item--${tone}`;
+
+        return item.href ? (
+          <Link key={`${tone}:${item.scope}:${item.label}`} href={item.href} className={className}>
+            {content}
+          </Link>
+        ) : (
+          <article key={`${tone}:${item.scope}:${item.label}`} className={className}>
+            {content}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ImprovementPanel({
+  negativeItems,
+  items
+}: {
+  negativeItems: ImprovementHighlight[];
+  items: ImprovementHighlight[];
+}) {
+  return (
+    <section className="panel improvement-panel" aria-labelledby="analytics-movement-title">
       <div className="improvement-panel__header">
         <div>
-          <p className="page-kicker">Положительная динамика</p>
-          <h2 id="analytics-improvements-title">Что стало лучше</h2>
-          <p>Срезы, где текущий период уже лучше сопоставимого прошлого периода.</p>
+          <p className="page-kicker">Динамика периода</p>
+          <h2 id="analytics-movement-title">Что изменилось</h2>
+          <p>Сначала просадки, затем срезы, где текущий период уже лучше сопоставимого прошлого периода.</p>
         </div>
       </div>
 
-      {items.length > 0 ? (
-        <div className="improvement-panel__grid">
-          {items.map((item) => {
-            const content = (
-              <>
-                <span>{item.scope}</span>
-                <strong>{item.label}</strong>
-                <small>
-                  {formatQualityScore(item.currentScore)}, {formatQualityScoreDelta(item.delta)} к прошлому периоду, {formatReviewCount(item.count)}
-                </small>
-              </>
-            );
-
-            return item.href ? (
-              <Link key={`${item.scope}:${item.label}`} href={item.href} className="improvement-panel__item">
-                {content}
-              </Link>
-            ) : (
-              <article key={`${item.scope}:${item.label}`} className="improvement-panel__item">
-                {content}
-              </article>
-            );
-          })}
+      <div className="improvement-panel__sections">
+        <div className="improvement-panel__section">
+          <div className="improvement-panel__section-header">
+            <strong>Негативные факторы</strong>
+            <span>Что просело сильнее всего</span>
+          </div>
+          <MovementHighlightGrid
+            items={negativeItems}
+            tone="negative"
+            emptyTitle="Просадок к прошлому периоду нет"
+            emptyBody="Все сопоставимые срезы удержали или улучшили средний балл."
+          />
         </div>
-      ) : (
-        <div className="improvement-panel__empty">
-          <strong>Пока нет устойчивого улучшения</strong>
-          <span>Появится, когда срез в текущем периоде будет выше прошлого по среднему баллу.</span>
+        <div className="improvement-panel__section">
+          <div className="improvement-panel__section-header">
+            <strong>Позитивные факторы</strong>
+            <span>Что стало лучше</span>
+          </div>
+          <MovementHighlightGrid
+            items={items}
+            tone="positive"
+            emptyTitle="Пока нет устойчивого улучшения"
+            emptyBody="Появится, когда срез в текущем периоде будет выше прошлого по среднему баллу."
+          />
         </div>
-      )}
+      </div>
     </section>
   );
 }

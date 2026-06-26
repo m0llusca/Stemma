@@ -43,7 +43,7 @@ import {
   resolveReportPeriod
 } from "@/lib/report-period";
 import { buildScoreTrendRows, resolveReportTrendGranularity } from "@/lib/report-trends";
-import { buildImprovementHighlights } from "@/lib/report-improvements";
+import { buildDeteriorationHighlights, buildImprovementHighlights } from "@/lib/report-improvements";
 import { formatQualityScore } from "@/lib/score-display";
 import {
   addCountGroup,
@@ -325,7 +325,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const weakestAssigneeFocus = operatorRankRows[0];
   const weakestSourceFocus = sourceRankRows[0];
   const weakestTeamFocus = teamRankRows[0];
-  const improvementItems = buildImprovementHighlights([
+  const movementSources = [
     { label: "Команды", rows: teamRows, previousRows: previousTeamRows },
     { label: "Операторы", rows: assigneeRows, previousRows: previousAssigneeRows },
     { label: "Источники", rows: sourceRows, previousRows: previousSourceRows },
@@ -334,7 +334,9 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       rows: blockScoreRows.map((row) => ({ ...row, href: reportHref(period, { view: "details" }) })),
       previousRows: previousBlockScoreRows
     }
-  ]);
+  ];
+  const deteriorationItems = buildDeteriorationHighlights(movementSources);
+  const improvementItems = buildImprovementHighlights(movementSources);
   const riskStackSegments = riskSegments(riskGroups, period);
   const quotaProgressRows = quotas.map((quota) => {
     const actualReviews = finalizedReviews.filter(
@@ -601,7 +603,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         </div>
       ) : null}
 
-      {reportView === "overview" ? <ImprovementPanel items={improvementItems} /> : null}
+      {reportView === "overview" ? <ImprovementPanel negativeItems={deteriorationItems} items={improvementItems} /> : null}
 
       {reportView === "performance" ? (
         <ReportFocusPanel

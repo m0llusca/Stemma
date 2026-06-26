@@ -23,7 +23,16 @@ export type ImprovementHighlight = {
   href?: string;
 };
 
-export function buildImprovementHighlights(sources: ImprovementSource[], limit = 4): ImprovementHighlight[] {
+function buildMovementHighlights(
+  sources: ImprovementSource[],
+  {
+    limit,
+    direction
+  }: {
+    limit: number;
+    direction: "up" | "down";
+  }
+): ImprovementHighlight[] {
   const highlights: ImprovementHighlight[] = [];
 
   for (const source of sources) {
@@ -33,7 +42,15 @@ export function buildImprovementHighlights(sources: ImprovementSource[], limit =
       const previousScore = previousByLabel.get(row.label);
       const delta = qualityScoreDelta(row.averageScore, previousScore);
 
-      if (row.averageScore == null || previousScore == null || delta == null || delta <= 0) {
+      if (row.averageScore == null || previousScore == null || delta == null) {
+        continue;
+      }
+
+      if (direction === "up" && delta <= 0) {
+        continue;
+      }
+
+      if (direction === "down" && delta >= 0) {
         continue;
       }
 
@@ -50,6 +67,18 @@ export function buildImprovementHighlights(sources: ImprovementSource[], limit =
   }
 
   return highlights
-    .sort((left, right) => right.delta - left.delta || right.count - left.count || left.label.localeCompare(right.label, "ru"))
+    .sort((left, right) => {
+      const deltaOrder = direction === "up" ? right.delta - left.delta : left.delta - right.delta;
+
+      return deltaOrder || right.count - left.count || left.label.localeCompare(right.label, "ru");
+    })
     .slice(0, limit);
+}
+
+export function buildImprovementHighlights(sources: ImprovementSource[], limit = 4): ImprovementHighlight[] {
+  return buildMovementHighlights(sources, { limit, direction: "up" });
+}
+
+export function buildDeteriorationHighlights(sources: ImprovementSource[], limit = 4): ImprovementHighlight[] {
+  return buildMovementHighlights(sources, { limit, direction: "down" });
 }

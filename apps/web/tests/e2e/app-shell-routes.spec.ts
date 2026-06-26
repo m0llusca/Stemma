@@ -113,5 +113,18 @@ test("authenticated app shell routes render stable chrome and content", async ({
       ]);
       expect(metricColor, "dashboard focus metric should use semantic status color").not.toBe(bodyColor);
     }
+
+    if (route === "/reports") {
+      const negativeFactors = page.getByText("Негативные факторы");
+      const positiveFactors = page.getByText("Позитивные факторы");
+      await expect(negativeFactors).toBeVisible();
+      await expect(positiveFactors).toBeVisible();
+
+      const [negativeTop, positiveTop] = await Promise.all([
+        negativeFactors.evaluate((element) => element.getBoundingClientRect().top),
+        positiveFactors.evaluate((element) => element.getBoundingClientRect().top)
+      ]);
+      expect(negativeTop, "negative analytics factors should appear above positive factors").toBeLessThan(positiveTop);
+    }
   }
 });

@@ -7017,12 +7017,56 @@ a.agent-leaderboard__row:hover {
   line-height: 1.45;
 }
 
+.improvement-panel__sections {
+  display: grid;
+  gap: 12px;
+}
+
+.improvement-panel__section {
+  display: grid;
+  gap: 8px;
+}
+
+.improvement-panel__section-header {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.improvement-panel__section-header strong {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 840;
+}
+
+.improvement-panel__section-header span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .improvement-panel__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   overflow: clip;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+.improvement-panel__grid--negative {
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--border));
+  background: color-mix(in srgb, var(--danger) 5%, var(--panel));
+}
+
+.improvement-panel__grid--positive {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border));
   background: color-mix(in srgb, var(--success) 4%, var(--panel));
 }
 
@@ -7041,16 +7085,32 @@ a.agent-leaderboard__row:hover {
 }
 
 .improvement-panel__item:hover {
+  background: var(--panel-muted);
+  transform: translateY(-1px);
+}
+
+.improvement-panel__item--negative:hover {
+  background: color-mix(in srgb, var(--danger) 7%, var(--panel));
+}
+
+.improvement-panel__item--positive:hover {
   background: color-mix(in srgb, var(--success) 7%, var(--panel));
   transform: translateY(-1px);
 }
 
 .improvement-panel__item span {
-  color: var(--success);
   font-size: 11px;
   font-weight: 820;
   line-height: 1.2;
   text-transform: uppercase;
+}
+
+.improvement-panel__item--negative span {
+  color: var(--danger);
+}
+
+.improvement-panel__item--positive span {
+  color: var(--success);
 }
 
 .improvement-panel__item strong {
