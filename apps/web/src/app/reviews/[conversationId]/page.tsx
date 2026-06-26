@@ -25,6 +25,7 @@ import {
   conversationStatusLabel,
   csatBucketLabels,
   appealStatusLabels,
+  externalSourceLabel,
   feedbackStatusLabels,
   formatMessageCount,
   ownerTypeLabels,
@@ -61,12 +62,16 @@ function reviewStateTone(state: ReviewState): StatusTone {
   return "neutral";
 }
 
-function dueDateTone(value: Date | null, now: Date): StatusTone {
+function dueDateTone(value: Date | null, now: Date, state: ReviewState): StatusTone {
   if (!value) {
     return "neutral";
   }
 
-  return value.getTime() < now.getTime() ? "negative" : "positive";
+  if (value.getTime() < now.getTime()) {
+    return "negative";
+  }
+
+  return state === "finalized" ? "positive" : "warning";
 }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
@@ -180,14 +185,21 @@ async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPag
           </p>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <StatusBadge className="meta-chip" label={`Состояние${reviewStateLabels[reviewState]}`} value={null} tone={reviewStateTone(reviewState)} />
+          <StatusBadge className="meta-chip" label="Состояние" value={reviewStateLabels[reviewState]} tone={reviewStateTone(reviewState)} />
           <StatusBadge className="meta-chip" label="Оценка" value={scoreLabel} tone={toneForScore(scorePreviewReview?.totalScore)} />
           <StatusBadge className="meta-chip" label="Клиент" value={conversation.customerName} tone="neutral" />
+          <StatusBadge className="meta-chip" label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
+          {conversation.teamName ? (
+            <StatusBadge className="meta-chip" label="Команда" value={conversation.teamName} tone="neutral" />
+          ) : null}
+          {conversation.qaAssigneeName ? (
+            <StatusBadge className="meta-chip" label="Проверяющий" value={conversation.qaAssigneeName} tone="neutral" />
+          ) : null}
           <StatusBadge
             className="meta-chip"
             label="Срок"
             value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-            tone={dueDateTone(conversation.reviewDueAt, now)}
+            tone={dueDateTone(conversation.reviewDueAt, now, reviewState)}
           />
           {conversation.riskHint ? (
             <StatusBadge className="meta-chip" label="Риск" value={conversation.riskHint} tone="warning" />

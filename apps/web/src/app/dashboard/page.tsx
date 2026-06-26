@@ -417,7 +417,9 @@ async function DashboardPageContent() {
                 <Link key={item.href} href={item.href} className="dashboard-focus-row">
                   <span><Icon size={16} aria-hidden="true" /></span>
                   <strong>{item.label}</strong>
-                  <em><MetricValue value={item.value} tone={item.tone} /></em>
+                  <em>
+                    <MetricValue value={<span className="text-base leading-none">{item.value}</span>} tone={item.tone} />
+                  </em>
                   <small>{item.hint}</small>
                   <ArrowRight size={14} aria-hidden="true" />
                 </Link>
