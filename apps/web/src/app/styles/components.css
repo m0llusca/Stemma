@@ -3483,11 +3483,6 @@ pre code {
   box-shadow: none;
 }
 
-.page:has(.queue-controls-bar) .app-topbar {
-  border-bottom-color: transparent;
-  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
-}
-
 .queue-controls-bar.queue-controls-bar--stuck {
   --queue-sticky-width: calc(100vw - var(--app-sidebar-width));
   --queue-sticky-inset: var(--app-topbar-inline);

@@ -48,6 +48,14 @@ test.beforeEach(async ({ context }) => {
 
 test("authenticated app shell routes render stable chrome and content", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
+  const topbarChromeByRoute = new Map<
+    string,
+    {
+      backgroundColor: string;
+      borderBottomColor: string;
+      borderBottomWidth: string;
+    }
+  >();
 
   const conversation = await prisma.conversation.findFirst({
     where: {
@@ -83,8 +91,23 @@ test("authenticated app shell routes render stable chrome and content", async ({
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
 
     expect.soft(response?.ok(), `${route} should return ok`).toBe(true);
-    await expect(page.locator(".app-topbar"), `${route} topbar`).toBeVisible();
+    const routeTopbar = page.locator(".app-topbar");
+    await expect(routeTopbar, `${route} topbar`).toBeVisible();
     await expect(page.locator(".app-sidebar"), `${route} sidebar`).toBeVisible();
+
+    if (route === "/dashboard" || route === "/reviews" || route === "/coaching") {
+      topbarChromeByRoute.set(
+        route,
+        await routeTopbar.evaluate((element) => {
+          const styles = getComputedStyle(element);
+          return {
+            backgroundColor: styles.backgroundColor,
+            borderBottomColor: styles.borderBottomColor,
+            borderBottomWidth: styles.borderBottomWidth
+          };
+        })
+      );
+    }
 
     const mainHeight = await page.locator("#main-content").evaluate((element) => element.getBoundingClientRect().height);
     expect.soft(mainHeight, `${route} main content height`).toBeGreaterThan(200);
@@ -178,4 +201,9 @@ test("authenticated app shell routes render stable chrome and content", async ({
       expect(negativeTop, "negative analytics factors should appear above positive factors").toBeLessThan(positiveTop);
     }
   }
+
+  const dashboardTopbarChrome = topbarChromeByRoute.get("/dashboard");
+  expect(dashboardTopbarChrome, "dashboard topbar chrome baseline").toBeDefined();
+  expect(topbarChromeByRoute.get("/reviews"), "reviews topbar should use the same chrome as dashboard").toEqual(dashboardTopbarChrome);
+  expect(topbarChromeByRoute.get("/coaching"), "coaching topbar should use the same chrome as dashboard").toEqual(dashboardTopbarChrome);
 });
