@@ -94,6 +94,17 @@ test("authenticated app shell routes render stable chrome and content", async ({
       await expect(page.getByText(/conversation\.workflow_updated/)).toHaveCount(0);
       await expect(page.getByText("Проверка возвращена в работу").first()).toBeVisible();
 
+      const firstKpi = page.locator(".dashboard-kpi").first();
+      const kpiValue = firstKpi.locator(".metric-value__value");
+      const kpiLabel = firstKpi.locator(":scope > span").filter({ hasText: "Проверок за неделю" });
+      await expect(kpiValue).toBeVisible();
+      const [kpiValueFontSize, kpiLabelFontSize] = await Promise.all([
+        kpiValue.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+        kpiLabel.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))
+      ]);
+      expect(kpiValueFontSize, "dashboard KPI value should keep large metric typography").toBeGreaterThanOrEqual(28);
+      expect(kpiValueFontSize, "dashboard KPI value should be visibly larger than its label").toBeGreaterThan(kpiLabelFontSize * 2);
+
       const focusMetric = page.locator(".dashboard-focus-row__metric.status-tone--negative em, .dashboard-focus-row__metric.status-tone--warning em").first();
       await expect(focusMetric).toBeVisible();
       const [metricColor, bodyColor] = await Promise.all([

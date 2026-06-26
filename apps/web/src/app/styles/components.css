@@ -1040,10 +1040,16 @@ pre code {
   font-variant-numeric: tabular-nums;
 }
 
-.dashboard-kpi span:not(.dashboard-kpi__icon) {
+.dashboard-kpi > span:not(.dashboard-kpi__icon):not(.metric-value) {
   color: var(--foreground);
   font-size: 13px;
   font-weight: 820;
+}
+
+.dashboard-kpi .metric-value__value {
+  font-size: 30px;
+  font-weight: 880;
+  line-height: 1.05;
 }
 
 .dashboard-kpi small {
