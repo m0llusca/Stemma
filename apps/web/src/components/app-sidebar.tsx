@@ -1,10 +1,33 @@
 import { Suspense } from "react";
 import { AppSidebarShell } from "@/components/app-sidebar-shell";
+import { hasPermission } from "@/lib/auth/permissions";
 import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { switchCurrentUser } from "@/lib/user-actions";
+
+function withLocalizationNavItem(snapshot: ShellSnapshot): ShellSnapshot["navItems"] {
+  if (!hasPermission(snapshot.user.role, "appearance:manage") || snapshot.navItems.some((item) => item.href === "/admin/localization")) {
+    return snapshot.navItems;
+  }
+
+  const navItems = [...snapshot.navItems];
+  const adminIndex = navItems.findIndex((item) => item.href === "/admin");
+  const localizationItem: ShellSnapshot["navItems"][number] = {
+    href: "/admin/localization",
+    label: "Локализация",
+    icon: "admin",
+    group: "admin"
+  };
+
+  if (adminIndex === -1) {
+    return [...navItems, localizationItem];
+  }
+
+  navItems.splice(adminIndex + 1, 0, localizationItem);
+  return navItems;
+}
 
 export async function AppSidebar() {
   const snapshot = await getShellSnapshot().catch((error: unknown) => {
@@ -20,11 +43,12 @@ export async function AppSidebar() {
   }
 
   const demoSwitcher = isDemoAuthEnabled() ? await DemoUserSwitcher({ user: snapshot.user }) : null;
+  const navItems = withLocalizationNavItem(snapshot);
 
   return (
-    <AppSidebarShell items={snapshot.navItems} branding={snapshot.branding}>
+    <AppSidebarShell items={navItems} branding={snapshot.branding}>
       <Suspense fallback={null}>
-        <SidebarAsyncSignals user={snapshot.user} navItems={snapshot.navItems} />
+        <SidebarAsyncSignals user={snapshot.user} navItems={navItems} />
       </Suspense>
       {demoSwitcher}
     </AppSidebarShell>
