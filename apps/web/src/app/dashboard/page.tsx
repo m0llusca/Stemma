@@ -337,25 +337,25 @@ async function DashboardPageContent() {
       <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
         <Link href="/reviews?status=reviewed" className="dashboard-kpi dashboard-kpi--blue">
           <span className="dashboard-kpi__icon"><ClipboardCheck size={18} aria-hidden="true" /></span>
-          <MetricValue value={checkedThisWeek} tone={toneForCount(checkedThisWeek, { zero: "neutral", nonZero: "positive" })} />
+          <MetricValue value={checkedThisWeek} tone={toneForCount(checkedThisWeek, { zero: "neutral", nonZero: "positive" })} className="metric-value--numeric" />
           <span>Проверок за неделю</span>
           <small>{formatSignedNumber(checkedDelta)} к прошлой неделе</small>
         </Link>
         <Link href="/reports" className="dashboard-kpi dashboard-kpi--green">
           <span className="dashboard-kpi__icon"><Star size={18} aria-hidden="true" /></span>
-          <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={toneForScore(currentAverage)} />
+          <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={toneForScore(currentAverage)} className={currentAverage == null ? undefined : "metric-value--numeric"} />
           <span>Средний балл</span>
           <small>{scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}</small>
         </Link>
         <Link href="/reviews?status=unreviewed" className="dashboard-kpi dashboard-kpi--amber">
           <span className="dashboard-kpi__icon"><Clock3 size={18} aria-hidden="true" /></span>
-          <MetricValue value={totalQueueCount} tone={toneForCount(totalQueueCount, { zero: "positive", nonZero: "warning" })} />
+          <MetricValue value={totalQueueCount} tone={toneForCount(totalQueueCount, { zero: "positive", nonZero: "warning" })} className="metric-value--numeric" />
           <span>В очереди и работе</span>
           <small>{queuedCount} ждут старта · {inWorkCount} в работе</small>
         </Link>
         <Link href="/coaching" className="dashboard-kpi dashboard-kpi--violet">
           <span className="dashboard-kpi__icon"><BookOpenCheck size={18} aria-hidden="true" /></span>
-          <MetricValue value={activeTrainingCount} tone={activeTrainingTone} />
+          <MetricValue value={activeTrainingCount} tone={activeTrainingTone} className="metric-value--numeric" />
           <span>Активных обучений</span>
           <small>{overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}</small>
         </Link>
