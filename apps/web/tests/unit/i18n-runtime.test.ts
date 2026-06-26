@@ -33,7 +33,7 @@ describe("i18n runtime", () => {
     mocks.localeFindFirst.mockResolvedValue({ id: "locale-en", code: "en" });
     mocks.translationValueFindMany.mockResolvedValue([
       {
-        publishedText: "Quality dashboard",
+        publishedText: "Workspace dashboard override",
         key: { namespace: "dashboard", key: "title" }
       }
     ]);
@@ -42,7 +42,7 @@ describe("i18n runtime", () => {
     const dict = await getDictionary("workspace-1", "en");
 
     expect(dict.locale).toBe("en");
-    expect(dict.t("dashboard.title")).toBe("Quality dashboard");
+    expect(dict.t("dashboard.title")).toBe("Workspace dashboard override");
     expect(dict.t("shell.nav.dashboard")).toBe("Dashboard");
     expect(dict.t("missing.key")).toBe("missing.key");
     expect(mocks.translationValueFindMany).toHaveBeenCalledWith({
