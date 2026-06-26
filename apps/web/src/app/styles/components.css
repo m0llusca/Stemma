@@ -3141,6 +3141,9 @@ pre code {
 /* ---- Sticky queue controls bar ---- */
 .queue-controls-bar__slot {
   min-width: 0;
+}
+
+.queue-controls-bar__slot:has(.queue-controls-bar:not(.queue-controls-bar--stuck) .queue-quick-views:not([open])) {
   min-height: 0 !important;
 }
 
