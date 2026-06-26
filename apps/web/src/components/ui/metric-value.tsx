@@ -16,7 +16,12 @@ export function MetricValue({
 }) {
   return (
     <span className={clsx("metric-value", statusToneClass(tone), className)}>
-      {label ? <span className="metric-value__label">{label}</span> : null}
+      {label ? (
+        <>
+          <span className="metric-value__label">{label}</span>
+          {" "}
+        </>
+      ) : null}
       <span className="metric-value__value">{value}</span>
     </span>
   );

@@ -17,6 +17,7 @@ export function StatusBadge({
   return (
     <span className={clsx("status-badge", statusToneClass(tone), className)}>
       <span className="status-badge__label">{label}</span>
+      {" "}
       <span className="status-badge__value">{value}</span>
     </span>
   );
