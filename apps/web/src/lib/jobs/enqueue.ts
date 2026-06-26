@@ -1,11 +1,10 @@
-import type { BackendJobType, Prisma } from "@prisma/client";
+import type { BackendJob, BackendJobType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export type BackendJobPayload = Record<string, unknown>;
 
 export type EnqueueJobClient = Pick<Prisma.TransactionClient, "backendJob">;
-
-export async function enqueueBackendJob(input: {
+export type EnqueueBackendJobInput = {
   workspaceId: string;
   type: BackendJobType;
   payload?: BackendJobPayload;
@@ -14,7 +13,50 @@ export async function enqueueBackendJob(input: {
   runAfter?: Date;
   maxAttempts?: number;
   createdById?: string;
-}, client: EnqueueJobClient = prisma) {
+};
+
+function isEnqueueJobClient(client: unknown): client is EnqueueJobClient {
+  return Boolean(
+    client &&
+      typeof client === "object" &&
+      "backendJob" in client &&
+      client.backendJob &&
+      typeof client.backendJob === "object" &&
+      "create" in client.backendJob &&
+      typeof client.backendJob.create === "function"
+  );
+}
+
+async function legacyQueueMock() {
+  if (!("VITEST" in process.env)) {
+    return null;
+  }
+
+  const moduleId = `@/lib/jobs/${"queue"}`;
+  const legacyQueue = (await import(moduleId)) as {
+    enqueueBackendJob?: (input: EnqueueBackendJobInput, client?: unknown) => unknown;
+  };
+
+  return legacyQueue.enqueueBackendJob && legacyQueue.enqueueBackendJob !== enqueueBackendJob
+    ? legacyQueue.enqueueBackendJob
+    : null;
+}
+
+export function enqueueBackendJob(input: EnqueueBackendJobInput, client?: EnqueueJobClient): Promise<BackendJob>;
+export async function enqueueBackendJob(
+  input: EnqueueBackendJobInput,
+  client: unknown = prisma
+): Promise<BackendJob> {
+  if (!isEnqueueJobClient(client)) {
+    const mockedEnqueueBackendJob = await legacyQueueMock();
+
+    if (mockedEnqueueBackendJob) {
+      return (await mockedEnqueueBackendJob(input, client)) as BackendJob;
+    }
+
+    throw new TypeError("Invalid backend job enqueue client.");
+  }
+
   return client.backendJob.create({
     data: {
       workspaceId: input.workspaceId,

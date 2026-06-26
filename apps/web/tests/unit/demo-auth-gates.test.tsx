@@ -122,9 +122,9 @@ describe("demo auth gated surfaces", () => {
 
   it("does not render the hard-coded demo API token on the admin tokens page when demo auth is disabled", async () => {
     const { demoApiToken } = await import("@/lib/custom-api-docs");
-    const { default: AdminTokensPage } = await import("@/app/admin/tokens/page");
+    const { AdminTokensPageContent } = await import("@/app/admin/tokens/page");
 
-    render(await AdminTokensPage({ searchParams: Promise.resolve({ section: "local" }) }));
+    render(await AdminTokensPageContent({ searchParams: Promise.resolve({ section: "local" }) }));
 
     expect(screen.queryByText(demoApiToken)).toBeNull();
     expect(screen.queryByText(`Authorization: Bearer ${demoApiToken}`)).toBeNull();

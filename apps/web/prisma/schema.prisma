@@ -162,9 +162,90 @@ model Workspace {
   knowledgeEntries          QualityKnowledgeEntry[]
   trainingAssignments       TrainingAssignment[]
   coachingPins              CoachingPin[]
+  locales                   Locale[]
+  translationValues         TranslationValue[]
+  translationAudits         TranslationAudit[]
   auditLogs                 AuditLog[]
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+}
+
+model Locale {
+  id                String             @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  code              String
+  name              String
+  isDefault         Boolean            @default(false)
+  isEnabled         Boolean            @default(true)
+  translationValues TranslationValue[]
+  translationAudits TranslationAudit[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([workspaceId, code])
+  @@index([workspaceId, isEnabled])
+  @@index([workspaceId, isDefault])
+}
+
+model TranslationKey {
+  id          String             @id @default(cuid())
+  namespace   String
+  key         String
+  defaultText String
+  description String?
+  ownerArea   String
+  values      TranslationValue[]
+  audits      TranslationAudit[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([namespace, key])
+  @@index([namespace])
+  @@index([ownerArea])
+}
+
+model TranslationValue {
+  id            String         @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  localeId      String
+  locale        Locale         @relation(fields: [localeId], references: [id], onDelete: Cascade)
+  keyId         String
+  key           TranslationKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  draftText     String?
+  publishedText String?
+  publishedAt   DateTime?
+  publishedById String?
+  publishedBy   User?          @relation("TranslationPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  version       Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([workspaceId, localeId, keyId])
+  @@index([workspaceId, localeId])
+  @@index([workspaceId, keyId])
+  @@index([publishedById])
+}
+
+model TranslationAudit {
+  id          String         @id @default(cuid())
+  workspaceId String
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  localeId    String
+  locale      Locale         @relation(fields: [localeId], references: [id], onDelete: Cascade)
+  keyId       String
+  key         TranslationKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?          @relation("TranslationAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action      String
+  beforeText  String?
+  afterText   String?
+  createdAt   DateTime       @default(now())
+
+  @@index([workspaceId, localeId, keyId, createdAt])
+  @@index([workspaceId, action, createdAt])
+  @@index([actorId])
 }
 
 model User {
@@ -200,6 +281,8 @@ model User {
   integrationRuns             IntegrationRun[]
   integrationDiagnosticRuns   IntegrationDiagnosticRun[]
   coachingPins                CoachingPin[]
+  publishedTranslations       TranslationValue[]         @relation("TranslationPublishedBy")
+  translationAudits           TranslationAudit[]         @relation("TranslationAuditActor")
   auditLogs                   AuditLog[]
   createdAt                   DateTime                   @default(now())
   updatedAt                   DateTime                   @updatedAt

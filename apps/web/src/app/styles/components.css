@@ -104,6 +104,68 @@ pre code {
   padding: var(--page-shell-padding);
 }
 
+.stable-empty-state {
+  display: grid;
+  min-height: 240px;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: clamp(24px, 5vw, 40px);
+  text-align: center;
+}
+
+.stable-empty-state__eyebrow {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.stable-empty-state__metric {
+  display: grid;
+  min-width: 64px;
+  min-height: 64px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--muted) 18%, var(--panel));
+  color: var(--foreground);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.stable-empty-state__copy {
+  display: grid;
+  max-width: 560px;
+  gap: 8px;
+}
+
+.stable-empty-state__copy h2,
+.stable-empty-state__copy p {
+  margin: 0;
+}
+
+.stable-empty-state__copy h2 {
+  color: var(--foreground);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.stable-empty-state__copy p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.stable-empty-state__action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .auth-shell {
   display: grid;
   min-height: 100dvh;
@@ -3389,6 +3451,10 @@ pre code {
   min-width: 0;
 }
 
+.queue-controls-bar__slot:has(.queue-controls-bar:not(.queue-controls-bar--stuck) .queue-quick-views:not([open])) {
+  min-height: 0 !important;
+}
+
 .queue-controls-bar {
   position: relative;
   z-index: 14;
@@ -3899,9 +3965,19 @@ pre code {
 }
 
 .queue-quick-views__content {
+  display: grid;
   min-width: 0;
   border-top: 1px solid var(--border);
   background: var(--panel);
+}
+
+.queue-quick-views__content form {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) max-content;
+  align-items: end;
+}
+
+.queue-quick-views__content form label {
+  min-width: 0;
 }
 
 .queue-filterbar__primary {
@@ -3998,6 +4074,10 @@ pre code {
 
   .queue-filterbar__actions {
     justify-content: flex-start;
+  }
+
+  .queue-quick-views__content form {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -10912,4 +10992,101 @@ pre,
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
+}
+
+.status-tone {
+  --status-tone-fg: var(--text-body);
+  --status-tone-bg: var(--panel);
+  --status-tone-border: var(--border);
+  color: var(--status-tone-fg);
+}
+
+.status-tone--positive {
+  --status-tone-fg: var(--success);
+  --status-tone-bg: var(--status-success-bg);
+  --status-tone-border: var(--status-success-border);
+}
+
+.status-tone--warning {
+  --status-tone-fg: var(--warning);
+  --status-tone-bg: var(--status-warning-bg);
+  --status-tone-border: var(--status-warning-border);
+}
+
+.status-tone--negative {
+  --status-tone-fg: var(--danger);
+  --status-tone-bg: var(--status-danger-bg);
+  --status-tone-border: var(--status-danger-border);
+}
+
+.status-tone--neutral {
+  --status-tone-fg: var(--text-subtle);
+  --status-tone-bg: var(--panel);
+  --status-tone-border: var(--border);
+}
+
+.status-tone--info {
+  --status-tone-fg: var(--accent-strong);
+  --status-tone-bg: var(--accent-soft);
+  --status-tone-border: var(--accent-border);
+}
+
+.status-badge {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--status-tone-border);
+  border-radius: var(--radius-small);
+  background: var(--status-tone-bg);
+  padding: 4px 8px;
+  color: var(--status-tone-fg);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.status-badge__label {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 14px;
+  align-items: center;
+  color: color-mix(in srgb, var(--status-tone-fg) 78%, var(--text-muted));
+  line-height: 14px;
+}
+
+.status-badge__value {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 14px;
+  align-items: center;
+  color: var(--status-tone-fg);
+  font-weight: 840;
+  line-height: 14px;
+}
+
+.metric-value {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--status-tone-fg);
+  line-height: 1;
+}
+
+.metric-value__label {
+  color: color-mix(in srgb, var(--status-tone-fg) 70%, var(--text-muted));
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.metric-value__value {
+  color: var(--status-tone-fg);
+  font-size: 28px;
+  font-weight: 820;
 }

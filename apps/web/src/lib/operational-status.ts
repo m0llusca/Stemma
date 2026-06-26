@@ -13,7 +13,7 @@ const toneClasses: Record<StatusView["tone"], Pick<StatusView, "pillClass" | "ba
     badgeClass: "border-[#bbf7d0] bg-[#ecfdf5] text-[#15803d]"
   },
   warn: {
-    pillClass: "pill--neutral",
+    pillClass: "pill--warn",
     badgeClass: "border-[#fed7aa] bg-[#fff7ed] text-[#b45309]"
   },
   error: {
@@ -49,6 +49,8 @@ export function backendJobStatusView(status: BackendJobStatus | string): StatusV
 export function integrationRunStatusView(status: string): StatusView {
   const views: Record<string, StatusView> = {
     queued: view("В очереди", "warn"),
+    running: view("Выполняется", "warn"),
+    warning: view("Требует внимания", "warn"),
     dry_run_queued: view("Проверка в очереди", "warn"),
     retry_scheduled: view("Повтор запланирован", "warn"),
     succeeded: view("Импорт готов", "ok"),

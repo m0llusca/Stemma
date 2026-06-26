@@ -1,6 +1,8 @@
 import { ArrowLeft, Ban, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
@@ -45,7 +47,15 @@ function parseJson(value: string) {
   }
 }
 
-export default async function JobDetailsPage({ params, searchParams }: JobDetailsPageProps) {
+export default function JobDetailsPage({ params, searchParams }: JobDetailsPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка задания" />}>
+      <JobDetailsPageContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function JobDetailsPageContent({ params, searchParams }: JobDetailsPageProps) {
   const search = await searchParams;
   const activeSection = jobDetailsSectionParam(search.section);
   const user = await requireCurrentUserPermission("backend_jobs:manage");

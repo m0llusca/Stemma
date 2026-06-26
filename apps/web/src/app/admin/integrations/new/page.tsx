@@ -1,26 +1,43 @@
 import { ArrowLeft, KeyRound } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
-import { limitedSupportSources, listConnectionProfiles } from "@/lib/integrations/connect/profiles";
+import { PageSkeleton } from "@/components/loading-states";
+import { listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
+import { getIntegrationInstallContract } from "@/lib/integrations/install-contracts/registry";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewIntegrationPage() {
+export default function NewIntegrationPage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка подключения источника" />}>
+      <NewIntegrationPageContent />
+    </Suspense>
+  );
+}
+
+async function NewIntegrationPageContent() {
   await requireCurrentUserPermission("integrations:manage");
 
   // Реестр профилей серверный (тянет адаптеры/prisma) — на клиент уходят только
   // сериализуемые метаданные.
-  const sources = listConnectionProfiles().map((profile) => ({
-    source: profile.source,
-    label: connectionSourceLabel(profile.source),
-    type: profile.type,
-    urlPolicy: profile.urlPolicy,
-    fixedBaseUrl: profile.fixedBaseUrl,
-    fields: profile.credentialFields,
-    limited: limitedSupportSources.has(profile.source)
-  }));
+  const sources = listConnectionProfiles().map((profile) => {
+    const contract = getIntegrationInstallContract(profile.source);
+
+    return {
+      source: profile.source,
+      label: connectionSourceLabel(profile.source),
+      type: profile.type,
+      urlPolicy: profile.urlPolicy,
+      fixedBaseUrl: profile.fixedBaseUrl,
+      fields: profile.credentialFields,
+      installState: contract?.installState,
+      authModes: contract ? [...contract.authModes] : [],
+      limitations: contract ? [...contract.limitations] : []
+    };
+  });
 
   return (
     <section className="page-shell admin-shell">
@@ -29,7 +46,7 @@ export default async function NewIntegrationPage() {
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Новый источник</h1>
           <p className="page-subtitle">
-            Выберите тип, вставьте ссылку на источник — система сама определит параметры и проверит доступ.
+            Выберите тип, укажите адрес и доступы — Stemma проверит права и подготовит импорт.
           </p>
           <div className="admin-actions mt-5">
             <Link href="/admin/integrations" className="action-button">
@@ -48,8 +65,10 @@ export default async function NewIntegrationPage() {
         <div className="ops-panel__header">
           <div>
             <p className="ops-panel__eyebrow">Источник</p>
-            <h2 id="new-integration-title" className="ops-panel__title">Подключение источника</h2>
-            <p className="ops-panel__subtitle">Тип + адрес + минимум учётных данных — остальное определяется автоматически.</p>
+            <h2 id="new-integration-title" className="ops-panel__title">Мастер подключения источника</h2>
+            <p className="ops-panel__subtitle">
+              Сейчас мастер принимает URL и учётные данные; OAuth/маркетплейс-установка появятся там, где это указано в контракте.
+            </p>
           </div>
         </div>
         <div className="p-4">

@@ -2,12 +2,17 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppSidebarShell } from "@/components/app-sidebar-shell";
 
+const mocks = vi.hoisted(() => ({
+  pathname: "/reviews"
+}));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/reviews"
+  usePathname: () => mocks.pathname
 }));
 
 describe("app sidebar shell", () => {
   beforeEach(() => {
+    mocks.pathname = "/reviews";
     Object.defineProperty(window, "localStorage", {
       configurable: true,
       value: {
@@ -31,5 +36,24 @@ describe("app sidebar shell", () => {
     expect(logoutForm?.getAttribute("action")).toBe("/auth/logout");
     expect(logoutForm?.getAttribute("method")).toBe("post");
     expect(screen.queryByRole("link", { name: "Выйти" })).toBeNull();
+  });
+
+  it("marks only the most specific matching navigation item as current", () => {
+    mocks.pathname = "/admin/localization";
+
+    render(
+      <AppSidebarShell
+        items={[
+          { href: "/admin", label: "Администрирование", icon: "admin", group: "admin" },
+          { href: "/admin/localization", label: "Локализация", icon: "admin", group: "admin" }
+        ]}
+      >
+        <span>Роль</span>
+      </AppSidebarShell>
+    );
+
+    expect(screen.getByRole("link", { name: "Администрирование" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("link", { name: "Локализация" }).getAttribute("aria-current")).toBe("page");
+    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 });

@@ -1,13 +1,23 @@
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { AppearanceSettingsForm } from "@/components/admin/appearance-settings-form";
+import { PageSkeleton } from "@/components/loading-states";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { resolveUiAppearance } from "@/lib/ui-theme";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAppearancePage() {
+export default function AdminAppearancePage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка оформления" />}>
+      <AdminAppearancePageContent />
+    </Suspense>
+  );
+}
+
+async function AdminAppearancePageContent() {
   const user = await requireCurrentUserPermission("appearance:manage");
   const workspace = await prisma.workspace.findUnique({
     where: { id: user.workspaceId },

@@ -74,7 +74,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.getByRole("button", { name: "Завершить проверку" }).click();
 
-  await expect(page.locator("span").filter({ hasText: /^СостояниеЗавершена$/ })).toBeVisible();
+  await expect(page.locator(".meta-chip").filter({ hasText: "Состояние" }).filter({ hasText: "Завершена" })).toBeVisible();
   await expect(page.getByText("100 баллов").first()).toBeVisible();
   await expect(page.getByText("Доказательство", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
@@ -153,13 +153,15 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.getByRole("link", { name: "Новый источник" }).click();
   await expect(page.getByRole("heading", { name: "Новый источник" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Подключение источника" }).first()).toBeVisible();
-  await expect(page.getByRole("radiogroup", { name: "Семейство OTRS" })).toBeVisible();
-  const setupPanel = page.getByRole("region", { name: "Подключение источника" });
-  await setupPanel.getByRole("radio", { name: /YDB/ }).click();
-  await expect(page.locator(".connect-source-current")).toContainText("YDB");
+  await expect(page.getByRole("heading", { name: "Мастер подключения источника" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Подключение источника" })).toBeVisible();
+  const setupPanel = page.getByRole("heading", { name: "Мастер подключения источника" }).locator("xpath=ancestor::section[1]");
+  await setupPanel.getByRole("radio", { name: /Znuny/ }).click();
+  await expect(setupPanel.getByRole("radio", { name: /Znuny/ })).toBeChecked();
+  await expect(setupPanel.locator(".connect-source-current")).toContainText("Znuny");
   await setupPanel.getByRole("radio", { name: /Zendesk/ }).click();
-  await expect(page.locator(".connect-source-current")).toContainText("Zendesk");
+  await expect(setupPanel.getByRole("radio", { name: /Zendesk/ })).toBeChecked();
+  await expect(setupPanel.locator(".connect-source-current")).toContainText("Zendesk");
 
   await page.goto("/admin/integrations");
   const znunyIntegrationCard = page.getByRole("row").filter({ hasText: "Znuny / OTRS / OTOBO" }).first();

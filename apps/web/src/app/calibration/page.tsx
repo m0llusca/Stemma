@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, ClipboardCheck, Crosshair, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
@@ -63,7 +65,15 @@ function calibrationHref(params: { sessionId?: string; newSession?: boolean }) {
   return query ? `/calibration?${query}` : "/calibration";
 }
 
-export default async function CalibrationPage({ searchParams }: CalibrationPageProps) {
+export default function CalibrationPage({ searchParams }: CalibrationPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton label="Загрузка калибровки" />}>
+      <CalibrationPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
   const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("calibration:manage"), searchParams]);
   const selectedSessionId = firstParam(rawSearchParams.session);
   const openNewSession = firstParam(rawSearchParams.new) === "1";

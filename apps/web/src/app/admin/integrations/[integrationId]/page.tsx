@@ -1,7 +1,9 @@
 import { ArrowLeft, ListChecks, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
+import { PageSkeleton } from "@/components/loading-states";
 import { OtrsConnectionForm } from "@/components/integrations/otrs-connection-form";
 import { OtrsDiagnosticsPanel } from "@/components/integrations/otrs-diagnostics-panel";
 import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
@@ -510,7 +512,15 @@ function NonOtrsIntegrationSummary({
   );
 }
 
-export default async function IntegrationDetailsPage({ params, searchParams }: IntegrationDetailsPageProps) {
+export default function IntegrationDetailsPage({ params, searchParams }: IntegrationDetailsPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка интеграции" />}>
+      <IntegrationDetailsPageContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function IntegrationDetailsPageContent({ params, searchParams }: IntegrationDetailsPageProps) {
   const search = await searchParams;
   const user = await requireCurrentUserPermission("integrations:manage");
   const { integrationId } = await params;

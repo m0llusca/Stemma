@@ -1,11 +1,16 @@
+import type { ReviewEvent } from "@prisma/client";
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
+import { MetricValue } from "@/components/ui/metric-value";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
-import { reviewEventActionLabel } from "@/lib/review-events";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
+import { toneForCount, toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +52,20 @@ function formatSignedNumber(value: number, suffix = "") {
   return `${value > 0 ? "+" : ""}${value}${suffix}`;
 }
 
+function eventLabel(action: ReviewEvent["action"]) {
+  const labels: Record<string, string> = {
+    "review.draft_saved": "Черновик проверки",
+    "review.finalized": "Проверка завершена",
+    "review.assigned": "Проверка назначена",
+    "review.reopened": "Проверка переоткрыта",
+    "feedback.acknowledged": "Обратная связь принята",
+    "appeal.opened": "Открыта апелляция",
+    "appeal.resolved": "Апелляция закрыта"
+  };
+
+  return labels[action] ?? action;
+}
+
 function weekdayLabel(value: Date) {
   return value.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "");
 }
@@ -59,7 +78,24 @@ type AgentRow = {
   appealCount: number;
 };
 
-export default async function DashboardPage() {
+type FocusItem = {
+  icon: LucideIcon;
+  href: string;
+  label: string;
+  value: number;
+  tone: StatusTone;
+  hint: string;
+};
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="dashboard" label="Загрузка дашборда" />}>
+      <DashboardPageContent />
+    </Suspense>
+  );
+}
+
+async function DashboardPageContent() {
   const user = await requireCurrentUserPermission("reviews:read");
   const now = new Date();
   const thisWeekStart = daysAgo(6, now);
@@ -247,13 +283,17 @@ export default async function DashboardPage() {
     .sort((left, right) => right.average - left.average)
     .slice(0, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
-  const focusItems = [
+  const activeTrainingTone: StatusTone =
+    overdueTrainingCount > 0 ? "negative" : activeTrainingCount > 0 ? "info" : "positive";
+  const totalQueueCount = queuedCount + inWorkCount;
+  const focusItemCandidates: Array<FocusItem | null> = [
     highRiskCount > 0
       ? {
           icon: TriangleAlert,
           href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
           label: "Высокий риск",
           value: highRiskCount,
+          tone: "negative" as const,
           hint: "Открыть проверки с критичными замечаниями"
         }
       : null,
@@ -263,6 +303,7 @@ export default async function DashboardPage() {
           href: "/coaching",
           label: "Просрочено обучение",
           value: overdueTrainingCount,
+          tone: "negative" as const,
           hint: "Разобрать задания с истекшим сроком"
         }
       : null,
@@ -272,24 +313,37 @@ export default async function DashboardPage() {
           href: "/reviews?qaStatus=QUEUED",
           label: "Очередь без старта",
           value: queuedCount,
+          tone: "warning" as const,
           hint: "Назначить или открыть следующую проверку"
         }
       : null
-  ].filter((item): item is { icon: typeof TriangleAlert; href: string; label: string; value: number; hint: string } => Boolean(item));
+  ];
+  const focusItems = focusItemCandidates.filter((item): item is FocusItem => Boolean(item));
   const primaryFocusHref = focusItems[0]?.href ?? "/reviews?status=unreviewed";
-  const dashboardFocusLabel = highRiskCount > 0 || overdueTrainingCount > 0 ? "Есть фокус на сегодня" : "Команда в норме";
+  const displayedFocusItems: FocusItem[] = focusItems.length
+    ? focusItems
+    : [
+        {
+          icon: CheckCircle2,
+          href: "/reviews?status=unreviewed",
+          label: "Обычная очередь",
+          value: totalQueueCount,
+          tone: totalQueueCount > 0 ? "info" : "positive",
+          hint: "Критичных отклонений нет"
+        }
+      ];
 
   return (
     <section className="page-shell dashboard-shell">
       <div className="command-center dashboard-hero">
-        <div className="dashboard-hero__copy">
+        <div className="min-w-0">
           <p className="page-kicker">Рабочее пространство</p>
           <h1 className="page-title">Дашборд качества</h1>
           <p className="page-subtitle">
             Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам.
           </p>
           <div className="dashboard-hero__meta">
-            <span>{dashboardFocusLabel}</span>
+            <span>{highRiskCount > 0 || overdueTrainingCount > 0 ? "Есть фокус на сегодня" : "Команда в норме"}</span>
           </div>
         </div>
       </div>
@@ -297,25 +351,25 @@ export default async function DashboardPage() {
       <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
         <Link href="/reviews?status=reviewed" className="dashboard-kpi dashboard-kpi--blue">
           <span className="dashboard-kpi__icon"><ClipboardCheck size={18} aria-hidden="true" /></span>
-          <strong>{checkedThisWeek}</strong>
+          <MetricValue value={checkedThisWeek} tone={toneForCount(checkedThisWeek, { zero: "neutral", nonZero: "positive" })} />
           <span>Проверок за неделю</span>
           <small>{formatSignedNumber(checkedDelta)} к прошлой неделе</small>
         </Link>
         <Link href="/reports" className="dashboard-kpi dashboard-kpi--green">
           <span className="dashboard-kpi__icon"><Star size={18} aria-hidden="true" /></span>
-          <strong>{formatQualityScore(currentAverage, "Нет данных")}</strong>
+          <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={toneForScore(currentAverage)} />
           <span>Средний балл</span>
           <small>{scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}</small>
         </Link>
         <Link href="/reviews?status=unreviewed" className="dashboard-kpi dashboard-kpi--amber">
           <span className="dashboard-kpi__icon"><Clock3 size={18} aria-hidden="true" /></span>
-          <strong>{queuedCount + inWorkCount}</strong>
+          <MetricValue value={totalQueueCount} tone={toneForCount(totalQueueCount, { zero: "positive", nonZero: "warning" })} />
           <span>В очереди и работе</span>
           <small>{queuedCount} ждут старта · {inWorkCount} в работе</small>
         </Link>
         <Link href="/coaching" className="dashboard-kpi dashboard-kpi--violet">
           <span className="dashboard-kpi__icon"><BookOpenCheck size={18} aria-hidden="true" /></span>
-          <strong>{activeTrainingCount}</strong>
+          <MetricValue value={activeTrainingCount} tone={activeTrainingTone} />
           <span>Активных обучений</span>
           <small>{overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}</small>
         </Link>
@@ -335,7 +389,7 @@ export default async function DashboardPage() {
               <Link key={event.id} href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"} className="dashboard-activity-row">
                 <span className="dashboard-activity-row__avatar">{event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}</span>
                 <span className="dashboard-activity-row__body">
-                  <strong>{event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}</strong>
+                  <strong>{event.actor?.name ?? "Система"} · {eventLabel(event.action)}</strong>
                   <small>
                     {event.review?.conversation.externalId ?? event.review?.conversation.subject ?? "Проверка"}{event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
                   </small>
@@ -355,13 +409,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="dashboard-focus-list">
-            {(focusItems.length ? focusItems : [{
-              icon: CheckCircle2,
-              href: "/reviews?status=unreviewed",
-              label: "Обычная очередь",
-              value: queuedCount + inWorkCount,
-              hint: "Критичных отклонений нет"
-            }]).map((item) => {
+            {displayedFocusItems.map((item) => {
               const Icon = item.icon;
 
               return (

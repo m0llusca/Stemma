@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Check } from "lucide-react";
 import { SourceLogoMark, sourceLogoMeta } from "@/components/integrations/source-logo-mark";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
+import type { IntegrationInstallState } from "@/lib/integrations/install-contracts/types";
 import type { ConnectStep, ConnectStepStatus, CredentialField } from "@/lib/integrations/connect/types";
 
 export type ConnectSourceItem = {
@@ -14,7 +15,9 @@ export type ConnectSourceItem = {
   urlPolicy: "required" | "fixed" | "optional";
   fixedBaseUrl?: string;
   fields: CredentialField[];
-  limited?: boolean;
+  installState?: IntegrationInstallState;
+  authModes?: string[];
+  limitations?: string[];
 };
 
 const labelClass = "grid gap-1.5 text-sm font-medium text-[var(--text-body)]";
@@ -50,8 +53,63 @@ const SOURCE_GROUPS: Array<{ type: string; title: string }> = [
   { type: "data_source", title: "Хранилища данных" }
 ];
 
+const INSTALL_STATE_LABELS: Partial<Record<IntegrationInstallState, string>> = {
+  "token-only": "токен",
+  limited: "ограниченно",
+  "oauth-ready": "OAuth",
+  "webhook-ready": "webhook",
+  "live-certified": "live"
+};
+
+const AUTH_MODE_LABELS: Record<string, string> = {
+  basic: "basic-доступ",
+  basic_api_token: "API-токен",
+  basic_api_key: "API-ключ",
+  bearer_token: "bearer-токен",
+  private_app_token: "токен приложения",
+  oauth: "OAuth",
+  oauth_connected_app: "OAuth-приложение",
+  oauth_token: "OAuth-токен",
+  static_credentials: "статические доступы",
+  session_create: "сессия",
+  tls_ca_bundle: "TLS CA",
+  user_password: "логин/пароль"
+};
+
 function sourceMeta(item: ConnectSourceItem) {
   return sourceLogoMeta(item.source, item.label);
+}
+
+function shouldDiscloseInstallState(item: ConnectSourceItem) {
+  return item.installState === "token-only" || item.installState === "limited";
+}
+
+function installStateLabel(item: ConnectSourceItem) {
+  return item.installState ? INSTALL_STATE_LABELS[item.installState] : undefined;
+}
+
+function formatAuthModes(authModes: string[] | undefined) {
+  if (!authModes || authModes.length === 0) {
+    return null;
+  }
+
+  return authModes.map((authMode) => AUTH_MODE_LABELS[authMode] ?? authMode).join(", ");
+}
+
+function displayLimitation(limitation: string | undefined) {
+  if (!limitation) {
+    return undefined;
+  }
+
+  if (limitation === "Доступ настраивается через существующий token/basic credential flow.") {
+    return "Доступ: вручную через токен или basic-учётные данные.";
+  }
+
+  if (limitation === "Доступ настраивается через существующий credential/token flow.") {
+    return "Доступ: вручную через учётные данные или токен.";
+  }
+
+  return limitation;
 }
 
 // Шаги, которые можно поправить вручную в расширенных настройках — при их сбое
@@ -113,7 +171,7 @@ export function ConnectSourceForm({
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="text-lg font-semibold">Подключение источника</h2>
         <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
-          Выберите тип источника, укажите адрес и учётные данные — подключение пройдёт автоматически.
+          Укажите адрес и доступы. Stemma проверит права, сохранит источник и подготовит пробный импорт.
         </p>
       </div>
 
@@ -126,6 +184,8 @@ export function ConnectSourceForm({
                 {group.items.map((item) => {
                   const isActive = item.source === selectedSource;
                   const meta = sourceMeta(item);
+                  const stateLabel = installStateLabel(item);
+                  const firstLimitation = shouldDiscloseInstallState(item) ? displayLimitation(item.limitations?.[0]) : undefined;
 
                   return (
                     <button
@@ -140,9 +200,16 @@ export function ConnectSourceForm({
                       <span className="connect-source-card__body">
                         <span className="connect-source-card__name">
                           {item.label}
-                          {item.limited ? <span className="connect-source-card__flag">ограниченно</span> : null}
+                          {stateLabel && shouldDiscloseInstallState(item) ? (
+                            <span className="connect-source-card__flag">{stateLabel}</span>
+                          ) : null}
                         </span>
                         <span className="connect-source-card__hint">{meta.hint}</span>
+                        {firstLimitation ? (
+                          <span className="connect-source-card__hint" title={firstLimitation}>
+                            {firstLimitation}
+                          </span>
+                        ) : null}
                       </span>
                       <span className={`connect-source-card__check ${isActive ? "connect-source-card__check--on" : ""}`} aria-hidden="true">
                         <Check size={14} />
@@ -165,6 +232,15 @@ export function ConnectSourceForm({
             <span className="connect-source-current__body">
               <strong>{selected.label}</strong>
               <span>{sourceMeta(selected).hint}</span>
+              {shouldDiscloseInstallState(selected) ? (
+                <span>
+                  {installStateLabel(selected)}
+                  {formatAuthModes(selected.authModes) ? ` · ${formatAuthModes(selected.authModes)}` : ""}
+                </span>
+              ) : null}
+              {shouldDiscloseInstallState(selected) && selected.limitations?.[0] ? (
+                <span>{displayLimitation(selected.limitations[0])}</span>
+              ) : null}
             </span>
           </div>
 

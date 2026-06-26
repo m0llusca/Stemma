@@ -103,13 +103,14 @@ describe("review detail page", () => {
   });
 
   it("renders the self-review form for support agents with self-review permission", async () => {
-    const { default: ReviewDetailPage } = await import("@/app/reviews/[conversationId]/page");
-    const page = await ReviewDetailPage({
+    const { ReviewDetailPageContent } = await import("@/app/reviews/[conversationId]/page");
+    const page = await ReviewDetailPageContent({
       params: Promise.resolve({ conversationId: "conversation-1" }),
       searchParams: Promise.resolve({ reviewSource: "SELF_REVIEW" })
     });
 
     render(page);
+    const reviewPanel = screen.getByTestId("review-panel");
 
     // canSaveReviewDraft gates calibration-pin visibility; for a support agent it
     // returns false, so pins stay hidden. The self-review permission path itself
@@ -117,6 +118,6 @@ describe("review detail page", () => {
     expect(mocks.canSaveReviewDraft).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.canSelfReview).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.getActiveScorecard).toHaveBeenCalledWith("workspace-1");
-    expect(screen.getByTestId("review-panel").textContent).toBe("Комментарий оператора");
+    expect(reviewPanel.textContent).toBe("Комментарий оператора");
   });
 });

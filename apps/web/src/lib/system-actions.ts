@@ -3,8 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
+import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import { cancelBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
 import { logBackendEvent } from "@/lib/observability";
+import { queueDirectorySync as queueDirectorySyncAction } from "@/lib/system-enqueue-actions";
+
+export async function queueDirectorySync(formData: FormData) {
+  return queueDirectorySyncAction(formData);
+}
 
 function numberField(formData: FormData, key: string, fallback: number, max: number) {
   const value = formData.get(key);
@@ -61,6 +67,34 @@ export async function runQueuedBackendJobs(formData: FormData) {
       }
     });
   }
+
+  revalidatePath("/admin/system");
+}
+
+export async function queueRetentionCleanup() {
+  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  await assertCanPersistSettings(user);
+  const job = await enqueueBackendJob({
+    workspaceId: user.workspaceId,
+    type: "RETENTION_CLEANUP",
+    queueName: "maintenance",
+    priority: 80,
+    createdById: user.id,
+    payload: {
+      source: "admin_system"
+    }
+  });
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "backend_job.retention_cleanup_queued",
+    targetType: "backend_job",
+    targetId: job.id,
+    metadata: {
+      queueName: job.queueName
+    }
+  });
 
   revalidatePath("/admin/system");
 }

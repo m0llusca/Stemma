@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { PrismaClient, type ConversationChannel, type FindingOwnerType, type ReviewSource, type RiskLevel } from "@prisma/client";
 import { demoApiToken } from "../src/lib/custom-api-docs";
+import { translationKeySeeds } from "../src/lib/i18n/keys";
 import { assertSeedAllowed } from "./seed-guard";
 import {
   buildDemoOperationalStatusPlan,
@@ -23,6 +24,10 @@ function isDemoAuthEnabled() {
 async function main() {
   assertSeedAllowed(process.env as Record<string, string | undefined>);
 
+  await prisma.translationAudit.deleteMany();
+  await prisma.translationValue.deleteMany();
+  await prisma.translationKey.deleteMany();
+  await prisma.locale.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.reportSnapshot.deleteMany();
   await prisma.idempotencyKey.deleteMany();
@@ -117,6 +122,65 @@ async function main() {
       role: "ADMIN"
     }
   });
+
+  const [ruLocale, enLocale] = await Promise.all([
+    prisma.locale.create({
+      data: {
+        workspaceId: workspace.id,
+        code: "ru",
+        name: "Русский",
+        isDefault: true,
+        isEnabled: true
+      }
+    }),
+    prisma.locale.create({
+      data: {
+        workspaceId: workspace.id,
+        code: "en",
+        name: "English",
+        isDefault: false,
+        isEnabled: true
+      }
+    })
+  ]);
+
+  const translationsPublishedAt = new Date();
+
+  for (const seed of translationKeySeeds) {
+    const key = await prisma.translationKey.create({
+      data: {
+        namespace: seed.namespace,
+        key: seed.key,
+        defaultText: seed.defaultText,
+        ownerArea: seed.ownerArea
+      }
+    });
+
+    await prisma.translationValue.createMany({
+      data: [
+        {
+          workspaceId: workspace.id,
+          localeId: ruLocale.id,
+          keyId: key.id,
+          draftText: seed.defaultText,
+          publishedText: seed.defaultText,
+          publishedAt: translationsPublishedAt,
+          publishedById: admin.id,
+          version: 1
+        },
+        {
+          workspaceId: workspace.id,
+          localeId: enLocale.id,
+          keyId: key.id,
+          draftText: seed.en,
+          publishedText: seed.en,
+          publishedAt: translationsPublishedAt,
+          publishedById: admin.id,
+          version: 1
+        }
+      ]
+    });
+  }
 
   const analyst = await prisma.user.create({
     data: {
