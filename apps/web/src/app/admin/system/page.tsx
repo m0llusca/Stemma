@@ -3,7 +3,8 @@ import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, ShieldCheck } fro
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
-import { certificationStatusTone } from "@/lib/certification/status";
+import { MetricValue } from "@/components/ui/metric-value";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -12,6 +13,7 @@ import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, qu
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
+import { toneForCount, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -53,20 +55,55 @@ function formatDate(value: Date | null | undefined) {
   return value.toLocaleString("ru-RU");
 }
 
-function statusTone(status: string) {
-  if (["ok", "active", "SUCCEEDED", "READY"].includes(status)) {
-    return "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success)]";
+function runtimeTone(status: string): StatusTone {
+  if (status === "ok") return "positive";
+  if (status === "warn") return "warning";
+  if (status === "error") return "negative";
+  return "neutral";
+}
+
+function providerTone(status: string): StatusTone {
+  if (status === "active") return "positive";
+  if (status === "draft") return "info";
+  if (status === "disabled") return "warning";
+  return "neutral";
+}
+
+function integrationTone(status: string): StatusTone {
+  if (status === "error") return "negative";
+  if (status === "disabled") return "warning";
+  if (status === "active" || status === "ready") return "positive";
+  if (status === "queued") return "info";
+  return "neutral";
+}
+
+function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
+  if (tone === "ok") return "positive";
+  if (tone === "warn") return "info";
+  if (tone === "error") return "negative";
+  return "neutral";
+}
+
+function certificationTone(status: string): StatusTone {
+  if (["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(status)) {
+    return "positive";
   }
 
-  if (["warn", "queued", "RUNNING", "QUEUED", "draft"].includes(status)) {
-    return "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--warning)]";
+  if (
+    [
+      "ready_for_live_certification",
+      "waiting_for_access",
+      "limited",
+      "not_production_ready",
+      "configuration_required",
+      "secret_required",
+      "certificate_required"
+    ].includes(status)
+  ) {
+    return "warning";
   }
 
-  if (["error", "FAILED", "disabled"].includes(status)) {
-    return "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--danger)]";
-  }
-
-  return "border-[var(--border)] bg-[var(--panel-muted)] text-[var(--text-body)]";
+  return "neutral";
 }
 
 function runtimeStatusLabel(status: string) {
@@ -132,7 +169,7 @@ function renderReadinessItem(item: PhaseDReadinessItem) {
     <article key={item.key} className="record-card">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`pill ${certificationStatusTone(item.status)}`}>{item.label}</span>
+          <StatusBadge label="Статус" value={item.label} tone={certificationTone(item.status)} />
           <h3 className="font-semibold text-[var(--foreground)]">{item.displayName}</h3>
         </div>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -170,19 +207,20 @@ function StatCard({
   label: string;
   value: string | number;
   hint: string;
-  tone?: "ok" | "warn" | "error" | "neutral";
+  tone?: StatusTone;
 }) {
   const toneClass = {
-    ok: "soft-callout--ok",
-    warn: "soft-callout--warn",
-    error: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]",
+    positive: "soft-callout--ok",
+    warning: "soft-callout--warn",
+    negative: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]",
+    info: "",
     neutral: ""
   }[tone];
 
   return (
     <div className={`soft-callout ${toneClass}`}>
       <p className="soft-callout__label">{label}</p>
-      <p className="metric-strip__value">{value}</p>
+      <MetricValue value={value} tone={tone} />
       <p className="record-meta">{hint}</p>
     </div>
   );
@@ -323,23 +361,33 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
       <section className="ops-metric-grid" aria-label="Сводка системы">
         <div className="ops-metric">
           <span className="ops-metric__label">Окружение</span>
-          <strong className="ops-metric__value">{runtime.status === "ok" ? "Готово" : runtime.status === "warn" ? "Внимание" : "Ошибка"}</strong>
+          <StatusBadge label="Статус" value={runtimeStatusLabel(runtime.status)} tone={runtimeTone(runtime.status)} />
           <span className="ops-metric__note">{environmentLabel(runtime.environment)}</span>
         </div>
         <div className="ops-metric">
           <span className="ops-metric__label">Очередь задач</span>
-          <strong className="ops-metric__value">{queuedJobs}</strong>
-          <span className="ops-metric__note">Выполняется: {runningJobs}</span>
+          <MetricValue value={queuedJobs} tone={toneForCount(queuedJobs, { zero: "positive", nonZero: "info" })} />
+          <span className="ops-metric__note">
+            <StatusBadge label="Выполняется" value={runningJobs} tone={toneForCount(runningJobs, { zero: "positive", nonZero: "info" })} />
+          </span>
         </div>
         <div className="ops-metric">
           <span className="ops-metric__label">Ошибки задач</span>
-          <strong className="ops-metric__value">{failedJobs}</strong>
-          <span className="ops-metric__note">Успешно за 24 часа: {succeededJobsToday}</span>
+          <MetricValue value={failedJobs} tone={toneForCount(failedJobs, { zero: "positive", nonZero: "negative" })} />
+          <span className="ops-metric__note">
+            <StatusBadge label="Успешно 24ч" value={succeededJobsToday} tone={toneForCount(succeededJobsToday, { zero: "neutral", nonZero: "positive" })} />
+          </span>
         </div>
         <div className="ops-metric">
           <span className="ops-metric__label">Активные сессии</span>
-          <strong className="ops-metric__value">{activeSessions}</strong>
-          <span className="ops-metric__note">Просрочено активных: {expiredActiveSessions}</span>
+          <MetricValue value={activeSessions} tone={toneForCount(activeSessions, { zero: "neutral", nonZero: "info" })} />
+          <span className="ops-metric__note">
+            <StatusBadge
+              label="Просрочено"
+              value={expiredActiveSessions}
+              tone={toneForCount(expiredActiveSessions, { zero: "positive", nonZero: "warning" })}
+            />
+          </span>
         </div>
       </section>
 
@@ -364,7 +412,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h2 id="system-jobs-title" className="ops-panel__title">Фоновые задачи</h2>
               <p className="ops-panel__subtitle">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
             </div>
-            <span className="pill pill--neutral">{recentJobs.length}</span>
+            <StatusBadge label="Всего" value={recentJobs.length} tone={toneForCount(recentJobs.length, { zero: "neutral", nonZero: "info" })} />
           </div>
           <div className="record-list px-5">
             {recentJobs.length === 0 ? (
@@ -377,7 +425,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                   <article key={job.id} className="record-card">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`pill ${status.pillClass}`}>{status.label}</span>
+                        <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
                         <h3 className="font-semibold text-[var(--foreground)]">{backendJobTypeLabel(job.type)}</h3>
                       </div>
                       <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -408,9 +456,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h2 id="runtime-title" className="ops-panel__title">Готовность окружения</h2>
               <p className="ops-panel__subtitle">Проверки конфигурации перед production-запуском.</p>
             </div>
-            <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(runtime.status)}`}>
-              {runtimeStatusLabel(runtime.status)}
-            </span>
+            <StatusBadge label="Статус" value={runtimeStatusLabel(runtime.status)} tone={runtimeTone(runtime.status)} />
           </div>
           <div className="record-list px-5">
             {runtime.checks.map((check) => {
@@ -418,11 +464,14 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
 
               return (
                 <div key={check.key} className="record-card grid-cols-[auto_minmax(0,1fr)]">
-                  <span className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${statusTone(check.status)}`}>
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)]">
                     <Icon size={17} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="font-semibold text-[var(--foreground)]">{check.key}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-[var(--foreground)]">{check.key}</p>
+                      <StatusBadge label="Статус" value={runtimeStatusLabel(check.status)} tone={runtimeTone(check.status)} />
+                    </div>
                     <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">{check.message}</p>
                   </div>
                 </div>
@@ -442,15 +491,17 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                 Отчет по живой сертификации: интеграции, провайдеры удостоверений и только redacted evidence из protected smoke runs.
               </p>
             </div>
-            <span className={`pill ${phaseDReport.summary.liveCertified > 0 ? "pill--ok" : "pill--warn"}`}>
-              Live: {phaseDReport.summary.liveCertified}/{phaseDReport.summary.total}
-            </span>
+            <StatusBadge
+              label="Live"
+              value={`${phaseDReport.summary.liveCertified}/${phaseDReport.summary.total}`}
+              tone={phaseDReport.summary.liveCertified > 0 ? "positive" : "warning"}
+            />
           </div>
           <section className="ops-metric-grid p-5 pt-0" aria-label="Сводка live certification">
             <StatCard label="Всего объектов" value={phaseDReport.summary.total} hint="Интеграции и провайдеры удостоверений" />
-            <StatCard label="Live-certified" value={phaseDReport.summary.liveCertified} hint="Только successful protected evidence" tone="ok" />
-            <StatCard label="Готовы к live" value={phaseDReport.summary.readyForLiveCertification} hint="Контракты готовы, доступов нет" tone="warn" />
-            <StatCard label="Блокеры" value={phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess} hint="Ожидают доступы, настройку или исправление" tone="warn" />
+            <StatCard label="Live-certified" value={phaseDReport.summary.liveCertified} hint="Только successful protected evidence" tone="positive" />
+            <StatCard label="Готовы к live" value={phaseDReport.summary.readyForLiveCertification} hint="Контракты готовы, доступов нет" tone="warning" />
+            <StatCard label="Блокеры" value={phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess} hint="Ожидают доступы, настройку или исправление" tone="warning" />
           </section>
           <div className="grid gap-5 p-5 pt-0 lg:grid-cols-2">
             <section aria-labelledby="phase-d-integrations-title">
@@ -495,7 +546,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             </Link>
           </div>
           <div className="grid gap-3 p-5 md:grid-cols-2">
-            <StatCard label="Провайдеры" value={providers.length} hint={`Не активны: ${providerWarnings}`} tone={providerWarnings > 0 ? "warn" : "ok"} />
+            <StatCard label="Провайдеры" value={providers.length} hint={`Не активны: ${providerWarnings}`} tone={providerWarnings > 0 ? "warning" : "positive"} />
             <StatCard label="Сессии" value={activeSessions} hint="Активные сейчас" tone="neutral" />
           </div>
           <div className="record-list px-5">
@@ -508,9 +559,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       {providerTypeLabel(provider.type)} · {provider.slug}
                     </p>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(provider.status)}`}>
-                    {providerStatusLabel(provider.status)}
-                  </span>
+                  <StatusBadge label="Статус" value={providerStatusLabel(provider.status)} tone={providerTone(provider.status)} />
                 </div>
                 <p className="text-sm text-[var(--text-muted)]">
                   Маппингов: {provider._count.groupRoleMappings} · сессий: {provider._count.authSessions} · последняя синхронизация:{" "}
@@ -544,8 +593,8 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             </Link>
           </div>
           <div className="grid gap-3 p-5 md:grid-cols-2">
-            <StatCard label="Источники" value={integrations.length} hint={`Ошибки: ${integrationErrors}`} tone={integrationErrors > 0 ? "error" : "neutral"} />
-            <StatCard label="API-ключи" value={apiTokens.length} hint={`Ошибки: ${apiTokenErrors}`} tone={apiTokenErrors > 0 ? "error" : "ok"} />
+            <StatCard label="Источники" value={integrations.length} hint={`Ошибки: ${integrationErrors}`} tone={integrationErrors > 0 ? "negative" : "neutral"} />
+            <StatCard label="API-ключи" value={apiTokens.length} hint={`Ошибки: ${apiTokenErrors}`} tone={apiTokenErrors > 0 ? "negative" : "positive"} />
           </div>
           <div className="record-list px-5">
             {integrations.length === 0 ? (
@@ -558,9 +607,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       <h3 className="font-semibold text-[var(--foreground)]">{integration.displayName}</h3>
                       <p className="mt-1 text-sm text-[var(--text-muted)]">{externalSourceLabel(integration.source)}</p>
                     </div>
-                    <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusTone(integration.status)}`}>
-                      {integrationStatusLabel(integration.status)}
-                    </span>
+                    <StatusBadge label="Статус" value={integrationStatusLabel(integration.status)} tone={integrationTone(integration.status)} />
                   </div>
                   <p className="mt-3 text-sm text-[var(--text-muted)]">
                     Лимит: {integration.importLimit} · батч: {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
@@ -583,7 +630,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                     <div key={run.id} className="record-card text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-semibold text-[var(--foreground)]">{run.integration?.displayName ?? run.source}</p>
-                        <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${status.badgeClass}`}>{status.label}</span>
+                        <StatusBadge label={run.dryRun ? "Проверка" : "Импорт"} value={status.label} tone={operationalTone(status.tone)} />
                       </div>
                       <p className="mt-2 text-[var(--text-muted)]">
                         {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
@@ -607,9 +654,9 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             </div>
           </div>
           <div className="grid gap-3 p-5">
-            <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warn" : "ok"} />
-            <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warn" : "ok"} />
-            <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warn" : "ok"} />
+            <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warning" : "positive"} />
+            <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warning" : "positive"} />
+            <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warning" : "positive"} />
             <div className="soft-callout text-sm text-[var(--text-muted)]">
               <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
               Для cron-запуска фоновых задач используйте{" "}

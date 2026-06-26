@@ -1,13 +1,16 @@
 import type { ReviewEvent } from "@prisma/client";
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
+import { MetricValue } from "@/components/ui/metric-value";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
+import { toneForCount, toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +76,15 @@ type AgentRow = {
   count: number;
   riskCount: number;
   appealCount: number;
+};
+
+type FocusItem = {
+  icon: LucideIcon;
+  href: string;
+  label: string;
+  value: number;
+  tone: StatusTone;
+  hint: string;
 };
 
 export default function DashboardPage() {
@@ -271,13 +283,17 @@ async function DashboardPageContent() {
     .sort((left, right) => right.average - left.average)
     .slice(0, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
-  const focusItems = [
+  const activeTrainingTone: StatusTone =
+    overdueTrainingCount > 0 ? "negative" : activeTrainingCount > 0 ? "info" : "positive";
+  const totalQueueCount = queuedCount + inWorkCount;
+  const focusItemCandidates: Array<FocusItem | null> = [
     highRiskCount > 0
       ? {
           icon: TriangleAlert,
           href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
           label: "Высокий риск",
           value: highRiskCount,
+          tone: "negative" as const,
           hint: "Открыть проверки с критичными замечаниями"
         }
       : null,
@@ -287,6 +303,7 @@ async function DashboardPageContent() {
           href: "/coaching",
           label: "Просрочено обучение",
           value: overdueTrainingCount,
+          tone: "negative" as const,
           hint: "Разобрать задания с истекшим сроком"
         }
       : null,
@@ -296,11 +313,25 @@ async function DashboardPageContent() {
           href: "/reviews?qaStatus=QUEUED",
           label: "Очередь без старта",
           value: queuedCount,
+          tone: "warning" as const,
           hint: "Назначить или открыть следующую проверку"
         }
       : null
-  ].filter((item): item is { icon: typeof TriangleAlert; href: string; label: string; value: number; hint: string } => Boolean(item));
+  ];
+  const focusItems = focusItemCandidates.filter((item): item is FocusItem => Boolean(item));
   const primaryFocusHref = focusItems[0]?.href ?? "/reviews?status=unreviewed";
+  const displayedFocusItems: FocusItem[] = focusItems.length
+    ? focusItems
+    : [
+        {
+          icon: CheckCircle2,
+          href: "/reviews?status=unreviewed",
+          label: "Обычная очередь",
+          value: totalQueueCount,
+          tone: totalQueueCount > 0 ? "info" : "positive",
+          hint: "Критичных отклонений нет"
+        }
+      ];
 
   return (
     <section className="page-shell dashboard-shell">
@@ -321,25 +352,25 @@ async function DashboardPageContent() {
       <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
         <Link href="/reviews?status=reviewed" className="dashboard-kpi dashboard-kpi--blue">
           <span className="dashboard-kpi__icon"><ClipboardCheck size={18} aria-hidden="true" /></span>
-          <strong>{checkedThisWeek}</strong>
+          <MetricValue value={checkedThisWeek} tone={toneForCount(checkedThisWeek, { zero: "neutral", nonZero: "positive" })} />
           <span>Проверок за неделю</span>
           <small>{formatSignedNumber(checkedDelta)} к прошлой неделе</small>
         </Link>
         <Link href="/reports" className="dashboard-kpi dashboard-kpi--green">
           <span className="dashboard-kpi__icon"><Star size={18} aria-hidden="true" /></span>
-          <strong>{formatQualityScore(currentAverage, "Нет данных")}</strong>
+          <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={toneForScore(currentAverage)} />
           <span>Средний балл</span>
           <small>{scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}</small>
         </Link>
         <Link href="/reviews?status=unreviewed" className="dashboard-kpi dashboard-kpi--amber">
           <span className="dashboard-kpi__icon"><Clock3 size={18} aria-hidden="true" /></span>
-          <strong>{queuedCount + inWorkCount}</strong>
+          <MetricValue value={totalQueueCount} tone={toneForCount(totalQueueCount, { zero: "positive", nonZero: "warning" })} />
           <span>В очереди и работе</span>
           <small>{queuedCount} ждут старта · {inWorkCount} в работе</small>
         </Link>
         <Link href="/coaching" className="dashboard-kpi dashboard-kpi--violet">
           <span className="dashboard-kpi__icon"><BookOpenCheck size={18} aria-hidden="true" /></span>
-          <strong>{activeTrainingCount}</strong>
+          <MetricValue value={activeTrainingCount} tone={activeTrainingTone} />
           <span>Активных обучений</span>
           <small>{overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}</small>
         </Link>
@@ -379,20 +410,14 @@ async function DashboardPageContent() {
             </div>
           </div>
           <div className="dashboard-focus-list">
-            {(focusItems.length ? focusItems : [{
-              icon: CheckCircle2,
-              href: "/reviews?status=unreviewed",
-              label: "Обычная очередь",
-              value: queuedCount + inWorkCount,
-              hint: "Критичных отклонений нет"
-            }]).map((item) => {
+            {displayedFocusItems.map((item) => {
               const Icon = item.icon;
 
               return (
                 <Link key={item.href} href={item.href} className="dashboard-focus-row">
                   <span><Icon size={16} aria-hidden="true" /></span>
                   <strong>{item.label}</strong>
-                  <em>{item.value}</em>
+                  <em><MetricValue value={item.value} tone={item.tone} /></em>
                   <small>{item.hint}</small>
                   <ArrowRight size={14} aria-hidden="true" />
                 </Link>

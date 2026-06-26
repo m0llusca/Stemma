@@ -1,20 +1,15 @@
 import { notFound } from "next/navigation";
 import {
-  BadgeCheck,
-  CalendarClock,
   ChevronDown,
-  Gauge,
   MessageSquareWarning,
-  RotateCcw,
-  ShieldAlert,
-  UserRound
+  RotateCcw
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import {
@@ -41,6 +36,7 @@ import {
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
+import { toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +45,9 @@ type ReviewDetailPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function reviewStateTone(state: ReviewState) {
+function reviewStateTone(state: ReviewState): StatusTone {
   if (state === "finalized") {
-    return "success";
+    return "positive";
   }
 
   if (state === "reopened") {
@@ -59,34 +55,18 @@ function reviewStateTone(state: ReviewState) {
   }
 
   if (state === "assigned" || state === "in_progress") {
-    return "active";
+    return "info";
   }
 
   return "neutral";
 }
 
-function HeaderChip({
-  label,
-  children,
-  icon: Icon,
-  tone = "neutral",
-  wide = false
-}: {
-  label: string;
-  children: ReactNode;
-  icon: LucideIcon;
-  tone?: "neutral" | "success" | "warning" | "active";
-  wide?: boolean;
-}) {
-  return (
-    <span className={`meta-chip meta-chip--${tone} ${wide ? "meta-chip--wide" : ""}`}>
-      <span className="meta-chip__icon" aria-hidden="true">
-        <Icon size={13} />
-      </span>
-      <span className="meta-chip__label">{label}</span>
-      <span className="meta-chip__value">{children}</span>
-    </span>
-  );
+function dueDateTone(value: Date | null, now: Date): StatusTone {
+  if (!value) {
+    return "neutral";
+  }
+
+  return value.getTime() < now.getTime() ? "negative" : "positive";
 }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
@@ -112,6 +92,7 @@ export default function ReviewDetailPage({ params, searchParams }: ReviewDetailP
 
 async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPageProps) {
   const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, requireCurrentUserPermission("reviews:read")]);
+  const now = new Date();
   const requestedReviewSource = singleParam(rawSearchParams.reviewSource);
   const reviewSource =
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
@@ -199,32 +180,28 @@ async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPag
           </p>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <HeaderChip label="Состояние" icon={BadgeCheck} tone={reviewStateTone(reviewState)}>
-            {reviewStateLabels[reviewState]}
-          </HeaderChip>
-          <HeaderChip label="Оценка" icon={Gauge}>{scoreLabel}</HeaderChip>
-          <HeaderChip label="Клиент" icon={UserRound}>{conversation.customerName}</HeaderChip>
-          <HeaderChip label="Срок" icon={CalendarClock}>
-            {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-          </HeaderChip>
+          <StatusBadge className="meta-chip" label={`Состояние${reviewStateLabels[reviewState]}`} value={null} tone={reviewStateTone(reviewState)} />
+          <StatusBadge className="meta-chip" label="Оценка" value={scoreLabel} tone={toneForScore(scorePreviewReview?.totalScore)} />
+          <StatusBadge className="meta-chip" label="Клиент" value={conversation.customerName} tone="neutral" />
+          <StatusBadge
+            className="meta-chip"
+            label="Срок"
+            value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
+            tone={dueDateTone(conversation.reviewDueAt, now)}
+          />
           {conversation.riskHint ? (
-            <HeaderChip label="Риск" icon={ShieldAlert} tone="warning" wide>
-              {conversation.riskHint}
-            </HeaderChip>
+            <StatusBadge className="meta-chip" label="Риск" value={conversation.riskHint} tone="warning" />
           ) : null}
           {hasAppeal ? (
-            <HeaderChip label="Апелляция" icon={MessageSquareWarning} tone={hasOpenAppeal ? "warning" : "active"}>
-              {appealLabel}
-            </HeaderChip>
+            <StatusBadge className="meta-chip" label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "info"} />
           ) : null}
           {hasReanswer ? (
-            <HeaderChip
+            <StatusBadge
+              className="meta-chip"
               label="Переответ"
-              icon={RotateCcw}
-              tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
-            >
-              {reanswerLabel}
-            </HeaderChip>
+              value={reanswerLabel}
+              tone={latestFinalizedReview?.reanswerStatus === "completed" ? "positive" : "warning"}
+            />
           ) : null}
         </div>
       </div>
@@ -444,7 +421,7 @@ async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPag
                   </form>
                 ) : null}
                 {!canAcknowledgeFeedback && !canOpenAppeal && !canCompleteReanswer ? (
-                  <span className="pill pill--neutral">Действий нет</span>
+                  <StatusBadge label="Действия" value="нет" tone="neutral" />
                 ) : null}
               </div>
             </div>
@@ -505,7 +482,7 @@ async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPag
                     <h3 className="record-title">{review.reviewer.name}</h3>
                     <p className="record-meta mt-1">{(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}</p>
                   </div>
-                  <span className="pill pill--neutral">{formatQualityScore(review.totalScore)}</span>
+                  <StatusBadge label="Оценка" value={formatQualityScore(review.totalScore)} tone={toneForScore(review.totalScore)} />
                 </div>
                 <p className="record-meta">
                   {reviewStatusLabels[review.status]} · {review.findings[0]?.category ?? "Без замечаний"}
