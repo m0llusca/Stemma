@@ -26,6 +26,8 @@ const staticAuthenticatedRoutes = [
 
 test.setTimeout(120_000);
 
+let authenticatedWorkspaceId: string;
+
 test.beforeAll(() => {
   execFileSync("npm", ["run", "db:deploy"], { cwd: process.cwd(), stdio: "inherit" });
 });
@@ -36,8 +38,10 @@ test.beforeEach(async ({ context }) => {
   const admin = await prisma.user.findFirstOrThrow({
     where: { role: "ADMIN" },
     orderBy: { createdAt: "asc" },
-    select: { id: true }
+    select: { id: true, workspaceId: true }
   });
+
+  authenticatedWorkspaceId = admin.workspaceId;
 
   await signInE2EUser(context, admin, "playwright-app-shell-routes");
 });
@@ -55,7 +59,25 @@ test("authenticated app shell routes render stable chrome and content", async ({
 
   expect(conversation, "seeded review conversation").not.toBeNull();
 
-  const routes = [...staticAuthenticatedRoutes, `/reviews/${conversation?.id}`];
+  const [integration, backendJob] = await Promise.all([
+    prisma.integration.findFirstOrThrow({
+      where: { workspaceId: authenticatedWorkspaceId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true }
+    }),
+    prisma.backendJob.findFirstOrThrow({
+      where: { workspaceId: authenticatedWorkspaceId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true }
+    })
+  ]);
+
+  const routes = [
+    ...staticAuthenticatedRoutes,
+    `/reviews/${conversation?.id}`,
+    `/admin/integrations/${integration.id}`,
+    `/admin/system/jobs/${backendJob.id}`
+  ];
 
   for (const route of routes) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
