@@ -17,6 +17,8 @@ type QueueLayout = {
 type StickyQueueLayout = {
   controlsBottom: number;
   controlsHeight: number;
+  controlsPaddingLeft: number;
+  controlsPaddingRight: number;
   controlsPosition: string;
   isStuck: boolean;
   queueTop: number;
@@ -77,10 +79,13 @@ async function readStickyQueueLayout(page: Page): Promise<StickyQueueLayout> {
     const slotRect = slot?.getBoundingClientRect();
     const queueRect = queue?.getBoundingClientRect();
     const slotMinHeight = slot ? Number.parseFloat(getComputedStyle(slot).minHeight) || 0 : 0;
+    const controlsStyle = controls ? getComputedStyle(controls) : null;
 
     return {
       controlsBottom: controlsRect?.bottom ?? 0,
       controlsHeight: controlsRect?.height ?? 0,
+      controlsPaddingLeft: controlsStyle ? Number.parseFloat(controlsStyle.paddingLeft) || 0 : 0,
+      controlsPaddingRight: controlsStyle ? Number.parseFloat(controlsStyle.paddingRight) || 0 : 0,
       controlsPosition: controls ? getComputedStyle(controls).position : "",
       isStuck: controls?.classList.contains("queue-controls-bar--stuck") ?? false,
       queueTop: queueRect?.top ?? 0,
@@ -144,6 +149,8 @@ test("reviews quick views do not accumulate vertical layout gap when toggled", a
 
   expect(stickyLayout.isStuck, "queue controls should enter sticky state after scrolling").toBe(true);
   expect(stickyLayout.controlsPosition, "sticky queue controls should be fixed").toBe("fixed");
+  expect(stickyLayout.controlsPaddingLeft, "sticky queue controls should not keep a desktop left gutter").toBeLessThanOrEqual(1);
+  expect(stickyLayout.controlsPaddingRight, "sticky queue controls should not keep a desktop right gutter").toBeLessThanOrEqual(1);
   expect(
     queueClearsFixedControls || slotStillReservesSpace,
     `queueTop=${stickyLayout.queueTop}, controlsBottom=${stickyLayout.controlsBottom}, slotHeight=${stickyLayout.slotHeight}, slotMinHeight=${stickyLayout.slotMinHeight}`
