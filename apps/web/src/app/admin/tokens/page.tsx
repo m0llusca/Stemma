@@ -1,8 +1,10 @@
 import { History, KeyRound, Plug } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ApiTokenCreateForm } from "@/components/admin/api-token-create-form";
 import { CopyButton } from "@/components/copy-button";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
@@ -77,7 +79,15 @@ function tokenHealth(token: {
   return { label: "Готов", tone: "pill--ok" };
 }
 
-export default async function AdminTokensPage({ searchParams }: AdminTokensPageProps) {
+export default function AdminTokensPage({ searchParams }: AdminTokensPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка API-токенов" />}>
+      <AdminTokensPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminTokensPageContent({ searchParams }: AdminTokensPageProps) {
   const params = await searchParams;
   const activeSection = tokensSectionParam(params.section);
   const user = await requireCurrentUserPermission("api_tokens:manage");

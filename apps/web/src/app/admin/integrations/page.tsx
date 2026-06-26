@@ -1,8 +1,10 @@
 import { ArrowUpRight, DatabaseZap, PlugZap } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
+import { PageSkeleton } from "@/components/loading-states";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { certificationStatusTone } from "@/lib/certification/status";
@@ -244,7 +246,15 @@ function CertificationHelpTooltip({ label = "Что значит статус с
   );
 }
 
-export default async function AdminIntegrationsPage({ searchParams }: AdminIntegrationsPageProps) {
+export default function AdminIntegrationsPage({ searchParams }: AdminIntegrationsPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка интеграций" />}>
+      <AdminIntegrationsPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsPageProps) {
   const params = await searchParams;
   const activeSection = integrationSectionParam(params.section);
   const user = await requireCurrentUserPermission("integrations:manage");

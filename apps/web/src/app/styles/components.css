@@ -104,6 +104,68 @@ pre code {
   padding: var(--page-shell-padding);
 }
 
+.stable-empty-state {
+  display: grid;
+  min-height: 240px;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: clamp(24px, 5vw, 40px);
+  text-align: center;
+}
+
+.stable-empty-state__eyebrow {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.stable-empty-state__metric {
+  display: grid;
+  min-width: 64px;
+  min-height: 64px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--muted) 18%, var(--panel));
+  color: var(--foreground);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.stable-empty-state__copy {
+  display: grid;
+  max-width: 560px;
+  gap: 8px;
+}
+
+.stable-empty-state__copy h2,
+.stable-empty-state__copy p {
+  margin: 0;
+}
+
+.stable-empty-state__copy h2 {
+  color: var(--foreground);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.stable-empty-state__copy p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.stable-empty-state__action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .auth-shell {
   display: grid;
   min-height: 100dvh;

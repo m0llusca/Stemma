@@ -1,6 +1,8 @@
 import { ArrowLeft, KeyRound } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
+import { PageSkeleton } from "@/components/loading-states";
 import { limitedSupportSources, listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 
@@ -22,7 +24,15 @@ const SOURCE_LABELS: Record<string, string> = {
   dynamics: "Microsoft Dynamics 365"
 };
 
-export default async function NewIntegrationPage() {
+export default function NewIntegrationPage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка подключения источника" />}>
+      <NewIntegrationPageContent />
+    </Suspense>
+  );
+}
+
+async function NewIntegrationPageContent() {
   await requireCurrentUserPermission("integrations:manage");
 
   // Реестр профилей серверный (тянет адаптеры/prisma) — на клиент уходят только

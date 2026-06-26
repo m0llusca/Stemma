@@ -1,5 +1,7 @@
 import { ArrowRight, CheckCircle2, Clock3, Inbox, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
@@ -14,7 +16,15 @@ type ReviewsPageProps = {
   searchParams: Promise<ReviewQueueSearchParams>;
 };
 
-export default async function ReviewsPage({ searchParams }: ReviewsPageProps) {
+export default function ReviewsPage({ searchParams }: ReviewsPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton label="Загрузка очереди проверок" />}>
+      <ReviewsPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
   const data = await getReviewQueuePageData(await searchParams);
   const filteredCount = data.conversations.length;
   const { total, queued, inWork, reviewed, overdue } = data.summary;

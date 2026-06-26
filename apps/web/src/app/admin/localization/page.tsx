@@ -1,6 +1,8 @@
 import { ArrowLeft, Languages } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { LocalizationEditor } from "@/components/i18n/localization-editor";
+import { PageSkeleton } from "@/components/loading-states";
 import {
   createLocaleAction,
   publishTranslationAction,
@@ -12,7 +14,15 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminLocalizationPage() {
+export default function AdminLocalizationPage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка локализации" />}>
+      <AdminLocalizationPageContent />
+    </Suspense>
+  );
+}
+
+async function AdminLocalizationPageContent() {
   const user = await requireCurrentUserPermission("appearance:manage");
   const [workspace, locales, translationKeys] = await Promise.all([
     prisma.workspace.findUnique({

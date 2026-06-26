@@ -1,7 +1,9 @@
 import type { RoleName } from "@prisma/client";
 import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -23,7 +25,15 @@ function canSee(role: RoleName, roles: RoleName[]) {
   return roles.includes(role);
 }
 
-export default async function AdminHomePage() {
+export default function AdminHomePage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка администрирования" />}>
+      <AdminHomePageContent />
+    </Suspense>
+  );
+}
+
+async function AdminHomePageContent() {
   const user = await requireCurrentUserPermission("audit:read");
   const [
     workspace,

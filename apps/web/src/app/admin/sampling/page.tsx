@@ -1,6 +1,8 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -90,7 +92,15 @@ function formatConditions(conditions: Record<string, string | string[] | undefin
   return parts.join(" · ") || "Без условий";
 }
 
-export default async function SamplingRulesPage({ searchParams }: SamplingRulesPageProps) {
+export default function SamplingRulesPage({ searchParams }: SamplingRulesPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка правил отбора" />}>
+      <SamplingRulesPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps) {
   const params = await searchParams;
   const activeSection = samplingSectionParam(params.section, params.new);
   const user = await requireCurrentUserPermission("sampling:manage");

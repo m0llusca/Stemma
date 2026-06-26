@@ -1,6 +1,8 @@
 import { ChevronDown, Plus } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -48,7 +50,15 @@ function activeScorecardEditHref(editing: boolean) {
   return editing ? "/admin/scorecards?section=overview" : "/admin/scorecards?section=overview&edit=1";
 }
 
-export default async function AdminScorecardsPage({ searchParams }: AdminScorecardsPageProps) {
+export default function AdminScorecardsPage({ searchParams }: AdminScorecardsPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка чек-листов" />}>
+      <AdminScorecardsPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageProps) {
   const params = await searchParams;
   const activeSection = scorecardSectionParam(params.section, params.new);
   const isEditingActiveScorecard = activeSection === "overview" && firstParam(params.edit) === "1";

@@ -1,5 +1,7 @@
 import { Filter, KeyRound } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -175,7 +177,15 @@ function buildAuditHref(page: number, action?: string, targetType?: string, star
   return `/admin/audit?${params.toString()}`;
 }
 
-export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
+export default function AdminAuditPage({ searchParams }: AuditPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка аудита" />}>
+      <AdminAuditPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
   const params = await searchParams;
   const activeSection = auditSectionParam(params.section);
   const user = await requireCurrentUserPermission("audit:read");

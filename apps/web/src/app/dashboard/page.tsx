@@ -1,7 +1,9 @@
 import type { ReviewEvent } from "@prisma/client";
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
@@ -73,7 +75,15 @@ type AgentRow = {
   appealCount: number;
 };
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="dashboard" label="Загрузка дашборда" />}>
+      <DashboardPageContent />
+    </Suspense>
+  );
+}
+
+async function DashboardPageContent() {
   const user = await requireCurrentUserPermission("reviews:read");
   const now = new Date();
   const thisWeekStart = daysAgo(6, now);

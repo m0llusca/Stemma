@@ -1,7 +1,9 @@
 import type { RoleName } from "@prisma/client";
 import { ArrowLeft, KeyRound, ShieldCheck, UserCog } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { createLocalUser, updateUserAccess } from "@/lib/admin-user-actions";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { getPermissions, type Permission } from "@/lib/auth/permissions";
@@ -137,7 +139,15 @@ function permissionSummary(role: RoleName, permissions: Permission[]) {
   };
 }
 
-export default async function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
+export default function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка пользователей" />}>
+      <AdminUsersPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
   const params = await searchParams;
   const currentUser = await requireCurrentUserPermission("users:manage");
   const [users, activeSessionRows] = await Promise.all([

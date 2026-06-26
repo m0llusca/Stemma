@@ -2,6 +2,7 @@ import type { AuthSessionStatus, IdentityProvider, IdentityProviderType, RoleNam
 import { KeyRound, Link2, ShieldCheck, UsersRound } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   revokeAuthSessionById,
   saveGroupRoleMapping,
@@ -9,6 +10,7 @@ import {
   toggleGroupRoleMapping
 } from "@/lib/auth-provider-actions";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { PageSkeleton } from "@/components/loading-states";
 import { ScimTokenManager } from "@/components/admin/scim-token-manager";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
@@ -307,7 +309,15 @@ function ProviderField({
   );
 }
 
-export default async function AdminAccessPage({ searchParams }: AccessPageProps) {
+export default function AdminAccessPage({ searchParams }: AccessPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка доступа и SSO" />}>
+      <AdminAccessPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
   const params = await searchParams;
   const origin = resolvePublicOrigin({ headers: await headers() });
   const user = await requireCurrentUserPermission("auth_providers:manage");

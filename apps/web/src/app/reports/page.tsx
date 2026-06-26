@@ -4,6 +4,8 @@ import {
   type CriterionHeatmapRow,
   type MetricInsightItem
 } from "@/components/reports/analytics-intelligence";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import {
   ChartPanel,
   QuotaProgressBars,
@@ -74,7 +76,15 @@ type ReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+export default function ReportsPage({ searchParams }: ReportsPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="reports" label="Загрузка аналитики качества" />}>
+      <ReportsPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const user = await requireCurrentUserPermission("reports:read");
   const period = resolveReportPeriod(params);

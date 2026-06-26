@@ -5,8 +5,11 @@ import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { enqueueBackendJob, cancelBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
 import { logBackendEvent } from "@/lib/observability";
+import { queueDirectorySync as queueDirectorySyncAction } from "@/lib/system-enqueue-actions";
 
-export { queueDirectorySync } from "@/lib/system-enqueue-actions";
+export async function queueDirectorySync(formData: FormData) {
+  return queueDirectorySyncAction(formData);
+}
 
 function numberField(formData: FormData, key: string, fallback: number, max: number) {
   const value = formData.get(key);

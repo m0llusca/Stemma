@@ -10,7 +10,8 @@ import {
   UserRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
@@ -101,7 +102,15 @@ function singleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default async function ReviewDetailPage({ params, searchParams }: ReviewDetailPageProps) {
+export default function ReviewDetailPage({ params, searchParams }: ReviewDetailPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="detail" label="Загрузка проверки" />}>
+      <ReviewDetailPageContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPageProps) {
   const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, requireCurrentUserPermission("reviews:read")]);
   const requestedReviewSource = singleParam(rawSearchParams.reviewSource);
   const reviewSource =

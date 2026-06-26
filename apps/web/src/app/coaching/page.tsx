@@ -16,6 +16,8 @@ import {
   UserRound,
   X
 } from "lucide-react";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
@@ -126,7 +128,15 @@ function statusRank(status: string) {
   return 3;
 }
 
-export default async function CoachingPage({ searchParams }: CoachingPageProps) {
+export default function CoachingPage({ searchParams }: CoachingPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton label="Загрузка обучения" />}>
+      <CoachingPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("training:manage"), searchParams]);
   const now = new Date();
   const view = selectedView(rawSearchParams.view);

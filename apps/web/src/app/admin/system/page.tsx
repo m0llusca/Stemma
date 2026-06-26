@@ -1,6 +1,8 @@
 import type { IdentityProviderType } from "@prisma/client";
 import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { certificationStatusTone } from "@/lib/certification/status";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -8,7 +10,8 @@ import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
-import { queueDirectorySync, queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
+import { queueDirectorySync } from "@/lib/system-enqueue-actions";
+import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -185,7 +188,15 @@ function StatCard({
   );
 }
 
-export default async function AdminSystemPage({ searchParams }: AdminSystemPageProps) {
+export default function AdminSystemPage({ searchParams }: AdminSystemPageProps) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка системы" />}>
+      <AdminSystemPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   const params = await searchParams;
   const activeSection = systemSectionParam(params.section);
   const user = await requireCurrentUserPermission("backend_jobs:manage");

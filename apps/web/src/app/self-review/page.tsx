@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { MessageSquareText, ShieldQuestion } from "lucide-react";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/loading-states";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
@@ -28,7 +30,15 @@ function feedbackTone(status: string) {
   return "pill--neutral";
 }
 
-export default async function SelfReviewPage() {
+export default function SelfReviewPage() {
+  return (
+    <Suspense fallback={<PageSkeleton label="Загрузка обратной связи" />}>
+      <SelfReviewPageContent />
+    </Suspense>
+  );
+}
+
+async function SelfReviewPageContent() {
   const user = await requireCurrentUserPermission("feedback:acknowledge");
   const scopedToAgent = user.role === "SUPPORT_AGENT";
   const [conversations, assignments, teamScoreAggregate] = await Promise.all([
