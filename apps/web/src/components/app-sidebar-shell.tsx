@@ -14,7 +14,7 @@ import {
   Settings,
   UserCheck
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { resolveWorkspaceBranding, type WorkspaceBranding } from "@/lib/ui-theme";
 
 type SidebarIcon = "dashboard" | "reviews" | "self-review" | "calibration" | "coaching" | "reports" | "admin";
@@ -45,11 +45,13 @@ const groupLabels = {
 } satisfies Record<SidebarGroup, string>;
 
 function isActivePath(pathname: string, href: string) {
-  if (href === "/admin") {
-    return pathname === href || pathname.startsWith("/admin/");
-  }
-
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function activeHrefForPath(pathname: string, items: SidebarNavItem[]) {
+  return items
+    .filter((item) => isActivePath(pathname, item.href))
+    .sort((first, second) => second.href.length - first.href.length)[0]?.href;
 }
 
 export function AppSidebarShell({
@@ -64,6 +66,7 @@ export function AppSidebarShell({
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
+  const activeHref = useMemo(() => activeHrefForPath(pathname, items), [items, pathname]);
   const groupedItems = (["workspace", "data", "admin"] as const)
     .map((group) => ({
       group,
@@ -116,7 +119,7 @@ export function AppSidebarShell({
             <div className="app-sidebar__nav-group-list">
               {groupItems.map((item) => {
                 const Icon = icons[item.icon];
-                const isActive = isActivePath(pathname, item.href);
+                const isActive = item.href === activeHref;
 
                 return (
                   <Link

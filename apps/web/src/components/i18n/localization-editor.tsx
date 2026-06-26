@@ -55,7 +55,7 @@ function initialDraftText(translationKey: TranslationKeyEntry, value: Translatio
 }
 
 function statusLabel(value: TranslationValue | null, draftText: string) {
-  if (!value?.publishedText) {
+  if (value?.publishedText == null) {
     return "Не опубликовано";
   }
 
