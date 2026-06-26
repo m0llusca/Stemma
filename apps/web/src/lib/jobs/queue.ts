@@ -2,12 +2,15 @@ import type { BackendJob, BackendJobStatus, BackendJobType, Prisma } from "@pris
 import { auditLog } from "@/lib/audit";
 import { syncDirectoryProvider } from "@/lib/auth/directory-sync";
 import { prisma } from "@/lib/db";
+import { enqueueBackendJob, type BackendJobPayload } from "@/lib/jobs/enqueue";
 import type { IntegrationJobOperation } from "@/lib/integration-import-service";
 import { runIntegrationConnector, runSelectedOtrsImportConnector } from "@/lib/integrations/runner";
 import { logBackendEvent } from "@/lib/observability";
 import { ingestWebhookEvent } from "@/lib/webhooks/inbound";
 
-export type BackendJobPayload = Record<string, unknown>;
+export { enqueueBackendJob };
+export type { BackendJobPayload };
+
 export const backendJobQueueDefaults = {
   claimRetries: 3,
   retryBaseDelayMs: 60_000,
@@ -66,8 +69,6 @@ type JobClient = Pick<
   | "auditLog"
 >;
 
-type EnqueueJobClient = Pick<Prisma.TransactionClient, "backendJob">;
-
 function parsePayloadJson(payloadJson: string): BackendJobPayload {
   try {
     const parsed = JSON.parse(payloadJson);
@@ -124,30 +125,6 @@ async function restoreCancelledIntegrationImportState(
       }
     });
   }
-}
-
-export async function enqueueBackendJob(input: {
-  workspaceId: string;
-  type: BackendJobType;
-  payload?: BackendJobPayload;
-  queueName?: string;
-  priority?: number;
-  runAfter?: Date;
-  maxAttempts?: number;
-  createdById?: string;
-}, client: EnqueueJobClient = prisma) {
-  return client.backendJob.create({
-    data: {
-      workspaceId: input.workspaceId,
-      type: input.type,
-      payloadJson: JSON.stringify(input.payload ?? {}),
-      queueName: input.queueName ?? "default",
-      priority: input.priority ?? 100,
-      runAfter: input.runAfter ?? new Date(),
-      maxAttempts: input.maxAttempts ?? 3,
-      createdById: input.createdById
-    }
-  });
 }
 
 export async function getBackendQueueMetrics(workspaceId: string): Promise<Array<{ queueName: string; status: BackendJobStatus; count: number }>> {

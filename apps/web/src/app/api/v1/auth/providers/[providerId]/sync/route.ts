@@ -1,7 +1,7 @@
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
-import { enqueueBackendJob } from "@/lib/jobs/queue";
+import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 
 export const dynamic = "force-dynamic";
 

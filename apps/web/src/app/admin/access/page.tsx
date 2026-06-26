@@ -20,7 +20,7 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { resolvePublicOrigin } from "@/lib/public-origin";
-import { queueDirectorySync } from "@/lib/system-actions";
+import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 
 export const dynamic = "force-dynamic";
 
