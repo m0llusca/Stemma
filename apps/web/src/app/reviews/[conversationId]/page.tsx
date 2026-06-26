@@ -67,11 +67,15 @@ function dueDateTone(value: Date | null, now: Date, state: ReviewState): StatusT
     return "neutral";
   }
 
+  if (state === "finalized") {
+    return "positive";
+  }
+
   if (value.getTime() < now.getTime()) {
     return "negative";
   }
 
-  return state === "finalized" ? "positive" : "warning";
+  return "warning";
 }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
