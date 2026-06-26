@@ -5,7 +5,7 @@ import {
   getBuiltInEntries,
   type TranslationEntries
 } from "./built-in";
-import { normalizeLocaleCode } from "./locale-codes";
+import { baseLocaleCode, normalizeLocaleCode } from "./locale-codes";
 
 type WorkspaceLocale = {
   id: string;
@@ -18,11 +18,20 @@ export type Dictionary = {
   t(key: string): string;
 };
 
-async function findEnabledLocale(workspaceId: string, code: string): Promise<WorkspaceLocale | null> {
-  return prisma.locale.findFirst({
+function uniqueLocaleCodes(codes: string[]): string[] {
+  return [...new Set(codes)];
+}
+
+async function findPreferredEnabledLocale(
+  workspaceId: string,
+  codes: string[]
+): Promise<WorkspaceLocale | null> {
+  const locales = await prisma.locale.findMany({
     where: {
       workspaceId,
-      code,
+      code: {
+        in: codes
+      },
       isEnabled: true
     },
     select: {
@@ -30,6 +39,8 @@ async function findEnabledLocale(workspaceId: string, code: string): Promise<Wor
       code: true
     }
   });
+
+  return codes.map((code) => locales.find((locale) => locale.code === code)).find(Boolean) ?? null;
 }
 
 async function findDefaultEnabledLocale(workspaceId: string): Promise<WorkspaceLocale | null> {
@@ -51,8 +62,12 @@ export async function getDictionary(
   requestedLocale: string
 ): Promise<Dictionary> {
   const normalizedRequestedLocale = normalizeLocaleCode(requestedLocale);
+  const candidateLocaleCodes = uniqueLocaleCodes([
+    normalizedRequestedLocale,
+    baseLocaleCode(normalizedRequestedLocale)
+  ]);
   const locale =
-    (await findEnabledLocale(workspaceId, normalizedRequestedLocale)) ??
+    (await findPreferredEnabledLocale(workspaceId, candidateLocaleCodes)) ??
     (await findDefaultEnabledLocale(workspaceId));
   const selectedLocaleCode = locale?.code ?? builtInDefaultLocale;
   const builtInEntries = getBuiltInEntries(selectedLocaleCode);

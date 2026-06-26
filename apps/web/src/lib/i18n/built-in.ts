@@ -1,3 +1,4 @@
+import { baseLocaleCode, normalizeLocaleCode } from "./locale-codes";
 import { fullTranslationKey, translationKeySeeds } from "./keys";
 
 export const builtInDefaultLocale = "ru";
@@ -13,9 +14,10 @@ export const builtInDictionaries = {
 } satisfies Record<BuiltInLocale, TranslationEntries>;
 
 export function getBuiltInEntries(localeCode: string): TranslationEntries {
-  const baseLanguage = localeCode.split("-")[0];
+  const normalizedLocaleCode = normalizeLocaleCode(localeCode);
+  const baseLanguage = baseLocaleCode(normalizedLocaleCode);
   return (
-    builtInDictionaries[localeCode as BuiltInLocale] ??
+    builtInDictionaries[normalizedLocaleCode as BuiltInLocale] ??
     builtInDictionaries[baseLanguage as BuiltInLocale] ??
     builtInDictionaries[builtInDefaultLocale]
   );

@@ -1,4 +1,5 @@
-const localeCodePattern = /^[A-Za-z]{2,3}(?:-[A-Za-z]{2}|\-[0-9]{3})?$/;
+const localeCodePattern =
+  /^[A-Za-z]{2,3}(?:-[A-Za-z]{4}(?:-(?:[A-Za-z]{2}|[0-9]{3}))?|-(?:[A-Za-z]{2}|[0-9]{3}))?$/;
 
 export function normalizeLocaleCode(value: string): string {
   const rawCode = value.trim();
@@ -7,13 +8,22 @@ export function normalizeLocaleCode(value: string): string {
     throw new Error("Некорректный код языка.");
   }
 
-  const [language, region] = rawCode.split("-");
-  const normalizedLanguage = language.toLowerCase();
+  const parts = rawCode.split("-");
+  const normalizedParts = [parts[0].toLowerCase()];
 
-  if (!region) {
-    return normalizedLanguage;
+  for (const subtag of parts.slice(1)) {
+    if (/^[A-Za-z]{4}$/.test(subtag)) {
+      normalizedParts.push(`${subtag[0].toUpperCase()}${subtag.slice(1).toLowerCase()}`);
+    } else if (/^[A-Za-z]{2}$/.test(subtag)) {
+      normalizedParts.push(subtag.toUpperCase());
+    } else {
+      normalizedParts.push(subtag);
+    }
   }
 
-  const normalizedRegion = /^\d+$/.test(region) ? region : region.toUpperCase();
-  return `${normalizedLanguage}-${normalizedRegion}`;
+  return normalizedParts.join("-");
+}
+
+export function baseLocaleCode(value: string): string {
+  return normalizeLocaleCode(value).split("-")[0];
 }

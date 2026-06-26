@@ -2,13 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   localeFindFirst: vi.fn(),
+  localeFindMany: vi.fn(),
   translationValueFindMany: vi.fn()
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     locale: {
-      findFirst: mocks.localeFindFirst
+      findFirst: mocks.localeFindFirst,
+      findMany: mocks.localeFindMany
     },
     translationValue: {
       findMany: mocks.translationValueFindMany
@@ -22,15 +24,19 @@ describe("i18n runtime", () => {
   });
 
   it("normalizes supported locale codes and rejects unsafe values", async () => {
-    const { normalizeLocaleCode } = await import("@/lib/i18n/locale-codes");
+    const { baseLocaleCode, normalizeLocaleCode } = await import("@/lib/i18n/locale-codes");
 
     expect(normalizeLocaleCode("EN-us")).toBe("en-US");
     expect(normalizeLocaleCode("ru")).toBe("ru");
+    expect(normalizeLocaleCode("zh-hans-cn")).toBe("zh-Hans-CN");
+    expect(normalizeLocaleCode("sr-cyrl")).toBe("sr-Cyrl");
+    expect(baseLocaleCode("zh-Hans-CN")).toBe("zh");
+    expect(baseLocaleCode("EN-us")).toBe("en");
     expect(() => normalizeLocaleCode("../ru")).toThrow("Некорректный код языка.");
   });
 
   it("loads published workspace values over built-in fallback", async () => {
-    mocks.localeFindFirst.mockResolvedValue({ id: "locale-en", code: "en" });
+    mocks.localeFindMany.mockResolvedValue([{ id: "locale-en", code: "en" }]);
     mocks.translationValueFindMany.mockResolvedValue([
       {
         publishedText: "Workspace dashboard override",
@@ -65,9 +71,8 @@ describe("i18n runtime", () => {
   });
 
   it("falls back to default enabled workspace locale and built-in ru", async () => {
-    mocks.localeFindFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "locale-ru", code: "ru" });
+    mocks.localeFindMany.mockResolvedValue([]);
+    mocks.localeFindFirst.mockResolvedValue({ id: "locale-ru", code: "ru" });
     mocks.translationValueFindMany.mockResolvedValue([]);
 
     const { getDictionary } = await import("@/lib/i18n/dictionary");
@@ -78,7 +83,7 @@ describe("i18n runtime", () => {
   });
 
   it("falls back to base built-in language for enabled regional locales", async () => {
-    mocks.localeFindFirst.mockResolvedValue({ id: "locale-en-us", code: "en-US" });
+    mocks.localeFindMany.mockResolvedValue([{ id: "locale-en-us", code: "en-US" }]);
     mocks.translationValueFindMany.mockResolvedValue([]);
 
     const { getDictionary } = await import("@/lib/i18n/dictionary");
@@ -87,5 +92,25 @@ describe("i18n runtime", () => {
     expect(dict.locale).toBe("en-US");
     expect(dict.t("dashboard.title")).toBe("Quality dashboard");
     expect(dict.t("shell.nav.dashboard")).toBe("Dashboard");
+  });
+
+  it("uses base workspace locale before the default locale", async () => {
+    mocks.localeFindMany.mockResolvedValue([{ id: "locale-en", code: "en" }]);
+    mocks.translationValueFindMany.mockResolvedValue([]);
+
+    const { getDictionary } = await import("@/lib/i18n/dictionary");
+    const dict = await getDictionary("workspace-1", "en-US");
+
+    expect(dict.locale).toBe("en");
+    expect(dict.t("dashboard.title")).toBe("Quality dashboard");
+    expect(mocks.localeFindFirst).not.toHaveBeenCalled();
+    expect(mocks.translationValueFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: "workspace-1",
+          localeId: "locale-en"
+        })
+      })
+    );
   });
 });
