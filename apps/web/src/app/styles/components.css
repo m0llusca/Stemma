@@ -992,7 +992,7 @@ pre code {
 }
 
 .dashboard-kpi {
-  --dashboard-kpi-copy-offset: 7px;
+  --dashboard-kpi-copy-offset: 3px;
   position: relative;
   display: grid;
   min-width: 0;

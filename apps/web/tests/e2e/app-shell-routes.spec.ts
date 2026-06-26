@@ -140,7 +140,9 @@ test("authenticated app shell routes render stable chrome and content", async ({
         kpiLabel.evaluate((element) => element.getBoundingClientRect().left),
         kpiFootnote.evaluate((element) => element.getBoundingClientRect().left)
       ]);
-      expect(valueLeft, "dashboard KPI value should align to the icon glyph axis, not the icon box edge").toBeGreaterThan(iconLeft);
+      const kpiCopyInset = valueLeft - iconLeft;
+      expect(kpiCopyInset, "dashboard KPI copy should move slightly inward from the icon box edge").toBeGreaterThanOrEqual(2);
+      expect(kpiCopyInset, "dashboard KPI copy should not drift too far right from the icon").toBeLessThanOrEqual(5);
       expect(Math.abs(valueLeft - labelLeft), "dashboard KPI value and title should share the same inset").toBeLessThanOrEqual(1);
       expect(Math.abs(valueLeft - footnoteLeft), "dashboard KPI value and footnote should share the same inset").toBeLessThanOrEqual(1);
 
