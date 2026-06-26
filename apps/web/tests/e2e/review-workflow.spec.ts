@@ -169,6 +169,8 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(znunyIntegrationCard).toContainText("В плане");
   await expect(znunyIntegrationCard).toContainText("Не готово");
   await expect(znunyIntegrationCard).toContainText("Проверка готова");
+  await expect(znunyIntegrationCard.locator(".status-badge.status-tone--warning").filter({ hasText: "Не готово" })).toBeVisible();
+  await expect(znunyIntegrationCard.locator(".status-badge.status-tone--positive").filter({ hasText: "Проверка готова" })).toBeVisible();
   await znunyIntegrationCard.getByRole("link", { name: "Открыть панель" }).click();
   await expect(page.getByRole("heading", { name: "Сводка источника" })).toBeVisible();
   await expect(page.getByText("Импортировано 18/100")).toBeVisible();

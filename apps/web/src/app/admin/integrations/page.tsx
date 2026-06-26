@@ -7,14 +7,15 @@ import { IntegrationQueueRunForm } from "@/components/integrations/integration-q
 import { SourceLogoMark } from "@/components/integrations/source-logo-mark";
 import { PageSkeleton } from "@/components/loading-states";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
-import { certificationStatusTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
+import { toneForCount, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -125,10 +126,52 @@ function idPayloadFilters(ids: string[]) {
   }));
 }
 
-function integrationTone(status: string) {
-  if (status === "error" || status === "disabled") return "pill--warn";
-  if (status === "active" || status === "ready") return "pill--ok";
-  return "pill--neutral";
+function integrationTone(status: string): StatusTone {
+  if (status === "error") return "negative";
+  if (status === "disabled") return "warning";
+  if (status === "active" || status === "ready") return "positive";
+  if (status === "queued") return "info";
+  return "neutral";
+}
+
+function certificationTone(status: string): StatusTone {
+  if (["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(status)) {
+    return "positive";
+  }
+
+  if (
+    [
+      "ready_for_live_certification",
+      "waiting_for_access",
+      "limited",
+      "not_production_ready",
+      "configuration_required",
+      "secret_required",
+      "certificate_required"
+    ].includes(status)
+  ) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
+function readinessTone(readiness: string): StatusTone {
+  if (readiness === "production_slice") return "positive";
+  if (readiness === "adapter_ready") return "info";
+  if (readiness === "roadmap") return "warning";
+  return "neutral";
+}
+
+function readinessActionTone(input: { hasBaseUrl: boolean; hasRequiredSecrets: boolean }): StatusTone {
+  return input.hasBaseUrl && input.hasRequiredSecrets ? "positive" : "warning";
+}
+
+function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
+  if (tone === "ok") return "positive";
+  if (tone === "warn") return "warning";
+  if (tone === "error") return "negative";
+  return "neutral";
 }
 
 function capabilityReadinessLabel(value: string) {
@@ -594,16 +637,28 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                        name={integration.displayName}
 	                        href={`/admin/integrations/${integration.id}`}
 	                        meta={capabilityTypeLabel(integration.type)}
-	                        status={<span className={`pill ${integrationTone(integration.status)}`}>{integrationStatusLabel(integration.status)}</span>}
+	                        status={
+	                          <StatusBadge
+	                            label="Статус"
+	                            value={integrationStatusLabel(integration.status)}
+	                            tone={integrationTone(integration.status)}
+	                          />
+	                        }
 	                      />
 	                    </div>
 	                    <div className="ops-table__cell">
 	                      <span className="ops-table__label">Состояние</span>
 	                      <div className="integration-chip-list">
-	                        <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
-	                          {compactCertificationLabel(capability.certification.summary.label)}
-	                        </span>
-	                        <span className="pill pill--neutral">{compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })}</span>
+	                        <StatusBadge
+	                          label="Сертификация"
+	                          value={compactCertificationLabel(capability.certification.summary.label)}
+	                          tone={certificationTone(capability.certification.summary.status)}
+	                        />
+	                        <StatusBadge
+	                          label="Live"
+	                          value={compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })}
+	                          tone={readinessActionTone({ hasBaseUrl, hasRequiredSecrets })}
+	                        />
 	                        <CertificationHelpTooltip label={`Что значит статус сертификации для ${integration.displayName}?`} />
 	                      </div>
 	                      <span className="record-meta">{capabilityReadinessLabel(capability.readiness)}</span>
@@ -625,7 +680,11 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                      </span>
 	                      <span className="record-meta">ошибок {syncState.progress.errorCount}</span>
 	                      {latestActivityStatus ? (
-	                        <span className={`pill ${latestActivityStatus.pillClass}`}>{latestActivityStatus.label}</span>
+	                        <StatusBadge
+	                          label="Статус"
+	                          value={latestActivityStatus.label}
+	                          tone={operationalTone(latestActivityStatus.tone)}
+	                        />
 	                      ) : (
 	                        <span className="record-meta">Запусков еще не было</span>
 	                      )}
@@ -682,13 +741,20 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             <h2 id="activity-title" className="ops-panel__title">Журнал интеграций</h2>
             <p className="ops-panel__subtitle">Запуски, диагностика и фоновые задачи в одном месте.</p>
           </div>
-          <span className="pill pill--neutral">{recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length}</span>
+          <StatusBadge
+            label="Всего"
+            value={recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length}
+            tone={toneForCount(recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length, {
+              zero: "neutral",
+              nonZero: "info"
+            })}
+          />
         </div>
         <div className="integration-activity-grid">
           <section className="integration-activity-panel" aria-labelledby="activity-runs-title">
             <div className="integration-activity-panel__header">
               <h3 id="activity-runs-title">Проверка и импорт</h3>
-              <span className="pill pill--neutral">{recentRuns.length}</span>
+              <StatusBadge label="Всего" value={recentRuns.length} tone={toneForCount(recentRuns.length, { zero: "neutral", nonZero: "info" })} />
             </div>
             <div className="integration-activity-list">
               {recentRuns.length > 0 ? (
@@ -712,8 +778,10 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       />
                       <div className="integration-activity-row__body">
                         <div className="integration-chip-list">
-                          <span className={`pill ${runStatus.pillClass}`}>{runStatus.label}</span>
-                          {job && jobStatus ? <span className={`pill ${jobStatus.pillClass}`}>задача: {jobStatus.label}</span> : null}
+                          <StatusBadge label="Запуск" value={runStatus.label} tone={operationalTone(runStatus.tone)} />
+                          {job && jobStatus ? (
+                            <StatusBadge label="Задача" value={jobStatus.label} tone={operationalTone(jobStatus.tone)} />
+                          ) : null}
                         </div>
                         <span className="record-meta">
                           {formatCompactDate(run.startedAt)} · проверено {displayedCheckedCount(run)} · импортировано {run.importedCount}
@@ -731,7 +799,11 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
           <section className="integration-activity-panel" aria-labelledby="activity-diagnostics-title">
             <div className="integration-activity-panel__header">
               <h3 id="activity-diagnostics-title">Диагностика</h3>
-              <span className="pill pill--neutral">{diagnosticRuns.length}</span>
+              <StatusBadge
+                label="Всего"
+                value={diagnosticRuns.length}
+                tone={toneForCount(diagnosticRuns.length, { zero: "neutral", nonZero: "info" })}
+              />
             </div>
             <div className="integration-activity-list">
               {diagnosticRuns.length > 0 ? (
@@ -747,7 +819,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                         compact
                       />
                       <div className="integration-activity-row__body">
-                        <span className={`pill ${status.pillClass}`}>{status.label}</span>
+                        <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
                         <span className="record-meta compact-text">{formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}</span>
                       </div>
                     </Link>
@@ -762,7 +834,11 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
           <section className="integration-activity-panel" aria-labelledby="activity-jobs-title">
             <div className="integration-activity-panel__header">
               <h3 id="activity-jobs-title">Фоновые задачи</h3>
-              <span className="pill pill--neutral">{recentIntegrationJobs.length}</span>
+              <StatusBadge
+                label="Всего"
+                value={recentIntegrationJobs.length}
+                tone={toneForCount(recentIntegrationJobs.length, { zero: "neutral", nonZero: "info" })}
+              />
             </div>
             <div className="integration-activity-list">
               {recentIntegrationJobs.length > 0 ? (
@@ -779,7 +855,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                     <Link key={job.id} href={`/admin/system/jobs/${job.id}`} className="integration-activity-row">
                       <SourceIdentity source={source} name={sourceName} meta={`Задача ${job.id.slice(0, 8)}`} compact />
                       <div className="integration-activity-row__body">
-                        <span className={`pill ${status.pillClass}`}>{status.label}</span>
+                        <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
                         <span className="record-meta">
                           {formatCompactDate(job.runAfter)} · попытка {job.attempts}/{job.maxAttempts}
                           {runId ? ` · запуск ${runId.slice(0, 8)}` : ""}
@@ -833,10 +909,18 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                 </div>
                 <div className="ops-table__cell">
                   <span className="ops-table__label">Готовность</span>
-                  <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
-                    {capability.certification.summary.label}
-                  </span>
-                  <span className="record-meta">{capabilityReadinessLabel(capability.readiness)}</span>
+                  <div className="integration-chip-list">
+                    <StatusBadge
+                      label="Сертификация"
+                      value={capability.certification.summary.label}
+                      tone={certificationTone(capability.certification.summary.status)}
+                    />
+                    <StatusBadge
+                      label="Готовность"
+                      value={capabilityReadinessLabel(capability.readiness)}
+                      tone={readinessTone(capability.readiness)}
+                    />
+                  </div>
                 </div>
                 <span className="ops-table__cell">
                   <span className="ops-table__label">Авторизация</span>
