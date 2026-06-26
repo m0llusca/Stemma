@@ -58,9 +58,19 @@ describe("integration install contract registry", () => {
     expect(integrationInstallContracts.otrs).toMatchObject({
       family: "otrs_family",
       installState: "token-only",
-      authModes: ["user_password", "session_id"]
+      authModes: ["user_password", "session_create", "tls_ca_bundle"]
     });
     expect(integrationInstallContracts.znuny.displayName).toBe("Znuny LTS");
+    expect(integrationInstallContracts.znuny.authModes).toEqual([
+      "user_password",
+      "session_create",
+      "tls_ca_bundle"
+    ]);
+    expect(integrationInstallContracts.otobo.authModes).toEqual([
+      "user_password",
+      "session_create",
+      "tls_ca_bundle"
+    ]);
     expect(integrationInstallContracts.otobo.requiredScopes).toContain("ticket:read");
   });
 
@@ -73,5 +83,7 @@ describe("integration install contract registry", () => {
   it("returns undefined for unknown sources", () => {
     expect(getIntegrationInstallContract("zendesk")?.displayName).toBe("Zendesk Support");
     expect(getIntegrationInstallContract("nope")).toBeUndefined();
+    expect(getIntegrationInstallContract("constructor")).toBeUndefined();
+    expect(getIntegrationInstallContract("__proto__")).toBeUndefined();
   });
 });

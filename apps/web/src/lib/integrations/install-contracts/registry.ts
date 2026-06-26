@@ -96,6 +96,8 @@ const enterpriseLimitations = [
   "Registry-only контракт не подключён к UI/capability manifest в этом изменении."
 ] as const;
 
+const otrsFamilyAuthModes = ["user_password", "session_create", "tls_ca_bundle"] as const;
+
 export const integrationInstallSources = [
   "zendesk",
   "freshdesk",
@@ -246,7 +248,7 @@ export const integrationInstallContracts = {
     family: "otrs_family",
     displayName: "OTRS Community Edition 6",
     installState: "token-only",
-    authModes: ["user_password", "session_id"],
+    authModes: otrsFamilyAuthModes,
     requiredScopes: ["ticket:read"],
     healthChecks: ["GenericTicketConnectorREST TicketSearch"],
     limitations: tokenOnlyHelpdeskLimitations
@@ -256,7 +258,7 @@ export const integrationInstallContracts = {
     family: "otrs_family",
     displayName: "Znuny LTS",
     installState: "token-only",
-    authModes: ["user_password", "session_id"],
+    authModes: otrsFamilyAuthModes,
     requiredScopes: ["ticket:read"],
     healthChecks: ["GenericTicketConnectorREST TicketSearch"],
     limitations: tokenOnlyHelpdeskLimitations
@@ -266,7 +268,7 @@ export const integrationInstallContracts = {
     family: "otrs_family",
     displayName: "OTOBO",
     installState: "token-only",
-    authModes: ["user_password", "session_id"],
+    authModes: otrsFamilyAuthModes,
     requiredScopes: ["ticket:read"],
     healthChecks: ["GenericTicketConnectorREST TicketSearch"],
     limitations: tokenOnlyHelpdeskLimitations
@@ -278,5 +280,9 @@ export function listIntegrationInstallContracts(): IntegrationInstallContract[] 
 }
 
 export function getIntegrationInstallContract(source: string): IntegrationInstallContract | undefined {
+  if (!Object.prototype.hasOwnProperty.call(integrationInstallContracts, source)) {
+    return undefined;
+  }
+
   return integrationInstallContracts[source as IntegrationInstallSource];
 }
