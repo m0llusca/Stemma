@@ -4,14 +4,16 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
 import { PageSkeleton } from "@/components/loading-states";
+import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OtrsConnectionForm } from "@/components/integrations/otrs-connection-form";
 import { OtrsDiagnosticsPanel } from "@/components/integrations/otrs-diagnostics-panel";
 import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
 import { OtrsPreviewPanel } from "@/components/integrations/otrs-preview-panel";
 import { OtrsRunHistory } from "@/components/integrations/otrs-run-history";
 import { OtrsWebserviceChecklist } from "@/components/integrations/otrs-webservice-checklist";
+import { CertificationEvidenceList } from "@/components/integrations/integration-ui";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
-import { certificationStatusTone } from "@/lib/certification/status";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
@@ -19,6 +21,7 @@ import { parseOtrsConnectorConfig, redactOtrsConfigForUi } from "@/lib/integrati
 import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/credentials";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
+import type { StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -146,6 +149,28 @@ function readinessActionLabel(hasBaseUrl: boolean, hasRequiredSecrets: boolean) 
   return hasBaseUrl && hasRequiredSecrets ? "Готово к живой сертификации" : "Ожидает доступы";
 }
 
+function certificationTone(status: string): StatusTone {
+  if (["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(status)) {
+    return "positive";
+  }
+
+  if (
+    [
+      "ready_for_live_certification",
+      "waiting_for_access",
+      "limited",
+      "not_production_ready",
+      "configuration_required",
+      "secret_required",
+      "certificate_required"
+    ].includes(status)
+  ) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
 function credentialFingerprintLabel(value: string | null) {
   return value ? `${value.slice(0, 16)}...` : null;
 }
@@ -222,6 +247,28 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
             }
           }
         }
+      },
+      certificationEvidence: {
+        where: {
+          workspaceId
+        },
+        orderBy: {
+          recordedAt: "desc"
+        },
+        take: 5,
+        select: {
+          id: true,
+          runId: true,
+          result: true,
+          envGate: true,
+          recordedAt: true,
+          actor: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        }
       }
     }
   });
@@ -252,9 +299,11 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
               {capability.displayName} · {capability.authModes.map(authModeLabel).join(", ")}
             </p>
           </div>
-          <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
-            {capability.certification.summary.label}
-          </span>
+          <StatusBadge
+            label="Готовность"
+            value={capability.certification.summary.label}
+            tone={certificationTone(capability.certification.summary.status)}
+          />
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -340,6 +389,10 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
             </ul>
           </div>
         ) : null}
+
+        <EvidenceDrawer title="Evidence">
+          <CertificationEvidenceList evidence={integration.certificationEvidence} />
+        </EvidenceDrawer>
       </div>
     </section>
   );
@@ -666,9 +719,11 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
                   placement="top-end"
                 />
               </div>
-              <span className={`pill ${certificationStatusTone(capability.certification.summary.status)}`}>
-                {capability.certification.summary.label}
-              </span>
+              <StatusBadge
+                label="Готовность"
+                value={capability.certification.summary.label}
+                tone={certificationTone(capability.certification.summary.status)}
+              />
               <span className="record-meta">
                 {capability.certification.summary.productionReady
                   ? "Можно использовать в промышленном контуре."

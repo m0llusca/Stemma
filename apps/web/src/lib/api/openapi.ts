@@ -845,6 +845,19 @@ export function buildOpenApiDocument() {
             protectedEnvGate: { type: "boolean" }
           }
         },
+        CertificationRunSummary: {
+          type: "object",
+          required: ["id", "targetType", "source", "status", "startedAt", "nextAction"],
+          properties: {
+            id: { type: "string" },
+            targetType: { type: "string", enum: ["integration", "identity_provider"] },
+            source: { type: "string" },
+            status: { type: "string", enum: ["running", "passed", "failed", "blocked"] },
+            startedAt: { type: "string", format: "date-time" },
+            finishedAt: { type: "string", format: "date-time", nullable: true },
+            nextAction: { type: "object", additionalProperties: true }
+          }
+        },
         PhaseDReadinessItem: {
           type: "object",
           required: [
@@ -914,12 +927,30 @@ export function buildOpenApiDocument() {
         },
         ReadinessResponse: {
           type: "object",
-          required: ["status", "runtime", "workspace", "phaseD"],
+          required: ["status", "runtime", "workspace", "phaseD", "certification"],
           properties: {
             status: { type: "string", enum: ["ready", "not_ready"] },
             runtime: { type: "object", additionalProperties: true },
             workspace: { type: "object", additionalProperties: true },
-            phaseD: { $ref: "#/components/schemas/PhaseDReadinessReport" }
+            phaseD: { $ref: "#/components/schemas/PhaseDReadinessReport" },
+            certification: {
+              type: "object",
+              required: ["latestRuns", "evidenceModel"],
+              properties: {
+                latestRuns: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/CertificationRunSummary" }
+                },
+                evidenceModel: {
+                  type: "object",
+                  required: ["requiredFields", "protectedEnvGates"],
+                  properties: {
+                    requiredFields: { type: "array", items: { type: "string" } },
+                    protectedEnvGates: { type: "array", items: { type: "string" } }
+                  }
+                }
+              }
+            }
           }
         },
         PayloadLimits: {

@@ -78,9 +78,24 @@ describe("openapi contract", () => {
       $ref: "#/components/schemas/CertificationStatus"
     });
     expect(document.components.schemas.ReadinessResponse.required).toContain("phaseD");
+    expect(document.components.schemas.ReadinessResponse.required).toContain("certification");
     expect(document.components.schemas.ReadinessResponse.properties.phaseD).toEqual({
       $ref: "#/components/schemas/PhaseDReadinessReport"
     });
+    expect(document.components.schemas.ReadinessResponse.properties.certification.properties.latestRuns).toEqual({
+      type: "array",
+      items: { $ref: "#/components/schemas/CertificationRunSummary" }
+    });
+    expect(document.components.schemas.CertificationRunSummary).toMatchObject({
+      type: "object",
+      required: ["id", "targetType", "source", "status", "startedAt", "nextAction"]
+    });
+    expect(document.components.schemas.CertificationRunSummary.properties.status.enum).toEqual([
+      "running",
+      "passed",
+      "failed",
+      "blocked"
+    ]);
     expect(document.components.schemas.PhaseDReadinessReport.properties.integrations.items).toEqual({
       $ref: "#/components/schemas/PhaseDReadinessItem"
     });

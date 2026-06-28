@@ -1,6 +1,63 @@
 import type { ReactNode } from "react";
 import { CopyButton } from "@/components/copy-button";
 
+export type CertificationEvidenceListItem = {
+  id: string;
+  runId: string;
+  result: string;
+  envGate: string;
+  recordedAt: Date | string;
+  actor?: { name: string | null; email: string | null } | null;
+};
+
+function evidenceDate(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
+
+  return Number.isNaN(date.getTime()) ? "Нет данных" : date.toLocaleString("ru-RU");
+}
+
+function evidenceResultLabel(value: string) {
+  const labels: Record<string, string> = {
+    blocked: "Заблокировано",
+    failed: "Ошибка",
+    passed: "Пройдено",
+    skipped: "Пропущено"
+  };
+
+  return labels[value] ?? value;
+}
+
+export function CertificationEvidenceList({
+  evidence,
+  emptyText = "Evidence по этому источнику пока не записан."
+}: {
+  evidence: CertificationEvidenceListItem[];
+  emptyText?: string;
+}) {
+  if (evidence.length === 0) {
+    return <p className="record-meta">{emptyText}</p>;
+  }
+
+  return (
+    <div className="grid min-w-0 gap-2">
+      {evidence.map((item) => (
+        <div key={item.id} className="admin-tile admin-tile--compact">
+          <span className="admin-tile__icon admin-tile__icon--plain">E</span>
+          <span className="admin-tile__body">
+            <span className="record-title record-title--tight">{evidenceResultLabel(item.result)}</span>
+            <span className="record-meta compact-text">
+              {evidenceDate(item.recordedAt)} · run {item.runId.slice(0, 8)}
+            </span>
+            <span className="record-meta compact-text">
+              {item.envGate} · {item.actor?.name ?? item.actor?.email ?? "актор не указан"}
+            </span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SectionHeader({
   eyebrow,
   title,

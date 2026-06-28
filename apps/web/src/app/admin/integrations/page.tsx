@@ -4,8 +4,10 @@ import { Suspense, type ReactNode } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
+import { CertificationEvidenceList } from "@/components/integrations/integration-ui";
 import { SourceLogoMark } from "@/components/integrations/source-logo-mark";
 import { PageSkeleton } from "@/components/loading-states";
+import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -410,6 +412,28 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             fingerprint: true,
             lastRotatedAt: true
           }
+        },
+        certificationEvidence: {
+          where: {
+            workspaceId: user.workspaceId
+          },
+          orderBy: {
+            recordedAt: "desc"
+          },
+          take: 3,
+          select: {
+            id: true,
+            runId: true,
+            result: true,
+            envGate: true,
+            recordedAt: true,
+            actor: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
         }
       }
     }),
@@ -650,7 +674,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                      <span className="ops-table__label">Состояние</span>
 	                      <div className="integration-chip-list">
 	                        <StatusBadge
-	                          label="Сертификация"
+	                          label="Готовность"
 	                          value={compactCertificationLabel(capability.certification.summary.label)}
 	                          tone={certificationTone(capability.certification.summary.status)}
 	                        />
@@ -662,6 +686,9 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                        <CertificationHelpTooltip label={`Что значит статус сертификации для ${integration.displayName}?`} />
 	                      </div>
 	                      <span className="record-meta">{capabilityReadinessLabel(capability.readiness)}</span>
+                        <EvidenceDrawer title="Evidence">
+                          <CertificationEvidenceList evidence={integration.certificationEvidence} />
+                        </EvidenceDrawer>
 	                    </div>
 	                    <div className="ops-table__cell">
 	                      <span className="ops-table__label">Импорт</span>
@@ -911,12 +938,12 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                   <span className="ops-table__label">Готовность</span>
                   <div className="integration-chip-list">
                     <StatusBadge
-                      label="Сертификация"
+                      label="Готовность"
                       value={capability.certification.summary.label}
                       tone={certificationTone(capability.certification.summary.status)}
                     />
                     <StatusBadge
-                      label="Готовность"
+                      label="Этап"
                       value={capabilityReadinessLabel(capability.readiness)}
                       tone={readinessTone(capability.readiness)}
                     />

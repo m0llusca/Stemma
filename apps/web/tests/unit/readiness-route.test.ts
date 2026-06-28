@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getPhaseDReadinessReport: vi.fn(),
   prisma: {
     backendJob: { count: vi.fn() },
+    certificationRun: { findMany: vi.fn() },
     identityProvider: { count: vi.fn() },
     integration: { count: vi.fn() }
   }
@@ -32,6 +33,17 @@ describe("readiness API", () => {
     vi.clearAllMocks();
     mocks.requireCurrentUserPermission.mockResolvedValue({ workspaceId: "workspace-1" });
     mocks.prisma.backendJob.count.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
+    mocks.prisma.certificationRun.findMany.mockResolvedValue([
+      {
+        id: "cert-run-1",
+        targetType: "integration",
+        source: "zendesk",
+        status: "failed",
+        startedAt: new Date("2026-06-28T09:00:00.000Z"),
+        finishedAt: null,
+        nextActionJson: JSON.stringify({ label: "Проверить доступы" })
+      }
+    ]);
     mocks.prisma.identityProvider.count.mockResolvedValue(3);
     mocks.prisma.integration.count.mockResolvedValue(4);
     mocks.getRuntimeConfigDiagnostics.mockReturnValue({ status: "ok", checks: [] });
@@ -48,7 +60,7 @@ describe("readiness API", () => {
       identityProviders: [],
       evidenceModel: {
         requiredFields: ["provider/source", "runId", "actor", "timestamp", "envGate", "result", "redactedDiagnostics"],
-        protectedEnvGates: ["HELPDESK_LIVE_SMOKE=1"]
+        protectedEnvGates: ["HELPDESK_LIVE_SMOKE=1", "protected:live-smoke"]
       }
     });
   });
@@ -61,6 +73,20 @@ describe("readiness API", () => {
     expect(response.status).toBe(200);
     expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("backend_jobs:manage");
     expect(mocks.getPhaseDReadinessReport).toHaveBeenCalledWith("workspace-1");
+    expect(mocks.prisma.certificationRun.findMany).toHaveBeenCalledWith({
+      where: { workspaceId: "workspace-1" },
+      orderBy: { startedAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        targetType: true,
+        source: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        nextActionJson: true
+      }
+    });
     expect(body).toMatchObject({
       status: "ready",
       workspace: {
@@ -74,6 +100,22 @@ describe("readiness API", () => {
         summary: {
           total: 2,
           liveCertified: 0
+        }
+      },
+      certification: {
+        latestRuns: [
+          {
+            id: "cert-run-1",
+            targetType: "integration",
+            source: "zendesk",
+            status: "failed",
+            startedAt: "2026-06-28T09:00:00.000Z",
+            finishedAt: null,
+            nextAction: { label: "Проверить доступы" }
+          }
+        ],
+        evidenceModel: {
+          protectedEnvGates: expect.arrayContaining(["protected:live-smoke"])
         }
       }
     });
