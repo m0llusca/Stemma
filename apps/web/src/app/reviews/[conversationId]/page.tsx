@@ -7,6 +7,9 @@ import {
 import { Suspense, type ReactNode } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
+import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
+import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -178,9 +181,53 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const canAcknowledgeFeedback = Boolean(latestFinalizedReview && !feedbackClosed && !hasOpenAppeal);
   const canOpenAppeal = Boolean(latestFinalizedReview && !feedbackClosed && latestFinalizedReview.appealStatus === "none");
   const canCompleteReanswer = Boolean(latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested");
+  const reviewAction =
+    hasOpenAppeal
+      ? {
+          title: "Разобрать апелляцию",
+          description: "Апелляция открыта. Зафиксируйте решение руководителя перед дальнейшими действиями.",
+          label: "К feedback",
+          href: "#review-evidence",
+          tone: "warning" as const
+        }
+      : canCompleteReanswer
+        ? {
+            title: "Закрыть переответ",
+            description: "Клиенту нужен новый ответ. Проверьте статус и отметьте выполнение после подтверждения.",
+            label: "К feedback",
+            href: "#review-evidence",
+            tone: "warning" as const
+          }
+        : canShowReviewPanel
+          ? {
+              title: currentDraftReview ? "Продолжить проверку" : "Заполнить оценку",
+              description: "Сверьте диалог, выберите evidence и сохраните итоговую оценку с человеческим подтверждением.",
+              label: "К форме",
+              href: "#review-workspace",
+              tone: "info" as const
+            }
+          : latestFinalizedReview
+            ? {
+                title: feedbackClosed ? "Проверка закрыта" : "Проверить обратную связь",
+                description: feedbackClosed ? "Финальная оценка и обратная связь зафиксированы." : "Оператор еще не закрыл feedback loop по этой проверке.",
+                label: "К evidence",
+                href: "#review-evidence",
+                tone: feedbackClosed ? "positive" as const : "warning" as const
+              }
+            : {
+                title: "Открыть контекст обращения",
+                description: "Проверка еще не начата. Начните с контекста диалога и критериев оценки.",
+                label: "К диалогу",
+                href: "#review-workspace",
+                tone: "neutral" as const
+              };
 
   return (
-    <section className="page-shell workspace-shell">
+    <OperationalPageFrame
+      title={conversation.subject}
+      className="page-shell workspace-shell"
+      signals={
+        <>
       <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Доска проверки</p>
@@ -243,6 +290,19 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           </div>
         </div>
       </section>
+        </>
+      }
+      action={
+        <PriorityActionPanel
+          title={reviewAction.title}
+          description={reviewAction.description}
+          actionLabel={reviewAction.label}
+          href={reviewAction.href}
+          tone={reviewAction.tone}
+        />
+      }
+      details={
+        <>
 
       {latestFinalizedReview && hasOpenAppeal ? (
         <section className="appeal-alert">
@@ -274,7 +334,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         </section>
       ) : null}
 
-      <div className="review-main">
+      <div id="review-workspace" className="review-main">
         <ConversationTimeline
           messages={conversation.messages}
           highlightedMessageIds={evidenceMessageIds}
@@ -316,6 +376,13 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           </aside>
         )}
       </div>
+
+      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
+        </>
+      }
+      evidence={
+        <EvidenceDrawer title="Evidence проверки" defaultOpen>
+          <div id="review-evidence" className="grid min-w-0 gap-4">
 
       {latestFinalizedReview ? (
         <details className="review-secondary panel disclosure-panel overflow-clip">
@@ -475,8 +542,6 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         </details>
       ) : null}
 
-      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
-
       {canEvaluateReviewPermission && conversation.reviews.length > 0 ? (
         <details className="review-secondary panel disclosure-panel overflow-clip">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
@@ -509,7 +574,9 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           </div>
         </details>
       ) : null}
-
-    </section>
+          </div>
+        </EvidenceDrawer>
+      }
+    />
   );
 }

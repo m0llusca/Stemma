@@ -8,6 +8,8 @@ import { CertificationEvidenceList } from "@/components/integrations/integration
 import { SourceLogoMark } from "@/components/integrations/source-logo-mark";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
+import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -530,9 +532,45 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
   const activeJobs = recentIntegrationJobs.filter((job) => ["QUEUED", "RUNNING"].includes(job.status)).length;
   const lastImportRun = recentRuns.find((run) => !run.dryRun);
   const integrationSetupHint = activeSources.length > 0 ? null : getSettingCoachmark("integrations");
+  const integrationAction =
+    failedDiagnostics > 0
+      ? {
+          title: "Разобрать диагностику",
+          description: "Есть источники с ошибками диагностики. Откройте журнал и восстановите доступы до следующего импорта.",
+          label: "Открыть журнал",
+          href: integrationSectionHref("activity"),
+          tone: "negative" as const
+        }
+      : activeSources.length === 0
+        ? {
+            title: "Подключить первый источник",
+            description: "Без источника обращения не попадут в очередь QA. Начните с мастера и не отмечайте live-готовность без сертификации.",
+            label: "Новый источник",
+            href: "/admin/integrations/new",
+            tone: "warning" as const
+          }
+        : activeJobs > 0
+          ? {
+              title: "Проверить фоновые задачи",
+              description: "Импорт уже в очереди или выполняется. Сначала проверьте состояние задач обработчика.",
+              label: "Открыть журнал",
+              href: integrationSectionHref("activity"),
+              tone: "info" as const
+            }
+          : {
+              title: "Проверить readiness evidence",
+              description: "Источники настроены. Сверьте сертификацию, доступы и последний импорт перед расширением каталога.",
+              label: "Открыть источники",
+              href: integrationSectionHref("sources"),
+              tone: "positive" as const
+            };
 
   return (
-    <section className="page-shell admin-shell">
+    <OperationalPageFrame
+      title="Интеграции"
+      className="page-shell admin-shell"
+      signals={
+        <>
       <div className="command-center">
         <div className="min-w-0">
           <p className="page-kicker">Администрирование</p>
@@ -578,6 +616,19 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
           <span className="ops-metric__note">{lastImportRun ? externalSourceLabel(lastImportRun.source) : "Реальные импорты еще не запускались"}</span>
         </div>
       </section>
+        </>
+      }
+      action={
+        <PriorityActionPanel
+          title={integrationAction.title}
+          description={integrationAction.description}
+          actionLabel={integrationAction.label}
+          href={integrationAction.href}
+          tone={integrationAction.tone}
+        />
+      }
+      details={
+        <>
 
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы интеграций">
         {integrationSections.map((section) => (
@@ -966,6 +1017,34 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         </div>
         </section>
       ) : null}
-    </section>
+        </>
+      }
+      evidence={
+        <EvidenceDrawer title="Evidence readiness" defaultOpen>
+          <div className="operational-evidence-grid">
+            <div className="operational-evidence-item">
+              <span>Источники</span>
+              <strong>{activeSources.length}/{integrations.length}</strong>
+              <small>Активные и готовые подключения в текущем workspace.</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Диагностика</span>
+              <strong>{failedDiagnostics}</strong>
+              <small>{failedDiagnostics > 0 ? "Есть ошибки, которые блокируют доверие к импорту." : "Ошибок диагностики в последнем срезе нет."}</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Обработчик</span>
+              <strong>{activeJobs}</strong>
+              <small>Фоновые задачи импорта в очереди или исполнении.</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Каталог</span>
+              <strong>{roadmapCapabilities.length}</strong>
+              <small>Следующие доступные connector profiles без live-оверлейминга.</small>
+            </div>
+          </div>
+        </EvidenceDrawer>
+      }
+    />
   );
 }

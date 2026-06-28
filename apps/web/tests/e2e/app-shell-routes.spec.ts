@@ -24,6 +24,18 @@ const staticAuthenticatedRoutes = [
   "/admin/users"
 ] as const;
 
+const operationalFrameRoutes = new Set<string>([
+  "/dashboard",
+  "/reviews",
+  "/coaching",
+  "/reports",
+  "/admin/integrations"
+]);
+
+function expectsOperationalFrame(route: string) {
+  return operationalFrameRoutes.has(route) || /^\/reviews\/[^/]+$/.test(route);
+}
+
 test.setTimeout(120_000);
 
 let authenticatedWorkspaceId: string;
@@ -112,6 +124,24 @@ test("authenticated app shell routes render stable chrome and content", async ({
     const mainHeight = await page.locator("#main-content").evaluate((element) => element.getBoundingClientRect().height);
     expect.soft(mainHeight, `${route} main content height`).toBeGreaterThan(200);
 
+    if (expectsOperationalFrame(route)) {
+      const operationsFrame = page.locator(".operational-page-frame");
+      await expect(operationsFrame, `${route} operational frame`).toBeVisible();
+      await expect(operationsFrame.locator(":scope > .operational-page-frame__action .priority-action-panel"), `${route} priority action`).toBeVisible();
+      await expect(operationsFrame.locator(":scope > .operational-page-frame__evidence > .evidence-drawer"), `${route} evidence drawer`).toBeVisible();
+      const operationsSlots = await operationsFrame.evaluate((frame) =>
+        Array.from(frame.children)
+          .map((child) => Array.from(child.classList).find((className) => className.startsWith("operational-page-frame__")))
+          .filter(Boolean)
+      );
+      expect(operationsSlots, `${route} should keep signals -> action -> details -> evidence order`).toEqual([
+        "operational-page-frame__signals",
+        "operational-page-frame__action",
+        "operational-page-frame__details",
+        "operational-page-frame__evidence"
+      ]);
+    }
+
     if (route === "/dashboard") {
       const topbar = page.locator(".app-topbar");
       const search = page.locator(".app-topbar__search");
@@ -141,21 +171,6 @@ test("authenticated app shell routes render stable chrome and content", async ({
     }
 
     if (route === "/dashboard") {
-      await expect(page.locator(".operational-page-frame")).toBeVisible();
-      await expect(page.locator(".priority-action-panel")).toBeVisible();
-      await expect(page.locator(".evidence-drawer")).toBeVisible();
-      const operationsSlots = await page.locator(".operational-page-frame").evaluate((frame) =>
-        Array.from(frame.children)
-          .map((child) => Array.from(child.classList).find((className) => className.startsWith("operational-page-frame__")))
-          .filter(Boolean)
-      );
-      expect(operationsSlots, "dashboard should keep signals -> action -> details -> evidence order").toEqual([
-        "operational-page-frame__signals",
-        "operational-page-frame__action",
-        "operational-page-frame__details",
-        "operational-page-frame__evidence"
-      ]);
-
       await expect(page.getByText(/qa\.reopened/)).toHaveCount(0);
       await expect(page.getByText(/conversation\.workflow_updated/)).toHaveCount(0);
       await expect(page.getByText("Проверка возвращена в работу").first()).toBeVisible();

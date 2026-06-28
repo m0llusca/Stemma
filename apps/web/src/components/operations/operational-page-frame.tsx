@@ -17,10 +17,7 @@ export function OperationalPageFrame({
   className?: string;
 }) {
   return (
-    <section className={clsx("operational-page-frame", className)} aria-labelledby="operational-page-title">
-      <h1 id="operational-page-title" className="sr-only">
-        {title}
-      </h1>
+    <section className={clsx("operational-page-frame", className)} aria-label={title}>
       <div className="operational-page-frame__signals">{signals}</div>
       <div className="operational-page-frame__action">{action}</div>
       <div className="operational-page-frame__details">{details}</div>

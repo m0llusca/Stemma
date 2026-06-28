@@ -13,6 +13,9 @@ import {
   ScoreDistribution,
   StackedBar
 } from "@/components/reports/report-charts";
+import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
+import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { ReportCommandBar, ReportViewSelector } from "@/components/reports/report-command-bar";
 import {
   DetailsIndexPanel,
@@ -567,10 +570,63 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       href: "#details-statuses"
     }
   ];
+  const reportAction =
+    highRiskFindings > 0
+      ? {
+          title: "Разобрать HIGH+ риск",
+          description: `${highRiskFindings} замечаний высокого риска в периоде. Начните с проверок, где последствия для клиента максимальны.`,
+          label: "Открыть риск",
+          href: reportReviewHref(period, { riskLevel: "HIGH_OR_CRITICAL" }),
+          tone: "negative" as const
+        }
+      : coachingBacklog > 0
+        ? {
+            title: "Закрыть открытые разборы",
+            description: `${coachingBacklog} coaching follow-up еще открыты. Переведите аналитику в действия по обучению.`,
+            label: "Открыть разборы",
+            href: reportReviewHref(period, { coachingStatus: "open" }),
+            tone: "warning" as const
+          }
+        : quotaCompletionPercent != null && quotaCompletionPercent < 100
+          ? {
+              title: "Добрать норму проверок",
+              description: `План периода выполнен на ${quotaCompletionPercent}%. Выводы лучше читать осторожно, пока выборка неполная.`,
+              label: "Открыть норму",
+              href: reportHref(period, { view: "details" }),
+              tone: "warning" as const
+            }
+          : weakestSourceFocus?.href
+            ? {
+                title: "Проверить слабый источник",
+                description: `${weakestSourceFocus.label}: ${formatAverageScore(weakestSourceFocus.averageScore)}. Сверьте выборку и причины просадки.`,
+                label: "Открыть источник",
+                href: weakestSourceFocus.href,
+                tone: "info" as const
+              }
+            : {
+                title: "Открыть выборку проверок",
+                description: "Критичных сигналов нет. Перейдите к списку финализированных проверок для ручного разбора.",
+                label: "Открыть проверки",
+                href: reportReviewHref(period),
+                tone: "positive" as const
+              };
 
   return (
-    <section className="page-shell workspace-shell">
-      <ReportCommandBar period={period} previousPeriod={previousPeriod} view={reportView} trendGranularity={trendGranularity} />
+    <OperationalPageFrame
+      title="Аналитика качества"
+      className="page-shell workspace-shell"
+      signals={<ReportCommandBar period={period} previousPeriod={previousPeriod} view={reportView} trendGranularity={trendGranularity} />}
+      action={
+        <PriorityActionPanel
+          title={reportAction.title}
+          description={reportAction.description}
+          actionLabel={reportAction.label}
+          href={reportAction.href}
+          tone={reportAction.tone}
+        />
+      }
+      details={
+        <>
 
       {reportView === "overview" ? (
         <InsightSummary
@@ -752,6 +808,34 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           </div>
         </div>
       ) : null}
-    </section>
+        </>
+      }
+      evidence={
+        <EvidenceDrawer title="Evidence аналитики" defaultOpen>
+          <div className="operational-evidence-grid">
+            <div className="operational-evidence-item">
+              <span>Период</span>
+              <strong>{finalizedCount}</strong>
+              <small>{formatReviewCount(finalizedCount)} в текущей выборке.</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Средний балл</span>
+              <strong>{formatAverageScore(averageScore)}</strong>
+              <small>{previousAverageScore == null ? "Нет базы сравнения." : `${reportDeltaLabel(averageScore == null || previousAverageScore == null ? null : averageScore - previousAverageScore)} к прошлому периоду.`}</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>HIGH+</span>
+              <strong>{highRiskFindings}</strong>
+              <small>Замечания высокого и критического риска.</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Норма</span>
+              <strong>{quotaCompletionPercent == null ? "Нет" : `${quotaCompletionPercent}%`}</strong>
+              <small>{quotaCompletionPercent == null ? "План периода не задан." : `${actualQuotaTotal} из ${plannedQuotaTotal} проверок.`}</small>
+            </div>
+          </div>
+        </EvidenceDrawer>
+      }
+    />
   );
 }

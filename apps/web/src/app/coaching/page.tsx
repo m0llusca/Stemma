@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
+import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
@@ -359,9 +362,15 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const createTaskHref = `${baseCoachingHref}&create=1`;
   const createRuleHref = `${baseCoachingHref}&rule=1`;
   const closeCreatePanelHref = baseCoachingHref;
+  const coachingActionHref = nextConversation ? `/reviews/${nextConversation.id}` : createTaskHref;
+  const coachingActionTone = overdueAssignments.length > 0 ? "negative" : openAssignments.length > 0 ? "warning" : "positive";
 
   return (
-    <section className="page-shell workspace-shell">
+    <OperationalPageFrame
+      title="Обучение"
+      className="page-shell workspace-shell"
+      signals={
+        <>
       <div className="command-center command-center--split command-center--metrics coaching-command-center">
         <div className="min-w-0">
           <p className="page-kicker">Развитие качества</p>
@@ -425,6 +434,23 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           { icon: <BookOpenCheck size={14} aria-hidden="true" />, value: criticalKnowledgeCount, label: "важных правил" }
         ]}
       />
+        </>
+      }
+      action={
+        <PriorityActionPanel
+          title={nextAssignment ? nextAssignment.title : "Создать следующий разбор"}
+          description={
+            nextAssignment
+              ? `${nextAssignment.assigneeName} / ${dueText(nextAssignment.dueAt)}. Сначала закройте этот coaching follow-up.`
+              : "Активных разборов нет. Создайте задачу из проверки с замечанием или добавьте ручной разбор."
+          }
+          actionLabel={nextConversation ? "Открыть проверку" : "Новая задача"}
+          href={coachingActionHref}
+          tone={coachingActionTone}
+        />
+      }
+      details={
+        <>
 
       {createTaskOpen ? (
         <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">
@@ -802,6 +828,34 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </div>
         </div>
       </section>
-    </section>
+        </>
+      }
+      evidence={
+        <EvidenceDrawer title="Evidence обучения" defaultOpen>
+          <div className="operational-evidence-grid">
+            <div className="operational-evidence-item">
+              <span>Активные</span>
+              <strong>{openAssignments.length}</strong>
+              <small>Все незакрытые coaching и training задачи.</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Просрочено</span>
+              <strong>{overdueAssignments.length}</strong>
+              <small>{overdueAssignments.length > 0 ? "Эти разборы поднимаются в основной action." : "Сроки активных разборов под контролем."}</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Связано с QA</span>
+              <strong>{linkedAssignmentCount}</strong>
+              <small>Задачи с привязкой к проверке и тикету.</small>
+            </div>
+            <div className="operational-evidence-item">
+              <span>Правила</span>
+              <strong>{criticalKnowledgeCount}</strong>
+              <small>HIGH/CRITICAL правила, доступные для разбора.</small>
+            </div>
+          </div>
+        </EvidenceDrawer>
+      }
+    />
   );
 }
