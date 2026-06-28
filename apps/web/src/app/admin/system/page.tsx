@@ -1,5 +1,20 @@
 import type { IdentityProviderType } from "@prisma/client";
-import { AlertTriangle, CheckCircle2, Clock3, Play, RotateCcw, Send, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  Database,
+  ListChecks,
+  Play,
+  Plug,
+  RotateCcw,
+  Send,
+  ServerCog,
+  ShieldCheck,
+  type LucideIcon
+} from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
@@ -23,6 +38,22 @@ type AdminSystemPageProps = {
 };
 
 type SystemSection = "jobs" | "channels" | "runtime" | "readiness" | "sso" | "integrations" | "maintenance";
+
+type SystemHealthItem = {
+  section: SystemSection;
+  label: string;
+  value: string | number;
+  hint: string;
+  tone: StatusTone;
+  icon: LucideIcon;
+};
+
+type SystemNextAction = {
+  section: SystemSection;
+  label: string;
+  title: string;
+  detail: string;
+};
 
 const systemSections: Array<{ value: SystemSection; label: string }> = [
   { value: "jobs", label: "Задачи" },
@@ -112,6 +143,16 @@ function runtimeStatusLabel(status: string) {
   const labels: Record<string, string> = {
     ok: "Готово",
     warn: "Требует внимания",
+    error: "Ошибка"
+  };
+
+  return labels[status] ?? status;
+}
+
+function runtimeStatusShortLabel(status: string) {
+  const labels: Record<string, string> = {
+    ok: "Готово",
+    warn: "Внимание",
     error: "Ошибка"
   };
 
@@ -312,6 +353,28 @@ function StatCard({
   );
 }
 
+function SystemHealthCard({ item, activeSection }: { item: SystemHealthItem; activeSection: SystemSection }) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={systemSectionHref(item.section)}
+      className={`system-health-card system-health-card--${item.tone} ${activeSection === item.section ? "system-health-card--active" : ""}`}
+      aria-current={activeSection === item.section ? "page" : undefined}
+    >
+      <span className="system-health-card__icon">
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <span className="system-health-card__body">
+        <span className="system-health-card__label">{item.label}</span>
+        <span className="system-health-card__value">{item.value}</span>
+        <span className="system-health-card__hint">{item.hint}</span>
+      </span>
+      <ArrowRight className="system-health-card__arrow" size={15} aria-hidden="true" />
+    </Link>
+  );
+}
+
 export default function AdminSystemPage({ searchParams }: AdminSystemPageProps) {
   return (
     <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка системы" />}>
@@ -446,6 +509,155 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   ).length;
   const configuredChannelByKind = new Map(messagingChannels.map((channel) => [channel.kind, channel]));
   const activeActionChannels = messagingChannels.filter((channel) => channel.status === "active").length;
+  const runtimeIssues = runtime.checks.filter((check) => check.status !== "ok").length;
+  const runtimeHealthyChecks = runtime.checks.length - runtimeIssues;
+  const readinessBlockers = phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess;
+  const maintenanceBacklog = expiredActiveSessions + expiredIdempotencyKeys + staleRateLimits;
+  const integrationRiskCount = integrationErrors + apiTokenErrors;
+  const runtimeCritical = runtime.status === "error";
+  const highSeverityIssues = (runtimeCritical ? 1 : 0) + failedJobs + failedDeliveries + integrationRiskCount;
+  const warningSignals =
+    (runtime.status === "warn" ? Math.max(runtimeIssues, 1) : 0) +
+    queuedJobs +
+    runningJobs +
+    queuedDeliveries +
+    providerWarnings +
+    readinessBlockers +
+    maintenanceBacklog;
+  const overallTone: StatusTone = highSeverityIssues > 0 ? "negative" : warningSignals > 0 ? "warning" : "positive";
+  const overallLabel =
+    overallTone === "negative" ? "Требует вмешательства" : overallTone === "warning" ? "Есть операционный риск" : "Система стабильна";
+  const overallSummary =
+    overallTone === "negative"
+      ? `${highSeverityIssues} критичных сигналов: проверьте задачи, каналы, интеграции или окружение.`
+      : overallTone === "warning"
+        ? `${warningSignals} сигналов требуют плановой проверки, критичных ошибок нет.`
+        : "Критичных сигналов нет, ключевые подсистемы готовы к работе.";
+  const nextAction: SystemNextAction = runtimeCritical
+    ? {
+        section: "runtime",
+        label: "Проверить окружение",
+        title: "Восстановить конфигурацию",
+        detail: `${runtimeIssues} проверок окружения не в норме. Начните с runtime-переменных и worker-процесса.`
+      }
+    : failedJobs > 0
+      ? {
+          section: "jobs",
+          label: "Разобрать задачи",
+          title: "Снять ошибки очереди",
+          detail: `${failedJobs} задач завершились ошибкой. Откройте детали и повторите запуск после исправления причины.`
+        }
+      : failedDeliveries > 0
+        ? {
+            section: "channels",
+            label: "Проверить каналы",
+            title: "Восстановить доставку уведомлений",
+            detail: `${failedDeliveries} доставок не ушли адресатам. Проверьте статус канала и последнюю ошибку.`
+          }
+        : integrationRiskCount > 0
+          ? {
+              section: "integrations",
+              label: "Открыть интеграции",
+              title: "Вернуть импорт в зеленую зону",
+              detail: `${integrationRiskCount} сигналов по источникам или API-ключам влияют на загрузку данных.`
+            }
+          : providerWarnings > 0
+            ? {
+                section: "sso",
+                label: "Проверить SSO",
+                title: "Закрыть риски доступа",
+                detail: `${providerWarnings} провайдеров каталога не активны. Проверьте синхронизацию и маппинги групп.`
+              }
+            : readinessBlockers > 0
+              ? {
+                  section: "readiness",
+                  label: "Открыть готовность",
+                  title: "Довести live certification",
+                  detail: `${readinessBlockers} объектов ждут доступы, evidence или настройку перед live-сертификацией.`
+                }
+              : maintenanceBacklog > 0
+                ? {
+                    section: "maintenance",
+                    label: "Открыть обслуживание",
+                    title: "Очистить технический хвост",
+                    detail: `${maintenanceBacklog} технических записей готовы к регулярной очистке.`
+                  }
+                : queuedJobs > 0
+                  ? {
+                      section: "jobs",
+                      label: "Запустить очередь",
+                      title: "Очередь готова к обработке",
+                      detail: `${queuedJobs} задач ждут worker. Запустите обработку, если сейчас нет окна обслуживания.`
+                    }
+                  : {
+                      section: "jobs",
+                      label: "Посмотреть задачи",
+                      title: "Критичных блокеров нет",
+                      detail: "Остается регулярный мониторинг очереди и новых запусков интеграций."
+                    };
+  const systemHealthItems: SystemHealthItem[] = [
+    {
+      section: "runtime",
+      label: "Окружение",
+      value: runtimeStatusShortLabel(runtime.status),
+      hint: `${runtimeHealthyChecks}/${runtime.checks.length} проверок · ${environmentLabel(runtime.environment)}`,
+      tone: runtimeTone(runtime.status),
+      icon: ServerCog
+    },
+    {
+      section: "jobs",
+      label: "Очередь задач",
+      value: queuedJobs + runningJobs,
+      hint: `Ошибки: ${failedJobs} · успешно 24ч: ${succeededJobsToday}`,
+      tone: failedJobs > 0 ? "negative" : queuedJobs + runningJobs > 0 ? "warning" : "positive",
+      icon: Activity
+    },
+    {
+      section: "channels",
+      label: "Каналы",
+      value: activeActionChannels,
+      hint: `Активны из ${messagingChannels.length} · ошибок доставок: ${failedDeliveries}`,
+      tone: failedDeliveries > 0 ? "negative" : queuedDeliveries > 0 ? "warning" : activeActionChannels > 0 ? "positive" : "neutral",
+      icon: Send
+    },
+    {
+      section: "readiness",
+      label: "Готовность",
+      value: `${phaseDReport.summary.liveCertified}/${phaseDReport.summary.total}`,
+      hint: `Готовы: ${phaseDReport.summary.readyForLiveCertification} · блокеры: ${readinessBlockers}`,
+      tone:
+        readinessBlockers > 0
+          ? "warning"
+          : phaseDReport.summary.total > 0 && phaseDReport.summary.liveCertified === phaseDReport.summary.total
+            ? "positive"
+            : "neutral",
+      icon: ListChecks
+    },
+    {
+      section: "sso",
+      label: "SSO и каталог",
+      value: providers.length,
+      hint: `Сессии: ${activeSessions} · не активны: ${providerWarnings}`,
+      tone: providerWarnings > 0 || expiredActiveSessions > 0 ? "warning" : providers.length > 0 ? "positive" : "neutral",
+      icon: ShieldCheck
+    },
+    {
+      section: "integrations",
+      label: "Интеграции",
+      value: integrations.length,
+      hint: `Ошибки: ${integrationRiskCount} · запусков: ${recentRuns.length}`,
+      tone: integrationRiskCount > 0 ? "negative" : integrations.length > 0 ? "positive" : "neutral",
+      icon: Plug
+    },
+    {
+      section: "maintenance",
+      label: "Обслуживание",
+      value: maintenanceBacklog,
+      hint: "Сессии, idempotency и rate limits",
+      tone: maintenanceBacklog > 0 ? "warning" : "positive",
+      icon: Database
+    }
+  ];
 
   return (
     <section className="page-shell admin-shell">
@@ -454,9 +666,36 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           <p className="page-kicker">Администрирование</p>
           <h1 className="page-title">Состояние системы</h1>
           <p className="page-subtitle">
-            Короткий операционный экран: окружение, фоновые задачи, SSO/AD, импорты и очистка технических записей.
+            Единый контур для окружения, очереди, каналов, SSO/AD, интеграций и обслуживания.
           </p>
-          <div className="admin-actions admin-actions--forms mt-5">
+        </div>
+      </div>
+
+      <section className={`system-cockpit system-cockpit--${overallTone}`} aria-label="Операционная сводка системы">
+        <div className="system-cockpit__lead">
+          <div className="system-cockpit__status">
+            <span className="system-cockpit__icon">
+              <Activity size={20} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="system-cockpit__kicker">Общее состояние</p>
+              <h2 className="system-cockpit__title">{overallLabel}</h2>
+              <p className="system-cockpit__text">{overallSummary}</p>
+            </div>
+          </div>
+
+          <div className="system-cockpit__next">
+            <p className="system-cockpit__kicker">Следующий шаг</p>
+            <h3>{nextAction.title}</h3>
+            <p>{nextAction.detail}</p>
+            <Link href={systemSectionHref(nextAction.section)} className="action-button action-button--small">
+              {nextAction.label}
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+
+          <div className="system-cockpit__runbook">
+            <p className="system-cockpit__kicker">Операции</p>
             <form action={runQueuedBackendJobs} className="admin-inline-form">
               <select name="limit" defaultValue="5" className="form-control text-sm">
                 <option value="5">5 задач</option>
@@ -476,38 +715,11 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             </form>
           </div>
         </div>
-      </div>
 
-      <section className="ops-metric-grid" aria-label="Сводка системы">
-        <div className="ops-metric">
-          <span className="ops-metric__label">Окружение</span>
-          <StatusBadge label="Статус" value={runtimeStatusLabel(runtime.status)} tone={runtimeTone(runtime.status)} />
-          <span className="ops-metric__note">{environmentLabel(runtime.environment)}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Очередь задач</span>
-          <MetricValue value={queuedJobs} tone={toneForCount(queuedJobs, { zero: "positive", nonZero: "warning" })} />
-          <span className="ops-metric__note">
-            <StatusBadge label="Выполняется" value={runningJobs} tone={toneForCount(runningJobs, { zero: "positive", nonZero: "warning" })} />
-          </span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Ошибки задач</span>
-          <MetricValue value={failedJobs} tone={toneForCount(failedJobs, { zero: "positive", nonZero: "negative" })} />
-          <span className="ops-metric__note">
-            <StatusBadge label="Успешно 24ч" value={succeededJobsToday} tone={toneForCount(succeededJobsToday, { zero: "neutral", nonZero: "positive" })} />
-          </span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Активные сессии</span>
-          <MetricValue value={activeSessions} tone={toneForCount(activeSessions, { zero: "neutral", nonZero: "info" })} />
-          <span className="ops-metric__note">
-            <StatusBadge
-              label="Просрочено"
-              value={expiredActiveSessions}
-              tone={toneForCount(expiredActiveSessions, { zero: "positive", nonZero: "warning" })}
-            />
-          </span>
+        <div className="system-health-grid">
+          {systemHealthItems.map((item) => (
+            <SystemHealthCard key={item.section} item={item} activeSection={activeSection} />
+          ))}
         </div>
       </section>
 
@@ -532,8 +744,27 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h2 id="system-jobs-title" className="ops-panel__title">Фоновые задачи</h2>
               <p className="ops-panel__subtitle">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
             </div>
-            <StatusBadge label="Всего" value={recentJobs.length} tone={toneForCount(recentJobs.length, { zero: "neutral", nonZero: "info" })} />
+            <StatusBadge label="Ошибки" value={failedJobs} tone={toneForCount(failedJobs, { zero: "positive", nonZero: "negative" })} />
           </div>
+          <div className="system-section-summary system-section-summary--four">
+            <StatCard label="В очереди" value={queuedJobs} hint="Ожидают worker" tone={queuedJobs > 0 ? "warning" : "positive"} />
+            <StatCard label="Выполняется" value={runningJobs} hint="Сейчас в работе" tone={runningJobs > 0 ? "warning" : "positive"} />
+            <StatCard label="Успешно 24ч" value={succeededJobsToday} hint="Завершены за сутки" tone={succeededJobsToday > 0 ? "positive" : "neutral"} />
+            <StatCard label="Ошибки" value={failedJobs} hint="Требуют разбора" tone={failedJobs > 0 ? "negative" : "positive"} />
+          </div>
+          {failedJobs > 0 || queuedJobs > 0 ? (
+            <div className={`system-attention system-attention--${failedJobs > 0 ? "negative" : "warning"}`}>
+              <AlertTriangle size={17} aria-hidden="true" />
+              <div>
+                <p className="system-attention__title">{failedJobs > 0 ? "Есть задачи с ошибками" : "Очередь ожидает обработки"}</p>
+                <p className="system-attention__text">
+                  {failedJobs > 0
+                    ? "Разберите последние события и повторите запуск после исправления причины."
+                    : "Запустите worker вручную или дождитесь расписания, если это плановый импорт."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           <div className="record-list px-5">
             {recentJobs.length === 0 ? (
               <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Фоновых задач пока нет.</div>
@@ -578,12 +809,21 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             </div>
             <StatusBadge label="Активны" value={activeActionChannels} tone={activeActionChannels > 0 ? "positive" : "neutral"} />
           </div>
-          <section className="ops-metric-grid p-5 pt-0" aria-label="Сводка каналов действий">
+          <section className="system-section-summary system-section-summary--four" aria-label="Сводка каналов действий">
             <StatCard label="Каналы" value={messagingChannels.length} hint="Настроены в workspace" tone={messagingChannels.length > 0 ? "info" : "neutral"} />
             <StatCard label="В очереди" value={queuedDeliveries} hint="Ожидают отправки" tone={queuedDeliveries > 0 ? "warning" : "positive"} />
             <StatCard label="Ошибки" value={failedDeliveries} hint="Требуют проверки" tone={failedDeliveries > 0 ? "negative" : "positive"} />
             <StatCard label="Доставлено" value={deliveredDeliveries} hint="За все время" tone={deliveredDeliveries > 0 ? "positive" : "neutral"} />
           </section>
+          {failedDeliveries > 0 ? (
+            <div className="system-attention system-attention--negative">
+              <AlertTriangle size={17} aria-hidden="true" />
+              <div>
+                <p className="system-attention__title">Доставка уведомлений деградировала</p>
+                <p className="system-attention__text">Проверьте последний error у канала и scope токена перед повторной отправкой.</p>
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-5 p-5 pt-0 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.75fr)]">
             <section aria-labelledby="channel-readiness-title">
               <h3 id="channel-readiness-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Готовность каналов</h3>
@@ -665,6 +905,16 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             </div>
             <StatusBadge label="Статус" value={runtimeStatusLabel(runtime.status)} tone={runtimeTone(runtime.status)} />
           </div>
+          <section className="system-section-summary system-section-summary--three" aria-label="Сводка окружения">
+            <StatCard
+              label="Проверки"
+              value={`${runtimeHealthyChecks}/${runtime.checks.length}`}
+              hint="Проверки конфигурации в норме"
+              tone={runtimeIssues > 0 ? "warning" : "positive"}
+            />
+            <StatCard label="Окружение" value={environmentLabel(runtime.environment)} hint="Текущий режим приложения" tone="info" />
+            <StatCard label="Проблемы" value={runtimeIssues} hint="Проверки не в статусе Готово" tone={runtimeIssues > 0 ? "negative" : "positive"} />
+          </section>
           <div className="record-list px-5">
             {runtime.checks.map((check) => {
               const Icon = check.status === "ok" ? CheckCircle2 : AlertTriangle;
@@ -693,8 +943,8 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           <div className="ops-panel__header">
             <div>
               <p className="ops-panel__eyebrow">Phase D</p>
-          <h2 id="phase-d-readiness-title" className="ops-panel__title">Готовность живой сертификации</h2>
-          <p className="ops-panel__subtitle">
+              <h2 id="phase-d-readiness-title" className="ops-panel__title">Готовность живой сертификации</h2>
+              <p className="ops-panel__subtitle">
                 Отчет по живой сертификации: интеграции, провайдеры удостоверений и только redacted evidence из protected smoke runs.
               </p>
             </div>
@@ -704,7 +954,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               tone={phaseDReport.summary.liveCertified > 0 ? "positive" : "warning"}
             />
           </div>
-          <section className="ops-metric-grid p-5 pt-0" aria-label="Сводка live certification">
+          <section className="system-section-summary system-section-summary--four" aria-label="Сводка live certification">
             <StatCard label="Всего объектов" value={phaseDReport.summary.total} hint="Интеграции и провайдеры удостоверений" />
             <StatCard label="Live-certified" value={phaseDReport.summary.liveCertified} hint="Только successful protected evidence" tone="positive" />
             <StatCard label="Готовы к live" value={phaseDReport.summary.readyForLiveCertification} hint="Контракты готовы, доступов нет" tone="warning" />
@@ -752,37 +1002,47 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               Настроить
             </Link>
           </div>
-          <div className="grid gap-3 p-5 md:grid-cols-2">
+          <div className="system-section-summary system-section-summary--three">
             <StatCard label="Провайдеры" value={providers.length} hint={`Не активны: ${providerWarnings}`} tone={providerWarnings > 0 ? "warning" : "positive"} />
             <StatCard label="Сессии" value={activeSessions} hint="Активные сейчас" tone="neutral" />
+            <StatCard
+              label="Просрочены"
+              value={expiredActiveSessions}
+              hint="Будут закрыты обслуживанием"
+              tone={expiredActiveSessions > 0 ? "warning" : "positive"}
+            />
           </div>
           <div className="record-list px-5">
-            {providers.map((provider) => (
-              <article key={provider.id} className="record-card">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-[var(--foreground)]">{provider.name}</h3>
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">
-                      {providerTypeLabel(provider.type)} · {provider.slug}
-                    </p>
+            {providers.length === 0 ? (
+              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Провайдеры удостоверений еще не настроены.</div>
+            ) : (
+              providers.map((provider) => (
+                <article key={provider.id} className="record-card">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-[var(--foreground)]">{provider.name}</h3>
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">
+                        {providerTypeLabel(provider.type)} · {provider.slug}
+                      </p>
+                    </div>
+                    <StatusBadge label="Статус" value={providerStatusLabel(provider.status)} tone={providerTone(provider.status)} />
                   </div>
-                  <StatusBadge label="Статус" value={providerStatusLabel(provider.status)} tone={providerTone(provider.status)} />
-                </div>
-                <p className="text-sm text-[var(--text-muted)]">
-                  Маппингов: {provider._count.groupRoleMappings} · сессий: {provider._count.authSessions} · последняя синхронизация:{" "}
-                  {formatDate(provider.lastSyncAt)}
-                </p>
-                {provider.type !== "DEMO" ? (
-                  <form action={queueDirectorySync}>
-                    <input type="hidden" name="providerId" value={provider.id} />
-                    <button type="submit" className="action-button action-button--small">
-                      <ShieldCheck size={16} aria-hidden="true" />
-                      Синхронизировать
-                    </button>
-                  </form>
-                ) : null}
-              </article>
-            ))}
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Маппингов: {provider._count.groupRoleMappings} · сессий: {provider._count.authSessions} · последняя синхронизация:{" "}
+                    {formatDate(provider.lastSyncAt)}
+                  </p>
+                  {provider.type !== "DEMO" ? (
+                    <form action={queueDirectorySync}>
+                      <input type="hidden" name="providerId" value={provider.id} />
+                      <button type="submit" className="action-button action-button--small">
+                        <ShieldCheck size={16} aria-hidden="true" />
+                        Синхронизировать
+                      </button>
+                    </form>
+                  ) : null}
+                </article>
+              ))
+            )}
           </div>
         </section>
       ) : null}
@@ -799,30 +1059,68 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               К интеграциям
             </Link>
           </div>
-          <div className="grid gap-3 p-5 md:grid-cols-2">
+          <div className="system-section-summary system-section-summary--three">
             <StatCard label="Источники" value={integrations.length} hint={`Ошибки: ${integrationErrors}`} tone={integrationErrors > 0 ? "negative" : "neutral"} />
             <StatCard label="API-ключи" value={apiTokens.length} hint={`Ошибки: ${apiTokenErrors}`} tone={apiTokenErrors > 0 ? "negative" : "positive"} />
+            <StatCard label="Последние runs" value={recentRuns.length} hint="Импорт и dry-run" tone={recentRuns.length > 0 ? "info" : "neutral"} />
           </div>
-          <div className="record-list px-5">
-            {integrations.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Интеграции еще не настроены.</div>
-            ) : (
-              integrations.map((integration) => (
-                <article key={integration.id} className="record-card">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-[var(--foreground)]">{integration.displayName}</h3>
-                      <p className="mt-1 text-sm text-[var(--text-muted)]">{externalSourceLabel(integration.source)}</p>
-                    </div>
-                    <StatusBadge label="Статус" value={integrationStatusLabel(integration.status)} tone={integrationTone(integration.status)} />
-                  </div>
-                  <p className="mt-3 text-sm text-[var(--text-muted)]">
-                    Лимит: {integration.importLimit} · батч: {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
-                  </p>
-                  {integration.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{integration.lastError}</p> : null}
-                </article>
-              ))
-            )}
+          <div className="grid gap-5 p-5 pt-0 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.72fr)]">
+            <section aria-labelledby="integration-sources-title">
+              <h3 id="integration-sources-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Источники данных</h3>
+              <div className="record-list">
+                {integrations.length === 0 ? (
+                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Интеграции еще не настроены.</div>
+                ) : (
+                  integrations.map((integration) => (
+                    <article key={integration.id} className="record-card">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-[var(--foreground)]">{integration.displayName}</h3>
+                          <p className="mt-1 text-sm text-[var(--text-muted)]">{externalSourceLabel(integration.source)}</p>
+                        </div>
+                        <StatusBadge label="Статус" value={integrationStatusLabel(integration.status)} tone={integrationTone(integration.status)} />
+                      </div>
+                      <p className="mt-3 text-sm text-[var(--text-muted)]">
+                        Лимит: {integration.importLimit} · батч: {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
+                      </p>
+                      {integration.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{integration.lastError}</p> : null}
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
+            <section aria-labelledby="integration-token-title">
+              <h3 id="integration-token-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">API-ключи</h3>
+              <div className="record-list">
+                {apiTokens.length === 0 ? (
+                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">API-ключи еще не выпускались.</div>
+                ) : (
+                  apiTokens.map((token) => {
+                    const tokenHasError = Boolean(
+                      token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
+                    );
+
+                    return (
+                      <article key={token.id} className="record-card">
+                        <div className="record-row">
+                          <div className="min-w-0">
+                            <h4 className="record-title">{token.name}</h4>
+                            <p className="record-meta mt-1">Последний успех: {formatDate(token.lastSuccessAt)}</p>
+                          </div>
+                          <StatusBadge
+                            label="Статус"
+                            value={tokenHasError ? "Ошибка" : token.lastSuccessAt ? "Работает" : "Нет запусков"}
+                            tone={tokenHasError ? "negative" : token.lastSuccessAt ? "positive" : "neutral"}
+                          />
+                        </div>
+                        {token.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{token.lastError}</p> : null}
+                        <p className="record-meta">Последняя ошибка: {formatDate(token.lastErrorAt)}</p>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            </section>
           </div>
           <div className="border-t border-[var(--border)] px-5 py-4">
             <h3 className="font-semibold text-[var(--foreground)]">Последние импорты</h3>
@@ -860,10 +1158,12 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <p className="ops-panel__subtitle">Технические записи, которые чистит задача обслуживания.</p>
             </div>
           </div>
-          <div className="grid gap-3 p-5">
+          <div className="system-section-summary system-section-summary--three">
             <StatCard label="Просроченные сессии" value={expiredActiveSessions} hint="Будут помечены как истекшие" tone={expiredActiveSessions > 0 ? "warning" : "positive"} />
             <StatCard label="Ключи повторных запросов" value={expiredIdempotencyKeys} hint="Можно удалить после TTL" tone={expiredIdempotencyKeys > 0 ? "warning" : "positive"} />
             <StatCard label="Окна лимитов API" value={staleRateLimits} hint="Старше 7 дней" tone={staleRateLimits > 0 ? "warning" : "positive"} />
+          </div>
+          <div className="px-5 pb-5">
             <div className="soft-callout text-sm text-[var(--text-muted)]">
               <Clock3 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
               Для cron-запуска фоновых задач используйте{" "}
