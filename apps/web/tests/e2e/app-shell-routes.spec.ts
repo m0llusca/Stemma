@@ -222,3 +222,13 @@ test("authenticated app shell routes render stable chrome and content", async ({
   expect(topbarChromeByRoute.get("/reviews"), "reviews topbar should use the same chrome as dashboard").toEqual(dashboardTopbarChrome);
   expect(topbarChromeByRoute.get("/coaching"), "coaching topbar should use the same chrome as dashboard").toEqual(dashboardTopbarChrome);
 });
+
+test("dashboard shell reaches first content quickly", async ({ page }) => {
+  const startedAt = Date.now();
+
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+  await page.locator(".app-topbar").waitFor({ state: "visible" });
+  await page.getByText(/Фокус сейчас|Последняя активность/).first().waitFor({ state: "visible" });
+
+  expect(Date.now() - startedAt).toBeLessThan(2_500);
+});

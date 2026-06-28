@@ -158,3 +158,21 @@ test("reviews quick views do not accumulate vertical layout gap when toggled", a
     `queueTop=${stickyLayout.queueTop}, controlsBottom=${stickyLayout.controlsBottom}, slotHeight=${stickyLayout.slotHeight}, slotMinHeight=${stickyLayout.slotMinHeight}`
   ).toBe(true);
 });
+
+test("quick views keep the filter panel height stable after repeated toggles", async ({ page }) => {
+  await signInThroughDemo(page);
+  await page.goto("/reviews");
+
+  const quickViews = page.locator(".queue-quick-views").first();
+  const quickViewsToggle = quickViews.locator("summary").filter({ hasText: /Быстрые виды/ });
+  const firstBox = await quickViews.boundingBox();
+  expect(firstBox).not.toBeNull();
+
+  for (let index = 0; index < 6; index += 1) {
+    await quickViewsToggle.click();
+  }
+
+  const secondBox = await quickViews.boundingBox();
+  expect(secondBox).not.toBeNull();
+  expect(Math.abs((secondBox?.height ?? 0) - (firstBox?.height ?? 0))).toBeLessThan(24);
+});
