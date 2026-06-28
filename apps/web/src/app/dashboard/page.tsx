@@ -4,13 +4,17 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
+import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
+import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { MetricValue } from "@/components/ui/metric-value";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { reviewEventActionLabel } from "@/lib/review-events";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
-import { statusToneClass, toneForCount, toneForScore, type StatusTone } from "@/lib/ui/status-tone";
+import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
+import { statusToneClass, type StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -269,8 +273,6 @@ async function DashboardPageContent() {
     .sort((left, right) => right.average - left.average)
     .slice(0, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
-  const activeTrainingTone: StatusTone =
-    overdueTrainingCount > 0 ? "negative" : activeTrainingCount > 0 ? "info" : "positive";
   const totalQueueCount = queuedCount + inWorkCount;
   const focusItemCandidates: Array<FocusItem | null> = [
     highRiskCount > 0
@@ -318,51 +320,185 @@ async function DashboardPageContent() {
           hint: "Критичных отклонений нет"
         }
       ];
+  const primaryFocus = displayedFocusItems[0];
+  const checkedStatus = semanticStatusForMetric({ kind: "completed_count", value: checkedThisWeek });
+  const scoreStatus = semanticStatusForMetric({ kind: "average_score", value: currentAverage });
+  const queueStatus = semanticStatusForMetric({ kind: "queue_count", value: totalQueueCount });
+  const trainingStatus = semanticStatusForMetric(
+    overdueTrainingCount > 0
+      ? { kind: "overdue_count", value: overdueTrainingCount }
+      : { kind: "learning_count", value: activeTrainingCount }
+  );
 
   return (
-    <section className="page-shell dashboard-shell">
-      <div className="command-center dashboard-hero">
-        <div className="min-w-0">
-          <p className="page-kicker">Рабочее пространство</p>
-          <h1 className="page-title">Дашборд качества</h1>
-          <p className="page-subtitle">
-            Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам.
-          </p>
-          <div className="dashboard-hero__meta">
-            <span>{highRiskCount > 0 || overdueTrainingCount > 0 ? "Есть фокус на сегодня" : "Команда в норме"}</span>
+    <OperationalPageFrame
+      title="Дашборд качества"
+      className="page-shell dashboard-shell"
+      signals={
+        <>
+          <div className="command-center dashboard-hero">
+            <div className="min-w-0">
+              <p className="page-kicker">Рабочее пространство</p>
+              <h1 className="page-title">Дашборд качества</h1>
+              <p className="page-subtitle">
+                Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам.
+              </p>
+              <div className="dashboard-hero__meta">
+                <span className={focusItems.length ? "semantic-status--warning" : "semantic-status--positive"}>
+                  {focusItems.length ? "Есть фокус на сегодня" : "Команда в норме"}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
-        <Link href="/reviews?status=reviewed" className="dashboard-kpi dashboard-kpi--blue">
-          <span className="dashboard-kpi__icon"><ClipboardCheck size={18} aria-hidden="true" /></span>
-          <MetricValue value={checkedThisWeek} tone={toneForCount(checkedThisWeek, { zero: "neutral", nonZero: "positive" })} />
-          <span>Проверок за неделю</span>
-          <small>{formatSignedNumber(checkedDelta)} к прошлой неделе</small>
-        </Link>
-        <Link href="/reports" className="dashboard-kpi dashboard-kpi--green">
-          <span className="dashboard-kpi__icon"><Star size={18} aria-hidden="true" /></span>
-          <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={toneForScore(currentAverage)} />
-          <span>Средний балл</span>
-          <small>{scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}</small>
-        </Link>
-        <Link href="/reviews?status=unreviewed" className="dashboard-kpi dashboard-kpi--amber">
-          <span className="dashboard-kpi__icon"><Clock3 size={18} aria-hidden="true" /></span>
-          <MetricValue value={totalQueueCount} tone={toneForCount(totalQueueCount, { zero: "positive", nonZero: "warning" })} />
-          <span>В очереди и работе</span>
-          <small>{queuedCount} ждут старта · {inWorkCount} в работе</small>
-        </Link>
-        <Link href="/coaching" className="dashboard-kpi dashboard-kpi--violet">
-          <span className="dashboard-kpi__icon"><BookOpenCheck size={18} aria-hidden="true" /></span>
-          <MetricValue value={activeTrainingCount} tone={activeTrainingTone} />
-          <span>Активных обучений</span>
-          <small>{overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}</small>
-        </Link>
-      </section>
+          <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
+            <Link href="/reviews?status=reviewed" className="dashboard-kpi dashboard-kpi--blue">
+              <span className="dashboard-kpi__icon"><ClipboardCheck size={18} aria-hidden="true" /></span>
+              <MetricValue value={checkedThisWeek} tone={checkedStatus.tone} />
+              <span>Проверок за неделю</span>
+              <small>{formatSignedNumber(checkedDelta)} к прошлой неделе</small>
+            </Link>
+            <Link href="/reports" className="dashboard-kpi dashboard-kpi--green">
+              <span className="dashboard-kpi__icon"><Star size={18} aria-hidden="true" /></span>
+              <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={scoreStatus.tone} />
+              <span>Средний балл</span>
+              <small>{scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}</small>
+            </Link>
+            <Link href="/reviews?status=unreviewed" className="dashboard-kpi dashboard-kpi--amber">
+              <span className="dashboard-kpi__icon"><Clock3 size={18} aria-hidden="true" /></span>
+              <MetricValue value={totalQueueCount} tone={queueStatus.tone} />
+              <span>В очереди и работе</span>
+              <small>{queuedCount} ждут старта · {inWorkCount} в работе</small>
+            </Link>
+            <Link href="/coaching" className="dashboard-kpi dashboard-kpi--violet">
+              <span className="dashboard-kpi__icon"><BookOpenCheck size={18} aria-hidden="true" /></span>
+              <MetricValue value={activeTrainingCount} tone={trainingStatus.tone} />
+              <span>Активных обучений</span>
+              <small>{overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}</small>
+            </Link>
+          </section>
+        </>
+      }
+      action={
+        <PriorityActionPanel
+          title={focusItems.length ? primaryFocus.label : "Открыть следующую проверку"}
+          description={
+            focusItems.length
+              ? primaryFocus.hint
+              : "Критичных отклонений нет. Держите ритм очереди и возьмите следующий разговор в проверку."
+          }
+          actionLabel={focusItems.length ? "Открыть фокус" : "Открыть очередь"}
+          href={primaryFocusHref}
+          tone={primaryFocus.tone}
+        />
+      }
+      details={
+        <section className="dashboard-main-grid" aria-label="Операционные детали">
+          <div className="dashboard-panel">
+            <div className="dashboard-panel__header">
+              <div className="min-w-0">
+                <h2>Фокус сейчас</h2>
+                <p>Переходы к конкретике.</p>
+              </div>
+            </div>
+            <div className="dashboard-focus-list">
+              {displayedFocusItems.map((item) => {
+                const Icon = item.icon;
 
-      <section className="dashboard-main-grid">
-        <div className="dashboard-panel dashboard-panel--wide">
+                return (
+                  <Link key={item.href} href={item.href} className="dashboard-focus-row">
+                    <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
+                    <span className="dashboard-focus-row__copy">
+                      <strong>{item.label}</strong>
+                      <small>{item.hint}</small>
+                    </span>
+                    <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
+                      <em>{item.value}</em>
+                      <ArrowRight size={14} aria-hidden="true" />
+                    </span>
+                  </Link>
+                );
+              })}
+              <CoachCallout
+                title={focusItems.length ? "Начните с верхнего сигнала" : "Поддержите ритм контроля"}
+                body={
+                  focusItems.length
+                    ? "Сначала закройте риск или просроченное обучение, затем возвращайтесь к обычной очереди."
+                    : "Критичных отклонений нет: выберите следующий разговор из очереди и сохраните темп проверок."
+                }
+                href={primaryFocusHref}
+                actionLabel={focusItems.length ? "Открыть фокус" : "Открыть очередь"}
+                tone={focusItems.length ? "warning" : "info"}
+                placement="right"
+                anchorLabel="Подсказка к текущему фокусу"
+              />
+            </div>
+          </div>
+
+          <div className="dashboard-panel dashboard-panel--wide">
+            <div className="dashboard-panel__header">
+              <div className="min-w-0">
+                <h2>Проверки за неделю</h2>
+                <p>Объем и средний балл по дням.</p>
+              </div>
+              <span className="metric-card__action">{formatSignedNumber(checkedDelta)}</span>
+            </div>
+            <div className="dashboard-week-chart" aria-label="Проверки за неделю">
+              {dailyCounts.map((item) => (
+                <div key={item.date.toISOString()} className="dashboard-week-chart__day">
+                  <span className="dashboard-week-chart__bar" style={{ height: `${Math.max(16, (item.count / maxDailyCount) * 100)}%` }}>
+                    <strong>{item.count}</strong>
+                  </span>
+                  <small>{weekdayLabel(item.date)}</small>
+                  <em>{item.average == null ? "нет" : Math.round(item.average)}</em>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="dashboard-panel">
+            <div className="dashboard-panel__header">
+              <div className="min-w-0">
+                <h2>Операторы</h2>
+                <p>Последние 30 дней.</p>
+              </div>
+              <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
+            </div>
+            <div className="dashboard-agent-list">
+              {agentRows.map((agent) => (
+                <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
+                  <span>{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
+                  <strong>{agent.name}</strong>
+                  <small>{agent.count} проверок · {agent.riskCount} риск · {agent.appealCount} апелл.</small>
+                  <em>{Math.round(agent.average)}</em>
+                  <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="dashboard-panel">
+            <div className="dashboard-panel__header">
+              <div className="min-w-0">
+                <h2>Ближайшее обучение</h2>
+                <p>Задачи с ближайшим сроком.</p>
+              </div>
+            </div>
+            <div className="dashboard-training-list">
+              {recentTrainings.map((assignment) => (
+                <Link key={assignment.id} href="/coaching" className="dashboard-training-row">
+                  <strong>{assignment.title}</strong>
+                  <span>{assignment.assigneeName}</span>
+                  <small>{assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} · {assignment.review?.conversation.externalId ?? "ручная задача"}</small>
+                </Link>
+              ))}
+              {recentTrainings.length === 0 ? <p className="empty-note">Активных обучений нет.</p> : null}
+            </div>
+          </div>
+        </section>
+      }
+      evidence={
+        <EvidenceDrawer title="Последняя активность" defaultOpen>
           <div className="dashboard-panel__header">
             <div className="min-w-0">
               <h2>Последняя активность</h2>
@@ -385,109 +521,8 @@ async function DashboardPageContent() {
             ))}
             {recentEvents.length === 0 ? <p className="empty-note">Событий пока нет.</p> : null}
           </div>
-        </div>
-
-        <div className="dashboard-panel">
-          <div className="dashboard-panel__header">
-            <div className="min-w-0">
-              <h2>Фокус сейчас</h2>
-              <p>Переходы к конкретике.</p>
-            </div>
-          </div>
-          <div className="dashboard-focus-list">
-            {displayedFocusItems.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <Link key={item.href} href={item.href} className="dashboard-focus-row">
-                  <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
-                  <span className="dashboard-focus-row__copy">
-                    <strong>{item.label}</strong>
-                    <small>{item.hint}</small>
-                  </span>
-                  <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
-                    <em>{item.value}</em>
-                    <ArrowRight size={14} aria-hidden="true" />
-                  </span>
-                </Link>
-              );
-            })}
-            <CoachCallout
-              title={focusItems.length ? "Начните с верхнего сигнала" : "Поддержите ритм контроля"}
-              body={
-                focusItems.length
-                  ? "Сначала закройте риск или просроченное обучение, затем возвращайтесь к обычной очереди."
-                  : "Критичных отклонений нет: выберите следующий разговор из очереди и сохраните темп проверок."
-              }
-              href={primaryFocusHref}
-              actionLabel={focusItems.length ? "Открыть фокус" : "Открыть очередь"}
-              tone={focusItems.length ? "warning" : "info"}
-              placement="right"
-              anchorLabel="Подсказка к текущему фокусу"
-            />
-          </div>
-        </div>
-
-        <div className="dashboard-panel dashboard-panel--wide">
-          <div className="dashboard-panel__header">
-            <div className="min-w-0">
-              <h2>Проверки за неделю</h2>
-              <p>Объем и средний балл по дням.</p>
-            </div>
-            <span className="metric-card__action">{formatSignedNumber(checkedDelta)}</span>
-          </div>
-          <div className="dashboard-week-chart" aria-label="Проверки за неделю">
-            {dailyCounts.map((item) => (
-              <div key={item.date.toISOString()} className="dashboard-week-chart__day">
-                <span className="dashboard-week-chart__bar" style={{ height: `${Math.max(16, (item.count / maxDailyCount) * 100)}%` }}>
-                  <strong>{item.count}</strong>
-                </span>
-                <small>{weekdayLabel(item.date)}</small>
-                <em>{item.average == null ? "нет" : Math.round(item.average)}</em>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="dashboard-panel">
-          <div className="dashboard-panel__header">
-            <div className="min-w-0">
-              <h2>Операторы</h2>
-              <p>Последние 30 дней.</p>
-            </div>
-            <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
-          </div>
-          <div className="dashboard-agent-list">
-            {agentRows.map((agent) => (
-              <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
-                <span>{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
-                <strong>{agent.name}</strong>
-                <small>{agent.count} проверок · {agent.riskCount} риск · {agent.appealCount} апелл.</small>
-                <em>{Math.round(agent.average)}</em>
-                <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
-              </Link>
-            ))}
-          </div>
-        </div>
-        <div className="dashboard-panel">
-          <div className="dashboard-panel__header">
-            <div className="min-w-0">
-              <h2>Ближайшее обучение</h2>
-              <p>Задачи с ближайшим сроком.</p>
-            </div>
-          </div>
-          <div className="dashboard-training-list">
-            {recentTrainings.map((assignment) => (
-              <Link key={assignment.id} href="/coaching" className="dashboard-training-row">
-                <strong>{assignment.title}</strong>
-                <span>{assignment.assigneeName}</span>
-                <small>{assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} · {assignment.review?.conversation.externalId ?? "ручная задача"}</small>
-              </Link>
-            ))}
-            {recentTrainings.length === 0 ? <p className="empty-note">Активных обучений нет.</p> : null}
-          </div>
-        </div>
-      </section>
-    </section>
+        </EvidenceDrawer>
+      }
+    />
   );
 }
