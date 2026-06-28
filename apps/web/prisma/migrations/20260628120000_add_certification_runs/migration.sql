@@ -51,6 +51,8 @@ CREATE INDEX "CertificationRun_actorId_startedAt_idx"
   ON "CertificationRun"("actorId", "startedAt");
 CREATE UNIQUE INDEX "CertificationRun_id_workspaceId_key"
   ON "CertificationRun"("id", "workspaceId");
+CREATE UNIQUE INDEX "Integration_id_workspaceId_key"
+  ON "Integration"("id", "workspaceId");
 
 CREATE UNIQUE INDEX "CertificationRunStep_runId_stepKey_key"
   ON "CertificationRunStep"("runId", "stepKey");
@@ -69,13 +71,13 @@ ALTER TABLE "CertificationRun"
   FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CertificationRun"
   ADD CONSTRAINT "CertificationRun_integrationId_fkey"
-  FOREIGN KEY ("integrationId") REFERENCES "Integration"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("integrationId", "workspaceId") REFERENCES "Integration"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "CertificationRun"
   ADD CONSTRAINT "CertificationRun_identityProviderId_fkey"
-  FOREIGN KEY ("identityProviderId") REFERENCES "IdentityProvider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("identityProviderId", "workspaceId") REFERENCES "IdentityProvider"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "CertificationRun"
   ADD CONSTRAINT "CertificationRun_actorId_fkey"
-  FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("actorId", "workspaceId") REFERENCES "User"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "CertificationRunStep"
   ADD CONSTRAINT "CertificationRunStep_runId_fkey"
   FOREIGN KEY ("runId", "workspaceId") REFERENCES "CertificationRun"("id", "workspaceId") ON DELETE CASCADE ON UPDATE CASCADE;

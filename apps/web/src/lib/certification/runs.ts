@@ -145,6 +145,13 @@ function redactUrlText(value: string) {
   });
 }
 
+function redactSecretText(value: string) {
+  return value.replace(
+    /\b(authorization|cookie|password|passwd|secret|token|api[_-]?key|client[_-]?secret|credential)\b(\s*[:=]\s*|\s+)([^\s"'<>]+)/gi,
+    "$1$2[redacted]"
+  );
+}
+
 function redactedText(value: string | null | undefined) {
   if (value == null) {
     return null;
@@ -152,7 +159,7 @@ function redactedText(value: string | null | undefined) {
 
   const diagnosticsRedacted = redactCertificationDiagnostics({ text: value }).text;
   const normalized = typeof diagnosticsRedacted === "string" ? diagnosticsRedacted : value;
-  return redactUrlText(normalized).replace(/\b(Bearer|Basic)\s+[^\s"'<>]+/gi, "$1 [redacted]");
+  return redactSecretText(redactUrlText(normalized).replace(/\b(Bearer|Basic)\s+[^\s"'<>]+/gi, "$1 [redacted]"));
 }
 
 async function assertWorkspaceReferences(input: Pick<CreateCertificationRunInput, "workspaceId" | "integrationId" | "identityProviderId" | "actorId">) {

@@ -135,14 +135,18 @@ describe("certification runs", () => {
       stepKey: "auth_check",
       position: 1,
       status: "failed",
-      detail: "Request failed with Bearer raw-token",
-      hint: "https://u:p@example.com/path?token=abc"
+      detail: "Request failed with Bearer raw-token client_secret=abc123 api_key: xyz",
+      hint: "https://u:p@example.com/path?token=abc password hunter2 token raw-token"
     });
 
     const data = stepCreateMock.mock.calls[0][0].data;
     expect(data.detail).not.toContain("raw-token");
+    expect(data.detail).not.toContain("abc123");
+    expect(data.detail).not.toContain("xyz");
     expect(data.hint).not.toContain("u:p");
     expect(data.hint).not.toContain("token=abc");
+    expect(data.hint).not.toContain("hunter2");
+    expect(data.hint).not.toContain("raw-token");
   });
 
   it("finalizes a run through its workspace-scoped compound key", async () => {

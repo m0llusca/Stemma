@@ -559,14 +559,25 @@ describe("prisma schema database foundations", () => {
   });
 
   it("stores certification runs and ordered steps separately from evidence rows", () => {
+    const integrationModel = modelBlock("Integration");
     const runModel = modelBlock("CertificationRun");
     const stepModel = modelBlock("CertificationRunStep");
     const evidenceModel = modelBlock("CertificationEvidence");
 
+    expect(integrationModel).toContain("@@unique([id, workspaceId])");
     expect(runModel).toMatch(/model CertificationRun/);
     expect(runModel).toMatch(/workspaceId\s+String/);
     expect(runModel).toMatch(/targetType\s+String/);
     expect(runModel).toMatch(/source\s+String/);
+    expect(runModel).toMatch(
+      /integration\s+Integration\?\s+@relation\(fields: \[integrationId, workspaceId\], references: \[id, workspaceId\], onDelete: Restrict\)/
+    );
+    expect(runModel).toMatch(
+      /identityProvider\s+IdentityProvider\?\s+@relation\(fields: \[identityProviderId, workspaceId\], references: \[id, workspaceId\], onDelete: Restrict\)/
+    );
+    expect(runModel).toMatch(
+      /actor\s+User\?\s+@relation\("CertificationRunActor", fields: \[actorId, workspaceId\], references: \[id, workspaceId\], onDelete: Restrict\)/
+    );
     expect(runModel).toMatch(/status\s+String\s+@default\("running"\)/);
     expect(runModel).toMatch(/nextActionJson\s+String\s+@default\("\{\}"\)/);
     expect(runModel).toMatch(/steps\s+CertificationRunStep\[]/);
@@ -585,6 +596,14 @@ describe("prisma schema database foundations", () => {
     expect(certificationRunsMigration).toContain(
       'FOREIGN KEY ("certificationRunId", "workspaceId") REFERENCES "CertificationRun"("id", "workspaceId")'
     );
+    expect(certificationRunsMigration).toContain('CREATE UNIQUE INDEX "Integration_id_workspaceId_key"');
+    expect(certificationRunsMigration).toContain(
+      'FOREIGN KEY ("integrationId", "workspaceId") REFERENCES "Integration"("id", "workspaceId")'
+    );
+    expect(certificationRunsMigration).toContain(
+      'FOREIGN KEY ("identityProviderId", "workspaceId") REFERENCES "IdentityProvider"("id", "workspaceId")'
+    );
+    expect(certificationRunsMigration).toContain('FOREIGN KEY ("actorId", "workspaceId") REFERENCES "User"("id", "workspaceId")');
   });
 
   it("migrates Phase D certification evidence with foreign keys and query indexes", () => {

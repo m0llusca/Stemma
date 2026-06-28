@@ -517,6 +517,7 @@ model Integration {
   updatedAt             DateTime                   @updatedAt
 
   @@unique([workspaceId, source])
+  @@unique([id, workspaceId])
   @@index([workspaceId, status])
   @@index([workspaceId, updatedAt])
 }
@@ -1032,11 +1033,11 @@ model CertificationRun {
   source                  String
   provider                String?
   integrationId           String?
-  integration             Integration?            @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  integration             Integration?            @relation(fields: [integrationId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   identityProviderId      String?
-  identityProvider        IdentityProvider?       @relation(fields: [identityProviderId], references: [id], onDelete: SetNull)
+  identityProvider        IdentityProvider?       @relation(fields: [identityProviderId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   actorId                 String?
-  actor                   User?                   @relation("CertificationRunActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor                   User?                   @relation("CertificationRunActor", fields: [actorId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   status                  String                  @default("running")
   startedAt               DateTime                @default(now())
   finishedAt              DateTime?
