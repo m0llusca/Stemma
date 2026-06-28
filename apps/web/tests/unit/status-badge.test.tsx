@@ -9,7 +9,7 @@ describe("StatusBadge", () => {
     const { container } = render(<StatusBadge label="SLA" value="2 open" tone="warning" />);
     const badge = container.querySelector(".status-badge");
 
-    expect(badge).toHaveClass("status-tone", "status-tone--warning");
+    expect(badge).toHaveClass("status-badge", "chip", "chip--warning");
     expect(badge).toHaveTextContent("SLA 2 open");
     expect(badge?.querySelector(".status-badge__label")).toHaveTextContent("SLA");
     expect(badge?.querySelector(".status-badge__value")).toHaveTextContent("2 open");
@@ -26,7 +26,7 @@ describe("StatusBadge", () => {
     const { container } = render(<StatusBadge label="Quality" value="94" tone="positive" className="queue-status" />);
     const badge = container.querySelector(".status-badge");
 
-    expect(badge).toHaveClass("status-badge", "status-tone", "status-tone--positive", "queue-status");
+    expect(badge).toHaveClass("status-badge", "chip", "chip--success", "queue-status");
   });
 });
 
@@ -35,7 +35,7 @@ describe("MetricValue", () => {
     const { container } = render(<MetricValue label="Average" value="87" tone="info" />);
     const metric = container.querySelector(".metric-value");
 
-    expect(metric).toHaveClass("status-tone", "status-tone--info");
+    expect(metric).toHaveClass("metric-value", "chip", "chip--info");
     expect(metric?.textContent).toBe("Average 87");
     expect(screen.getByText("Average")).toHaveClass("metric-value__label");
     expect(screen.getByText("87")).toHaveClass("metric-value__value");

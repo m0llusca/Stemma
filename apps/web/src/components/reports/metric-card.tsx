@@ -83,7 +83,9 @@ export function MetricCard({ label, value, helper, icon, actionHref, actionLabel
   const hint =
     comparison && delta == null
       ? "Нет базы сравнения"
-      : helper;
+      : comparison && delta != null
+        ? "к прошлому периоду"
+        : helper;
 
   return (
     <div className="metric-card-shell">

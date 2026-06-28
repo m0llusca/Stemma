@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,9 +14,15 @@ function makeRequest(cookie: string) {
 
 describe("auth shell layout", () => {
   it("removes workspace chrome while the login shell is rendered", () => {
-    // Component styles live in styles/components.css (globals.css holds only the
-    // @tailwind layers, theme.css holds tokens/themes — see layout.tsx import order).
-    const css = readFileSync(join(process.cwd(), "src/app/styles/components.css"), "utf8");
+    // Component styles live in styles/components/*.css partials (globals.css holds
+    // only the @tailwind layers, theme.css holds tokens/themes — see layout.tsx
+    // import order). The monolith was split into ordered numbered partials.
+    const dir = join(process.cwd(), "src/app/styles/components");
+    const css = readdirSync(dir)
+      .filter((file) => file.endsWith(".css"))
+      .sort()
+      .map((file) => readFileSync(join(dir, file), "utf8"))
+      .join("\n");
 
     expect(css).toContain(".page:has(.auth-shell) .app-sidebar");
     expect(css).toContain(".page:has(.auth-shell) .app-topbar");

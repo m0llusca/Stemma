@@ -98,6 +98,7 @@ export function Chip({
           {label != null ? (
             <span className={`${partPrefix}__label`}>{label}</span>
           ) : null}
+          {label != null && value != null ? " " : null}
           {value != null ? (
             <span className={`${partPrefix}__value`}>{value}</span>
           ) : null}
