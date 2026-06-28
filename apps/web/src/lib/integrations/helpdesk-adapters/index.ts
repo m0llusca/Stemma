@@ -6,9 +6,9 @@ import { createJiraAdapter } from "@/lib/integrations/helpdesk-adapters/jira";
 import { createSalesforceAdapter } from "@/lib/integrations/helpdesk-adapters/salesforce";
 import { createServiceNowAdapter } from "@/lib/integrations/helpdesk-adapters/servicenow";
 import { createZendeskAdapter } from "@/lib/integrations/helpdesk-adapters/zendesk";
-import type { PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
+import type { HelpdeskAdapter, PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
 
-export function createHelpdeskAdapter(source: PhaseBHelpdeskSource) {
+export function createHelpdeskAdapter(source: PhaseBHelpdeskSource): HelpdeskAdapter {
   if (source === "zendesk") {
     return createZendeskAdapter();
   }

@@ -81,3 +81,20 @@ export type HelpdeskAdapterLoadResult = {
     }>;
   };
 };
+
+export type HelpdeskAdapterProbeInput = Omit<HelpdeskAdapterLoadInput, "externalId"> & {
+  externalId?: string;
+};
+
+export type HelpdeskCapabilityProbeResult = {
+  status: "ok" | "warning" | "failed";
+  operations: HelpdeskAdapterOperation[];
+  detail: string;
+  hint?: string;
+  diagnostics: HelpdeskAdapterLoadResult["diagnostics"];
+};
+
+export type HelpdeskAdapter = {
+  loadConversation(input: HelpdeskAdapterLoadInput): Promise<HelpdeskAdapterLoadResult>;
+  probeCapabilities?(input: HelpdeskAdapterProbeInput): Promise<HelpdeskCapabilityProbeResult>;
+};
