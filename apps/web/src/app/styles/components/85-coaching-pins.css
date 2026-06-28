@@ -1,0 +1,201 @@
+.coaching-pins {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coaching-pin {
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+  padding: 10px 12px;
+}
+
+.coaching-pin--resolved {
+  border-color: color-mix(in srgb, var(--success) 34%, var(--border));
+  background: color-mix(in srgb, var(--success) 7%, var(--panel));
+}
+
+.coaching-pin__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.coaching-pin__author {
+  font-weight: 720;
+  color: var(--foreground);
+}
+
+.coaching-pin__role,
+.coaching-pin__time {
+  color: var(--muted);
+}
+
+.coaching-pin__time {
+  font-variant-numeric: tabular-nums;
+}
+
+.coaching-pin__status {
+  margin-left: auto;
+  border-radius: var(--radius-small);
+  padding: 2px 8px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.coaching-pin__body {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+
+.coaching-pin--resolved .coaching-pin__body {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.coaching-pin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.coaching-pin-add {
+  margin-top: 10px;
+}
+
+.coaching-pin-composer {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.coaching-pin-composer__input {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.coaching-pin-composer__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-button--danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.work-section {
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px;
+}
+
+.work-section--muted {
+  background: var(--panel-muted);
+}
+
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.step-header__number {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #4268e8, var(--accent));
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.task-row {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+}
+
+.task-row:last-child {
+  border-bottom: 0;
+}
+
+.review-score-surface {
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--panel-tint), #ffffff);
+  padding: 18px 20px;
+}
+
+.criterion-card {
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.criterion-card[open] {
+  border-color: var(--accent-border);
+  background: var(--panel-tint);
+}
+
+.review-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  background: #ffffff;
+  padding: 14px 20px;
+}
+
+.message-toolbar {
+  margin-left: auto;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 210px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.knowledge-grid {
+  display: grid;
+  gap: 0;
+}
+
+.knowledge-item {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+}
+
+.knowledge-item:last-child {
+  border-bottom: 0;
+}
+
+.compact-details {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+

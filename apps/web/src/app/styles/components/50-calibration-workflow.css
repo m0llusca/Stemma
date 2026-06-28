@@ -1,0 +1,377 @@
+.calibration-session {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px;
+}
+
+.calibration-session:last-child {
+  border-bottom: 0;
+}
+
+.calibration-session--selected {
+  background: var(--panel-tint);
+  outline: 1px solid var(--accent-border);
+  outline-offset: -1px;
+}
+
+.calibration-session__header {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.calibration-session__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.calibration-session__actions form {
+  display: contents;
+}
+
+.calibration-session__actions .action-button {
+  min-width: 116px;
+}
+
+.calibration-participants {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.calibration-participant {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-muted);
+  padding: 10px 12px;
+}
+
+.record-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-title {
+  min-width: 0;
+  color: var(--foreground);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.record-title--tight {
+  display: -webkit-box;
+  overflow: clip;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.record-meta {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pill {
+  display: inline-flex;
+  min-height: 24px;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.pill--ok {
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.pill--warn {
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.pill--neutral {
+  border-color: var(--border);
+  background: var(--panel-muted);
+  color: #475569;
+}
+
+.metric-strip {
+  display: grid;
+  --metric-card-min: 132px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--metric-card-min)), 1fr));
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--shadow-panel);
+}
+
+.focus-summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: var(--shadow-panel);
+}
+
+.focus-summary__lead {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  background: #0f172a;
+  padding: 18px 20px;
+  color: #ffffff;
+}
+
+.focus-summary__label {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.focus-summary__value {
+  font-size: 34px;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.focus-summary__hint {
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.focus-summary__metrics {
+  display: grid;
+  --metric-card-min: 118px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--metric-card-min)), 1fr));
+}
+
+.focus-summary__metric {
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  padding: 16px;
+}
+
+.metric-strip__item {
+  min-width: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+}
+
+.metric-strip__label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.metric-strip__value {
+  margin-top: 4px;
+  color: var(--foreground);
+  font-size: 22px;
+  font-weight: 760;
+  line-height: 1.1;
+}
+
+.workflow-focus-strip,
+.admin-attention-strip,
+.calibration-exception-band {
+  display: grid;
+  grid-template-columns: minmax(220px, 292px) minmax(0, 1fr);
+  overflow: clip;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-page);
+  background: color-mix(in srgb, var(--surface-raised) 90%, var(--panel-muted));
+  box-shadow: none;
+}
+
+.workflow-focus-strip__lead,
+.admin-attention-strip__lead,
+.calibration-exception-band__lead {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface-raised));
+  padding: 16px 18px;
+}
+
+.workflow-focus-strip__lead strong,
+.admin-attention-strip__lead h2,
+.calibration-exception-band__lead strong {
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.workflow-focus-strip__lead small,
+.admin-attention-strip__lead p,
+.calibration-exception-band__lead small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-attention-strip__lead .action-button {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.workflow-focus-strip__items,
+.admin-attention-strip__list,
+.calibration-exception-band__list {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+}
+
+.workflow-focus-card,
+.admin-attention-card,
+.calibration-exception-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 104px;
+  align-content: start;
+  gap: 5px;
+  border-right: 1px solid var(--line-soft);
+  padding: 14px 38px 14px 16px;
+  color: inherit;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: background-color 140ms ease, outline-color 140ms ease, transform 140ms ease;
+}
+
+.workflow-focus-card:last-child,
+.admin-attention-card:last-child,
+.calibration-exception-card:last-child {
+  border-right: 0;
+}
+
+.workflow-focus-card:hover,
+.admin-attention-card:hover,
+.calibration-exception-card:hover {
+  background: var(--panel-tint);
+}
+
+.workflow-focus-card:active,
+.admin-attention-card:active,
+.calibration-exception-card:active {
+  transform: translateY(1px);
+}
+
+.workflow-focus-card:focus-visible,
+.admin-attention-card:focus-visible,
+.calibration-exception-card:focus-visible {
+  outline-color: var(--button-focus-ring);
+}
+
+.workflow-focus-card span,
+.admin-attention-card span,
+.calibration-exception-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.workflow-focus-card strong,
+.admin-attention-card strong,
+.calibration-exception-card strong {
+  color: var(--foreground);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 1;
+}
+
+.workflow-focus-card small,
+.admin-attention-card small,
+.calibration-exception-card small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workflow-focus-card svg,
+.admin-attention-card svg {
+  position: absolute;
+  right: 14px;
+  top: 16px;
+  color: var(--muted);
+}
+
+.workflow-focus-card--warning,
+.admin-attention-card--warn {
+  background: color-mix(in srgb, var(--surface-raised) 92%, var(--warning-soft));
+}
+
+.workflow-focus-card--warning strong,
+.admin-attention-card--warn strong {
+  color: var(--warning);
+}
+
+.workflow-focus-card--static,
+.admin-attention-card--static,
+.calibration-exception-card--static {
+  cursor: default;
+}
+
+.workflow-focus-card--static:hover,
+.admin-attention-card--static:hover,
+.calibration-exception-card--static:hover {
+  background: transparent;
+}
+
+.workflow-focus-card--static:active,
+.admin-attention-card--static:active,
+.calibration-exception-card--static:active {
+  transform: none;
+}
+
+.signal-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+

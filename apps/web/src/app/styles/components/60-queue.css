@@ -1,0 +1,620 @@
+.queue-filterbar {
+  display: grid;
+  gap: 0;
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-page);
+  background: var(--panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.queue-controls {
+  display: grid;
+  gap: 0;
+  overflow: clip;
+  background: #ffffff;
+}
+
+.queue-controls .queue-filterbar {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ---- Sticky queue controls bar ---- */
+.queue-controls-bar__slot {
+  min-width: 0;
+}
+
+.queue-controls-bar__slot:has(.queue-controls-bar:not(.queue-controls-bar--stuck) .queue-quick-views:not([open])) {
+  min-height: 0 !important;
+}
+
+.queue-controls-bar {
+  position: relative;
+  z-index: 14;
+  display: grid;
+  gap: 0;
+  overflow: clip;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-page);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: border-radius 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.queue-controls-bar .queue-filterbar {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.queue-controls-bar.queue-controls-bar--stuck {
+  --queue-sticky-width: calc(100vw - var(--app-sidebar-width));
+  --queue-sticky-inset: var(--app-topbar-inline);
+  position: fixed;
+  top: var(--app-topbar-height);
+  left: var(--app-sidebar-width);
+  z-index: 19;
+  width: var(--queue-sticky-width);
+  overflow: visible;
+  border-top: 1px solid var(--line-soft);
+  border-right: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
+  padding-inline: var(--queue-sticky-inset);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.queue-controls-bar.queue-controls-bar--stuck .queue-quick-views,
+.queue-controls-bar.queue-controls-bar--stuck .queue-filterbar__active {
+  display: none;
+}
+
+/* Compact metrics chip — shared by the reviews sticky filter bar and the reusable
+   StickyMetricsBar so every section's on-scroll metrics look identical. */
+.sticky-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.sticky-metric svg {
+  color: var(--muted);
+}
+
+.sticky-metric strong {
+  color: var(--foreground);
+  font-weight: 720;
+}
+
+.sticky-metric--danger svg,
+.sticky-metric--danger strong {
+  color: var(--danger);
+}
+
+.sticky-metric--success svg,
+.sticky-metric--success strong {
+  color: var(--success);
+}
+
+.sticky-metric--warning svg,
+.sticky-metric--warning strong {
+  color: var(--warning);
+}
+
+/* Reviews: metrics ride inside the already-sticky filter bar — shown only once the
+   bar is stuck, hidden at rest. */
+.queue-sticky-metrics {
+  display: none;
+}
+
+.queue-controls-bar.queue-controls-bar--stuck .queue-sticky-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 9px 2px 7px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reusable standalone sticky metrics strip for sections without a sticky filter bar
+   (coaching, calibration, self-review). Sentinel sits in flow; the bar is fixed below
+   the topbar and fades in once the sentinel scrolls under it. */
+.sticky-metrics-sentinel {
+  height: 0;
+  margin: 0;
+}
+
+.sticky-metrics-bar {
+  position: fixed;
+  top: var(--app-topbar-height);
+  left: var(--app-sidebar-width);
+  z-index: 18;
+  width: calc(100vw - var(--app-sidebar-width));
+  border-bottom: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.sticky-metrics-bar--shown {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.sticky-metrics-bar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  width: 100%;
+  padding: 9px var(--app-topbar-inline);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-metrics-bar {
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .sticky-metrics-bar {
+    left: 0;
+    width: 100vw;
+  }
+}
+
+/* Source picker on the "new integration" screen: grouped cards with a
+   brand-toned monogram, descriptor and an explicit selected state. */
+.connect-source-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.connect-source-group {
+  display: grid;
+  gap: 8px;
+}
+
+.connect-source-group__title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.connect-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 8px;
+}
+
+.connect-source-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.connect-source-card:hover {
+  border-color: var(--border-strong);
+  background: var(--panel-tint);
+}
+
+.connect-source-card--selected {
+  border-color: var(--control-selected-border);
+  background: var(--control-selected-bg);
+}
+
+.connect-source-card:focus-visible {
+  outline: 2px solid var(--button-focus-ring);
+  outline-offset: 2px;
+}
+
+.connect-source-card__mark {
+  display: inline-flex;
+  height: 34px;
+  width: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--source-color) 28%, var(--border));
+  border-radius: var(--radius-small);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--source-color) 8%, var(--panel)), var(--panel));
+  color: var(--source-color);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 70%, transparent);
+  overflow: hidden;
+}
+
+.connect-source-card__mark svg,
+.connect-source-card__mark img {
+  flex: 0 0 auto;
+}
+
+.connect-source-card__mark svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.connect-source-card__mark img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.connect-source-card__mark img[data-fit="cover"] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.connect-source-card__body {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 1px;
+}
+
+.connect-source-card__name {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 740;
+  line-height: 1.25;
+}
+
+.connect-source-card__flag {
+  border: 1px solid color-mix(in srgb, var(--warning) 38%, var(--border));
+  border-radius: 999px;
+  background: var(--warning-soft);
+  padding: 1px 7px;
+  color: var(--warning);
+  font-size: 10px;
+  font-weight: 740;
+}
+
+.connect-source-card__hint {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connect-source-card__check {
+  display: inline-flex;
+  height: 20px;
+  width: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: transparent;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.connect-source-card__check--on {
+  background: var(--accent);
+  color: var(--button-primary-text);
+}
+
+.connect-source-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-control);
+  background: var(--panel-muted);
+  padding: 8px 12px;
+}
+
+.connect-source-current__body {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.connect-source-current__body strong {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.connect-source-current__body span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.connect-source-guidance {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.connect-source-guidance--route {
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.connect-source-guidance__lead {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.connect-source-guidance__lead h3 {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.connect-source-guidance__lead p:not(.page-kicker) {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.connect-source-guidance__items {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 8px;
+}
+
+.connect-source-guidance__items div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border-top: 1px solid var(--line-soft);
+  padding: 9px 0 2px;
+}
+
+.connect-source-guidance__items span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.connect-source-guidance__items strong {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.connect-source-guidance__items small,
+.connect-source-guidance__limitations {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.connect-source-guidance__limitations {
+  display: grid;
+  gap: 4px;
+  padding-left: 18px;
+}
+
+.connect-source-guidance__limitations li {
+  list-style: disc;
+}
+
+.connect-next-action {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+  padding: 12px;
+  color: var(--accent-strong);
+}
+
+.connect-next-action--warning {
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
+  color: var(--warning);
+}
+
+.connect-next-action--negative {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+  color: var(--danger);
+}
+
+.connect-next-action strong {
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.connect-next-action span {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Personal score panel (self-review): the agent's own QA trend + team benchmark. */
+.personal-score {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.personal-score__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.personal-score__value {
+  display: grid;
+  gap: 2px;
+}
+
+.personal-score__number {
+  font-size: 30px;
+  font-weight: 780;
+  line-height: 1;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.personal-score__caption {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.personal-score__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.personal-score__delta--up {
+  color: var(--success);
+}
+
+.personal-score__delta--down {
+  color: var(--danger);
+}
+
+.personal-score__benchmark {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Agent's per-criterion strengths / focus areas inside the personal score panel. */
+.criterion-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 14px 24px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+
+.criterion-insights__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.criterion-insights__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.criterion-insight {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 44px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.criterion-insight__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.criterion-insight__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  overflow: clip;
+}
+
+.criterion-insight__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+}
+
+.criterion-insight--focus .criterion-insight__fill {
+  background: var(--warning, var(--danger));
+}
+
+.criterion-insight__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.score-sparkline {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: 40px;
+}
+
+.score-sparkline__area {
+  fill: color-mix(in srgb, var(--accent) 14%, transparent);
+  stroke: none;
+}
+
+.score-sparkline__line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.score-sparkline__dot {
+  fill: var(--accent);
+}
+

@@ -4,7 +4,23 @@ import { IBM_Plex_Mono, Manrope } from "next/font/google";
 // Order is load-bearing: Tailwind layers, then tokens/themes, then component styles.
 import "./globals.css";
 import "./styles/theme.css";
-import "./styles/components.css";
+// components.css was split into ordered per-domain partials. Import order is
+// load-bearing: it must match the original top-to-bottom source order.
+import "./styles/components/00-base.css";
+import "./styles/components/10-app-shell.css";
+import "./styles/components/20-integrations.css";
+import "./styles/components/30-dashboard.css";
+import "./styles/components/40-admin.css";
+import "./styles/components/50-calibration-workflow.css";
+import "./styles/components/60-queue.css";
+import "./styles/components/70-queue-detail.css";
+import "./styles/components/80-reviews.css";
+import "./styles/components/85-coaching-pins.css";
+import "./styles/components/87-source-picker.css";
+import "./styles/components/90-appearance-theme.css";
+import "./styles/components/92-reports.css";
+import "./styles/components/94-enablement.css";
+import "./styles/components/96-misc-forms.css";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
 import { TrpcProvider } from "@/components/trpc-provider";
