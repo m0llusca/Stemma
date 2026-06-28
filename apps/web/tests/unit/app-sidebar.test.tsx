@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,7 +18,15 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/app-sidebar-shell", () => ({
-  AppSidebarShell: ({ children }: { children: ReactNode }) => <nav>{children}</nav>
+  AppSidebarShell: ({ navigation }: { navigation: { modes: Array<{ href: string; label: string }> } }) => (
+    <nav aria-label="Режимы системы">
+      {navigation.modes.map((mode) => (
+        <a key={mode.href} href={mode.href}>
+          {mode.label}
+        </a>
+      ))}
+    </nav>
+  )
 }));
 
 vi.mock("@/lib/current-user", () => ({
@@ -42,7 +49,9 @@ function mockCurrentUser() {
     id: "user-1",
     workspaceId: "workspace-1",
     role: "SUPPORT_AGENT",
-    name: "Оператор"
+    name: "Оператор",
+    email: "agent@example.com",
+    workspace: {}
   });
   mocks.getWorkspaceUsers.mockResolvedValue([
     {
@@ -75,20 +84,24 @@ describe("app sidebar", () => {
     expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
   });
 
-  it("does not show the demo user switcher by default", async () => {
+  it("renders compact role-filtered mode navigation", async () => {
     const { AppSidebar } = await import("@/components/app-sidebar");
 
     render(await AppSidebar());
 
-    expect(screen.queryByRole("button", { name: "Переключить" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Сегодня" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Работа" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Команда" })).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "Система" })).toBeNull();
   });
 
-  it("shows the demo user switcher when demo auth is explicitly enabled", async () => {
+  it("keeps demo user switching out of the sidebar shell", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(true);
     const { AppSidebar } = await import("@/components/app-sidebar");
 
     render(await AppSidebar());
 
-    expect(screen.getByRole("button", { name: "Переключить" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Сменить" })).toBeNull();
+    expect(mocks.isDemoAuthEnabled).not.toHaveBeenCalled();
   });
 });

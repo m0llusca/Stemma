@@ -60,13 +60,13 @@ export async function signInWithLocalCredentials(formData: FormData) {
   redirect(returnTo);
 }
 
-async function createDemoUserSession(formData: FormData, options: { requireDemoAuthEnabled: boolean }) {
+async function createDemoUserSession(formData: FormData, options: { requireDemoAuthEnabled: boolean; defaultReturnTo?: string }) {
   if (options.requireDemoAuthEnabled && !isDemoAuthEnabled()) {
     throw new Error("Демо-переключение пользователей отключено.");
   }
 
   const userId = stringField(formData, "userId");
-  const returnTo = safeReturnTo(stringField(formData, "returnTo"));
+  const returnTo = safeReturnTo(stringField(formData, "returnTo") || options.defaultReturnTo || "/reviews");
 
   const user = await prisma.user.findFirst({
     where: demoUserByIdWhere(userId),
@@ -107,5 +107,5 @@ export async function signInWithDemoUser(formData: FormData) {
 }
 
 export async function switchCurrentUser(formData: FormData) {
-  return createDemoUserSession(formData, { requireDemoAuthEnabled: true });
+  return createDemoUserSession(formData, { requireDemoAuthEnabled: true, defaultReturnTo: "/dashboard" });
 }

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppSidebarShell } from "@/components/app-sidebar-shell";
+import { buildShellNavigation } from "@/lib/shell/navigation";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/reviews"
@@ -23,11 +24,7 @@ describe("app sidebar shell", () => {
   });
 
   it("submits logout through a native post form", () => {
-    render(
-      <AppSidebarShell items={[{ href: "/reviews", label: "Проверки", icon: "reviews" }]}>
-        <span>Роль</span>
-      </AppSidebarShell>
-    );
+    render(<AppSidebarShell navigation={buildShellNavigation({ role: "ADMIN" })} />);
 
     const logoutButton = screen.getByRole("button", { name: "Выйти" });
     const logoutForm = logoutButton.closest("form");
@@ -41,19 +38,10 @@ describe("app sidebar shell", () => {
   it("marks only the most specific matching navigation item as current", () => {
     mocks.pathname = "/admin/localization";
 
-    render(
-      <AppSidebarShell
-        items={[
-          { href: "/admin", label: "Администрирование", icon: "admin", group: "admin" },
-          { href: "/admin/localization", label: "Локализация", icon: "admin", group: "admin" }
-        ]}
-      >
-        <span>Роль</span>
-      </AppSidebarShell>
-    );
+    render(<AppSidebarShell navigation={buildShellNavigation({ role: "ADMIN" })} />);
 
-    expect(screen.getByRole("link", { name: "Администрирование" }).getAttribute("aria-current")).toBeNull();
-    expect(screen.getByRole("link", { name: "Локализация" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Сегодня" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("link", { name: "Система" }).getAttribute("aria-current")).toBe("page");
     expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 });

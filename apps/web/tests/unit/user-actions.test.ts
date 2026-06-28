@@ -291,6 +291,21 @@ describe("user actions", () => {
     );
   });
 
+  it("switches demo users back to the dashboard when the shell form omits returnTo", async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "demo-user",
+      workspaceId: "demo-workspace",
+      role: "ADMIN"
+    });
+    const { switchCurrentUser } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("userId", "demo-user");
+
+    await expect(switchCurrentUser(formData)).rejects.toThrow("NEXT_REDIRECT:/dashboard");
+
+    expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
+  });
+
   it("keeps sidebar demo switching disabled when demo auth is off", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(false);
     const { switchCurrentUser } = await import("@/lib/user-actions");

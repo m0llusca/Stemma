@@ -144,30 +144,41 @@ test("authenticated app shell routes render stable chrome and content", async ({
 
     if (route === "/dashboard") {
       const topbar = page.locator(".app-topbar");
-      const search = page.locator(".app-topbar__search");
-      const firstSignal = page.locator(".app-topbar__signal").first();
-      const userChip = page.locator(".app-topbar__user");
-      const [topbarBox, searchBox, signalBox, userBox] = await Promise.all([
+      const contextNav = page.locator(".app-topbar__context");
+      const commandTrigger = page.locator(".app-command-trigger");
+      const workPulse = page.locator(".work-pulse");
+      const identityChip = page.locator(".app-topbar__identity-form, .app-topbar__user").first();
+
+      await expect(commandTrigger).toBeVisible();
+      await expect(page.locator(".work-pulse__item").first()).toBeVisible();
+      await expect(page.getByRole("link", { name: "Пульс дня" })).toBeVisible();
+
+      const [topbarBox, contextBox, commandBox, pulseBox, identityBox] = await Promise.all([
         topbar.evaluate((element) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right };
         }),
-        search.evaluate((element) => {
+        contextNav.evaluate((element) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right };
         }),
-        firstSignal.evaluate((element) => {
+        commandTrigger.evaluate((element) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right };
         }),
-        userChip.evaluate((element) => {
+        workPulse.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return { left: rect.left, right: rect.right };
+        }),
+        identityChip.evaluate((element) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right };
         })
       ]);
-      expect(searchBox.left - topbarBox.left, "topbar search should keep only a small desktop left padding").toBeLessThanOrEqual(12);
-      expect(signalBox.left - searchBox.right, "topbar search should fill the space before right actions").toBeLessThanOrEqual(16);
-      expect(topbarBox.right - userBox.right, "topbar actions should keep only a small desktop right padding").toBeLessThanOrEqual(12);
+      expect(contextBox.left - topbarBox.left, "topbar context should keep only a small desktop left padding").toBeLessThanOrEqual(12);
+      expect(commandBox.left - contextBox.right, "command trigger should sit directly after the current mode context").toBeLessThanOrEqual(16);
+      expect(pulseBox.left - commandBox.right, "work pulse should stay close to command trigger").toBeLessThanOrEqual(16);
+      expect(topbarBox.right - identityBox.right, "topbar identity should keep only a small desktop right padding").toBeLessThanOrEqual(12);
     }
 
     if (route === "/dashboard") {

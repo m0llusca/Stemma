@@ -1,36 +1,7 @@
 import type { RoleName } from "@prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
+import { buildShellNavigation, type ShellNavigation } from "@/lib/shell/navigation";
 import { resolveWorkspaceBranding, type WorkspaceBranding } from "@/lib/ui-theme";
-
-type ShellNavIcon = "dashboard" | "reviews" | "self-review" | "calibration" | "coaching" | "reports" | "admin";
-type ShellNavGroup = "workspace" | "data" | "admin";
-
-export type ShellNavItem = {
-  href: string;
-  label: string;
-  icon: ShellNavIcon;
-  group: ShellNavGroup;
-};
-
-type ShellNavDefinition = ShellNavItem & {
-  roles: RoleName[];
-};
-
-const shellNavDefinitions: ShellNavDefinition[] = [
-  { href: "/dashboard", label: "Дашборд", icon: "dashboard", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
-  { href: "/reviews", label: "Проверки", icon: "reviews", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
-  { href: "/self-review", label: "Моя обратная связь", icon: "self-review", group: "workspace", roles: ["SUPPORT_AGENT"] },
-  { href: "/calibration", label: "Калибровка", icon: "calibration", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
-  { href: "/coaching", label: "Обучение", icon: "coaching", group: "workspace", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT"] },
-  { href: "/reports", label: "Аналитика", icon: "reports", group: "data", roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] },
-  { href: "/admin", label: "Настройки", icon: "admin", group: "admin", roles: ["ADMIN", "TEAM_LEAD"] }
-];
-
-export function buildShellNavItems({ role }: { role: RoleName }): ShellNavItem[] {
-  return shellNavDefinitions
-    .filter((item) => item.roles.includes(role))
-    .map(({ roles: _roles, ...item }) => item);
-}
 
 export type ShellSnapshot = {
   user: {
@@ -41,7 +12,7 @@ export type ShellSnapshot = {
     role: RoleName;
   };
   branding: WorkspaceBranding;
-  navItems: ShellNavItem[];
+  navigation: ShellNavigation;
 };
 
 export async function getShellSnapshot(): Promise<ShellSnapshot> {
@@ -56,6 +27,6 @@ export async function getShellSnapshot(): Promise<ShellSnapshot> {
       role: user.role
     },
     branding: resolveWorkspaceBranding(user.workspace),
-    navItems: buildShellNavItems({ role: user.role })
+    navigation: buildShellNavigation({ role: user.role })
   };
 }

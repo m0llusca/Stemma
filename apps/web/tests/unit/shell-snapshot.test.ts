@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildShellNavItems, getShellSnapshot } from "@/lib/shell/snapshot";
+import { buildShellNavigation } from "@/lib/shell/navigation";
+import { getShellSnapshot } from "@/lib/shell/snapshot";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn()
@@ -17,14 +18,14 @@ describe("shell snapshot navigation", () => {
   });
 
   it("shows support agents self review without admin navigation", () => {
-    const hrefs = buildShellNavItems({ role: "SUPPORT_AGENT" }).map((item) => item.href);
+    const hrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map((item) => item.href);
 
     expect(hrefs).toContain("/self-review");
     expect(hrefs).not.toContain("/admin");
   });
 
   it("shows admin navigation without self review", () => {
-    const hrefs = buildShellNavItems({ role: "ADMIN" }).map((item) => item.href);
+    const hrefs = buildShellNavigation({ role: "ADMIN" }).commandItems.map((item) => item.href);
 
     expect(hrefs).toContain("/admin");
     expect(hrefs).not.toContain("/self-review");
@@ -64,12 +65,14 @@ describe("shell snapshot navigation", () => {
         brandTagline: "Quality desk",
         brandMark: "AQ"
       }),
-      navItems: expect.arrayContaining([
-        expect.objectContaining({ href: "/dashboard" }),
-        expect.objectContaining({ href: "/admin" })
-      ])
+      navigation: expect.objectContaining({
+        commandItems: expect.arrayContaining([
+          expect.objectContaining({ href: "/dashboard" }),
+          expect.objectContaining({ href: "/admin" })
+        ])
+      })
     });
-    expect(snapshot.navItems.some((item) => item.href === "/self-review")).toBe(false);
+    expect(snapshot.navigation.commandItems.some((item) => item.href === "/self-review")).toBe(false);
   });
 
   it("keeps shell snapshot imports away from heavy runtime boundaries", () => {
