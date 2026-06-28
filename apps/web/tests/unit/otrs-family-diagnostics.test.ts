@@ -10,7 +10,7 @@ import {
   deriveDiagnosticStatus,
   runOtrsDiagnostics
 } from "@/lib/integrations/otrs-family/diagnostics";
-import { runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
+import { runOtrsConnectorDiagnostics, summarizeOtrsCertificationInput } from "@/lib/integrations/otrs-family/service";
 import { describe, expect, it, vi } from "vitest";
 
 const workspaceId = "workspace-1";
@@ -185,6 +185,32 @@ async function withOtrsGenericInterfaceServer<T>(
 }
 
 describe("OTRS-family diagnostics", () => {
+  it("summarizes diagnostics and import counts for certification", () => {
+    expect(
+      summarizeOtrsCertificationInput({
+        source: "otrs",
+        routeDetected: true,
+        authOk: true,
+        ticketSearchOk: false,
+        webhookOk: false,
+        imported: 0,
+        skipped: 2
+      })
+    ).toEqual({
+      source: "otrs",
+      diagnostics: {
+        routeDetected: true,
+        authOk: true,
+        ticketSearchOk: false,
+        webhookOk: false
+      },
+      sampleImport: {
+        imported: 0,
+        skipped: 2
+      }
+    });
+  });
+
   it("runs the success diagnostic path through the real OTRS GenericInterface HTTP client", async () => {
     await withOtrsGenericInterfaceServer({ ticketIds: ["101"] }, async (server) => {
       const tx = createFakeTx();

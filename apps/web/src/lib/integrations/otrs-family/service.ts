@@ -170,7 +170,31 @@ export async function createOtrsPreview(input: CreateOtrsPreviewInput) {
         ...common,
         mode: input.mode,
         filters: input.filters
-      });
+    });
+}
+
+export function summarizeOtrsCertificationInput(input: {
+  source: "otrs" | "znuny" | "otobo";
+  routeDetected: boolean;
+  authOk: boolean;
+  ticketSearchOk: boolean;
+  webhookOk: boolean;
+  imported: number;
+  skipped: number;
+}) {
+  return {
+    source: input.source,
+    diagnostics: {
+      routeDetected: input.routeDetected,
+      authOk: input.authOk,
+      ticketSearchOk: input.ticketSearchOk,
+      webhookOk: input.webhookOk
+    },
+    sampleImport: {
+      imported: input.imported,
+      skipped: input.skipped
+    }
+  };
 }
 
 function createDiagnosticClient(
