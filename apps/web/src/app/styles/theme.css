@@ -72,6 +72,7 @@
   --radius-card: 12px;
   --radius-control: 10px;
   --radius-small: 8px;
+  --radius-chip: 6px;
   --control-height: 38px;
   --control-padding-y: 8px;
   --control-padding-x: 13px;
@@ -336,18 +337,18 @@ body[data-theme="ops"] .appearance-choice-group {
   background: var(--panel-muted);
 }
 
-body[data-theme="ops"] .meta-chip--success,
 body[data-theme="ops"] .soft-callout--ok,
 body[data-theme="ops"] .learning-metric--success {
   border-color: color-mix(in srgb, var(--success) 48%, var(--border));
   background: var(--success-soft);
 }
 
+/* `.meta-chip` tones route through the canonical `--chip-*` tokens so ops
+   matches the `.chip` look exactly; only the icon wash is ops-specific. */
 body[data-theme="ops"] .meta-chip--success .meta-chip__icon {
   background: color-mix(in srgb, var(--success) 24%, transparent);
 }
 
-body[data-theme="ops"] .meta-chip--warning,
 body[data-theme="ops"] .soft-callout--warn,
 body[data-theme="ops"] .learning-next-panel--urgent {
   border-color: color-mix(in srgb, var(--warning) 48%, var(--border));

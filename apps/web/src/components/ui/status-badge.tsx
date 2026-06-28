@@ -1,8 +1,20 @@
 import type { ReactNode } from "react";
-import clsx from "clsx";
+import { Chip, type ChipTone } from "@/components/ui/chip";
 import type { StatusTone } from "@/lib/ui/status-tone";
-import { statusToneClass } from "@/lib/ui/status-tone";
 
+const chipToneForStatusTone: Record<StatusTone, ChipTone> = {
+  positive: "success",
+  warning: "warning",
+  negative: "danger",
+  neutral: "neutral",
+  info: "info"
+};
+
+/**
+ * Thin wrapper around the canonical {@link Chip} primitive. The public API is
+ * unchanged; it keeps the legacy `status-badge` class hooks while sharing the
+ * `.chip` token-driven look (radius, border, tone fills).
+ */
 export function StatusBadge({
   label,
   value,
@@ -15,10 +27,13 @@ export function StatusBadge({
   className?: string;
 }) {
   return (
-    <span className={clsx("status-badge", statusToneClass(tone), className)}>
-      <span className="status-badge__label">{label}</span>
-      {" "}
-      <span className="status-badge__value">{value}</span>
-    </span>
+    <Chip
+      tone={chipToneForStatusTone[tone]}
+      label={label}
+      value={value}
+      baseClassName="status-badge"
+      partPrefix="status-badge"
+      className={className}
+    />
   );
 }

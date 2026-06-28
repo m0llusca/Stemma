@@ -92,7 +92,13 @@
   overflow-wrap: anywhere;
 }
 
+/* `.meta-chip` is applied via className (can't wrap in Chip), so it is aligned
+   here to the canonical `.chip` look: same `--radius-chip`, 1px token border,
+   and tone fills routed through the same semantic/accent tokens. */
 .meta-chip {
+  --chip-bg: var(--panel);
+  --chip-border: var(--border);
+  --chip-fg: var(--text-subtle);
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
@@ -100,11 +106,11 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-chip);
+  background: var(--chip-bg);
   padding: 5px 9px;
-  color: var(--foreground);
+  color: var(--chip-fg);
   line-height: 1;
 }
 
@@ -115,7 +121,7 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius-small);
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
@@ -127,7 +133,7 @@
   letter-spacing: 0;
   line-height: 1;
   text-transform: uppercase;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--chip-fg) 78%, var(--text-muted));
 }
 
 .meta-chip__value {
@@ -138,12 +144,13 @@
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
-  color: var(--foreground);
+  color: var(--chip-fg);
 }
 
 .meta-chip--success {
-  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
-  background: var(--success-soft);
+  --chip-bg: var(--status-success-bg);
+  --chip-border: var(--status-success-border);
+  --chip-fg: var(--success);
 }
 
 .meta-chip--success .meta-chip__icon {
@@ -152,8 +159,9 @@
 }
 
 .meta-chip--warning {
-  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
-  background: var(--warning-soft);
+  --chip-bg: var(--status-warning-bg);
+  --chip-border: var(--status-warning-border);
+  --chip-fg: var(--warning);
 }
 
 .meta-chip--warning .meta-chip__icon {
@@ -162,8 +170,9 @@
 }
 
 .meta-chip--active {
-  border-color: var(--accent-border);
-  background: var(--panel-tint);
+  --chip-bg: var(--accent-soft);
+  --chip-border: var(--accent-border);
+  --chip-fg: var(--accent-ink);
 }
 
 .meta-chip--wide {

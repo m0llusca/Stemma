@@ -123,7 +123,6 @@ select.form-control {
 
 .action-button,
 .form-control,
-.meta-chip,
 .pill,
 .icon-box,
 .appeal-alert__icon,
@@ -131,6 +130,11 @@ select.form-control {
 .admin-tile__icon,
 .step-header__number {
   border-radius: var(--radius-control);
+}
+
+/* Keep `.meta-chip` aligned to the canonical chip radius. */
+.meta-chip {
+  border-radius: var(--radius-chip);
 }
 
 .admin-tile--compact .admin-tile__icon,
@@ -1242,54 +1246,37 @@ pre,
   --status-tone-border: var(--accent-border);
 }
 
+/* `.status-badge` and `.metric-value` are rendered by the canonical Chip
+   wrappers, so they always carry `.chip` + `.chip--{tone}` and read tone from
+   `--chip-*`. These rules add only the structural specifics that diverge from
+   the base pill (min-heights, uppercase metric label, large metric value). */
 .status-badge {
-  display: inline-flex;
-  max-width: 100%;
   min-height: 28px;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--status-tone-border);
-  border-radius: var(--radius-small);
-  background: var(--status-tone-bg);
   padding: 4px 8px;
-  color: var(--status-tone-fg);
-  font-size: 12px;
   font-weight: 760;
-  line-height: 1;
-  vertical-align: middle;
 }
 
 .status-badge__label {
   display: inline-flex;
-  min-width: 0;
   min-height: 14px;
   align-items: center;
-  color: color-mix(in srgb, var(--status-tone-fg) 78%, var(--text-muted));
   line-height: 14px;
 }
 
 .status-badge__value {
   display: inline-flex;
-  min-width: 0;
   min-height: 14px;
   align-items: center;
-  color: var(--status-tone-fg);
   font-weight: 840;
   line-height: 14px;
 }
 
 .metric-value {
-  display: inline-flex;
   max-width: 100%;
-  min-width: 0;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--status-tone-fg);
-  line-height: 1;
 }
 
 .metric-value__label {
-  color: color-mix(in srgb, var(--status-tone-fg) 70%, var(--text-muted));
+  color: color-mix(in srgb, var(--chip-fg) 70%, var(--text-muted));
   font-size: 11px;
   font-weight: 760;
   letter-spacing: 0;
@@ -1297,7 +1284,6 @@ pre,
 }
 
 .metric-value__value {
-  color: var(--status-tone-fg);
   font-size: 28px;
   font-weight: 820;
 }

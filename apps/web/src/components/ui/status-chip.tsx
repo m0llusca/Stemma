@@ -1,22 +1,13 @@
 import type { ReactNode } from "react";
+import { Chip } from "@/components/ui/chip";
 
 type StatusChipTone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
 type StatusChipSize = "xs" | "sm";
 
-const toneClassNames: Record<StatusChipTone, string> = {
-  neutral: "border-[var(--border)] bg-[var(--panel)] text-[var(--text-subtle)]",
-  success: "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success)]",
-  warning: "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--warning)]",
-  danger: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--danger)]",
-  info: "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]",
-  accent: "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-ink)]"
-};
-
-const sizeClassNames: Record<StatusChipSize, string> = {
-  xs: "min-h-[22px] px-2 py-0.5 text-[11px]",
-  sm: "min-h-[26px] px-2.5 py-1 text-xs"
-};
-
+/**
+ * Thin wrapper around the canonical {@link Chip} primitive. The public API is
+ * unchanged; the look now comes entirely from the shared `.chip` token system.
+ */
 export function StatusChip({
   children,
   tone = "neutral",
@@ -29,11 +20,8 @@ export function StatusChip({
   title?: string;
 }) {
   return (
-    <span
-      title={title}
-      className={`inline-flex max-w-full items-center rounded-full border font-semibold leading-4 ${toneClassNames[tone]} ${sizeClassNames[size]}`}
-    >
-      <span className="min-w-0 truncate">{children}</span>
-    </span>
+    <Chip tone={tone} size={size} title={title}>
+      {children}
+    </Chip>
   );
 }
