@@ -28,6 +28,12 @@
 
 This spec spans several subsystems. Implement this plan as parallel-friendly tracks, but keep review gates per task. A task is complete only when its tests pass and it has its own commit.
 
+## Karpathy Review Adjustments
+
+Treat this document as a staged master plan, not a single implementation PR. Prefer the smallest task that can pass independently. If a task discovers that existing code already provides the required behavior, add or tighten tests and stop rather than refactoring adjacent code.
+
+Do not implement optional write-back, marketplace OAuth, conversation ingest, or full cross-page UI migration unless the active task explicitly asks for it. Keep every task's changed lines traceable to its stated success criteria.
+
 ## File Structure Map
 
 Certification:
@@ -1067,7 +1073,7 @@ In `apps/web/src/lib/integrations/helpdesk-adapters/source-contracts.ts`, update
 }
 ```
 
-Use equivalent source-specific notes for Intercom, HubSpot, Jira, Freshdesk, Salesforce, ServiceNow, and Dynamics. Do not invent a Context7 id if no useful official result was returned.
+For Intercom, HubSpot, Jira, Freshdesk, Salesforce, ServiceNow, and Dynamics, add source-specific notes that name the exact verified endpoint, auth/scoping constraint, pagination/rate-limit behavior, and any webhook limitation found in official docs. Do not promote readiness based on docs alone, and do not invent a Context7 id if no useful official result was returned.
 
 - [ ] **Step 6: Update install-contract limitations**
 
@@ -1134,70 +1140,78 @@ git commit -m "docs(integrations): enforce source documentation gate"
 Create `apps/web/tests/unit/helpdesk-adapter-probes.test.ts`:
 
 ```ts
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createZendeskAdapter } from "@/lib/integrations/helpdesk-adapters/zendesk";
 import { createIntercomAdapter } from "@/lib/integrations/helpdesk-adapters/intercom";
 import { createHubspotAdapter } from "@/lib/integrations/helpdesk-adapters/hubspot";
 import { createJiraAdapter } from "@/lib/integrations/helpdesk-adapters/jira";
-import { createHelpdeskAdapterFixtureServer } from "../fixtures/helpdesk-adapter-server";
-
-const server = createHelpdeskAdapterFixtureServer();
-
-afterEach(async () => {
-  await server.stop();
-});
+import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
 
 describe("native helpdesk capability probes", () => {
-  it("confirms Zendesk ticket and search operations", async () => {
-    const baseUrl = await server.start("zendesk");
-    const result = await createZendeskAdapter().probeCapabilities({
-      source: "zendesk",
-      baseUrl,
-      token: "user/token:secret",
-      externalId: "ZD-1001"
-    });
+  it("confirms Zendesk ticket and comments operations", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
 
-    expect(result).toMatchObject({
-      status: "ok",
-      operations: expect.arrayContaining(["ticket_get", "ticket_search", "comments_get"])
-    });
+    try {
+      const result = await createZendeskAdapter().probeCapabilities({
+        source: "zendesk",
+        baseUrl: server.baseUrl,
+        token: "user/token:secret",
+        externalId: "ZD-1001"
+      });
+
+      expect(result).toMatchObject({
+        status: "ok",
+        operations: expect.arrayContaining(["ticket_get", "comments_get"])
+      });
+    } finally {
+      await server.close();
+    }
   });
 
   it("confirms Intercom conversation retrieval with the pinned API version", async () => {
-    const baseUrl = await server.start("intercom");
-    const result = await createIntercomAdapter().probeCapabilities({
-      source: "intercom",
-      baseUrl,
-      token: "token",
-      externalId: "conv-1001"
-    });
+    const server = await createHelpdeskAdapterServer({ source: "intercom", mode: "success" });
 
-    expect(result.status).toBe("ok");
-    expect(result.operations).toContain("conversations_get");
-    expect(result.diagnostics.requests[0].url).toContain("/conversations/");
+    try {
+      const result = await createIntercomAdapter().probeCapabilities({
+        source: "intercom",
+        baseUrl: server.baseUrl,
+        token: "token",
+        externalId: "conv-1001"
+      });
+
+      expect(result.status).toBe("ok");
+      expect(result.operations).toContain("conversations_get");
+      expect(result.diagnostics.requests[0].url).toContain("/conversations/");
+    } finally {
+      await server.close();
+    }
   });
 
   it("confirms HubSpot and Jira read probes without live certification", async () => {
-    const hubspotBaseUrl = await server.start("hubspot");
-    const jiraBaseUrl = await server.start("jira");
+    const hubspotServer = await createHelpdeskAdapterServer({ source: "hubspot", mode: "success" });
+    const jiraServer = await createHelpdeskAdapterServer({ source: "jira", mode: "success" });
 
-    await expect(
-      createHubspotAdapter().probeCapabilities({
-        source: "hubspot",
-        baseUrl: hubspotBaseUrl,
-        token: "token",
-        externalId: "4302"
-      })
-    ).resolves.toMatchObject({ status: "ok" });
+    try {
+      await expect(
+        createHubspotAdapter().probeCapabilities({
+          source: "hubspot",
+          baseUrl: hubspotServer.baseUrl,
+          token: "token",
+          externalId: "4302"
+        })
+      ).resolves.toMatchObject({ status: "ok" });
 
-    await expect(
-      createJiraAdapter().probeCapabilities({
-        source: "jira",
-        baseUrl: jiraBaseUrl,
-        token: "email:token",
-        externalId: "JSM-184"
-      })
-    ).resolves.toMatchObject({ status: "ok" });
+      await expect(
+        createJiraAdapter().probeCapabilities({
+          source: "jira",
+          baseUrl: jiraServer.baseUrl,
+          token: "email:token",
+          externalId: "JSM-184"
+        })
+      ).resolves.toMatchObject({ status: "ok" });
+    } finally {
+      await Promise.all([hubspotServer.close(), jiraServer.close()]);
+    }
   });
 });
 ```
@@ -1328,7 +1342,6 @@ Use the same pattern with required operations:
 Add missing fixture routes to `apps/web/tests/fixtures/helpdesk-adapter-server.ts` so the tests above return successful JSON for:
 
 ```text
-/api/v2/search
 /crm/v3/objects/tickets/:id
 /crm/v3/objects/tickets/:id/associations/*
 /rest/servicedeskapi/request/:issueIdOrKey
@@ -1733,7 +1746,75 @@ model MessagingDelivery {
 
 - [ ] **Step 4: Add migration**
 
-Create `apps/web/prisma/migrations/20260628123000_add_messaging_channels/migration.sql` with tables, indexes, and foreign keys matching the Prisma models in Step 3.
+Create `apps/web/prisma/migrations/20260628123000_add_messaging_channels/migration.sql` with this shape. If Prisma's generated constraint names differ, keep the generated names consistent throughout the migration and update schema-contract tests in the same task.
+
+```sql
+-- CreateTable
+CREATE TABLE "MessagingChannel" (
+    "id" TEXT NOT NULL,
+    "workspaceId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "capabilities" TEXT NOT NULL DEFAULT 'action_notification',
+    "configJson" TEXT NOT NULL DEFAULT '{}',
+    "secretRef" TEXT,
+    "lastDeliveredAt" TIMESTAMP(3),
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MessagingChannel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MessagingDelivery" (
+    "id" TEXT NOT NULL,
+    "workspaceId" TEXT NOT NULL,
+    "channelId" TEXT,
+    "kind" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    "recipientType" TEXT NOT NULL,
+    "recipientRef" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'queued',
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "href" TEXT,
+    "error" TEXT,
+    "payloadJson" TEXT NOT NULL DEFAULT '{}',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deliveredAt" TIMESTAMP(3),
+
+    CONSTRAINT "MessagingDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "MessagingChannel_workspaceId_status_idx" ON "MessagingChannel"("workspaceId", "status");
+
+-- CreateIndex
+CREATE INDEX "MessagingChannel_workspaceId_kind_idx" ON "MessagingChannel"("workspaceId", "kind");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MessagingChannel_workspaceId_kind_key" ON "MessagingChannel"("workspaceId", "kind");
+
+-- CreateIndex
+CREATE INDEX "MessagingDelivery_workspaceId_kind_createdAt_idx" ON "MessagingDelivery"("workspaceId", "kind", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MessagingDelivery_workspaceId_status_createdAt_idx" ON "MessagingDelivery"("workspaceId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MessagingDelivery_channelId_createdAt_idx" ON "MessagingDelivery"("channelId", "createdAt");
+
+-- AddForeignKey
+ALTER TABLE "MessagingChannel" ADD CONSTRAINT "MessagingChannel_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MessagingDelivery" ADD CONSTRAINT "MessagingDelivery_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MessagingDelivery" ADD CONSTRAINT "MessagingDelivery_channelId_fkey" FOREIGN KEY ("channelId") REFERENCES "MessagingChannel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+```
 
 - [ ] **Step 5: Implement messaging types and registry**
 
@@ -2033,7 +2114,48 @@ model AiQualityDraft {
 
 - [ ] **Step 4: Add migration**
 
-Create `apps/web/prisma/migrations/20260628124500_add_ai_quality_drafts/migration.sql` with the table, indexes, and foreign keys matching Step 3.
+Create `apps/web/prisma/migrations/20260628124500_add_ai_quality_drafts/migration.sql` with this shape. `reviewId` is intentionally stored as nullable text without a foreign key in this first pass; if a review relation is needed later, add it in a dedicated follow-up that verifies the review model ownership boundary.
+
+```sql
+-- CreateTable
+CREATE TABLE "AiQualityDraft" (
+    "id" TEXT NOT NULL,
+    "workspaceId" TEXT NOT NULL,
+    "conversationId" TEXT,
+    "reviewId" TEXT,
+    "kind" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "modelVersion" TEXT NOT NULL,
+    "promptVersion" TEXT NOT NULL,
+    "suggestedValueJson" TEXT NOT NULL DEFAULT '{}',
+    "evidenceRefsJson" TEXT NOT NULL DEFAULT '[]',
+    "finalizedById" TEXT,
+    "finalizedAt" TIMESTAMP(3),
+    "decisionReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AiQualityDraft_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "AiQualityDraft_workspaceId_conversationId_createdAt_idx" ON "AiQualityDraft"("workspaceId", "conversationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AiQualityDraft_workspaceId_status_createdAt_idx" ON "AiQualityDraft"("workspaceId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AiQualityDraft_finalizedById_finalizedAt_idx" ON "AiQualityDraft"("finalizedById", "finalizedAt");
+
+-- AddForeignKey
+ALTER TABLE "AiQualityDraft" ADD CONSTRAINT "AiQualityDraft_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiQualityDraft" ADD CONSTRAINT "AiQualityDraft_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiQualityDraft" ADD CONSTRAINT "AiQualityDraft_finalizedById_fkey" FOREIGN KEY ("finalizedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+```
 
 - [ ] **Step 5: Implement AI types and service**
 
@@ -2138,23 +2260,21 @@ git commit -m "feat(ai-quality): add advisory draft decisions"
 - Create: `apps/web/src/components/operations/priority-action-panel.tsx`
 - Create: `apps/web/src/components/operations/evidence-drawer.tsx`
 - Modify: `apps/web/src/app/dashboard/page.tsx`
-- Modify: `apps/web/src/app/reports/page.tsx`
-- Modify: `apps/web/src/app/admin/integrations/page.tsx`
 - Test: `apps/web/tests/unit/semantic-status.test.ts`
 - Test: `apps/web/tests/unit/operations-ui.test.tsx`
-- Modify: `apps/web/tests/e2e/admin-layout-visual.spec.ts`
+- Modify: `apps/web/tests/e2e/app-shell-routes.spec.ts`
 
 **Interfaces:**
-- Consumes: existing `StatusBadge`, `statusToneClass`, dashboard/report/integration data.
+- Consumes: existing `StatusBadge`, `statusToneClass`, and dashboard data.
 - Produces:
   - `semanticStatusForMetric(input): SemanticStatus`
   - `OperationalPageFrame`
   - `PriorityActionPanel`
   - `EvidenceDrawer`
 
-- [ ] **Step 1: Generate or refresh Lazyweb reports for each major UI screen being changed**
+- [ ] **Step 1: Confirm Lazyweb report for the dashboard screen**
 
-Before editing dashboard, reports, reviews, training, or integrations UI, run Lazyweb design report with the current screenshot and record the hosted report URL in the implementation summary. Use the existing dashboard report for dashboard-only changes:
+Before editing the dashboard UI, record the hosted Lazyweb report URL in the implementation summary. Use the existing dashboard report for this dashboard-only task:
 
 ```text
 https://www.lazyweb.com/report/lazyweb/299ab7b6-88e3-4262-81a8-4797e4103929/
@@ -2392,15 +2512,14 @@ export function EvidenceDrawer({
 }
 ```
 
-- [ ] **Step 7: Migrate first surfaces**
+- [ ] **Step 7: Migrate dashboard only**
 
-Use the components from Step 6 on:
+Use the components from Step 6 on `apps/web/src/app/dashboard/page.tsx` only:
 
-- `apps/web/src/app/dashboard/page.tsx`: wrap primary dashboard content in `OperationalPageFrame`; make "Фокус сейчас" the dominant `PriorityActionPanel`.
-- `apps/web/src/app/reports/page.tsx`: ensure negative signals render above positive dynamics.
-- `apps/web/src/app/admin/integrations/page.tsx`: use source readiness as primary signal and move evidence into `EvidenceDrawer`.
-
-Keep each page's existing data-loading code in place. This task changes composition and status treatment, not data queries.
+- Wrap primary dashboard content in `OperationalPageFrame`.
+- Make "Фокус сейчас" the dominant `PriorityActionPanel`.
+- Keep existing dashboard data-loading code and route behavior in place.
+- Do not change reports or integrations in this task. Create separate follow-up tasks for those screens after their own Lazyweb reports are attached.
 
 - [ ] **Step 8: Run focused checks**
 
@@ -2408,8 +2527,8 @@ Run:
 
 ```bash
 cd apps/web
-npx vitest run tests/unit/semantic-status.test.ts tests/unit/operations-ui.test.tsx tests/unit/analytics-intelligence.test.tsx
-npm run test:e2e -- tests/e2e/admin-layout-visual.spec.ts
+npx vitest run tests/unit/semantic-status.test.ts tests/unit/operations-ui.test.tsx
+npm run test:e2e -- tests/e2e/app-shell-routes.spec.ts
 ```
 
 Expected: PASS.
@@ -2417,7 +2536,7 @@ Expected: PASS.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/lib/ui/semantic-status.ts src/components/operations src/app/dashboard/page.tsx src/app/reports/page.tsx src/app/admin/integrations/page.tsx tests/unit/semantic-status.test.ts tests/unit/operations-ui.test.tsx tests/e2e/admin-layout-visual.spec.ts
+git add src/lib/ui/semantic-status.ts src/components/operations src/app/dashboard/page.tsx tests/unit/semantic-status.test.ts tests/unit/operations-ui.test.tsx tests/e2e/app-shell-routes.spec.ts
 git commit -m "feat(ui): introduce operations page pattern"
 ```
 
