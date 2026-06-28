@@ -150,6 +150,7 @@ model Workspace {
   integrationRunItems       IntegrationRunItem[]
   webhookEndpoints          WebhookEndpoint[]
   webhookIngestEvents       WebhookIngestEvent[]
+  certificationRuns         CertificationRun[]
   certificationEvidence     CertificationEvidence[]
   apiTokens                 ApiToken[]
   conversations             Conversation[]
@@ -270,6 +271,7 @@ model User {
   createdBackendJobs          BackendJob[]               @relation("BackendJobCreatedBy")
   reportSnapshots             ReportSnapshot[]           @relation("ReportSnapshotCreatedBy")
   reviewEvents                ReviewEvent[]
+  certificationRuns           CertificationRun[]         @relation("CertificationRunActor")
   certificationEvidence       CertificationEvidence[]
   reviews                     Review[]
   savedQueueViews             SavedQueueView[]
@@ -354,6 +356,7 @@ model IdentityProvider {
   groupRoleMappings     GroupRoleMapping[]
   authSessions          AuthSession[]
   ssoRequestStates      SsoRequestState[]
+  certificationRuns     CertificationRun[]
   certificationEvidence CertificationEvidence[]
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
@@ -508,6 +511,7 @@ model Integration {
   runs                  IntegrationRun[]
   diagnosticRuns        IntegrationDiagnosticRun[]
   webhookEndpoints      WebhookEndpoint[]
+  certificationRuns     CertificationRun[]
   certificationEvidence CertificationEvidence[]
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
@@ -1020,6 +1024,57 @@ model IntegrationRunItem {
   @@index([conversationId])
 }
 
+model CertificationRun {
+  id                      String                  @id @default(cuid())
+  workspaceId             String
+  workspace               Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  targetType              String
+  source                  String
+  provider                String?
+  integrationId           String?
+  integration             Integration?            @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  identityProviderId      String?
+  identityProvider        IdentityProvider?       @relation(fields: [identityProviderId], references: [id], onDelete: SetNull)
+  actorId                 String?
+  actor                   User?                   @relation("CertificationRunActor", fields: [actorId], references: [id], onDelete: SetNull)
+  status                  String                  @default("running")
+  startedAt               DateTime                @default(now())
+  finishedAt              DateTime?
+  nextActionJson          String                  @default("{}")
+  summaryJson             String                  @default("{}")
+  steps                   CertificationRunStep[]
+  evidence                CertificationEvidence[]
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  @@index([workspaceId, targetType, source, startedAt])
+  @@index([workspaceId, status, startedAt])
+  @@index([integrationId, startedAt])
+  @@index([identityProviderId, startedAt])
+  @@index([actorId, startedAt])
+}
+
+model CertificationRunStep {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  runId           String
+  run             CertificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stepKey         String
+  position        Int
+  status          String           @default("pending")
+  detail          String?
+  hint            String?
+  diagnosticsJson String           @default("{}")
+  startedAt       DateTime         @default(now())
+  finishedAt      DateTime?
+  createdAt       DateTime         @default(now())
+
+  @@unique([runId, stepKey])
+  @@unique([runId, position])
+  @@index([workspaceId, runId, position])
+  @@index([workspaceId, status, startedAt])
+}
+
 model CertificationEvidence {
   id                      String            @id @default(cuid())
   workspaceId             String
@@ -1034,6 +1089,8 @@ model CertificationEvidence {
   runId                   String
   actorId                 String?
   actor                   User?             @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  certificationRunId      String?
+  certificationRun        CertificationRun? @relation(fields: [certificationRunId], references: [id], onDelete: SetNull)
   envGate                 String
   result                  String
   redactedDiagnosticsJson String            @default("{}")
@@ -1045,6 +1102,7 @@ model CertificationEvidence {
   @@index([integrationId, recordedAt])
   @@index([identityProviderId, recordedAt])
   @@index([actorId, recordedAt])
+  @@index([certificationRunId, recordedAt])
 }
 
 model WebhookEndpoint {

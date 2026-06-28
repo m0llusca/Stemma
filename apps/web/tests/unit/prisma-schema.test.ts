@@ -554,6 +554,26 @@ describe("prisma schema database foundations", () => {
     expect(evidenceModel).toContain("@@index([workspaceId, result, recordedAt])");
   });
 
+  it("stores certification runs and ordered steps separately from evidence rows", () => {
+    const runModel = modelBlock("CertificationRun");
+    const stepModel = modelBlock("CertificationRunStep");
+    const evidenceModel = modelBlock("CertificationEvidence");
+
+    expect(runModel).toMatch(/model CertificationRun/);
+    expect(runModel).toMatch(/workspaceId\s+String/);
+    expect(runModel).toMatch(/targetType\s+String/);
+    expect(runModel).toMatch(/source\s+String/);
+    expect(runModel).toMatch(/status\s+String\s+@default\("running"\)/);
+    expect(runModel).toMatch(/nextActionJson\s+String\s+@default\("\{\}"\)/);
+    expect(runModel).toMatch(/steps\s+CertificationRunStep\[]/);
+    expect(stepModel).toMatch(/runId\s+String/);
+    expect(stepModel).toMatch(/stepKey\s+String/);
+    expect(stepModel).toMatch(/position\s+Int/);
+    expect(stepModel).toMatch(/diagnosticsJson\s+String\s+@default\("\{\}"\)/);
+    expect(evidenceModel).toMatch(/certificationRunId\s+String\?/);
+    expect(evidenceModel).toMatch(/certificationRun\s+CertificationRun\?/);
+  });
+
   it("migrates Phase D certification evidence with foreign keys and query indexes", () => {
     expect(certificationEvidenceMigrationName).toMatch(/^\d+_phase_d_certification_evidence$/);
     expect(certificationEvidenceMigrationName?.localeCompare(ssoRequestStateCompositeFkMigrationName ?? "")).toBeGreaterThan(0);
