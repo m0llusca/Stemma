@@ -3,15 +3,15 @@
    and before components.css in layout.tsx; order is load-bearing. */
 :root {
   color-scheme: light;
-  --background: #eef3f8;
+  --background: #FAFAFB;
   --page-sheen: rgba(255, 255, 255, 0.74);
-  --foreground: #111827;
-  --muted: #657386;
-  --text-body: #334155;
-  --text-subtle: #475569;
-  --text-muted: #64748b;
-  --panel: #ffffff;
-  --panel-muted: #f5f7fa;
+  --foreground: #16181D;
+  --muted: #8A8F9C;
+  --text-body: #3A3F4B;
+  --text-subtle: #5B6170;
+  --text-muted: #8A8F9C;
+  --panel: #FFFFFF;
+  --panel-muted: #F4F5F7;
   --panel-tint: #f4f8ff;
   --panel-header: #f7f9fc;
   --panel-header-border: #d7e0ec;
@@ -20,8 +20,8 @@
   --surface-soft: color-mix(in srgb, var(--panel-muted) 72%, var(--panel));
   --surface-hover: color-mix(in srgb, var(--accent-soft) 56%, var(--panel));
   --line-soft: color-mix(in srgb, var(--border) 72%, transparent);
-  --border: #d8e0ea;
-  --border-strong: #a9b5c5;
+  --border: #E6E8EC;
+  --border-strong: #C4C8D0;
   --accent: #2f5fff;
   --accent-strong: #274fc7;
   --accent-soft: #eef3ff;
@@ -45,12 +45,18 @@
   --control-selected-border: color-mix(in srgb, var(--accent) 44%, var(--border));
   --accent-warm: #d97706;
   --accent-coral: #dc2626;
-  --danger: #b91c1c;
-  --warning: #b45309;
+  --danger: #C5352F;
+  --warning: #B26B00;
   --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--panel));
-  --success: #15803d;
+  --success: #1F7A4D;
   --success-soft: color-mix(in srgb, var(--success) 12%, var(--panel));
   --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--panel));
+  /* AI-provenance hue (Iris). ONLY for AI automation provenance, never primary actions. */
+  --ai: #6D4AFF;
+  --ai-strong: #5338D5;
+  --ai-soft: color-mix(in srgb, #6D4AFF 12%, var(--panel));
+  --ai-border: color-mix(in srgb, #6D4AFF 40%, var(--border));
+  --ai-ink: #2D2868;
   /* Status surface tokens. Light values match the dominant hardcoded hex so the default
      theme is unchanged; dark theme derives tinted equivalents from the status hue. */
   --status-success-bg: #ecfdf5;
@@ -260,6 +266,12 @@ body[data-theme="ops"] {
   --accent-muted: rgba(96, 165, 250, 0.22);
   --accent-border: #2563eb;
   --accent-ink: #dbeafe;
+  /* AI-provenance hue tuned for dark legibility. */
+  --ai: #9C8CFF;
+  --ai-strong: #B6ACFF;
+  --ai-soft: color-mix(in srgb, #6D4AFF 18%, var(--panel));
+  --ai-border: color-mix(in srgb, #6D4AFF 46%, var(--border));
+  --ai-ink: #E5E0FF;
   --sidebar-bg: #0a0e15;
   --sidebar-accent: #5ea0ff;
   --sidebar-glow: rgba(59, 130, 246, 0.17);
@@ -454,13 +466,10 @@ html {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(180deg, var(--page-sheen) 0, rgba(238, 242, 246, 0) 280px),
-    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 4%, transparent), transparent 42%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-feature-settings: "tnum" 1, "cv02" 1;
+  font-feature-settings: "tnum" 1;
   -webkit-font-smoothing: antialiased;
   line-height: 1.45;
   text-rendering: geometricPrecision;

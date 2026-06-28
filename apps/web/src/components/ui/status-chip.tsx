@@ -8,8 +8,8 @@ const toneClassNames: Record<StatusChipTone, string> = {
   success: "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success)]",
   warning: "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--warning)]",
   danger: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--danger)]",
-  info: "border-[#bfdbfe] bg-[var(--accent-soft)] text-[#1d4ed8]",
-  accent: "border-[#c7d2fe] bg-[var(--accent-soft)] text-[#1d3fae]"
+  info: "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]",
+  accent: "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-ink)]"
 };
 
 const sizeClassNames: Record<StatusChipSize, string> = {
