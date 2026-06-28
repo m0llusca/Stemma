@@ -1052,13 +1052,14 @@ model CertificationRun {
   @@index([integrationId, startedAt])
   @@index([identityProviderId, startedAt])
   @@index([actorId, startedAt])
+  @@unique([id, workspaceId])
 }
 
 model CertificationRunStep {
   id              String           @id @default(cuid())
   workspaceId     String
   runId           String
-  run             CertificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run             CertificationRun @relation(fields: [runId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
   stepKey         String
   position        Int
   status          String           @default("pending")
@@ -1090,7 +1091,7 @@ model CertificationEvidence {
   actorId                 String?
   actor                   User?             @relation(fields: [actorId], references: [id], onDelete: SetNull)
   certificationRunId      String?
-  certificationRun        CertificationRun? @relation(fields: [certificationRunId], references: [id], onDelete: SetNull)
+  certificationRun        CertificationRun? @relation(fields: [certificationRunId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   envGate                 String
   result                  String
   redactedDiagnosticsJson String            @default("{}")

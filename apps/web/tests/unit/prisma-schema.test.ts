@@ -65,6 +65,10 @@ const reviewWorkspaceFkMigrationName = readdirSync(migrationsDir).find((name) =>
 const reviewWorkspaceFkMigration = reviewWorkspaceFkMigrationName
   ? readFileSync(join(migrationsDir, reviewWorkspaceFkMigrationName, "migration.sql"), "utf8")
   : "";
+const certificationRunsMigration = readFileSync(
+  join(migrationsDir, "20260628120000_add_certification_runs/migration.sql"),
+  "utf8"
+);
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -566,12 +570,21 @@ describe("prisma schema database foundations", () => {
     expect(runModel).toMatch(/status\s+String\s+@default\("running"\)/);
     expect(runModel).toMatch(/nextActionJson\s+String\s+@default\("\{\}"\)/);
     expect(runModel).toMatch(/steps\s+CertificationRunStep\[]/);
+    expect(runModel).toContain("@@unique([id, workspaceId])");
     expect(stepModel).toMatch(/runId\s+String/);
+    expect(stepModel).toContain("run             CertificationRun @relation(fields: [runId, workspaceId], references: [id, workspaceId], onDelete: Cascade)");
     expect(stepModel).toMatch(/stepKey\s+String/);
     expect(stepModel).toMatch(/position\s+Int/);
     expect(stepModel).toMatch(/diagnosticsJson\s+String\s+@default\("\{\}"\)/);
     expect(evidenceModel).toMatch(/certificationRunId\s+String\?/);
-    expect(evidenceModel).toMatch(/certificationRun\s+CertificationRun\?/);
+    expect(evidenceModel).toContain("certificationRun        CertificationRun? @relation(fields: [certificationRunId, workspaceId], references: [id, workspaceId], onDelete: Restrict)");
+    expect(certificationRunsMigration).toContain('CREATE UNIQUE INDEX "CertificationRun_id_workspaceId_key"');
+    expect(certificationRunsMigration).toContain(
+      'FOREIGN KEY ("runId", "workspaceId") REFERENCES "CertificationRun"("id", "workspaceId")'
+    );
+    expect(certificationRunsMigration).toContain(
+      'FOREIGN KEY ("certificationRunId", "workspaceId") REFERENCES "CertificationRun"("id", "workspaceId")'
+    );
   });
 
   it("migrates Phase D certification evidence with foreign keys and query indexes", () => {

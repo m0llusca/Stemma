@@ -30,6 +30,7 @@ export type AppendCertificationStepInput = {
 };
 
 export type FinalizeCertificationRunInput = {
+  workspaceId: string;
   runId: string;
   status: Exclude<CertificationRunStatus, "running">;
   nextAction?: unknown;
@@ -128,6 +129,92 @@ function serializedJson(value: unknown) {
   return JSON.stringify(redactCertificationDiagnostics(value ?? {}));
 }
 
+function redactUrlText(value: string) {
+  return value.replace(/https?:\/\/[^\s"'<>]+/gi, (candidate) => {
+    try {
+      const url = new URL(candidate);
+      url.username = url.username ? "[redacted]" : "";
+      url.password = url.password ? "[redacted]" : "";
+      if (url.search) {
+        url.search = "?redacted=1";
+      }
+      return url.toString();
+    } catch {
+      return candidate;
+    }
+  });
+}
+
+function redactedText(value: string | null | undefined) {
+  if (value == null) {
+    return null;
+  }
+
+  const diagnosticsRedacted = redactCertificationDiagnostics({ text: value }).text;
+  const normalized = typeof diagnosticsRedacted === "string" ? diagnosticsRedacted : value;
+  return redactUrlText(normalized).replace(/\b(Bearer|Basic)\s+[^\s"'<>]+/gi, "$1 [redacted]");
+}
+
+async function assertWorkspaceReferences(input: Pick<CreateCertificationRunInput, "workspaceId" | "integrationId" | "identityProviderId" | "actorId">) {
+  const checks: Array<Promise<unknown>> = [];
+
+  if (input.integrationId) {
+    checks.push(
+      prisma.integration
+        .findFirst({
+          where: {
+            id: input.integrationId,
+            workspaceId: input.workspaceId
+          },
+          select: { id: true }
+        })
+        .then((integration) => {
+          if (!integration) {
+            throw new Error(`Integration ${input.integrationId} does not belong to workspace ${input.workspaceId}.`);
+          }
+        })
+    );
+  }
+
+  if (input.identityProviderId) {
+    checks.push(
+      prisma.identityProvider
+        .findFirst({
+          where: {
+            id: input.identityProviderId,
+            workspaceId: input.workspaceId
+          },
+          select: { id: true }
+        })
+        .then((provider) => {
+          if (!provider) {
+            throw new Error(`Identity provider ${input.identityProviderId} does not belong to workspace ${input.workspaceId}.`);
+          }
+        })
+    );
+  }
+
+  if (input.actorId) {
+    checks.push(
+      prisma.user
+        .findFirst({
+          where: {
+            id: input.actorId,
+            workspaceId: input.workspaceId
+          },
+          select: { id: true }
+        })
+        .then((actor) => {
+          if (!actor) {
+            throw new Error(`Actor ${input.actorId} does not belong to workspace ${input.workspaceId}.`);
+          }
+        })
+    );
+  }
+
+  await Promise.all(checks);
+}
+
 function runView(row: CertificationRunRow): CertificationRunView {
   return {
     id: row.id,
@@ -163,6 +250,8 @@ function stepView(row: CertificationStepRow): CertificationStepView {
 }
 
 export async function createCertificationRun(input: CreateCertificationRunInput): Promise<CertificationRunView> {
+  await assertWorkspaceReferences(input);
+
   const row = (await prisma.certificationRun.create({
     data: {
       workspaceId: input.workspaceId,
@@ -189,8 +278,8 @@ export async function appendCertificationStep(input: AppendCertificationStepInpu
       stepKey: input.stepKey,
       position: input.position,
       status: input.status ?? "pending",
-      detail: input.detail ?? null,
-      hint: input.hint ?? null,
+      detail: redactedText(input.detail),
+      hint: redactedText(input.hint),
       diagnosticsJson: serializedJson(input.diagnostics),
       ...(input.startedAt ? { startedAt: input.startedAt } : {}),
       ...(input.finishedAt !== undefined ? { finishedAt: input.finishedAt } : {})
@@ -202,7 +291,7 @@ export async function appendCertificationStep(input: AppendCertificationStepInpu
 
 export async function finalizeCertificationRun(input: FinalizeCertificationRunInput): Promise<CertificationRunView> {
   const row = (await prisma.certificationRun.update({
-    where: { id: input.runId },
+    where: { id_workspaceId: { id: input.runId, workspaceId: input.workspaceId } },
     data: {
       status: input.status,
       finishedAt: input.finishedAt ?? new Date(),
