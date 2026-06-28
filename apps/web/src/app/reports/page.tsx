@@ -606,7 +606,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
             : {
                 title: "Открыть выборку проверок",
                 description: "Критичных сигналов нет. Перейдите к списку финализированных проверок для ручного разбора.",
-                label: "Открыть проверки",
+                label: "К выборке",
                 href: reportReviewHref(period),
                 tone: "positive" as const
               };

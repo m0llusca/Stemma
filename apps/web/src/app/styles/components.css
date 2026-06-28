@@ -148,36 +148,23 @@ pre code {
 }
 
 .priority-action-panel {
-  position: relative;
   display: flex;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   overflow: clip;
-  border: 1px solid color-mix(in srgb, var(--semantic-status-border, var(--line-soft)) 72%, var(--line-soft));
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-page);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--semantic-status-bg, var(--panel)) 42%, transparent), transparent 42%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-raised) 92%, var(--semantic-status-bg, var(--panel))), var(--surface-raised) 82%),
-    var(--surface-raised);
-  padding: 14px 18px 14px 20px;
+  background: color-mix(in srgb, var(--surface-raised) 94%, var(--semantic-status-bg, var(--panel)));
+  padding: 14px 18px;
   box-shadow: none;
-}
-
-.priority-action-panel::before {
-  position: absolute;
-  inset: 14px auto 14px 0;
-  width: 4px;
-  border-radius: 0 999px 999px 0;
-  background: var(--semantic-status-fg, var(--accent-strong));
-  content: "";
 }
 
 .priority-action-panel__copy {
   display: grid;
   min-width: 0;
-  gap: 4px;
+  gap: 5px;
 }
 
 .priority-action-panel__copy h2,
@@ -186,9 +173,9 @@ pre code {
 }
 
 .priority-action-panel__copy h2 {
-  color: var(--foreground);
-  font-size: 20px;
-  font-weight: 860;
+  color: color-mix(in srgb, var(--foreground) 92%, var(--semantic-status-fg, var(--accent-strong)));
+  font-size: 19px;
+  font-weight: 840;
   line-height: 1.15;
 }
 
@@ -197,10 +184,6 @@ pre code {
   font-size: 13px;
   font-weight: 650;
   line-height: 1.45;
-}
-
-.priority-action-panel .page-kicker {
-  color: var(--semantic-status-fg, var(--accent-strong));
 }
 
 .priority-action-panel__link {
@@ -342,7 +325,6 @@ pre code {
 }
 
 .operational-brief__lead {
-  position: relative;
   display: grid;
   min-width: 0;
   align-content: center;
@@ -350,15 +332,6 @@ pre code {
   border-right: 1px solid var(--line-soft);
   background: color-mix(in srgb, var(--surface-soft) 64%, var(--surface-raised));
   padding: 16px 18px;
-}
-
-.operational-brief__lead::before {
-  position: absolute;
-  inset: 16px auto 16px 0;
-  width: 3px;
-  border-radius: 0 999px 999px 0;
-  background: var(--accent);
-  content: "";
 }
 
 .operational-brief__lead h2 {
@@ -381,7 +354,6 @@ pre code {
 }
 
 .operational-brief-item {
-  position: relative;
   display: grid;
   min-width: 0;
   align-content: start;
@@ -400,16 +372,6 @@ pre code {
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
-}
-
-.operational-brief-item::after {
-  position: absolute;
-  inset: auto 14px 10px 14px;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--status-tone-fg, var(--accent)) 34%, transparent);
-  content: "";
-  opacity: 0.6;
 }
 
 .operational-brief-item strong {
@@ -878,9 +840,9 @@ pre code {
 }
 
 .app-topbar__primary {
-  border-color: transparent;
-  background: var(--button-primary-bg);
-  color: var(--button-primary-text);
+  border-color: var(--line-soft);
+  background: color-mix(in srgb, var(--surface-raised) 84%, var(--accent-soft));
+  color: var(--foreground);
 }
 
 .app-topbar__user {
@@ -3990,7 +3952,7 @@ pre code {
 
 .workflow-focus-card--warning,
 .admin-attention-card--warn {
-  background: color-mix(in srgb, var(--warning-soft) 72%, var(--surface-raised));
+  background: color-mix(in srgb, var(--surface-raised) 92%, var(--warning-soft));
 }
 
 .workflow-focus-card--warning strong,
@@ -4999,8 +4961,10 @@ details[open] > summary .queue-filterbar__chevron {
   display: flex;
   min-height: 28px;
   align-items: center;
-  border-left: 2px solid var(--accent-border);
-  padding-left: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+  padding: 5px 9px;
   color: var(--foreground);
   font-size: 12px;
   font-weight: 760;
@@ -6027,14 +5991,13 @@ a.quiet-link:hover {
 
 .coaching-pin {
   border: 1px solid var(--accent-border);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
   padding: 10px 12px;
 }
 
 .coaching-pin--resolved {
-  border-left-color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 34%, var(--border));
   background: color-mix(in srgb, var(--success) 7%, var(--panel));
 }
 

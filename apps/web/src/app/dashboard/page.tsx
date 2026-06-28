@@ -460,7 +460,7 @@ async function DashboardPageContent() {
               ? primaryFocus.hint
               : "Критичных отклонений нет. Держите ритм очереди и возьмите следующий разговор в проверку."
           }
-          actionLabel={focusItems.length ? "Открыть фокус" : "Открыть очередь"}
+          actionLabel={focusItems.length ? "Разобрать сигнал" : "Открыть очередь"}
           href={primaryFocusHref}
           tone={primaryFocus.tone}
         />
@@ -500,7 +500,7 @@ async function DashboardPageContent() {
                     : "Критичных отклонений нет: выберите следующий разговор из очереди и сохраните темп проверок."
                 }
                 href={primaryFocusHref}
-                actionLabel={focusItems.length ? "Открыть фокус" : "Открыть очередь"}
+                actionLabel={focusItems.length ? "К задаче" : "Открыть очередь"}
                 tone={focusItems.length ? "warning" : "info"}
                 placement="right"
                 anchorLabel="Подсказка к текущему фокусу"

@@ -123,8 +123,8 @@ export function AppTopbarShell({ navigation, pulseItems, user, demoSwitcher }: A
           ))}
         </div>
 
-        <Link href="/reviews?status=unreviewed" className="app-topbar__primary" aria-label="Следующая проверка">
-          <span className="app-topbar__primary-label">Следующая проверка</span>
+        <Link href="/reviews?status=unreviewed" className="app-topbar__primary" aria-label="Взять следующий кейс">
+          <span className="app-topbar__primary-label">Взять кейс</span>
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
 

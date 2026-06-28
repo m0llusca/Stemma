@@ -195,7 +195,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
         <PriorityActionPanel
           title={primaryReviewFocus?.label ?? "Открыть следующую проверку"}
           description={primaryReviewFocus?.description ?? "Критичных действий нет. Продолжайте обычный разбор незавершенной очереди."}
-          actionLabel={primaryReviewFocus ? "Открыть фокус" : "Открыть очередь"}
+          actionLabel={primaryReviewFocus ? "Перейти к задаче" : "Открыть очередь"}
           href={queueActionHref}
           tone={queueActionTone}
         />
@@ -220,7 +220,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
                 ))
               ) : (
                 <Link href="/reviews?status=unreviewed" className="workflow-focus-card">
-                  <span>Следующая проверка</span>
+                  <span>Незавершенные</span>
                   <strong>{queued + inWork}</strong>
                   <small>Открыть незавершенные обращения</small>
                   <ArrowRight size={15} aria-hidden="true" />
