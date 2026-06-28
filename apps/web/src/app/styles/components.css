@@ -2383,6 +2383,66 @@ pre code {
   line-height: 1.35;
 }
 
+.integration-readiness-pipeline {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
+  overflow: clip;
+}
+
+.integration-readiness-pipeline__lead {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+  padding: 16px 18px;
+}
+
+.integration-readiness-pipeline__stages {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.integration-readiness-stage {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 5px;
+  border-right: 1px solid var(--line-soft);
+  padding: 14px;
+}
+
+.integration-readiness-stage:last-child {
+  border-right: 0;
+}
+
+.integration-readiness-stage::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.integration-readiness-stage--ok::before {
+  background: var(--success);
+}
+
+.integration-readiness-stage--warn::before {
+  background: var(--warning);
+}
+
+.integration-readiness-stage--error::before {
+  background: var(--danger);
+}
+
 .ops-tabs {
   display: flex;
   min-width: 0;
@@ -4356,6 +4416,143 @@ details[open] > summary .queue-filterbar__chevron {
   background: #ffffff;
 }
 
+.queue-cockpit-layout {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 14px;
+  align-items: start;
+}
+
+.queue-cockpit-layout__list {
+  min-width: 0;
+}
+
+.queue-preview-panel {
+  position: sticky;
+  top: 84px;
+  display: grid;
+  min-width: 0;
+  gap: 13px;
+  overflow: clip;
+  padding: 14px;
+}
+
+.queue-preview-panel__header {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.queue-preview-panel__header h2 {
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 820;
+  line-height: 1.22;
+  text-wrap: pretty;
+}
+
+.queue-preview-panel__header p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.queue-preview-panel__score {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.queue-preview-panel__score span,
+.queue-preview-signal span,
+.review-ide-signal span,
+.review-linked-evidence-item span,
+.report-narrative-card span,
+.integration-readiness-stage span,
+.coaching-outcome-card span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.queue-preview-panel__score strong {
+  color: var(--foreground);
+  font-size: 24px;
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.queue-preview-panel__score small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.queue-preview-panel__signals {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.queue-preview-signal {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--panel) 78%, var(--surface-soft));
+  padding: 10px;
+}
+
+.queue-preview-signal--warning {
+  border-color: color-mix(in srgb, var(--warning) 36%, var(--border));
+  background: var(--warning-soft);
+}
+
+.queue-preview-signal--danger {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
+  background: var(--danger-soft);
+}
+
+.queue-preview-signal strong {
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.queue-preview-signal small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.queue-preview-panel__flow {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.queue-preview-panel__flow span {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  border-left: 2px solid var(--accent-border);
+  padding-left: 10px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 760;
+}
+
 .queue-list {
   display: grid;
   gap: 6px;
@@ -4864,6 +5061,137 @@ a.quiet-link:hover {
   align-items: start;
   gap: 18px;
   order: 2;
+}
+
+.review-ide-strip {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
+  overflow: clip;
+}
+
+.review-ide-strip__lead {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+  padding: 16px 18px;
+}
+
+.review-ide-strip__lead h2,
+.report-narrative-board__lead h2,
+.integration-readiness-pipeline__lead h2,
+.coaching-outcome-board__lead h2 {
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 820;
+  line-height: 1.22;
+  text-wrap: pretty;
+}
+
+.review-ide-strip__lead p,
+.report-narrative-board__lead p,
+.integration-readiness-pipeline__lead p,
+.coaching-outcome-board__lead p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.review-ide-strip__signals {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.review-ide-signal {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 4px;
+  border-right: 1px solid var(--line-soft);
+  padding: 14px;
+}
+
+.review-ide-signal:last-child {
+  border-right: 0;
+}
+
+.review-ide-signal strong,
+.review-linked-evidence-item strong,
+.report-narrative-card strong,
+.integration-readiness-stage strong,
+.coaching-outcome-card strong {
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 17px;
+  font-weight: 820;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.review-ide-signal small,
+.review-linked-evidence-item small,
+.report-narrative-card small,
+.integration-readiness-stage small,
+.coaching-outcome-card small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.review-ide-strip__flow {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 7px;
+  border-top: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--panel-muted) 58%, var(--panel));
+  padding: 10px 14px;
+}
+
+.review-decision-step {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.review-decision-step--ready {
+  border-color: color-mix(in srgb, var(--success) 36%, var(--border));
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.review-decision-step--open {
+  border-color: color-mix(in srgb, var(--warning) 38%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.review-linked-evidence-grid {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.review-linked-evidence-item {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+  padding: 12px;
 }
 
 .review-panel-column {
@@ -6928,6 +7256,42 @@ a.agent-leaderboard__row:hover {
   align-items: stretch;
 }
 
+.report-narrative-board {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
+  overflow: clip;
+}
+
+.report-narrative-board__lead {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+  padding: 16px 18px;
+}
+
+.report-narrative-board__items {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-narrative-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 5px;
+  border-right: 1px solid var(--line-soft);
+  padding: 14px;
+}
+
+.report-narrative-card:last-child {
+  border-right: 0;
+}
+
 .primary-score-panel {
   display: grid;
   grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1fr);
@@ -8443,6 +8807,42 @@ a.agent-leaderboard__row:hover {
   display: grid;
   min-width: 0;
   overflow: clip;
+}
+
+.coaching-outcome-board {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
+  overflow: clip;
+}
+
+.coaching-outcome-board__lead {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+  padding: 16px 18px;
+}
+
+.coaching-outcome-board__items {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.coaching-outcome-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 5px;
+  border-right: 1px solid var(--line-soft);
+  padding: 14px;
+}
+
+.coaching-outcome-card:last-child {
+  border-right: 0;
 }
 
 .coaching-control-panel__header {
@@ -10543,8 +10943,11 @@ pre,
   .ops-form-grid,
   .ops-form-grid--three,
   .review-main,
+  .review-ide-strip,
+  .review-linked-evidence-grid,
   .review-brief-grid,
   .coaching-control-grid,
+  .coaching-outcome-board,
   .coaching-workbench,
   .learning-layout,
   .feedback-layout,
@@ -10557,12 +10960,15 @@ pre,
   .report-command-bar,
   .report-command-bar__form,
   .insight-summary,
+  .report-narrative-board,
   .report-metrics-layout,
   .primary-score-panel,
   .reports-main-grid,
   .reports-panel-grid--four,
   .reports-panel-grid--three,
   .reports-table-grid,
+  .integration-readiness-pipeline,
+  .queue-cockpit-layout,
   .report-toolbar {
     grid-template-columns: 1fr;
   }
@@ -10757,8 +11163,24 @@ pre,
     min-height: 0;
   }
 
+  .queue-preview-panel,
   .review-panel-column {
     position: static;
+  }
+
+  .review-ide-strip__lead,
+  .report-narrative-board__lead,
+  .integration-readiness-pipeline__lead,
+  .coaching-outcome-board__lead {
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .review-ide-strip__signals,
+  .report-narrative-board__items,
+  .integration-readiness-pipeline__stages,
+  .coaching-outcome-board__items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .review-panel-form,
@@ -11082,6 +11504,10 @@ pre,
   .dashboard-metric-grid,
   .dashboard-week-chart,
   .calibration-summary-strip,
+  .review-ide-strip__signals,
+  .report-narrative-board__items,
+  .integration-readiness-pipeline__stages,
+  .coaching-outcome-board__items,
   .workflow-focus-strip__items,
   .admin-attention-strip__list,
   .calibration-exception-band__list,
@@ -11164,6 +11590,21 @@ pre,
 
   .queue-ticket__detail-chips strong {
     white-space: normal;
+  }
+
+  .review-ide-signal,
+  .report-narrative-card,
+  .integration-readiness-stage,
+  .coaching-outcome-card {
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .review-ide-signal:last-child,
+  .report-narrative-card:last-child,
+  .integration-readiness-stage:last-child,
+  .coaching-outcome-card:last-child {
+    border-bottom: 0;
   }
 
   .training-create-form,

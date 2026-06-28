@@ -221,6 +221,39 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 href: "#review-workspace",
                 tone: "neutral" as const
               };
+  const reviewIdeSignals = [
+    {
+      label: "Evidence",
+      value: String(evidenceMessageIds.length),
+      detail:
+        evidenceMessageIds.length > 0
+          ? "Сообщения уже привязаны к оценке."
+          : "Выберите сообщения, которые доказывают итог."
+    },
+    {
+      label: "Замечание",
+      value: latestFinding?.category ?? "Нет",
+      detail: latestFinding ? riskLevelLabels[latestFinding.riskLevel] : "Замечание появится после финализации."
+    },
+    {
+      label: "Feedback",
+      value: latestFinalizedReview
+        ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
+        : "Не начат",
+      detail: hasOpenAppeal ? "Сначала закрыть апелляцию." : hasReanswer ? "Проверить переответ клиенту." : "Контур обратной связи."
+    },
+    {
+      label: "Аудит",
+      value: latestFinalizedReview ? String(latestFinalizedReview.feedbackEvents.length) : String(conversation.reviews.length),
+      detail: latestFinalizedReview ? "События обратной связи." : "История черновиков и проверок."
+    }
+  ];
+  const reviewDecisionSteps = [
+    { label: "Контекст", state: "ready" },
+    { label: "Evidence", state: evidenceMessageIds.length > 0 ? "ready" : "open" },
+    { label: "Оценка", state: latestFinalizedReview ? "ready" : currentDraftReview ? "open" : "waiting" },
+    { label: "Feedback", state: feedbackClosed ? "ready" : latestFinalizedReview ? "open" : "waiting" }
+  ];
 
   return (
     <OperationalPageFrame
@@ -334,6 +367,30 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         </section>
       ) : null}
 
+      <section className="review-ide-strip panel" aria-label="Контур решения проверки">
+        <div className="review-ide-strip__lead">
+          <span className="page-kicker">Контур решения</span>
+          <h2>{reviewAction.title}</h2>
+          <p>{reviewAction.description}</p>
+        </div>
+        <div className="review-ide-strip__signals">
+          {reviewIdeSignals.map((signal) => (
+            <div key={signal.label} className="review-ide-signal">
+              <span>{signal.label}</span>
+              <strong>{signal.value}</strong>
+              <small>{signal.detail}</small>
+            </div>
+          ))}
+        </div>
+        <div className="review-ide-strip__flow" aria-label="Состояние рабочего контура">
+          {reviewDecisionSteps.map((step) => (
+            <span key={step.label} className={`review-decision-step review-decision-step--${step.state}`}>
+              {step.label}
+            </span>
+          ))}
+        </div>
+      </section>
+
       <div id="review-workspace" className="review-main">
         <ConversationTimeline
           messages={conversation.messages}
@@ -383,6 +440,24 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       evidence={
         <EvidenceDrawer title="Evidence проверки" defaultOpen>
           <div id="review-evidence" className="grid min-w-0 gap-4">
+
+      <div className="review-linked-evidence-grid" aria-label="Сводка evidence проверки">
+        <div className="review-linked-evidence-item">
+          <span>Сообщения evidence</span>
+          <strong>{evidenceMessageIds.length}</strong>
+          <small>{evidenceMessageIds.length > 0 ? "Подсвечены в таймлайне диалога." : "Пока нет привязанных сообщений."}</small>
+        </div>
+        <div className="review-linked-evidence-item">
+          <span>Итоговый риск</span>
+          <strong>{latestFinding ? riskLevelLabels[latestFinding.riskLevel] : "Нет"}</strong>
+          <small>{latestFinding?.category ?? "Категория появится после оценки."}</small>
+        </div>
+        <div className="review-linked-evidence-item">
+          <span>Feedback loop</span>
+          <strong>{latestFinalizedReview ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus : "Нет"}</strong>
+          <small>{hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}</small>
+        </div>
+      </div>
 
       {latestFinalizedReview ? (
         <details className="review-secondary panel disclosure-panel overflow-clip">

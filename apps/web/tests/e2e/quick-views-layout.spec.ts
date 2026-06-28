@@ -165,6 +165,8 @@ test("quick views keep the filter panel height stable after repeated toggles", a
 
   const quickViews = page.locator(".queue-quick-views").first();
   const quickViewsToggle = quickViews.locator("summary").filter({ hasText: /Быстрые виды/ });
+  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
+  await expect(quickViews).toBeVisible();
   const firstBox = await quickViews.boundingBox();
   expect(firstBox).not.toBeNull();
 

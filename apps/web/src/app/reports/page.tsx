@@ -610,6 +610,47 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
                 href: reportReviewHref(period),
                 tone: "positive" as const
               };
+  const averageDelta = averageScore == null || previousAverageScore == null ? null : averageScore - previousAverageScore;
+  const weakestNarrativeDriver =
+    weakestBlock
+      ? `${weakestBlock.label}: ${formatAverageScore(weakestBlock.averageScore)}`
+      : weakestSourceFocus
+        ? `${weakestSourceFocus.label}: ${formatAverageScore(weakestSourceFocus.averageScore)}`
+        : "Нет явного драйвера";
+  const confidenceLabel =
+    finalizedCount >= 10 && (quotaCompletionPercent == null || quotaCompletionPercent >= 80)
+      ? "Высокая"
+      : finalizedCount >= 5
+        ? "Средняя"
+        : "Низкая";
+  const reportNarrativeItems = [
+    {
+      label: "Что изменилось",
+      value: averageDelta == null ? "Нет базы" : reportDeltaLabel(averageDelta),
+      detail:
+        previousAverageScore == null
+          ? "Прошлый период пока не дает базы сравнения."
+          : `Сейчас ${formatAverageScore(averageScore)}, было ${formatAverageScore(previousAverageScore)}.`
+    },
+    {
+      label: "Почему",
+      value: weakestNarrativeDriver,
+      detail: highRiskFindings > 0 ? `${highRiskFindings} HIGH+ замечаний усиливают приоритет.` : "Смотрите слабейший блок и источник."
+    },
+    {
+      label: "Что сделать",
+      value: reportAction.title,
+      detail: reportAction.description
+    },
+    {
+      label: "Доверие к выборке",
+      value: confidenceLabel,
+      detail:
+        quotaCompletionPercent == null
+          ? `${formatReviewCount(finalizedCount)}, норма не задана.`
+          : `${formatReviewCount(finalizedCount)}, норма ${quotaCompletionPercent}%.`
+    }
+  ];
 
   return (
     <OperationalPageFrame
@@ -629,14 +670,32 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         <>
 
       {reportView === "overview" ? (
-        <InsightSummary
-          averageScore={averageScore}
-          finalizedCount={finalizedCount}
-          previousCount={previousReviews.length}
-          topSource={sourceRows[0]}
-          period={period}
-          focusItems={focusItems}
-        />
+        <>
+          <section className="report-narrative-board panel" aria-label="Решение по аналитике">
+            <div className="report-narrative-board__lead">
+              <span className="page-kicker">Решение</span>
+              <h2>От данных к решению</h2>
+              <p>Короткий слой интерпретации перед графиками: изменение, причина, действие и надежность выборки.</p>
+            </div>
+            <div className="report-narrative-board__items">
+              {reportNarrativeItems.map((item) => (
+                <div key={item.label} className="report-narrative-card">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                  <small>{item.detail}</small>
+                </div>
+              ))}
+            </div>
+          </section>
+          <InsightSummary
+            averageScore={averageScore}
+            finalizedCount={finalizedCount}
+            previousCount={previousReviews.length}
+            topSource={sourceRows[0]}
+            period={period}
+            focusItems={focusItems}
+          />
+        </>
       ) : null}
 
       <ReportViewSelector period={period} view={reportView} counts={viewCounts} trendGranularity={trendGranularity} />

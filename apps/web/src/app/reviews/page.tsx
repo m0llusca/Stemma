@@ -9,15 +9,30 @@ import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
 import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
+import {
+  channelLabels,
+  csatBucketLabels,
+  externalSourceLabel,
+  formatMessageCount,
+  qaStatusLabels,
+  samplingTypeLabels
+} from "@/lib/labels";
 import { takeNextReview } from "@/lib/queue-view-actions";
+import type { ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
 import type { ReviewQueueSearchParams } from "@/lib/review-repository";
+import { resolveReviewState, reviewStateLabels } from "@/lib/review-state";
+import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
 type ReviewsPageProps = {
   searchParams: Promise<ReviewQueueSearchParams>;
 };
+
+function queuePreviewHref(conversation: ReviewQueueConversationDto, returnTo: string) {
+  return `/reviews/${conversation.id}?returnTo=${encodeURIComponent(returnTo)}`;
+}
 
 export default function ReviewsPage({ searchParams }: ReviewsPageProps) {
   return (
@@ -82,6 +97,54 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       : visibleUnassignedCount > 0 || queued + inWork > 0
         ? "warning"
         : "positive";
+  const queuePreview = data.conversations[0];
+  const queuePreviewFinalized = queuePreview?.reviews.find(
+    (review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN"
+  );
+  const queuePreviewDraft = queuePreview?.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
+  const queuePreviewState = queuePreview
+    ? resolveReviewState({
+        qaStatus: queuePreview.qaStatus,
+        hasDraftReview: Boolean(queuePreviewDraft),
+        hasFinalizedReview: Boolean(queuePreviewFinalized)
+      })
+    : null;
+  const queuePreviewDueAt = queuePreview?.reviewDueAt ? new Date(queuePreview.reviewDueAt) : null;
+  const queuePreviewOverdue =
+    Boolean(queuePreviewDueAt && queuePreviewDueAt.getTime() < Date.now()) && queuePreview?.qaStatus !== "FINALIZED";
+  const queuePreviewDueLabel = queuePreviewDueAt
+    ? queuePreviewDueAt.toLocaleDateString("ru-RU")
+    : queuePreview?.qaStatus === "FINALIZED"
+      ? "закрыто"
+      : "не задан";
+  const queuePreviewSignals = queuePreview
+    ? [
+        {
+          label: "SLA",
+          value: queuePreviewDueLabel,
+          detail: queuePreviewOverdue ? "Просрочено, открыть первым" : "Контрольный срок проверки",
+          tone: queuePreviewOverdue ? "danger" : "neutral"
+        },
+        {
+          label: "Риск",
+          value: queuePreview.riskHint ?? (queuePreviewFinalized?.criticalError ? "Критический" : "Нет сигнала"),
+          detail: queuePreviewFinalized?.needsReanswer ? "Есть переответ клиенту" : "Сигнал из выборки и итогов QA",
+          tone: queuePreview.riskHint || queuePreviewFinalized?.criticalError || queuePreviewFinalized?.needsReanswer ? "warning" : "neutral"
+        },
+        {
+          label: "Контекст",
+          value: externalSourceLabel(queuePreview.externalSource),
+          detail: `${channelLabels[queuePreview.channel]} · ${formatMessageCount(queuePreview.messageCount)}`,
+          tone: "neutral"
+        },
+        {
+          label: "Выборка",
+          value: samplingTypeLabels[queuePreview.samplingType] ?? queuePreview.samplingType,
+          detail: csatBucketLabels[queuePreview.csatBucket] ?? queuePreview.csatBucket,
+          tone: queuePreview.csatBucket === "NEGATIVE" ? "warning" : "neutral"
+        }
+      ]
+    : [];
 
   return (
     <OperationalPageFrame
@@ -194,8 +257,45 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
               teamNames={data.filterOptions.teamNames}
             />
           </StickyCommandBarShell>
-          <div className="grid min-w-0 gap-3">
-            <QueueTable conversations={data.conversations} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
+          <div className="queue-cockpit-layout">
+            <div className="queue-cockpit-layout__list">
+              <QueueTable conversations={data.conversations} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
+            </div>
+            {queuePreview && queuePreviewState ? (
+              <aside className="queue-preview-panel panel" aria-label="Предпросмотр следующего обращения">
+                <div className="queue-preview-panel__header">
+                  <span className="page-kicker">Следующий кейс</span>
+                  <h2>{queuePreview.subject}</h2>
+                  <p>
+                    {queuePreview.customerName} · {queuePreview.assigneeName ?? "оператор не назначен"} ·{" "}
+                    {qaStatusLabels[queuePreview.qaStatus]}
+                  </p>
+                </div>
+                <div className="queue-preview-panel__score">
+                  <span>Решение</span>
+                  <strong>{reviewStateLabels[queuePreviewState]}</strong>
+                  <small>{formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "Нет оценки")}</small>
+                </div>
+                <div className="queue-preview-panel__signals">
+                  {queuePreviewSignals.map((signal) => (
+                    <div key={signal.label} className={`queue-preview-signal queue-preview-signal--${signal.tone}`}>
+                      <span>{signal.label}</span>
+                      <strong>{signal.value}</strong>
+                      <small>{signal.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <div className="queue-preview-panel__flow" aria-label="Следующий шаг по обращению">
+                  <span>Открыть диалог</span>
+                  <span>Выбрать доказательства</span>
+                  <span>Закрыть обратную связь</span>
+                </div>
+                <Link href={queuePreviewHref(queuePreview, data.currentHref)} className="action-button action-button--primary">
+                  Открыть приоритетный кейс
+                  <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+              </aside>
+            ) : null}
           </div>
         </>
       }

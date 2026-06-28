@@ -364,6 +364,37 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const closeCreatePanelHref = baseCoachingHref;
   const coachingActionHref = nextConversation ? `/reviews/${nextConversation.id}` : createTaskHref;
   const coachingActionTone = overdueAssignments.length > 0 ? "negative" : openAssignments.length > 0 ? "warning" : "positive";
+  const measuredTrainingEffectCount = trainingEffects.size;
+  const positiveTrainingEffectCount = trainingEffectValues.filter((value) => value > 0).length;
+  const linkedAssignmentShare = assignments.length > 0 ? Math.round((linkedAssignmentCount / assignments.length) * 100) : 0;
+  const outcomeItems = [
+    {
+      label: "Закрытие",
+      value: `${doneAssignments.length}/${assignments.length}`,
+      detail:
+        assignments.length > 0
+          ? `${Math.round((doneAssignments.length / assignments.length) * 100)}% всех разборов закрыто.`
+          : "Разборы появятся после задач обучения."
+    },
+    {
+      label: "Связь с QA",
+      value: `${linkedAssignmentShare}%`,
+      detail: `${linkedAssignmentCount} задач с проверкой и контекстом доказательств.`
+    },
+    {
+      label: "Эффект",
+      value: averageTrainingEffect == null ? "Нет данных" : formatQualityScoreDelta(averageTrainingEffect),
+      detail:
+        measuredTrainingEffectCount > 0
+          ? `${positiveTrainingEffectCount} из ${measuredTrainingEffectCount} измеримых разборов дали рост.`
+          : "Нужно минимум две оценки до и после закрытия задачи."
+    },
+    {
+      label: "Нагрузка",
+      value: overdueAssignments.length > 0 ? `${overdueAssignments.length} срочно` : `${openAssignments.length} активно`,
+      detail: weekAssignments.length > 0 ? `${weekAssignments.length} задач со сроком на неделе.` : "Ближайшие сроки не перегружены."
+    }
+  ];
 
   return (
     <OperationalPageFrame
@@ -556,6 +587,23 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </form>
         </section>
       ) : null}
+
+      <section className="coaching-outcome-board panel" aria-label="Контур результата обучения">
+        <div className="coaching-outcome-board__lead">
+          <span className="page-kicker">Контур результата</span>
+          <h2>От разбора к изменению качества</h2>
+          <p>Сводка показывает, закрываются ли задачи, связаны ли они с проверками и появился ли измеримый эффект.</p>
+        </div>
+        <div className="coaching-outcome-board__items">
+          {outcomeItems.map((item) => (
+            <div key={item.label} className="coaching-outcome-card">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="workflow-focus-strip coaching-focus-strip" aria-label="Фокус обучения">
         <div className="workflow-focus-strip__lead">

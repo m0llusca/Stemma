@@ -531,6 +531,59 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
   const failedDiagnostics = diagnosticRuns.filter((run) => ["failed", "error"].includes(run.status)).length;
   const activeJobs = recentIntegrationJobs.filter((job) => ["QUEUED", "RUNNING"].includes(job.status)).length;
   const lastImportRun = recentRuns.find((run) => !run.dryRun);
+  const configuredSources = integrations.filter((integration) => Boolean(integration.baseUrl?.trim())).length;
+  const credentialedSources = integrations.filter((integration) => {
+    const capability = getIntegrationCapability(integration.source, integration.type);
+
+    return hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
+  }).length;
+  const certifiedSources = integrations.filter((integration) => {
+    const capability = getIntegrationCapability(integration.source, integration.type);
+
+    return ["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(capability.certification.summary.status);
+  }).length;
+  const successfulDiagnostics = diagnosticRuns.length - failedDiagnostics;
+  const importRuns = recentRuns.filter((run) => !run.dryRun);
+  const monitoredSources = activeSources.filter((integration) =>
+    Boolean(integration.lastImportAt || integration.lastDryRunAt || integration.diagnosticRuns.length > 0 || integration.runs.length > 0)
+  ).length;
+  const readinessStages = [
+    {
+      label: "Доступы",
+      value: `${configuredSources}/${integrations.length}`,
+      detail:
+        configuredSources === 0
+          ? "Источники еще не настроены."
+          : credentialedSources === configuredSources
+          ? "Адреса и секреты заполнены для настроенных источников."
+          : `${credentialedSources} источников с полным набором секретов.`,
+      tone: configuredSources > 0 && configuredSources === credentialedSources ? "ok" : "warn"
+    },
+    {
+      label: "Диагностика",
+      value: `${successfulDiagnostics}/${diagnosticRuns.length}`,
+      detail: failedDiagnostics > 0 ? `${failedDiagnostics} диагностик требуют внимания.` : "Ошибок в последнем срезе нет.",
+      tone: failedDiagnostics > 0 ? "error" : diagnosticRuns.length > 0 ? "ok" : "neutral"
+    },
+    {
+      label: "Сертификация",
+      value: `${certifiedSources}/${integrations.length}`,
+      detail: "Профиль коннектора и доказательства готовности.",
+      tone: certifiedSources === integrations.length && integrations.length > 0 ? "ok" : "warn"
+    },
+    {
+      label: "Импорт",
+      value: lastImportRun ? String(lastImportRun.importedCount) : "Нет",
+      detail: lastImportRun ? `Последний импорт · запусков: ${importRuns.length}` : "Реальный импорт еще не запускался.",
+      tone: lastImportRun ? "ok" : activeSources.length > 0 ? "warn" : "neutral"
+    },
+    {
+      label: "Мониторинг",
+      value: `${monitoredSources}/${activeSources.length}`,
+      detail: activeJobs > 0 ? `${activeJobs} задач в очереди или исполнении.` : "Фоновых задач сейчас нет.",
+      tone: activeJobs > 0 ? "warn" : activeSources.length > 0 ? "ok" : "neutral"
+    }
+  ];
   const integrationSetupHint = activeSources.length > 0 ? null : getSettingCoachmark("integrations");
   const integrationAction =
     failedDiagnostics > 0
@@ -629,6 +682,23 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
       }
       details={
         <>
+
+      <section className="integration-readiness-pipeline panel" aria-label="Пайплайн готовности интеграций">
+        <div className="integration-readiness-pipeline__lead">
+          <span className="page-kicker">Готовность источников</span>
+          <h2>Путь от доступа до мониторинга</h2>
+          <p>Каждый этап показывает, где источник еще не готов к надежному импорту обращений.</p>
+        </div>
+        <div className="integration-readiness-pipeline__stages">
+          {readinessStages.map((stage) => (
+            <div key={stage.label} className={`integration-readiness-stage integration-readiness-stage--${stage.tone}`}>
+              <span>{stage.label}</span>
+              <strong>{stage.value}</strong>
+              <small>{stage.detail}</small>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы интеграций">
         {integrationSections.map((section) => (

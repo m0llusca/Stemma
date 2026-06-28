@@ -33,6 +33,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
   await expect(page.getByText("Найдено")).toBeVisible();
   await expect(page.getByText(/завершено/i).first()).toBeVisible();
+  await expect(page.getByLabel("Предпросмотр следующего обращения")).toBeVisible();
 
   await page.getByLabel("Поиск в очереди проверок").fill("Мила");
   await page.waitForURL((url) => url.searchParams.get("q") === "Мила");
@@ -48,6 +49,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await page.getByRole("link", { name: "Запрос на возврат из-за задержки доставки" }).click();
 
   await expect(page.getByRole("heading", { name: "Запрос на возврат из-за задержки доставки" })).toBeVisible();
+  await expect(page.getByLabel("Контур решения проверки")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Контекст обращения" })).toBeVisible();
   await expect(page.getByText("Оценка по критериям")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Таймлайн диалога" })).toBeVisible();
@@ -105,6 +107,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Аналитика качества" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "От данных к решению" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Как считать оценку в баллах?" })).toBeVisible();
   await expect(page.getByText("Источник с худшей оценкой")).toBeVisible();
   await page.getByRole("link", { name: /Исполнение/ }).click();
@@ -124,6 +127,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/coaching");
   await expect(page.getByRole("heading", { name: "Обучение" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "От разбора к изменению качества" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Очередь обучения" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Правила для разбора" })).toBeVisible();
 
@@ -146,6 +150,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Интеграции" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Путь от доступа до мониторинга" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Подключенные источники" })).toBeVisible();
   await page.getByRole("link", { name: "Каталог" }).click();
   await expect(page.getByRole("heading", { name: "Каталог источников" })).toBeVisible();
