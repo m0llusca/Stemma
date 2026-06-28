@@ -8,6 +8,7 @@ import "./styles/theme.css";
 // load-bearing: it must match the original top-to-bottom source order.
 import "./styles/components/00-base.css";
 import "./styles/components/05-chip.css";
+import "./styles/components/06-data.css";
 import "./styles/components/10-app-shell.css";
 import "./styles/components/20-integrations.css";
 import "./styles/components/30-dashboard.css";
