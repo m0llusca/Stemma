@@ -2505,3 +2505,163 @@ a.agent-leaderboard__row:hover {
   }
 }
 
+
+/* -----------------------------------------------------------------------
+ * `.metric-card` / `.icon-box` family — consumed by the reports domain
+ * (components/reports/metric-card.tsx, report-score-panel.tsx). Moved here
+ * from 30-dashboard.css (the dashboard KPI strip is StatKpi now). The
+ * `.record-card__action` selector rides along as the shared card-action style.
+ * ----------------------------------------------------------------------- */
+.metric-card {
+  display: flex;
+  min-height: 126px;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: clip;
+}
+
+.metric-card__label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 640;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.metric-card__value {
+  margin-top: 10px;
+  color: var(--foreground);
+  font-size: 32px;
+  font-weight: 680;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card__helper {
+  margin-top: 14px;
+  max-width: 92%;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.metric-card__action,
+.record-card__action {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+  padding: 5px 8px;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 660;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.metric-card__action {
+  margin-top: 12px;
+}
+
+.metric-card__action:hover,
+.record-card__action:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-muted);
+}
+
+.metric-card__trend {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--text-muted);
+}
+
+.metric-card__trend-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: var(--panel-muted);
+  color: currentColor;
+}
+
+.metric-card__trend-body {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.metric-card__trend-main {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metric-card__trend-value {
+  font-size: 20px;
+  font-weight: 680;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.metric-card__trend-detail {
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  padding: 3px 7px;
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.metric-card__trend-caption {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.metric-card__trend--up {
+  color: var(--success);
+}
+
+.metric-card__trend--up .metric-card__trend-icon {
+  background: var(--success-soft);
+}
+
+.metric-card__trend--down {
+  color: var(--danger);
+}
+
+.metric-card__trend--down .metric-card__trend-icon {
+  background: var(--danger-soft);
+}
+
+.metric-card__trend--flat,
+.metric-card__trend--unavailable {
+  color: var(--text-muted);
+}
+
+.icon-box {
+  display: inline-flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}

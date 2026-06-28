@@ -323,7 +323,7 @@ export function QuotaProgressBars({
 
   return (
     <div className="quota-list">
-      {rows.map((row) => {
+      {rows.map((row, index) => {
         const percent = row.planned > 0 ? clampPercent((row.actual / row.planned) * 100) : 0;
         const remaining = Math.max(0, row.planned - row.actual);
 
@@ -340,11 +340,11 @@ export function QuotaProgressBars({
         const className = `quota-list__row ${remaining > 0 ? "quota-list__row--behind" : "quota-list__row--done"} ${row.href ? "quota-list__row--link" : ""}`;
 
         return row.href ? (
-          <Link key={row.label} href={row.href} className={className}>
+          <Link key={`${row.label}:${index}`} href={row.href} className={className}>
             {content}
           </Link>
         ) : (
-          <div key={row.label} className={className}>
+          <div key={`${row.label}:${index}`} className={className}>
             {content}
           </div>
         );
