@@ -6,9 +6,9 @@
   align-items: start;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: #ffffff;
+  background: var(--panel);
   padding: 10px 12px;
-  color: #334155;
+  color: var(--text-body);
   font-size: 13px;
   line-height: 1.4;
 }
