@@ -570,7 +570,6 @@ pre code {
   min-height: 100dvh;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 20%, transparent) 0%, transparent 38%),
-    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 13%, rgba(255, 255, 255, 0.055)), transparent 42%),
     var(--sidebar-bg) !important;
   border-right: 0 !important;
   color: #e5e7eb;
@@ -2122,13 +2121,8 @@ pre code {
 }
 
 .command-center::after {
-  position: absolute;
-  inset: auto 18px 0 18px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-border) 62%, transparent), transparent);
-  content: "";
-  opacity: 0.72;
-  pointer-events: none;
+  display: none;
+  content: none;
 }
 
 .ops-panel__header > *,
@@ -5008,6 +5002,37 @@ details[open] > summary .queue-filterbar__chevron {
   line-height: 1.35;
 }
 
+.queue-preview-panel__reason {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--accent-border) 58%, var(--line-soft));
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--accent-soft) 36%, var(--panel));
+  padding: 11px 12px;
+}
+
+.queue-preview-panel__reason span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.queue-preview-panel__reason strong {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.18;
+}
+
+.queue-preview-panel__reason small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .queue-preview-panel__signals {
   display: grid;
   min-width: 0;
@@ -5071,8 +5096,13 @@ details[open] > summary .queue-filterbar__chevron {
 .queue-list {
   display: grid;
   gap: 6px;
+  max-height: min(1120px, calc(100vh - 220px));
+  min-height: 320px;
+  overflow: auto;
   background: color-mix(in srgb, var(--border) 42%, var(--panel));
   padding: 6px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .queue-bulk-actions {
@@ -5154,27 +5184,30 @@ details[open] > summary .queue-filterbar__chevron {
 }
 
 .queue-ticket--good {
-  background-image: linear-gradient(90deg, rgba(21, 128, 61, 0.16) 0%, rgba(21, 128, 61, 0.1) 14%, rgba(21, 128, 61, 0.035) 32%, rgba(255, 255, 255, 0) 52%);
+  border-color: color-mix(in srgb, var(--success) 32%, var(--border));
+  background-color: color-mix(in srgb, var(--success-soft) 36%, var(--panel));
 }
 
 .queue-ticket--warning {
-  background-image: linear-gradient(90deg, rgba(217, 119, 6, 0.16) 0%, rgba(217, 119, 6, 0.1) 14%, rgba(217, 119, 6, 0.035) 32%, rgba(255, 255, 255, 0) 52%);
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--border));
+  background-color: color-mix(in srgb, var(--warning-soft) 42%, var(--panel));
 }
 
 .queue-ticket--danger {
-  background-image: linear-gradient(90deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.095) 14%, rgba(220, 38, 38, 0.032) 32%, rgba(255, 255, 255, 0) 52%);
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--border));
+  background-color: color-mix(in srgb, var(--danger-soft) 38%, var(--panel));
 }
 
 .queue-ticket--good:hover {
-  background-image: linear-gradient(90deg, rgba(21, 128, 61, 0.19) 0%, rgba(21, 128, 61, 0.12) 16%, rgba(21, 128, 61, 0.045) 34%, rgba(255, 255, 255, 0) 56%);
+  background-color: color-mix(in srgb, var(--success-soft) 48%, var(--panel));
 }
 
 .queue-ticket--warning:hover {
-  background-image: linear-gradient(90deg, rgba(217, 119, 6, 0.19) 0%, rgba(217, 119, 6, 0.12) 16%, rgba(217, 119, 6, 0.045) 34%, rgba(255, 255, 255, 0) 56%);
+  background-color: color-mix(in srgb, var(--warning-soft) 52%, var(--panel));
 }
 
 .queue-ticket--danger:hover {
-  background-image: linear-gradient(90deg, rgba(220, 38, 38, 0.18) 0%, rgba(220, 38, 38, 0.115) 16%, rgba(220, 38, 38, 0.042) 34%, rgba(255, 255, 255, 0) 56%);
+  background-color: color-mix(in srgb, var(--danger-soft) 48%, var(--panel));
 }
 
 .queue-ticket:last-child {

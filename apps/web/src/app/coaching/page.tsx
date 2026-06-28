@@ -22,7 +22,6 @@ import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
-import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
 import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
@@ -451,20 +450,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </div>
       </div>
 
-      <StickyMetricsBar
-        ariaLabel="Сводка обучения"
-        items={[
-          { icon: <Clock3 size={14} aria-hidden="true" />, value: openAssignments.length, label: "в работе" },
-          {
-            icon: <TriangleAlert size={14} aria-hidden="true" />,
-            value: overdueAssignments.length,
-            label: "просрочено",
-            tone: overdueAssignments.length > 0 ? "danger" : "success"
-          },
-          { icon: <CheckCircle2 size={14} aria-hidden="true" />, value: doneAssignments.length, label: "закрыто", tone: "success" },
-          { icon: <BookOpenCheck size={14} aria-hidden="true" />, value: criticalKnowledgeCount, label: "важных правил" }
-        ]}
-      />
         </>
       }
       action={
@@ -602,39 +587,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               <small>{item.detail}</small>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="workflow-focus-strip coaching-focus-strip" aria-label="Фокус обучения">
-        <div className="workflow-focus-strip__lead">
-          <span className="page-kicker">Что разобрать первым</span>
-          <strong>{nextAssignment ? nextAssignment.title : "Нет срочных разборов"}</strong>
-          <small>{nextAssignment ? `${nextAssignment.assigneeName} / ${dueText(nextAssignment.dueAt)}` : "Активные задачи появятся в очереди ниже."}</small>
-        </div>
-        <div className="workflow-focus-strip__items">
-          {nextConversation ? (
-            <Link href={`/reviews/${nextConversation.id}`} className="workflow-focus-card">
-              <span>Открыть проверку</span>
-              <strong>{nextConversation.externalId}</strong>
-              <small>{nextFinding ? `${nextFinding.category} / ${riskLevelLabels[nextFinding.riskLevel]}` : "Связанная проверка"}</small>
-            </Link>
-          ) : (
-            <div className="workflow-focus-card workflow-focus-card--static">
-              <span>Фокус</span>
-              <strong>{openAssignments.length}</strong>
-              <small>Незакрытых учебных задач</small>
-            </div>
-          )}
-          <div className={`workflow-focus-card workflow-focus-card--static ${overdueAssignments.length > 0 ? "workflow-focus-card--warning" : ""}`}>
-            <span>Сроки</span>
-            <strong>{overdueAssignments.length}</strong>
-            <small>{overdueAssignments.length > 0 ? "Просроченных разборов" : "Нет просроченных задач"}</small>
-          </div>
-          <div className="workflow-focus-card workflow-focus-card--static">
-            <span>Связь с проверками</span>
-            <strong>{linkedAssignmentCount}</strong>
-            <small>Задач с контекстом тикета</small>
-          </div>
         </div>
       </section>
 

@@ -2,7 +2,6 @@ import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, 
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
@@ -271,7 +270,12 @@ async function DashboardPageContent() {
       riskCount: row.riskCount,
       appealCount: row.appealCount
     }))
-    .sort((left, right) => right.average - left.average)
+    .sort((left, right) => {
+      const leftActionLoad = left.riskCount * 3 + left.appealCount * 2;
+      const rightActionLoad = right.riskCount * 3 + right.appealCount * 2;
+
+      return rightActionLoad - leftActionLoad || left.average - right.average || right.count - left.count;
+    })
     .slice(0, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
   const totalQueueCount = queuedCount + inWorkCount;
@@ -492,19 +496,6 @@ async function DashboardPageContent() {
                   </Link>
                 );
               })}
-              <CoachCallout
-                title={focusItems.length ? "Начните с верхнего сигнала" : "Поддержите ритм контроля"}
-                body={
-                  focusItems.length
-                    ? "Сначала закройте риск или просроченное обучение, затем возвращайтесь к обычной очереди."
-                    : "Критичных отклонений нет: выберите следующий разговор из очереди и сохраните темп проверок."
-                }
-                href={primaryFocusHref}
-                actionLabel={focusItems.length ? "К задаче" : "Открыть очередь"}
-                tone={focusItems.length ? "warning" : "info"}
-                placement="right"
-                anchorLabel="Подсказка к текущему фокусу"
-              />
             </div>
           </div>
 
@@ -532,8 +523,8 @@ async function DashboardPageContent() {
           <div className="dashboard-panel">
             <div className="dashboard-panel__header">
               <div className="min-w-0">
-                <h2>Операторы</h2>
-                <p>Последние 30 дней.</p>
+                <h2>Где нужен разбор</h2>
+                <p>Где нужен разбор за 30 дней.</p>
               </div>
               <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
             </div>

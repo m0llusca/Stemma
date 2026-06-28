@@ -276,6 +276,11 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
                   <strong>{reviewStateLabels[queuePreviewState]}</strong>
                   <small>{formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "Нет оценки")}</small>
                 </div>
+                <div className="queue-preview-panel__reason">
+                  <span>Почему первый</span>
+                  <strong>{queuePreview.priorityReason}</strong>
+                  <small>Очередь учитывает SLA, риск, переответ и назначение проверяющего.</small>
+                </div>
                 <div className="queue-preview-panel__signals">
                   {queuePreviewSignals.map((signal) => (
                     <div key={signal.label} className={`queue-preview-signal queue-preview-signal--${signal.tone}`}>
@@ -284,11 +289,6 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
                       <small>{signal.detail}</small>
                     </div>
                   ))}
-                </div>
-                <div className="queue-preview-panel__flow" aria-label="Следующий шаг по обращению">
-                  <span>Открыть диалог</span>
-                  <span>Выбрать доказательства</span>
-                  <span>Закрыть обратную связь</span>
                 </div>
                 <Link href={queuePreviewHref(queuePreview, data.currentHref)} className="action-button action-button--primary">
                   Открыть приоритетный кейс
