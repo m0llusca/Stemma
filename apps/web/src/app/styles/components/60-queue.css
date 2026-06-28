@@ -465,9 +465,12 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--source-color) 28%, var(--border));
+  /* Neutral by default — the glyph is a quiet object, not incidental brand
+     color. `--source-color` defaults to a mono ink (set by the component); a
+     connection STATE can still drive color by overriding the var/tokens. */
+  border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background: color-mix(in srgb, var(--source-color) 8%, var(--panel));
+  background: var(--panel-muted);
   color: var(--source-color);
   overflow: hidden;
 }

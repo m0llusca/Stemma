@@ -103,10 +103,10 @@ export function scoreDistributionRows(reviews: ReviewForReport[]): ChartDatum[] 
 
 export function riskSegments(riskGroups: Map<string, number>, period: ReportPeriod): StackedSegment[] {
   return [
-    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, color: "bg-[#3157d5]", href: reportReviewHref(period, { riskLevel: "LOW" }) },
-    { label: "Средний", value: riskGroups.get("Средний") ?? 0, color: "bg-[#0f766e]", href: reportReviewHref(period, { riskLevel: "MEDIUM" }) },
-    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, color: "bg-[#d97706]", href: reportReviewHref(period, { riskLevel: "HIGH" }) },
-    { label: "Критический", value: riskGroups.get("Критический") ?? 0, color: "bg-[#dc2626]", href: reportReviewHref(period, { riskLevel: "CRITICAL" }) }
+    { label: "Низкий", value: riskGroups.get("Низкий") ?? 0, severity: "t1", href: reportReviewHref(period, { riskLevel: "LOW" }) },
+    { label: "Средний", value: riskGroups.get("Средний") ?? 0, severity: "t2", href: reportReviewHref(period, { riskLevel: "MEDIUM" }) },
+    { label: "Высокий", value: riskGroups.get("Высокий") ?? 0, severity: "t3", href: reportReviewHref(period, { riskLevel: "HIGH" }) },
+    { label: "Критический", value: riskGroups.get("Критический") ?? 0, severity: "t4", href: reportReviewHref(period, { riskLevel: "CRITICAL" }) }
   ];
 }
 

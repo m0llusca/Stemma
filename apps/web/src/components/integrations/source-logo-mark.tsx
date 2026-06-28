@@ -158,14 +158,25 @@ export function SourceLogoMark({
   const resolvedMeta = meta ?? sourceLogoMeta(source ?? "", label);
   const classes = ["source-logo-mark", "connect-source-card__mark", className].filter(Boolean).join(" ");
 
+  // Default = neutral monochrome glyph. The per-source brand color stays in
+  // `meta.color` (part of the API), but it is NOT applied as incidental color
+  // here — callers opt into color only when a connection STATE needs it, by
+  // overriding `--source-color` via className/style on the mark.
   return (
-    <span className={classes} style={{ "--source-color": resolvedMeta.color } as SourceMarkStyle} aria-hidden="true">
+    <span className={classes} style={{ "--source-color": "var(--text-subtle)" } as SourceMarkStyle} aria-hidden="true">
       {resolvedMeta.logo.kind === "svg" ? (
         <svg viewBox={resolvedMeta.logo.viewBox ?? "0 0 24 24"} focusable="false">
           <path d={resolvedMeta.logo.path} />
         </svg>
       ) : (
-        <img src={resolvedMeta.logo.src} alt="" loading="lazy" referrerPolicy="no-referrer" data-fit={resolvedMeta.logo.fit ?? "contain"} />
+        <img
+          src={resolvedMeta.logo.src}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          data-fit={resolvedMeta.logo.fit ?? "contain"}
+          style={{ filter: "grayscale(1) opacity(0.78)" }}
+        />
       )}
     </span>
   );

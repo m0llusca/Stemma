@@ -22,7 +22,12 @@ export type RankedDatum = ChartDatum & {
 export type StackedSegment = {
   label: string;
   value: number;
-  color: string;
+  /**
+   * Stable severity rank (t1 = calmest -> t4 = densest). Drives the single-hue
+   * density ramp below. No raw color lives on the data — the ramp is owned by
+   * the chart so it restyles with the theme.
+   */
+  severity: "t1" | "t2" | "t3" | "t4";
   href?: string;
 };
 
@@ -36,16 +41,16 @@ function formatPercent(value: number) {
 
 /**
  * Risk severity maps to a SINGLE-HUE density ramp (calm -> dense), not a
- * green-yellow-red traffic light. The incoming `color` is a stable severity
- * key — we ignore any legacy Tailwind hex class and key the fill off the rank
- * so the stacked bar reads as one ordered scale in every theme.
+ * green-yellow-red traffic light. Each segment carries a stable `severity`
+ * rank (t1..t4); the fill class is derived from that rank so the stacked bar
+ * reads as one ordered scale in every theme — no raw color on the data.
  */
-const riskStackToneByOrder = [
-  "risk-stack__seg--t1",
-  "risk-stack__seg--t2",
-  "risk-stack__seg--t3",
-  "risk-stack__seg--t4"
-];
+const riskStackToneBySeverity: Record<StackedSegment["severity"], string> = {
+  t1: "risk-stack__seg--t1",
+  t2: "risk-stack__seg--t2",
+  t3: "risk-stack__seg--t3",
+  t4: "risk-stack__seg--t4"
+};
 
 function deltaTone(delta: number) {
   return delta > 0 ? "success" : delta < 0 ? "danger" : "neutral";
@@ -258,18 +263,18 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
   return (
     <div className="risk-stack">
       <div className="risk-stack__bar">
-        {segments.map((segment, index) => (
+        {segments.map((segment) => (
           <div
             key={segment.label}
             title={`${segment.label}: ${segment.value}`}
-            className={`risk-stack__seg ${riskStackToneByOrder[index] ?? riskStackToneByOrder[riskStackToneByOrder.length - 1]}`}
+            className={`risk-stack__seg ${riskStackToneBySeverity[segment.severity]}`}
             style={{ width: `${(segment.value / total) * 100}%` }}
           />
         ))}
       </div>
       <div className="risk-stack__legend">
-        {segments.map((segment, index) => {
-          const toneClass = riskStackToneByOrder[index] ?? riskStackToneByOrder[riskStackToneByOrder.length - 1];
+        {segments.map((segment) => {
+          const toneClass = riskStackToneBySeverity[segment.severity];
           const content = (
             <>
               <span>
