@@ -606,6 +606,25 @@ describe("prisma schema database foundations", () => {
     expect(certificationRunsMigration).toContain('FOREIGN KEY ("actorId", "workspaceId") REFERENCES "User"("id", "workspaceId")');
   });
 
+  it("stores messaging channels and action deliveries per workspace", () => {
+    const workspaceModel = modelBlock("Workspace");
+    const channelModel = modelBlock("MessagingChannel");
+    const deliveryModel = modelBlock("MessagingDelivery");
+
+    expect(workspaceModel).toMatch(/messagingChannels\s+MessagingChannel\[]/);
+    expect(workspaceModel).toMatch(/messagingDeliveries\s+MessagingDelivery\[]/);
+    expect(channelModel).toMatch(/model MessagingChannel/);
+    expect(channelModel).toMatch(/workspaceId\s+String/);
+    expect(channelModel).toMatch(/kind\s+String/);
+    expect(channelModel).toMatch(/capabilities\s+String\s+@default\("action_notification"\)/);
+    expect(channelModel).toMatch(/deliveries\s+MessagingDelivery\[]/);
+    expect(channelModel).toContain("@@unique([workspaceId, kind])");
+    expect(deliveryModel).toMatch(/model MessagingDelivery/);
+    expect(deliveryModel).toMatch(/eventType\s+String/);
+    expect(deliveryModel).toMatch(/recipientType\s+String/);
+    expect(deliveryModel).toMatch(/payloadJson\s+String\s+@default\("\{\}"\)/);
+  });
+
   it("migrates Phase D certification evidence with foreign keys and query indexes", () => {
     expect(certificationEvidenceMigrationName).toMatch(/^\d+_phase_d_certification_evidence$/);
     expect(certificationEvidenceMigrationName?.localeCompare(ssoRequestStateCompositeFkMigrationName ?? "")).toBeGreaterThan(0);

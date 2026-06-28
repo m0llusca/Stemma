@@ -150,6 +150,8 @@ model Workspace {
   integrationRunItems       IntegrationRunItem[]
   webhookEndpoints          WebhookEndpoint[]
   webhookIngestEvents       WebhookIngestEvent[]
+  messagingChannels         MessagingChannel[]
+  messagingDeliveries       MessagingDelivery[]
   certificationRuns         CertificationRun[]
   certificationEvidence     CertificationEvidence[]
   apiTokens                 ApiToken[]
@@ -1159,6 +1161,51 @@ model WebhookIngestEvent {
   @@index([workspaceId, source, receivedAt])
   @@index([integrationRunId])
   @@index([conversationId])
+}
+
+model MessagingChannel {
+  id              String              @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind            String
+  displayName     String
+  status          String              @default("draft")
+  capabilities    String              @default("action_notification")
+  configJson      String              @default("{}")
+  secretRef       String?
+  lastDeliveredAt DateTime?
+  lastError       String?
+  deliveries      MessagingDelivery[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([workspaceId, kind])
+  @@index([workspaceId, status])
+  @@index([workspaceId, kind])
+}
+
+model MessagingDelivery {
+  id            String            @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channelId     String?
+  channel       MessagingChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  kind          String
+  eventType     String
+  recipientType String
+  recipientRef  String?
+  status        String            @default("queued")
+  title         String
+  body          String
+  href          String?
+  error         String?
+  payloadJson   String            @default("{}")
+  createdAt     DateTime          @default(now())
+  deliveredAt   DateTime?
+
+  @@index([workspaceId, kind, createdAt])
+  @@index([workspaceId, status, createdAt])
+  @@index([channelId, createdAt])
 }
 
 model BackendJob {
