@@ -77,6 +77,8 @@ export type ReviewQueueConversationDto = {
   csatBucket: string;
   samplingType: string;
   riskHint: string | null;
+  priorityRank: number;
+  priorityReason: string;
   reviews: ReviewQueueReviewDto[];
 };
 

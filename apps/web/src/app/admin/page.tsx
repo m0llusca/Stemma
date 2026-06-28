@@ -2,7 +2,6 @@ import type { RoleName } from "@prisma/client";
 import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -312,6 +311,19 @@ async function AdminHomePageContent() {
         }
       : null
   ].filter((item): item is AttentionItem => item !== null && canSee(user.role, item.roles)).slice(0, 4);
+  const visibleAttentionItems = primarySetupCoachmark
+    ? attentionItems.filter((item) => item.href !== primarySetupCoachmark.href).slice(0, 3)
+    : attentionItems;
+  const priorityTitle = primarySetupCoachmark
+    ? primarySetupCoachmark.title
+    : attentionItems.length > 0
+      ? "Продолжить настройку"
+      : "Настройки в рабочем состоянии";
+  const priorityBody = primarySetupCoachmark
+    ? primarySetupCoachmark.body
+    : attentionItems.length > 0
+      ? "Сначала закрывайте блокеры, которые мешают проверкам и импорту."
+      : "Можно переходить к методологии, источникам или журналу действий.";
 
   return (
     <section className="page-shell admin-shell">
@@ -336,37 +348,20 @@ async function AdminHomePageContent() {
         </div>
       </div>
 
-      {primarySetupCoachmark ? (
-        <section className="setup-guide-layout admin-setup-guidance" aria-label="Подсказка по незавершенной настройке">
-          <div className="soft-callout admin-setup-guidance__summary">
-            <p className="ops-panel__eyebrow">Следующий шаг</p>
-            <h2>{primarySetupCoachmark.title}</h2>
-            <p>{primarySetupCoachmark.body}</p>
-            <span className="record-meta">Подсказка исчезнет, когда этот блок будет настроен.</span>
-          </div>
-          <CoachCallout
-            title={primarySetupCoachmark.title}
-            body={primarySetupCoachmark.body}
-            href={primarySetupCoachmark.href}
-            actionLabel={primarySetupCoachmark.actionLabel}
-            variant="spotlight"
-            placement="left"
-            anchorLabel="Подсказка по настройкам"
-            stepIndex={1}
-            dismissId={`settings:${primarySetupCoachmark.id}`}
-          />
-        </section>
-      ) : null}
-
       <section className="admin-attention-strip" aria-label="Что требует внимания">
         <div className="admin-attention-strip__lead">
-          <p className="ops-panel__eyebrow">Требует внимания</p>
-          <h2>{attentionItems.length > 0 ? "Продолжить настройку" : "Настройки в рабочем состоянии"}</h2>
-          <p>{attentionItems.length > 0 ? "Сначала закрывайте блокеры, которые мешают проверкам и импорту." : "Можно переходить к методологии, источникам или журналу действий."}</p>
+          <p className="ops-panel__eyebrow">Приоритет настройки</p>
+          <h2>{priorityTitle}</h2>
+          <p>{priorityBody}</p>
+          {primarySetupCoachmark ? (
+            <Link href={primarySetupCoachmark.href} className="action-button action-button--primary">
+              {primarySetupCoachmark.actionLabel}
+            </Link>
+          ) : null}
         </div>
         <div className="admin-attention-strip__list">
-          {attentionItems.length > 0 ? (
-            attentionItems.map((item) => (
+          {visibleAttentionItems.length > 0 ? (
+            visibleAttentionItems.map((item) => (
               <Link key={item.href} href={item.href} className={`admin-attention-card admin-attention-card--${item.tone}`}>
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
@@ -376,9 +371,13 @@ async function AdminHomePageContent() {
             ))
           ) : (
             <div className="admin-attention-card admin-attention-card--static">
-              <span>Блокеров нет</span>
-              <strong>Готово</strong>
-              <small>Основные настройки, источники и системные очереди доступны в разделах ниже.</small>
+              <span>{primarySetupCoachmark ? "Остальные блоки" : "Блокеров нет"}</span>
+              <strong>{primarySetupCoachmark ? "Без срочных действий" : "Готово"}</strong>
+              <small>
+                {primarySetupCoachmark
+                  ? "Закройте приоритетный шаг слева, затем переходите к разделам ниже."
+                  : "Основные настройки, источники и системные очереди доступны в разделах ниже."}
+              </small>
             </div>
           )}
         </div>

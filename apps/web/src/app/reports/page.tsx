@@ -651,6 +651,32 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           : `${formatReviewCount(finalizedCount)}, норма ${quotaCompletionPercent}%.`
     }
   ];
+  const driverStackItems = [
+    weakestBlock
+      ? {
+          label: "Критерий",
+          value: weakestBlock.label,
+          evidence: `${formatAverageScore(weakestBlock.averageScore)} · ${formatReviewCount(weakestBlock.count)}`,
+          action: "Открыть проверки по слабому блоку"
+        }
+      : null,
+    weakestSourceFocus
+      ? {
+          label: "Источник",
+          value: weakestSourceFocus.label,
+          evidence: `${formatAverageScore(weakestSourceFocus.averageScore)} · ${formatReviewCount(weakestSourceFocus.count)}`,
+          action: "Сравнить канал с общей выборкой"
+        }
+      : null,
+    weakestTeamFocus
+      ? {
+          label: "Команда",
+          value: weakestTeamFocus.label,
+          evidence: `${formatAverageScore(weakestTeamFocus.averageScore)} · ${formatReviewCount(weakestTeamFocus.count)}`,
+          action: "Проверить повторяющиеся причины"
+        }
+      : null
+  ].filter((item): item is { label: string; value: string; evidence: string; action: string } => Boolean(item));
 
   return (
     <OperationalPageFrame
@@ -674,8 +700,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           <section className="report-narrative-board panel" aria-label="Решение по аналитике">
             <div className="report-narrative-board__lead">
               <span className="page-kicker">Решение</span>
-              <h2>От данных к решению</h2>
-              <p>Короткий слой интерпретации перед графиками: изменение, причина, действие и надежность выборки.</p>
+              <h2>Что делать по периоду</h2>
+              <p>Один рабочий слой перед графиками: изменение, драйвер, действие и доверие к выборке.</p>
             </div>
             <div className="report-narrative-board__items">
               {reportNarrativeItems.map((item) => (
@@ -687,6 +713,24 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
               ))}
             </div>
           </section>
+          {driverStackItems.length > 0 ? (
+            <section className="report-driver-stack panel" aria-label="Цепочка драйверов качества">
+              <div className="report-driver-stack__lead">
+                <span className="page-kicker">Драйверы</span>
+                <h2>Где искать причину</h2>
+              </div>
+              <div className="report-driver-stack__items">
+                {driverStackItems.map((item) => (
+                  <div key={`${item.label}:${item.value}`} className="report-driver-item">
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <small>{item.evidence}</small>
+                    <em>{item.action}</em>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
           <InsightSummary
             averageScore={averageScore}
             finalizedCount={finalizedCount}

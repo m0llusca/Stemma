@@ -346,6 +346,7 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
       externalSource: true,
       supportLine: true,
       teamName: true,
+      openedAt: true,
       reviewDueAt: true,
       qaStatus: true,
       qaAssigneeName: true,
@@ -375,24 +376,89 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
     orderBy: { openedAt: "desc" }
   });
 
-  return conversations.map((conversation) => ({
-    id: conversation.id,
-    subject: conversation.subject,
-    customerName: conversation.customerName,
-    assigneeName: conversation.assigneeName,
-    messageCount: conversation._count.messages,
-    channel: conversation.channel,
-    externalSource: conversation.externalSource,
-    supportLine: conversation.supportLine,
-    teamName: conversation.teamName,
-    reviewDueAt: conversation.reviewDueAt?.toISOString() ?? null,
-    qaStatus: conversation.qaStatus,
-    qaAssigneeName: conversation.qaAssigneeName,
-    csatBucket: conversation.csatBucket,
-    samplingType: conversation.samplingType,
-    riskHint: conversation.riskHint,
-    reviews: currentCycleReviewsForQaStatus(conversation.qaStatus, conversation.reviews)
-  }));
+  return conversations
+    .map((conversation) => {
+      const reviews = currentCycleReviewsForQaStatus(conversation.qaStatus, conversation.reviews);
+      const priority = reviewQueuePriority({
+        qaStatus: conversation.qaStatus,
+        qaAssigneeName: conversation.qaAssigneeName,
+        reviewDueAt: conversation.reviewDueAt,
+        csatBucket: conversation.csatBucket,
+        samplingType: conversation.samplingType,
+        riskHint: conversation.riskHint,
+        reviews
+      });
+
+      return {
+        id: conversation.id,
+        subject: conversation.subject,
+        customerName: conversation.customerName,
+        assigneeName: conversation.assigneeName,
+        messageCount: conversation._count.messages,
+        channel: conversation.channel,
+        externalSource: conversation.externalSource,
+        supportLine: conversation.supportLine,
+        teamName: conversation.teamName,
+        reviewDueAt: conversation.reviewDueAt?.toISOString() ?? null,
+        qaStatus: conversation.qaStatus,
+        qaAssigneeName: conversation.qaAssigneeName,
+        csatBucket: conversation.csatBucket,
+        samplingType: conversation.samplingType,
+        riskHint: conversation.riskHint,
+        priorityRank: priority.rank,
+        priorityReason: priority.reason,
+        reviews,
+        openedAt: conversation.openedAt
+      };
+    })
+    .sort((left, right) => {
+      const priorityDelta = right.priorityRank - left.priorityRank;
+      if (priorityDelta !== 0) return priorityDelta;
+
+      const leftDue = left.reviewDueAt ? new Date(left.reviewDueAt).getTime() : Number.POSITIVE_INFINITY;
+      const rightDue = right.reviewDueAt ? new Date(right.reviewDueAt).getTime() : Number.POSITIVE_INFINITY;
+      if (leftDue !== rightDue) return leftDue - rightDue;
+
+      return right.openedAt.getTime() - left.openedAt.getTime();
+    })
+    .map(({ openedAt: _openedAt, ...conversation }) => conversation);
+}
+
+function reviewQueuePriority({
+  qaStatus,
+  qaAssigneeName,
+  reviewDueAt,
+  csatBucket,
+  samplingType,
+  riskHint,
+  reviews
+}: {
+  qaStatus: ReviewQueueConversationDto["qaStatus"];
+  qaAssigneeName: string | null;
+  reviewDueAt: Date | null;
+  csatBucket: string;
+  samplingType: string;
+  riskHint: string | null;
+  reviews: ReviewQueueConversationDto["reviews"];
+}) {
+  const finalizedReview = reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN");
+  const isOpen = qaStatus !== "FINALIZED";
+  const isOverdue = isOpen && reviewDueAt !== null && reviewDueAt < new Date();
+
+  if (isOverdue) return { rank: 100, reason: "SLA просрочен" };
+  if (finalizedReview?.criticalError) return { rank: 95, reason: "Критическая ошибка" };
+  if (finalizedReview?.needsReanswer) return { rank: 90, reason: "Нужен переответ" };
+  if (finalizedReview?.appealStatus && finalizedReview.appealStatus !== "none") return { rank: 84, reason: "Открыта апелляция" };
+  if (isOpen && riskHint) return { rank: 78, reason: "Риск из источника" };
+  if (isOpen && csatBucket === "NEGATIVE") return { rank: 72, reason: "Негативный CSAT" };
+  if (isOpen && !qaAssigneeName) return { rank: 66, reason: "Без проверяющего" };
+  if (isOpen && samplingType === "LOW_SCORE") return { rank: 60, reason: "Низкая оценка" };
+  if (isOpen && samplingType === "LEAD_SIGNAL") return { rank: 54, reason: "Сигнал руководителя" };
+  if (isOpen && samplingType === "DSAT") return { rank: 50, reason: "DSAT выборка" };
+  if (isOpen && reviewDueAt) return { rank: 42, reason: "Есть срок" };
+  if (isOpen) return { rank: 36, reason: "Ожидает проверки" };
+
+  return { rank: 10, reason: "Завершено" };
 }
 
 export async function getReviewQueueSummary(workspaceId: string, scope?: ReviewQueueScope): Promise<ReviewQueueSummaryDto> {

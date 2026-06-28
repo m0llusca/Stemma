@@ -60,6 +60,7 @@ describe("review queue frontend/backend contract", () => {
       expect.objectContaining({
         select: expect.objectContaining({
           _count: { select: { messages: true } },
+          openedAt: true,
           reviews: expect.objectContaining({
             take: 4
           })
@@ -83,6 +84,8 @@ describe("review queue frontend/backend contract", () => {
         csatBucket: "NEGATIVE",
         samplingType: "DSAT",
         riskHint: "VIP client",
+        priorityRank: 10,
+        priorityReason: "Завершено",
         reviews: [
           {
             id: "review-1",
@@ -97,6 +100,62 @@ describe("review queue frontend/backend contract", () => {
         ]
       }
     ]);
+  });
+
+  it("orders queue rows by operational priority before recency", async () => {
+    mocks.prisma.conversation.findMany.mockResolvedValue([
+      {
+        id: "recent-low-risk",
+        subject: "Свежий кейс",
+        customerName: "Клиент",
+        assigneeName: "Оператор",
+        channel: "CHAT",
+        externalSource: "custom_api",
+        supportLine: "1ЛП",
+        teamName: "Поддержка",
+        reviewDueAt: null,
+        openedAt: new Date("2026-06-20T12:00:00.000Z"),
+        qaStatus: "QUEUED",
+        qaAssigneeName: "Проверяющий",
+        csatBucket: "NEUTRAL",
+        samplingType: "RANDOM",
+        riskHint: null,
+        _count: {
+          messages: 1
+        },
+        reviews: []
+      },
+      {
+        id: "overdue-sla",
+        subject: "Просроченный SLA",
+        customerName: "Клиент",
+        assigneeName: "Оператор",
+        channel: "EMAIL",
+        externalSource: "custom_api",
+        supportLine: "2ЛП",
+        teamName: "Поддержка",
+        reviewDueAt: new Date("2020-01-01T12:00:00.000Z"),
+        openedAt: new Date("2026-06-01T12:00:00.000Z"),
+        qaStatus: "QUEUED",
+        qaAssigneeName: "Проверяющий",
+        csatBucket: "NEUTRAL",
+        samplingType: "RANDOM",
+        riskHint: null,
+        _count: {
+          messages: 2
+        },
+        reviews: []
+      }
+    ]);
+
+    const { getReviewQueue } = await import("@/lib/review-repository");
+    const conversations = await getReviewQueue("workspace-1", { status: "all" });
+
+    expect(conversations.map((conversation) => conversation.id)).toEqual(["overdue-sla", "recent-low-risk"]);
+    expect(conversations[0]).toMatchObject({
+      priorityRank: 100,
+      priorityReason: "SLA просрочен"
+    });
   });
 
   it("does not expose finalized HUMAN reviews from a previous reopened cycle", async () => {

@@ -142,7 +142,9 @@ async function SelfReviewPageContent() {
   const nextReview = nextConversation?.reviews[0];
   const renderFeedbackCard = (conversation: (typeof conversations)[number], mode: "action" | "history" = "action") => {
     const review = conversation.reviews[0];
-    const finding = review?.findings[0];
+    const findings = review?.findings ?? [];
+    const visibleFindings = findings.slice(0, 3);
+    const hiddenFindingCount = Math.max(0, findings.length - visibleFindings.length);
 
     if (!review) {
       return null;
@@ -157,6 +159,13 @@ async function SelfReviewPageContent() {
       hasOpenAppeal ||
       (review.needsReanswer && review.reanswerStatus === "required") ||
       (!canAcknowledge && !canOpenAppeal && !canCompleteReanswer);
+    const nextStep = canCompleteReanswer
+      ? "Закройте переответ после отправки клиенту."
+      : hasOpenAppeal
+        ? "Дождитесь решения по апелляции или откройте детали проверки."
+        : canAcknowledge
+          ? "Примите проверку, если замечания понятны; спорные пункты можно оспорить."
+          : "Откройте детали, чтобы посмотреть основание оценки.";
 
     return (
       <article key={conversation.id} className="feedback-card">
@@ -168,6 +177,7 @@ async function SelfReviewPageContent() {
             <span className="pill pill--neutral">{formatQualityScore(review.totalScore)}</span>
           </div>
           <p>{review.summary}</p>
+          <p className="feedback-card__next-step">{nextStep}</p>
           <div className="feedback-card__meta">
             <span>{externalSourceLabel(conversation.externalSource)} · {conversation.externalId}</span>
             <span>{review.reviewer.name}</span>
@@ -180,12 +190,17 @@ async function SelfReviewPageContent() {
             <span className="pill pill--neutral">
               {appealStatusLabels[review.appealStatus] ?? review.appealStatus}
             </span>
-            {finding ? (
-              <span className="pill pill--neutral">
-                {finding.category} · {riskLevelLabels[finding.riskLevel]}
-              </span>
-            ) : null}
           </div>
+          {visibleFindings.length > 0 ? (
+            <div className="feedback-card__findings" aria-label="Основания оценки">
+              {visibleFindings.map((finding) => (
+                <span key={`${finding.category}:${finding.riskLevel}`} className="pill pill--neutral">
+                  {finding.category} · {riskLevelLabels[finding.riskLevel]}
+                </span>
+              ))}
+              {hiddenFindingCount > 0 ? <span className="pill pill--neutral">+{hiddenFindingCount}</span> : null}
+            </div>
+          ) : null}
         </div>
         {mode === "action" ? (
           <div className="feedback-card__actions">

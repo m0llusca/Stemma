@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Bell, Command, Search, X } from "lucide-react";
+import { ArrowRight, Bell, ChevronDown, Command, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ShellCommandItem, ShellNavigation, ShellNavMode } from "@/lib/shell/navigation";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -73,6 +73,7 @@ export function AppTopbarShell({ navigation, pulseItems, user, demoSwitcher }: A
     () => navigation.commandItems.filter((command) => commandMatches(command, query)).slice(0, 9),
     [navigation.commandItems, query]
   );
+  const demoUserName = demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ?? user.name;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -114,36 +115,48 @@ export function AppTopbarShell({ navigation, pulseItems, user, demoSwitcher }: A
           <kbd>⌘K</kbd>
         </button>
 
-        <div className="work-pulse" aria-label="Рабочий пульс">
-          {pulseItems.map((item) => (
-            <Link key={item.label} href={item.href} className={`work-pulse__item ${item.tone ? `work-pulse__item--${item.tone}` : ""}`}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </Link>
-          ))}
+        <div className="app-topbar__work-tray" aria-label="Рабочий пульс">
+          <div className="work-pulse">
+            {pulseItems.map((item) => (
+              <Link key={item.label} href={item.href} className={`work-pulse__item ${item.tone ? `work-pulse__item--${item.tone}` : ""}`}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </Link>
+            ))}
+          </div>
+          <Link href="/reviews?status=unreviewed" className="app-topbar__primary" aria-label="Взять следующий кейс">
+            <span className="app-topbar__primary-label">Взять кейс</span>
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
         </div>
-
-        <Link href="/reviews?status=unreviewed" className="app-topbar__primary" aria-label="Взять следующий кейс">
-          <span className="app-topbar__primary-label">Взять кейс</span>
-          <ArrowRight size={14} aria-hidden="true" />
-        </Link>
 
         {demoSwitcher ? (
           <div className="app-topbar__identity-slot">
-            <form action={switchCurrentUser} className="app-topbar__identity-form">
-              <label>
-                <span>Роль</span>
-                <select name="userId" defaultValue={demoSwitcher.currentUserId} aria-label="Демо-пользователь">
-                  {demoSwitcher.users.map((workspaceUser) => (
-                    <option key={workspaceUser.id} value={workspaceUser.id}>
-                      {workspaceUser.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit">Сменить</button>
-              <small>{demoSwitcher.roleLabel}</small>
-            </form>
+            <details className="app-topbar__identity-menu">
+              <summary className="app-topbar__identity-summary">
+                <span className="app-topbar__identity-copy">
+                  <strong>{demoSwitcher.roleLabel}</strong>
+                  <small>{demoUserName}</small>
+                </span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </summary>
+              <div className="app-topbar__identity-popover">
+                <form action={switchCurrentUser} className="app-topbar__identity-form">
+                  <label>
+                    <span>Демо-роль</span>
+                    <select name="userId" defaultValue={demoSwitcher.currentUserId} aria-label="Демо-пользователь">
+                      {demoSwitcher.users.map((workspaceUser) => (
+                        <option key={workspaceUser.id} value={workspaceUser.id}>
+                          {workspaceUser.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit">Сменить</button>
+                  <small>{demoSwitcher.roleLabel}</small>
+                </form>
+              </div>
+            </details>
           </div>
         ) : (
           <span className="app-topbar__user" title={user.email}>

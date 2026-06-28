@@ -126,6 +126,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
     ) ?? [];
   const selectedCompletedCount = new Set(selectedCalibrationReviews.map((review) => `${review.conversationId}:${review.reviewerId}`)).size;
   const selectedExpectedCount = selectedItemCount * selectedParticipantCount;
+  const selectedWaitingCount = Math.max(selectedExpectedCount - selectedCompletedCount, 0);
   const selectedProgress = selectedExpectedCount > 0 ? Math.round((selectedCompletedCount / selectedExpectedCount) * 100) : 0;
   const activeSessionCount = sessions.filter((session) => session.status === "active" || session.status === "draft").length;
   const selectedItemStates =
@@ -216,6 +217,38 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       waitingCount: Math.max(expectedCount - completedCount, 0)
     };
   });
+  const selectedSessionIsOpen = selectedSession?.status === "active" || selectedSession?.status === "draft";
+  const calibrationNextAction = !selectedSession
+    ? "Создайте первую сессию из финализированных проверок."
+    : selectedItemCount === 0
+      ? "Добавьте обращения, чтобы участники оценивали один и тот же набор."
+      : selectedParticipantCount === 0
+        ? "Добавьте проверяющих в сессию."
+        : selectedWaitingCount > 0
+          ? `Дождитесь или напомните ${selectedWaitingCount} оценок перед разбором.`
+          : selectedDisagreementCount > 0
+            ? `Разберите ${selectedDisagreementCount} расхождений и зафиксируйте общее правило.`
+            : selectedAlignmentPercent != null && selectedAlignmentPercent < 85
+              ? "Проверьте смещение участников относительно эталона."
+              : selectedSessionIsOpen
+                ? "Калибровка готова к завершению."
+                : "Сессия закрыта, результаты можно использовать для методологии и обучения.";
+  const calibrationDecisionMeta = selectedSession
+    ? [
+        { label: "Обращения", value: selectedItemCount.toString(), icon: ClipboardCheck },
+        { label: "Участники", value: selectedParticipantCount.toString(), icon: UsersRound },
+        {
+          label: "Согласованность",
+          value: selectedAlignmentPercent != null ? `${selectedAlignmentPercent}%` : "нет данных",
+          icon: Crosshair
+        },
+        {
+          label: "Срок",
+          value: selectedSession.dueAt ? selectedSession.dueAt.toLocaleDateString("ru-RU") : "нет",
+          icon: CalendarClock
+        }
+      ]
+    : [];
   const newSessionHref = calibrationHref({ sessionId: selectedSession?.id, newSession: true });
   const closeNewSessionHref = calibrationHref({ sessionId: selectedSession?.id });
 
@@ -397,38 +430,23 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 </div>
               </div>
 
-              <div className="calibration-summary-strip">
-                <div>
-                  <ClipboardCheck size={16} aria-hidden="true" />
-                  <span>{selectedItemCount}</span>
-                  <small>обращений</small>
+              <div className="calibration-decision-strip" aria-label="Следующее решение по калибровке">
+                <div className="calibration-decision-strip__lead">
+                  <span>Следующее решение</span>
+                  <strong>{calibrationNextAction}</strong>
                 </div>
-                <div>
-                  <UsersRound size={16} aria-hidden="true" />
-                  <span>{selectedParticipantCount}</span>
-                  <small>участников</small>
-                </div>
-                <div>
-                  <Gauge size={16} aria-hidden="true" />
-                  <span>{selectedProgress}%</span>
-                  <small>готово</small>
-                </div>
-                <div>
-                  <TriangleAlert size={16} aria-hidden="true" />
-                  <span>{selectedDisagreementCount}</span>
-                  <small>расхождений</small>
-                </div>
-                {selectedAlignmentPercent != null ? (
-                  <div>
-                    <Crosshair size={16} aria-hidden="true" />
-                    <span>{selectedAlignmentPercent}%</span>
-                    <small>согласованность</small>
-                  </div>
-                ) : null}
-                <div>
-                  <CalendarClock size={16} aria-hidden="true" />
-                  <span>{selectedSession.dueAt ? selectedSession.dueAt.toLocaleDateString("ru-RU") : "нет"}</span>
-                  <small>срок</small>
+                <div className="calibration-decision-strip__meta">
+                  {calibrationDecisionMeta.map((meta) => {
+                    const Icon = meta.icon;
+
+                    return (
+                      <span key={meta.label}>
+                        <Icon size={15} aria-hidden="true" />
+                        <small>{meta.label}</small>
+                        <strong>{meta.value}</strong>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 

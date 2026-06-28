@@ -175,6 +175,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   <Link href={`/reviews/${conversation.id}`} className="queue-ticket__title">
                     {conversation.subject}
                   </Link>
+                  <span className="queue-ticket__priority-reason">{conversation.priorityReason}</span>
                   <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
                 </div>
                 <div className="queue-ticket__meta-row">

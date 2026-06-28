@@ -147,7 +147,7 @@ test("authenticated app shell routes render stable chrome and content", async ({
       const contextNav = page.locator(".app-topbar__context");
       const commandTrigger = page.locator(".app-command-trigger");
       const workPulse = page.locator(".work-pulse");
-      const identityChip = page.locator(".app-topbar__identity-form, .app-topbar__user").first();
+      const identityChip = page.locator(".app-topbar__identity-summary, .app-topbar__user").first();
 
       await expect(commandTrigger).toBeVisible();
       await expect(page.locator(".work-pulse__item").first()).toBeVisible();
