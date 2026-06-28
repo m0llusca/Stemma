@@ -72,28 +72,26 @@ function installContract(config: InstallContractConfig): IntegrationInstallContr
 }
 
 const tokenOnlyHelpdeskLimitations = [
-  "Доступ настраивается через существующий token/basic credential flow.",
-  "OAuth install redirect flow пока не реализован для этого источника.",
-  "Живая сертификация не запускалась: нужны реальные доступы к источнику.",
-  "Registry-only контракт не подключён к UI/capability manifest в этом изменении."
+  "Подключение доступно через текущий token/basic flow; production-ready статус появится только после живой сертификации.",
+  "OAuth one-click install включается только после redirect/callback, token refresh и scope checks."
 ] as const;
 
 const helpdeskWebhookLimitations = [
   ...tokenOnlyHelpdeskLimitations,
-  "Inbound webhook endpoint существует, но vendor-specific install wiring будет подключено отдельно."
+  "Webhook readiness проверяется отдельно и не означает автоматическую регистрацию vendor webhook."
 ] as const;
 
 const dataSourceLimitations = [
-  "Доступ настраивается через существующий credential/token flow.",
+  "Подключение доступно через текущий credential/token flow; production-ready статус появится только после живой сертификации.",
   "Проверка здоровья подтверждает доступность подключения, но не выполняет production import без явного live доступа.",
-  "Живая сертификация не запускалась: нужны реальные доступы к источнику.",
-  "Registry-only контракт не подключён к UI/capability manifest в этом изменении."
+  "OAuth one-click install включается только после redirect/callback, token refresh и scope checks."
 ] as const;
 
 const enterpriseLimitations = [
   "Ограниченная поддержка: требуется живая сертификация на tenant/sandbox заказчика.",
-  "Текущий flow принимает OAuth client credentials вручную; интерактивный marketplace install не реализован.",
-  "Registry-only контракт не подключён к UI/capability manifest в этом изменении."
+  "Подключение доступно через текущий credential/OAuth flow; production-ready статус появится только после живой сертификации.",
+  "Webhook readiness проверяется отдельно и не означает автоматическую регистрацию vendor webhook.",
+  "OAuth one-click install включается только после redirect/callback, token refresh и scope checks."
 ] as const;
 
 const otrsFamilyAuthModes = ["user_password", "session_create", "tls_ca_bundle"] as const;

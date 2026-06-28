@@ -33,7 +33,7 @@ describe("integration install contract registry", () => {
       expect(contract.installState).toBe("token-only");
       expect(contract.certificationState.productionReady).toBe(false);
       expect(contract.certificationState.status).toBe("ready_for_live_certification");
-      expect(contract.limitations.join(" ")).toContain("Живая сертификация не запускалась");
+      expect(contract.limitations.join(" ")).toContain("production-ready статус появится только после живой сертификации");
     }
   });
 

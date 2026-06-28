@@ -63,6 +63,7 @@ describe("Phase B helpdesk adapter source contracts", () => {
         const hasContext7Id = doc.context7Id?.startsWith("/") ?? false;
 
         expect(hasFirstPartyHttpsUrl || hasContext7Id).toBe(true);
+        expect(doc.checkedAt).toBe("2026-06-28");
         expect(Array.isArray(doc.notes)).toBe(true);
         expect(doc.notes.length).toBeGreaterThan(0);
       }

@@ -41,6 +41,12 @@ Token-only and limited sources must not be marketed or labeled as one-click inst
 - Do not infer `live-certified` from docs or stubs. It requires real live credentials and recorded certification evidence.
 - Keep adapter behavior in adapter modules; keep install readiness in the contract registry.
 
+## Source Documentation Gate
+
+Before changing adapter runtime behavior, the implementer must check the current official vendor documentation. Use Context7 first when it has official coverage. If Context7 does not return a useful official source, use the vendor's official developer documentation directly and record the `checkedAt` date in the source contract.
+
+Contract documentation older than 120 days is stale for runtime changes. A stale contract can remain in the registry, but the adapter cannot be promoted to a deeper readiness state until the docs are refreshed.
+
 ## Phase 2 Notes
 
 Phase 2 should connect OAuth and live certification for priority sources in this order:
