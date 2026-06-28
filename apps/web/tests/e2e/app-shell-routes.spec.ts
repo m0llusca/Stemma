@@ -215,9 +215,9 @@ test("authenticated app shell routes render stable chrome and content", async ({
       );
 
       for (const alignment of kpiAlignments) {
-        expect(Math.abs(alignment.valueLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} value should align with icon badge box`).toBeLessThanOrEqual(1);
-        expect(Math.abs(alignment.titleLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} title should align with icon badge box`).toBeLessThanOrEqual(1);
-        expect(Math.abs(alignment.footnoteLeft - alignment.iconLeft), `dashboard KPI ${alignment.index} footnote should align with icon badge box`).toBeLessThanOrEqual(1);
+        expect(alignment.valueLeft - alignment.iconLeft, `dashboard KPI ${alignment.index} value should sit to the right of icon badge`).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(alignment.titleLeft - alignment.valueLeft), `dashboard KPI ${alignment.index} title should align with value column`).toBeLessThanOrEqual(1);
+        expect(Math.abs(alignment.footnoteLeft - alignment.valueLeft), `dashboard KPI ${alignment.index} footnote should align with value column`).toBeLessThanOrEqual(1);
       }
 
       const focusMetric = page.locator(".dashboard-focus-row__metric.status-tone--negative em, .dashboard-focus-row__metric.status-tone--warning em").first();

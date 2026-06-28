@@ -356,6 +356,12 @@ async function DashboardPageContent() {
       tone: queueStatus.tone
     }
   ];
+  const primaryFocusRailLabel =
+    primaryFocus.label === "Просрочено обучение"
+      ? "Просрочено"
+      : primaryFocus.label === "Очередь без старта"
+        ? "Без старта"
+        : primaryFocus.label;
 
   return (
     <OperationalPageFrame
@@ -375,6 +381,23 @@ async function DashboardPageContent() {
                   {focusItems.length ? "Есть фокус на сегодня" : "Команда в норме"}
                 </span>
               </div>
+            </div>
+            <div className="dashboard-hero__rail" aria-label="Быстрые переходы дашборда">
+              <Link href={primaryFocusHref}>
+                <span>Сейчас</span>
+                <strong>{primaryFocus.value}</strong>
+                <small title={primaryFocus.label}>{primaryFocusRailLabel}</small>
+              </Link>
+              <Link href="/reviews?status=unreviewed">
+                <span>Очередь</span>
+                <strong>{totalQueueCount}</strong>
+                <small>{queuedCount} ждут</small>
+              </Link>
+              <Link href={canReadAudit ? "/admin/audit" : "/reviews"}>
+                <span>События</span>
+                <strong>{recentEvents.length}</strong>
+                <small>свежие</small>
+              </Link>
             </div>
           </div>
 
