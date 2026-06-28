@@ -108,7 +108,43 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
     return { steps, connected: false };
   }
 
-  // 5. persist — инъектированная запись Integration + секрет-слотов.
+  // 5. capability/webhook probes — deepen readiness before persisting the source.
+  if (profile.probeCapabilities) {
+    const probed = await profile.probeCapabilities(ctx);
+    steps.push({
+      step: "capability_probe",
+      status: probed.status,
+      detail: probed.detail,
+      hint: probed.hint
+    });
+    if (probed.status === "failed") {
+      return { steps, connected: false };
+    }
+  } else {
+    steps.push({
+      step: "capability_probe",
+      status: "skipped",
+      detail: "Для этого источника пока нет отдельной проверки возможностей."
+    });
+  }
+
+  if (profile.probeWebhooks) {
+    const probed = await profile.probeWebhooks(ctx);
+    steps.push({
+      step: "webhook_probe",
+      status: probed.status,
+      detail: probed.detail,
+      hint: probed.hint
+    });
+  } else {
+    steps.push({
+      step: "webhook_probe",
+      status: "skipped",
+      detail: "Вебхуки будут проверены на этапе живой сертификации."
+    });
+  }
+
+  // 6. persist — инъектированная запись Integration + секрет-слотов.
   const { integrationId } = await persist({
     profile,
     baseUrl,
@@ -120,7 +156,7 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
   });
   steps.push({ step: "persist", status: "ok", detail: "Источник сохранён и активирован." });
 
-  // 6. test_import — пробный импорт; warning не отменяет подключение.
+  // 7. test_import — пробный импорт; warning не отменяет подключение.
   const ticketId = ctx.testTicketId;
   if (profile.testImport && ticketId) {
     const tested = await profile.testImport(ctx);
@@ -130,6 +166,23 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
       step: "test_import",
       status: "skipped",
       detail: "Укажите № тикета для пробного импорта."
+    });
+  }
+
+  // 8. certification_evidence — durable evidence is recorded by profiles that support it.
+  if (profile.recordCertificationEvidence) {
+    const recorded = await profile.recordCertificationEvidence(ctx);
+    steps.push({
+      step: "certification_evidence",
+      status: recorded.status,
+      detail: recorded.detail,
+      hint: recorded.hint
+    });
+  } else {
+    steps.push({
+      step: "certification_evidence",
+      status: "skipped",
+      detail: "Evidence будет записан при protected live smoke-run."
     });
   }
 

@@ -5,8 +5,11 @@ export type ConnectStepKey =
   | "reachability"
   | "auto_detect"
   | "verify_auth"
+  | "capability_probe"
+  | "webhook_probe"
   | "persist"
-  | "test_import";
+  | "test_import"
+  | "certification_evidence";
 
 export type ConnectStepStatus = "ok" | "warning" | "failed" | "skipped";
 
@@ -65,6 +68,27 @@ export type TestImportResult = {
   conversation?: CustomConversationInput;
 };
 
+export type CapabilityProbeResult = {
+  status: ConnectStepStatus;
+  detail?: string;
+  hint?: string;
+  diagnostics?: Record<string, unknown>;
+};
+
+export type WebhookProbeResult = {
+  status: ConnectStepStatus;
+  detail?: string;
+  hint?: string;
+  diagnostics?: Record<string, unknown>;
+};
+
+export type CertificationEvidenceResult = {
+  status: ConnectStepStatus;
+  detail?: string;
+  hint?: string;
+  diagnostics?: Record<string, unknown>;
+};
+
 export type SourceConnectionProfile = {
   source: string;
   type: "otrs_family" | "native_helpdesk" | "enterprise" | "data_source";
@@ -75,5 +99,8 @@ export type SourceConnectionProfile = {
   normalizeUrl(raw: string): { baseUrl: string; hints?: UrlHints };
   autoDetect?(ctx: ConnectContext): Promise<AutoDetectResult>;
   verifyAuth(ctx: ConnectContext): Promise<VerifyResult>;
+  probeCapabilities?(ctx: ConnectContext): Promise<CapabilityProbeResult>;
+  probeWebhooks?(ctx: ConnectContext): Promise<WebhookProbeResult>;
+  recordCertificationEvidence?(ctx: ConnectContext): Promise<CertificationEvidenceResult>;
   testImport?(ctx: ConnectContext): Promise<TestImportResult>;
 };

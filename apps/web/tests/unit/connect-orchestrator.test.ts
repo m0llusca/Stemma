@@ -63,4 +63,44 @@ describe("runConnectPipeline", () => {
     expect(journal.connected).toBe(true);
     expect(journal.steps.find((s) => s.step === "test_import")?.status).toBe("warning");
   });
+
+  it("runs capability and webhook probes before persisting the source", async () => {
+    const calls: string[] = [];
+    const profile: SourceConnectionProfile = {
+      source: "zendesk",
+      type: "native_helpdesk",
+      urlPolicy: "required",
+      credentialFields: [],
+      normalizeUrl: () => ({ baseUrl: "https://example.zendesk.com" }),
+      verifyAuth: async () => {
+        calls.push("verify");
+        return { status: "ok" as const, authMode: "basic_api_token", secretSlots: [] };
+      },
+      probeCapabilities: async () => {
+        calls.push("capabilities");
+        return { status: "ok" as const, detail: "Tickets API доступен." };
+      },
+      probeWebhooks: async () => {
+        calls.push("webhooks");
+        return { status: "warning" as const, detail: "Webhook не настроен автоматически." };
+      }
+    };
+
+    const result = await runConnectPipeline({
+      profile,
+      rawUrl: "https://example.zendesk.com",
+      credentials: {},
+      workspaceId: "workspace-1",
+      actorId: "user-1",
+      reachabilityCheck: async () => ({ status: "ok" as const }),
+      persist: async () => {
+        calls.push("persist");
+        return { integrationId: "integration-1" };
+      }
+    });
+
+    expect(calls).toEqual(["verify", "capabilities", "webhooks", "persist"]);
+    expect(result.steps.map((step) => step.step)).toContain("capability_probe");
+    expect(result.steps.map((step) => step.step)).toContain("webhook_probe");
+  });
 });
