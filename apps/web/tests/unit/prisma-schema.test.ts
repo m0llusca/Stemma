@@ -69,6 +69,10 @@ const certificationRunsMigration = readFileSync(
   join(migrationsDir, "20260628120000_add_certification_runs/migration.sql"),
   "utf8"
 );
+const aiQualityDraftsMigration = readFileSync(
+  join(migrationsDir, "20260628124500_add_ai_quality_drafts/migration.sql"),
+  "utf8"
+);
 
 function modelBlock(name: string) {
   return schema.match(new RegExp(`model ${name} \\{[\\s\\S]*?\\n\\}`))?.[0] ?? "";
@@ -623,6 +627,46 @@ describe("prisma schema database foundations", () => {
     expect(deliveryModel).toMatch(/eventType\s+String/);
     expect(deliveryModel).toMatch(/recipientType\s+String/);
     expect(deliveryModel).toMatch(/payloadJson\s+String\s+@default\("\{\}"\)/);
+  });
+
+  it("stores AI quality drafts as human-reviewed advisory suggestions", () => {
+    const workspaceModel = modelBlock("Workspace");
+    const userModel = modelBlock("User");
+    const conversationModel = modelBlock("Conversation");
+    const draftModel = modelBlock("AiQualityDraft");
+
+    expect(workspaceModel).toMatch(/aiQualityDrafts\s+AiQualityDraft\[]/);
+    expect(userModel).toMatch(/decidedAiQualityDrafts\s+AiQualityDraft\[]\s+@relation\("AiQualityDraftFinalizedBy"\)/);
+    expect(conversationModel).toMatch(/aiQualityDrafts\s+AiQualityDraft\[]/);
+    expect(draftModel).toMatch(/kind\s+String/);
+    expect(draftModel).toMatch(/status\s+String\s+@default\("draft"\)/);
+    expect(draftModel).toMatch(/modelVersion\s+String/);
+    expect(draftModel).toMatch(/promptVersion\s+String/);
+    expect(draftModel).toMatch(/suggestedValueJson\s+String\s+@default\("\{\}"\)/);
+    expect(draftModel).toMatch(/evidenceRefsJson\s+String\s+@default\("\[\]"\)/);
+    expect(draftModel).toMatch(
+      /conversation\s+Conversation\?\s+@relation\(fields: \[conversationId, workspaceId], references: \[id, workspaceId], onDelete: Restrict\)/
+    );
+    expect(draftModel).toMatch(
+      /finalizedBy\s+User\?\s+@relation\("AiQualityDraftFinalizedBy", fields: \[finalizedById, workspaceId], references: \[id, workspaceId], onDelete: Restrict\)/
+    );
+    expect(draftModel).toContain("@@index([workspaceId, conversationId, createdAt])");
+    expect(draftModel).toContain("@@index([workspaceId, status, createdAt])");
+    expect(draftModel).toContain("@@index([finalizedById, finalizedAt])");
+  });
+
+  it("migrates AI quality drafts with tenant-scoped review ownership and query indexes", () => {
+    expect(aiQualityDraftsMigration).toContain('CREATE TABLE "AiQualityDraft"');
+    expect(aiQualityDraftsMigration).toContain('"status" TEXT NOT NULL DEFAULT \'draft\'');
+    expect(aiQualityDraftsMigration).toContain('"suggestedValueJson" TEXT NOT NULL DEFAULT \'{}\'');
+    expect(aiQualityDraftsMigration).toContain('"evidenceRefsJson" TEXT NOT NULL DEFAULT \'[]\'');
+    expect(aiQualityDraftsMigration).toContain('CREATE INDEX "AiQualityDraft_workspaceId_conversationId_createdAt_idx"');
+    expect(aiQualityDraftsMigration).toContain('CREATE INDEX "AiQualityDraft_workspaceId_status_createdAt_idx"');
+    expect(aiQualityDraftsMigration).toContain('CREATE INDEX "AiQualityDraft_finalizedById_finalizedAt_idx"');
+    expect(aiQualityDraftsMigration).toContain(
+      'FOREIGN KEY ("conversationId", "workspaceId") REFERENCES "Conversation"("id", "workspaceId")'
+    );
+    expect(aiQualityDraftsMigration).toContain('FOREIGN KEY ("finalizedById", "workspaceId") REFERENCES "User"("id", "workspaceId")');
   });
 
   it("migrates Phase D certification evidence with foreign keys and query indexes", () => {

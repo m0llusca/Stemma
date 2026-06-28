@@ -152,6 +152,7 @@ model Workspace {
   webhookIngestEvents       WebhookIngestEvent[]
   messagingChannels         MessagingChannel[]
   messagingDeliveries       MessagingDelivery[]
+  aiQualityDrafts           AiQualityDraft[]
   certificationRuns         CertificationRun[]
   certificationEvidence     CertificationEvidence[]
   apiTokens                 ApiToken[]
@@ -275,6 +276,7 @@ model User {
   reviewEvents                ReviewEvent[]
   certificationRuns           CertificationRun[]         @relation("CertificationRunActor")
   certificationEvidence       CertificationEvidence[]
+  decidedAiQualityDrafts      AiQualityDraft[]           @relation("AiQualityDraftFinalizedBy")
   reviews                     Review[]
   savedQueueViews             SavedQueueView[]
   ownedCalibrationSessions    CalibrationSession[]       @relation("CalibrationOwner")
@@ -611,6 +613,7 @@ model Conversation {
   calibrationItems    CalibrationSessionItem[]
   integrationRunItems IntegrationRunItem[]
   webhookIngestEvents WebhookIngestEvent[]
+  aiQualityDrafts     AiQualityDraft[]
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
 
@@ -1206,6 +1209,31 @@ model MessagingDelivery {
   @@index([workspaceId, kind, createdAt])
   @@index([workspaceId, status, createdAt])
   @@index([channelId, createdAt])
+}
+
+model AiQualityDraft {
+  id                 String        @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversationId     String?
+  conversation       Conversation? @relation(fields: [conversationId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  reviewId           String?
+  kind               String
+  status             String        @default("draft")
+  modelVersion       String
+  promptVersion      String
+  suggestedValueJson String        @default("{}")
+  evidenceRefsJson   String        @default("[]")
+  finalizedById      String?
+  finalizedBy        User?         @relation("AiQualityDraftFinalizedBy", fields: [finalizedById, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  finalizedAt        DateTime?
+  decisionReason     String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([workspaceId, conversationId, createdAt])
+  @@index([workspaceId, status, createdAt])
+  @@index([finalizedById, finalizedAt])
 }
 
 model BackendJob {
