@@ -63,6 +63,22 @@ export function integrationRunStatusView(status: string): StatusView {
   return views[status] ?? view(status, "neutral");
 }
 
+export type OperationalRunStepState = "ready" | "active" | "waiting" | "blocked";
+
+export function integrationRunOperationalStepState(
+  status: string | null | undefined,
+  fallback: OperationalRunStepState
+): OperationalRunStepState {
+  if (!status) {
+    return fallback;
+  }
+
+  const tone = integrationRunStatusView(status).tone;
+  if (tone === "ok") return "ready";
+  if (tone === "error") return "blocked";
+  return "active";
+}
+
 export function backendJobTypeLabel(type: string) {
   const labels: Record<string, string> = {
     DIRECTORY_SYNC: "Синхронизация каталога",

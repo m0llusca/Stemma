@@ -95,6 +95,56 @@ function singleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function aiDraftKindLabel(value: string) {
+  const labels: Record<string, string> = {
+    score: "Оценка",
+    risk_tag: "Риск",
+    coaching_suggestion: "Коучинг",
+    training_recommendation: "Обучение",
+    priority_summary: "Приоритет"
+  };
+
+  return labels[value] ?? value;
+}
+
+function aiDraftStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    draft: "Ожидает",
+    approved: "Принят",
+    rejected: "Отклонен",
+    changed: "Изменен"
+  };
+
+  return labels[value] ?? value;
+}
+
+function aiDraftStatusTone(value: string): StatusTone {
+  if (value === "draft") return "warning";
+  if (value === "approved") return "positive";
+  if (value === "changed") return "info";
+  if (value === "rejected") return "neutral";
+  return "neutral";
+}
+
+function evidenceRefCount(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function suggestedValuePreview(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    const text = typeof parsed === "string" ? parsed : JSON.stringify(parsed);
+    return text.length > 140 ? `${text.slice(0, 140)}...` : text;
+  } catch {
+    return value.length > 140 ? `${value.slice(0, 140)}...` : value;
+  }
+}
+
 export default function ReviewDetailPage({ params, searchParams }: ReviewDetailPageProps) {
   return (
     <Suspense fallback={<PageSkeleton variant="detail" label="Загрузка проверки" />}>
@@ -111,13 +161,32 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const returnTo = singleParam(rawSearchParams.returnTo);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
-  const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveReviewDraft(user.role);
+  const canSaveHumanReviewDraft = canSaveReviewDraft(user.role);
+  const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveHumanReviewDraft;
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
   // Calibration pins are internal alignment notes: visible to QA roles only,
   // and new ones can be added only while evaluating in calibration mode.
-  const canSeeCoachingPins = canSaveReviewDraft(user.role);
-  const [conversation, scorecard, qaAssignees] = await Promise.all([
+  const canSeeCoachingPins = canSaveHumanReviewDraft;
+  const canSeeAiQualityDrafts = canSaveHumanReviewDraft;
+  const aiDraftPreviewSelect = {
+    id: true,
+    kind: true,
+    status: true,
+    modelVersion: true,
+    promptVersion: true,
+    suggestedValueJson: true,
+    evidenceRefsJson: true,
+    decisionReason: true,
+    finalizedAt: true,
+    createdAt: true,
+    finalizedBy: {
+      select: {
+        name: true
+      }
+    }
+  } as const;
+  const [conversation, scorecard, qaAssignees, pendingAiDrafts, decidedAiDrafts, aiDraftTotalCount, pendingAiDraftCount] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
     canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
     canManageWorkflow
@@ -137,7 +206,50 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             role: true
           }
         })
-      : Promise.resolve([])
+      : Promise.resolve([]),
+    canSeeAiQualityDrafts
+      ? prisma.aiQualityDraft.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            conversationId,
+            status: "draft"
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 5,
+          select: aiDraftPreviewSelect
+        })
+      : Promise.resolve([]),
+    canSeeAiQualityDrafts
+      ? prisma.aiQualityDraft.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            conversationId,
+            status: {
+              not: "draft"
+            }
+          },
+          orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
+          take: 5,
+          select: aiDraftPreviewSelect
+        })
+      : Promise.resolve([]),
+    canSeeAiQualityDrafts
+      ? prisma.aiQualityDraft.count({
+          where: {
+            workspaceId: user.workspaceId,
+            conversationId
+          }
+        })
+      : Promise.resolve(0),
+    canSeeAiQualityDrafts
+      ? prisma.aiQualityDraft.count({
+          where: {
+            workspaceId: user.workspaceId,
+            conversationId,
+            status: "draft"
+          }
+        })
+      : Promise.resolve(0)
   ]);
 
   if (!conversation) {
@@ -166,6 +278,8 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         .filter((messageId): messageId is string => Boolean(messageId)) ?? []
     )
   );
+  const aiDrafts = [...pendingAiDrafts, ...decidedAiDrafts].slice(0, 5);
+  const decidedAiDraftCount = Math.max(aiDraftTotalCount - pendingAiDraftCount, 0);
   const scoreLabel = formatQualityScore(scorePreviewReview?.totalScore, "Не проверено");
   const hasAppeal = latestFinalizedReview ? latestFinalizedReview.appealStatus !== "none" : false;
   const hasOpenAppeal = latestFinalizedReview?.appealStatus === "open";
@@ -223,7 +337,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               };
   const reviewIdeSignals = [
     {
-      label: "Evidence",
+      label: "Доказательства",
       value: String(evidenceMessageIds.length),
       detail:
         evidenceMessageIds.length > 0
@@ -236,7 +350,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       detail: latestFinding ? riskLevelLabels[latestFinding.riskLevel] : "Замечание появится после финализации."
     },
     {
-      label: "Feedback",
+      label: "Обратная связь",
       value: latestFinalizedReview
         ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
         : "Не начат",
@@ -246,13 +360,28 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       label: "Аудит",
       value: latestFinalizedReview ? String(latestFinalizedReview.feedbackEvents.length) : String(conversation.reviews.length),
       detail: latestFinalizedReview ? "События обратной связи." : "История черновиков и проверок."
-    }
+    },
+    ...(canSeeAiQualityDrafts
+      ? [
+          {
+            label: "ИИ-подсказки",
+            value: aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0",
+            detail:
+              aiDraftTotalCount > 0
+                ? "Ожидают / всего, решение остается за человеком."
+                : "Нет ИИ-предложений для этого диалога."
+          }
+        ]
+      : [])
   ];
   const reviewDecisionSteps = [
     { label: "Контекст", state: "ready" },
-    { label: "Evidence", state: evidenceMessageIds.length > 0 ? "ready" : "open" },
+    ...(canSeeAiQualityDrafts
+      ? [{ label: "ИИ-подсказка", state: pendingAiDraftCount > 0 ? "open" : aiDraftTotalCount > 0 ? "ready" : "waiting" }]
+      : []),
+    { label: "Доказательства", state: evidenceMessageIds.length > 0 ? "ready" : "open" },
     { label: "Оценка", state: latestFinalizedReview ? "ready" : currentDraftReview ? "open" : "waiting" },
-    { label: "Feedback", state: feedbackClosed ? "ready" : latestFinalizedReview ? "open" : "waiting" }
+    { label: "Обратная связь", state: feedbackClosed ? "ready" : latestFinalizedReview ? "open" : "waiting" }
   ];
 
   return (
@@ -438,12 +567,61 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         </>
       }
       evidence={
-        <EvidenceDrawer title="Evidence проверки" defaultOpen>
+        <EvidenceDrawer
+          title="Доказательства проверки"
+          description={canSeeAiQualityDrafts ? "Связанные сообщения, ИИ-предложения, обратная связь и история решений." : "Связанные сообщения, обратная связь и история решений."}
+          defaultOpen
+        >
           <div id="review-evidence" className="grid min-w-0 gap-4">
 
-      <div className="review-linked-evidence-grid" aria-label="Сводка evidence проверки">
+      {canSeeAiQualityDrafts ? (
+      <section className="ai-draft-summary" aria-label="ИИ-подсказки проверки">
+        <div className="ai-draft-summary__header">
+          <div className="min-w-0">
+            <p className="page-kicker">ИИ-контроль</p>
+            <h2>ИИ-предложения</h2>
+            <p>Подсказки показывают гипотезу, ссылки на доказательства и статус решения человека.</p>
+          </div>
+          <StatusBadge
+            label="Ожидают"
+            value={pendingAiDraftCount}
+            tone={pendingAiDraftCount > 0 ? "warning" : aiDraftTotalCount > 0 ? "positive" : "neutral"}
+          />
+        </div>
+        <div className="ai-draft-list">
+          {aiDrafts.length > 0 ? (
+            aiDrafts.map((draft) => (
+              <article key={draft.id} className="ai-draft-card">
+                <div className="ai-draft-card__header">
+                  <div className="min-w-0">
+                    <h3>{aiDraftKindLabel(draft.kind)}</h3>
+                    <p>{draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}</p>
+                  </div>
+                  <StatusBadge label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
+                </div>
+                <p className="ai-draft-card__preview">{suggestedValuePreview(draft.suggestedValueJson)}</p>
+                {draft.finalizedAt || draft.decisionReason ? (
+                  <p className="ai-draft-card__decision">
+                    {draft.finalizedBy?.name ?? "Проверяющий"} · {draft.finalizedAt ? draft.finalizedAt.toLocaleString("ru-RU") : "решение зафиксировано"}
+                    {draft.decisionReason ? ` · ${draft.decisionReason}` : ""}
+                  </p>
+                ) : (
+                  <p className="ai-draft-card__decision">Не подставляется автоматически: проверяющий должен принять, отклонить или изменить предложение.</p>
+                )}
+              </article>
+            ))
+          ) : (
+            <div className="soft-callout text-sm text-[var(--text-muted)]">
+              ИИ-предложений пока нет. Форма проверки остается полностью ручной.
+            </div>
+          )}
+        </div>
+      </section>
+      ) : null}
+
+      <div className="review-linked-evidence-grid" aria-label="Сводка доказательств проверки">
         <div className="review-linked-evidence-item">
-          <span>Сообщения evidence</span>
+          <span>Доказательства</span>
           <strong>{evidenceMessageIds.length}</strong>
           <small>{evidenceMessageIds.length > 0 ? "Подсвечены в таймлайне диалога." : "Пока нет привязанных сообщений."}</small>
         </div>
@@ -453,10 +631,17 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           <small>{latestFinding?.category ?? "Категория появится после оценки."}</small>
         </div>
         <div className="review-linked-evidence-item">
-          <span>Feedback loop</span>
+          <span>Обратная связь</span>
           <strong>{latestFinalizedReview ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus : "Нет"}</strong>
           <small>{hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}</small>
         </div>
+        {canSeeAiQualityDrafts ? (
+        <div className="review-linked-evidence-item">
+          <span>ИИ-подсказки</span>
+          <strong>{aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0"}</strong>
+          <small>{decidedAiDraftCount > 0 ? `${decidedAiDraftCount} уже имеют решение человека.` : "Ожидают ручного решения."}</small>
+        </div>
+        ) : null}
       </div>
 
       {latestFinalizedReview ? (

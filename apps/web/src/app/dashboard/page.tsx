@@ -5,9 +5,10 @@ import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
+import { OperationalBrief } from "@/components/operations/operational-brief";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
-import { MetricValue } from "@/components/ui/metric-value";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
@@ -329,6 +330,32 @@ async function DashboardPageContent() {
       ? { kind: "overdue_count", value: overdueTrainingCount }
       : { kind: "learning_count", value: activeTrainingCount }
   );
+  const executiveBriefItems = [
+    {
+      label: "Главный риск",
+      value: primaryFocus.label,
+      detail: primaryFocus.hint,
+      tone: primaryFocus.tone
+    },
+    {
+      label: "Следующий шаг",
+      value: focusItems.length ? "Открыть фокус" : "Открыть очередь",
+      detail: focusItems.length ? "Начните с верхнего сигнала, затем вернитесь к очереди." : "Критичных отклонений нет, важен темп проверок.",
+      tone: focusItems.length ? "warning" as const : "positive" as const
+    },
+    {
+      label: "Доверие к данным",
+      value: checkedThisWeek > 0 ? `${checkedThisWeek} проверок` : "Нет данных",
+      detail: scoreDelta == null ? "Недостаточно сравнения с прошлой неделей." : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе.`,
+      tone: checkedThisWeek > 0 ? "info" as const : "neutral" as const
+    },
+    {
+      label: "Операционный контур",
+      value: `${queuedCount}/${inWorkCount}`,
+      detail: "Ждут старта / уже в работе.",
+      tone: queueStatus.tone
+    }
+  ];
 
   return (
     <OperationalPageFrame
@@ -351,31 +378,54 @@ async function DashboardPageContent() {
             </div>
           </div>
 
+          <OperationalBrief
+            eyebrow="Утренний бриф"
+            title={focusItems.length ? "Есть управленческий фокус" : "Ритм контроля стабилен"}
+            description={
+              focusItems.length
+                ? "Сводка показывает, что открыть первым, почему это важно и насколько свежие данные подпирают решение."
+                : "Данных достаточно для обычного рабочего цикла: поддерживайте очередь, обучение и evidence без экстренного переключения."
+            }
+            items={executiveBriefItems}
+          />
+
           <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
-            <Link href="/reviews?status=reviewed" className="dashboard-kpi dashboard-kpi--blue">
-              <span className="dashboard-kpi__icon"><ClipboardCheck size={18} aria-hidden="true" /></span>
-              <MetricValue value={checkedThisWeek} tone={checkedStatus.tone} />
-              <span>Проверок за неделю</span>
-              <small>{formatSignedNumber(checkedDelta)} к прошлой неделе</small>
-            </Link>
-            <Link href="/reports" className="dashboard-kpi dashboard-kpi--green">
-              <span className="dashboard-kpi__icon"><Star size={18} aria-hidden="true" /></span>
-              <MetricValue value={formatQualityScore(currentAverage, "Нет данных")} tone={scoreStatus.tone} />
-              <span>Средний балл</span>
-              <small>{scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}</small>
-            </Link>
-            <Link href="/reviews?status=unreviewed" className="dashboard-kpi dashboard-kpi--amber">
-              <span className="dashboard-kpi__icon"><Clock3 size={18} aria-hidden="true" /></span>
-              <MetricValue value={totalQueueCount} tone={queueStatus.tone} />
-              <span>В очереди и работе</span>
-              <small>{queuedCount} ждут старта · {inWorkCount} в работе</small>
-            </Link>
-            <Link href="/coaching" className="dashboard-kpi dashboard-kpi--violet">
-              <span className="dashboard-kpi__icon"><BookOpenCheck size={18} aria-hidden="true" /></span>
-              <MetricValue value={activeTrainingCount} tone={trainingStatus.tone} />
-              <span>Активных обучений</span>
-              <small>{overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}</small>
-            </Link>
+            <OperationKpiCard
+              href="/reviews?status=reviewed"
+              className="dashboard-kpi--blue"
+              icon={ClipboardCheck}
+              value={checkedThisWeek}
+              tone={checkedStatus.tone}
+              label="Проверок за неделю"
+              hint={`${formatSignedNumber(checkedDelta)} к прошлой неделе`}
+            />
+            <OperationKpiCard
+              href="/reports"
+              className="dashboard-kpi--green"
+              icon={Star}
+              value={formatQualityScore(currentAverage, "Нет данных")}
+              tone={scoreStatus.tone}
+              label="Средний балл"
+              hint={scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}
+            />
+            <OperationKpiCard
+              href="/reviews?status=unreviewed"
+              className="dashboard-kpi--amber"
+              icon={Clock3}
+              value={totalQueueCount}
+              tone={queueStatus.tone}
+              label="В очереди и работе"
+              hint={`${queuedCount} ждут старта · ${inWorkCount} в работе`}
+            />
+            <OperationKpiCard
+              href="/coaching"
+              className="dashboard-kpi--violet"
+              icon={BookOpenCheck}
+              value={activeTrainingCount}
+              tone={trainingStatus.tone}
+              label="Активных обучений"
+              hint={overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}
+            />
           </section>
         </>
       }
@@ -465,15 +515,19 @@ async function DashboardPageContent() {
               <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
             </div>
             <div className="dashboard-agent-list">
-              {agentRows.map((agent) => (
-                <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
-                  <span>{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
-                  <strong>{agent.name}</strong>
-                  <small>{agent.count} проверок · {agent.riskCount} риск · {agent.appealCount} апелл.</small>
-                  <em>{Math.round(agent.average)}</em>
-                  <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
-                </Link>
-              ))}
+              {agentRows.length === 0 ? (
+                <p className="empty-note">Пока нет финализированных проверок за 30 дней.</p>
+              ) : (
+                agentRows.map((agent) => (
+                  <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
+                    <span>{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
+                    <strong>{agent.name}</strong>
+                    <small>{agent.count} проверок · {agent.riskCount} риск · {agent.appealCount} апелл.</small>
+                    <em>{Math.round(agent.average)}</em>
+                    <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 
@@ -498,12 +552,8 @@ async function DashboardPageContent() {
         </section>
       }
       evidence={
-        <EvidenceDrawer title="Последняя активность" defaultOpen>
-          <div className="dashboard-panel__header">
-            <div className="min-w-0">
-              <h2>Последняя активность</h2>
-              <p>Что менялось в проверках и обучении.</p>
-            </div>
+        <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении." defaultOpen>
+          <div className="evidence-drawer__toolbar">
             <Link href={canReadAudit ? "/admin/audit" : "/reviews"} className="quiet-link">{canReadAudit ? "Аудит" : "Очередь"}</Link>
           </div>
           <div className="dashboard-activity-list">

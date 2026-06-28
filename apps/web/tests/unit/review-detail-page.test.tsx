@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     user: {
       findMany: vi.fn()
+    },
+    aiQualityDraft: {
+      findMany: vi.fn(),
+      count: vi.fn()
     }
   }
 }));
@@ -100,6 +104,8 @@ describe("review detail page", () => {
       version: 1,
       criteria: []
     });
+    mocks.prisma.aiQualityDraft.findMany.mockResolvedValue([]);
+    mocks.prisma.aiQualityDraft.count.mockResolvedValue(0);
   });
 
   it("renders the self-review form for support agents with self-review permission", async () => {
@@ -118,6 +124,87 @@ describe("review detail page", () => {
     expect(mocks.canSaveReviewDraft).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.canSelfReview).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.getActiveScorecard).toHaveBeenCalledWith("workspace-1");
+    expect(mocks.prisma.aiQualityDraft.findMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.aiQualityDraft.count).not.toHaveBeenCalled();
+    expect(screen.queryByText("ИИ-предложения")).toBeNull();
     expect(reviewPanel.textContent).toBe("Комментарий оператора");
+  });
+
+  it("shows pending-first AI suggestions with full counts for QA roles", async () => {
+    mocks.requireCurrentUserPermission.mockResolvedValue({
+      id: "qa-1",
+      workspaceId: "workspace-1",
+      role: "QA_ANALYST",
+      name: "Проверяющий"
+    });
+    mocks.canSaveReviewDraft.mockReturnValue(true);
+    mocks.canSelfReview.mockReturnValue(false);
+    mocks.getActiveScorecard.mockResolvedValue({
+      id: "scorecard-1",
+      version: 1,
+      criteria: []
+    });
+    mocks.prisma.aiQualityDraft.findMany
+      .mockResolvedValueOnce([
+        {
+          id: "pending-1",
+          kind: "coaching_suggestion",
+          status: "draft",
+          modelVersion: "quality-v2",
+          promptVersion: "review-v4",
+          suggestedValueJson: JSON.stringify({ summary: "Проверить тон ответа" }),
+          evidenceRefsJson: JSON.stringify(["message-1"]),
+          decisionReason: null,
+          finalizedAt: null,
+          createdAt: new Date("2026-06-01T10:00:00Z"),
+          finalizedBy: null
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "decided-1",
+          kind: "risk_tag",
+          status: "approved",
+          modelVersion: "quality-v2",
+          promptVersion: "review-v4",
+          suggestedValueJson: JSON.stringify({ risk: "medium" }),
+          evidenceRefsJson: JSON.stringify(["message-2"]),
+          decisionReason: "Совпадает с оценкой",
+          finalizedAt: new Date("2026-06-01T11:00:00Z"),
+          createdAt: new Date("2026-06-01T09:00:00Z"),
+          finalizedBy: { name: "Проверяющий" }
+        }
+      ]);
+    mocks.prisma.aiQualityDraft.count.mockResolvedValueOnce(9).mockResolvedValueOnce(3);
+
+    const { ReviewDetailPageContent } = await import("@/app/reviews/[conversationId]/page");
+    const page = await ReviewDetailPageContent({
+      params: Promise.resolve({ conversationId: "conversation-1" }),
+      searchParams: Promise.resolve({})
+    });
+
+    render(page);
+
+    expect(mocks.prisma.aiQualityDraft.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          conversationId: "conversation-1",
+          status: "draft"
+        })
+      })
+    );
+    expect(mocks.prisma.aiQualityDraft.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          conversationId: "conversation-1",
+          status: { not: "draft" }
+        })
+      })
+    );
+    expect(screen.getByText("ИИ-предложения").textContent).toBe("ИИ-предложения");
+    expect(screen.getAllByText("3/9").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Проверить тон ответа/).textContent).toContain("Проверить тон ответа");
   });
 });

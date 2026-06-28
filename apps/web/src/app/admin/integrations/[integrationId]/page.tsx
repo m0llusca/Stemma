@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { OperationalBrief, OperationalStepRail, type OperationalStep } from "@/components/operations/operational-brief";
 import { OtrsConnectionForm } from "@/components/integrations/otrs-connection-form";
 import { OtrsDiagnosticsPanel } from "@/components/integrations/otrs-diagnostics-panel";
 import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
@@ -20,7 +21,7 @@ import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { parseOtrsConnectorConfig, redactOtrsConfigForUi } from "@/lib/integrations/otrs-family/config";
 import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/credentials";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
-import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
+import { backendJobStatusView, integrationRunOperationalStepState, integrationRunStatusView } from "@/lib/operational-status";
 import type { StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
@@ -175,6 +176,19 @@ function credentialFingerprintLabel(value: string | null) {
   return value ? `${value.slice(0, 16)}...` : null;
 }
 
+function integrationRunTone(status: string): StatusTone {
+  const view = integrationRunStatusView(status);
+
+  if (view.tone === "ok") return "positive";
+  if (view.tone === "warn") return "warning";
+  if (view.tone === "error") return "negative";
+  return "neutral";
+}
+
+function diagnosticSucceeded(status: string | undefined) {
+  return Boolean(status && ["ok", "passed", "success", "succeeded"].includes(status));
+}
+
 async function loadIntegration(workspaceId: string, integrationId: string) {
   return prisma.integration.findFirst({
     where: {
@@ -282,6 +296,40 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
   const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
   const canRunDiagnostics = capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets;
   const hasRunnableDiagnostics = canRunDiagnostics && integration.type === "otrs_family";
+  const presentRequiredSecrets = capability.requiredSecrets.filter((secret) => integration.credentials.some((credential) => credential.kind === secret)).length;
+  const latestDiagnostic = integration.diagnosticRuns[0];
+  const latestRun = integration.runs[0];
+  const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
+  const readinessSteps: OperationalStep[] = [
+    {
+      label: "Профиль",
+      state: hasBaseUrl ? "ready" : "active",
+      detail: hasBaseUrl ? "Base URL сохранен." : "Укажите Base URL источника."
+    },
+    {
+      label: "Доступы",
+      state: hasRequiredSecrets ? "ready" : "blocked",
+      detail:
+        capability.requiredSecrets.length > 0
+          ? `${presentRequiredSecrets}/${capability.requiredSecrets.length} обязательных секретов.`
+          : "Секреты не требуются."
+    },
+    {
+      label: "Диагностика",
+      state: diagnosticSucceeded(latestDiagnostic?.status) ? "ready" : canRunDiagnostics ? "active" : "waiting",
+      detail: latestDiagnostic ? `${latestDiagnostic.status} · ${formatDate(latestDiagnostic.startedAt)}` : "Запускается после доступа."
+    },
+    {
+      label: "Preview",
+      state: integration.runs.some((run) => run.dryRun && integrationRunStatusView(run.status).tone === "ok") ? "ready" : hasRequiredSecrets ? "active" : "waiting",
+      detail: integration.runs.find((run) => run.dryRun) ? `Последний dry-run: ${formatDate(integration.runs.find((run) => run.dryRun)?.startedAt)}` : "Пока нет preview."
+    },
+    {
+      label: "Импорт",
+      state: latestRun && !latestRun.dryRun && latestRunStatus?.tone === "ok" ? "ready" : latestRun ? "active" : "waiting",
+      detail: latestRun ? `${latestRunStatus?.label ?? latestRun.status} · ${latestRun.importedCount}/${latestRun.requestedLimit}` : "Ждет успешного preview."
+    }
+  ];
   const gates = [
     { label: "Документация", value: capability.certification.gates.docs },
     { label: "Контракт", value: capability.certification.gates.contract },
@@ -305,6 +353,45 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
             tone={certificationTone(capability.certification.summary.status)}
           />
         </div>
+
+        <OperationalBrief
+          className="operational-brief--inline"
+          eyebrow="Командный контур"
+          title={hasBaseUrl && hasRequiredSecrets ? "Источник готов к проверкам" : "Источник ожидает настройки"}
+          description={
+            hasBaseUrl && hasRequiredSecrets
+              ? "Можно двигаться по диагностикам, preview и live evidence без раскрытия секретов."
+              : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."
+          }
+          items={[
+            {
+              label: "Base URL",
+              value: hasBaseUrl ? "сохранен" : "нет",
+              detail: integration.baseUrl ?? "Адрес не указан.",
+              tone: hasBaseUrl ? "positive" : "warning"
+            },
+            {
+              label: "Секреты",
+              value: `${presentRequiredSecrets}/${capability.requiredSecrets.length}`,
+              detail: capability.requiredSecrets.length > 0 ? "Обязательные secret slots." : "Секреты не требуются.",
+              tone: hasRequiredSecrets ? "positive" : "warning"
+            },
+            {
+              label: "Диагностика",
+              value: latestDiagnostic?.status ?? (canRunDiagnostics ? "готова" : "ожидает"),
+              detail: latestDiagnostic ? formatDate(latestDiagnostic.startedAt) : "Нет запусков.",
+              tone: diagnosticSucceeded(latestDiagnostic?.status) ? "positive" : canRunDiagnostics ? "info" : "neutral"
+            },
+            {
+              label: "Последний запуск",
+              value: latestRunStatus?.label ?? "нет",
+              detail: latestRun ? `${latestRun.dryRun ? "Preview" : "Import"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",
+              tone: latestRun ? integrationRunTone(latestRun.status) : "neutral"
+            }
+          ]}
+        />
+
+        <OperationalStepRail steps={readinessSteps} ariaLabel="Маршрут готовности источника" />
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {gates.map((gate) => (
@@ -787,10 +874,37 @@ function OtrsDetailCockpit({
 }) {
   const config = redactOtrsConfigForUi(parseOtrsConnectorConfig(integration.configJson));
   const latestPreviewRun = integration.runs.find((run) => run.items.length > 0 || ["manual_ticket_ids", "ticket_search", "previewed"].includes(run.mode));
+  const latestImportRun = integration.runs.find((run) => !run.dryRun);
   const canRunDiagnostics = Boolean(integration.baseUrl?.trim()) && credentialSummaries.some((slot) => slot.kind === "auth_password");
+  const otrsOperationSteps: OperationalStep[] = [
+    {
+      label: "Настройка",
+      state: canRunDiagnostics ? "ready" : "active",
+      detail: canRunDiagnostics ? "Base URL и auth_password сохранены." : "Сохраните Base URL и auth_password."
+    },
+    {
+      label: "Диагностика",
+      state: diagnosticSucceeded(integration.diagnosticRuns[0]?.status) ? "ready" : canRunDiagnostics ? "active" : "waiting",
+      detail: integration.diagnosticRuns[0] ? `${integration.diagnosticRuns[0].status} · ${formatDate(integration.diagnosticRuns[0].startedAt)}` : "Еще не запускалась."
+    },
+    {
+      label: "Preview",
+      state: integrationRunOperationalStepState(latestPreviewRun?.status, canRunDiagnostics ? "active" : "waiting"),
+      detail: latestPreviewRun ? `${integrationRunStatusView(latestPreviewRun.status).label} · ${latestPreviewRun.importedCount}/${latestPreviewRun.requestedLimit}` : "Проверьте тикеты без импорта."
+    },
+    {
+      label: "Импорт",
+      state: integrationRunOperationalStepState(
+        latestImportRun?.status,
+        integrationRunOperationalStepState(latestPreviewRun?.status, "waiting") === "ready" ? "active" : "waiting"
+      ),
+      detail: latestImportRun ? `${integrationRunStatusView(latestImportRun.status).label} · ${formatDate(latestImportRun.startedAt)}` : "Доступен после безопасного preview."
+    }
+  ];
 
   return (
     <div className="grid gap-6">
+      <OperationalStepRail steps={otrsOperationSteps} ariaLabel="Маршрут OTRS операций" />
       <OtrsWebserviceChecklist baseUrl={integration.baseUrl} config={config} />
       <OtrsConnectionForm
         integration={{

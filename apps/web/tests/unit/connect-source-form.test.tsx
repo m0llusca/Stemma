@@ -56,7 +56,7 @@ describe("ConnectSourceForm", () => {
     );
 
     expect(screen.getAllByText("токен").length).toBeGreaterThan(0);
-    expect(screen.getByText(/API-токен/)).toBeInTheDocument();
+    expect(screen.getAllByText(/API-токен/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Доступ: вручную через токен или basic-учётные данные/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/подключение пройдёт автоматически/i)).not.toBeInTheDocument();
   });

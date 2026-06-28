@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Check } from "lucide-react";
 import { SourceLogoMark, sourceLogoMeta } from "@/components/integrations/source-logo-mark";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
+import { nextActionForConnectSteps } from "@/lib/integrations/connect/next-action";
 import type { IntegrationInstallState } from "@/lib/integrations/install-contracts/types";
 import type { ConnectStep, ConnectStepStatus, CredentialField } from "@/lib/integrations/connect/types";
 
@@ -17,6 +18,14 @@ export type ConnectSourceItem = {
   fields: CredentialField[];
   installState?: IntegrationInstallState;
   authModes?: string[];
+  requiredScopes?: string[];
+  supportsWebhooks?: boolean;
+  healthChecks?: string[];
+  testImport?: {
+    mode: "fixture" | "probe" | "live";
+    supported: boolean;
+    notes: string[];
+  };
   limitations?: string[];
 };
 
@@ -28,8 +37,11 @@ const STEP_LABELS: Record<string, string> = {
   reachability: "Сервер отвечает",
   auto_detect: "Автоопределение",
   verify_auth: "Авторизация",
+  capability_probe: "Права и лимиты",
+  webhook_probe: "Webhook",
   persist: "Источник подключён",
-  test_import: "Пробный импорт"
+  test_import: "Пробный импорт",
+  certification_evidence: "Evidence сертификации"
 };
 
 const STATUS_ICONS: Record<ConnectStepStatus, string> = {
@@ -112,6 +124,32 @@ function displayLimitation(limitation: string | undefined) {
   return limitation;
 }
 
+function shortList(items: string[] | undefined, fallback: string) {
+  if (!items || items.length === 0) {
+    return fallback;
+  }
+
+  return items.slice(0, 3).join(", ");
+}
+
+function testImportLabel(item: ConnectSourceItem) {
+  if (!item.testImport) {
+    return "Пробный импорт уточняется после проверки доступа.";
+  }
+
+  if (!item.testImport.supported) {
+    return "Пробный импорт недоступен: сначала contract/live certification.";
+  }
+
+  const modeLabel = {
+    fixture: "fixture",
+    probe: "probe",
+    live: "live"
+  }[item.testImport.mode];
+
+  return `Пробный импорт: ${modeLabel}${item.testImport.notes[0] ? ` · ${item.testImport.notes[0]}` : ""}`;
+}
+
 // Шаги, которые можно поправить вручную в расширенных настройках — при их сбое
 // блок «Расширенные настройки» открывается автоматически.
 const MANUAL_FIXABLE_STEPS = new Set(["auto_detect", "verify_auth"]);
@@ -161,6 +199,7 @@ export function ConnectSourceForm({
   }, [sources]);
 
   const steps = hasSteps(state) ? state.steps : [];
+  const nextAction = steps.length > 0 ? nextActionForConnectSteps(steps) : null;
   const fallbackOpen = steps.some(
     (step) => step.status === "failed" && MANUAL_FIXABLE_STEPS.has(step.step)
   );
@@ -173,6 +212,31 @@ export function ConnectSourceForm({
         <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
           Укажите адрес и доступы. Stemma проверит права, сохранит источник и подготовит пробный импорт.
         </p>
+      </div>
+
+      <div className="connect-source-guidance connect-source-guidance--route mx-5 mt-4" aria-label="Маршрут подключения источника">
+        <div className="connect-source-guidance__lead">
+          <p className="page-kicker">Маршрут подключения</p>
+          <h3>Выбор → доступы → безопасная проверка</h3>
+          <p>Сначала выберите источник, затем проверьте обязательные доступы и только после этого запускайте preview/import.</p>
+        </div>
+        <div className="connect-source-guidance__items">
+          <div>
+            <span>1. Источник</span>
+            <strong>Выбрать профиль</strong>
+            <small>Карточки показывают install state и ограничения.</small>
+          </div>
+          <div>
+            <span>2. Доступы</span>
+            <strong>URL и секреты</strong>
+            <small>Raw секреты не отображаются после сохранения.</small>
+          </div>
+          <div>
+            <span>3. Проверка</span>
+            <strong>Диагностика и пробный запуск</strong>
+            <small>Live-сертификация требует доказательства перед рабочим режимом.</small>
+          </div>
+        </div>
       </div>
 
       {sources.length > 0 ? (
@@ -242,6 +306,38 @@ export function ConnectSourceForm({
                 <span>{displayLimitation(selected.limitations[0])}</span>
               ) : null}
             </span>
+          </div>
+
+          <div className="connect-source-guidance" aria-label="Что подготовить для подключения">
+            <div className="connect-source-guidance__lead">
+              <p className="page-kicker">Что подготовить</p>
+              <h3>{selected.label}</h3>
+              <p>{selected.supportsWebhooks ? "Есть контур действий и вебхуков; рабочую готовность подтвердят доказательства." : "Основной контур: доступы, проверки здоровья и безопасный пробный импорт."}</p>
+            </div>
+            <div className="connect-source-guidance__items">
+              <div>
+                <span>Доступ</span>
+                <strong>{formatAuthModes(selected.authModes) ?? "уточнить вручную"}</strong>
+                <small>{selected.requiredScopes && selected.requiredScopes.length > 0 ? `Права: ${shortList(selected.requiredScopes, "не требуются")}` : "Отдельные права не требуются или задаются в токене."}</small>
+              </div>
+              <div>
+                <span>Проверки</span>
+                <strong>{shortList(selected.healthChecks, "health check после авторизации")}</strong>
+                <small>{selected.supportsWebhooks ? "Webhook probe входит в маршрут." : "Webhook не заявлен в контракте."}</small>
+              </div>
+              <div>
+                <span>Импорт</span>
+                <strong>{selected.testImport?.supported ? "Можно запустить" : "Ограничен"}</strong>
+                <small>{testImportLabel(selected)}</small>
+              </div>
+            </div>
+            {selected.limitations && selected.limitations.length > 0 ? (
+              <ul className="connect-source-guidance__limitations">
+                {selected.limitations.slice(0, 3).map((limitation) => (
+                  <li key={limitation}>{displayLimitation(limitation)}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           {selected.urlPolicy === "fixed" ? (
@@ -314,6 +410,12 @@ export function ConnectSourceForm({
           </ul>
           {connected ? (
             <p className="text-sm font-semibold text-[var(--success)]">Источник подключён</p>
+          ) : null}
+          {nextAction ? (
+            <div className={`connect-next-action connect-next-action--${nextAction.severity}`}>
+              <strong>{nextAction.label}</strong>
+              <span>{nextAction.description}</span>
+            </div>
           ) : null}
         </div>
       ) : null}

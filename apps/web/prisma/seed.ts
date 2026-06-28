@@ -33,6 +33,8 @@ async function main() {
   await prisma.idempotencyKey.deleteMany();
   await prisma.backendJobEvent.deleteMany();
   await prisma.backendJob.deleteMany();
+  await prisma.messagingDelivery.deleteMany();
+  await prisma.messagingChannel.deleteMany();
   await prisma.reviewEvent.deleteMany();
   await prisma.apiRateLimit.deleteMany();
   await prisma.authSession.deleteMany();
@@ -54,6 +56,7 @@ async function main() {
   await prisma.qualityKnowledgeEntry.deleteMany();
   await prisma.reviewQuota.deleteMany();
   await prisma.coachingAction.deleteMany();
+  await prisma.aiQualityDraft.deleteMany();
   await prisma.finding.deleteMany();
   await prisma.criterionScore.deleteMany();
   await prisma.review.deleteMany();
@@ -1804,6 +1807,44 @@ async function main() {
   const operationalConversationByExternalId = new Map(
     operationalConversationRecords.map((record) => [record.conversation.externalId, record.conversation])
   );
+  const aiDraftConversation = operationalConversationByExternalId.get("OTRS-INPROGRESS-2701");
+
+  if (aiDraftConversation) {
+    await prisma.aiQualityDraft.createMany({
+      data: [
+        {
+          workspaceId: workspace.id,
+          conversationId: aiDraftConversation.id,
+          kind: "risk_tag",
+          status: "draft",
+          modelVersion: "quality-router-2026-06",
+          promptVersion: "risk-v3",
+          suggestedValueJson: JSON.stringify({
+            riskLevel: "HIGH",
+            category: "Неверная маршрутизация",
+            reason: "Клиент не получил владельца и срок следующего обновления."
+          }),
+          evidenceRefsJson: JSON.stringify(["message:customer:1", "message:agent:2"])
+        },
+        {
+          workspaceId: workspace.id,
+          conversationId: aiDraftConversation.id,
+          kind: "coaching_suggestion",
+          status: "changed",
+          modelVersion: "quality-router-2026-06",
+          promptVersion: "coaching-v2",
+          suggestedValueJson: JSON.stringify({
+            action: "Разобрать передачу без владельца и добавить обязательный срок next update.",
+            owner: supportAgent.name
+          }),
+          evidenceRefsJson: JSON.stringify(["message:agent:2"]),
+          finalizedById: analyst.id,
+          finalizedAt: new Date("2026-05-25T09:10:00.000Z"),
+          decisionReason: "Уточнили формулировку для coaching assignment."
+        }
+      ]
+    });
+  }
 
   function reviewIdFor(externalId: string) {
     const review = additionalReviewByExternalId.get(externalId);
@@ -2124,6 +2165,78 @@ async function main() {
   const genericWebhookIntegration = integrations.find((integration) => integration.source === "generic_webhook");
   const salesforceIntegration = integrations.find((integration) => integration.source === "salesforce");
   const jiraServiceIntegration = integrations.find((integration) => integration.source === "jira_service");
+
+  const slackChannel = await prisma.messagingChannel.create({
+    data: {
+      workspaceId: workspace.id,
+      kind: "slack",
+      displayName: "Slack #qa-ops",
+      status: "active",
+      capabilities: "action_notification",
+      configJson: JSON.stringify({ target: "#qa-ops", demo: true }),
+      lastDeliveredAt: new Date("2026-05-27T08:30:00.000Z")
+    }
+  });
+  const teamsChannel = await prisma.messagingChannel.create({
+    data: {
+      workspaceId: workspace.id,
+      kind: "teams",
+      displayName: "Teams: QA Control",
+      status: "draft",
+      capabilities: "action_notification",
+      configJson: JSON.stringify({ target: "QA Control", demo: true }),
+      lastError: "Demo: webhook URL не подтвержден."
+    }
+  });
+
+  await prisma.messagingDelivery.createMany({
+    data: [
+      {
+        workspaceId: workspace.id,
+        channelId: slackChannel.id,
+        kind: "slack",
+        eventType: "risk_spike",
+        recipientType: "manager",
+        recipientRef: teamLead.id,
+        status: "delivered",
+        title: "Рост риска",
+        body: "3 сигнала высокого риска требуют разбора в очереди проверок.",
+        href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+        payloadJson: JSON.stringify({ demo: true, riskCount: 3 }),
+        createdAt: new Date("2026-05-27T08:25:00.000Z"),
+        deliveredAt: new Date("2026-05-27T08:30:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        channelId: slackChannel.id,
+        kind: "slack",
+        eventType: "source_certification_lost",
+        recipientType: "admin",
+        recipientRef: admin.id,
+        status: "queued",
+        title: "Источник потерял live certification",
+        body: "OTRS Family требует проверки evidence перед следующим импортом.",
+        href: otrsIntegration ? `/admin/integrations/${otrsIntegration.id}` : "/admin/integrations",
+        payloadJson: JSON.stringify({ demo: true, source: "otrs_family" }),
+        createdAt: new Date("2026-05-27T09:15:00.000Z")
+      },
+      {
+        workspaceId: workspace.id,
+        channelId: teamsChannel.id,
+        kind: "teams",
+        eventType: "training_overdue",
+        recipientType: "manager",
+        recipientRef: teamLead.id,
+        status: "failed",
+        title: "Просрочено обучение",
+        body: "Иван Петров: просрочено 2 назначения обучения.",
+        href: "/coaching",
+        error: "Demo: Teams webhook URL не подтвержден.",
+        payloadJson: JSON.stringify({ demo: true, assigneeName: supportAgent.name }),
+        createdAt: new Date("2026-05-27T07:50:00.000Z")
+      }
+    ]
+  });
 
   await prisma.integrationCredential.createMany({
     data: [

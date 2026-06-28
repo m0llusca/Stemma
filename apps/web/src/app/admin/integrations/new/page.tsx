@@ -35,6 +35,16 @@ async function NewIntegrationPageContent() {
       fields: profile.credentialFields,
       installState: contract?.installState,
       authModes: contract ? [...contract.authModes] : [],
+      requiredScopes: contract ? [...contract.requiredScopes] : [],
+      supportsWebhooks: contract?.supportsWebhooks ?? false,
+      healthChecks: contract ? [...contract.healthChecks] : [],
+      testImport: contract
+        ? {
+            mode: contract.testImport.mode,
+            supported: contract.testImport.supported,
+            notes: [...contract.testImport.notes]
+          }
+        : undefined,
       limitations: contract ? [...contract.limitations] : []
     };
   });
