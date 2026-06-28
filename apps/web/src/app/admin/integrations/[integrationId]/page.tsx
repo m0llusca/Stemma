@@ -13,6 +13,7 @@ import { OtrsPreviewPanel } from "@/components/integrations/otrs-preview-panel";
 import { OtrsRunHistory } from "@/components/integrations/otrs-run-history";
 import { OtrsWebserviceChecklist } from "@/components/integrations/otrs-webservice-checklist";
 import { CertificationEvidenceList } from "@/components/integrations/integration-ui";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -176,13 +177,15 @@ function credentialFingerprintLabel(value: string | null) {
   return value ? `${value.slice(0, 16)}...` : null;
 }
 
-function integrationRunTone(status: string): StatusTone {
-  const view = integrationRunStatusView(status);
-
-  if (view.tone === "ok") return "positive";
-  if (view.tone === "warn") return "warning";
-  if (view.tone === "error") return "negative";
+function statusViewTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
+  if (tone === "ok") return "positive";
+  if (tone === "warn") return "warning";
+  if (tone === "error") return "negative";
   return "neutral";
+}
+
+function integrationRunTone(status: string): StatusTone {
+  return statusViewTone(integrationRunStatusView(status).tone);
 }
 
 function diagnosticSucceeded(status: string | undefined) {
@@ -636,15 +639,20 @@ function NonOtrsIntegrationSummary({
                   <span className="admin-tile__icon admin-tile__icon--plain">J</span>
                   <span className="admin-tile__body">
                     <span className="record-title record-title--tight">Job {job.id.slice(0, 8)}</span>
-                    <span className="record-meta">
-                      <span className={`pill ${status.pillClass}`}>{status.label}</span> · попытка {job.attempts}/{job.maxAttempts}
+                    <span className="flex flex-wrap items-center gap-2">
+                      <StatusBadge label="Статус" value={status.label} tone={statusViewTone(status.tone)} />
+                      <span className="record-meta tabular-nums">попытка {job.attempts}/{job.maxAttempts}</span>
                     </span>
                   </span>
                 </Link>
               );
             })
           ) : (
-            <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">Задач пока нет.</div>
+            <EmptyState
+              size="inline"
+              title="Задач пока нет"
+              description="Фоновые задачи импорта появятся здесь после первого запуска."
+            />
           )}
         </div>
       </section>
@@ -786,9 +794,9 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
                 {latestRun && latestRunStatus ? (
                   <>
                     <span className="record-title record-title--tight">
-                      <span className={`pill ${latestRunStatus.pillClass}`}>{latestRunStatus.label}</span>
+                      <StatusBadge label="Запуск" value={latestRunStatus.label} tone={statusViewTone(latestRunStatus.tone)} />
                     </span>
-                    <span className="record-meta">
+                    <span className="record-meta tabular-nums">
                       Импортировано {latestRun.importedCount}/{latestRun.requestedLimit} · ошибок {latestRun.errorCount} · items {latestRun.items.length}
                     </span>
                   </>

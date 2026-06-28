@@ -12,7 +12,7 @@ import { OperationalPageFrame } from "@/components/operations/operational-page-f
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Chip, type ChipTone } from "@/components/ui/chip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import {
@@ -82,6 +82,14 @@ function dueDateTone(value: Date | null, now: Date, state: ReviewState): StatusT
   return "warning";
 }
 
+function chipToneForStatus(tone: StatusTone): ChipTone {
+  if (tone === "positive") return "success";
+  if (tone === "negative") return "danger";
+  if (tone === "warning") return "warning";
+  if (tone === "info") return "accent";
+  return "neutral";
+}
+
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="review-detail-item">
@@ -118,10 +126,10 @@ function aiDraftStatusLabel(value: string) {
   return labels[value] ?? value;
 }
 
-function aiDraftStatusTone(value: string): StatusTone {
+function aiDraftStatusTone(value: string): ChipTone {
   if (value === "draft") return "warning";
-  if (value === "approved") return "positive";
-  if (value === "changed") return "info";
+  if (value === "approved") return "success";
+  if (value === "changed") return "accent";
   if (value === "rejected") return "neutral";
   return "neutral";
 }
@@ -398,35 +406,34 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц.
           </p>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <StatusBadge className="meta-chip" label="Состояние" value={reviewStateLabels[reviewState]} tone={reviewStateTone(reviewState)} />
-          <StatusBadge className="meta-chip" label="Оценка" value={scoreLabel} tone={toneForScore(scorePreviewReview?.totalScore)} />
-          <StatusBadge className="meta-chip" label="Клиент" value={conversation.customerName} tone="neutral" />
-          <StatusBadge className="meta-chip" label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
+        <div className="review-header-chips">
+          <Chip label="Состояние" value={reviewStateLabels[reviewState]} tone={chipToneForStatus(reviewStateTone(reviewState))} />
+          <Chip label="Оценка" value={scoreLabel} numeric tone={chipToneForStatus(toneForScore(scorePreviewReview?.totalScore))} />
+          <Chip label="Клиент" value={conversation.customerName} tone="neutral" />
+          <Chip label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
           {conversation.teamName ? (
-            <StatusBadge className="meta-chip" label="Команда" value={conversation.teamName} tone="neutral" />
+            <Chip label="Команда" value={conversation.teamName} tone="neutral" />
           ) : null}
           {conversation.qaAssigneeName ? (
-            <StatusBadge className="meta-chip" label="Проверяющий" value={conversation.qaAssigneeName} tone="neutral" />
+            <Chip label="Проверяющий" value={conversation.qaAssigneeName} tone="neutral" />
           ) : null}
-          <StatusBadge
-            className="meta-chip"
+          <Chip
             label="Срок"
             value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-            tone={dueDateTone(conversation.reviewDueAt, now, reviewState)}
+            numeric
+            tone={chipToneForStatus(dueDateTone(conversation.reviewDueAt, now, reviewState))}
           />
           {conversation.riskHint ? (
-            <StatusBadge className="meta-chip" label="Риск" value={conversation.riskHint} tone="warning" />
+            <Chip label="Риск" value={conversation.riskHint} tone="warning" />
           ) : null}
           {hasAppeal ? (
-            <StatusBadge className="meta-chip" label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "info"} />
+            <Chip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "accent"} />
           ) : null}
           {hasReanswer ? (
-            <StatusBadge
-              className="meta-chip"
+            <Chip
               label="Переответ"
               value={reanswerLabel}
-              tone={latestFinalizedReview?.reanswerStatus === "completed" ? "positive" : "warning"}
+              tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
             />
           ) : null}
         </div>
@@ -582,10 +589,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             <h2>ИИ-предложения</h2>
             <p>Подсказки показывают гипотезу, ссылки на доказательства и статус решения человека.</p>
           </div>
-          <StatusBadge
+          <Chip
             label="Ожидают"
             value={pendingAiDraftCount}
-            tone={pendingAiDraftCount > 0 ? "warning" : aiDraftTotalCount > 0 ? "positive" : "neutral"}
+            numeric
+            tone={pendingAiDraftCount > 0 ? "warning" : "neutral"}
           />
         </div>
         <div className="ai-draft-list">
@@ -597,7 +605,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                     <h3>{aiDraftKindLabel(draft.kind)}</h3>
                     <p>{draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}</p>
                   </div>
-                  <StatusBadge label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
+                  <Chip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
                 </div>
                 <p className="ai-draft-card__preview">{suggestedValuePreview(draft.suggestedValueJson)}</p>
                 {draft.finalizedAt || draft.decisionReason ? (
@@ -652,7 +660,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               <p className="mt-1 truncate text-sm text-[var(--text-muted)]">{latestFinalizedReview.summary}</p>
             </div>
             <span
-              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
+              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
               aria-hidden="true"
             >
               <ChevronDown className="h-4 w-4" />
@@ -765,7 +773,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                   </form>
                 ) : null}
                 {!canAcknowledgeFeedback && !canOpenAppeal && !canCompleteReanswer ? (
-                  <StatusBadge label="Действия" value="нет" tone="neutral" />
+                  <Chip label="Действия" value="нет" tone="neutral" />
                 ) : null}
               </div>
             </div>
@@ -810,7 +818,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               <p className="mt-1 text-sm text-[var(--text-muted)]">{conversation.reviews.length} записей</p>
             </div>
             <span
-              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
+              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
               aria-hidden="true"
             >
               <ChevronDown className="h-4 w-4" />
@@ -824,7 +832,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                     <h3 className="record-title">{review.reviewer.name}</h3>
                     <p className="record-meta mt-1">{(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}</p>
                   </div>
-                  <StatusBadge label="Оценка" value={formatQualityScore(review.totalScore)} tone={toneForScore(review.totalScore)} />
+                  <Chip label="Оценка" value={formatQualityScore(review.totalScore)} numeric tone={chipToneForStatus(toneForScore(review.totalScore))} />
                 </div>
                 <p className="record-meta">
                   {reviewStatusLabels[review.status]} · {review.findings[0]?.category ?? "Без замечаний"}

@@ -3,7 +3,6 @@ import {
   Archive,
   BookOpenCheck,
   CalendarDays,
-  CheckCircle2,
   ClipboardList,
   Clock3,
   Link2,
@@ -11,7 +10,6 @@ import {
   PlusCircle,
   Search,
   SlidersHorizontal,
-  TrendingUp,
   TriangleAlert,
   UserRound,
   X
@@ -22,6 +20,9 @@ import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
 import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
@@ -66,16 +67,16 @@ function trainingStatusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-function trainingStatusClassName(status: string) {
+function trainingStatusTone(status: string): ChipTone {
   if (status === "done") {
-    return "pill--ok";
+    return "success";
   }
 
   if (status === "in_progress") {
-    return "pill--warn";
+    return "warning";
   }
 
-  return "pill--neutral";
+  return "neutral";
 }
 
 function dueText(date: Date | null) {
@@ -400,57 +401,57 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       title="Обучение"
       className="page-shell workspace-shell"
       signals={
-        <>
-      <div className="command-center command-center--split command-center--metrics coaching-command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Развитие качества</p>
-          <h1 className="page-title">Обучение</h1>
-          <p className="page-subtitle">
-            Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить.
-          </p>
-          <div className="admin-actions coaching-command-actions mt-5">
-            <Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} className={`action-button ${createTaskOpen ? "" : "action-button--primary"}`}>
-              {createTaskOpen ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
-              {createTaskOpen ? "Скрыть форму" : "Новая задача"}
-            </Link>
-            <Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} className={`action-button ${createRuleOpen ? "" : ""}`}>
-              {createRuleOpen ? <X size={18} aria-hidden="true" /> : <BookOpenCheck size={18} aria-hidden="true" />}
-              {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
-            </Link>
-          </div>
-        </div>
-        <div className="learning-metrics" aria-label="Сводка обучения">
-          <div className="learning-metric">
-            <Clock3 size={16} aria-hidden="true" />
-            <span>{openAssignments.length}</span>
-            <small>в работе</small>
-          </div>
-          <div className={`learning-metric ${overdueAssignments.length > 0 ? "learning-metric--danger" : "learning-metric--success"}`}>
-            <TriangleAlert size={16} aria-hidden="true" />
-            <span>{overdueAssignments.length}</span>
-            <small>просрочено</small>
-          </div>
-          <div className="learning-metric learning-metric--success">
-            <CheckCircle2 size={16} aria-hidden="true" />
-            <span>{doneAssignments.length}</span>
-            <small>закрыто</small>
-          </div>
-          {averageTrainingEffect != null ? (
-            <div className={`learning-metric ${averageTrainingEffect >= 0 ? "learning-metric--success" : "learning-metric--danger"}`}>
-              <TrendingUp size={16} aria-hidden="true" />
-              <span>{formatQualityScoreDelta(averageTrainingEffect)}</span>
-              <small>эффект обучения</small>
+        <section className="enablement-header" aria-label="Сводка обучения">
+          <div className="enablement-header__lead min-w-0">
+            <p className="page-kicker">Развитие качества</p>
+            <h1 className="page-title">Обучение</h1>
+            <p className="page-subtitle">
+              Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить.
+            </p>
+            <div className="admin-actions coaching-command-actions">
+              <Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} className={`action-button ${createTaskOpen ? "" : "action-button--primary"}`}>
+                {createTaskOpen ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+                {createTaskOpen ? "Скрыть форму" : "Новая задача"}
+              </Link>
+              <Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} className="action-button">
+                {createRuleOpen ? <X size={18} aria-hidden="true" /> : <BookOpenCheck size={18} aria-hidden="true" />}
+                {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
+              </Link>
             </div>
-          ) : null}
-          <div className="learning-metric">
-            <BookOpenCheck size={16} aria-hidden="true" />
-            <span>{criticalKnowledgeCount}</span>
-            <small>важных правил</small>
           </div>
-        </div>
-      </div>
-
-        </>
+          <div className="enablement-kpi-grid" aria-label="Ключевые показатели обучения">
+            <StatKpi
+              label="В работе"
+              value={openAssignments.length}
+              icon={<Clock3 size={16} aria-hidden="true" />}
+              hint={weekAssignments.length > 0 ? `${weekAssignments.length} со сроком на неделе` : "Сроки под контролем"}
+            />
+            <StatKpi
+              label="Просрочено"
+              value={overdueAssignments.length}
+              tone={overdueAssignments.length > 0 ? "danger" : "neutral"}
+              icon={<TriangleAlert size={16} aria-hidden="true" />}
+              hint={overdueAssignments.length > 0 ? "Поднимаются в начало очереди" : "Просроченных разборов нет"}
+            />
+            <StatKpi
+              label="Эффект обучения"
+              value={averageTrainingEffect == null ? "—" : formatQualityScoreDelta(averageTrainingEffect)}
+              tone={averageTrainingEffect != null && averageTrainingEffect !== 0 ? (averageTrainingEffect > 0 ? "success" : "danger") : "neutral"}
+              icon={<BookOpenCheck size={16} aria-hidden="true" />}
+              hint={
+                measuredTrainingEffectCount > 0
+                  ? `${positiveTrainingEffectCount} из ${measuredTrainingEffectCount} разборов дали рост`
+                  : "Нужны оценки до и после"
+              }
+            />
+            <StatKpi
+              label="Закрыто"
+              value={doneAssignments.length}
+              icon={<Archive size={16} aria-hidden="true" />}
+              hint={assignments.length > 0 ? `${Math.round((doneAssignments.length / assignments.length) * 100)}% всех разборов` : "Разборов пока нет"}
+            />
+          </div>
+        </section>
       }
       action={
         <PriorityActionPanel
@@ -607,21 +608,41 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </div>
         <div className="coaching-rule-list">
           {contextualKnowledge.length > 0 ? (
-            contextualKnowledge.slice(0, 3).map((entry) => (
-              <article key={entry.id} className="coaching-rule-card">
-                <div className="knowledge-compact-card__head">
-                  <span className="pill pill--neutral">{entry.category}</span>
-                  <span className="text-xs font-semibold text-[var(--text-muted)]">{riskLevelLabels[entry.riskLevel]}</span>
-                </div>
-                <h3>{entry.title}</h3>
-                <p>{entry.recommendation}</p>
-              </article>
-            ))
+            contextualKnowledge.slice(0, 3).map((entry) => {
+              const riskTone: ChipTone =
+                entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH" ? "warning" : "neutral";
+
+              return (
+                <article key={entry.id} className="coaching-rule-card">
+                  <div className="coaching-rule-card__head">
+                    <span className="coaching-rule-card__category">{entry.category}</span>
+                    <Chip tone={riskTone} size="xs">
+                      {riskLevelLabels[entry.riskLevel]}
+                    </Chip>
+                  </div>
+                  <h3>{entry.title}</h3>
+                  <p>{entry.recommendation}</p>
+                  <Link href={createTaskHref} className="coaching-rule-card__action">
+                    <PlusCircle size={14} aria-hidden="true" />
+                    Добавить в обучение
+                  </Link>
+                </article>
+              );
+            })
           ) : (
-            <div className="empty-state empty-state--compact coaching-rule-empty">
-              <h3>Нет правила для текущего фокуса</h3>
-              <p>Добавьте типовую ошибку, и она будет показываться здесь для похожих разборов.</p>
-            </div>
+            <EmptyState
+              size="inline"
+              className="coaching-rule-empty"
+              icon={<BookOpenCheck size={20} aria-hidden="true" />}
+              title="Нет правила для текущего фокуса"
+              description="Добавьте типовую ошибку, и она будет показываться здесь для похожих разборов."
+              action={
+                <Link href={createRuleHref} className="action-button">
+                  <PlusCircle size={14} aria-hidden="true" />
+                  Добавить правило
+                </Link>
+              }
+            />
           )}
         </div>
       </section>
@@ -632,7 +653,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             <h2>Очередь обучения</h2>
             <p>{selectedViewOption.helper}. Показано {filteredAssignments.length} из {assignments.length}.</p>
           </div>
-          <span className="pill pill--neutral">{filteredAssignments.length} показано</span>
+          <Chip tone="neutral" numeric label="Показано" value={filteredAssignments.length} />
         </div>
         <div className="coaching-control-stack">
           <div className="coaching-segment-row">
@@ -753,7 +774,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               <h2>{selectedViewOption.label}</h2>
               <p>{selectedViewOption.helper}. Показано {filteredAssignments.length} из {assignments.length}.</p>
             </div>
-            <span className="pill pill--neutral">{filteredAssignments.length}</span>
+            <Chip tone="neutral" numeric>{filteredAssignments.length}</Chip>
           </div>
 
           <div className="learning-task-list coaching-task-list">
@@ -779,10 +800,12 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                     <div className="learning-task__content">
                       <div className="learning-task__head coaching-task-row__head">
                         <h3>{assignment.title}</h3>
-                        {isPriority ? <span className="pill pill--warn">Следующий</span> : null}
-                        <span className={`pill ${trainingStatusClassName(assignment.status)}`}>
+                        {isPriority ? (
+                          <Chip tone="accent" size="xs">Следующий</Chip>
+                        ) : null}
+                        <Chip tone={trainingStatusTone(assignment.status)} size="xs">
                           {trainingStatusLabel(assignment.status)}
-                        </span>
+                        </Chip>
                       </div>
                       <p className="learning-task__description">{assignment.description}</p>
                       <div className="learning-task__meta coaching-task-row__meta">
@@ -820,10 +843,17 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 );
               })
             ) : (
-              <div className="empty-state">
-                <h3>В этом срезе нет задач</h3>
-                <p>Измените фильтры или создайте учебную задачу из проверки с замечанием.</p>
-              </div>
+              <EmptyState
+                icon={<ClipboardList size={24} aria-hidden="true" />}
+                title="В этом срезе нет задач"
+                description="Измените фильтры или создайте учебную задачу из проверки с замечанием."
+                action={
+                  <Link href={createTaskHref} className="action-button action-button--primary">
+                    <PlusCircle size={16} aria-hidden="true" />
+                    Новая задача
+                  </Link>
+                }
+              />
             )}
           </div>
         </div>

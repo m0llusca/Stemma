@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Star, TriangleAlert } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, Star, TrendingUp, TriangleAlert } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -8,6 +8,9 @@ import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
 import { OperationalBrief } from "@/components/operations/operational-brief";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import type { StatKpiDelta } from "@/components/ui/stat-kpi";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
@@ -15,6 +18,26 @@ import { reviewEventActionLabel } from "@/lib/review-events";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
 import { statusToneClass, type StatusTone } from "@/lib/ui/status-tone";
+
+function countDelta(value: number): StatKpiDelta {
+  return {
+    value: Math.abs(value),
+    direction: value > 0 ? "up" : value < 0 ? "down" : "flat",
+    tone: "neutral"
+  };
+}
+
+function scoreDeltaTone(value: number): StatKpiDelta["tone"] {
+  if (value > 0) {
+    return "success";
+  }
+
+  if (value < 0) {
+    return "danger";
+  }
+
+  return "neutral";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -373,17 +396,17 @@ async function DashboardPageContent() {
       className="page-shell dashboard-shell"
       signals={
         <>
-          <div className="command-center dashboard-hero">
-            <div className="min-w-0">
+          <div className="dashboard-hero">
+            <div className="dashboard-hero__copy min-w-0">
               <p className="page-kicker">Рабочее пространство</p>
               <h1 className="page-title">Дашборд качества</h1>
               <p className="page-subtitle">
                 Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам.
               </p>
               <div className="dashboard-hero__meta">
-                <span className={focusItems.length ? "semantic-status--warning" : "semantic-status--positive"}>
+                <Chip tone={focusItems.length ? "warning" : "success"} size="sm">
                   {focusItems.length ? "Есть фокус на сегодня" : "Команда в норме"}
-                </span>
+                </Chip>
               </div>
             </div>
             <div className="dashboard-hero__rail" aria-label="Быстрые переходы дашборда">
@@ -419,25 +442,25 @@ async function DashboardPageContent() {
           <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
             <OperationKpiCard
               href="/reviews?status=reviewed"
-              className="dashboard-kpi--blue"
               icon={ClipboardCheck}
               value={checkedThisWeek}
               tone={checkedStatus.tone}
+              delta={countDelta(checkedDelta)}
               label="Проверок за неделю"
-              hint={`${formatSignedNumber(checkedDelta)} к прошлой неделе`}
+              hint="к прошлой неделе"
             />
             <OperationKpiCard
               href="/reports"
-              className="dashboard-kpi--green"
               icon={Star}
-              value={formatQualityScore(currentAverage, "Нет данных")}
+              value={currentAverage == null ? "—" : Math.round(currentAverage)}
+              unit={currentAverage == null ? undefined : "баллов"}
               tone={scoreStatus.tone}
+              delta={scoreDelta == null ? undefined : { value: Math.abs(scoreDelta), direction: scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat", tone: scoreDeltaTone(scoreDelta) }}
               label="Средний балл"
-              hint={scoreDelta == null ? "Недостаточно сравнения" : `${formatQualityScoreDelta(scoreDelta)} к прошлой неделе`}
+              hint={scoreDelta == null ? "Недостаточно сравнения" : "к прошлой неделе"}
             />
             <OperationKpiCard
               href="/reviews?status=unreviewed"
-              className="dashboard-kpi--amber"
               icon={Clock3}
               value={totalQueueCount}
               tone={queueStatus.tone}
@@ -446,7 +469,6 @@ async function DashboardPageContent() {
             />
             <OperationKpiCard
               href="/coaching"
-              className="dashboard-kpi--violet"
               icon={BookOpenCheck}
               value={activeTrainingCount}
               tone={trainingStatus.tone}
@@ -473,10 +495,7 @@ async function DashboardPageContent() {
         <section className="dashboard-main-grid" aria-label="Операционные детали">
           <div className="dashboard-panel">
             <div className="dashboard-panel__header">
-              <div className="min-w-0">
-                <h2>Фокус сейчас</h2>
-                <p>Переходы к конкретике.</p>
-              </div>
+              <p className="dashboard-section-label">Фокус сейчас</p>
             </div>
             <div className="dashboard-focus-list">
               {displayedFocusItems.map((item) => {
@@ -501,66 +520,91 @@ async function DashboardPageContent() {
 
           <div className="dashboard-panel dashboard-panel--wide">
             <div className="dashboard-panel__header">
-              <div className="min-w-0">
-                <h2>Проверки за неделю</h2>
-                <p>Объем и средний балл по дням.</p>
+              <p className="dashboard-section-label">Проверки за неделю</p>
+              <Chip tone="neutral" size="sm" numeric>{formatSignedNumber(checkedDelta)}</Chip>
+            </div>
+            {checkedThisWeek === 0 ? (
+              <EmptyState
+                size="inline"
+                icon={<ClipboardCheck size={20} aria-hidden="true" />}
+                title="Нет проверок за неделю"
+                description="Финализируйте первую проверку, чтобы увидеть динамику по дням."
+              />
+            ) : (
+              <div className="dashboard-week-chart" aria-label="Проверки за неделю">
+                {dailyCounts.map((item) => (
+                  <div key={item.date.toISOString()} className="dashboard-week-chart__day">
+                    <span className="dashboard-week-chart__bar" style={{ height: `${Math.max(8, (item.count / maxDailyCount) * 100)}%` }}>
+                      <strong>{item.count}</strong>
+                    </span>
+                    <small>{weekdayLabel(item.date)}</small>
+                    <em>{item.average == null ? "—" : Math.round(item.average)}</em>
+                  </div>
+                ))}
               </div>
-              <span className="metric-card__action">{formatSignedNumber(checkedDelta)}</span>
-            </div>
-            <div className="dashboard-week-chart" aria-label="Проверки за неделю">
-              {dailyCounts.map((item) => (
-                <div key={item.date.toISOString()} className="dashboard-week-chart__day">
-                  <span className="dashboard-week-chart__bar" style={{ height: `${Math.max(16, (item.count / maxDailyCount) * 100)}%` }}>
-                    <strong>{item.count}</strong>
-                  </span>
-                  <small>{weekdayLabel(item.date)}</small>
-                  <em>{item.average == null ? "нет" : Math.round(item.average)}</em>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
 
           <div className="dashboard-panel">
             <div className="dashboard-panel__header">
-              <div className="min-w-0">
-                <h2>Где нужен разбор</h2>
-                <p>Где нужен разбор за 30 дней.</p>
-              </div>
-              <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
+              <p className="dashboard-section-label">Ближайшее обучение</p>
             </div>
-            <div className="dashboard-agent-list">
-              {agentRows.length === 0 ? (
-                <p className="empty-note">Пока нет финализированных проверок за 30 дней.</p>
+            <div className="dashboard-training-list">
+              {recentTrainings.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<BookOpenCheck size={20} aria-hidden="true" />}
+                  title="Активных обучений нет"
+                  description="Назначьте обучение по итогам проверки, и оно появится здесь."
+                />
               ) : (
-                agentRows.map((agent) => (
-                  <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
-                    <span>{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
-                    <strong>{agent.name}</strong>
-                    <small>{agent.count} проверок · {agent.riskCount} риск · {agent.appealCount} апелл.</small>
-                    <em>{Math.round(agent.average)}</em>
-                    <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
+                recentTrainings.map((assignment) => (
+                  <Link key={assignment.id} href="/coaching" className="dashboard-training-row">
+                    <strong>{assignment.title}</strong>
+                    <span>{assignment.assigneeName}</span>
+                    <small>{assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} · {assignment.review?.conversation.externalId ?? "ручная задача"}</small>
                   </Link>
                 ))
               )}
             </div>
           </div>
 
-          <div className="dashboard-panel">
+          <div className="dashboard-panel dashboard-panel--growth">
             <div className="dashboard-panel__header">
-              <div className="min-w-0">
-                <h2>Ближайшее обучение</h2>
-                <p>Задачи с ближайшим сроком.</p>
-              </div>
+              <p className="dashboard-section-label">
+                <TrendingUp size={14} aria-hidden="true" />
+                Области для роста
+              </p>
+              <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
             </div>
-            <div className="dashboard-training-list">
-              {recentTrainings.map((assignment) => (
-                <Link key={assignment.id} href="/coaching" className="dashboard-training-row">
-                  <strong>{assignment.title}</strong>
-                  <span>{assignment.assigneeName}</span>
-                  <small>{assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} · {assignment.review?.conversation.externalId ?? "ручная задача"}</small>
-                </Link>
-              ))}
-              {recentTrainings.length === 0 ? <p className="empty-note">Активных обучений нет.</p> : null}
+            <p className="dashboard-panel__note">Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней.</p>
+            <div className="dashboard-agent-list">
+              {agentRows.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<TrendingUp size={20} aria-hidden="true" />}
+                  title="Нет данных для разбора"
+                  description="Пока нет финализированных проверок за 30 дней."
+                />
+              ) : (
+                agentRows.map((agent) => (
+                  <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
+                    <span className="dashboard-agent-row__avatar">{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
+                    <strong>{agent.name}</strong>
+                    <small className="dashboard-agent-row__meta">
+                      {agent.count} проверок
+                      {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
+                    </small>
+                    {agent.riskCount > 0 ? (
+                      <Chip tone="danger" size="xs" numeric className="dashboard-agent-row__flag">
+                        {agent.riskCount} риск
+                      </Chip>
+                    ) : null}
+                    <em>{Math.round(agent.average)}</em>
+                    <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
+                  </Link>
+                ))
+              )}
             </div>
           </div>
         </section>
@@ -571,19 +615,27 @@ async function DashboardPageContent() {
             <Link href={canReadAudit ? "/admin/audit" : "/reviews"} className="quiet-link">{canReadAudit ? "Аудит" : "Очередь"}</Link>
           </div>
           <div className="dashboard-activity-list">
-            {recentEvents.slice(0, 5).map((event) => (
-              <Link key={event.id} href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"} className="dashboard-activity-row">
-                <span className="dashboard-activity-row__avatar">{event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}</span>
-                <span className="dashboard-activity-row__body">
-                  <strong>{event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}</strong>
-                  <small>
-                    {event.review?.conversation.externalId ?? event.review?.conversation.subject ?? "Проверка"}{event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
-                  </small>
-                </span>
-                <time>{formatRelative(event.createdAt, now)}</time>
-              </Link>
-            ))}
-            {recentEvents.length === 0 ? <p className="empty-note">Событий пока нет.</p> : null}
+            {recentEvents.length === 0 ? (
+              <EmptyState
+                size="inline"
+                icon={<History size={20} aria-hidden="true" />}
+                title="Событий пока нет"
+                description="Действия по проверкам и обучению появятся здесь."
+              />
+            ) : (
+              recentEvents.slice(0, 5).map((event) => (
+                <Link key={event.id} href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"} className="dashboard-activity-row">
+                  <span className="dashboard-activity-row__avatar">{event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}</span>
+                  <span className="dashboard-activity-row__body">
+                    <strong>{event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}</strong>
+                    <small>
+                      {event.review?.conversation.externalId ?? event.review?.conversation.subject ?? "Проверка"}{event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
+                    </small>
+                  </span>
+                  <time>{formatRelative(event.createdAt, now)}</time>
+                </Link>
+              ))
+            )}
           </div>
         </EvidenceDrawer>
       }

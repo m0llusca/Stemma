@@ -1,3 +1,220 @@
+/* Queue loading: row-shaped skeletons that mirror the real inbox, not a spinner. */
+.queue-loading {
+  display: grid;
+  gap: 14px;
+}
+
+.queue-loading__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.queue-loading__kpi {
+  height: 92px;
+}
+
+.queue-loading__bar {
+  height: 64px;
+}
+
+.queue-loading__list {
+  display: grid;
+  overflow: clip;
+}
+
+.queue-loading__row {
+  display: grid;
+  grid-template-columns: 22px 132px minmax(0, 1fr) 72px max-content;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 11px 16px;
+}
+
+.queue-loading__row:last-child {
+  border-bottom: 0;
+}
+
+.queue-loading__cell-stack {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.queue-loading__cell {
+  height: 12px;
+  border-radius: var(--radius-small);
+}
+
+.queue-loading__cell--check {
+  height: 16px;
+  width: 16px;
+}
+
+.queue-loading__cell--chip {
+  height: 20px;
+  width: 110px;
+}
+
+.queue-loading__cell--title {
+  height: 14px;
+  width: 62%;
+}
+
+.queue-loading__cell--meta {
+  height: 11px;
+  width: 86%;
+}
+
+.queue-loading__cell--score {
+  height: 14px;
+  width: 48px;
+  justify-self: end;
+}
+
+.queue-loading__cell--action {
+  height: 32px;
+  width: 84px;
+}
+
+@media (max-width: 1180px) {
+  .queue-loading__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .queue-loading__row {
+    grid-template-columns: 22px 110px minmax(0, 1fr) max-content;
+  }
+
+  .queue-loading__cell--score {
+    display: none;
+  }
+}
+
+/* Queue header KPI cluster: number-as-hero tiles, flat, hairline separation.
+   Lives in the command-center aside column (~45% width), so a 2×2 grid keeps the
+   hero numerals readable; widen to 4-up only when there is room. */
+.review-queue-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+@media (min-width: 1440px) {
+  .review-queue-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Фокус очереди: flattened to a small-caps lead + hairline-separated focus
+   items inside the single panel — no card-in-card, no decorative fill. */
+.queue-focus {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 2fr);
+  align-items: stretch;
+  overflow: clip;
+}
+
+.queue-focus__head {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  border-right: 1px solid var(--border);
+  background: var(--panel-muted);
+  padding: 14px 16px;
+}
+
+.queue-focus__head strong {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.queue-focus__head small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.queue-focus__items {
+  display: grid;
+  min-width: 0;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.queue-focus-item {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 2px;
+  border-right: 1px solid var(--border);
+  padding: 12px 14px;
+  transition: background-color 120ms ease;
+}
+
+.queue-focus-item:last-child {
+  border-right: 0;
+}
+
+.queue-focus-item:hover {
+  background: var(--panel-tint);
+}
+
+.queue-focus-item__label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.queue-focus-item__value {
+  color: var(--foreground);
+  font-size: 22px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.queue-focus-item__hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.queue-focus-item__arrow {
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .queue-focus {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-focus__head {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .queue-focus__items {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+
+  .queue-focus-item {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
 .queue-filterbar {
   display: grid;
   gap: 0;
@@ -12,7 +229,7 @@
   display: grid;
   gap: 0;
   overflow: clip;
-  background: #ffffff;
+  background: var(--panel);
 }
 
 .queue-controls .queue-filterbar {
@@ -250,10 +467,8 @@
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--source-color) 28%, var(--border));
   border-radius: var(--radius-small);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--source-color) 8%, var(--panel)), var(--panel));
+  background: color-mix(in srgb, var(--source-color) 8%, var(--panel));
   color: var(--source-color);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 70%, transparent);
   overflow: hidden;
 }
 

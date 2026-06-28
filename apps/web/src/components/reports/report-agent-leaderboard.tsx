@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Inbox } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { BreakdownRow } from "@/lib/reports/report-aggregation";
 import { formatAverageScore } from "@/lib/reports/report-format";
 import { clampQualityScore } from "@/lib/score-display";
@@ -15,30 +17,13 @@ function scoreToPercent(averageScore: number | null | undefined) {
   return Math.max(4, clampQualityScore(averageScore));
 }
 
-function agentInitials(name: string) {
-  const words = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (words.length === 0) {
-    return "QA";
-  }
-
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toLocaleUpperCase("ru-RU");
-  }
-
-  return (words[0][0] + words[1][0]).toLocaleUpperCase("ru-RU");
-}
-
-function AgentRow({ row }: { row: BreakdownRow }) {
+function AgentRow({ row, rank }: { row: BreakdownRow; rank: number }) {
   const percent = scoreToPercent(row.averageScore);
   const content: ReactNode = (
     <>
-      <span>{agentInitials(row.label)}</span>
+      <span className="agent-leaderboard__rank tabular-nums">{rank}</span>
       <strong>{row.label}</strong>
-      <em>{formatAverageScore(row.averageScore)}</em>
+      <em className="tabular-nums">{formatAverageScore(row.averageScore)}</em>
       <i style={{ width: `${percent}%` }} />
     </>
   );
@@ -69,17 +54,17 @@ export function ReportAgentLeaderboard({
 
   return (
     <section className="panel overflow-clip breakdown-panel agent-leaderboard">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          {topRows.length > 0 ? "Лидеры по средней оценке за период" : "Нет данных за период"}
+      <div className="breakdown-panel__header">
+        <h2 className="breakdown-panel__title">{title}</h2>
+        <p className="breakdown-panel__meta">
+          {topRows.length > 0 ? "Средняя оценка по агентам за период" : "Нет данных за период"}
         </p>
       </div>
       <div className="agent-leaderboard__list px-5">
         {topRows.length > 0 ? (
-          topRows.map((row) => <AgentRow key={row.label} row={row} />)
+          topRows.map((row, index) => <AgentRow key={row.label} row={row} rank={index + 1} />)
         ) : (
-          <div className="soft-callout text-sm text-[var(--text-muted)]">Нет данных за период</div>
+          <EmptyState icon={<Inbox size={22} aria-hidden="true" />} title="Нет данных за период" size="inline" />
         )}
       </div>
     </section>

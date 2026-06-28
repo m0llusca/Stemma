@@ -1,7 +1,10 @@
-import { Filter, KeyRound } from "lucide-react";
+import { Filter, History, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -281,26 +284,10 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
       </div>
 
       <section className="ops-metric-grid" aria-label="Сводка журнала действий">
-        <div className="ops-metric">
-          <span className="ops-metric__label">События</span>
-          <strong className="ops-metric__value">{totalLogs}</strong>
-          <span className="ops-metric__note">{hasFilters ? "По текущему фильтру" : "Все найденные события"}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Действия</span>
-          <strong className="ops-metric__value">{actionRows.length}</strong>
-          <span className="ops-metric__note">Типов событий в журнале</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Объекты</span>
-          <strong className="ops-metric__value">{targetTypeRows.length}</strong>
-          <span className="ops-metric__note">Типов объектов в журнале</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">API-ключи</span>
-          <strong className="ops-metric__value">{apiTokens.length}</strong>
-          <span className="ops-metric__note">Для сверки активности</span>
-        </div>
+        <StatKpi label="События" value={totalLogs} hint={hasFilters ? "По текущему фильтру" : "Все найденные события"} />
+        <StatKpi label="Действия" value={actionRows.length} hint="Типов событий в журнале" />
+        <StatKpi label="Объекты" value={targetTypeRows.length} hint="Типов объектов в журнале" />
+        <StatKpi label="API-ключи" value={apiTokens.length} hint="Для сверки активности" />
       </section>
 
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы журнала действий">
@@ -322,15 +309,20 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
             <div>
               <p className="ops-panel__eyebrow">История</p>
               <h2 id="audit-events-title" className="ops-panel__title">История действий</h2>
-              <p className="ops-panel__subtitle">
+              <p className="ops-panel__subtitle tabular-nums">
                 Страница {page} · событий найдено: {totalLogs}
               </p>
             </div>
-            {hasFilters ? <span className="pill pill--ok">Фильтр активен</span> : null}
+            {hasFilters ? <Chip tone="accent" size="sm" icon={<Filter size={13} aria-hidden="true" />}>Фильтр активен</Chip> : null}
           </div>
           <div className="grid gap-2 p-4">
             {logs.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">События не найдены.</div>
+              <EmptyState
+                size="inline"
+                icon={<History size={20} aria-hidden="true" />}
+                title="События не найдены"
+                description={hasFilters ? "Под текущий фильтр нет записей. Сбросьте условия отбора." : "Записей в журнале пока нет."}
+              />
             ) : (
               logs.map((log) => (
                 <article key={log.id} className="admin-tile admin-tile--compact">
@@ -338,7 +330,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                   <div className="admin-tile__body">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="record-title record-title--tight">{auditActionLabel(log.action)}</h3>
-                      <time className="pill pill--neutral" dateTime={log.createdAt.toISOString()}>
+                      <time className="record-meta tabular-nums" dateTime={log.createdAt.toISOString()}>
                         {formatDate(log.createdAt)}
                       </time>
                     </div>
@@ -348,7 +340,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                     <details className="compact-details bg-[var(--panel-muted)]">
                       <summary>
                         <span className="text-sm font-semibold text-[var(--text-body)]">Детали события</span>
-                        <span className="text-sm font-semibold text-[#1d3fae]">Показать</span>
+                        <span className="text-sm font-semibold text-[var(--accent-strong)]">Показать</span>
                       </summary>
                       <pre className="m-0 overflow-x-auto rounded-b-md bg-[var(--panel-muted)] p-3 text-xs leading-5 text-[var(--text-body)]">
                         <code>{parseMetadata(log.metadata)}</code>
@@ -365,14 +357,14 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                 Назад
               </Link>
             ) : (
-              <span className="text-[#94a3b8]">Назад</span>
+              <span className="text-[var(--text-muted)]">Назад</span>
             )}
             {page * pageSize < totalLogs ? (
               <Link href={buildAuditHref(page + 1, action, targetType, start, end)} className="action-button action-button--small">
                 Вперед
               </Link>
             ) : (
-              <span className="text-[#94a3b8]">Вперед</span>
+              <span className="text-[var(--text-muted)]">Вперед</span>
             )}
           </div>
         </section>
@@ -432,7 +424,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
               <h2 id="audit-api-title" className="ops-panel__title">Активность API-ключей</h2>
               <p className="ops-panel__subtitle">Последнее использование ключей рядом с событиями аудита.</p>
             </div>
-            <span className="pill pill--neutral">{apiTokens.length}</span>
+            <Chip tone="neutral" size="sm" numeric>{apiTokens.length}</Chip>
           </div>
           <div className="grid gap-2 p-4">
             {apiTokens.map((token) => (
@@ -441,17 +433,24 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                 <div className="admin-tile__body">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="record-title record-title--tight">{token.name}</span>
-                    <span className="pill pill--neutral">API</span>
+                    <Chip tone="neutral" size="xs">API</Chip>
                   </span>
                   <span className="record-meta font-mono compact-text">{token.tokenPrefix}</span>
-                  <span className="record-meta">Использование: {formatDate(token.lastUsedAt)} · успех: {formatDate(token.lastSuccessAt)}</span>
-                  <span className="record-meta compact-text">
+                  <span className="record-meta tabular-nums">Использование: {formatDate(token.lastUsedAt)} · успех: {formatDate(token.lastSuccessAt)}</span>
+                  <span className="record-meta compact-text tabular-nums">
                     Ошибка: {token.lastError ? `${formatDate(token.lastErrorAt)} · ${token.lastError}` : "Нет"}
                   </span>
                 </div>
               </article>
             ))}
-            {apiTokens.length === 0 ? <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Ключи еще не созданы.</div> : null}
+            {apiTokens.length === 0 ? (
+              <EmptyState
+                size="inline"
+                icon={<KeyRound size={20} aria-hidden="true" />}
+                title="Ключи еще не созданы"
+                description="Активность появится здесь после создания первого API-ключа."
+              />
+            ) : null}
           </div>
         </section>
       ) : null}

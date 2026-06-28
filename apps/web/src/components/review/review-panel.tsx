@@ -13,9 +13,9 @@ import type { ReactNode } from "react";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
 import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
-import { ScoreBar } from "@/components/ui/score-bar";
-import { StatusChip } from "@/components/ui/status-chip";
+import { Chip } from "@/components/ui/chip";
 import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
+import { formatQualityScore } from "@/lib/score-display";
 import styles from "./review-panel-workbench.module.css";
 
 type ReviewPanelProps = {
@@ -249,6 +249,32 @@ export function ReviewPanel({
     return groups;
   }, []);
 
+  const totalWeight = scorecard.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
+  const answeredCount = scorecard.criteria.filter((criterion) => {
+    const score = draftScores.get(criterion.id);
+    return Boolean(score) && !score?.isNotApplicable;
+  }).length;
+  const scoredCount = scorecard.criteria.filter((criterion) => !draftScores.get(criterion.id)?.isNotApplicable).length;
+
+  /** Per-answer contribution of a criterion toward the 100-point final score. */
+  function criterionContribution(criterion: ScorecardCriterion, score?: CriterionScore) {
+    if (totalWeight <= 0 || score?.isNotApplicable) {
+      return 0;
+    }
+
+    if (criterion.kind === "SCALE_1_3") {
+      const value = score?.value ?? 3;
+      return (criterion.weight * (value / 3) * 100) / totalWeight;
+    }
+
+    const passed = score?.passed ?? true;
+    return passed ? (criterion.weight * 100) / totalWeight : 0;
+  }
+
+  function formatPercent(value: number) {
+    return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}%`;
+  }
+
   return (
     <ReviewFormShell className={`review-panel-form panel overflow-clip ${styles.workbench}`}>
       <EvidencePickerListener />
@@ -259,34 +285,52 @@ export function ReviewPanel({
 
       <div className={styles.panelHeader}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h2 className={styles.panelTitle}>{title}</h2>
             <p className={styles.panelSubtitle}>
               {scorecard.name} v{scorecard.version}
             </p>
           </div>
-          <span className={styles.criteriaCount}>
-            {scorecard.criteria.length} критериев
+          <span className={styles.criteriaCount} aria-label="Прогресс заполнения">
+            {answeredCount} / {scoredCount}
           </span>
         </div>
       </div>
 
+      {/* Live score math: the running final score is the hero numeral; weight and
+          progress sit beside it. Filled by the saved draft total until re-saved. */}
       <section className={`review-score-surface ${styles.scoreSurface}`}>
-        <div className="grid gap-3">
-          <div className="min-w-0">
-            <ScoreBar value={draftReview?.totalScore} emptyLabel="Еще не сохранен" />
+        <div className={styles.scoreMath}>
+          <div className={styles.scoreMathHero}>
+            <span className={styles.scoreMathLabel}>Итоговый балл</span>
+            <span className={styles.scoreMathValue}>
+              {draftReview?.totalScore != null ? formatQualityScore(draftReview.totalScore) : "—"}
+            </span>
+            <span className={styles.scoreMathHint}>
+              {draftReview?.totalScore != null ? "Из последнего сохранения" : "Появится после сохранения"}
+            </span>
           </div>
-          <div className="signal-row">
-            <StatusChip tone={draftReview?.criticalError ? "danger" : "neutral"} size="xs">
-              {draftReview?.criticalError ? "Критическая" : "Без критической"}
-            </StatusChip>
-            <StatusChip tone={draftReview?.needsReanswer ? "warning" : "neutral"} size="xs">
-              {draftReview?.needsReanswer ? "Нужен переответ" : "Переответ не нужен"}
-            </StatusChip>
-            <StatusChip tone={draftFinding?.category ? "accent" : "neutral"} size="xs">
-              {draftFinding?.category ?? "Категория не выбрана"}
-            </StatusChip>
-          </div>
+          <dl className={styles.scoreMathStats}>
+            <div className={styles.scoreMathStat}>
+              <dt>Сумма весов</dt>
+              <dd>{totalWeight}%</dd>
+            </div>
+            <div className={styles.scoreMathStat}>
+              <dt>Заполнено</dt>
+              <dd>{answeredCount} / {scoredCount}</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="signal-row">
+          <Chip tone={draftReview?.criticalError ? "danger" : "neutral"} size="sm">
+            {draftReview?.criticalError ? "Критическая ошибка" : "Без критической"}
+          </Chip>
+          <Chip tone={draftReview?.needsReanswer ? "warning" : "neutral"} size="sm">
+            {draftReview?.needsReanswer ? "Нужен переответ" : "Переответ не нужен"}
+          </Chip>
+          <Chip tone={draftFinding?.category ? "accent" : "neutral"} size="sm">
+            {draftFinding?.category ?? "Категория не выбрана"}
+          </Chip>
         </div>
       </section>
 
@@ -331,7 +375,9 @@ export function ReviewPanel({
                           {skippedCount} Н/П
                         </WorkbenchStatus>
                       ) : null}
-                      <span className={styles.groupWeight}>{groupWeight}%</span>
+                      <span className={styles.groupWeight} title="Суммарный вес группы в итоговом балле">
+                        Вес {groupWeight}%
+                      </span>
                     </div>
                   </header>
 
@@ -342,6 +388,7 @@ export function ReviewPanel({
                       const status = criterionStatus(criterion, draftScore);
                       const densityMeta = getCriterionDensityMeta(draftScore);
                       const hasIssue = isCriterionIssue(criterion, draftScore);
+                      const contribution = criterionContribution(criterion, draftScore);
 
                       return (
                         <details
@@ -360,7 +407,10 @@ export function ReviewPanel({
                                 </WorkbenchStatus>
                               </div>
                               <div className={styles.criterionMeta}>
-                                <span>Вес {criterion.weight}%</span>
+                                <span className={styles.criterionWeight}>Вес {criterion.weight}%</span>
+                                <span className={styles.criterionContribution}>
+                                  Вклад {draftScore?.isNotApplicable ? "Н/П" : formatPercent(contribution)}
+                                </span>
                                 <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
                                 {densityMeta.map((item) => (
                                   <span key={item}>{item}</span>
@@ -375,39 +425,68 @@ export function ReviewPanel({
                           <div className={styles.criterionBody}>
                             <div className={styles.controlPanel}>
                               {criterion.kind === "SCALE_1_3" ? (
-                                <label className={styles.fieldGroup}>
-                                  <span className={styles.fieldLabel}>Оценка</span>
-                                  <select
-                                    name={`criterion.${criterion.id}.score`}
-                                    defaultValue={String(draftScore?.value ?? 3)}
-                                    className={fieldClassName}
-                                  >
-                                    <option value="3">3 - соответствует стандарту</option>
-                                    <option value="2">2 - нужна доработка</option>
-                                    <option value="1">1 - не соответствует стандарту</option>
-                                  </select>
-                                </label>
+                                <fieldset className={styles.resultFieldset}>
+                                  <legend className={styles.fieldLabel}>Оценка</legend>
+                                  <div className={styles.segmentGrid}>
+                                    <label className={styles.segment}>
+                                      <input
+                                        type="radio"
+                                        name={`criterion.${criterion.id}.score`}
+                                        value="3"
+                                        defaultChecked={(draftScore?.value ?? 3) === 3}
+                                      />
+                                      <span className={styles.segmentLabel}>3 · стандарт</span>
+                                      <span className={styles.segmentPoints}>{criterion.weight}%</span>
+                                    </label>
+                                    <label className={styles.segment}>
+                                      <input
+                                        type="radio"
+                                        name={`criterion.${criterion.id}.score`}
+                                        value="2"
+                                        defaultChecked={(draftScore?.value ?? 3) === 2}
+                                      />
+                                      <span className={styles.segmentLabel}>2 · доработка</span>
+                                      <span className={styles.segmentPoints}>
+                                        {(criterion.weight * 2 / 3).toFixed(criterion.weight % 3 === 0 ? 0 : 1)}%
+                                      </span>
+                                    </label>
+                                    <label className={styles.segment}>
+                                      <input
+                                        type="radio"
+                                        name={`criterion.${criterion.id}.score`}
+                                        value="1"
+                                        defaultChecked={(draftScore?.value ?? 3) === 1}
+                                      />
+                                      <span className={styles.segmentLabel}>1 · не соответствует</span>
+                                      <span className={styles.segmentPoints}>
+                                        {(criterion.weight / 3).toFixed(criterion.weight % 3 === 0 ? 0 : 1)}%
+                                      </span>
+                                    </label>
+                                  </div>
+                                </fieldset>
                               ) : (
                                 <fieldset className={styles.resultFieldset}>
                                   <legend className={styles.fieldLabel}>Результат</legend>
-                                  <div className={styles.choiceGrid}>
-                                    <label className={styles.choiceCard}>
+                                  <div className={styles.segmentGrid}>
+                                    <label className={styles.segment}>
                                       <input
                                         type="radio"
                                         name={`criterion.${criterion.id}.passed`}
                                         value="true"
                                         defaultChecked={passedValue}
                                       />
-                                      <span>Зачет</span>
+                                      <span className={styles.segmentLabel}>Зачет</span>
+                                      <span className={styles.segmentPoints}>+{criterion.weight}%</span>
                                     </label>
-                                    <label className={`${styles.choiceCard} ${styles.choiceCardDanger}`}>
+                                    <label className={`${styles.segment} ${styles.segmentDanger}`}>
                                       <input
                                         type="radio"
                                         name={`criterion.${criterion.id}.passed`}
                                         value="false"
                                         defaultChecked={!passedValue}
                                       />
-                                      <span>Незачет</span>
+                                      <span className={styles.segmentLabel}>Незачет</span>
+                                      <span className={styles.segmentPoints}>0%</span>
                                     </label>
                                   </div>
                                 </fieldset>
@@ -452,6 +531,12 @@ export function ReviewPanel({
                                 <span className={styles.fieldHint}>Коротко: факт, риск, ожидаемая формулировка</span>
                               </label>
                             </div>
+
+                            {hasIssue ? (
+                              <a href="#coaching-analysis" className={styles.coachingLink}>
+                                Добавить в разбор с оператором
+                              </a>
+                            ) : null}
                           </div>
                         </details>
                       );
@@ -536,7 +621,7 @@ export function ReviewPanel({
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">Критическая ошибка и переответ</h4>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">Открывайте только для обнуления оценки или переответа клиенту.</p>
               </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
@@ -574,7 +659,7 @@ export function ReviewPanel({
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">Обратная связь</h4>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
               </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>
@@ -615,13 +700,13 @@ export function ReviewPanel({
             </div>
           </details>
 
-          <details className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasAnalysisDetails}>
+          <details id="coaching-analysis" className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasAnalysisDetails}>
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <h4 className="text-sm font-semibold text-[var(--foreground)]">Разбор и калибровка</h4>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
               </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]" aria-hidden="true">
+              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]" aria-hidden="true">
                 <ChevronDown className="h-4 w-4" />
               </span>
             </summary>

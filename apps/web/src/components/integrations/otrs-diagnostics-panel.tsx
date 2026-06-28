@@ -3,6 +3,7 @@
 import { Activity, AlertTriangle, CheckCircle2, Play } from "lucide-react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { Chip, type ChipTone } from "@/components/ui/chip";
 import { runOtrsDiagnosticsActionState, type OtrsDiagnosticsActionState } from "@/lib/integration-actions";
 
 const initialState: OtrsDiagnosticsActionState = null;
@@ -33,16 +34,16 @@ type OtrsDiagnosticsPanelProps = {
   latestDiagnostic: DiagnosticRun;
 };
 
-function statusClass(status: string) {
+function statusChipTone(status: string): ChipTone {
   if (["succeeded", "ok"].includes(status)) {
-    return "pill--ok";
+    return "success";
   }
 
   if (["failed", "error"].includes(status)) {
-    return "pill--warn";
+    return "danger";
   }
 
-  return "pill--neutral";
+  return "neutral";
 }
 
 function statusIcon(status: string) {
@@ -95,7 +96,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
         </form>
 
         {state ? (
-          <div className={`soft-callout text-sm font-medium ${state.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
+          <div className={`soft-callout text-sm font-medium ${state.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
             {state.message}
             {state.status ? ` Статус: ${state.status}.` : ""}
           </div>
@@ -107,7 +108,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
               <div className="soft-callout">
                 <p className="soft-callout__label">Статус</p>
                 <p className="record-title record-title--tight">
-                  <span className={`pill ${statusClass(latestDiagnostic.status)}`}>{latestDiagnostic.status}</span>
+                  <Chip tone={statusChipTone(latestDiagnostic.status)} size="xs">{latestDiagnostic.status}</Chip>
                 </p>
               </div>
               <div className="soft-callout">
@@ -130,14 +131,14 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
                     <th className="px-4 py-3 font-semibold">Remediation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#d9e0ea]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {latestDiagnostic.steps.map((step) => (
                     <tr key={step.id}>
                       <td className="px-4 py-3 font-mono text-xs">{step.key}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2">
                           {statusIcon(step.status)}
-                          <span className={`pill ${statusClass(step.status)}`}>{step.status}</span>
+                          <Chip tone={statusChipTone(step.status)} size="xs">{step.status}</Chip>
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[var(--text-body)]">{step.durationMs} ms</td>

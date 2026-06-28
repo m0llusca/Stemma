@@ -1,9 +1,11 @@
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Gauge, Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -183,7 +185,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                       <span className="record-title record-title--tight">
                         {activeScorecard ? `${activeScorecard.name} v${activeScorecard.version}` : "Нет активной формы"}
                       </span>
-                      <span className="record-meta">
+                      <span className="record-meta tabular-nums">
                         {activeScorecard ? `${activeScorecard.criteria.length} критериев` : "Создайте первую версию формы оценки"}
                       </span>
                     </span>
@@ -197,21 +199,29 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                   </div>
                 </div>
                 {activeScorecard ? (
-                  <div className="admin-data-table admin-data-table--compact mt-3" aria-label="Критерии активной формы">
+                  <div className="admin-data-table admin-data-table--compact admin-data-table--criteria mt-3" aria-label="Критерии активной формы">
                     <div className="admin-data-table__head">
                       <span>Критерий</span>
                       <span>Блок</span>
                       <span>Тип</span>
-                      <span>Вес</span>
+                      <span className="admin-data-table__num">Вес</span>
                     </div>
                     {activeScorecard.criteria.slice(0, 6).map((criterion) => (
                       <div key={criterion.id} className="admin-data-table__row">
                         <strong>{criterion.label}</strong>
                         <span>{criterion.block}</span>
                         <span>{criterionKindLabels[criterion.kind]}</span>
-                        <span>{criterion.weight}%</span>
+                        <span className="admin-data-table__num tabular-nums">{criterion.weight}%</span>
                       </div>
                     ))}
+                    <div className="admin-data-table__row admin-data-table__row--total">
+                      <strong>Сумма весов</strong>
+                      <span aria-hidden="true" />
+                      <span aria-hidden="true" />
+                      <span className="admin-data-table__num tabular-nums">
+                        {activeScorecard.criteria.reduce((sum, criterion) => sum + criterion.weight, 0)}%
+                      </span>
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -265,9 +275,12 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
               />
             </div>
           ) : (
-            <div className="soft-callout ops-empty m-4 text-sm leading-5 text-[var(--text-muted)]">
-              Новую версию можно выпустить после появления активной формы. Создайте первую форму через начальную настройку проекта.
-            </div>
+            <EmptyState
+              size="inline"
+              icon={<Gauge size={20} aria-hidden="true" />}
+              title="Нет активной формы"
+              description="Новую версию можно выпустить после появления активной формы. Создайте первую форму через начальную настройку проекта."
+            />
           )}
         </section>
       ) : null}
@@ -285,20 +298,20 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
             {scorecards.map((scorecard) => (
               <details key={scorecard.id} className="compact-details" open={scorecard.isActive}>
                 <summary className="disclosure-summary version-summary cursor-pointer list-none">
-                  <span className="admin-tile__icon admin-tile__icon--plain">{scorecard.version}</span>
+                  <span className="admin-tile__icon admin-tile__icon--plain tabular-nums">{scorecard.version}</span>
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="record-title">{scorecard.name}</span>
-                      <span className={`pill ${scorecard.isActive ? "pill--ok" : "pill--neutral"}`}>
+                      <Chip tone={scorecard.isActive ? "success" : "neutral"} size="xs">
                         {scorecard.isActive ? "Активна" : "Неактивна"}
-                      </span>
+                      </Chip>
                     </span>
-                    <span className="record-meta mt-1 block">
+                    <span className="record-meta mt-1 block tabular-nums">
                       Версия {scorecard.version} · критериев: {scorecard.criteria.length}
                     </span>
                   </span>
                   <span
-                    className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
+                    className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
                     aria-hidden="true"
                   >
                     <ChevronDown className="h-4 w-4" />
@@ -315,9 +328,9 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                               {criterion.block} · {criterionKindLabels[criterion.kind]} · ключ: {criterion.key}
                             </p>
                           </div>
-                          <span className="pill pill--neutral">Вес {criterion.weight}%</span>
+                          <Chip tone="neutral" size="xs" numeric label="Вес" value={`${criterion.weight}%`} />
                         </div>
-                        <p className="record-meta">
+                        <p className="record-meta tabular-nums">
                           Порядок: {criterion.order} · обязательный критерий: {criterion.required ? "да" : "нет"}
                         </p>
                       </article>

@@ -12,6 +12,9 @@ import {
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { ScimTokenManager } from "@/components/admin/scim-token-manager";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -62,7 +65,6 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
   { value: "ACTIVE_DIRECTORY_LDAPS", label: "Active Directory через LDAPS" }
 ];
 
-const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[var(--text-muted)]";
 const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
 const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"];
 
@@ -85,16 +87,16 @@ function formatDate(value: Date | null | undefined) {
   return value.toLocaleString("ru-RU");
 }
 
-function statusTone(status: string) {
+function statusTone(status: string): ChipTone {
   if (status === "active" || status === "ACTIVE") {
-    return "pill--ok";
+    return "success";
   }
 
   if (status === "draft") {
-    return "pill--warn";
+    return "warning";
   }
 
-  return "pill--neutral";
+  return "neutral";
 }
 
 function providerStatusLabel(status: string) {
@@ -169,7 +171,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (!provider) {
     return {
       label: "Не выбран",
-      tone: "pill--neutral",
+      tone: "neutral" as ChipTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -180,7 +182,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (provider.type === "DEMO") {
     return {
       label: "Демо",
-      tone: "pill--neutral",
+      tone: "neutral" as ChipTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -201,7 +203,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
     if (missing.length > 0) {
       return {
         label: "Неполная LDAPS-конфигурация",
-        tone: "pill--warn",
+        tone: "warning" as ChipTone,
         canTest: false,
         canDirectorySync: false,
         canDryRun: false,
@@ -211,7 +213,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
 
     return {
       label: provider.status === "active" ? "Готов к live-проверке" : "Готов к dry-run",
-      tone: provider.status === "active" ? "pill--ok" : "pill--warn",
+      tone: (provider.status === "active" ? "success" : "warning") as ChipTone,
       canTest: false,
       canDirectorySync: provider.status === "active",
       canDryRun: true,
@@ -226,7 +228,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (!interactiveSsoTypes.includes(provider.type)) {
     return {
       label: "Только каталог",
-      tone: "pill--neutral",
+      tone: "neutral" as ChipTone,
       canTest: false,
       canDirectorySync: provider.status === "active",
       canDryRun: false,
@@ -250,7 +252,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (provider.status !== "active") {
     return {
       label: provider.status === "disabled" ? "Отключен" : "Черновик",
-      tone: provider.status === "disabled" ? "pill--neutral" : "pill--warn",
+      tone: (provider.status === "disabled" ? "neutral" : "warning") as ChipTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -261,7 +263,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (missing.length > 0) {
     return {
       label: "Неполная конфигурация",
-      tone: "pill--warn",
+      tone: "warning" as ChipTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -271,7 +273,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
 
   return {
     label: provider.type === "SAML" ? "Готов к contract test" : "Готов к SSO",
-    tone: "pill--ok",
+    tone: "success" as ChipTone,
     canTest: true,
     canDirectorySync: true,
     canDryRun: false,
@@ -430,33 +432,27 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
       </div>
 
       <section className="ops-metric-grid" aria-label="Сводка доступа">
-        <div className="ops-metric">
-          <span className="ops-metric__label">Провайдеры</span>
-          <strong className="ops-metric__value">{providers.length}</strong>
-          <span className="ops-metric__note">Активны: {providers.filter((provider) => provider.status === "active").length}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="flex items-center gap-1">
-            <span className="ops-metric__label">Группы</span>
-            <HelpTooltip
-              label="Как работает приоритет групп?"
-              content="Меньшее значение priority применяется раньше. Если пользователь состоит в нескольких группах, победит первое активное правило."
-              placement="top-start"
-            />
-          </span>
-          <strong className="ops-metric__value">{providers.reduce((sum, provider) => sum + provider.groupRoleMappings.length, 0)}</strong>
-          <span className="ops-metric__note">Активных у выбранного: {activeMappings}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">SSO-профили</span>
-          <strong className="ops-metric__value">{linkedUsers}</strong>
-          <span className="ops-metric__note">Связанные внешние учетные записи</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Активные сессии</span>
-          <strong className="ops-metric__value">{activeSessions}</strong>
-          <span className="ops-metric__note">Показано до 40 в разделе сессий</span>
-        </div>
+        <StatKpi
+          label="Провайдеры"
+          value={providers.length}
+          hint={`Активны: ${providers.filter((provider) => provider.status === "active").length}`}
+        />
+        <StatKpi
+          label={
+            <span className="flex items-center gap-1">
+              Группы
+              <HelpTooltip
+                label="Как работает приоритет групп?"
+                content="Меньшее значение priority применяется раньше. Если пользователь состоит в нескольких группах, победит первое активное правило."
+                placement="top-start"
+              />
+            </span>
+          }
+          value={providers.reduce((sum, provider) => sum + provider.groupRoleMappings.length, 0)}
+          hint={`Активных у выбранного: ${activeMappings}`}
+        />
+        <StatKpi label="SSO-профили" value={linkedUsers} hint="Связанные внешние учетные записи" />
+        <StatKpi label="Активные сессии" value={activeSessions} hint="Показано до 40 в разделе сессий" />
       </section>
 
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы доступа и SSO">
@@ -480,7 +476,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 <h2 id="providers-title" className="ops-panel__title">Провайдеры входа</h2>
                 <p className="ops-panel__subtitle">Выберите провайдера, чтобы открыть его настройку в отдельной вкладке.</p>
               </div>
-              <span className={`pill ${readiness.tone}`}>{readiness.label}</span>
+              <Chip tone={readiness.tone} size="sm">{readiness.label}</Chip>
             </div>
             {accessSetupHint ? (
               <div className="admin-setup-inline">
@@ -527,22 +523,22 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                       <div className="ops-table__cell">
                         <span className="ops-table__label">Тип</span>
                         <span className="record-title">{providerTypeLabels[provider.type]}</span>
-                        <span className={`pill ${statusTone(provider.status)}`}>{providerStatusLabel(provider.status)}</span>
+                        <Chip tone={statusTone(provider.status)} size="xs">{providerStatusLabel(provider.status)}</Chip>
                       </div>
                       <div className="ops-table__cell">
                         <span className="ops-table__label">Готовность</span>
-                        <span className={`pill ${providerReady.tone}`}>{providerReady.label}</span>
+                        <Chip tone={providerReady.tone} size="xs">{providerReady.label}</Chip>
                         <span className="record-meta compact-text">{providerReady.details.slice(0, 2).join(", ")}</span>
                       </div>
-                      <span className="record-meta">
+                      <span className="record-meta tabular-nums">
                         <span className="ops-table__label">Группы</span>
                         {provider.groupRoleMappings.length}
                       </span>
-                      <span className="record-meta">
+                      <span className="record-meta tabular-nums">
                         <span className="ops-table__label">Пользователи</span>
                         {provider._count.externalIdentities}
                       </span>
-                      <span className="record-meta">
+                      <span className="record-meta tabular-nums">
                         <span className="ops-table__label">Сессии</span>
                         {provider._count.authSessions}
                       </span>
@@ -583,7 +579,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 </div>
               ) : null}
             </div>
-            <span className={`pill ${readiness.tone}`}>{readiness.label}</span>
+            <Chip tone={readiness.tone} size="sm">{readiness.label}</Chip>
           </div>
           <div className="ops-status-strip" aria-label="Готовность выбранного провайдера">
             <div className="ops-status-item">
@@ -742,9 +738,14 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                     Выпуск, ротация и отзыв токена входящего provisioning для выбранного провайдера.
                   </p>
                 </div>
-                <span className="pill pill--warn">Не выпущен</span>
+                <Chip tone="warning" size="sm">Не выпущен</Chip>
               </div>
-              <div className={emptyStateClass}>Для демо-провайдера SCIM provisioning не выпускается.</div>
+              <EmptyState
+                size="inline"
+                icon={<KeyRound size={20} aria-hidden="true" />}
+                title="SCIM недоступен"
+                description="Для демо-провайдера токен provisioning не выпускается."
+              />
             </>
           ) : (
             <div className="p-5">
@@ -768,7 +769,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               <h2 id="mappings-title" className="ops-panel__title">Группы и роли</h2>
               <p className="ops-panel__subtitle">Приоритет меньше - роль применяется раньше. Неактивные строки остаются в истории конфигурации.</p>
             </div>
-            <span className="pill pill--neutral">{selectedProvider.groupRoleMappings.length}</span>
+            <Chip tone="neutral" size="sm" numeric>{selectedProvider.groupRoleMappings.length}</Chip>
           </div>
           {groupMappingsHint ? (
             <div className="admin-setup-inline">
@@ -795,7 +796,12 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 <span>Приоритет</span>
               </div>
               {selectedProvider.groupRoleMappings.length === 0 ? (
-                <div className={emptyStateClass}>Для выбранного провайдера пока нет групп.</div>
+                <EmptyState
+                  size="inline"
+                  icon={<UsersRound size={20} aria-hidden="true" />}
+                  title="Групп пока нет"
+                  description="Добавьте связь группы и роли, чтобы участники каталога получали доступ автоматически."
+                />
               ) : (
                 selectedProvider.groupRoleMappings.map((mapping) => (
                   <div key={mapping.id} className="ops-table__row" role="row">
@@ -814,17 +820,17 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                     <div className="ops-table__cell">
                       <span className="ops-table__label">Группа</span>
                       <strong className="record-title">{mapping.externalGroupName}</strong>
-                      <span className={`pill ${mapping.isActive ? "pill--ok" : "pill--neutral"}`}>{mapping.isActive ? "Активна" : "Отключена"}</span>
+                      <Chip tone={mapping.isActive ? "success" : "neutral"} size="xs">{mapping.isActive ? "Активна" : "Отключена"}</Chip>
                     </div>
                     <span className="record-meta compact-text font-mono">
                       <span className="ops-table__label">Идентификатор группы</span>
                       {mapping.externalGroupId}
                     </span>
-                    <span className="pill pill--neutral">
+                    <span className="ops-table__cell">
                       <span className="ops-table__label">Роль</span>
-                      {roleLabels[mapping.role]}
+                      <Chip tone="neutral" size="xs">{roleLabels[mapping.role]}</Chip>
                     </span>
-                    <span className="record-meta">
+                    <span className="record-meta tabular-nums">
                       <span className="ops-table__label">Приоритет</span>
                       {mapping.priority}
                     </span>
@@ -836,7 +842,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
           <details className="compact-details m-4">
             <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <h3 className="font-semibold text-[var(--foreground)]">Добавить группу</h3>
-              <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#1d3fae]">Открыть</span>
+              <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[var(--accent-strong)]">Открыть</span>
             </summary>
             <form action={saveGroupRoleMapping} className="ops-form-grid border-t border-[var(--border)] p-4">
               <input type="hidden" name="providerId" value={selectedProvider.id} />
@@ -876,10 +882,15 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
             <h2 id="sessions-title" className="ops-panel__title">Сессии пользователей</h2>
             <p className="ops-panel__subtitle">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
           </div>
-          <span className="pill pill--neutral">{sessions.length}</span>
+          <Chip tone="neutral" size="sm" numeric>{sessions.length}</Chip>
         </div>
         {sessions.length === 0 ? (
-          <div className={emptyStateClass}>Сессий пока нет.</div>
+          <EmptyState
+            size="inline"
+            icon={<UsersRound size={20} aria-hidden="true" />}
+            title="Сессий пока нет"
+            description="Активные входы появятся здесь после первой авторизации пользователей."
+          />
         ) : (
           <div className="ops-table-shell">
             <div className="ops-table ops-table--sessions" role="table" aria-label="Сессии пользователей">
@@ -905,15 +916,15 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                     <span className="record-title">{session.provider?.name ?? "Без провайдера"}</span>
                     <span className="record-meta">{session.provider ? providerTypeLabels[session.provider.type] : "Локальный вход"}</span>
                   </div>
-                  <span className={`pill ${statusTone(session.status)}`}>
+                  <span className="ops-table__cell">
                     <span className="ops-table__label">Статус</span>
-                    {sessionStatusLabels[session.status]}
+                    <Chip tone={statusTone(session.status)} size="xs">{sessionStatusLabels[session.status]}</Chip>
                   </span>
-                  <span className="record-meta">
+                  <span className="record-meta tabular-nums">
                     <span className="ops-table__label">Последняя активность</span>
                     {formatDate(session.lastSeenAt)}
                   </span>
-                  <span className="record-meta">
+                  <span className="record-meta tabular-nums">
                     <span className="ops-table__label">Завершение</span>
                     {formatDate(session.expiresAt)}
                   </span>

@@ -34,7 +34,7 @@ export function IntegrationImportQueueForm({ integrationId }: { integrationId: s
         <p
           ref={messageRef}
           tabIndex={-1}
-          className={`text-xs font-medium ${state.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}
+          className={`text-xs font-medium ${state.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}
         >
           {state.message}
           {state.ok && state.jobId ? ` Задача: ${state.jobId.slice(0, 8)}.` : ""}

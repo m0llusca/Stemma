@@ -129,7 +129,7 @@ export function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children:
       <div className="flex justify-end">
         <CopyButton value={children} />
       </div>
-      <pre className={`${maxHeight} overflow-auto rounded-md bg-[#111827] p-4 text-xs leading-5 text-white`}>
+      <pre className={`code-surface ${maxHeight} overflow-auto rounded-md p-4 text-xs leading-5`}>
         <code>{children}</code>
       </pre>
     </div>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Grid2x2 } from "lucide-react";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatQualityScore } from "@/lib/score-display";
 import styles from "./analytics-intelligence.module.css";
 
@@ -25,21 +27,11 @@ export type CriterionHeatmapRow = {
   detail: string;
 };
 
-type HeatmapTone = "excellent" | "stable" | "watch" | "critical" | "empty";
-
 const metricToneClass: Record<MetricInsightTone, string> = {
   neutral: styles.metricInsightNeutral,
   ok: styles.metricInsightOk,
   warn: styles.metricInsightWarn,
   danger: styles.metricInsightDanger
-};
-
-const heatmapToneClass: Record<HeatmapTone, string> = {
-  excellent: styles.heatmapCellExcellent,
-  stable: styles.heatmapCellStable,
-  watch: styles.heatmapCellWatch,
-  critical: styles.heatmapCellCritical,
-  empty: styles.heatmapCellEmpty
 };
 
 function clampPercent(value: number) {
@@ -56,24 +48,29 @@ function formatProgress(value: number | null) {
   return progress == null ? "нет данных" : `${progress}%`;
 }
 
-function heatmapTone(score: number | null): HeatmapTone {
+/**
+ * Single-hue intensity bucket. The matrix/heatmap stays monochrome: lower
+ * scores read as a DENSER ink fill, not a different hue. This is intentionally
+ * NOT a green-yellow-red traffic light.
+ */
+function intensityClass(score: number | null) {
   if (score == null) {
-    return "empty";
+    return styles.matrixCellEmpty;
   }
 
   if (score >= 90) {
-    return "excellent";
+    return styles.matrixCellT1;
   }
 
   if (score >= 80) {
-    return "stable";
+    return styles.matrixCellT2;
   }
 
   if (score >= 70) {
-    return "watch";
+    return styles.matrixCellT3;
   }
 
-  return "critical";
+  return styles.matrixCellT4;
 }
 
 function averageScore(rows: CriterionHeatmapRow[]) {
@@ -217,12 +214,12 @@ export function CriterionHeatmapPanel({
         <div className={styles.criterionSummary} aria-label="Сводка карты критериев">
           <article>
             <span>Среднее по блокам</span>
-            <strong>{average == null ? "Нет данных" : formatQualityScore(average)}</strong>
+            <strong>{average == null ? "—" : formatQualityScore(average)}</strong>
             <small>{sortedRows.length > 0 ? `${sortedRows.length} блоков в карте` : "Блоки появятся после оценок"}</small>
           </article>
           <article>
             <span>Слабая зона</span>
-            <strong>{weakest ? weakest.label : "Нет данных"}</strong>
+            <strong>{weakest ? weakest.label : "—"}</strong>
             <small>{weakest ? `${formatQualityScore(weakest.score ?? 0)}, ${weakest.detail}` : "Пока нет оцененных критериев"}</small>
           </article>
           <article>
@@ -234,49 +231,54 @@ export function CriterionHeatmapPanel({
 
         {sortedRows.length > 0 ? (
           <>
-            <div className={styles.heatmapGrid} role="list" aria-label="Тепловая карта блоков критериев">
+            <ul className={styles.matrixList} aria-label="Карта блоков критериев">
               {sortedRows.map((row) => {
                 const score = row.score == null ? null : Math.round(row.score);
                 const progress = roundedProgress(score);
-                const tone = heatmapTone(score);
 
                 return (
-                  <article
-                    key={row.label}
-                    className={`${styles.heatmapCell} ${heatmapToneClass[tone]}`}
-                    role="listitem"
-                  >
-                    <div className={styles.heatmapCellHeader}>
-                      <h3>{row.label}</h3>
-                      <strong>{score == null ? "--" : formatQualityScore(score)}</strong>
+                  <li key={row.label} className={styles.matrixRow}>
+                    <div className={styles.matrixRowHead}>
+                      <span className={styles.matrixRowLabel}>{row.label}</span>
+                      <span className={styles.matrixRowMeta}>{row.detail}</span>
                     </div>
-                    <div
-                      aria-label={`${row.label}: ${score == null ? "нет данных" : formatQualityScore(score)}`}
-                      aria-valuemax={100}
-                      aria-valuemin={0}
-                      aria-valuenow={progress ?? undefined}
-                      className={styles.heatmapMeter}
-                      role={progress == null ? undefined : "progressbar"}
-                    >
-                      <span style={{ width: `${progress ?? 0}%` }} />
+                    <div className={`${styles.matrixCell} ${intensityClass(score)}`}>
+                      <span className={styles.matrixCellValue}>
+                        {score == null ? "—" : formatQualityScore(score)}
+                      </span>
+                      <span
+                        aria-label={`${row.label}: ${score == null ? "нет данных" : formatQualityScore(score)}`}
+                        aria-valuemax={100}
+                        aria-valuemin={0}
+                        aria-valuenow={progress ?? undefined}
+                        className={styles.matrixCellBar}
+                        role={progress == null ? undefined : "progressbar"}
+                      >
+                        <span style={{ width: `${progress ?? 0}%` }} />
+                      </span>
                     </div>
-                    <p>{row.detail}</p>
-                  </article>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
 
-            <div className={styles.heatmapLegend} aria-label="Легенда карты критериев">
-              <span><i className={styles.legendExcellent} />90-100</span>
-              <span><i className={styles.legendStable} />80-89</span>
-              <span><i className={styles.legendWatch} />70-79</span>
-              <span><i className={styles.legendCritical} />0-69</span>
+            <div className={styles.matrixLegend} aria-label="Легенда: насыщенность заливки растет при низком балле">
+              <span className={styles.matrixLegendScale} aria-hidden="true">
+                <i className={styles.matrixCellT1} />
+                <i className={styles.matrixCellT2} />
+                <i className={styles.matrixCellT3} />
+                <i className={styles.matrixCellT4} />
+              </span>
+              <span>Выше балл — светлее, ниже балл — плотнее заливка</span>
             </div>
           </>
         ) : (
-          <div className={styles.emptyState}>
-            Нет оцененных критериев за выбранный период.
-          </div>
+          <EmptyState
+            icon={<Grid2x2 size={22} aria-hidden="true" />}
+            title="Нет оцененных критериев"
+            description="Блоки критериев появятся после первых завершенных проверок за период."
+            size="inline"
+          />
         )}
       </div>
     </section>

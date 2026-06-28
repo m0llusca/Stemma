@@ -8,6 +8,8 @@ import { PriorityActionPanel } from "@/components/operations/priority-action-pan
 import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
+import { Chip } from "@/components/ui/chip";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
 import {
   channelLabels,
@@ -167,27 +169,28 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
               </form>
             </div>
           </div>
-          <div className="learning-metrics review-queue-metrics" aria-label="Сводка очереди проверок">
-            <div className="learning-metric">
-              <Inbox size={16} aria-hidden="true" />
-              <span>{queued}</span>
-              <small>ожидают</small>
-            </div>
-            <div className="learning-metric">
-              <Clock3 size={16} aria-hidden="true" />
-              <span>{inWork}</span>
-              <small>в работе</small>
-            </div>
-            <div className={overdue > 0 ? "learning-metric learning-metric--danger" : "learning-metric learning-metric--success"}>
-              <TriangleAlert size={16} aria-hidden="true" />
-              <span>{overdue}</span>
-              <small>просрочено</small>
-            </div>
-            <div className="learning-metric learning-metric--success">
-              <CheckCircle2 size={16} aria-hidden="true" />
-              <span>{reviewed}</span>
-              <small>завершено</small>
-            </div>
+          <div className="review-queue-kpis" aria-label="Сводка очереди проверок">
+            <StatKpi
+              label="Ожидают"
+              value={queued}
+              icon={<Inbox size={16} aria-hidden="true" />}
+            />
+            <StatKpi
+              label="В работе"
+              value={inWork}
+              icon={<Clock3 size={16} aria-hidden="true" />}
+            />
+            <StatKpi
+              label="Просрочено"
+              value={overdue}
+              tone={overdue > 0 ? "danger" : "neutral"}
+              icon={<TriangleAlert size={16} aria-hidden="true" />}
+            />
+            <StatKpi
+              label="Завершено"
+              value={reviewed}
+              icon={<CheckCircle2 size={16} aria-hidden="true" />}
+            />
           </div>
         </div>
       }
@@ -202,28 +205,28 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       }
       details={
         <>
-          <section className="workflow-focus-strip" aria-label="Где смотреть в очереди сейчас">
-            <div className="workflow-focus-strip__lead">
+          <section className="queue-focus panel" aria-label="Где смотреть в очереди сейчас">
+            <div className="queue-focus__head">
               <span className="page-kicker">Фокус очереди</span>
               <strong>{reviewFocusItems.length > 0 ? "Есть действия на сейчас" : "Критичных действий нет"}</strong>
               <small>{reviewFocusItems.length > 0 ? "Открывайте с самого жесткого SLA или риска." : "Можно разбирать очередь по обычному приоритету."}</small>
             </div>
-            <div className="workflow-focus-strip__items">
+            <div className="queue-focus__items">
               {reviewFocusItems.length > 0 ? (
                 reviewFocusItems.map((item) => (
-                  <Link key={item.href} href={item.href} className="workflow-focus-card">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                    <small>{item.description}</small>
-                    <ArrowRight size={15} aria-hidden="true" />
+                  <Link key={item.href} href={item.href} className="queue-focus-item">
+                    <span className="queue-focus-item__label">{item.label}</span>
+                    <strong className="queue-focus-item__value">{item.value}</strong>
+                    <small className="queue-focus-item__hint">{item.description}</small>
+                    <ArrowRight size={15} aria-hidden="true" className="queue-focus-item__arrow" />
                   </Link>
                 ))
               ) : (
-                <Link href="/reviews?status=unreviewed" className="workflow-focus-card">
-                  <span>Незавершенные</span>
-                  <strong>{queued + inWork}</strong>
-                  <small>Открыть незавершенные обращения</small>
-                  <ArrowRight size={15} aria-hidden="true" />
+                <Link href="/reviews?status=unreviewed" className="queue-focus-item">
+                  <span className="queue-focus-item__label">Незавершенные</span>
+                  <strong className="queue-focus-item__value">{queued + inWork}</strong>
+                  <small className="queue-focus-item__hint">Открыть незавершенные обращения</small>
+                  <ArrowRight size={15} aria-hidden="true" className="queue-focus-item__arrow" />
                 </Link>
               )}
             </div>
@@ -271,25 +274,40 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
                     {qaStatusLabels[queuePreview.qaStatus]}
                   </p>
                 </div>
-                <div className="queue-preview-panel__score">
-                  <span>Решение</span>
-                  <strong>{reviewStateLabels[queuePreviewState]}</strong>
-                  <small>{formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "Нет оценки")}</small>
-                </div>
+
+                <StatKpi
+                  className="queue-preview-panel__score"
+                  label="Оценка"
+                  value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
+                  hint={reviewStateLabels[queuePreviewState]}
+                />
+
                 <div className="queue-preview-panel__reason">
-                  <span>Почему первый</span>
-                  <strong>{queuePreview.priorityReason}</strong>
-                  <small>Очередь учитывает SLA, риск, переответ и назначение проверяющего.</small>
+                  <span className="queue-preview-panel__reason-label">Почему первый</span>
+                  <strong className="queue-preview-panel__reason-value">{queuePreview.priorityReason}</strong>
+                  <small className="queue-preview-panel__reason-hint">
+                    Очередь учитывает SLA, риск, переответ и назначение проверяющего.
+                  </small>
                 </div>
-                <div className="queue-preview-panel__signals">
+
+                <dl className="queue-preview-panel__signals">
                   {queuePreviewSignals.map((signal) => (
-                    <div key={signal.label} className={`queue-preview-signal queue-preview-signal--${signal.tone}`}>
-                      <span>{signal.label}</span>
-                      <strong>{signal.value}</strong>
-                      <small>{signal.detail}</small>
+                    <div key={signal.label} className="queue-preview-signal">
+                      <dt className="queue-preview-signal__label">{signal.label}</dt>
+                      <dd className="queue-preview-signal__value">
+                        {signal.tone === "neutral" ? (
+                          <span className="queue-preview-signal__text">{signal.value}</span>
+                        ) : (
+                          <Chip tone={signal.tone === "danger" ? "danger" : "warning"} size="sm">
+                            {signal.value}
+                          </Chip>
+                        )}
+                      </dd>
+                      <dd className="queue-preview-signal__detail">{signal.detail}</dd>
                     </div>
                   ))}
-                </div>
+                </dl>
+
                 <Link href={queuePreviewHref(queuePreview, data.currentHref)} className="action-button action-button--primary">
                   Открыть приоритетный кейс
                   <ArrowRight size={15} aria-hidden="true" />

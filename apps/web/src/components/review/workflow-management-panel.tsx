@@ -35,7 +35,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
           </p>
         </div>
         <span
-          className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#1d3fae]"
+          className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
           aria-hidden="true"
         >
           <ChevronDown className="h-4 w-4" />

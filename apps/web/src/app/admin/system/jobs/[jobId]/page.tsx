@@ -1,8 +1,13 @@
-import { ArrowLeft, Ban, Play } from "lucide-react";
+import { ArrowLeft, Ban, ListChecks, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatKpi } from "@/components/ui/stat-kpi";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { StatusTone } from "@/lib/ui/status-tone";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
@@ -37,6 +42,20 @@ function jobDetailsSectionParam(value: string | string[] | undefined): JobDetail
 
 function formatDate(value: Date | null | undefined) {
   return value ? value.toLocaleString("ru-RU") : "Нет данных";
+}
+
+function jobStatusTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
+  if (tone === "ok") return "positive";
+  if (tone === "warn") return "warning";
+  if (tone === "error") return "negative";
+  return "neutral";
+}
+
+function jobKpiTone(tone: "ok" | "warn" | "error" | "neutral"): "neutral" | "success" | "warning" | "danger" {
+  if (tone === "ok") return "success";
+  if (tone === "warn") return "warning";
+  if (tone === "error") return "danger";
+  return "neutral";
 }
 
 function parseJson(value: string) {
@@ -120,21 +139,14 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
       </div>
 
       <section className="ops-metric-grid" aria-label="Сводка фоновой задачи">
-        <div className="ops-metric">
-          <span className="ops-metric__label">Статус</span>
-          <strong className="ops-metric__value">{jobStatus.label}</strong>
-          <span className="ops-metric__note">Попытка {job.attempts}/{job.maxAttempts}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Очередь</span>
-          <strong className="ops-metric__value">{queueNameLabel(job.queueName)}</strong>
-          <span className="ops-metric__note">Запуск: {formatDate(job.runAfter)}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">События</span>
-          <strong className="ops-metric__value">{job.events.length}</strong>
-          <span className="ops-metric__note">История runner</span>
-        </div>
+        <StatKpi
+          label="Статус"
+          value={jobStatus.label}
+          tone={jobKpiTone(jobStatus.tone)}
+          hint={`Попытка ${job.attempts}/${job.maxAttempts}`}
+        />
+        <StatKpi label="Очередь" value={queueNameLabel(job.queueName)} hint={`Запуск: ${formatDate(job.runAfter)}`} />
+        <StatKpi label="События" value={job.events.length} hint="История runner" />
       </section>
 
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы фоновой задачи">
@@ -158,7 +170,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
               <h2 id="job-summary-title" className="ops-panel__title">Сводка</h2>
               <p className="ops-panel__subtitle">Ключевые параметры фоновой задачи без технического JSON.</p>
             </div>
-            <span className={`pill ${jobStatus.pillClass}`}>{jobStatus.label}</span>
+            <StatusBadge label="Статус" value={jobStatus.label} tone={jobStatusTone(jobStatus.tone)} />
           </div>
           <div className="record-list px-5">
             <article className="record-card">
@@ -167,9 +179,9 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
             </article>
             <article className="record-card">
               <p className="record-meta">Создал: {job.createdBy?.name ?? "Автоматика"}</p>
-              <p className="record-meta">Запланирована: {formatDate(job.runAfter)}</p>
-              <p className="record-meta">Старт: {formatDate(job.startedAt)}</p>
-              <p className="record-meta">Финиш: {formatDate(job.finishedAt)}</p>
+              <p className="record-meta tabular-nums">Запланирована: {formatDate(job.runAfter)}</p>
+              <p className="record-meta tabular-nums">Старт: {formatDate(job.startedAt)}</p>
+              <p className="record-meta tabular-nums">Финиш: {formatDate(job.finishedAt)}</p>
             </article>
             {job.errorMessage ? (
               <article className="record-card border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]">
@@ -192,18 +204,23 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
           </div>
           <div className="record-list px-5">
             {job.events.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Событий пока нет.</div>
+              <EmptyState
+                size="inline"
+                icon={<ListChecks size={20} aria-hidden="true" />}
+                title="Событий пока нет"
+                description="История runner появится после запуска задачи."
+              />
             ) : (
               job.events.map((event) => (
                 <article key={event.id} className="record-card">
                   <div className="record-row">
                     <p className="font-semibold text-[var(--foreground)]">{event.message}</p>
-                    <span className="pill pill--neutral">{event.level}</span>
+                    <Chip tone="neutral" size="xs">{event.level}</Chip>
                   </div>
-                  <p className="record-meta">{formatDate(event.createdAt)}</p>
+                  <p className="record-meta tabular-nums">{formatDate(event.createdAt)}</p>
                   <details className="compact-details mt-2">
                     <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-[var(--text-body)]">Метаданные</summary>
-                    <pre className="max-h-[220px] overflow-auto border-t border-[var(--border)] bg-[#111827] p-3 text-xs leading-5 text-white">
+                    <pre className="code-surface code-surface--inline max-h-[220px] overflow-auto border-t border-[var(--border)] p-3 text-xs leading-5">
                       {parseJson(event.metadata)}
                     </pre>
                   </details>
@@ -223,7 +240,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
               <p className="ops-panel__subtitle">Техническое тело задачи для отладки обработчика.</p>
             </div>
           </div>
-          <pre className="max-h-[520px] overflow-auto bg-[#111827] p-5 text-xs leading-5 text-white">
+          <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
             {parseJson(job.payloadJson)}
           </pre>
         </section>
@@ -238,7 +255,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
               <p className="ops-panel__subtitle">Ответ обработчика после выполнения задачи.</p>
             </div>
           </div>
-          <pre className="max-h-[520px] overflow-auto bg-[#111827] p-5 text-xs leading-5 text-white">
+          <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
             {parseJson(job.resultJson)}
           </pre>
         </section>

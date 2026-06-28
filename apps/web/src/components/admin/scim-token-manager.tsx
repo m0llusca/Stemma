@@ -3,6 +3,7 @@
 import { KeyRound, RotateCw, ShieldOff } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { Chip } from "@/components/ui/chip";
 
 type ScimTokenManagerProps = {
   titleId: string;
@@ -98,9 +99,9 @@ export function ScimTokenManager({
             Выпуск, ротация и отзыв токена входящего provisioning для выбранного провайдера.
           </p>
         </div>
-        <span className={`pill ${hasToken ? "pill--ok" : "pill--warn"}`}>
+        <Chip tone={hasToken ? "success" : "warning"} size="sm">
           {hasToken ? "Выпущен" : "Не выпущен"}
-        </span>
+        </Chip>
       </div>
 
       <div className="ops-status-strip" aria-label={`SCIM-токен ${providerName}`}>
@@ -149,7 +150,7 @@ export function ScimTokenManager({
       </div>
 
       {plainToken ? (
-        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[#166534]">
+        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--success)]">
           <div className="mb-3 font-semibold">Скопируйте SCIM bearer token сейчас. Повторно он не отображается.</div>
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -170,11 +171,11 @@ export function ScimTokenManager({
       ) : null}
 
       {message ? (
-        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm font-medium text-[#166534]">{message}</div>
+        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm font-medium text-[var(--success)]">{message}</div>
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3 text-sm font-medium text-[#991b1b]">{error}</div>
+        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3 text-sm font-medium text-[var(--danger)]">{error}</div>
       ) : null}
     </div>
   );

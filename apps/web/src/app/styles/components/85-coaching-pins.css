@@ -118,10 +118,11 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #4268e8, var(--accent));
-  color: #ffffff;
+  border-radius: var(--radius-small);
+  background: var(--accent);
+  color: var(--button-primary-text);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
   font-weight: 760;
 }
 
@@ -141,15 +142,15 @@
   display: grid;
   gap: 12px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--panel-tint), #ffffff);
+  background: var(--panel-muted);
   padding: 18px 20px;
 }
 
 .criterion-card {
   overflow: clip;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: #ffffff;
+  border-radius: var(--radius-card);
+  background: var(--panel);
 }
 
 .criterion-card[open] {
@@ -162,7 +163,7 @@
   flex-wrap: wrap;
   gap: 10px;
   border-top: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--panel);
   padding: 14px 20px;
 }
 
@@ -195,7 +196,7 @@
 
 .compact-details {
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: #ffffff;
+  border-radius: var(--radius-card);
+  background: var(--panel);
 }
 

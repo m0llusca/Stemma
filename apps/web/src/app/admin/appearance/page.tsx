@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AppearanceSettingsForm } from "@/components/admin/appearance-settings-form";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip } from "@/components/ui/chip";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { resolveUiAppearance } from "@/lib/ui-theme";
@@ -65,10 +66,9 @@ async function AdminAppearancePageContent() {
             <h2 id="appearance-settings-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
             <p className="ops-panel__subtitle">Палитра управляет навигацией, кнопками, поверхностями, границами и статусами без ручной правки CSS.</p>
           </div>
-          <span className="pill pill--ok">
-            <CheckCircle2 size={14} aria-hidden="true" />
+          <Chip tone="success" size="sm" icon={<CheckCircle2 size={13} aria-hidden="true" />}>
             Готово
-          </span>
+          </Chip>
         </div>
 
         <AppearanceSettingsForm initialAppearance={appearance} />

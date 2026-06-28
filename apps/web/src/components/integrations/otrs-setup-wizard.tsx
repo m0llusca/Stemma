@@ -3,6 +3,7 @@
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { Chip } from "@/components/ui/chip";
 import {
   buildOtrsFamilyTicketGetQueryParams,
   buildOtrsFamilyTicketGetRequest,
@@ -72,16 +73,16 @@ export function OtrsSetupWizard() {
             Собирает URL, авторизацию и форму TicketGet для быстрой проверки перед сохранением источника в cockpit.
           </p>
         </div>
-        <span className="pill pill--neutral">
+        <Chip tone="neutral" size="sm">
           {profile.shortLabel}
-        </span>
+        </Chip>
       </div>
 
       <div className="grid gap-4 p-4">
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="soft-callout content-start gap-4">
             <div className="flex items-center gap-2">
-              <span className="grid size-6 place-items-center rounded bg-[#3157d5] text-xs font-semibold text-white">1</span>
+              <span className="grid size-6 place-items-center rounded bg-[var(--accent)] text-xs font-semibold text-[var(--accent-ink)]">1</span>
               <h4 className="text-sm font-semibold text-[var(--foreground)]">Параметры подключения</h4>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -154,7 +155,7 @@ export function OtrsSetupWizard() {
                 Проверить подключение
               </button>
               {checked && isReady ? (
-                <span className="inline-flex items-center gap-2 rounded-md bg-[var(--accent-soft)] px-3 py-2 text-sm font-medium text-[#3157d5]">
+                <span className="inline-flex items-center gap-2 rounded-md bg-[var(--accent-soft)] px-3 py-2 text-sm font-medium text-[var(--accent-strong)]">
                   <CheckCircle2 size={16} aria-hidden="true" />
                   Preflight готов для {source}
                 </span>
@@ -164,7 +165,7 @@ export function OtrsSetupWizard() {
 
           <div className="soft-callout content-start gap-3">
             <div className="flex items-center gap-2">
-              <span className="grid size-6 place-items-center rounded bg-[#111827] text-xs font-semibold text-white">2</span>
+              <span className="grid size-6 place-items-center rounded bg-[var(--foreground)] text-xs font-semibold text-[var(--background)]">2</span>
               <h4 className="text-sm font-semibold text-[var(--foreground)]">Запрос к helpdesk</h4>
             </div>
             <div className="rounded border border-[var(--border)] bg-[var(--panel)] p-3">
@@ -187,7 +188,7 @@ export function OtrsSetupWizard() {
               <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Канонический GET curl</p>
               <CopyButton value={ticketGetCurl} />
             </div>
-            <pre className="max-h-[180px] overflow-auto rounded-md bg-[#111827] p-4 text-xs leading-5 text-white">
+            <pre className="code-surface max-h-[180px] overflow-auto rounded-md p-4 text-xs leading-5">
               <code>{ticketGetCurl}</code>
             </pre>
           </div>
@@ -196,7 +197,7 @@ export function OtrsSetupWizard() {
               <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Fallback JSON body</p>
               <CopyButton value={ticketGetRequest} />
             </div>
-            <pre className="max-h-[260px] overflow-auto rounded-md bg-[#111827] p-4 text-xs leading-5 text-white">
+            <pre className="code-surface max-h-[260px] overflow-auto rounded-md p-4 text-xs leading-5">
               <code>{ticketGetRequest}</code>
             </pre>
           </div>
@@ -205,7 +206,7 @@ export function OtrsSetupWizard() {
 
       <div className="border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
         <div className="mb-3 flex items-center gap-2">
-          <span className="grid size-6 place-items-center rounded bg-[#64748b] text-xs font-semibold text-white">3</span>
+          <span className="grid size-6 place-items-center rounded bg-[var(--text-muted)] text-xs font-semibold text-[var(--background)]">3</span>
           <h4 className="text-sm font-semibold text-[var(--foreground)]">Как читать форму запроса</h4>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">

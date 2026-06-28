@@ -4,6 +4,12 @@ import {
   type CriterionHeatmapRow,
   type MetricInsightItem
 } from "@/components/reports/analytics-intelligence";
+import {
+  CriterionMatrix,
+  type CriterionMatrixColumn,
+  type CriterionMatrixRow
+} from "@/components/reports/criterion-matrix";
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import {
@@ -51,9 +57,11 @@ import { formatQualityScore } from "@/lib/score-display";
 import {
   addCountGroup,
   addScoreGroup,
+  average,
   averageScoreFor,
   blockRows,
   countGroupRows,
+  criterionEarnedPercent,
   rankedScoreRows,
   withScoreDeltas,
   riskSegments,
@@ -420,6 +428,71 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     count: row.count,
     detail: formatCriterionCount(row.count)
   }));
+  // Agent × criterion-block matrix: per-agent normalized pass-rate for each
+  // criteria block, plus a pinned team-average row. Columns follow the same
+  // block ordering as the criteria breakdown (weakest blocks already first).
+  const matrixColumns: CriterionMatrixColumn[] = blockScoreRows.map((row) => ({
+    key: row.label,
+    label: row.label
+  }));
+  const agentBlockScores = new Map<string, Map<string, number[]>>();
+  const teamBlockScores = new Map<string, number[]>();
+  const agentReviewCounts = new Map<string, number>();
+  for (const review of finalizedReviews) {
+    const agent = review.conversation.assigneeName ?? "Не назначен";
+    agentReviewCounts.set(agent, (agentReviewCounts.get(agent) ?? 0) + 1);
+    const perBlock = agentBlockScores.get(agent) ?? new Map<string, number[]>();
+
+    for (const score of review.scores) {
+      const percent = criterionEarnedPercent(score);
+      if (percent == null) {
+        continue;
+      }
+      addScoreGroup(perBlock, score.criterion.block, percent);
+      addScoreGroup(teamBlockScores, score.criterion.block, percent);
+    }
+
+    agentBlockScores.set(agent, perBlock);
+  }
+  const matrixRows: CriterionMatrixRow[] = Array.from(agentBlockScores.entries())
+    .map(([agent, perBlock]) => {
+      const cells: CriterionMatrixRow["cells"] = {};
+
+      for (const column of matrixColumns) {
+        const scores = perBlock.get(column.key) ?? [];
+        const value = average(scores);
+        cells[column.key] = {
+          value,
+          count: scores.length,
+          href: agent === "Не назначен" ? undefined : reportReviewHref(period, { assignee: agent })
+        };
+      }
+
+      const reviewCount = agentReviewCounts.get(agent) ?? 0;
+
+      return {
+        key: agent,
+        label: agent,
+        meta: formatReviewCount(reviewCount),
+        href: agent === "Не назначен" ? undefined : reportReviewHref(period, { assignee: agent }),
+        cells
+      };
+    })
+    .sort((left, right) => {
+      const leftScore = average(Object.values(left.cells).flatMap((cell) => (cell.value == null ? [] : [cell.value])));
+      const rightScore = average(Object.values(right.cells).flatMap((cell) => (cell.value == null ? [] : [cell.value])));
+      return (leftScore ?? 101) - (rightScore ?? 101) || left.label.localeCompare(right.label, "ru");
+    });
+  const matrixTeamAverage = {
+    label: "Среднее по команде",
+    meta: formatReviewCount(finalizedCount),
+    cells: Object.fromEntries(
+      matrixColumns.map((column) => [
+        column.key,
+        { value: average(teamBlockScores.get(column.key) ?? []) }
+      ])
+    ) as CriterionMatrixRow["cells"]
+  };
   const processRiskCount = criticalCount + reanswerCount + appealCount;
   const viewCounts: Record<ReportView, number> = {
     overview: finalizedCount,
@@ -803,6 +876,30 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
             </ChartPanel>
           </div>
         </>
+      ) : null}
+
+      {reportView === "performance" ? (
+        <section className="panel criterion-matrix-panel overflow-clip" aria-labelledby="criterion-matrix-title">
+          <div className="criterion-matrix-panel__header">
+            <div className="min-w-0">
+              <p className="page-kicker">Матрица</p>
+              <h2 id="criterion-matrix-title" className="criterion-matrix-panel__title">Операторы × критерии</h2>
+              <p className="criterion-matrix-panel__desc">
+                Pass-rate по блокам критериев для каждого оператора. Закрепленная строка — среднее по команде; слабые операторы и блоки подняты выше.
+              </p>
+            </div>
+            <Link href={reportHref(period, { view: "details" })} className="chart-panel__action">
+              Таблицы
+            </Link>
+          </div>
+          <div className="criterion-matrix-panel__body">
+            <CriterionMatrix
+              columns={matrixColumns}
+              rows={matrixRows}
+              teamAverage={matrixTeamAverage}
+            />
+          </div>
+        </section>
       ) : null}
 
       {reportView === "performance" ? (

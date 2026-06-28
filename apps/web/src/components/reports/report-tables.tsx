@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Inbox } from "lucide-react";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { ReportPeriod } from "@/lib/report-period";
 import type { BreakdownRow, ReviewForReport } from "@/lib/reports/report-aggregation";
 import { formatAverageScore, reportReviewHref } from "@/lib/reports/report-format";
@@ -21,9 +24,9 @@ export function BreakdownTable({
 }) {
   return (
     <section id={id} className="panel overflow-clip breakdown-panel">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
+      <div className="breakdown-panel__header">
+        <h2 className="breakdown-panel__title">{title}</h2>
+        <p className="breakdown-panel__meta">
           {rows.length > 0 ? `${rows.length} строк в разрезе` : "Нет данных для выбранного периода"}
         </p>
       </div>
@@ -33,17 +36,16 @@ export function BreakdownTable({
             <article key={row.label} className="record-card">
               <div className="record-row">
                 <h3 className="record-title">{row.label}</h3>
-                <span className="pill pill--neutral">
-                  {row.count} {countLabel.toLowerCase()}
-                </span>
+                <Chip tone="neutral" size="sm" numeric value={row.count} label={countLabel.toLowerCase()} />
               </div>
               {showAverage ? (
-                <p className="record-meta">
-                  Средняя оценка: {formatAverageScore(row.averageScore)}
+                <p className="record-meta record-meta--inline">
+                  <span className="record-meta__label">Средняя оценка</span>
+                  <span className="record-meta__value tabular-nums">{formatAverageScore(row.averageScore)}</span>
                   {row.delta != null && row.delta !== 0 ? (
-                    <span className={`delta-chip delta-chip--${row.delta > 0 ? "up" : "down"}`}>
+                    <Chip tone={row.delta > 0 ? "success" : "danger"} size="xs" numeric>
                       {formatQualityScoreDelta(row.delta)}
-                    </span>
+                    </Chip>
                   ) : null}
                 </p>
               ) : null}
@@ -55,9 +57,11 @@ export function BreakdownTable({
             </article>
           ))
         ) : (
-          <div className="soft-callout text-sm text-[var(--text-muted)]">
-            Нет завершенных проверок.
-          </div>
+          <EmptyState
+            icon={<Inbox size={22} aria-hidden="true" />}
+            title="Нет завершенных проверок"
+            size="inline"
+          />
         )}
       </div>
     </section>
@@ -84,9 +88,9 @@ export function QuotaTable({
 }) {
   return (
     <section id={id} className="panel overflow-clip breakdown-panel quota-table-panel">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">Нормы проверок</h2>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">План, факт и доля негативного CSAT по операторам.</p>
+      <div className="breakdown-panel__header">
+        <h2 className="breakdown-panel__title">Нормы проверок</h2>
+        <p className="breakdown-panel__meta">План, факт и доля негативного CSAT по операторам.</p>
       </div>
       <div className="record-list px-5">
         {quotas.length > 0 ? (
@@ -105,6 +109,7 @@ export function QuotaTable({
                 : remaining > 0
                   ? "Нужно добрать"
                   : "Норма выполнена";
+            const statusTone = actualReviews.length < 10 ? "neutral" : remaining > 0 ? "warning" : "success";
             const href = reportReviewHref(period, {
               assignee: quota.assigneeName,
               ...(quota.supportLine ? { supportLine: quota.supportLine } : {})
@@ -117,9 +122,9 @@ export function QuotaTable({
                     <h3 className="record-title">{quota.assigneeName}</h3>
                     <p className="record-meta mt-1">Линия: {quota.supportLine ?? "Не указана"}</p>
                   </div>
-                  <span className={`pill ${remaining > 0 ? "pill--warn" : "pill--ok"}`}>{quotaStatus}</span>
+                  <Chip tone={statusTone} size="sm">{quotaStatus}</Chip>
                 </div>
-                <p className="record-meta">
+                <p className="record-meta tabular-nums">
                   План: {quota.plannedCount}, факт: {actualReviews.length}, осталось: {remaining}, DSAT: {dsatCount} ({dsatPercent}%) / цель {quota.dsatTargetPercent}%
                 </p>
                 {quota.absenceDays > 0 || quota.note ? (
@@ -135,9 +140,12 @@ export function QuotaTable({
             );
           })
         ) : (
-          <div className="soft-callout text-sm text-[var(--text-muted)]">
-            Нормы на выбранный период пока не заданы.
-          </div>
+          <EmptyState
+            icon={<Inbox size={22} aria-hidden="true" />}
+            title="Нормы не заданы"
+            description="Нормы проверок на выбранный период пока не настроены."
+            size="inline"
+          />
         )}
       </div>
     </section>

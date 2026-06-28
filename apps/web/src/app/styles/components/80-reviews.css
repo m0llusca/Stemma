@@ -1,3 +1,13 @@
+/* Workbench header: status chips wrap below the title — one rationed hue per
+   signal, the rest neutral. Flat, no banner fill (separation by hairline). */
+.review-header-chips {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
 .review-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 480px);
@@ -137,14 +147,25 @@
   padding: 12px;
 }
 
+/* AI provenance: the dedicated quiet AI hue marks ИИ-предложения so the source
+   is unmistakable, without ever coloring an action. */
 .ai-draft-summary {
   display: grid;
   min-width: 0;
   gap: 12px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--ai-border);
+  border-left: 2px solid var(--ai);
   border-radius: var(--radius-page);
-  background: var(--surface-raised);
+  background: var(--ai-soft);
   padding: 14px;
+}
+
+.ai-draft-summary .page-kicker {
+  color: var(--ai-ink);
+}
+
+body[data-theme="ops"] .ai-draft-summary .page-kicker {
+  color: var(--ai-strong);
 }
 
 .ai-draft-summary__header {
@@ -182,9 +203,9 @@
   display: grid;
   min-width: 0;
   gap: 8px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--ai-border);
   border-radius: var(--radius-card);
-  background: var(--surface-soft);
+  background: var(--panel);
   padding: 12px;
 }
 
@@ -327,7 +348,7 @@
 }
 
 .review-brief-card > summary:focus-visible {
-  outline: 2px solid rgba(49, 87, 213, 0.35);
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
   outline-offset: -2px;
 }
 
@@ -471,13 +492,13 @@
 }
 
 .conversation-message__role {
-  background: #ffffff;
-  color: #475569;
+  background: var(--panel-muted);
+  color: var(--text-muted);
 }
 
 .conversation-message__evidence {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--button-primary-text);
 }
 
 .conversation-message__private {
@@ -487,7 +508,7 @@
 
 .conversation-message__body {
   white-space: pre-wrap;
-  color: #334155;
+  color: var(--text-body);
   font-size: 14px;
   line-height: 1.7;
 }

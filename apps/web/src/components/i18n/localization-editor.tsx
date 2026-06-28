@@ -2,6 +2,8 @@
 
 import { RotateCcw, Save, Send, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type LocaleOption = {
   id: string;
@@ -66,18 +68,18 @@ function statusLabel(value: TranslationValue | null, draftText: string) {
   return "Опубликовано";
 }
 
-function statusClassName(value: TranslationValue | null, draftText: string) {
+function statusTone(value: TranslationValue | null, draftText: string): ChipTone {
   const label = statusLabel(value, draftText);
 
   if (label === "Опубликовано") {
-    return "pill pill--ok";
+    return "success";
   }
 
   if (label === "Черновик") {
-    return "pill pill--warn";
+    return "warning";
   }
 
-  return "pill pill--neutral";
+  return "neutral";
 }
 
 export function LocalizationEditor({
@@ -165,7 +167,7 @@ export function LocalizationEditor({
           <span>
             Выбран язык: <strong className="text-[var(--foreground)]">{selectedLocale.name}</strong>
           </span>
-          <span className="pill pill--neutral">{filteredKeys.length} из {translationKeys.length} ключей</span>
+          <Chip tone="neutral" size="sm" numeric>{filteredKeys.length} из {translationKeys.length} ключей</Chip>
         </div>
       ) : (
         <div className="soft-callout text-sm text-[var(--text-muted)]">Создайте первый язык, чтобы редактировать переводы.</div>
@@ -207,7 +209,7 @@ export function LocalizationEditor({
 
                   <div className="grid content-start gap-2 text-sm text-[var(--foreground)]" role="cell">
                     <span>{translationKey.defaultText}</span>
-                    <span className={statusClassName(value, draftText)}>{statusLabel(value, draftText)}</span>
+                    <Chip tone={statusTone(value, draftText)} size="xs">{statusLabel(value, draftText)}</Chip>
                     {value?.publishedAt ? <span className="text-xs text-[var(--text-muted)]">Версия {value.version}</span> : null}
                   </div>
 
@@ -259,7 +261,12 @@ export function LocalizationEditor({
             })}
 
             {filteredKeys.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">Ключи по фильтру не найдены.</div>
+              <EmptyState
+                size="inline"
+                icon={<SlidersHorizontal size={20} aria-hidden="true" />}
+                title="Ключи по фильтру не найдены"
+                description="Измените запрос фильтра, чтобы увидеть строки для перевода."
+              />
             ) : null}
           </div>
         </div>

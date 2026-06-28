@@ -1,9 +1,11 @@
-import { Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
-import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { SamplingRuleForm } from "@/components/admin/sampling-rule-form";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -164,7 +166,7 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                     <span>Правило</span>
                     <span>Тип</span>
                     <span>Условия</span>
-                    <span>Выборка</span>
+                    <span className="admin-data-table__num">Выборка</span>
                   </div>
                   {rules.map((rule) => {
                     const conditions = parseConditions(rule.conditionsJson);
@@ -174,9 +176,9 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                         <span className="admin-data-table__primary admin-data-table__primary--stacked">
                           <strong>{rule.name}</strong>
                           <span className="admin-data-table__inline-actions">
-                            <span className={`pill ${rule.isActive ? "pill--ok" : "pill--neutral"}`}>
+                            <Chip tone={rule.isActive ? "success" : "neutral"} size="xs">
                               {rule.isActive ? "Активно" : "Выключено"}
-                            </span>
+                            </Chip>
                             <form action={updateSamplingRuleStatus}>
                               <input type="hidden" name="id" value={rule.id} />
                               <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
@@ -188,18 +190,26 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                         </span>
                         <span>{samplingRuleTypeLabels[rule.type] ?? rule.type}</span>
                         <span className="admin-data-table__muted">{formatConditions(conditions)}</span>
-                        <span className="admin-data-table__stack">
-                          <strong>{rule.targetPercent}%</strong>
-                          <small>приор. {rule.priority}</small>
+                        <span className="admin-data-table__stack admin-data-table__num">
+                          <strong className="tabular-nums">{rule.targetPercent}%</strong>
+                          <small className="tabular-nums">приор. {rule.priority}</small>
                         </span>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="soft-callout ops-empty text-sm leading-5 text-[var(--text-muted)]">
-                  Правил пока нет. Добавьте правило, чтобы обращения автоматически попадали в очередь проверки.
-                </div>
+                <EmptyState
+                  size="inline"
+                  icon={<ListChecks size={20} aria-hidden="true" />}
+                  title="Правил пока нет"
+                  description="Добавьте правило, чтобы обращения автоматически попадали в очередь проверки."
+                  action={
+                    <Link href={samplingSectionHref("create")} className="action-button action-button--small">
+                      Новое правило
+                    </Link>
+                  }
+                />
               )}
             </div>
             {samplingSetupHint ? (
@@ -228,94 +238,26 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
               <p className="ops-panel__subtitle">Настройте условия и долю обращений для ручной проверки.</p>
             </div>
           </div>
-          <div className={samplingSetupHint ? "setup-guide-layout p-4" : "p-4"}>
-            <div className={samplingSetupHint ? "setup-guide-layout__main" : ""}>
-              <div className="setup-stepper" aria-label="Шаги создания правила выборки">
-                <span className="setup-step setup-step--done">1. Сегмент</span>
-                <span className="setup-step setup-step--active">2. Условия</span>
-                <span className="setup-step">3. Доля</span>
-              </div>
-              <form action={createSamplingRule} className="grid gap-3">
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Название
-                  <input name="name" required className="form-control" />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Тип
-                  <select name="type" defaultValue="random" className="form-control">
-                    <option value="random">Случайная</option>
-                    <option value="csat">CSAT</option>
-                    <option value="new_hire">Новички</option>
-                    <option value="lead_signal">Сигнал руководителя</option>
-                    <option value="manual">Ручная</option>
-                  </select>
-                </label>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Канал
-                    <select name="channel" defaultValue="" className="form-control">
-                      <option value="">Любой</option>
-                      {Object.entries(channelLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    CSAT
-                    <select name="csatBucket" defaultValue="" className="form-control">
-                      <option value="">Любой</option>
-                      {Object.entries(csatBucketLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Линия
-                    <input name="supportLine" placeholder="1ЛП" className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Тег
-                    <input name="tag" placeholder="new_hire" className="form-control" />
-                  </label>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Доля, %
-                    <input name="targetPercent" type="number" min="1" max="100" defaultValue="10" className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Приоритет
-                    <input name="priority" type="number" defaultValue="100" className="form-control" />
-                  </label>
-                </div>
-                <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-body)]">
-                  <input name="isActive" type="checkbox" defaultChecked />
-                  Включить сразу
-                </label>
-                <div className="flex justify-end">
-                  <ValidatedSubmitButton>
-                    Создать правило
-                  </ValidatedSubmitButton>
-                </div>
-              </form>
-            </div>
+          <div className="p-4">
             {samplingSetupHint ? (
-              <CoachCallout
-                title="Сэмплируйте по тому, что важно"
-                body="CSAT, канал, линия, тег и приоритет выглядят как единый конструктор условий, а не как разрозненные поля."
-                variant="spotlight"
-                placement="left"
-                anchorLabel="Подсказка к созданию правила"
-                stepIndex={2}
-                dismissId="settings:sampling"
-              />
+              <div className="admin-setup-inline mb-4 rounded-[var(--radius-card)] border border-[var(--line-soft)]">
+                <CoachCallout
+                  title="Сэмплируйте по тому, что важно"
+                  body="CSAT, канал, линия, тег и приоритет — это единый конструктор условий, а не разрозненные поля."
+                  variant="spotlight"
+                  placement="top"
+                  anchorLabel="Подсказка к созданию правила"
+                  stepIndex={2}
+                  dismissId="settings:sampling"
+                />
+              </div>
             ) : null}
+            <SamplingRuleForm
+              action={createSamplingRule}
+              channelOptions={Object.entries(channelLabels).map(([value, label]) => ({ value, label }))}
+              csatOptions={Object.entries(csatBucketLabels).map(([value, label]) => ({ value, label }))}
+              ruleTypeOptions={Object.entries(samplingRuleTypeLabels).map(([value, label]) => ({ value, label }))}
+            />
           </div>
         </section>
       ) : null}

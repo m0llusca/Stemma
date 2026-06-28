@@ -120,7 +120,7 @@
 .pill--neutral {
   border-color: var(--border);
   background: var(--panel-muted);
-  color: #475569;
+  color: var(--text-body);
 }
 
 .metric-strip {
@@ -129,8 +129,8 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--metric-card-min)), 1fr));
   overflow: clip;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  background: #ffffff;
+  border-radius: var(--radius-card);
+  background: var(--panel);
   box-shadow: var(--shadow-panel);
 }
 
@@ -138,23 +138,24 @@
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   overflow: clip;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: var(--shadow-panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-page);
+  background: var(--panel);
+  box-shadow: none;
 }
 
 .focus-summary__lead {
   display: grid;
   align-content: center;
   gap: 8px;
-  background: #0f172a;
+  border-right: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface-raised));
   padding: 18px 20px;
-  color: #ffffff;
+  color: var(--foreground);
 }
 
 .focus-summary__label {
-  color: #cbd5e1;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 760;
   letter-spacing: 0;
@@ -162,13 +163,15 @@
 }
 
 .focus-summary__value {
+  color: var(--foreground);
   font-size: 34px;
   font-weight: 760;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .focus-summary__hint {
-  color: #cbd5e1;
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
 }

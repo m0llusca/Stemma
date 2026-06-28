@@ -57,11 +57,81 @@
 }
 
 .workbench .scoreSurface {
+  display: grid;
+  gap: 12px;
+  background: var(--panel-muted);
   padding: 14px 16px;
 }
 
 .workbench .scoreSurface :global(.signal-row) {
   gap: 6px;
+}
+
+/* Live score math: number-as-hero + tabular weight/progress stats. */
+.scoreMath {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 18px;
+}
+
+.scoreMathHero {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.scoreMathLabel {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.scoreMathValue {
+  color: var(--foreground);
+  font-size: 34px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+}
+
+.scoreMathHint {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.scoreMathStats {
+  display: flex;
+  margin: 0;
+  gap: 18px;
+}
+
+.scoreMathStat {
+  display: grid;
+  gap: 2px;
+}
+
+.scoreMathStat dt {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.scoreMathStat dd {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .panelScroll {
@@ -137,7 +207,6 @@
   height: 26px;
   width: 26px;
   border-radius: var(--radius-small);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
   font-size: 12px;
 }
 
@@ -167,7 +236,6 @@
   border: 1px solid var(--workbench-line);
   border-radius: var(--radius-card);
   background: var(--panel);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
 }
 
 .processGroupHeader {
@@ -400,6 +468,16 @@
   min-width: 0;
 }
 
+.criterionWeight,
+.criterionContribution {
+  font-variant-numeric: tabular-nums;
+  font-weight: 720;
+}
+
+.criterionContribution {
+  color: var(--text-body);
+}
+
 .chevron {
   display: inline-flex;
   height: 28px;
@@ -451,20 +529,99 @@
   padding: 0;
 }
 
-.choiceGrid {
+/* Monochrome segmented control: hairline cells joined edge-to-edge; the chosen
+   answer fills with accent (selected = filled accent), per the clean-product
+   single-accent rule. The "Незачет" cell fills danger only when selected, since
+   that is a status threshold, not a brand action. The native radio is hidden. */
+.segmentGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  overflow: clip;
+  border: 1px solid var(--workbench-line);
+  border-radius: var(--radius-small);
+  background: var(--panel);
 }
 
-.choiceCard,
+.segment {
+  display: flex;
+  min-height: 36px;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-left: 1px solid var(--workbench-line);
+  background: var(--panel);
+  color: var(--text-body);
+  cursor: pointer;
+  padding: 5px 8px;
+  text-align: center;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.segment:first-child {
+  border-left: 0;
+}
+
+.segment input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.segmentLabel {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.2;
+}
+
+.segmentPoints {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.segment:hover {
+  background: var(--panel-muted);
+}
+
+.segment:has(input:checked) {
+  background: var(--accent);
+  color: var(--button-primary-text);
+}
+
+.segment:has(input:checked) .segmentPoints {
+  color: color-mix(in srgb, var(--button-primary-text) 78%, transparent);
+}
+
+.segmentDanger:has(input:checked) {
+  background: var(--danger);
+  color: var(--button-primary-text);
+}
+
+.segment:has(input:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  outline-offset: -2px;
+}
+
 .notApplicableToggle {
   display: flex;
-  min-height: 34px;
+  min-height: 36px;
   min-width: 0;
+  align-self: end;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--workbench-line);
+  border: 1px dashed var(--workbench-line);
   border-radius: var(--radius-small);
   background: var(--panel);
   color: var(--foreground);
@@ -472,37 +629,18 @@
   font-weight: 650;
   line-height: 1.2;
   padding: 7px 9px;
+  white-space: nowrap;
   transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
 
-.choiceCard:hover,
 .notApplicableToggle:hover {
   border-color: var(--border-strong);
   background: var(--panel-muted);
 }
 
-.choiceCard:has(input:checked) {
-  border-color: color-mix(in srgb, var(--success) 38%, var(--border));
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.choiceCardDanger:has(input:checked) {
-  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.choiceCard:focus-within,
 .notApplicableToggle:focus-within {
   outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
   outline-offset: 1px;
-}
-
-.notApplicableToggle {
-  align-self: end;
-  border-style: dashed;
-  white-space: nowrap;
 }
 
 .evidenceGrid {
@@ -528,6 +666,19 @@
   font-size: 11px;
   font-weight: 520;
   line-height: 1.35;
+}
+
+/* "Add to coaching" affordance on failing criteria — anchors to the Разбор block. */
+.coachingLink {
+  justify-self: start;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.coachingLink:hover {
+  text-decoration: underline;
 }
 
 .summaryComposer {
@@ -654,6 +805,23 @@
   .evidenceGrid,
   .summaryTemplateGrid {
     grid-template-columns: 1fr;
+  }
+
+  .segmentGrid {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+
+  .segment {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
+    border-left: 0;
+    border-top: 1px solid var(--workbench-line);
+  }
+
+  .segment:first-child {
+    border-top: 0;
   }
 
   .notApplicableToggle {

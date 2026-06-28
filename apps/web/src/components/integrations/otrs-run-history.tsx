@@ -1,5 +1,13 @@
 import Link from "next/link";
+import { Chip, type ChipTone } from "@/components/ui/chip";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
+
+function runChipTone(tone: "ok" | "warn" | "error" | "neutral"): ChipTone {
+  if (tone === "ok") return "success";
+  if (tone === "warn") return "warning";
+  if (tone === "error") return "danger";
+  return "neutral";
+}
 
 type BackendJobSummary = {
   id: string;
@@ -74,7 +82,7 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="record-title record-title--tight">{run.dryRun ? "Preview / dry-run" : "Импорт"}</span>
-                      <span className={`pill ${runStatus.pillClass}`}>{runStatus.label}</span>
+                      <Chip tone={runChipTone(runStatus.tone)} size="xs">{runStatus.label}</Chip>
                     </div>
                     <p className="record-meta">
                       {run.mode} · {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
@@ -90,17 +98,17 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
                 <div className="mt-3 grid gap-2 md:grid-cols-3">
                   <div className="soft-callout">
                     <p className="soft-callout__label">Объем</p>
-                    <p className="record-meta">
+                    <p className="record-meta tabular-nums">
                       {run.importedCount}/{run.requestedLimit} · ошибок {run.errorCount}
                     </p>
                   </div>
                   <div className="soft-callout">
                     <p className="soft-callout__label">Финиш</p>
-                    <p className="record-meta">{formatDate(run.finishedAt)}</p>
+                    <p className="record-meta tabular-nums">{formatDate(run.finishedAt)}</p>
                   </div>
                   <div className="soft-callout">
                     <p className="soft-callout__label">Items</p>
-                    <p className="record-meta">{run.items.length} строк</p>
+                    <p className="record-meta tabular-nums">{run.items.length} строк</p>
                   </div>
                 </div>
 
@@ -120,15 +128,15 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
                           <th className="px-3 py-2 font-semibold">Review queue</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#d9e0ea]">
+                      <tbody className="divide-y divide-[var(--border)]">
                         {run.items.map((item) => (
                           <tr key={item.id}>
                             <td className="px-3 py-2 font-mono text-xs">{item.externalId}</td>
                             <td className="px-3 py-2 font-mono text-xs">{item.ticketNumber ?? "Нет"}</td>
                             <td className="px-3 py-2">
-                              <span className={`pill ${item.status === "imported" ? "pill--ok" : "pill--neutral"}`}>
+                              <Chip tone={item.status === "imported" ? "success" : "neutral"} size="xs">
                                 {item.status}
-                              </span>
+                              </Chip>
                             </td>
                             <td className="px-3 py-2 text-[var(--text-body)]">
                               {item.articleCount} · private {item.privateArticleCount} · files {item.attachmentCount}

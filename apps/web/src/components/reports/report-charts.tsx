@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { BarChart3, Inbox } from "lucide-react";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { InteractiveSparklineChart } from "@/components/reports/interactive-sparkline-chart";
 import { formatQualityScoreDelta } from "@/lib/score-display";
 
@@ -29,6 +32,23 @@ function clampPercent(value: number) {
 
 function formatPercent(value: number) {
   return `${Math.round(value)}%`;
+}
+
+/**
+ * Risk severity maps to a SINGLE-HUE density ramp (calm -> dense), not a
+ * green-yellow-red traffic light. The incoming `color` is a stable severity
+ * key — we ignore any legacy Tailwind hex class and key the fill off the rank
+ * so the stacked bar reads as one ordered scale in every theme.
+ */
+const riskStackToneByOrder = [
+  "risk-stack__seg--t1",
+  "risk-stack__seg--t2",
+  "risk-stack__seg--t3",
+  "risk-stack__seg--t4"
+];
+
+function deltaTone(delta: number) {
+  return delta > 0 ? "success" : delta < 0 ? "danger" : "neutral";
 }
 
 function PercentProgressBar({ value, label }: { value: number; label: string }) {
@@ -69,8 +89,8 @@ export function ChartPanel({
     <section className="panel chart-panel overflow-clip">
       <div className="chart-panel__header">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-[var(--text-muted)]">{description}</p> : null}
+          <h2 className="chart-panel__title">{title}</h2>
+          {description ? <p className="chart-panel__desc">{description}</p> : null}
         </div>
         {actionHref ? (
           <Link href={actionHref} className="chart-panel__action">
@@ -78,7 +98,7 @@ export function ChartPanel({
           </Link>
         ) : null}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="chart-panel__body">{children}</div>
     </section>
   );
 }
@@ -96,7 +116,7 @@ export function HorizontalBarChart({
   valueSuffix = "",
   valueFormatter,
   maxValue,
-  emptyLabel = "Нет данных."
+  emptyLabel = "Нет данных за период."
 }: {
   rows: ChartDatum[];
   valueSuffix?: string;
@@ -105,28 +125,30 @@ export function HorizontalBarChart({
   emptyLabel?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[var(--text-muted)]">{emptyLabel}</p>;
+    return (
+      <EmptyState icon={<BarChart3 size={22} aria-hidden="true" />} title={emptyLabel} size="inline" />
+    );
   }
 
   const computedMax = maxValue ?? Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <div className="grid gap-3">
+    <div className="hbar-chart">
       {rows.map((row) => {
         const percent = clampPercent((row.value / computedMax) * 100);
 
         return (
-          <div key={row.label} className="grid gap-1">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]">{row.label}</p>
-              <p className="shrink-0 text-sm font-semibold text-[var(--text-body)]">
+          <div key={row.label} className="hbar-chart__row">
+            <div className="hbar-chart__head">
+              <p className="hbar-chart__label">{row.label}</p>
+              <p className="hbar-chart__value tabular-nums">
                 {valueFormatter ? valueFormatter(row.value) : `${Math.round(row.value)}${valueSuffix}`}
               </p>
             </div>
-            <div className="h-2 overflow-clip rounded-full bg-[#e2e8f0]">
-              <div className="h-full rounded-full bg-[#3157d5]" style={{ width: `${percent}%` }} />
+            <div className="hbar-chart__track">
+              <div className="hbar-chart__fill" style={{ width: `${percent}%` }} />
             </div>
-            {row.detail ? <p className="text-xs text-[var(--text-muted)]">{row.detail}</p> : null}
+            {row.detail ? <p className="hbar-chart__detail">{row.detail}</p> : null}
           </div>
         );
       })}
@@ -138,7 +160,14 @@ export function ScoreDistribution({ rows }: { rows: ChartDatum[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок для распределения.</p>;
+    return (
+      <EmptyState
+        icon={<BarChart3 size={22} aria-hidden="true" />}
+        title="Нет завершенных проверок"
+        description="Распределение оценок появится после первых финализированных проверок."
+        size="inline"
+      />
+    );
   }
 
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
@@ -151,7 +180,7 @@ export function ScoreDistribution({ rows }: { rows: ChartDatum[] }) {
             <div className="score-histogram__bar" style={{ height: row.value > 0 ? `${Math.max(10, (row.value / maxValue) * 100)}%` : "0%" }} />
           </div>
           <span className="score-histogram__label">{row.label}</span>
-          <span className="score-histogram__value">{row.value}</span>
+          <span className="score-histogram__value tabular-nums">{row.value}</span>
         </div>
       ))}
     </div>
@@ -161,7 +190,7 @@ export function ScoreDistribution({ rows }: { rows: ChartDatum[] }) {
 export function RankedList({
   rows,
   valueFormatter,
-  emptyLabel = "Нет данных.",
+  emptyLabel = "Нет данных за период.",
   actionLabel = "Открыть"
 }: {
   rows: RankedDatum[];
@@ -170,7 +199,7 @@ export function RankedList({
   actionLabel?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[var(--text-muted)]">{emptyLabel}</p>;
+    return <EmptyState icon={<Inbox size={22} aria-hidden="true" />} title={emptyLabel} size="inline" />;
   }
 
   return (
@@ -180,16 +209,16 @@ export function RankedList({
           key={`${row.label}:${index}`}
           className={`ranked-list__row ranked-list__row--${row.delta == null ? "neutral" : row.delta < 0 ? "down" : row.delta > 0 ? "up" : "flat"}`}
         >
-          <div className="ranked-list__rank">{index + 1}</div>
+          <div className="ranked-list__rank tabular-nums">{index + 1}</div>
           <div className="ranked-list__body">
             <div className="ranked-list__title-row">
               <h3>{row.label}</h3>
               <div className="ranked-list__score">
-                <strong>{valueFormatter ? valueFormatter(row.value) : row.value}</strong>
+                <strong className="tabular-nums">{valueFormatter ? valueFormatter(row.value) : row.value}</strong>
                 {row.delta != null ? (
-                  <span className={`delta-chip delta-chip--${row.delta > 0 ? "up" : row.delta < 0 ? "down" : "flat"}`}>
+                  <Chip tone={deltaTone(row.delta)} size="xs" numeric>
                     {formatQualityScoreDelta(row.delta)}
-                  </span>
+                  </Chip>
                 ) : null}
               </div>
             </div>
@@ -217,30 +246,37 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-[var(--text-muted)]">Нет данных для распределения.</p>;
+    return (
+      <EmptyState
+        icon={<BarChart3 size={22} aria-hidden="true" />}
+        title="Нет данных для распределения"
+        size="inline"
+      />
+    );
   }
 
   return (
     <div className="risk-stack">
       <div className="risk-stack__bar">
-        {segments.map((segment) => (
+        {segments.map((segment, index) => (
           <div
             key={segment.label}
             title={`${segment.label}: ${segment.value}`}
-            className={segment.color}
+            className={`risk-stack__seg ${riskStackToneByOrder[index] ?? riskStackToneByOrder[riskStackToneByOrder.length - 1]}`}
             style={{ width: `${(segment.value / total) * 100}%` }}
           />
         ))}
       </div>
       <div className="risk-stack__legend">
-        {segments.map((segment) => {
+        {segments.map((segment, index) => {
+          const toneClass = riskStackToneByOrder[index] ?? riskStackToneByOrder[riskStackToneByOrder.length - 1];
           const content = (
             <>
               <span>
-                <span className={`risk-stack__dot ${segment.color}`} />
+                <span className={`risk-stack__dot risk-stack__seg ${toneClass}`} />
                 <span>{segment.label}</span>
               </span>
-              <strong>{segment.value}</strong>
+              <strong className="tabular-nums">{segment.value}</strong>
             </>
           );
 
@@ -270,7 +306,14 @@ export function QuotaProgressBars({
   }>;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[var(--text-muted)]">Нормы на выбранный период пока не заданы.</p>;
+    return (
+      <EmptyState
+        icon={<Inbox size={22} aria-hidden="true" />}
+        title="Нормы не заданы"
+        description="Нормы проверок на выбранный период пока не настроены."
+        size="inline"
+      />
+    );
   }
 
   return (
@@ -286,7 +329,7 @@ export function QuotaProgressBars({
               <span>{remaining > 0 ? `Осталось ${remaining}` : "Норма закрыта"}</span>
             </div>
             <PercentProgressBar value={percent} label={row.label} />
-            <strong>{row.actual} из {row.planned}</strong>
+            <strong className="tabular-nums">{row.actual} из {row.planned}</strong>
           </>
         );
         const className = `quota-list__row ${remaining > 0 ? "quota-list__row--behind" : "quota-list__row--done"} ${row.href ? "quota-list__row--link" : ""}`;

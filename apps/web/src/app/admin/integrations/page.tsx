@@ -10,7 +10,9 @@ import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -34,8 +36,6 @@ const integrationSections: Array<{ value: IntegrationSection; label: string }> =
   { value: "activity", label: "Журнал" },
   { value: "catalog", label: "Каталог" }
 ];
-
-const emptyStateClass = "soft-callout ops-empty text-sm leading-5 text-[var(--text-muted)]";
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
@@ -648,26 +648,24 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
       </div>
 
       <section className="ops-metric-grid" aria-label="Состояние интеграций">
-        <div className="ops-metric">
-          <span className="ops-metric__label">Источники</span>
-          <strong className="ops-metric__value">{integrations.length}</strong>
-          <span className="ops-metric__note">Активные и готовые: {activeSources.length}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Диагностика</span>
-          <strong className="ops-metric__value">{diagnosticRuns.length}</strong>
-          <span className="ops-metric__note">Требуют внимания: {failedDiagnostics}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Задачи обработчика</span>
-          <strong className="ops-metric__value">{activeJobs}</strong>
-          <span className="ops-metric__note">В очереди или в работе</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Последний импорт</span>
-          <strong className="ops-metric__value">{lastImportRun ? formatDate(lastImportRun.startedAt).split(",")[0] : "Нет"}</strong>
-          <span className="ops-metric__note">{lastImportRun ? externalSourceLabel(lastImportRun.source) : "Реальные импорты еще не запускались"}</span>
-        </div>
+        <StatKpi label="Источники" value={integrations.length} hint={`Активные и готовые: ${activeSources.length}`} />
+        <StatKpi
+          label="Диагностика"
+          value={diagnosticRuns.length}
+          tone={failedDiagnostics > 0 ? "danger" : "neutral"}
+          hint={`Требуют внимания: ${failedDiagnostics}`}
+        />
+        <StatKpi
+          label="Задачи обработчика"
+          value={activeJobs}
+          tone={activeJobs > 0 ? "warning" : "neutral"}
+          hint="В очереди или в работе"
+        />
+        <StatKpi
+          label="Последний импорт"
+          value={lastImportRun ? formatDate(lastImportRun.startedAt).split(",")[0] : "Нет"}
+          hint={lastImportRun ? externalSourceLabel(lastImportRun.source) : "Реальные импорты еще не запускались"}
+        />
       </section>
         </>
       }
@@ -817,8 +815,8 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                        <span>Лимит {integration.importLimit}</span>
 	                        <span>пакет {integration.batchSize}</span>
 	                      </span>
-	                      <span className="record-meta">Импорт: {formatCompactDate(integration.lastImportAt)}</span>
-	                      <span className="record-meta">Проверка: {formatCompactDate(integration.lastDryRunAt)}</span>
+	                      <span className="record-meta tabular-nums">Импорт: {formatCompactDate(integration.lastImportAt)}</span>
+	                      <span className="record-meta tabular-nums">Проверка: {formatCompactDate(integration.lastDryRunAt)}</span>
 	                    </div>
 	                    <div className="ops-table__cell">
 	                      <span className="ops-table__label">Активность</span>
@@ -876,7 +874,17 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             </div>
           </div>
         ) : (
-          <div className={emptyStateClass}>Источники пока не настроены. Начните с мастера подключения.</div>
+          <EmptyState
+            size="inline"
+            icon={<PlugZap size={20} aria-hidden="true" />}
+            title="Источники пока не настроены"
+            description="Подключите helpdesk или API-источник, чтобы обращения попадали в очередь проверок."
+            action={
+              <Link href="/admin/integrations/new" className="action-button action-button--small">
+                Новый источник
+              </Link>
+            }
+          />
         )}
         </section>
       ) : null}
@@ -931,7 +939,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                             <StatusBadge label="Задача" value={jobStatus.label} tone={operationalTone(jobStatus.tone)} />
                           ) : null}
                         </div>
-                        <span className="record-meta">
+                        <span className="record-meta tabular-nums">
                           {formatCompactDate(run.startedAt)} · проверено {displayedCheckedCount(run)} · импортировано {run.importedCount}
                         </span>
                       </div>
@@ -968,7 +976,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       />
                       <div className="integration-activity-row__body">
                         <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
-                        <span className="record-meta compact-text">{formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}</span>
+                        <span className="record-meta compact-text tabular-nums">{formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}</span>
                       </div>
                     </Link>
                   );
@@ -1004,7 +1012,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       <SourceIdentity source={source} name={sourceName} meta={`Задача ${job.id.slice(0, 8)}`} compact />
                       <div className="integration-activity-row__body">
                         <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
-                        <span className="record-meta">
+                        <span className="record-meta tabular-nums">
                           {formatCompactDate(job.runAfter)} · попытка {job.attempts}/{job.maxAttempts}
                           {runId ? ` · запуск ${runId.slice(0, 8)}` : ""}
                         </span>

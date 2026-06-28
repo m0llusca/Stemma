@@ -10,6 +10,8 @@ import { getPermissions, type Permission } from "@/lib/auth/permissions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 
 export const dynamic = "force-dynamic";
@@ -112,10 +114,9 @@ function loginLabel(value: string | null | undefined) {
   return value || "SSO";
 }
 
-function roleTone(role: RoleName) {
-  if (role === "ADMIN") return "pill--warn";
-  if (role === "VIEWER") return "pill--neutral";
-  return "pill--ok";
+function roleTone(role: RoleName): ChipTone {
+  if (role === "ADMIN") return "warning";
+  return "neutral";
 }
 
 function RoleSelect({ defaultValue }: { defaultValue: RoleName }) {
@@ -220,26 +221,27 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
       </div>
 
       <section className="ops-metric-grid" aria-label="Сводка пользователей">
-        <div className="ops-metric">
-          <span className="ops-metric__label">Пользователи</span>
-          <strong className="ops-metric__value">{users.length}</strong>
-          <span className="ops-metric__note">Администраторов: {adminUsers}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Локальный вход</span>
-          <strong className="ops-metric__value">{localUsers}</strong>
-          <span className="ops-metric__note">SSO-связи: {ssoLinkedUsers}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Активные сессии</span>
-          <strong className="ops-metric__value">{activeSessions}</strong>
-          <span className="ops-metric__note">Последние входы видны по пользователям</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Ролевой контроль</span>
-          <strong className="ops-metric__value">{roles.filter((role) => roleUserCounts[role] > 0).length}</strong>
-          <span className="ops-metric__note">Ролей используется из {roles.length}</span>
-        </div>
+        <StatKpi
+          label="Пользователи"
+          value={users.length}
+          hint={`Администраторов: ${adminUsers}`}
+        />
+        <StatKpi
+          label="Локальный вход"
+          value={localUsers}
+          hint={`SSO-связи: ${ssoLinkedUsers}`}
+        />
+        <StatKpi
+          label="Активные сессии"
+          value={activeSessions}
+          hint="Последние входы видны по пользователям"
+        />
+        <StatKpi
+          label="Ролевой контроль"
+          value={roles.filter((role) => roleUserCounts[role] > 0).length}
+          unit={`/ ${roles.length}`}
+          hint="Ролей используется из общего числа"
+        />
       </section>
 
       {activeSection !== "create" ? (
@@ -300,14 +302,14 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                       <span className="ops-table__label">Пользователь</span>
                       <span className="flex flex-wrap items-center gap-2">
                         <strong className="record-title">{managedUser.name}</strong>
-                        {managedUser.id === currentUser.id ? <span className="pill pill--neutral">Вы</span> : null}
+                        {managedUser.id === currentUser.id ? <Chip tone="accent" size="xs">Вы</Chip> : null}
                       </span>
                       <span className="record-meta compact-text">{managedUser.email}</span>
                     </div>
                     <label className="ops-table__cell text-sm font-medium text-[var(--text-body)]">
                       <span className="ops-table__label">Роль</span>
                       <RoleSelect defaultValue={managedUser.role} />
-                      <span className={`pill ${roleTone(managedUser.role)}`}>{roleLabels[managedUser.role]}</span>
+                      <Chip tone={roleTone(managedUser.role)} size="xs">{roleLabels[managedUser.role]}</Chip>
                     </label>
                     <div className="ops-table__cell ops-table__cell--stacked">
                       <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
@@ -322,8 +324,8 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                     <div className="ops-table__cell">
                       <span className="ops-table__label">Вход и активность</span>
                       <span className="record-title record-title--tight">{loginLabel(managedUser.localCredential?.login)}</span>
-                      <span className="record-meta">Последний локальный вход: {formatDate(managedUser.localCredential?.lastLoginAt)}</span>
-                      <span className="record-meta">
+                      <span className="record-meta tabular-nums">Последний локальный вход: {formatDate(managedUser.localCredential?.lastLoginAt)}</span>
+                      <span className="record-meta tabular-nums">
                         Активных сессий: {activeUserSessions} · проверок: {managedUser._count.reviews} · внешних профилей:{" "}
                         {managedUser._count.externalIdentities}
                       </span>
@@ -424,12 +426,12 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                       <div key={role} className="role-matrix-card__role">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="record-title record-title--tight">{roleLabels[role]}</span>
-                          <span className={`ops-check ${summary.enabled.length > 0 ? "ops-check--on" : "ops-check--off"}`}>{summary.label}</span>
+                          <Chip tone={summary.enabled.length > 0 ? "accent" : "neutral"} size="xs" numeric>{summary.label}</Chip>
                         </div>
                         <p className="record-meta compact-text">
                           {summary.enabled.length > 0 ? summary.enabled.map((permission) => permissionLabels[permission]).join(", ") : "Нет доступа"}
                         </p>
-                        <p className="record-meta">Пользователей: {roleUserCounts[role]}</p>
+                        <p className="record-meta tabular-nums">Пользователей: {roleUserCounts[role]}</p>
                       </div>
                     );
                   })}

@@ -13,14 +13,14 @@
 .metricStripHeader h2 {
   margin-top: 5px;
   color: var(--foreground);
-  font-size: 18px;
-  font-weight: 840;
-  letter-spacing: 0;
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
   line-height: 1.18;
 }
 
 .metricStripDescription {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -31,26 +31,24 @@
 }
 
 .metricInsight {
-  --insight-tone: var(--muted);
-  --insight-bg: var(--panel-muted);
-  --insight-border: var(--border);
+  /* Tone is a single ink channel; modifiers below only reassign it. */
+  --insight-tone: var(--text-subtle);
 
   position: relative;
   display: grid;
   min-width: 0;
   gap: 8px;
-  border: 1px solid var(--insight-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: var(--insight-bg);
+  background: var(--panel);
   color: inherit;
   padding: 11px 12px;
-  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
 .metricInsightLink:hover {
-  border-color: color-mix(in srgb, var(--insight-tone) 42%, var(--border));
-  background: color-mix(in srgb, var(--insight-tone) 8%, var(--panel));
-  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  background: var(--panel-muted);
 }
 
 .metricInsightTopline {
@@ -70,10 +68,12 @@
   min-width: 0;
   align-items: center;
   gap: 6px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 760;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 640;
+  letter-spacing: 0.04em;
   line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .metricInsightLabel > span:first-child {
@@ -86,15 +86,15 @@
 .metricInsightTopline strong {
   flex-shrink: 0;
   color: var(--foreground);
-  font-size: 22px;
-  font-weight: 860;
+  font-size: 26px;
+  font-weight: 680;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 
 .metricInsight p {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.38;
 }
@@ -111,9 +111,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 620;
   line-height: 1.2;
 }
 
@@ -128,7 +128,7 @@
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--insight-tone) 10%, var(--border));
+  background: color-mix(in srgb, var(--insight-tone) 12%, var(--panel-muted));
 }
 
 .metricProgressFill {
@@ -139,16 +139,16 @@
 }
 
 .metricProgressUnavailable {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line-soft);
   padding-top: 6px;
 }
 
 .metricInsightAction {
   justify-self: start;
   width: fit-content;
-  color: var(--insight-tone);
+  color: var(--accent-strong);
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 660;
   line-height: 1.2;
 }
 
@@ -156,28 +156,21 @@
   color: var(--foreground);
 }
 
+/* Semantic ramp is rationed: it fires ONLY on status, never as "good=accent". */
 .metricInsightNeutral {
-  --insight-tone: #3157d5;
-  --insight-bg: color-mix(in srgb, #3157d5 5%, var(--panel));
-  --insight-border: color-mix(in srgb, #3157d5 22%, var(--border));
+  --insight-tone: var(--text-subtle);
 }
 
 .metricInsightOk {
-  --insight-tone: #0f766e;
-  --insight-bg: color-mix(in srgb, #0f766e 6%, var(--panel));
-  --insight-border: color-mix(in srgb, #0f766e 24%, var(--border));
+  --insight-tone: var(--success);
 }
 
 .metricInsightWarn {
-  --insight-tone: #b45309;
-  --insight-bg: color-mix(in srgb, #b45309 6%, var(--panel));
-  --insight-border: color-mix(in srgb, #b45309 26%, var(--border));
+  --insight-tone: var(--warning);
 }
 
 .metricInsightDanger {
-  --insight-tone: #b91c1c;
-  --insight-bg: color-mix(in srgb, #b91c1c 6%, var(--panel));
-  --insight-border: color-mix(in srgb, #b91c1c 24%, var(--border));
+  --insight-tone: var(--danger);
 }
 
 .criterionPanel {
@@ -191,8 +184,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--panel-header-border);
-  background: var(--panel-header);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
   padding: 16px 18px;
 }
 
@@ -202,15 +195,15 @@
 
 .criterionHeader h2 {
   color: var(--foreground);
-  font-size: 18px;
-  font-weight: 780;
-  letter-spacing: 0;
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
   line-height: 1.22;
 }
 
 .criterionHeader p {
   margin-top: 5px;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -227,14 +220,14 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: var(--panel-muted);
+  background: var(--panel);
 }
 
 .criterionSummary article {
   display: grid;
   min-width: 0;
   gap: 4px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--line-soft);
   padding: 11px 12px;
 }
 
@@ -243,9 +236,10 @@
 }
 
 .criterionSummary span {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 780;
+  font-weight: 640;
+  letter-spacing: 0.04em;
   line-height: 1.2;
   text-transform: uppercase;
 }
@@ -253,171 +247,152 @@
 .criterionSummary strong {
   overflow: hidden;
   color: var(--foreground);
-  font-size: 15px;
-  font-weight: 840;
+  font-size: 17px;
+  font-weight: 680;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .criterionSummary small {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
 
-.heatmapGrid {
+/* Single-hue criterion ramp ------------------------------------------------ */
+.matrixList {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 164px), 1fr));
-  gap: 8px;
-}
-
-.heatmapCell {
-  --heatmap-tone: #64748b;
-  --heatmap-bg: var(--panel-muted);
-  --heatmap-border: var(--border);
-
-  position: relative;
-  display: grid;
-  min-width: 0;
-  gap: 10px;
+  gap: 0;
   overflow: hidden;
-  border: 1px solid var(--heatmap-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: linear-gradient(180deg, var(--heatmap-bg), var(--panel));
-  padding: 12px;
+  background: var(--panel);
 }
 
-.heatmapCell::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 4px;
-  background: var(--heatmap-tone);
-  content: "";
-}
-
-.heatmapCellHeader {
+.matrixRow {
   display: grid;
   min-width: 0;
-  gap: 7px;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 200px);
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 8px 12px;
 }
 
-.heatmapCell h3 {
+.matrixRow:last-child {
+  border-bottom: 0;
+}
+
+.matrixRowHead {
+  display: grid;
   min-width: 0;
-  overflow-wrap: anywhere;
+  gap: 2px;
+}
+
+.matrixRowLabel {
+  min-width: 0;
+  overflow: hidden;
   color: var(--foreground);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 620;
   line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.heatmapCell strong {
-  color: var(--heatmap-tone);
-  font-size: 22px;
-  font-weight: 860;
+.matrixRowMeta {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.matrixCell {
+  --matrix-fill: 0%;
+
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--foreground) var(--matrix-fill), var(--panel));
+  padding: 6px 8px;
+}
+
+.matrixCellValue {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 680;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  line-height: 1;
+  text-align: right;
 }
 
-.heatmapCell p {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.heatmapMeter {
-  height: 6px;
+.matrixCellBar {
+  display: block;
+  height: 4px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--heatmap-tone) 10%, var(--border));
+  background: color-mix(in srgb, var(--foreground) 10%, var(--panel-muted));
 }
 
-.heatmapMeter span {
+.matrixCellBar span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--heatmap-tone);
+  background: color-mix(in srgb, var(--foreground) 58%, var(--panel));
 }
 
-.heatmapCellExcellent {
-  --heatmap-tone: #0f766e;
-  --heatmap-bg: color-mix(in srgb, #0f766e 7%, var(--panel));
-  --heatmap-border: color-mix(in srgb, #0f766e 25%, var(--border));
+/* Lower score => denser ink fill (single hue, not a traffic light). */
+.matrixCellT1 {
+  --matrix-fill: 4%;
 }
 
-.heatmapCellStable {
-  --heatmap-tone: #3157d5;
-  --heatmap-bg: color-mix(in srgb, #3157d5 6%, var(--panel));
-  --heatmap-border: color-mix(in srgb, #3157d5 24%, var(--border));
+.matrixCellT2 {
+  --matrix-fill: 8%;
 }
 
-.heatmapCellWatch {
-  --heatmap-tone: #b45309;
-  --heatmap-bg: color-mix(in srgb, #b45309 7%, var(--panel));
-  --heatmap-border: color-mix(in srgb, #b45309 25%, var(--border));
+.matrixCellT3 {
+  --matrix-fill: 14%;
 }
 
-.heatmapCellCritical {
-  --heatmap-tone: #b91c1c;
-  --heatmap-bg: color-mix(in srgb, #b91c1c 7%, var(--panel));
-  --heatmap-border: color-mix(in srgb, #b91c1c 25%, var(--border));
+.matrixCellT4 {
+  --matrix-fill: 22%;
 }
 
-.heatmapCellEmpty {
-  --heatmap-tone: #64748b;
+.matrixCellEmpty {
+  --matrix-fill: 0%;
 }
 
-.heatmapLegend {
+.matrixCellEmpty .matrixCellValue {
+  color: var(--text-muted);
+}
+
+.matrixLegend {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px 12px;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 620;
   line-height: 1.2;
 }
 
-.heatmapLegend span {
+.matrixLegendScale {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
 }
 
-.heatmapLegend i {
+.matrixLegendScale i {
   display: inline-flex;
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-}
-
-.legendExcellent {
-  background: #0f766e;
-}
-
-.legendStable {
-  background: #3157d5;
-}
-
-.legendWatch {
-  background: #b45309;
-}
-
-.legendCritical {
-  background: #b91c1c;
-}
-
-.emptyState {
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel-muted);
-  padding: 18px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
+  width: 22px;
+  height: 10px;
+  background: color-mix(in srgb, var(--foreground) var(--matrix-fill), var(--panel));
 }
 
 @media (max-width: 1200px) {
@@ -437,7 +412,7 @@
   }
 
   .criterionSummary article:nth-child(n + 3) {
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--line-soft);
   }
 }
 
@@ -458,6 +433,11 @@
   }
 
   .criterionSummary article:nth-child(n + 2) {
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .matrixRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }

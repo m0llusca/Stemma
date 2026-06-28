@@ -97,7 +97,7 @@ export function OtrsWebserviceChecklist({ baseUrl, config }: OtrsWebserviceCheck
               <th className="px-4 py-3 font-semibold">Зачем нужна</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#d9e0ea]">
+          <tbody className="divide-y divide-[var(--border)]">
             {operations.map((operation) => (
               <tr key={operation.name}>
                 <td className="px-4 py-3 font-semibold text-[var(--foreground)]">{operation.name}</td>

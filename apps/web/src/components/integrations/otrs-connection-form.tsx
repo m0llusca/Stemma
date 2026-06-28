@@ -391,7 +391,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
         <div className="flex flex-wrap items-center gap-3">
           <SubmitButton />
           {state ? (
-            <p className={`text-sm font-medium ${state.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>{state.message}</p>
+            <p className={`text-sm font-medium ${state.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{state.message}</p>
           ) : null}
         </div>
       </form>

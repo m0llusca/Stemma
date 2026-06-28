@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MetricValue } from "@/components/ui/metric-value";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
@@ -767,7 +768,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           ) : null}
           <div className="record-list px-5">
             {recentJobs.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Фоновых задач пока нет.</div>
+              <EmptyState size="inline" icon={<ListChecks size={20} aria-hidden="true" />} title="Фоновых задач пока нет" description="Очередь обработчика пуста — новые задачи появятся при импорте или обслуживании." />
             ) : (
               recentJobs.map((job) => {
                 const status = backendJobStatusView(job.status);
@@ -786,7 +787,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       {job.errorMessage ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{job.errorMessage}</p> : null}
                     </div>
                     <div className="record-row">
-                      <p className="record-meta">Запуск: {formatDate(job.runAfter)}</p>
+                      <p className="record-meta tabular-nums">Запуск: {formatDate(job.runAfter)}</p>
                       <Link href={`/admin/system/jobs/${job.id}`} className="action-button action-button--small">
                         Детали задачи
                       </Link>
@@ -851,7 +852,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                           tone={channel ? messagingChannelTone(channel.status) : "neutral"}
                         />
                       </div>
-                      <p className="record-meta">
+                      <p className="record-meta tabular-nums">
                         Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
                       </p>
                       {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
@@ -867,7 +868,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h3 id="channel-deliveries-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Последние action notifications</h3>
               <div className="record-list">
                 {recentDeliveries.length === 0 ? (
-                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Доставок пока нет.</div>
+                  <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
                 ) : (
                   recentDeliveries.map((delivery) => (
                     <article key={delivery.id} className="record-card">
@@ -881,7 +882,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
                       </div>
                       <p className="record-meta">{delivery.body}</p>
-                      <p className="record-meta">
+                      <p className="record-meta tabular-nums">
                         Создано: {formatDate(delivery.createdAt)} · доставлено: {formatDate(delivery.deliveredAt)}
                       </p>
                       {delivery.error ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{delivery.error}</p> : null}
@@ -977,7 +978,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                 {phaseDReport.identityProviders.length > 0 ? (
                   phaseDReport.identityProviders.map(renderReadinessItem)
                 ) : (
-                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Провайдеры удостоверений еще не настроены.</div>
+                  <EmptyState size="inline" icon={<ShieldCheck size={20} aria-hidden="true" />} title="Провайдеры не настроены" description="SSO появится здесь после настройки провайдера входа в разделе «Доступ и SSO»." />
                 )}
               </div>
             </section>
@@ -1014,7 +1015,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           </div>
           <div className="record-list px-5">
             {providers.length === 0 ? (
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Провайдеры удостоверений еще не настроены.</div>
+              <EmptyState size="inline" icon={<ShieldCheck size={20} aria-hidden="true" />} title="Провайдеры не настроены" description="SSO появится здесь после настройки провайдера входа в разделе «Доступ и SSO»." />
             ) : (
               providers.map((provider) => (
                 <article key={provider.id} className="record-card">
@@ -1027,7 +1028,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                     </div>
                     <StatusBadge label="Статус" value={providerStatusLabel(provider.status)} tone={providerTone(provider.status)} />
                   </div>
-                  <p className="text-sm text-[var(--text-muted)]">
+                  <p className="text-sm text-[var(--text-muted)] tabular-nums">
                     Маппингов: {provider._count.groupRoleMappings} · сессий: {provider._count.authSessions} · последняя синхронизация:{" "}
                     {formatDate(provider.lastSyncAt)}
                   </p>
@@ -1069,7 +1070,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h3 id="integration-sources-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Источники данных</h3>
               <div className="record-list">
                 {integrations.length === 0 ? (
-                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Интеграции еще не настроены.</div>
+                  <EmptyState size="inline" icon={<Plug size={20} aria-hidden="true" />} title="Интеграции не настроены" description="Подключите источник, чтобы отслеживать его состояние здесь." />
                 ) : (
                   integrations.map((integration) => (
                     <article key={integration.id} className="record-card">
@@ -1080,7 +1081,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         </div>
                         <StatusBadge label="Статус" value={integrationStatusLabel(integration.status)} tone={integrationTone(integration.status)} />
                       </div>
-                      <p className="mt-3 text-sm text-[var(--text-muted)]">
+                      <p className="mt-3 text-sm text-[var(--text-muted)] tabular-nums">
                         Лимит: {integration.importLimit} · батч: {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
                       </p>
                       {integration.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{integration.lastError}</p> : null}
@@ -1093,7 +1094,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h3 id="integration-token-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">API-ключи</h3>
               <div className="record-list">
                 {apiTokens.length === 0 ? (
-                  <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">API-ключи еще не выпускались.</div>
+                  <EmptyState size="inline" icon={<ServerCog size={20} aria-hidden="true" />} title="API-ключей нет" description="Активность по ключам появится после выпуска первого ключа." />
                 ) : (
                   apiTokens.map((token) => {
                     const tokenHasError = Boolean(
@@ -1105,7 +1106,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         <div className="record-row">
                           <div className="min-w-0">
                             <h4 className="record-title">{token.name}</h4>
-                            <p className="record-meta mt-1">Последний успех: {formatDate(token.lastSuccessAt)}</p>
+                            <p className="record-meta mt-1 tabular-nums">Последний успех: {formatDate(token.lastSuccessAt)}</p>
                           </div>
                           <StatusBadge
                             label="Статус"
@@ -1114,7 +1115,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                           />
                         </div>
                         {token.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{token.lastError}</p> : null}
-                        <p className="record-meta">Последняя ошибка: {formatDate(token.lastErrorAt)}</p>
+                        <p className="record-meta tabular-nums">Последняя ошибка: {formatDate(token.lastErrorAt)}</p>
                       </article>
                     );
                   })
@@ -1126,7 +1127,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             <h3 className="font-semibold text-[var(--foreground)]">Последние импорты</h3>
             <div className="record-list mt-3 border-y border-[var(--border)]">
               {recentRuns.length === 0 ? (
-                <p className="soft-callout text-sm text-[var(--text-muted)]">Запусков пока нет.</p>
+                <EmptyState size="inline" icon={<Database size={20} aria-hidden="true" />} title="Запусков пока нет" description="История импортов и dry-run появится после первого запуска." />
               ) : (
                 recentRuns.map((run) => {
                   const status = integrationRunStatusView(run.status);
@@ -1137,7 +1138,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         <p className="font-semibold text-[var(--foreground)]">{run.integration?.displayName ?? run.source}</p>
                         <StatusBadge label={run.dryRun ? "Проверка" : "Импорт"} value={status.label} tone={operationalTone(status.tone)} />
                       </div>
-                      <p className="mt-2 text-[var(--text-muted)]">
+                      <p className="mt-2 text-[var(--text-muted)] tabular-nums">
                         {run.dryRun ? "Пробный запуск" : "Импорт"} · {run.importedCount}/{run.requestedLimit} · {formatDate(run.startedAt)}
                       </p>
                     </div>

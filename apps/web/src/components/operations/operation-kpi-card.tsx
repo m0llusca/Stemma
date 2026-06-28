@@ -1,13 +1,31 @@
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { MetricValue } from "@/components/ui/metric-value";
+import { StatKpi, type StatKpiDelta, type StatKpiTone } from "@/components/ui/stat-kpi";
 import type { StatusTone } from "@/lib/ui/status-tone";
 
+const statKpiToneForStatusTone: Record<StatusTone, StatKpiTone> = {
+  positive: "neutral",
+  warning: "neutral",
+  negative: "danger",
+  neutral: "neutral",
+  info: "neutral"
+};
+
+/**
+ * Drill-down KPI tile for the quality cockpit. The NUMBER is the hero: a calm
+ * uppercase eyebrow, a large tabular value, an optional signed delta vs. the
+ * previous period, and one caption line. Chrome stays flat — the whole tile is
+ * a single hairline-bordered link into the filtered queue. Tone is rationed:
+ * only a breached threshold (negative) recolors the value; otherwise the value
+ * stays monochrome ink.
+ */
 export function OperationKpiCard({
   href,
   className,
   icon: Icon,
   value,
+  unit,
+  delta,
   tone,
   label,
   hint
@@ -16,18 +34,23 @@ export function OperationKpiCard({
   className?: string;
   icon: LucideIcon;
   value: string | number;
+  unit?: string;
+  delta?: StatKpiDelta;
   tone: StatusTone;
   label: string;
   hint: string;
 }) {
   return (
     <Link href={href} className={`dashboard-kpi ${className ?? ""}`.trim()}>
-      <span className="dashboard-kpi__icon">
-        <Icon size={18} aria-hidden="true" />
-      </span>
-      <MetricValue value={value} tone={tone} />
-      <span>{label}</span>
-      <small>{hint}</small>
+      <StatKpi
+        label={label}
+        value={value}
+        unit={unit}
+        delta={delta}
+        hint={hint}
+        icon={<Icon size={16} aria-hidden="true" />}
+        tone={statKpiToneForStatusTone[tone]}
+      />
     </Link>
   );
 }

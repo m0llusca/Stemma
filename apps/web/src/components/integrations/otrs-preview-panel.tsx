@@ -3,6 +3,7 @@
 import { Play, Search, UploadCloud } from "lucide-react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { Chip } from "@/components/ui/chip";
 import {
   createOtrsPreviewActionState,
   queueSelectedOtrsImportActionState,
@@ -125,7 +126,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
         </div>
 
         {previewState ? (
-          <div className={`soft-callout text-sm font-medium ${previewState.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
+          <div className={`soft-callout text-sm font-medium ${previewState.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
             {previewState.message}
             {previewState.ok && typeof previewState.itemCount === "number" ? ` Строк: ${previewState.itemCount}.` : ""}
           </div>
@@ -157,7 +158,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
                     <th className="px-4 py-3 font-semibold">Attachments</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#d9e0ea]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {latestPreviewRun.items.map((item) => (
                     <tr key={item.id}>
                       <td className="px-4 py-3">
@@ -173,7 +174,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
                       <td className="px-4 py-3 font-mono text-xs">{item.externalId}</td>
                       <td className="px-4 py-3 font-mono text-xs">{item.ticketNumber ?? "Нет"}</td>
                       <td className="px-4 py-3">
-                        <span className={`pill ${item.status === "previewed" ? "pill--ok" : "pill--neutral"}`}>{item.status}</span>
+                        <Chip tone={item.status === "previewed" ? "success" : "neutral"} size="xs">{item.status}</Chip>
                       </td>
                       <td className="px-4 py-3 text-[var(--text-body)]">
                         {item.articleCount} · private {item.privateArticleCount}
@@ -192,7 +193,7 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
             ) : null}
 
             {importState ? (
-              <div className={`soft-callout text-sm font-medium ${importState.ok ? "text-[#166534]" : "text-[var(--danger)]"}`}>
+              <div className={`soft-callout text-sm font-medium ${importState.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                 {importState.message}
                 {importState.jobId ? ` Job: ${importState.jobId.slice(0, 8)}.` : ""}
               </div>

@@ -5,6 +5,9 @@ import { ApiTokenCreateForm } from "@/components/admin/api-token-create-form";
 import { CopyButton } from "@/components/copy-button";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
@@ -63,20 +66,20 @@ function tokenHealth(token: {
   lastSuccessAt: Date | null;
   lastErrorAt: Date | null;
   lastError: string | null;
-}) {
+}): { label: string; tone: ChipTone } {
   if (token.expiresAt && token.expiresAt <= new Date()) {
-    return { label: "Истек", tone: "pill--warn" };
+    return { label: "Истек", tone: "warning" };
   }
 
   if (token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)) {
-    return { label: "Ошибка", tone: "pill--warn" };
+    return { label: "Ошибка", tone: "danger" };
   }
 
   if (token.lastSuccessAt) {
-    return { label: "Работает", tone: "pill--ok" };
+    return { label: "Работает", tone: "success" };
   }
 
-  return { label: "Готов", tone: "pill--ok" };
+  return { label: "Готов", tone: "neutral" };
 }
 
 export default function AdminTokensPage({ searchParams }: AdminTokensPageProps) {
@@ -133,28 +136,27 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
       </div>
 
       <section className="ops-metric-grid" aria-label="Сводка API-ключей">
-        <div className="ops-metric">
-          <span className="ops-metric__label">Ключи</span>
-          <strong className="ops-metric__value">{apiTokens.length}</strong>
-          <span className="ops-metric__note">Активных: {activeTokens}</span>
-        </div>
-        <div className="ops-metric">
-          <span className="ops-metric__label">Ошибки</span>
-          <strong className="ops-metric__value">{tokensWithErrors}</strong>
-          <span className="ops-metric__note">По последней активности</span>
-        </div>
-        <div className="ops-metric">
-          <span className="flex items-center gap-1">
-            <span className="ops-metric__label">Права</span>
-            <HelpTooltip
-              label="Что такое scope API-ключа?"
-              content="Scope ограничивает, какие API endpoint может вызывать ключ. Для production выдавайте минимально нужный набор scope."
-              placement="top-start"
-            />
-          </span>
-          <strong className="ops-metric__value">{allowedApiScopes.length}</strong>
-          <span className="ops-metric__note">Доступные области API</span>
-        </div>
+        <StatKpi label="Ключи" value={apiTokens.length} hint={`Активных: ${activeTokens}`} />
+        <StatKpi
+          label="Ошибки"
+          value={tokensWithErrors}
+          tone={tokensWithErrors > 0 ? "danger" : "neutral"}
+          hint="По последней активности"
+        />
+        <StatKpi
+          label={
+            <span className="flex items-center gap-1">
+              Права
+              <HelpTooltip
+                label="Что такое scope API-ключа?"
+                content="Scope ограничивает, какие API endpoint может вызывать ключ. Для production выдавайте минимально нужный набор scope."
+                placement="top-start"
+              />
+            </span>
+          }
+          value={allowedApiScopes.length}
+          hint="Доступные области API"
+        />
       </section>
 
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы API-ключей">
@@ -178,7 +180,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
               <h2 id="api-tokens-title" className="ops-panel__title">Ключи API</h2>
               <p className="ops-panel__subtitle">Статус, права и последняя активность без широкой таблицы.</p>
             </div>
-            <span className="pill pill--neutral">{apiTokens.length}</span>
+            <Chip tone="neutral" size="sm" numeric>{apiTokens.length}</Chip>
           </div>
           <div className="grid gap-2 p-4">
             {apiTokenSetupHint ? (
@@ -205,16 +207,16 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                     <div className="admin-tile__body">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="record-title record-title--tight">{apiToken.name}</span>
-                        <span className={`pill ${health.tone}`}>{health.label}</span>
+                        <Chip tone={health.tone} size="xs">{health.label}</Chip>
                       </span>
                       <span className="record-meta font-mono compact-text">{apiToken.tokenPrefix}</span>
                       <span className="record-meta compact-text">Права: {formatScopes(apiToken.scopes)}</span>
-                      <span className="record-meta">
+                      <span className="record-meta tabular-nums">
                         Использование: {formatDate(apiToken.lastUsedAt)} · успех: {formatDate(apiToken.lastSuccessAt)}
                       </span>
-                      <span className="record-meta">Истекает: {formatDate(apiToken.expiresAt)}</span>
+                      <span className="record-meta tabular-nums">Истекает: {formatDate(apiToken.expiresAt)}</span>
                       {apiToken.lastError ? (
-                        <span className="record-meta compact-text text-[var(--danger)]">
+                        <span className="record-meta compact-text tabular-nums text-[var(--danger)]">
                           Ошибка: {formatDate(apiToken.lastErrorAt)} · {apiToken.lastError}
                         </span>
                       ) : null}
@@ -234,7 +236,17 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                 );
               })
             ) : (
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">Ключи еще не созданы.</div>
+              <EmptyState
+                size="inline"
+                icon={<KeyRound size={20} aria-hidden="true" />}
+                title="Ключи еще не созданы"
+                description="Создайте рабочий ключ, чтобы интеграции и кастомные источники могли обращаться к API."
+                action={
+                  <Link href={tokensSectionHref("create")} className="action-button action-button--small">
+                    Новый ключ
+                  </Link>
+                }
+              />
             )}
           </div>
         </section>
@@ -289,9 +301,12 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
             </div>
           ) : (
             <div className="p-4">
-              <div className="soft-callout ops-empty text-sm text-[var(--text-muted)]">
-                Демо-ключ доступен только при включенном демо-режиме.
-              </div>
+              <EmptyState
+                size="inline"
+                icon={<KeyRound size={20} aria-hidden="true" />}
+                title="Демо-ключ недоступен"
+                description="Демо-ключ показывается только при включенном демо-режиме."
+              />
             </div>
           )}
         </section>

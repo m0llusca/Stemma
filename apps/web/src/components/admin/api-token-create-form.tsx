@@ -76,7 +76,7 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
       </form>
 
       {state.status === "success" && state.plainToken ? (
-        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[#166534]">
+        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--success)]">
           <div className="mb-3 font-semibold">{state.message}</div>
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -91,7 +91,7 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
       ) : null}
 
       {state.status === "error" ? (
-        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-4 text-sm font-medium text-[#991b1b]">{state.message}</div>
+        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-4 text-sm font-medium text-[var(--danger)]">{state.message}</div>
       ) : null}
     </div>
   );

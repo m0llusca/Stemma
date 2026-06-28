@@ -1,69 +1,19 @@
-.metric-card {
-  display: flex;
-  min-height: 126px;
-  flex-direction: column;
-  justify-content: space-between;
-  position: relative;
-  overflow: clip;
-}
-
-.metric-card__label {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 760;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.metric-card__value {
-  margin-top: 10px;
-  color: var(--foreground);
-  font-size: 32px;
-  font-weight: 820;
-  line-height: 1;
-}
-
-.metric-card__helper {
-  margin-top: 14px;
-  max-width: 92%;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.metric-card__action,
-.record-card__action {
-  display: inline-flex;
-  width: fit-content;
-  min-height: 28px;
-  align-items: center;
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-small);
-  background: color-mix(in srgb, var(--panel) 88%, var(--accent-soft));
-  padding: 5px 8px;
-  color: var(--accent-strong);
-  font-size: 11px;
-  font-weight: 820;
-  line-height: 1;
-  text-decoration: none;
-  transition: background-color 140ms ease, border-color 140ms ease;
-}
-
-.metric-card__action {
-  margin-top: 12px;
-}
-
-.metric-card__action:hover,
-.record-card__action:hover {
-  border-color: var(--control-selected-border);
-  background: var(--panel-tint);
-}
+/* Dashboard — quality cockpit.
+ *
+ * Direction: clean product. Monochrome shell, one accent doing one job, the
+ * NUMBER as the hero. Panels separate by hairline border + tint, never by
+ * shadow or gradient. Color is rationed: the semantic ramp fires only on a
+ * breached threshold (e.g. risk count > 0), never as decorative "good = accent".
+ * Everything is token-driven (no raw hex) so it holds in every theme including
+ * Night Ops. Numeric content uses tabular figures.
+ */
 
 .dashboard-shell {
   display: grid;
   gap: 18px;
 }
 
+/* Hero ------------------------------------------------------------------- */
 .dashboard-hero {
   display: grid;
   min-width: 0;
@@ -85,27 +35,14 @@
   margin-top: 14px;
 }
 
-.dashboard-hero__meta span {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--panel-muted);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 780;
-  padding: 5px 9px;
-}
-
 .dashboard-hero__rail {
   display: grid;
   min-width: 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: clip;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--surface-soft) 70%, var(--surface-raised));
+  background: var(--panel);
 }
 
 .dashboard-hero__rail a {
@@ -122,29 +59,34 @@
 }
 
 .dashboard-hero__rail a:hover {
-  background: var(--surface-hover);
+  background: var(--panel-tint);
 }
 
 .dashboard-hero__rail span,
 .dashboard-hero__rail small {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 640;
+  letter-spacing: 0.04em;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .dashboard-hero__rail strong {
   overflow: hidden;
   color: var(--foreground);
-  font-size: 16px;
-  font-weight: 850;
-  line-height: 1.12;
+  font-size: 22px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* KPI strip — calm StatKpi tiles, each a drill-down link --------------- */
 .dashboard-metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -152,88 +94,22 @@
 }
 
 .dashboard-kpi {
-  position: relative;
-  display: grid;
+  display: block;
   min-width: 0;
-  min-height: 118px;
-  grid-template-columns: 42px minmax(0, 1fr);
-  grid-template-areas:
-    "icon value"
-    "icon label"
-    "icon hint";
-  align-content: center;
-  gap: 3px 12px;
-  overflow: clip;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-page);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-raised) 86%, var(--panel-muted)), var(--surface-raised)),
-    var(--surface-raised);
-  padding: 14px;
-  box-shadow: none;
-  transition: border-color 140ms ease, transform 140ms ease;
+  border-radius: var(--radius-card);
+  transition: border-color 140ms ease;
 }
 
-.dashboard-kpi::before {
-  display: none;
-  content: none;
+.dashboard-kpi .stat-kpi {
+  height: 100%;
+  transition: border-color 140ms ease;
 }
 
-.dashboard-kpi:hover {
-  border-color: color-mix(in srgb, var(--kpi-accent, var(--accent)) 38%, var(--border));
-  transform: translateY(-1px);
+.dashboard-kpi:hover .stat-kpi {
+  border-color: var(--border-strong);
 }
 
-.dashboard-kpi--blue { --kpi-accent: #3b82f6; }
-.dashboard-kpi--green { --kpi-accent: #16a34a; }
-.dashboard-kpi--amber { --kpi-accent: #d97706; }
-.dashboard-kpi--violet { --kpi-accent: #7c3aed; }
-
-.dashboard-kpi__icon {
-  grid-area: icon;
-  display: inline-flex;
-  height: 40px;
-  width: 40px;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--kpi-accent) 12%, var(--surface-soft));
-  color: var(--kpi-accent);
-}
-
-.dashboard-kpi .metric-value {
-  grid-area: value;
-  min-width: 0;
-}
-
-.dashboard-kpi strong {
-  color: var(--foreground);
-  font-size: 29px;
-  font-weight: 880;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
-}
-
-.dashboard-kpi > span:not(.dashboard-kpi__icon):not(.metric-value) {
-  grid-area: label;
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 820;
-}
-
-.dashboard-kpi .metric-value__value {
-  font-size: 30px;
-  font-weight: 880;
-  line-height: 1.05;
-}
-
-.dashboard-kpi small {
-  grid-area: hint;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
+/* Detail grid ----------------------------------------------------------- */
 .dashboard-main-grid {
   display: grid;
   min-width: 0;
@@ -246,10 +122,10 @@
   min-width: 0;
   align-content: start;
   gap: 12px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-page);
-  background: color-mix(in srgb, var(--surface-raised) 88%, var(--panel-muted));
-  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  padding: 16px;
   box-shadow: none;
 }
 
@@ -262,27 +138,40 @@
   min-height: 260px;
 }
 
+.dashboard-panel--growth {
+  grid-column: 1 / -1;
+}
+
 .dashboard-panel__header {
   display: flex;
   min-width: 0;
-  align-items: start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--line-soft);
   padding-bottom: 10px;
 }
 
-.dashboard-panel__header h2 {
-  color: var(--foreground);
-  font-size: 16px;
-  font-weight: 840;
+.dashboard-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 640;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.dashboard-panel__header p {
-  margin-top: 2px;
-  color: var(--muted);
+.dashboard-section-label svg {
+  color: var(--text-subtle);
+}
+
+.dashboard-panel__note {
+  margin-top: -4px;
+  color: var(--text-muted);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .dashboard-activity-list,
@@ -294,6 +183,7 @@
   gap: 8px;
 }
 
+/* Activity --------------------------------------------------------------- */
 .dashboard-activity-row {
   display: grid;
   min-width: 0;
@@ -309,17 +199,18 @@
 }
 
 .dashboard-activity-row__avatar,
-.dashboard-agent-row span {
+.dashboard-agent-row__avatar {
   display: inline-flex;
   height: 32px;
   width: 32px;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
-  color: #ffffff;
+  background: var(--panel-muted);
+  color: var(--text-subtle);
   font-size: 11px;
-  font-weight: 880;
+  font-weight: 660;
 }
 
 .dashboard-activity-row__body {
@@ -334,7 +225,7 @@
   overflow: hidden;
   color: var(--foreground);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 620;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -344,15 +235,17 @@
 .dashboard-agent-row small,
 .dashboard-training-row span,
 .dashboard-training-row small {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
-  font-weight: 680;
+  font-weight: 560;
 }
 
 .dashboard-activity-row time {
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
+/* Focus rows ------------------------------------------------------------- */
 .dashboard-focus-row {
   display: grid;
   min-width: 0;
@@ -361,9 +254,15 @@
   gap: 10px;
   min-height: 62px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  background: var(--surface-soft);
+  border-radius: var(--radius-control);
+  background: var(--panel-muted);
   padding: 10px 12px 10px 10px;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.dashboard-focus-row:hover {
+  border-color: var(--border-strong);
+  background: var(--panel-tint);
 }
 
 .dashboard-focus-row__icon {
@@ -372,9 +271,10 @@
   width: 32px;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  background: var(--panel);
+  color: var(--text-subtle);
 }
 
 .dashboard-focus-row__copy {
@@ -389,7 +289,7 @@
   min-width: 0;
   color: var(--foreground);
   font-size: 13px;
-  font-weight: 820;
+  font-weight: 620;
   line-height: 1.18;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -399,7 +299,7 @@
 .dashboard-focus-row small {
   display: block;
   min-width: 0;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.24;
   overflow: hidden;
@@ -423,17 +323,18 @@
   align-items: center;
   justify-content: center;
   color: var(--status-tone-fg);
-  font-size: 17px;
+  font-size: 20px;
   font-style: normal;
-  font-weight: 880;
+  font-weight: 680;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .dashboard-focus-row__metric svg {
-  color: color-mix(in srgb, var(--status-tone-fg) 62%, var(--muted));
+  color: var(--text-muted);
 }
 
+/* Week chart — single monochrome series, the count is the hero --------- */
 .dashboard-week-chart {
   display: grid;
   min-width: 0;
@@ -459,52 +360,72 @@
   width: 100%;
   align-items: start;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, var(--border));
-  border-radius: var(--radius-small) var(--radius-small) 4px 4px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 86%, var(--brand-accent)), var(--brand-primary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small) var(--radius-small) 2px 2px;
+  background: var(--panel-muted);
   padding-top: 5px;
 }
 
+.dashboard-week-chart__day:last-child .dashboard-week-chart__bar {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
 .dashboard-week-chart__bar strong {
-  color: #ffffff;
+  color: var(--foreground);
   font-size: 11px;
-  font-weight: 840;
+  font-weight: 660;
+  font-variant-numeric: tabular-nums;
 }
 
 .dashboard-week-chart__day small,
 .dashboard-week-chart__day em {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
   font-style: normal;
-  font-weight: 720;
+  font-weight: 560;
 }
 
+.dashboard-week-chart__day em {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Growth / агенты — the closing module ---------------------------------- */
 .dashboard-agent-row {
   position: relative;
   display: grid;
   min-width: 0;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
   grid-template-areas:
-    "avatar name score"
-    "avatar meta score"
-    "bar bar bar";
+    "avatar name flag score"
+    "avatar meta flag score"
+    "bar bar bar bar";
   align-items: center;
   gap: 2px 9px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  background: var(--surface-soft);
-  padding: 9px;
+  border-radius: var(--radius-control);
+  background: var(--panel-muted);
+  padding: 10px;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
-.dashboard-agent-row span { grid-area: avatar; }
+.dashboard-agent-row:hover {
+  border-color: var(--border-strong);
+  background: var(--panel-tint);
+}
+
+.dashboard-agent-row__avatar { grid-area: avatar; }
 .dashboard-agent-row strong { grid-area: name; }
-.dashboard-agent-row small { grid-area: meta; }
+.dashboard-agent-row__meta { grid-area: meta; }
+.dashboard-agent-row__flag { grid-area: flag; align-self: center; }
 
 .dashboard-agent-row em {
   grid-area: score;
-  color: var(--accent-strong);
+  align-self: center;
+  color: var(--foreground);
+  font-size: 18px;
   font-style: normal;
-  font-weight: 880;
+  font-weight: 680;
   font-variant-numeric: tabular-nums;
 }
 
@@ -512,27 +433,98 @@
   grid-area: bar;
   display: block;
   height: 3px;
+  margin-top: 4px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--border-strong);
 }
 
+/* Training -------------------------------------------------------------- */
 .dashboard-training-row {
   display: grid;
   min-width: 0;
   gap: 2px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  background: var(--surface-soft);
+  border-radius: var(--radius-control);
+  background: var(--panel-muted);
   padding: 10px;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
-.empty-note {
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel-muted);
-  color: var(--muted);
+.dashboard-training-row:hover {
+  border-color: var(--border-strong);
+  background: var(--panel-tint);
+}
+
+/* ----------------------------------------------------------------------- *
+ * Shared `.metric-card` / `.icon-box` family.
+ *
+ * NOTE: the dashboard no longer uses these — the KPI strip is StatKpi now.
+ * They are kept here because the REPORTS domain (`components/reports/
+ * metric-card.tsx`, not in this scope) still consumes them and the base rules
+ * historically lived only in this partial. They should move to a shared
+ * partial / the reports CSS; recorded as a shared change request. Raw hex has
+ * been replaced with tokens so they stay theme-correct meanwhile.
+ * ----------------------------------------------------------------------- */
+.metric-card {
+  display: flex;
+  min-height: 126px;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: clip;
+}
+
+.metric-card__label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 640;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.metric-card__value {
+  margin-top: 10px;
+  color: var(--foreground);
+  font-size: 32px;
+  font-weight: 680;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card__helper {
+  margin-top: 14px;
+  max-width: 92%;
+  color: var(--text-muted);
   font-size: 13px;
-  padding: 12px;
+  line-height: 1.45;
+}
+
+.metric-card__action,
+.record-card__action {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+  padding: 5px 8px;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 660;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.metric-card__action {
+  margin-top: 12px;
+}
+
+.metric-card__action:hover,
+.record-card__action:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-muted);
 }
 
 .metric-card__trend {
@@ -541,7 +533,7 @@
   align-items: center;
   gap: 10px;
   margin-top: 16px;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .metric-card__trend-icon {
@@ -572,7 +564,7 @@
 
 .metric-card__trend-value {
   font-size: 20px;
-  font-weight: 840;
+  font-weight: 680;
   line-height: 1;
   white-space: nowrap;
 }
@@ -582,15 +574,15 @@
   background: color-mix(in srgb, currentColor 10%, transparent);
   padding: 3px 7px;
   font-size: 13px;
-  font-weight: 780;
+  font-weight: 620;
   line-height: 1;
   white-space: nowrap;
 }
 
 .metric-card__trend-caption {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
-  font-weight: 680;
+  font-weight: 560;
   line-height: 1.2;
 }
 
@@ -607,12 +599,12 @@
 }
 
 .metric-card__trend--down .metric-card__trend-icon {
-  background: color-mix(in srgb, var(--danger) 12%, var(--panel));
+  background: var(--danger-soft);
 }
 
 .metric-card__trend--flat,
 .metric-card__trend--unavailable {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .icon-box {
@@ -622,8 +614,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
-

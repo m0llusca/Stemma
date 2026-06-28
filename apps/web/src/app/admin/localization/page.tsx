@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { LocalizationEditor } from "@/components/i18n/localization-editor";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip } from "@/components/ui/chip";
 import {
   createLocaleAction,
   publishTranslationAction,
@@ -87,14 +88,13 @@ async function AdminLocalizationPageContent() {
           <div className="min-w-0">
             <p className="ops-panel__eyebrow">Рабочее пространство</p>
             <h2 id="localization-editor-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
-            <p className="ops-panel__subtitle">
+            <p className="ops-panel__subtitle tabular-nums">
               {locales.length} языков, {translationKeys.length} ключей. Публикация применяет текущий черновик выбранного языка.
             </p>
           </div>
-          <span className="pill pill--neutral">
-            <Languages size={14} aria-hidden="true" />
+          <Chip tone="neutral" size="sm" icon={<Languages size={13} aria-hidden="true" />}>
             i18n
-          </span>
+          </Chip>
         </div>
 
         <LocalizationEditor

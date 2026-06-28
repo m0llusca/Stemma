@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, ClipboardCheck, Crosshair, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatKpi } from "@/components/ui/stat-kpi";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
@@ -10,6 +13,8 @@ import { prisma } from "@/lib/db";
 import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
+
+const ALIGNMENT_BAND = 10;
 
 type CalibrationPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -30,16 +35,29 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-function statusClassName(status: string) {
+function statusTone(status: string): ChipTone {
   if (status === "completed") {
-    return "pill--ok";
+    return "success";
   }
 
   if (status === "active") {
-    return "pill--warn";
+    return "accent";
   }
 
-  return "pill--neutral";
+  return "neutral";
+}
+
+function signedDelta(value: number) {
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function initialsOf(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function scoreSpread(scores: number[]) {
@@ -145,11 +163,27 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       const missingParticipants = selectedSession.participants.filter(
         (participant) => !reviews.some((review) => review.reviewerId === participant.userId)
       );
+      const baselineScore = baselineReview ? Math.round(baselineReview.totalScore) : null;
+      // Per-reviewer signed delta vs the reference review, keyed by participant.
+      const reviewerDeltas = new Map<string, number>();
+      if (baselineScore != null) {
+        for (const review of reviews) {
+          reviewerDeltas.set(review.reviewerId, Math.round(review.totalScore) - baselineScore);
+        }
+      }
+      const itemDeltas = [...reviewerDeltas.values()];
+      const alignedCount = itemDeltas.filter((delta) => Math.abs(delta) <= ALIGNMENT_BAND).length;
+      const alignmentPercent = itemDeltas.length > 0 ? Math.round((alignedCount / itemDeltas.length) * 100) : null;
 
       return {
         item,
         baselineReview,
+        baselineScore,
         reviews,
+        reviewerDeltas,
+        alignedCount,
+        gradedCount: itemDeltas.length,
+        alignmentPercent,
         spread,
         missingParticipants
       };
@@ -254,43 +288,56 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
 
   return (
     <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split command-center--metrics calibration-command-center">
-        <div className="min-w-0">
+      <section className="enablement-header" aria-label="Сводка калибровок">
+        <div className="enablement-header__lead min-w-0">
           <p className="page-kicker">Контроль качества</p>
           <h1 className="page-title">Калибровка</h1>
           <p className="page-subtitle">
             Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило.
           </p>
-          <div className="admin-actions mt-5">
+          <div className="admin-actions">
             <Link href={openNewSession ? closeNewSessionHref : newSessionHref} className={`action-button ${openNewSession ? "" : "action-button--primary"}`}>
               {openNewSession ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
               {openNewSession ? "Скрыть форму" : "Новая сессия"}
             </Link>
           </div>
         </div>
-        <div className="learning-metrics" aria-label="Сводка калибровок">
-          <div className="learning-metric">
-            <ClipboardCheck size={16} aria-hidden="true" />
-            <span>{activeSessionCount}</span>
-            <small>активных</small>
-          </div>
-          <div className="learning-metric">
-            <Gauge size={16} aria-hidden="true" />
-            <span>{selectedProgress}%</span>
-            <small>готовность</small>
-          </div>
-          <div className={`learning-metric ${selectedDisagreementCount > 0 ? "learning-metric--danger" : "learning-metric--success"}`}>
-            <TriangleAlert size={16} aria-hidden="true" />
-            <span>{selectedDisagreementCount}</span>
-            <small>расхождений</small>
-          </div>
+        <div className="enablement-kpi-grid" aria-label="Ключевые показатели калибровки">
+          <StatKpi
+            label="Согласованность"
+            value={selectedAlignmentPercent != null ? selectedAlignmentPercent : "—"}
+            unit={selectedAlignmentPercent != null ? "%" : undefined}
+            tone={selectedAlignmentPercent != null && selectedAlignmentPercent < 85 ? "warning" : "neutral"}
+            icon={<Crosshair size={16} aria-hidden="true" />}
+            hint={selectedAlignmentPercent != null ? "Цель — 85–90% в пределах ±10" : "Появится после оценок участников"}
+          />
+          <StatKpi
+            label="Готовность"
+            value={selectedProgress}
+            unit="%"
+            icon={<Gauge size={16} aria-hidden="true" />}
+            hint={selectedWaitingCount > 0 ? `${selectedWaitingCount} оценок ещё ждут` : "Все оценки собраны"}
+          />
+          <StatKpi
+            label="Расхождения"
+            value={selectedDisagreementCount}
+            tone={selectedDisagreementCount > 0 ? "warning" : "neutral"}
+            icon={<TriangleAlert size={16} aria-hidden="true" />}
+            hint={selectedDisagreementCount > 0 ? `Разброс выше ±${ALIGNMENT_BAND} баллов` : "Оценки в пределах нормы"}
+          />
+          <StatKpi
+            label="Активных сессий"
+            value={activeSessionCount}
+            icon={<ClipboardCheck size={16} aria-hidden="true" />}
+            hint={`${sessions.length} всего в рабочей области`}
+          />
         </div>
-      </div>
+      </section>
 
       <StickyMetricsBar
         ariaLabel="Сводка калибровок"
         items={[
-          { icon: <ClipboardCheck size={14} aria-hidden="true" />, value: activeSessionCount, label: "активных" },
+          { icon: <Crosshair size={14} aria-hidden="true" />, value: selectedAlignmentPercent != null ? `${selectedAlignmentPercent}%` : "—", label: "согласованность" },
           { icon: <Gauge size={14} aria-hidden="true" />, value: `${selectedProgress}%`, label: "готовность" },
           {
             icon: <TriangleAlert size={14} aria-hidden="true" />,
@@ -370,7 +417,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
             <h2>Сессии</h2>
             <p>Выберите сессию, затем разберите ожидания и расхождения.</p>
           </div>
-          <span className="pill pill--neutral">{sessions.length}</span>
+          <Chip tone="neutral" numeric>{sessions.length}</Chip>
         </div>
         <div className="calibration-session-row">
           {sessionSummaries.map((summary) => {
@@ -383,10 +430,12 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 className={`calibration-session-chip ${isSelected ? "calibration-session-chip--selected" : ""}`}
                 aria-current={isSelected ? "page" : undefined}
               >
-                <span className={`pill ${statusClassName(summary.session.status)}`}>{statusLabel(summary.session.status)}</span>
+                <Chip tone={statusTone(summary.session.status)} size="xs">{statusLabel(summary.session.status)}</Chip>
                 <strong>{summary.session.name}</strong>
-                <small>
-                  {summary.progress}% · {summary.waitingCount} ждут · {summary.disagreementCount} расх.
+                <small className="calibration-session-chip__stats">
+                  <span>{summary.progress}% готово</span>
+                  <span>{summary.waitingCount} ждут</span>
+                  <span>{summary.disagreementCount} расх.</span>
                 </small>
               </Link>
             );
@@ -402,7 +451,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2>{selectedSession.name}</h2>
-                    <span className={`pill ${statusClassName(selectedSession.status)}`}>{statusLabel(selectedSession.status)}</span>
+                    <Chip tone={statusTone(selectedSession.status)} size="sm">{statusLabel(selectedSession.status)}</Chip>
                   </div>
                   <p>
                     {selectedSession.notes || "Сравните оценки по одним обращениям и зафиксируйте, где правило трактуется по-разному."}
@@ -452,77 +501,188 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
 
               {participantBiasRows.length > 0 ? (
                 <div className="calibration-bias-row" aria-label="Отклонение участников от эталона">
-                  <small>Отклонение от эталона (цель согласованности — 85–90%):</small>
-                  {participantBiasRows.map((row) => (
-                    <span key={row.id} className={`pill ${Math.abs(row.averageDelta) <= 10 ? "pill--ok" : "pill--warn"}`}>
-                      {row.name}:{" "}
-                      {row.averageDelta === 0
-                        ? "в эталоне"
-                        : row.averageDelta > 0
-                          ? `мягче на ${row.averageDelta}`
-                          : `строже на ${Math.abs(row.averageDelta)}`}
-                    </span>
-                  ))}
+                  <span className="calibration-bias-row__lead">Среднее отклонение от эталона</span>
+                  <div className="calibration-bias-row__items">
+                    {participantBiasRows.map((row) => {
+                      const outOfBand = Math.abs(row.averageDelta) > ALIGNMENT_BAND;
+
+                      return (
+                        <span
+                          key={row.id}
+                          className={`calibration-bias-chip ${outOfBand ? "calibration-bias-chip--out" : ""}`}
+                          title={
+                            row.averageDelta === 0
+                              ? "В пределах эталона"
+                              : row.averageDelta > 0
+                                ? `Мягче эталона на ${row.averageDelta}`
+                                : `Строже эталона на ${Math.abs(row.averageDelta)}`
+                          }
+                        >
+                          <span className="calibration-bias-chip__name">{row.name}</span>
+                          <span className="calibration-bias-chip__delta">{signedDelta(row.averageDelta)}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
 
-              <div className="calibration-item-list">
-                {selectedItemStates.map(({ item, baselineReview, reviews, spread, missingParticipants }) => {
+              {selectedItemStates.length > 0 && selectedSession.participants.length > 0 ? (
+                <div className="calibration-matrix" aria-label="Согласованность по участникам и обращениям">
+                  <div className="learning-section-header calibration-matrix__header">
+                    <div className="min-w-0">
+                      <h2>Матрица согласованности</h2>
+                      <p>Отклонение каждого участника от эталона по каждому обращению. Чем темнее, тем дальше от ±{ALIGNMENT_BAND}.</p>
+                    </div>
+                  </div>
+                  <div className="calibration-matrix__scroll">
+                    <table className="calibration-matrix__table">
+                      <thead>
+                        <tr>
+                          <th scope="col" className="calibration-matrix__corner">Обращение</th>
+                          {selectedSession.participants.map((participant) => (
+                            <th key={participant.id} scope="col" className="calibration-matrix__participant">
+                              <span className="calibration-avatar" aria-hidden="true">{initialsOf(participant.user.name)}</span>
+                              <span className="calibration-matrix__participant-name">{participant.user.name}</span>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedItemStates.map((state) => (
+                          <tr key={state.item.id}>
+                            <th scope="row" className="calibration-matrix__row-label">
+                              <span>{state.item.conversation.subject}</span>
+                              <small>{state.alignmentPercent != null ? `${state.alignmentPercent}% в норме` : "нет эталона"}</small>
+                            </th>
+                            {selectedSession.participants.map((participant) => {
+                              const delta = state.reviewerDeltas.get(participant.userId);
+
+                              if (delta == null) {
+                                return (
+                                  <td key={participant.id} className="calibration-matrix__cell calibration-matrix__cell--empty">
+                                    <span aria-hidden="true">·</span>
+                                    <span className="sr-only">нет оценки</span>
+                                  </td>
+                                );
+                              }
+
+                              const magnitude = Math.min(Math.abs(delta), 40);
+                              const intensity = (magnitude / 40).toFixed(2);
+                              const outOfBand = Math.abs(delta) > ALIGNMENT_BAND;
+
+                              return (
+                                <td
+                                  key={participant.id}
+                                  className={`calibration-matrix__cell ${outOfBand ? "calibration-matrix__cell--out" : ""}`}
+                                  style={{ "--cell-intensity": intensity } as CSSProperties}
+                                  title={`${participant.user.name}: ${signedDelta(delta)} от эталона`}
+                                >
+                                  {signedDelta(delta)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="calibration-consensus-list" aria-label="Согласованность по обращениям">
+                <div className="learning-section-header">
+                  <div className="min-w-0">
+                    <h2>Консенсус по обращениям</h2>
+                    <p>Доля оценок в пределах ±{ALIGNMENT_BAND} баллов от эталона. Откройте обращение, чтобы зафиксировать общее правило.</p>
+                  </div>
+                  <Chip tone="neutral" numeric>{selectedItemStates.length}</Chip>
+                </div>
+                {selectedItemStates.map(({ item, baselineReview, baselineScore, reviews, reviewerDeltas, alignedCount, gradedCount, alignmentPercent, spread, missingParticipants }) => {
                   const completedCount = reviews.length;
                   const expectedCount = selectedSession.participants.length;
-                  const attention = spread != null && spread > 10;
+                  const attention = spread != null && spread > ALIGNMENT_BAND;
                   const waiting = missingParticipants.length > 0;
+                  const offBandCount = Math.max(gradedCount - alignedCount, 0);
+                  const alignedPct = gradedCount > 0 ? (alignedCount / gradedCount) * 100 : 0;
+                  const offBandPct = gradedCount > 0 ? (offBandCount / gradedCount) * 100 : 0;
 
                   return (
                     <article
                       key={item.id}
-                      className={`calibration-item-card ${attention ? "calibration-item-card--attention" : ""} ${waiting ? "calibration-item-card--waiting" : ""}`}
+                      className={`calibration-consensus-card ${attention ? "calibration-consensus-card--attention" : ""}`}
                     >
-                      <div className="calibration-item-card__main">
-                        <Link href={`/reviews/${item.conversationId}`} className="record-title calibration-item-card__title">
-                          {item.conversation.subject}
-                        </Link>
-                        <div className="calibration-item-card__detail-row" aria-label="Состояние обращения в калибровке">
-                          <span>
-                            <strong>Эталон</strong>
-                            {baselineReview ? `${formatQualityScore(baselineReview.totalScore)} · ${baselineReview.reviewer.name}` : "нет финальной проверки"}
-                          </span>
-                          <span>
-                            <strong>Готово</strong>
-                            {completedCount}/{expectedCount}
-                          </span>
-                          {item.conversation._count.coachingPins > 0 ? (
-                            <span>
-                              <strong>Заметки</strong>
-                              {item.conversation._count.coachingPins}
-                            </span>
-                          ) : null}
-                          {waiting ? (
-                            <span className="calibration-info-chip--warning">
-                              <strong>Ждут</strong>
-                              {missingParticipants.length}
-                            </span>
+                      <div className="calibration-consensus-card__main">
+                        <div className="calibration-consensus-card__head">
+                          <Link href={`/reviews/${item.conversationId}`} className="record-title calibration-consensus-card__title">
+                            {item.conversation.subject}
+                          </Link>
+                          {attention ? (
+                            <Chip tone="warning" size="xs" numeric label="Разброс" value={spread != null ? formatQualityScore(spread) : "—"} />
                           ) : null}
                         </div>
-                        <details className="calibration-reviewer-details">
-                          <summary>Показать оценки участников</summary>
-                          <div className="calibration-reviewers">
-                            {selectedSession.participants.map((participant) => {
-                              const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
 
-                              return (
-                                <span key={participant.id} className={`pill ${review ? "pill--ok" : "pill--neutral"}`}>
-                                  {participant.user.name}: {review ? formatQualityScore(review.totalScore) : "ждет"}
-                                </span>
-                              );
-                            })}
+                        <div className="calibration-consensus">
+                          <div className="calibration-consensus__bar-row">
+                            <span className="calibration-consensus__headline">
+                              <strong>Согласованность</strong>
+                              <span className="calibration-consensus__percent">{alignmentPercent != null ? `${alignmentPercent}%` : "нет эталона"}</span>
+                            </span>
+                            {baselineScore != null ? (
+                              <span className="calibration-consensus__baseline">
+                                Эталон {baselineScore} · {baselineReview?.reviewer.name}
+                              </span>
+                            ) : (
+                              <span className="calibration-consensus__baseline calibration-consensus__baseline--missing">нет финальной проверки</span>
+                            )}
                           </div>
-                        </details>
+                          {gradedCount > 0 ? (
+                            <div
+                              className="calibration-consensus__bar"
+                              role="img"
+                              aria-label={`${alignedCount} из ${gradedCount} в пределах ±${ALIGNMENT_BAND}`}
+                            >
+                              <span className="calibration-consensus__bar-aligned" style={{ width: `${alignedPct}%` }} />
+                              <span className="calibration-consensus__bar-off" style={{ width: `${offBandPct}%` }} />
+                            </div>
+                          ) : (
+                            <div className="calibration-consensus__bar calibration-consensus__bar--empty" aria-hidden="true" />
+                          )}
+                          <div className="calibration-consensus__legend">
+                            <span>{alignedCount} в норме</span>
+                            {offBandCount > 0 ? <span className="calibration-consensus__legend-off">{offBandCount} вне ±{ALIGNMENT_BAND}</span> : null}
+                            <span>Готово {completedCount}/{expectedCount}</span>
+                            {item.conversation._count.coachingPins > 0 ? <span>Заметки {item.conversation._count.coachingPins}</span> : null}
+                          </div>
+                        </div>
+
+                        <div className="calibration-graders" aria-label="Оценки участников">
+                          {selectedSession.participants.map((participant) => {
+                            const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
+                            const delta = reviewerDeltas.get(participant.userId);
+                            const outOfBand = delta != null && Math.abs(delta) > ALIGNMENT_BAND;
+
+                            return (
+                              <span
+                                key={participant.id}
+                                className={`calibration-grader ${review ? "" : "calibration-grader--waiting"} ${outOfBand ? "calibration-grader--out" : ""}`}
+                                title={
+                                  review
+                                    ? `${participant.user.name}: ${formatQualityScore(review.totalScore)}${delta != null ? ` (${signedDelta(delta)})` : ""}`
+                                    : `${participant.user.name}: ждёт оценки`
+                                }
+                              >
+                                <span className="calibration-avatar" aria-hidden="true">{initialsOf(participant.user.name)}</span>
+                                <span className="calibration-grader__score">
+                                  {review ? Math.round(review.totalScore) : "—"}
+                                  {delta != null ? <small>{signedDelta(delta)}</small> : null}
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="calibration-item-card__aside">
-                        <span className={`pill ${spread != null && spread > 10 ? "pill--warn" : "pill--neutral"}`}>
-                          {spread == null ? "нет расхождения" : formatQualityScore(spread)}
-                        </span>
+                      <div className="calibration-consensus-card__aside">
                         {selectedSession.status === "active" || selectedSession.status === "draft" ? (
                           <Link
                             href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
@@ -531,7 +691,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                             Оценить
                           </Link>
                         ) : (
-                          <span className="pill pill--neutral">{selectedSession.status === "archived" ? "Архив" : "Завершена"}</span>
+                          <Chip tone="neutral" size="xs">{selectedSession.status === "archived" ? "Архив" : "Завершена"}</Chip>
                         )}
                       </div>
                     </article>
@@ -540,10 +700,17 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
               </div>
             </>
           ) : (
-            <div className="empty-state">
-              <h3>Нет калибровок</h3>
-              <p>Создайте первую сессию из проверенных обращений и выберите участников.</p>
-            </div>
+            <EmptyState
+              icon={<ClipboardCheck size={24} aria-hidden="true" />}
+              title="Нет калибровок"
+              description="Создайте первую сессию из проверенных обращений и выберите участников."
+              action={
+                <Link href={newSessionHref} className="action-button action-button--primary">
+                  <PlusCircle size={16} aria-hidden="true" />
+                  Новая сессия
+                </Link>
+              }
+            />
           )}
         </div>
       </section>

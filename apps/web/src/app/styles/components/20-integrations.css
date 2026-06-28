@@ -185,3 +185,29 @@
   align-content: space-between;
 }
 
+/* Neutralize incidental brand color on connector marks inside the admin
+   integration surfaces. The glyph shape stays; the saturated per-source color
+   and full-color raster logos are flattened to one mono ink so the row grammar
+   reads as a quiet object table (color is reserved for connection-state chips).
+   Scoped to admin contexts so the connect-source picker keeps its own look. */
+.ops-table--integrations .source-logo-mark,
+.ops-table--catalog .source-logo-mark,
+.integration-activity-row .source-logo-mark {
+  --source-color: var(--text-subtle);
+  border-color: var(--border);
+  background: var(--panel-muted);
+  box-shadow: none;
+}
+
+.ops-table--integrations .source-logo-mark img,
+.ops-table--catalog .source-logo-mark img,
+.integration-activity-row .source-logo-mark img {
+  filter: grayscale(1) contrast(0.82) opacity(0.78);
+}
+
+body[data-theme="ops"] .ops-table--integrations .source-logo-mark img,
+body[data-theme="ops"] .ops-table--catalog .source-logo-mark img,
+body[data-theme="ops"] .integration-activity-row .source-logo-mark img {
+  filter: grayscale(1) brightness(1.35) opacity(0.7);
+}
+

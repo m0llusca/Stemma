@@ -403,7 +403,7 @@ async function AdminHomePageContent() {
                     <span className="admin-home-link__body">
                       <span className="admin-home-link__title">
                         <span className="record-title record-title--tight">{card.title}</span>
-                        {card.metric ? <span className={`admin-home-link__metric admin-home-link__metric--${card.tone ?? "neutral"}`}>{card.metric}</span> : null}
+                        {card.metric ? <span className={`admin-home-link__metric tabular-nums admin-home-link__metric--${card.tone === "warn" ? "warn" : "neutral"}`}>{card.metric}</span> : null}
                       </span>
                       <span className="record-meta">{card.description}</span>
                     </span>

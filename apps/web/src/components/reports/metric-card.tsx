@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { StatKpi, type StatKpiDelta } from "@/components/ui/stat-kpi";
 import { formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 
 type MetricCardProps = {
@@ -42,70 +42,64 @@ function comparisonDelta(current: number, previous: number, unit: string) {
   return Math.round(current - previous);
 }
 
-function MetricComparison({
-  current,
-  previous,
-  unit = "",
-  stable = true
-}: {
-  current: number | null;
-  previous: number | null;
-  unit?: string;
-  stable?: boolean;
-}) {
+/**
+ * Split a formatted value like "92 балла" into a hero number + trailing unit so
+ * StatKpi can render the number as the hero with a reduced-size unit.
+ */
+function splitValue(value: string): { value: string; unit?: string } {
+  const match = value.match(/^(\s*[+-]?[\d\s.,%]+)(.*)$/);
+
+  if (!match) {
+    return { value };
+  }
+
+  const head = match[1].trim();
+  const tail = match[2].trim();
+
+  return { value: head, unit: tail.length > 0 ? tail : undefined };
+}
+
+function buildDelta(comparison: NonNullable<MetricCardProps["comparison"]>): StatKpiDelta | undefined {
+  const { current, previous, unit = "" } = comparison;
+
   if (current == null || previous == null) {
-    return (
-      <div className="metric-card__trend metric-card__trend--unavailable" aria-label="К прошлому периоду: нет данных">
-        <span className="metric-card__trend-icon" aria-hidden="true">
-          <Minus size={18} />
-        </span>
-        <span className="metric-card__trend-body">
-          <span className="metric-card__trend-value">нет данных</span>
-          <span className="metric-card__trend-caption">к прошлому периоду</span>
-        </span>
-      </div>
-    );
+    return undefined;
   }
 
   const delta = comparisonDelta(current, previous, unit);
-  const trend = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-  const TrendIcon = trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
-  const mainLabel = formatAbsoluteDelta(delta, unit);
-  const detailLabel = stable ? "изменение" : "малая выборка";
+  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const tone = delta > 0 ? "success" : delta < 0 ? "danger" : "neutral";
 
-  return (
-    <div className={`metric-card__trend metric-card__trend--${trend}`} aria-label={`К прошлому периоду: ${mainLabel}, ${detailLabel}`}>
-      <span className="metric-card__trend-icon" aria-hidden="true">
-        <TrendIcon size={18} />
-      </span>
-      <span className="metric-card__trend-body">
-        <span className="metric-card__trend-main">
-          <span className="metric-card__trend-value">{mainLabel}</span>
-          <span className="metric-card__trend-detail">{detailLabel}</span>
-        </span>
-        <span className="metric-card__trend-caption">к прошлому периоду</span>
-      </span>
-    </div>
-  );
+  return {
+    value: formatAbsoluteDelta(delta, unit),
+    direction,
+    tone
+  };
 }
 
 export function MetricCard({ label, value, helper, icon, actionHref, actionLabel = "Открыть", comparison }: MetricCardProps) {
+  const { value: heroValue, unit } = splitValue(value);
+  const delta = comparison ? buildDelta(comparison) : undefined;
+  const hint =
+    comparison && delta == null
+      ? "Нет базы сравнения"
+      : helper;
+
   return (
-    <article className="panel metric-card p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="metric-card__label">{label}</p>
-          <p className="metric-card__value">{value}</p>
-        </div>
-        {icon ? <div className="icon-box">{icon}</div> : null}
-      </div>
-      {comparison ? <MetricComparison {...comparison} /> : null}
-      <p className="metric-card__helper">{helper}</p>
+    <div className="metric-card-shell">
+      <StatKpi
+        label={label}
+        value={heroValue}
+        unit={unit}
+        delta={delta}
+        hint={hint}
+        icon={icon}
+      />
       {actionHref ? (
         <Link href={actionHref} className="metric-card__action">
           {actionLabel}
         </Link>
       ) : null}
-    </article>
+    </div>
   );
 }

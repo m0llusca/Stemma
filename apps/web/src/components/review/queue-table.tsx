@@ -1,5 +1,7 @@
+import { Inbox } from "lucide-react";
 import Link from "next/link";
-import { ScoreBar } from "@/components/ui/score-bar";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import type { ReviewQueueAssigneeDto, ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import {
@@ -13,6 +15,7 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
+import { formatQualityScore } from "@/lib/score-display";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 
 type QueueTableProps = {
@@ -21,56 +24,41 @@ type QueueTableProps = {
   returnTo: string;
 };
 
-function reviewStateTone(state: ReviewState) {
-  if (state === "finalized") return "good";
+/**
+ * Status of the review state, mapped to the single colored chip on each row.
+ * Color is rationed: only the highest-priority signal per row earns a hue, and
+ * "finalized" stays neutral (done is not an alert), per the clean-product ramp.
+ */
+function reviewStateTone(state: ReviewState): ChipTone {
   if (state === "reopened") return "warning";
-  if (state === "assigned" || state === "in_progress") return "warning";
+  if (state === "assigned" || state === "in_progress") return "accent";
   return "neutral";
-}
-
-function signalClassName(tone: "neutral" | "good" | "warning" | "danger") {
-  if (tone === "good") return "inbox-signal inbox-signal--good";
-  if (tone === "warning") return "inbox-signal inbox-signal--warn";
-  if (tone === "danger") return "inbox-signal inbox-signal--danger";
-  return "inbox-signal";
-}
-
-function ticketClassName(tone: "neutral" | "good" | "warning" | "danger") {
-  if (tone === "good") return "queue-ticket queue-ticket--good";
-  if (tone === "warning") return "queue-ticket queue-ticket--warning";
-  if (tone === "danger") return "queue-ticket queue-ticket--danger";
-  return "queue-ticket";
 }
 
 function samplingIsSignal(samplingType: string) {
   return samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE";
 }
 
-function dueTone(isOverdue: boolean, hasDueDate: boolean, isFinalized: boolean) {
-  if (isFinalized) return "good";
-  if (isOverdue) return "danger";
-  if (hasDueDate) return "warning";
-  return "neutral";
-}
-
 export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
   if (conversations.length === 0) {
     return (
       <div className="panel queue-empty-state">
-        <div className="queue-empty-state__mark">0</div>
-        <div>
-          <h2>Очередь пуста</h2>
-          <p>Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора.</p>
-        </div>
-        <Link href="/reviews" className="action-button action-button--primary">
-          Сбросить фильтры
-        </Link>
+        <EmptyState
+          icon={<Inbox size={26} aria-hidden="true" />}
+          title="Очередь пуста"
+          description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
+          action={
+            <Link href="/reviews" className="action-button action-button--primary">
+              Сбросить фильтры
+            </Link>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <form action={bulkUpdateReviewQueue} className="panel overflow-clip">
+    <form action={bulkUpdateReviewQueue} className="panel queue-board overflow-clip">
       <input type="hidden" name="returnTo" value={returnTo} />
 
       <details className="queue-bulk-actions">
@@ -79,7 +67,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           <span className="queue-filterbar__summary-action">
             <span className="queue-filterbar__summary-closed">Раскрыть</span>
             <span className="queue-filterbar__summary-open">Скрыть</span>
-            <span className="text-[var(--text-muted)]">{conversations.length}</span>
+            <span className="queue-bulk-actions__count">{conversations.length}</span>
           </span>
         </summary>
         <div className="queue-bulk-actions__body">
@@ -119,7 +107,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
         </div>
       </details>
 
-      <div className="queue-list">
+      <div className="queue-list" role="list">
         {conversations.map((conversation) => {
           const latestFinalizedReview =
             conversation.qaStatus === "FINALIZED"
@@ -138,19 +126,39 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           });
           const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
           const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
+          const hasCritical = Boolean(latestFinalizedReview?.criticalError);
           const appealLabel = latestFinalizedReview
             ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
             : "";
           const reanswerLabel = latestFinalizedReview
             ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
             : "Переответ";
-          const stateTone = isOverdue && reviewState !== "finalized" ? "danger" : reviewStateTone(reviewState);
           const dueLabel = reviewDueAt
             ? reviewDueAt.toLocaleDateString("ru-RU")
             : conversation.qaStatus === "FINALIZED"
               ? "закрыто"
               : "не задан";
-          const dueSignalTone = dueTone(isOverdue, Boolean(reviewDueAt), conversation.qaStatus === "FINALIZED");
+
+          // ONE colored chip per row: pick the single most urgent signal. SLA
+          // breach and critical risk fire the semantic ramp; otherwise the chip
+          // describes the review state with a rationed accent for active work.
+          const statusChipTone: ChipTone = isOverdue || hasCritical
+            ? "danger"
+            : hasReanswer || hasAppeal || reviewState === "reopened"
+              ? "warning"
+              : reviewStateTone(reviewState);
+          const statusChipLabel = isOverdue
+            ? "Просрочено"
+            : hasCritical
+              ? "Критическая ошибка"
+              : hasReanswer
+                ? reanswerLabel
+                : hasAppeal
+                  ? `Апелляция: ${appealLabel}`
+                  : reviewStateLabels[reviewState];
+
+          // Secondary signals stay monochrome (neutral) — the row keeps a single
+          // hue. They live in the meta line, not as rainbow chips.
           const signalItems = [
             conversation.csatBucket === "NEGATIVE"
               ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
@@ -158,81 +166,57 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             samplingIsSignal(conversation.samplingType) ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType : null,
             conversation.riskHint ? "риск" : null
           ].filter((signal): signal is string => Boolean(signal));
-          const hasFlags = signalItems.length > 0 || Boolean(latestFinalizedReview?.criticalError) || hasReanswer || Boolean(hasAppeal);
 
           return (
-            <article key={conversation.id} className={ticketClassName(stateTone)}>
+            <div key={conversation.id} className="queue-row" role="listitem">
               <input
                 type="checkbox"
                 name="conversationId"
                 value={conversation.id}
                 aria-label={`Выбрать ${conversation.subject}`}
-                className="queue-ticket__checkbox h-6 w-6 shrink-0 rounded border-[var(--border)]"
+                className="queue-row__checkbox"
               />
 
-              <div className="queue-ticket__main">
-                <div className="queue-ticket__headline">
-                  <Link href={`/reviews/${conversation.id}`} className="queue-ticket__title">
-                    {conversation.subject}
-                  </Link>
-                  <span className="queue-ticket__priority-reason">{conversation.priorityReason}</span>
-                  <span className={signalClassName(stateTone)}>{reviewStateLabels[reviewState]}</span>
-                </div>
-                <div className="queue-ticket__meta-row">
-                  <p className="queue-ticket__meta">
-                    {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
-                    {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)}
-                  </p>
-                </div>
-                <ul className="queue-ticket__detail-chips" aria-label="Рабочий контекст обращения">
-                  <li>
-                    <span>Источник</span>
-                    <strong>{externalSourceLabel(conversation.externalSource)}</strong>
-                  </li>
-                  <li>
-                    <span>Команда</span>
-                    <strong>{conversation.teamName ?? "Не указана"}</strong>
-                  </li>
-                  <li>
-                    <span>Проверяющий</span>
-                    <strong>{conversation.qaAssigneeName ?? "Не назначен"}</strong>
-                  </li>
-                  <li className={`queue-ticket__due queue-ticket__due--${dueSignalTone}`}>
-                    <span>SLA</span>
-                    <strong>{dueLabel}</strong>
-                  </li>
-                </ul>
-                {hasFlags ? (
-                  <div className="queue-ticket__signals">
-                    {signalItems.length > 0 ? (
-                      <span className={`queue-ticket__signal-group ${isOverdue ? "queue-ticket__signal-group--warn" : ""}`}>
-                        Сигналы: {signalItems.join(", ")}
-                      </span>
-                    ) : null}
-                    {latestFinalizedReview?.criticalError ? (
-                      <span className="queue-ticket__priority queue-ticket__priority--danger">Критическая ошибка</span>
-                    ) : null}
-                    {hasReanswer ? (
-                      <span className="queue-ticket__priority queue-ticket__priority--warn">{reanswerLabel}</span>
-                    ) : null}
-                    {hasAppeal ? (
-                      <span className="queue-ticket__priority queue-ticket__priority--warn">Апелляция: {appealLabel}</span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+              <span className="queue-row__status">
+                <Chip tone={statusChipTone} size="sm">
+                  {statusChipLabel}
+                </Chip>
+              </span>
 
-              <div className="queue-ticket__aside">
-                <ScoreBar value={latestFinalizedReview?.totalScore} emptyLabel={draftReview ? "Черновик" : "Нет оценки"} compact label="Оценка" />
-                <Link href={`/reviews/${conversation.id}`} className="action-button min-h-[36px] px-3 py-2 text-sm">
-                  Открыть
+              <span className="queue-row__main">
+                <Link href={`/reviews/${conversation.id}`} className="queue-row__title">
+                  {conversation.subject}
                 </Link>
-              </div>
-            </article>
+                <span className="queue-row__reason">{conversation.priorityReason}</span>
+                <span className="queue-row__meta">
+                  {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
+                  {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
+                  {externalSourceLabel(conversation.externalSource)}
+                  {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
+                </span>
+              </span>
+
+              <span className="queue-row__assignee">
+                <span className="queue-row__assignee-label">Проверяющий</span>
+                <span className="queue-row__assignee-name">{conversation.qaAssigneeName ?? "Не назначен"}</span>
+              </span>
+
+              <span className={`queue-row__sla${isOverdue ? " queue-row__sla--overdue" : ""}`}>
+                <span className="queue-row__sla-label">SLA</span>
+                <span className="queue-row__sla-value">{dueLabel}</span>
+              </span>
+
+              <span className="queue-row__score">
+                {formatQualityScore(latestFinalizedReview?.totalScore, draftReview ? "Черновик" : "—")}
+              </span>
+
+              <Link href={`/reviews/${conversation.id}`} className="action-button queue-row__open">
+                Открыть
+              </Link>
+            </div>
           );
         })}
       </div>
-
     </form>
   );
 }

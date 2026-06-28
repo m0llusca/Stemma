@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { MessageSquareText, ShieldQuestion } from "lucide-react";
+import { ArrowRight, BookOpenCheck, MessageSquareText, ShieldQuestion } from "lucide-react";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
 import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
@@ -14,20 +16,20 @@ import {
   riskLevelLabels
 } from "@/lib/labels";
 import { criterionEarnedPercent } from "@/lib/reports/report-aggregation";
-import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
+import { clampQualityScore, formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
-function feedbackTone(status: string) {
+function feedbackTone(status: string): ChipTone {
   if (status === "acknowledged" || status === "corrected") {
-    return "pill--ok";
+    return "success";
   }
 
   if (status === "appeal") {
-    return "pill--warn";
+    return "warning";
   }
 
-  return "pill--neutral";
+  return "neutral";
 }
 
 export default function SelfReviewPage() {
@@ -167,14 +169,27 @@ async function SelfReviewPageContent() {
           ? "Примите проверку, если замечания понятны; спорные пункты можно оспорить."
           : "Откройте детали, чтобы посмотреть основание оценки.";
 
+    const findingTone = (riskLevel: string): ChipTone =>
+      riskLevel === "CRITICAL" || riskLevel === "HIGH" ? "warning" : "neutral";
+
     return (
       <article key={conversation.id} className="feedback-card">
         <div className="feedback-card__main">
           <div className="feedback-card__head">
-            <Link href={`/reviews/${conversation.id}`} className="record-title text-[#1d3fae] hover:underline">
+            <Link href={`/reviews/${conversation.id}`} className="record-title feedback-card__title">
               {conversation.subject}
             </Link>
-            <span className="pill pill--neutral">{formatQualityScore(review.totalScore)}</span>
+            <span className="feedback-card__score">{clampQualityScore(review.totalScore)}</span>
+          </div>
+          <div className="feedback-card__status-row">
+            <Chip tone={feedbackTone(review.feedbackStatus)} size="xs">
+              {feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus}
+            </Chip>
+            {review.appealStatus !== "none" ? (
+              <Chip tone={review.appealStatus === "open" ? "warning" : "neutral"} size="xs">
+                {appealStatusLabels[review.appealStatus] ?? review.appealStatus}
+              </Chip>
+            ) : null}
           </div>
           <p>{review.summary}</p>
           <p className="feedback-card__next-step">{nextStep}</p>
@@ -183,44 +198,49 @@ async function SelfReviewPageContent() {
             <span>{review.reviewer.name}</span>
             <span>{(review.finalizedAt ?? review.createdAt).toLocaleDateString("ru-RU")}</span>
           </div>
-          <div className="feedback-card__meta">
-            <span className={`pill ${feedbackTone(review.feedbackStatus)}`}>
-              {feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus}
-            </span>
-            <span className="pill pill--neutral">
-              {appealStatusLabels[review.appealStatus] ?? review.appealStatus}
-            </span>
-          </div>
           {visibleFindings.length > 0 ? (
             <div className="feedback-card__findings" aria-label="Основания оценки">
               {visibleFindings.map((finding) => (
-                <span key={`${finding.category}:${finding.riskLevel}`} className="pill pill--neutral">
+                <Chip key={`${finding.category}:${finding.riskLevel}`} tone={findingTone(finding.riskLevel)} size="xs">
                   {finding.category} · {riskLevelLabels[finding.riskLevel]}
-                </span>
+                </Chip>
               ))}
-              {hiddenFindingCount > 0 ? <span className="pill pill--neutral">+{hiddenFindingCount}</span> : null}
+              {hiddenFindingCount > 0 ? <Chip tone="neutral" size="xs" numeric>+{hiddenFindingCount}</Chip> : null}
             </div>
           ) : null}
         </div>
         {mode === "action" ? (
-          <div className="feedback-card__actions">
+          <div className="feedback-card__decision">
             {canAcknowledge ? (
-              <form action={updateReviewFeedback}>
+              <form action={updateReviewFeedback} className="feedback-card__decision-acknowledge">
                 <input type="hidden" name="reviewId" value={review.id} />
                 <input type="hidden" name="action" value="acknowledged" />
                 <button type="submit" className="action-button action-button--primary">
-                  Ознакомлен
+                  Принять оценку
                 </button>
               </form>
             ) : null}
             {canOpenAppeal ? (
-              <form action={updateReviewFeedback}>
-                <input type="hidden" name="reviewId" value={review.id} />
-                <input type="hidden" name="action" value="appeal_opened" />
-                <button type="submit" className="action-button">
-                  Апелляция
-                </button>
-              </form>
+              <details className="feedback-dispute">
+                <summary className="feedback-dispute__summary">Оспорить</summary>
+                <form action={updateReviewFeedback} className="feedback-dispute__form">
+                  <input type="hidden" name="reviewId" value={review.id} />
+                  <input type="hidden" name="action" value="appeal_opened" />
+                  <label className="feedback-dispute__label">
+                    Обоснование
+                    <textarea
+                      name="comment"
+                      rows={2}
+                      required
+                      placeholder="С каким пунктом не согласны и почему."
+                      className="form-control"
+                    />
+                  </label>
+                  <button type="submit" className="action-button">
+                    Открыть апелляцию
+                  </button>
+                </form>
+              </details>
             ) : null}
             {canCompleteReanswer ? (
               <form action={updateReviewFeedback}>
@@ -238,7 +258,7 @@ async function SelfReviewPageContent() {
             ) : null}
           </div>
         ) : (
-          <div className="feedback-card__actions">
+          <div className="feedback-card__decision">
             <Link href={`/reviews/${conversation.id}`} className="action-button">
               Открыть
             </Link>
@@ -248,29 +268,16 @@ async function SelfReviewPageContent() {
     );
   };
 
+  const periodDelta = recentAverage != null && earlierAverage != null ? Math.round(recentAverage - earlierAverage) : null;
+  const benchmarkDelta = myAverage != null && teamAverage != null ? Math.round(myAverage - teamAverage) : null;
+
   return (
-    <section className="page-shell workspace-shell">
-      <div className="command-center command-center--split command-center--metrics">
-        <div className="min-w-0">
-          <p className="page-kicker">Обратная связь</p>
-          <h1 className="page-title">Моя обратная связь</h1>
-          <p className="page-subtitle">
-            Это не отдельная самооценка, а рабочее место оператора: принять проверку, открыть апелляцию и закрыть учебные задачи.
-          </p>
-        </div>
-        <div className="learning-metrics" aria-label="Сводка обратной связи">
-          <div className="learning-metric">
-            <MessageSquareText size={16} aria-hidden="true" />
-            <span>{waitingFeedback}</span>
-            <small>ожидают ответа</small>
-          </div>
-          <div className="learning-metric">
-            <ShieldQuestion size={16} aria-hidden="true" />
-            <span>{appealCount}</span>
-            <small>апелляции</small>
-          </div>
-        </div>
-      </div>
+    <section className="page-shell workspace-shell self-review-shell">
+      <p className="page-kicker">Обратная связь</p>
+      <h1 className="page-title">Моя обратная связь</h1>
+      <p className="page-subtitle self-review-intro">
+        Это не отдельная самооценка, а рабочее место оператора: принять проверку, открыть апелляцию и закрыть учебные задачи.
+      </p>
 
       <StickyMetricsBar
         ariaLabel="Сводка обратной связи"
@@ -280,40 +287,88 @@ async function SelfReviewPageContent() {
         ]}
       />
 
-      {myAverage != null ? (
-        <section className="panel personal-score" aria-label="Личный результат качества">
-          <div className="personal-score__head">
-            <div className="personal-score__value">
-              <span className="personal-score__number">{formatQualityScore(myAverage)}</span>
-              <span className="personal-score__caption">средний балл · {myReviewScores.length} проверок</span>
-            </div>
-            {recentAverage != null && earlierAverage != null ? (
-              <span
-                className={`personal-score__delta ${recentAverage - earlierAverage >= 0 ? "personal-score__delta--up" : "personal-score__delta--down"}`}
-              >
-                {recentAverage - earlierAverage >= 0 ? "▲" : "▼"} {formatQualityScoreDelta(recentAverage - earlierAverage)} к началу периода
-              </span>
+      <section className="self-review-hero panel" aria-label="Личный результат качества">
+        <div className="self-review-hero__score">
+          <span className="self-review-hero__eyebrow">Средний балл качества</span>
+          <div className="self-review-hero__value-row">
+            <span className="self-review-hero__number">{myAverage != null ? clampQualityScore(myAverage) : "—"}</span>
+            <span className="self-review-hero__unit">из 100</span>
+            {periodDelta != null && periodDelta !== 0 ? (
+              <Chip tone={periodDelta > 0 ? "success" : "warning"} size="sm" numeric>
+                {periodDelta > 0 ? "↑" : "↓"} {formatQualityScoreDelta(periodDelta)}
+              </Chip>
+            ) : periodDelta === 0 ? (
+              <Chip tone="neutral" size="sm" numeric>→ без изменений</Chip>
             ) : null}
           </div>
-          <ScoreSparkline points={myReviewScores} />
-          {focusCriteria.length > 0 ? (
-            <div className="criterion-insights">
-              {strengthCriteria.length > 0 ? (
-                <div className="criterion-insights__column">
-                  <h3 className="criterion-insights__title">Сильные стороны</h3>
-                  <ul className="criterion-insights__list">
-                    {strengthCriteria.map((stat) => (
-                      <li key={stat.label} className="criterion-insight">
-                        <span className="criterion-insight__label">{stat.label}</span>
-                        <span className="criterion-insight__bar" aria-hidden="true">
-                          <span className="criterion-insight__fill" style={{ width: `${stat.averagePercent}%` }} />
-                        </span>
-                        <span className="criterion-insight__value">{stat.averagePercent}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+          <p className="self-review-hero__context">
+            {myReviewScores.length > 0 ? `${myReviewScores.length} проверок за период` : "Проверок пока нет"}
+            {benchmarkDelta != null
+              ? benchmarkDelta === 0
+                ? " · на уровне команды"
+                : benchmarkDelta > 0
+                  ? ` · выше команды на ${Math.abs(benchmarkDelta)}`
+                  : ` · ниже команды на ${Math.abs(benchmarkDelta)}`
+              : ""}
+          </p>
+          {myReviewScores.length >= 2 ? <ScoreSparkline points={myReviewScores} /> : null}
+        </div>
+        <div className="self-review-hero__action">
+          <span className="self-review-hero__action-eyebrow">{nextConversation ? "Требует ответа" : "Очередь пуста"}</span>
+          {nextConversation && nextReview ? (
+            <>
+              <strong className="self-review-hero__action-title">{nextConversation.subject}</strong>
+              <p className="self-review-hero__excerpt">{nextReview.summary}</p>
+              <div className="self-review-hero__action-meta">
+                <Chip tone="neutral" size="xs" numeric>{clampQualityScore(nextReview.totalScore)} баллов</Chip>
+                <Chip tone={feedbackTone(nextReview.feedbackStatus)} size="xs">
+                  {feedbackStatusLabels[nextReview.feedbackStatus] ?? nextReview.feedbackStatus}
+                </Chip>
+              </div>
+              <Link href={`/reviews/${nextConversation.id}`} className="action-button action-button--primary self-review-hero__cta">
+                Ответить сейчас
+                <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <strong className="self-review-hero__action-title">Нет срочных ответов</strong>
+              <p className="self-review-hero__excerpt">
+                {assignments.length > 0
+                  ? `Осталось закрыть ${assignments.length} учебных задач после разбора.`
+                  : "Новые финальные проверки и апелляции появятся здесь первыми."}
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+
+      {(strengthCriteria.length > 0 || focusCriteria.length > 0) ? (
+        <section className="self-review-criteria panel" aria-label="Сильные стороны и зоны роста">
+          <div className="learning-section-header">
+            <div className="min-w-0">
+              <h2>По критериям</h2>
+              <p>Средний процент выполнения по критериям за последние проверки.</p>
+            </div>
+          </div>
+          <div className="criterion-insights">
+            {strengthCriteria.length > 0 ? (
+              <div className="criterion-insights__column">
+                <h3 className="criterion-insights__title">Сильные стороны</h3>
+                <ul className="criterion-insights__list">
+                  {strengthCriteria.map((stat) => (
+                    <li key={stat.label} className="criterion-insight">
+                      <span className="criterion-insight__label">{stat.label}</span>
+                      <span className="criterion-insight__bar" aria-hidden="true">
+                        <span className="criterion-insight__fill" style={{ width: `${stat.averagePercent}%` }} />
+                      </span>
+                      <span className="criterion-insight__value">{stat.averagePercent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {focusCriteria.length > 0 ? (
               <div className="criterion-insights__column">
                 <h3 className="criterion-insights__title">Зоны роста</h3>
                 <ul className="criterion-insights__list">
@@ -328,47 +383,10 @@ async function SelfReviewPageContent() {
                   ))}
                 </ul>
               </div>
-            </div>
-          ) : null}
-          {teamAverage != null ? (
-            <p className="personal-score__benchmark">
-              {Math.round(myAverage - teamAverage) === 0
-                ? "На уровне среднего по команде."
-                : myAverage - teamAverage > 0
-                  ? `Выше среднего по команде на ${formatQualityScore(Math.abs(myAverage - teamAverage))}.`
-                  : `Ниже среднего по команде на ${formatQualityScore(Math.abs(myAverage - teamAverage))}.`}{" "}
-              Средний балл команды — {formatQualityScore(teamAverage)}.
-            </p>
-          ) : null}
+            ) : null}
+          </div>
         </section>
       ) : null}
-
-      <section className="workflow-focus-strip" aria-label="Фокус обратной связи">
-        <div className="workflow-focus-strip__lead">
-          <span className="page-kicker">Сейчас оператору</span>
-          <strong>{nextConversation ? nextConversation.subject : "Нет срочных ответов"}</strong>
-          <small>
-            {nextReview
-              ? `${formatQualityScore(nextReview.totalScore)} · ${feedbackStatusLabels[nextReview.feedbackStatus] ?? nextReview.feedbackStatus}`
-              : "История проверок остается ниже для контекста."}
-          </small>
-        </div>
-        <div className="workflow-focus-strip__items">
-          {nextConversation ? (
-            <Link href={`/reviews/${nextConversation.id}`} className="workflow-focus-card">
-              <span>Ответить сейчас</span>
-              <strong>{formatQualityScore(nextReview?.totalScore ?? null)}</strong>
-              <small>{nextReview ? feedbackStatusLabels[nextReview.feedbackStatus] ?? nextReview.feedbackStatus : "Открыть проверку"}</small>
-            </Link>
-          ) : (
-            <div className="workflow-focus-card workflow-focus-card--static">
-              <span>Состояние</span>
-              <strong>{assignments.length}</strong>
-              <small>Учебных задач осталось закрыть</small>
-            </div>
-          )}
-        </div>
-      </section>
 
       <section className="feedback-layout" aria-label="Операторская обратная связь">
         <div className="feedback-main panel">
@@ -377,17 +395,18 @@ async function SelfReviewPageContent() {
               <h2>Требуют ответа</h2>
               <p>Оценки, где нужно подтвердить, оспорить или проверить переответ.</p>
             </div>
-            <span className="pill pill--neutral">{actionConversations.length}</span>
+            <Chip tone={actionConversations.length > 0 ? "accent" : "neutral"} numeric>{actionConversations.length}</Chip>
           </div>
 
           <div className="feedback-card-list">
             {actionConversations.length > 0 ? (
               actionConversations.map((conversation) => renderFeedbackCard(conversation))
             ) : (
-              <div className="empty-state">
-                <h3>Ответов не требуется</h3>
-                <p>Новые финальные проверки и апелляции появятся здесь первыми.</p>
-              </div>
+              <EmptyState
+                icon={<MessageSquareText size={24} aria-hidden="true" />}
+                title="Ответов не требуется"
+                description="Новые финальные проверки и апелляции появятся здесь первыми."
+              />
             )}
           </div>
 
@@ -397,16 +416,18 @@ async function SelfReviewPageContent() {
                 <h2>История</h2>
                 <p>Закрытые и подтвержденные проверки без срочного действия.</p>
               </div>
-              <span className="pill pill--neutral">{historyConversations.length}</span>
+              <Chip tone="neutral" numeric>{historyConversations.length}</Chip>
             </div>
             <div className="feedback-card-list feedback-card-list--history">
               {historyConversations.length > 0 ? (
                 historyConversations.map((conversation) => renderFeedbackCard(conversation, "history"))
               ) : (
-                <div className="empty-state empty-state--compact">
-                  <h3>История пока пустая</h3>
-                  <p>После подтверждения проверки останутся здесь для контекста.</p>
-                </div>
+                <EmptyState
+                  size="inline"
+                  icon={<MessageSquareText size={20} aria-hidden="true" />}
+                  title="История пока пустая"
+                  description="После подтверждения проверки останутся здесь для контекста."
+                />
               )}
             </div>
           </div>
@@ -418,7 +439,7 @@ async function SelfReviewPageContent() {
               <h2>Учебные задачи</h2>
               <p>Короткий список того, что нужно закрыть после разбора.</p>
             </div>
-            <span className="pill pill--neutral">{assignments.length}</span>
+            <Chip tone="neutral" numeric>{assignments.length}</Chip>
           </div>
           <div className="feedback-task-list">
             {assignments.length > 0 ? (
@@ -440,10 +461,12 @@ async function SelfReviewPageContent() {
                 </article>
               ))
             ) : (
-              <div className="empty-state empty-state--compact">
-                <h3>Задач нет</h3>
-                <p>Все разборы закрыты.</p>
-              </div>
+              <EmptyState
+                size="inline"
+                icon={<BookOpenCheck size={20} aria-hidden="true" />}
+                title="Задач нет"
+                description="Все разборы закрыты."
+              />
             )}
           </div>
         </aside>
