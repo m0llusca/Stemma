@@ -69,7 +69,7 @@ describe("app nav", () => {
     const labels = within(areaNav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(labels).toEqual(["Сегодня", "Проверки", "Калибровка", "Обучение", "Аналитика"]);
+    expect(labels).toEqual(["Сегодня", "Проверки", "Калибровка", "Обучение", "Аналитика", "Настройки"]);
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {

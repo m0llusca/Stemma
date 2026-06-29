@@ -32,8 +32,8 @@ export type ShellNavigation = {
   commandItems: ShellCommandItem[];
 };
 
-export type ShellNavAreaId = "today" | "review" | "calibration" | "coaching" | "analytics";
-export type ShellNavAreaIcon = "today" | "review" | "calibration" | "coaching" | "analytics";
+export type ShellNavAreaId = "today" | "review" | "calibration" | "coaching" | "analytics" | "settings";
+export type ShellNavAreaIcon = "today" | "review" | "calibration" | "coaching" | "analytics" | "settings";
 
 export type ShellNavArea = {
   id: ShellNavAreaId;
@@ -41,6 +41,8 @@ export type ShellNavArea = {
   label: string;
   description: string;
   icon: ShellNavAreaIcon;
+  /** Roles that must NOT see this area (others see it). Undefined = everyone. */
+  hideForRoles?: RoleName[];
 };
 
 /**
@@ -84,8 +86,21 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Аналитика",
     description: "Тренды качества, факторы риска и разрезы по командам.",
     icon: "analytics"
+  },
+  {
+    id: "settings",
+    href: "/admin",
+    label: "Настройки",
+    description: "Формы оценки, доступы, интеграции и система.",
+    icon: "settings",
+    hideForRoles: ["SUPPORT_AGENT"]
   }
 ];
+
+/** Top-nav areas visible to a role (drops areas hidden for that role). */
+export function visibleTopNavAreas(role: RoleName): ShellNavArea[] {
+  return topNavAreas.filter((area) => !area.hideForRoles?.includes(role));
+}
 
 /**
  * Shared prefix matcher: query-string is ignored and a path matches its target

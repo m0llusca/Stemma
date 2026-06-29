@@ -19,8 +19,8 @@ function commandMatches(command: ShellCommandItem, query: string) {
 }
 
 describe("topNavAreas", () => {
-  it("exposes the five primary product areas in order", () => {
-    expect(topNavAreas.map((area) => area.id)).toEqual(["today", "review", "calibration", "coaching", "analytics"]);
+  it("exposes the primary product areas in order", () => {
+    expect(topNavAreas.map((area) => area.id)).toEqual(["today", "review", "calibration", "coaching", "analytics", "settings"]);
   });
 
   it("derives labels and hrefs from the shell mode model", () => {
@@ -31,6 +31,7 @@ describe("topNavAreas", () => {
     expect(byId.calibration.href).toBe("/calibration");
     expect(byId.coaching.href).toBe("/coaching");
     expect(byId.analytics.href).toBe("/reports");
+    expect(byId.settings.href).toBe("/admin");
   });
 });
 
@@ -60,8 +61,9 @@ describe("activeAreaForPath", () => {
     expect(activeAreaForPath("/self-review")).toBeNull();
   });
 
-  it("returns null for admin paths that do not map to a primary area", () => {
-    expect(activeAreaForPath("/admin/integrations")).toBeNull();
+  it("maps admin paths to the settings area", () => {
+    expect(activeAreaForPath("/admin")).toBe("settings");
+    expect(activeAreaForPath("/admin/integrations")).toBe("settings");
   });
 
   it("returns null for unknown paths", () => {

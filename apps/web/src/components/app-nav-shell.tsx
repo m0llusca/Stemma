@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Scale,
   Search,
+  SlidersHorizontal,
   TrendingUp,
   X
 } from "lucide-react";
@@ -20,6 +21,7 @@ import {
   activeAreaForPath,
   topNavAreas,
   type ShellCommandItem,
+  type ShellNavArea,
   type ShellNavAreaIcon,
   type ShellNavigation
 } from "@/lib/shell/navigation";
@@ -49,6 +51,7 @@ type AppNavShellProps = {
     }>;
   } | null;
   branding?: WorkspaceBranding;
+  areas?: ShellNavArea[];
 };
 
 const areaIcons = {
@@ -56,7 +59,8 @@ const areaIcons = {
   review: ClipboardCheck,
   calibration: Scale,
   coaching: GraduationCap,
-  analytics: TrendingUp
+  analytics: TrendingUp,
+  settings: SlidersHorizontal
 } satisfies Record<ShellNavAreaIcon, typeof ClipboardCheck>;
 
 const defaultNavBranding = resolveWorkspaceBranding({});
@@ -72,7 +76,7 @@ function commandMatches(command: ShellCommandItem, query: string) {
   );
 }
 
-export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, branding = defaultNavBranding }: AppNavShellProps) {
+export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, branding = defaultNavBranding, areas = topNavAreas }: AppNavShellProps) {
   const pathname = usePathname();
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -127,7 +131,7 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
         </Link>
 
         <nav className="app-nav__areas" aria-label="Основные разделы">
-          {topNavAreas.map((area) => {
+          {areas.map((area) => {
             const Icon = areaIcons[area.icon];
             const isActive = area.id === activeAreaId;
 

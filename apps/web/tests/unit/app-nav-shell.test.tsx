@@ -42,12 +42,14 @@ describe("app nav shell", () => {
     expect(document.querySelectorAll('.app-nav__area[aria-current="page"]')).toHaveLength(1);
   });
 
-  it("does not highlight any area on admin routes", () => {
+  it("highlights the settings area on admin routes", () => {
     mocks.pathname = "/admin/integrations";
 
     render(<AppNavShell {...baseProps} />);
 
-    expect(document.querySelectorAll('.app-nav__area[aria-current="page"]')).toHaveLength(0);
+    const active = document.querySelectorAll('.app-nav__area[aria-current="page"]');
+    expect(active).toHaveLength(1);
+    expect(active[0]?.textContent).toContain("Настройки");
   });
 
   it("opens the command palette with the ⌘K keybinding and filters items", () => {

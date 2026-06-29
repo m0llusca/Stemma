@@ -268,13 +268,13 @@
 .app-nav__inner {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   width: 100%;
-  max-width: var(--content-max-width);
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   min-height: var(--app-topbar-height);
-  padding: 7px var(--app-topbar-inline);
+  padding: 7px clamp(16px, 1.6vw, 28px);
 }
 
 .app-nav__brand {

@@ -2,6 +2,7 @@ import { AppNavShell } from "@/components/app-nav-shell";
 import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
+import { visibleTopNavAreas } from "@/lib/shell/navigation";
 import { roleLabels } from "@/lib/labels";
 
 export async function AppNav() {
@@ -25,6 +26,7 @@ export async function AppNav() {
   return (
     <AppNavShell
       navigation={snapshot.navigation}
+      areas={visibleTopNavAreas(snapshot.user.role)}
       pulseItems={pulseItems}
       user={{ name: snapshot.user.name, email: snapshot.user.email }}
       demoSwitcher={demoSwitcher}
