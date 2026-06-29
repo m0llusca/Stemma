@@ -113,12 +113,32 @@ export function PageSkeleton({ label = "Загрузка страницы", vari
   if (variant === "reports") {
     return (
       <div className="page-shell" aria-busy="true" aria-label={label}>
-        <PageShellHeaderSkeleton titleWidth={240} actionWidth={188} />
+        <PageShellHeaderSkeleton titleWidth={240} actionWidth={120} />
+
+        <nav className="page-shell__tabs" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} style={{ width: 104, height: 34 }} />
+          ))}
+        </nav>
 
         <div className="page-shell__content">
+          <div className="report-period-controls" aria-hidden="true">
+            <div className="report-period-controls__form">
+              <Skeleton style={{ width: "100%", height: 38 }} />
+              <Skeleton style={{ width: "100%", height: 38 }} />
+              <Skeleton style={{ width: "100%", height: 38 }} />
+            </div>
+            <Skeleton style={{ width: 150, height: 38 }} />
+          </div>
+
+          <Skeleton style={{ width: "100%", height: 64 }} />
+
           <div className="report-kpi-row" aria-hidden="true">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} style={{ width: "100%", height: 92 }} />
+              <div key={index} className="report-kpi-tile" style={{ display: "grid", gap: 8, padding: "12px 14px" }}>
+                <Skeleton style={{ width: 96, height: 11 }} />
+                <Skeleton style={{ width: 64, height: 26 }} />
+              </div>
             ))}
           </div>
 
