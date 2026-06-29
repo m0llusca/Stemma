@@ -12,7 +12,7 @@ import {
   type TrendTone
 } from "@/lib/reports/report-format";
 
-export function TrendSignals({ points, target = 90 }: { points: ChartDatum[]; target?: number }) {
+function TrendSignals({ points, target = 90 }: { points: ChartDatum[]; target?: number }) {
   if (points.length === 0) {
     return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок за выбранный период.</p>;
   }

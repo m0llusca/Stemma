@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type PageSkeletonVariant = "admin" | "dashboard" | "detail" | "reports" | "workspace";
@@ -6,15 +5,6 @@ type PageSkeletonVariant = "admin" | "dashboard" | "detail" | "reports" | "works
 type PageSkeletonProps = {
   label?: string;
   variant?: PageSkeletonVariant;
-};
-
-type StableEmptyStateProps = {
-  action?: ReactNode;
-  className?: string;
-  description: ReactNode;
-  eyebrow?: ReactNode;
-  metric?: ReactNode;
-  title: ReactNode;
 };
 
 function SkeletonTextBlock({ titleWidth = 260, subtitleWidth = "min(460px, 90%)" }: { titleWidth?: number; subtitleWidth?: string }) {
@@ -214,20 +204,6 @@ export function PageSkeleton({ label = "Загрузка страницы", vari
         ))}
       </div>
       <PanelRows rows={8} />
-    </section>
-  );
-}
-
-export function StableEmptyState({ action, className = "", description, eyebrow, metric, title }: StableEmptyStateProps) {
-  return (
-    <section className={`panel stable-empty-state ${className}`.trim()}>
-      {eyebrow ? <p className="stable-empty-state__eyebrow">{eyebrow}</p> : null}
-      {metric ? <div className="stable-empty-state__metric">{metric}</div> : null}
-      <div className="stable-empty-state__copy">
-        <h2>{title}</h2>
-        <p>{description}</p>
-      </div>
-      {action ? <div className="stable-empty-state__action">{action}</div> : null}
     </section>
   );
 }

@@ -67,3 +67,40 @@ export async function loadFinalizedReviews(workspaceId: string, period: ReportPe
 }
 
 export type ReviewForReport = Awaited<ReturnType<typeof loadFinalizedReviews>>[number];
+
+// Narrow loader for the COMPARISON (previous) period. The previous period only
+// feeds score deltas (by source/assignee/team), the previous block-score rows,
+// the previous average and the previous count — it is never rendered row by
+// row. So we select just those columns instead of the full review shape used
+// for the current period. Output of every previous-period computation stays
+// identical because those computations read only these fields.
+export async function loadPreviousFinalizedReviews(workspaceId: string, period: ReportPeriod) {
+  return prisma.review.findMany({
+    where: reviewWhere(workspaceId, period),
+    select: {
+      totalScore: true,
+      conversation: {
+        select: {
+          externalSource: true,
+          assigneeName: true,
+          teamName: true
+        }
+      },
+      scores: {
+        select: {
+          value: true,
+          passed: true,
+          isNotApplicable: true,
+          criterion: {
+            select: {
+              block: true,
+              kind: true
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+export type PreviousReviewForReport = Awaited<ReturnType<typeof loadPreviousFinalizedReviews>>[number];

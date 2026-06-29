@@ -424,6 +424,51 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
     .map(({ openedAt: _openedAt, ...conversation }) => conversation);
 }
 
+export const reviewQueueDefaultPageSize = 25;
+
+export type ReviewQueuePage = {
+  items: ReviewQueueConversationDto[];
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  total: number;
+  hasMore: boolean;
+};
+
+// Parse a 1-based page number from a raw search param, clamping junk to 1.
+export function parseReviewQueuePage(value: string | string[] | undefined): number {
+  const raw = firstParam(value);
+  const parsed = raw ? Number.parseInt(raw, 10) : 1;
+
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+// Slice the already priority-sorted queue into a single page. Pagination is a
+// pure rendering bound applied AFTER the global priority sort, so which rows
+// rank first never changes — only how many are shown at once. `page` is 1-based
+// and clamped into range; an out-of-range page returns the last page.
+export function paginateReviewQueue(
+  conversations: readonly ReviewQueueConversationDto[],
+  page = 1,
+  pageSize = reviewQueueDefaultPageSize
+): ReviewQueuePage {
+  const total = conversations.length;
+  const safePageSize = Math.max(1, Math.trunc(pageSize));
+  const pageCount = Math.max(1, Math.ceil(total / safePageSize));
+  const safePage = Math.min(Math.max(1, Math.trunc(page)), pageCount);
+  const start = (safePage - 1) * safePageSize;
+  const items = conversations.slice(start, start + safePageSize);
+
+  return {
+    items,
+    page: safePage,
+    pageSize: safePageSize,
+    pageCount,
+    total,
+    hasMore: safePage < pageCount
+  };
+}
+
 function reviewQueuePriority({
   qaStatus,
   qaAssigneeName,

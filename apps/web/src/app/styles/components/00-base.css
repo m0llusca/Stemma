@@ -19,6 +19,15 @@
   transform: translateY(0);
 }
 
+/* Global keyboard-focus baseline. Per-component focus styles still win where
+   defined (this is only a fallback so every focusable element keeps a visible
+   ring even without an explicit opt-in). Uses :focus-visible so it never shows
+   on pointer/mouse interaction. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 button, input, select, textarea {
   font: inherit;
   min-width: 0;

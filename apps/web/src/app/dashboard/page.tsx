@@ -15,6 +15,7 @@ import { TriageStrip } from "@/components/ui/triage-strip";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
 import { reviewEventActionLabel } from "@/lib/review-events";
 import { formatQualityScore, qualityScoreDelta } from "@/lib/score-display";
 import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
@@ -83,14 +84,6 @@ function formatRelative(value: Date, now = new Date()) {
 function weekdayLabel(value: Date) {
   return value.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "");
 }
-
-type AgentRow = {
-  name: string;
-  average: number;
-  count: number;
-  riskCount: number;
-  appealCount: number;
-};
 
 type FocusItem = {
   icon: LucideIcon;
@@ -272,34 +265,9 @@ async function DashboardPageContent() {
       average: avgScore
     };
   });
-  const agentRows = Array.from(
-    agentReviews
-      .reduce((acc, review) => {
-        const name = review.conversation.assigneeName ?? "Без оператора";
-        const current = acc.get(name) ?? { name, total: 0, count: 0, riskCount: 0, appealCount: 0 };
-        current.total += review.totalScore;
-        current.count += 1;
-        current.riskCount += review.criticalError || review.findings.some((finding) => finding.riskLevel === "HIGH" || finding.riskLevel === "CRITICAL") ? 1 : 0;
-        current.appealCount += review.appealStatus === "open" ? 1 : 0;
-        acc.set(name, current);
-        return acc;
-      }, new Map<string, { name: string; total: number; count: number; riskCount: number; appealCount: number }>())
-      .values()
-  )
-    .map<AgentRow>((row) => ({
-      name: row.name,
-      average: row.total / row.count,
-      count: row.count,
-      riskCount: row.riskCount,
-      appealCount: row.appealCount
-    }))
-    .sort((left, right) => {
-      const leftActionLoad = left.riskCount * 3 + left.appealCount * 2;
-      const rightActionLoad = right.riskCount * 3 + right.appealCount * 2;
-
-      return rightActionLoad - leftActionLoad || left.average - right.average || right.count - left.count;
-    })
-    .slice(0, 5);
+  // Agent leaderboard reduction lives in a unit-tested pure helper so the math
+  // (averages, risk/appeal load, ordering) is verifiable and not re-derived here.
+  const agentRows = computeAgentLeaderboard(agentReviews, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
   const totalQueueCount = queuedCount + inWorkCount;
   const focusItemCandidates: Array<FocusItem | null> = [

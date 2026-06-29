@@ -20,7 +20,12 @@ import {
 import { takeNextReview } from "@/lib/queue-view-actions";
 import type { ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
-import type { ReviewQueueSearchParams } from "@/lib/review-repository";
+import {
+  paginateReviewQueue,
+  parseReviewQueuePage,
+  reviewQueueDefaultPageSize,
+  type ReviewQueueSearchParams
+} from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
 
@@ -34,6 +39,33 @@ function queuePreviewHref(conversation: ReviewQueueConversationDto, returnTo: st
   return `/reviews/${conversation.id}?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
+// Build a queue href for a given page while preserving every other active
+// search param (filters, saved view, etc.). Page 1 drops the param entirely so
+// the canonical first-page URL stays clean.
+function queuePageHref(rawParams: ReviewQueueSearchParams, page: number) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(rawParams)) {
+    if (key === "page") {
+      continue;
+    }
+
+    const values = Array.isArray(value) ? value : [value];
+    for (const item of values) {
+      if (item) {
+        params.append(key, item);
+      }
+    }
+  }
+
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+
+  const query = params.toString();
+  return query ? `/reviews?${query}` : "/reviews";
+}
+
 export default function ReviewsPage({ searchParams }: ReviewsPageProps) {
   return (
     <Suspense fallback={<PageSkeleton label="Загрузка очереди проверок" />}>
@@ -43,9 +75,18 @@ export default function ReviewsPage({ searchParams }: ReviewsPageProps) {
 }
 
 async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
-  const data = await getReviewQueuePageData(await searchParams);
+  const rawParams = await searchParams;
+  const data = await getReviewQueuePageData(rawParams);
   const filteredCount = data.conversations.length;
   const { total, queued, inWork, reviewed, overdue } = data.summary;
+  // Render-only pagination: the global priority sort already happened in the
+  // repository, so this just bounds how many rows hit the DOM per page. Focus
+  // strip and summary counts below still read the full filtered set.
+  const queuePage = paginateReviewQueue(
+    data.conversations,
+    parseReviewQueuePage(rawParams.page),
+    reviewQueueDefaultPageSize
+  );
   const visibleCriticalCount = data.conversations.filter((conversation) =>
     conversation.reviews.some((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN" && review.criticalError)
   ).length;
@@ -236,7 +277,27 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
 
       <div className="queue-cockpit-layout">
         <div className="queue-cockpit-layout__list">
-          <QueueTable conversations={data.conversations} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
+          <QueueTable conversations={queuePage.items} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
+          {queuePage.pageCount > 1 ? (
+            <nav className="flex flex-wrap items-center justify-between gap-3 mt-3" aria-label="Страницы очереди">
+              <span className="page-kicker" aria-live="polite">
+                Стр. {queuePage.page} из {queuePage.pageCount} · показано {queuePage.items.length} из {queuePage.total}
+              </span>
+              <div className="flex items-center gap-2">
+                {queuePage.page > 1 ? (
+                  <Link href={queuePageHref(rawParams, queuePage.page - 1)} className="action-button" rel="prev">
+                    Назад
+                  </Link>
+                ) : null}
+                {queuePage.hasMore ? (
+                  <Link href={queuePageHref(rawParams, queuePage.page + 1)} className="action-button action-button--primary" rel="next">
+                    Показать ещё
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </Link>
+                ) : null}
+              </div>
+            </nav>
+          ) : null}
         </div>
         {queuePreview && queuePreviewState ? (
           <aside className="queue-preview-panel panel" aria-label="Предпросмотр следующего обращения">

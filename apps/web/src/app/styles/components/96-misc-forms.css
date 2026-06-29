@@ -408,21 +408,6 @@ pre,
     margin-top: 6px;
   }
 
-  .coaching-rail,
-  .coaching-context-panel {
-    position: static;
-  }
-
-  .coaching-control-section,
-  .coaching-filter-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .coaching-control-section:last-child {
-    border-bottom: 0;
-  }
-
   .coaching-rule-list {
     grid-template-columns: 1fr;
   }
@@ -434,10 +419,6 @@ pre,
 
   .coaching-rule-card:last-child {
     border-bottom: 0;
-  }
-
-  .coaching-view-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .report-command-bar {
@@ -457,10 +438,6 @@ pre,
 
   .report-command-bar.report-command-bar--stuck .report-command-bar__range {
     display: none;
-  }
-
-  .report-secondary-metrics {
-    grid-template-columns: 1fr;
   }
 
   .report-command-bar__meta,
@@ -536,11 +513,6 @@ pre,
     gap: 5px;
   }
 
-  .review-main {
-    height: auto;
-    min-height: 0;
-  }
-
   .queue-preview-panel,
   .review-panel-column {
     position: static;
@@ -566,20 +538,12 @@ pre,
     overflow: visible;
   }
 
-  .inbox-row {
-    grid-template-columns: 24px minmax(0, 1fr);
-  }
-
   .queue-filterbar__primary,
   .queue-bulk-actions__body,
   .calibration-session__header,
   .calibration-compact-item,
   .admin-group-grid {
     grid-template-columns: 1fr;
-  }
-
-  .calibration-session__actions {
-    justify-content: flex-start;
   }
 
   .learning-task {
@@ -601,10 +565,6 @@ pre,
     grid-template-columns: 1fr;
   }
 
-  .learning-next-panel__actions {
-    justify-content: flex-start;
-  }
-
   .feedback-card {
     grid-template-columns: 1fr;
   }
@@ -612,15 +572,6 @@ pre,
   .learning-task__actions {
     grid-column: 2;
     justify-content: flex-start;
-  }
-
-  .feedback-card__actions {
-    grid-column: auto;
-    justify-content: flex-start;
-  }
-
-  .calibration-item-card {
-    grid-template-columns: 1fr;
   }
 
   .calibration-item-card__aside,
@@ -645,31 +596,9 @@ pre,
     justify-content: flex-start;
   }
 
-  .source-choice-summary {
-    position: static;
-  }
-
-  .integration-payload-disclosure__body {
-    grid-template-columns: 1fr;
-  }
-
   .integration-payload-section + .integration-payload-section {
     border-left: 0;
     border-top: 1px solid var(--border);
-  }
-
-  .inbox-row__meta,
-  .inbox-row__score {
-    grid-column: 2;
-  }
-
-  .command-row {
-    grid-template-columns: 34px minmax(0, 1fr);
-  }
-
-  .command-row__action {
-    grid-column: 2;
-    justify-content: flex-start;
   }
 
   .ops-panel__header {
@@ -736,16 +665,6 @@ pre,
     padding: 16px;
   }
 
-  .integration-disclosure__summary {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 16px;
-  }
-
-  .integration-disclosure__action {
-    width: 100%;
-  }
-
   .integration-payload-section__header,
   .integration-payload-section__body {
     padding: 16px;
@@ -776,10 +695,6 @@ pre,
 
   .coaching-segment {
     flex: 1 1 142px;
-  }
-
-  .coaching-quick-chip {
-    max-width: 100%;
   }
 
   .admin-actions > form,
@@ -943,16 +858,6 @@ pre,
     width: 100%;
   }
 
-  .workflow-create-summary {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .workflow-create-summary .action-button {
-    width: 100%;
-    justify-content: center;
-  }
-
   .training-create-form__title,
   .training-create-form__description,
   .training-create-form__action,
@@ -981,16 +886,6 @@ pre,
 
   .metric-strip__item {
     border-right: 0;
-  }
-
-  .focus-summary__metrics,
-  .source-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .focus-summary__metric {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
   }
 }
 
@@ -1150,10 +1045,6 @@ pre,
 }
 
 @media (max-width: 640px) {
-  .dashboard-hero {
-    gap: 12px;
-  }
-
   .dashboard-kpi {
     min-height: 104px;
     padding: 12px;

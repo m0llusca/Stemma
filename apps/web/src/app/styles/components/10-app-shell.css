@@ -732,11 +732,18 @@
 .command-palette__search input {
   min-height: 38px;
   border: 0;
+  border-radius: var(--radius-small);
   background: transparent;
   color: var(--foreground);
   font-size: 15px;
   font-weight: 650;
   outline: 0;
+}
+
+/* The borderless palette input suppresses the default outline; restore a visible
+   keyboard-focus ring so the field is not left without a focus indicator. */
+.command-palette__search input:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .command-palette__search button {

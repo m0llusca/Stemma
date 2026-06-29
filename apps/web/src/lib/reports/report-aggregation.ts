@@ -22,6 +22,68 @@ export function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+// Minimal review shape the dashboard agent leaderboard needs. Kept independent
+// from ReviewForReport so the dashboard can pass a narrow select.
+export type AgentLeaderboardReview = {
+  totalScore: number;
+  criticalError: boolean;
+  appealStatus: string;
+  conversation: { assigneeName: string | null };
+  findings: Array<{ riskLevel: string }>;
+};
+
+export type AgentLeaderboardRow = {
+  name: string;
+  average: number;
+  count: number;
+  riskCount: number;
+  appealCount: number;
+};
+
+const unassignedAgentLabel = "Без оператора";
+
+// Pure leaderboard reduction extracted verbatim from the dashboard so the math
+// is unit-tested and reused, not re-derived inline. A review counts toward
+// riskCount when it is a critical error OR carries any HIGH/CRITICAL finding;
+// appealCount counts reviews with an open appeal. Rows are ordered by action
+// load (risk weighted 3, appeal weighted 2), then lowest average, then highest
+// volume, and capped to `limit`.
+export function computeAgentLeaderboard(
+  reviews: readonly AgentLeaderboardReview[],
+  limit = 5
+): AgentLeaderboardRow[] {
+  const accumulator = new Map<string, { name: string; total: number; count: number; riskCount: number; appealCount: number }>();
+
+  for (const review of reviews) {
+    const name = review.conversation.assigneeName ?? unassignedAgentLabel;
+    const current = accumulator.get(name) ?? { name, total: 0, count: 0, riskCount: 0, appealCount: 0 };
+    current.total += review.totalScore;
+    current.count += 1;
+    current.riskCount +=
+      review.criticalError || review.findings.some((finding) => finding.riskLevel === "HIGH" || finding.riskLevel === "CRITICAL")
+        ? 1
+        : 0;
+    current.appealCount += review.appealStatus === "open" ? 1 : 0;
+    accumulator.set(name, current);
+  }
+
+  return Array.from(accumulator.values())
+    .map<AgentLeaderboardRow>((row) => ({
+      name: row.name,
+      average: row.total / row.count,
+      count: row.count,
+      riskCount: row.riskCount,
+      appealCount: row.appealCount
+    }))
+    .sort((left, right) => {
+      const leftActionLoad = left.riskCount * 3 + left.appealCount * 2;
+      const rightActionLoad = right.riskCount * 3 + right.appealCount * 2;
+
+      return rightActionLoad - leftActionLoad || left.average - right.average || right.count - left.count;
+    })
+    .slice(0, limit);
+}
+
 export function addScoreGroup(groups: Map<string, number[]>, label: string, score: number) {
   const scores = groups.get(label) ?? [];
   scores.push(score);
@@ -110,11 +172,26 @@ export function riskSegments(riskGroups: Map<string, number>, period: ReportPeri
   ];
 }
 
-export function averageScoreFor(reviews: ReviewForReport[]) {
+// Minimal structural shapes for the score-math helpers below. Both the full
+// ReviewForReport and the narrow previous-period select satisfy these, so the
+// previous period can be loaded with fewer columns without changing any output.
+export type ScoredCriterion = {
+  isNotApplicable: boolean;
+  passed: boolean | null;
+  value: number | null;
+  criterion: { block: string; kind: string };
+};
+
+export type ScoredReview = {
+  totalScore: number;
+  scores: ScoredCriterion[];
+};
+
+export function averageScoreFor(reviews: Array<{ totalScore: number }>) {
   return average(reviews.map((review) => review.totalScore));
 }
 
-export function criterionEarnedPercent(score: ReviewForReport["scores"][number]) {
+export function criterionEarnedPercent(score: ScoredCriterion) {
   if (score.isNotApplicable) {
     return null;
   }
@@ -130,7 +207,7 @@ export function criterionEarnedPercent(score: ReviewForReport["scores"][number])
   return (score.value / 3) * 100;
 }
 
-export function blockRows(reviews: ReviewForReport[]): BreakdownRow[] {
+export function blockRows(reviews: ScoredReview[]): BreakdownRow[] {
   const groups = new Map<string, number[]>();
 
   for (const review of reviews) {

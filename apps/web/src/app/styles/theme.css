@@ -6,10 +6,13 @@
   --background: #F7F8FA;
   --page-sheen: rgba(255, 255, 255, 0.74);
   --foreground: #16181D;
-  --muted: #8A94A3;
+  /* WCAG AA: #8A94A3 only reached ~2.81-3.07:1 as text on app/panel/panel-muted.
+     #677078 is the lightest value clearing >=4.5:1 on all three (app 4.74, panel 5.04,
+     panel-muted 4.62) while staying clearly lighter than --text-subtle/--secondary #5B6470. */
+  --muted: #677078;
   --text-body: #363B44;
   --text-subtle: #5B6470;
-  --text-muted: #8A94A3;
+  --text-muted: #677078;
   --panel: #FFFFFF;
   --panel-muted: #F4F5F7;
   --panel-tint: #FBFBFE;
@@ -45,10 +48,15 @@
   --control-selected-border: color-mix(in srgb, var(--accent) 44%, var(--border));
   --accent-warm: #d97706;
   --accent-coral: #dc2626;
-  --danger: #DC2626;
-  --warning: #B45309;
+  /* WCAG AA on the tinted status chips (--status-*-bg): the original
+     #DC2626/#B45309/#15803D dipped below 4.5:1 on their own tint
+     (danger 4.16, warning 4.46, success 4.43). Darkened to clear >=4.5:1 on the
+     tint AND on panel/app bg (danger 5.58 on #FCEAEA, warning 6.30 on #FBF0E1,
+     success 6.30 on #E7F4EC). Dark theme keeps its brighter hues (set under [data-theme="ops"]). */
+  --danger: #B91C1C;
+  --warning: #92400E;
   --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--panel));
-  --success: #15803D;
+  --success: #166534;
   --success-soft: color-mix(in srgb, var(--success) 12%, var(--panel));
   --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--panel));
   /* AI-provenance hue (Iris). ONLY for AI automation provenance, never primary actions. */

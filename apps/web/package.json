@@ -28,9 +28,6 @@
   "dependencies": {
     "@node-saml/node-saml": "^5.1.0",
     "@prisma/client": "6.19.3",
-    "@tanstack/react-query": "^5.100.14",
-    "@trpc/client": "^11.17.0",
-    "@trpc/react-query": "^11.17.0",
     "@trpc/server": "^11.17.0",
     "@ydbjs/auth": "^6.3.0",
     "@ydbjs/core": "^6.3.0",

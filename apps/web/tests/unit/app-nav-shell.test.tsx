@@ -5,11 +5,13 @@ import { buildShellNavigation } from "@/lib/shell/navigation";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/reviews",
+  routerPush: vi.fn(),
   switchCurrentUser: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => mocks.pathname
+  usePathname: () => mocks.pathname,
+  useRouter: () => ({ push: mocks.routerPush })
 }));
 
 vi.mock("@/lib/user-actions", () => ({
@@ -64,11 +66,56 @@ describe("app nav shell", () => {
 
     fireEvent.change(screen.getByPlaceholderText(/Найти раздел/), { target: { value: "калибров" } });
     const paletteList = dialog.querySelector(".command-palette__list") as HTMLElement;
-    const results = within(paletteList).getAllByRole("link");
+    const results = within(paletteList).getAllByRole("option");
     expect(results.length).toBeGreaterThan(0);
     expect(results.every((link) => /калибров/i.test(link.textContent ?? ""))).toBe(true);
 
     fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+  });
+
+  it("exposes the command trigger as a dialog-opening button via aria attributes", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: /Поиск или команда/ });
+    expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("moves a highlighted result with Up/Down and activates it with Enter", () => {
+    mocks.routerPush.mockClear();
+    render(<AppNavShell {...baseProps} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
+    const options = within(dialog).getAllByRole("option");
+    expect(options.length).toBeGreaterThan(1);
+
+    // First option starts highlighted.
+    expect(options[0]?.getAttribute("aria-selected")).toBe("true");
+
+    fireEvent.keyDown(dialog, { key: "ArrowDown" });
+    const afterDown = within(dialog).getAllByRole("option");
+    expect(afterDown[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(afterDown[0]?.getAttribute("aria-selected")).toBe("false");
+
+    fireEvent.keyDown(dialog, { key: "Enter" });
+    const expectedHref = afterDown[1]?.getAttribute("href");
+    expect(mocks.routerPush).toHaveBeenCalledWith(expectedHref);
+    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+  });
+
+  it("closes the palette when the backdrop is clicked", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(screen.getByRole("dialog", { name: "Поиск и команды" })).not.toBeNull();
+
+    const backdrop = document.querySelector(".command-palette") as HTMLElement;
+    fireEvent.mouseDown(backdrop, { target: backdrop });
     expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
   });
 

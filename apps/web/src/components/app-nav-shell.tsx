@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   ArrowRight,
@@ -16,7 +16,7 @@ import {
   TrendingUp,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   activeAreaForPath,
   topNavAreas,
@@ -25,6 +25,7 @@ import {
   type ShellNavAreaIcon,
   type ShellNavigation
 } from "@/lib/shell/navigation";
+import { getTabbableElements, nextTabStop } from "@/lib/ui/focus-trap";
 import { resolveWorkspaceBranding, type WorkspaceBranding } from "@/lib/ui-theme";
 import { switchCurrentUser } from "@/lib/user-actions";
 
@@ -78,15 +79,34 @@ function commandMatches(command: ShellCommandItem, query: string) {
 
 export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, branding = defaultNavBranding, areas = topNavAreas }: AppNavShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const lastTriggerRef = useRef<HTMLElement | null>(null);
   const activeAreaId = useMemo(() => activeAreaForPath(pathname), [pathname]);
   const visibleCommands = useMemo(
     () => navigation.commandItems.filter((command) => commandMatches(command, query)).slice(0, 9),
     [navigation.commandItems, query]
   );
   const demoUserName = demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ?? user.name;
+
+  const openCommand = useCallback((event?: { currentTarget: HTMLElement }) => {
+    if (event) {
+      lastTriggerRef.current = event.currentTarget;
+    } else if (typeof document !== "undefined") {
+      lastTriggerRef.current = document.activeElement as HTMLElement | null;
+    }
+
+    setCommandOpen(true);
+  }, []);
+
+  const closeCommand = useCallback(() => {
+    setCommandOpen(false);
+  }, []);
 
   useEffect(() => {
     setActiveBranding(branding);
@@ -105,17 +125,113 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setCommandOpen(true);
-      }
-
-      if (event.key === "Escape") {
-        setCommandOpen(false);
+        openCommand();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [openCommand]);
+
+  // Reset the keyboard highlight whenever the result set changes.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query, commandOpen]);
+
+  // While the palette is open: lock body scroll, mark the rest of the page
+  // inert/aria-hidden, focus the search input, and restore focus + page state
+  // on close. The palette dialog is rendered inside this header, so we hide the
+  // sibling page content rather than the header itself.
+  useEffect(() => {
+    if (!commandOpen || typeof document === "undefined") {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const inertTargets = Array.from(document.querySelectorAll<HTMLElement>("body > .page > *")).filter(
+      (node) => !node.contains(panelRef.current)
+    );
+    for (const node of inertTargets) {
+      node.setAttribute("aria-hidden", "true");
+      node.setAttribute("inert", "");
+    }
+
+    // Escape closes from anywhere, not only when focus is inside the panel.
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCommand();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+
+    searchInputRef.current?.focus();
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = previousOverflow;
+      for (const node of inertTargets) {
+        node.removeAttribute("aria-hidden");
+        node.removeAttribute("inert");
+      }
+
+      const trigger = lastTriggerRef.current;
+      if (trigger && typeof trigger.focus === "function") {
+        trigger.focus();
+      }
+    };
+  }, [commandOpen, closeCommand]);
+
+  const handlePaletteKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCommand();
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setActiveIndex((index) => (visibleCommands.length === 0 ? 0 : (index + 1) % visibleCommands.length));
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveIndex((index) =>
+          visibleCommands.length === 0 ? 0 : (index - 1 + visibleCommands.length) % visibleCommands.length
+        );
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const command = visibleCommands[activeIndex];
+        if (command) {
+          event.preventDefault();
+          closeCommand();
+          router.push(command.href);
+        }
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const panel = panelRef.current;
+        if (!panel) {
+          return;
+        }
+
+        const tabbable = getTabbableElements(panel);
+        const target = nextTabStop(tabbable, document.activeElement, event.shiftKey);
+        if (target) {
+          event.preventDefault();
+          target.focus();
+        }
+      }
+    },
+    [activeIndex, closeCommand, router, visibleCommands]
+  );
 
   return (
     <header className="app-nav" aria-label="Глобальная навигация">
@@ -150,7 +266,13 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
           })}
         </nav>
 
-        <button type="button" className="app-command-trigger app-nav__command" onClick={() => setCommandOpen(true)}>
+        <button
+          type="button"
+          className="app-command-trigger app-nav__command"
+          aria-haspopup="dialog"
+          aria-expanded={commandOpen}
+          onClick={openCommand}
+        >
           <Search size={15} aria-hidden="true" />
           <span>Поиск или команда</span>
           <kbd>⌘K</kbd>
@@ -227,24 +349,50 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
       </div>
 
       {commandOpen ? (
-        <div className="command-palette" role="dialog" aria-modal="true" aria-label="Поиск и команды">
-          <div className="command-palette__panel">
+        <div
+          className="command-palette"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeCommand();
+            }
+          }}
+        >
+          <div
+            ref={panelRef}
+            className="command-palette__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Поиск и команды"
+            onKeyDown={handlePaletteKeyDown}
+          >
             <div className="command-palette__search">
               <Command size={16} aria-hidden="true" />
               <input
-                autoFocus
+                ref={searchInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Найти раздел, очередь, интеграцию или действие"
+                aria-label="Поиск или команда"
+                role="combobox"
+                aria-expanded={visibleCommands.length > 0}
+                aria-controls="command-palette-results"
               />
-              <button type="button" onClick={() => setCommandOpen(false)} aria-label="Закрыть поиск">
+              <button type="button" onClick={closeCommand} aria-label="Закрыть поиск">
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
-            <div className="command-palette__list">
+            <div className="command-palette__list" id="command-palette-results" role="listbox">
               {visibleCommands.length > 0 ? (
-                visibleCommands.map((command) => (
-                  <Link key={`${command.kind}:${command.href}:${command.label}`} href={command.href} onClick={() => setCommandOpen(false)}>
+                visibleCommands.map((command, index) => (
+                  <Link
+                    key={`${command.kind}:${command.href}:${command.label}`}
+                    href={command.href}
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    data-active={index === activeIndex ? "true" : undefined}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={closeCommand}
+                  >
                     <span>
                       <strong>{command.label}</strong>
                       <small>{command.description}</small>

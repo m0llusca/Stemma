@@ -83,7 +83,7 @@ import {
   resolveReportView,
   type ReportView
 } from "@/lib/reports/report-format";
-import { loadFinalizedReviews, reviewWhere } from "@/lib/reports/report-page-data";
+import { loadFinalizedReviews, loadPreviousFinalizedReviews, reviewWhere } from "@/lib/reports/report-page-data";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +109,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
 
   const [finalizedReviews, previousReviews, highRiskFindings, coachingBacklog, quotas] = await Promise.all([
     loadFinalizedReviews(user.workspaceId, period),
-    loadFinalizedReviews(user.workspaceId, previousPeriod),
+    loadPreviousFinalizedReviews(user.workspaceId, previousPeriod),
     prisma.finding.count({
       where: {
         riskLevel: {

@@ -188,13 +188,44 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
         lte: period.end
       }
     },
-    include: {
-      conversation: true,
-      reviewer: true,
+    // Narrow select: only the columns the CSV/XLSX/PDF rows actually read.
+    // Output stays byte-identical to the previous `include` of whole rows.
+    select: {
+      finalizedAt: true,
+      totalScore: true,
+      criticalError: true,
+      criticalCategory: true,
+      needsReanswer: true,
+      reanswerStatus: true,
+      appealStatus: true,
+      summary: true,
+      reviewer: {
+        select: {
+          name: true
+        }
+      },
+      conversation: {
+        select: {
+          externalSource: true,
+          externalId: true,
+          subject: true,
+          customerName: true,
+          assigneeName: true,
+          supportLine: true,
+          csatScore: true,
+          csatBucket: true
+        }
+      },
       findings: {
+        // Only the first finding is rendered; cap the read at one row per review.
+        select: {
+          category: true,
+          riskLevel: true
+        },
         orderBy: {
           createdAt: "asc"
-        }
+        },
+        take: 1
       }
     },
     orderBy: {

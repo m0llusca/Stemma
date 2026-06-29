@@ -19,13 +19,13 @@ import "./styles/components/60-queue.css";
 import "./styles/components/70-queue-detail.css";
 import "./styles/components/80-reviews.css";
 import "./styles/components/85-coaching-pins.css";
-import "./styles/components/87-source-picker.css";
 import "./styles/components/90-appearance-theme.css";
 import "./styles/components/92-reports.css";
 import "./styles/components/94-enablement.css";
 import "./styles/components/96-misc-forms.css";
+import "./styles/components/98-primitives.css";
 import { AppNav } from "@/components/app-nav";
-import { TrpcProvider } from "@/components/trpc-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { resolveUiAppearance, uiPaletteOverridesToCssVariables } from "@/lib/ui-theme";
 
@@ -87,12 +87,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <a href="#main-content" className="skip-link">
           Перейти к содержимому
         </a>
-        <div className="page">
-          <AppNav />
-          <main id="main-content">
-            <TrpcProvider>{children}</TrpcProvider>
-          </main>
-        </div>
+        <ToastProvider>
+          <div className="page">
+            <AppNav />
+            <main id="main-content">{children}</main>
+          </div>
+        </ToastProvider>
       </body>
     </html>
   );
