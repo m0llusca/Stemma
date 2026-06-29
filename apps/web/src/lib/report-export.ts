@@ -25,12 +25,24 @@ export const reportExportColumns = [
 
 export type ReportExportRow = string[];
 
+// CSV/Formula injection (CWE-1236): a leading =, +, -, @, tab, CR or LF makes
+// Excel/LibreOffice/Google Sheets treat a CSV cell as a formula. Exported cells
+// carry operator/customer-controlled free text (summary, subject, names), so
+// prefix at-risk values with an apostrophe to force literal-text interpretation.
+function neutralizeFormula(value: string) {
+  if (/^[=+\-@\t\r\n]/.test(value)) {
+    return `'${value}`;
+  }
+
+  return value;
+}
+
 function csvCell(value: unknown) {
   if (value == null) {
     return "";
   }
 
-  const stringValue = String(value);
+  const stringValue = neutralizeFormula(String(value));
 
   if (/[;"\n\r]/.test(stringValue)) {
     return `"${stringValue.replaceAll('"', '""')}"`;

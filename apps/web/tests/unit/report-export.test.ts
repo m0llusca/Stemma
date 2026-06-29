@@ -38,3 +38,41 @@ describe("report exports", () => {
     expect(xlsx.toString("utf8")).toContain("Консультация по статусу заявления");
   });
 });
+
+describe("report exports — formula injection (CWE-1236)", () => {
+  const withSubject = (value: string) => {
+    const cloned = [...row];
+    cloned[7] = value; // "Тема" — operator/customer-controlled free text
+    return cloned;
+  };
+
+  it("neutralizes a leading = formula cell in CSV with an apostrophe", () => {
+    const csv = reportRowsToCsv([withSubject('=HYPERLINK("http://evil","click")')]);
+
+    expect(csv).toContain("'=HYPERLINK(");
+  });
+
+  it("neutralizes +, -, @, tab and carriage-return prefixed CSV cells", () => {
+    for (const payload of ["+1+1", "-2+3", "@SUM(A1)", "\t=1", "\r=1"]) {
+      const csv = reportRowsToCsv([withSubject(payload)]);
+      expect(csv).toContain(`'${payload}`);
+    }
+  });
+
+  it("leaves normal cells unchanged and keeps BOM + quote-escaping", () => {
+    const csv = reportRowsToCsv([row]);
+
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv).toContain("Консультация по статусу заявления");
+    expect(csv).not.toContain("'Консультация");
+    expect(csv).toContain('"Ответ корректный; следующий шаг понятен."');
+  });
+
+  it("stores a formula-like value as inline text (not a formula) in XLSX", () => {
+    const xlsx = reportRowsToXlsx([withSubject("=SUM(A1)")]).toString("utf8");
+
+    expect(xlsx).toContain('t="inlineStr"');
+    expect(xlsx).not.toContain("<f>");
+    expect(xlsx).toContain("=SUM(A1)");
+  });
+});
