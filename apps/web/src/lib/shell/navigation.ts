@@ -32,6 +32,84 @@ export type ShellNavigation = {
   commandItems: ShellCommandItem[];
 };
 
+export type ShellNavAreaId = "today" | "review" | "calibration" | "coaching" | "analytics";
+export type ShellNavAreaIcon = "today" | "review" | "calibration" | "coaching" | "analytics";
+
+export type ShellNavArea = {
+  id: ShellNavAreaId;
+  href: string;
+  label: string;
+  description: string;
+  icon: ShellNavAreaIcon;
+};
+
+/**
+ * Primary product areas surfaced in the global top navigation bar. Labels and
+ * descriptions are derived from the existing mode/destination copy so the two
+ * navigation models stay in sync, while the area identity (icon + ordering) is
+ * tailored to the flatter top-bar layout.
+ */
+export const topNavAreas: ShellNavArea[] = [
+  {
+    id: "today",
+    href: "/dashboard",
+    label: "Сегодня",
+    description: "Пульс дня и следующий управленческий фокус.",
+    icon: "today"
+  },
+  {
+    id: "review",
+    href: "/reviews",
+    label: "Проверки",
+    description: "Единый список диалогов для проверки и triage.",
+    icon: "review"
+  },
+  {
+    id: "calibration",
+    href: "/calibration",
+    label: "Калибровка",
+    description: "Согласование оценок между проверяющими.",
+    icon: "calibration"
+  },
+  {
+    id: "coaching",
+    href: "/coaching",
+    label: "Обучение",
+    description: "Задачи, коучинг и корректирующие действия после проверок.",
+    icon: "coaching"
+  },
+  {
+    id: "analytics",
+    href: "/reports",
+    label: "Аналитика",
+    description: "Тренды качества, факторы риска и разрезы по командам.",
+    icon: "analytics"
+  }
+];
+
+/**
+ * Shared prefix matcher: query-string is ignored and a path matches its target
+ * or any descendant. Exported so the top-bar shell reuses the exact same
+ * active-state semantics as the legacy rail/topbar did.
+ */
+export function isActivePath(pathname: string, href: string) {
+  const path = href.split("?")[0] || href;
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
+
+/**
+ * Resolve the active top-nav area for a pathname using a longest-prefix match.
+ * `/admin/*`, `/self-review` and any path without a matching area resolve to
+ * `null` (no area highlighted) rather than falling back to a default.
+ */
+export function activeAreaForPath(pathname: string): ShellNavAreaId | null {
+  return (
+    topNavAreas
+      .filter((area) => isActivePath(pathname, area.href))
+      .sort((first, second) => second.href.length - first.href.length)[0]?.id ?? null
+  );
+}
+
 type DestinationDefinition = ShellNavDestination & {
   roles?: RoleName[];
   permission?: Permission;
