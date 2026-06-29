@@ -23,3 +23,5 @@ export function trainingStatusToastMessage(status: string): string {
 }
 
 export const trainingCreatedToastMessage = "Учебная задача создана.";
+
+export const knowledgeEntryCreatedToastMessage = "Правило сохранено.";

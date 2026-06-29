@@ -4,6 +4,8 @@ import type { RiskLevel } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { assertCanPersistSettings, canManageSamplingRules, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import type { FeedbackActionState } from "@/lib/feedback-actions";
+import { knowledgeEntryCreatedToastMessage } from "@/lib/feedback-toast-messages";
 
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const satisfies readonly RiskLevel[];
 
@@ -52,6 +54,28 @@ export async function createKnowledgeEntry(formData: FormData) {
   });
 
   revalidatePath("/coaching");
+}
+
+/**
+ * `useActionState` wrapper around `createKnowledgeEntry` mirroring the
+ * feedback/coaching pattern: reuse the exact validation/permission logic and
+ * add a success/error state so the `ToastActionForm` shell can raise a toast
+ * instead of silently revalidating.
+ */
+export async function createKnowledgeEntryState(
+  _state: FeedbackActionState,
+  formData: FormData
+): Promise<FeedbackActionState> {
+  try {
+    await createKnowledgeEntry(formData);
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Не удалось сохранить правило."
+    };
+  }
+
+  return { ok: true, toast: knowledgeEntryCreatedToastMessage, nonce: Date.now() };
 }
 
 export async function createSamplingRule(formData: FormData) {

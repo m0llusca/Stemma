@@ -31,7 +31,7 @@ import { createTrainingAssignmentState, updateTrainingAssignmentStatusState } fr
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
-import { createKnowledgeEntry } from "@/lib/quality-actions";
+import { createKnowledgeEntryState } from "@/lib/quality-actions";
 import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
@@ -611,7 +611,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               Скрыть
             </Link>
           </div>
-          <form action={createKnowledgeEntry} className="training-create-form coaching-create-inline__form coaching-rule-form">
+          <ToastActionForm action={createKnowledgeEntryState} className="training-create-form coaching-create-inline__form coaching-rule-form">
             <KnowledgeCategoryFields categories={categoryOptions} defaultCategory={ruleCategoryDefault} />
             <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
               Риск
@@ -638,7 +638,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             <div className="training-create-form__action">
               <ValidatedSubmitButton>Сохранить правило</ValidatedSubmitButton>
             </div>
-          </form>
+          </ToastActionForm>
         </section>
       ) : null}
 
