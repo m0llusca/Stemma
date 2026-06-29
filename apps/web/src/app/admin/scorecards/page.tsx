@@ -306,7 +306,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                       </Chip>
                     </span>
                     <span className="record-meta mt-1 block tabular-nums">
-                      Версия {scorecard.version} · критериев: {scorecard.criteria.length}
+                      критериев: {scorecard.criteria.length}
                     </span>
                   </span>
                   <span

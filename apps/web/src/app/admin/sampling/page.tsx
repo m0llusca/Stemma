@@ -1,4 +1,4 @@
-import { ListChecks, Plus } from "lucide-react";
+import { ListChecks } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
@@ -122,10 +122,6 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
       description="Управляют тем, какие обращения попадают в ручную проверку: случайная выборка, негативный CSAT, новые сотрудники и ручные сигналы."
       actions={
         <>
-          <Link href={samplingSectionHref("create")} className="action-button action-button--primary">
-            <Plus size={16} aria-hidden="true" />
-            Новое правило
-          </Link>
           <Link href="/reviews" className="action-button">
             Очередь проверок
           </Link>

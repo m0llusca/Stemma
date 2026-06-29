@@ -6,10 +6,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import type { StatusTone } from "@/lib/ui/status-tone";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
@@ -44,13 +42,6 @@ function jobDetailsSectionParam(value: string | string[] | undefined): JobDetail
 
 function formatDate(value: Date | null | undefined) {
   return value ? value.toLocaleString("ru-RU") : "Нет данных";
-}
-
-function jobStatusTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
-  if (tone === "ok") return "positive";
-  if (tone === "warn") return "warning";
-  if (tone === "error") return "negative";
-  return "neutral";
 }
 
 function jobKpiTone(tone: "ok" | "warn" | "error" | "neutral"): "neutral" | "success" | "warning" | "danger" {
@@ -110,7 +101,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
     <PageShell
       eyebrow="Фоновые задачи"
       title={backendJobTypeLabel(job.type)}
-      description={`Очередь ${queueNameLabel(job.queueName)}, попытка ${job.attempts}/${job.maxAttempts}, создано ${formatDate(job.createdAt)}.`}
+      description={`Создано ${formatDate(job.createdAt)}.`}
       actions={
         <>
           <Link href="/admin/system" className="action-button">
@@ -169,7 +160,6 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
               <h2 id="job-summary-title" className="ops-panel__title">Сводка</h2>
               <p className="ops-panel__subtitle">Ключевые параметры фоновой задачи без технического JSON.</p>
             </div>
-            <StatusBadge label="Статус" value={jobStatus.label} tone={jobStatusTone(jobStatus.tone)} />
           </div>
           <div className="record-list px-5">
             <article className="record-card">
@@ -178,7 +168,6 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
             </article>
             <article className="record-card">
               <p className="record-meta">Создал: {job.createdBy?.name ?? "Автоматика"}</p>
-              <p className="record-meta tabular-nums">Запланирована: {formatDate(job.runAfter)}</p>
               <p className="record-meta tabular-nums">Старт: {formatDate(job.startedAt)}</p>
               <p className="record-meta tabular-nums">Финиш: {formatDate(job.finishedAt)}</p>
             </article>

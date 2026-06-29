@@ -369,24 +369,6 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
           }
           items={[
             {
-              label: "Base URL",
-              value: hasBaseUrl ? "сохранен" : "нет",
-              detail: integration.baseUrl ?? "Адрес не указан.",
-              tone: hasBaseUrl ? "positive" : "warning"
-            },
-            {
-              label: "Секреты",
-              value: `${presentRequiredSecrets}/${capability.requiredSecrets.length}`,
-              detail: capability.requiredSecrets.length > 0 ? "Обязательные secret slots." : "Секреты не требуются.",
-              tone: hasRequiredSecrets ? "positive" : "warning"
-            },
-            {
-              label: "Диагностика",
-              value: latestDiagnostic?.status ?? (canRunDiagnostics ? "готова" : "ожидает"),
-              detail: latestDiagnostic ? formatDate(latestDiagnostic.startedAt) : "Нет запусков.",
-              tone: diagnosticSucceeded(latestDiagnostic?.status) ? "positive" : canRunDiagnostics ? "info" : "neutral"
-            },
-            {
               label: "Последний запуск",
               value: latestRunStatus?.label ?? "нет",
               detail: latestRun ? `${latestRun.dryRun ? "Preview" : "Import"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",

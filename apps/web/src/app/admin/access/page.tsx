@@ -556,7 +556,6 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               <p className="ops-panel__eyebrow">Настройка</p>
               <h2 id="provider-settings-title" className="ops-panel__title">{selectedProvider?.name ?? "Провайдер авторизации"}</h2>
               <p className="ops-panel__subtitle">Редактируйте поля при смене каталога, приложения или технических адресов.</p>
-              <p className="ops-panel__subtitle compact-text">Готовность: {readiness.details.join(", ")}</p>
               {selectedProvider && selectedProvider.type !== "DEMO" ? (
                 <div className="admin-actions mt-3">
                   {readiness.canDryRun ? (
@@ -586,11 +585,6 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               <span className="ops-status-item__label">Адрес возврата</span>
               <span className="ops-status-item__value font-mono text-sm compact-text">{callbackPath(selectedProvider)}</span>
               <span className="record-meta">Укажите этот путь в приложении провайдера.</span>
-            </div>
-            <div className="ops-status-item">
-              <span className="ops-status-item__label">Группы ролей</span>
-              <span className="ops-status-item__value">{activeMappings}/{selectedProvider?.groupRoleMappings.length ?? 0}</span>
-              <span className="record-meta">Активные группы выбранного провайдера.</span>
             </div>
             <div className="ops-status-item">
               <span className="ops-status-item__label">Последняя синхронизация</span>

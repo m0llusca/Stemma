@@ -945,11 +945,6 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                 Отчет по живой сертификации: интеграции, провайдеры удостоверений и только redacted evidence из protected smoke runs.
               </p>
             </div>
-            <StatusBadge
-              label="Live"
-              value={`${phaseDReport.summary.liveCertified}/${phaseDReport.summary.total}`}
-              tone={phaseDReport.summary.liveCertified > 0 ? "positive" : "warning"}
-            />
           </div>
           <section className="system-section-summary system-section-summary--four" aria-label="Сводка live certification">
             <StatCard label="Всего объектов" value={phaseDReport.summary.total} hint="Интеграции и провайдеры удостоверений" />

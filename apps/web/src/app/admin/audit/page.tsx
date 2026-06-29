@@ -268,18 +268,6 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
       eyebrow="Администрирование"
       title="Журнал действий"
       description="Аудит показывает события списком, а технические данные раскрываются внутри конкретной записи."
-      actions={
-        <>
-          <Link href={auditSectionHref("filters", action, targetType, start, end)} className="action-button action-button--primary">
-            <Filter size={16} aria-hidden="true" />
-            Фильтры
-          </Link>
-          <Link href={auditSectionHref("tokens", action, targetType, start, end)} className="action-button">
-            <KeyRound size={16} aria-hidden="true" />
-            API-ключи
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка журнала действий">
