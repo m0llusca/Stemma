@@ -24,9 +24,8 @@ describe("auth shell layout", () => {
       .map((file) => readFileSync(join(dir, file), "utf8"))
       .join("\n");
 
-    expect(css).toContain(".page:has(.auth-shell) .app-sidebar");
-    expect(css).toContain(".page:has(.auth-shell) .app-topbar");
-    expect(css).toMatch(/\.page:has\(\.auth-shell\) \.app-sidebar,\s*\.page:has\(\.auth-shell\) \.app-topbar\s*{\s*display:\s*none;/);
+    expect(css).toContain(".page:has(.auth-shell) .app-nav");
+    expect(css).toMatch(/\.page:has\(\.auth-shell\) \.app-nav\s*{\s*display:\s*none;/);
   });
 });
 

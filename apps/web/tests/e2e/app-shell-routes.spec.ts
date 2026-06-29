@@ -103,9 +103,8 @@ test("authenticated app shell routes render stable chrome and content", async ({
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
 
     expect.soft(response?.ok(), `${route} should return ok`).toBe(true);
-    const routeTopbar = page.locator(".app-topbar");
-    await expect(routeTopbar, `${route} topbar`).toBeVisible();
-    await expect(page.locator(".app-sidebar"), `${route} sidebar`).toBeVisible();
+    const routeTopbar = page.locator(".app-nav");
+    await expect(routeTopbar, `${route} nav`).toBeVisible();
 
     if (route === "/dashboard" || route === "/reviews" || route === "/coaching") {
       topbarChromeByRoute.set(
@@ -143,22 +142,28 @@ test("authenticated app shell routes render stable chrome and content", async ({
     }
 
     if (route === "/dashboard") {
-      const topbar = page.locator(".app-topbar");
-      const contextNav = page.locator(".app-topbar__context");
+      const topbar = page.locator(".app-nav");
+      const brand = page.locator(".app-nav__brand");
+      const areaNav = page.locator(".app-nav__areas");
       const commandTrigger = page.locator(".app-command-trigger");
       const workPulse = page.locator(".work-pulse");
-      const identityChip = page.locator(".app-topbar__identity-summary, .app-topbar__user").first();
+      const identityChip = page.locator(".app-nav__identity-summary").first();
 
       await expect(commandTrigger).toBeVisible();
       await expect(page.locator(".work-pulse__item").first()).toBeVisible();
-      await expect(page.getByRole("link", { name: "Пульс дня" })).toBeVisible();
+      // The active product area is highlighted on the top bar.
+      await expect(page.locator('.app-nav__area[aria-current="page"]')).toHaveText(/Сегодня/);
 
-      const [topbarBox, contextBox, commandBox, pulseBox, identityBox] = await Promise.all([
+      const [topbarBox, brandBox, areaBox, commandBox, pulseBox, identityBox] = await Promise.all([
         topbar.evaluate((element) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right };
         }),
-        contextNav.evaluate((element) => {
+        brand.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return { left: rect.left, right: rect.right };
+        }),
+        areaNav.evaluate((element) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right };
         }),
@@ -175,10 +180,11 @@ test("authenticated app shell routes render stable chrome and content", async ({
           return { left: rect.left, right: rect.right };
         })
       ]);
-      expect(contextBox.left - topbarBox.left, "topbar context should keep only a small desktop left padding").toBeLessThanOrEqual(12);
-      expect(commandBox.left - contextBox.right, "command trigger should sit directly after the current mode context").toBeLessThanOrEqual(16);
-      expect(pulseBox.left - commandBox.right, "work pulse should stay close to command trigger").toBeLessThanOrEqual(16);
-      expect(topbarBox.right - identityBox.right, "topbar identity should keep only a small desktop right padding").toBeLessThanOrEqual(12);
+      expect(brandBox.left - topbarBox.left, "brand mark should keep only a small left padding").toBeLessThanOrEqual(28);
+      expect(areaBox.left, "area tabs should sit to the right of the brand mark").toBeGreaterThanOrEqual(brandBox.right);
+      expect(commandBox.left, "command trigger should sit to the right of the area tabs").toBeGreaterThanOrEqual(areaBox.right - 1);
+      expect(pulseBox.left, "work pulse should sit to the right of the command trigger").toBeGreaterThanOrEqual(commandBox.right - 1);
+      expect(topbarBox.right - identityBox.right, "identity menu should keep only a small right padding").toBeLessThanOrEqual(28);
     }
 
     if (route === "/dashboard") {
@@ -253,7 +259,7 @@ test("dashboard shell reaches first content quickly", async ({ page }) => {
   const startedAt = Date.now();
 
   await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
-  await page.locator(".app-topbar").waitFor({ state: "visible" });
+  await page.locator(".app-nav").waitFor({ state: "visible" });
   await page.getByText(/Фокус сейчас|Последняя активность/).first().waitFor({ state: "visible" });
 
   expect(Date.now() - startedAt).toBeLessThan(2_500);

@@ -32,7 +32,7 @@
   transition: border-radius 160ms ease, box-shadow 160ms ease, padding 160ms ease, background-color 160ms ease;
 }
 
-.page:has(.report-command-bar) .app-topbar {
+.page:has(.report-command-bar) .app-nav {
   border-bottom-color: transparent;
   background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
 }

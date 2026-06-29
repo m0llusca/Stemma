@@ -23,8 +23,7 @@ import "./styles/components/90-appearance-theme.css";
 import "./styles/components/92-reports.css";
 import "./styles/components/94-enablement.css";
 import "./styles/components/96-misc-forms.css";
-import { AppSidebar } from "@/components/app-sidebar";
-import { AppTopbar } from "@/components/app-topbar";
+import { AppNav } from "@/components/app-nav";
 import { TrpcProvider } from "@/components/trpc-provider";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { resolveUiAppearance, uiPaletteOverridesToCssVariables } from "@/lib/ui-theme";
@@ -88,9 +87,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           Перейти к содержимому
         </a>
         <div className="page">
-          <AppSidebar />
+          <AppNav />
           <main id="main-content">
-            <AppTopbar />
             <TrpcProvider>{children}</TrpcProvider>
           </main>
         </div>

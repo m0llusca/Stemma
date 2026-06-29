@@ -69,24 +69,22 @@ pre code {
 }
 
 .page {
-  --app-sidebar-width: 76px;
+  /* The persistent left rail was replaced by a single top navigation bar, so
+     content spans the full width. The token is kept (now zero) because the
+     queue/reports sticky bars compute their offset as calc(100vw - var(...)). */
+  --app-sidebar-width: 0px;
   display: grid;
-  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 100dvh;
   max-width: 100%;
 }
 
-.page:has(.auth-shell) {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.page:has(.auth-shell) .app-sidebar,
-.page:has(.auth-shell) .app-topbar {
+.page:has(.auth-shell) .app-nav {
   display: none;
 }
 
 .page:has(.auth-shell) > main {
-  grid-column: 1 / -1;
+  grid-row: 1 / -1;
 }
 
 .page > main {
