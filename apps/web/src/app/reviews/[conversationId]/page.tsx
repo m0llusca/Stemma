@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { AiDraftDecisionControls } from "@/components/review/ai-draft-decision-controls";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
@@ -43,6 +44,10 @@ import {
 import { computeBatchProgress, formatBatchProgress } from "@/lib/review/batch-progress";
 import { nextReviewOrderBy, nextReviewWhere } from "@/lib/review/next-review-query";
 import { reviewEventActionLabel } from "@/lib/review-events";
+import {
+  parseConversationScorePrediction,
+  type CriterionPrediction
+} from "@/lib/ai-quality/scoring/types";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
@@ -200,7 +205,17 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       }
     }
   } as const;
-  const [conversation, scorecard, qaAssignees, pendingAiDrafts, decidedAiDrafts, aiDraftTotalCount, pendingAiDraftCount, queueConversations] = await Promise.all([
+  const [
+    conversation,
+    scorecard,
+    qaAssignees,
+    pendingAiDrafts,
+    decidedAiDrafts,
+    aiDraftTotalCount,
+    pendingAiDraftCount,
+    queueConversations,
+    latestScoreDraft
+  ] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
     canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
     canManageWorkflow
@@ -272,7 +287,21 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       orderBy: nextReviewOrderBy,
       select: { id: true },
       take: 500
-    })
+    }),
+    // Latest per-criterion AI "score" prediction for the workbench chips. Read
+    // only when the reviewer may see AI drafts; one row is enough — the newest
+    // score draft drives the violet chips and their confidence labels.
+    canSeeAiQualityDrafts
+      ? prisma.aiQualityDraft.findFirst({
+          where: {
+            workspaceId: user.workspaceId,
+            conversationId,
+            kind: "score"
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: { suggestedValueJson: true }
+        })
+      : Promise.resolve(null)
   ]);
 
   if (!conversation) {
@@ -309,6 +338,15 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   );
   const aiDrafts = [...pendingAiDrafts, ...decidedAiDrafts].slice(0, 5);
   const decidedAiDraftCount = Math.max(aiDraftTotalCount - pendingAiDraftCount, 0);
+  // The latest "score" draft is parsed into a per-criterion map the workbench
+  // looks up by criterion id. A malformed payload parses to null → no chips.
+  const scorePrediction = latestScoreDraft ? parseConversationScorePrediction(latestScoreDraft.suggestedValueJson) : null;
+  const aiPredictions: Record<string, CriterionPrediction> = {};
+  for (const criterion of scorePrediction?.criteria ?? []) {
+    if (criterion.criterionId) {
+      aiPredictions[criterion.criterionId] = criterion;
+    }
+  }
   const scoreLabel = formatQualityScore(scorePreviewReview?.totalScore, "Не проверено");
   const hasAppeal = latestFinalizedReview ? latestFinalizedReview.appealStatus !== "none" : false;
   const hasOpenAppeal = latestFinalizedReview?.appealStatus === "open";
@@ -334,7 +372,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             <div className="min-w-0">
               <p className="page-kicker">ИИ-контроль</p>
               <h2>ИИ-предложения</h2>
-              <p>Подсказки показывают гипотезу, ссылки на доказательства и статус решения человека.</p>
+              <p>Подсказки показывают гипотезу и доказательства; решение принимаете вы — примите, отклоните или измените предложение.</p>
             </div>
             <Chip
               label="Ожидают"
@@ -360,8 +398,10 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                       {draft.finalizedBy?.name ?? "Проверяющий"} · {draft.finalizedAt ? draft.finalizedAt.toLocaleString("ru-RU") : "решение зафиксировано"}
                       {draft.decisionReason ? ` · ${draft.decisionReason}` : ""}
                     </p>
+                  ) : draft.status === "draft" ? (
+                    <AiDraftDecisionControls draftId={draft.id} suggestedValueJson={draft.suggestedValueJson} />
                   ) : (
-                    <p className="ai-draft-card__decision">Не подставляется автоматически: проверяющий должен принять, отклонить или изменить предложение.</p>
+                    <p className="ai-draft-card__decision">Решение пока не зафиксировано.</p>
                   )}
                 </article>
               ))
@@ -370,7 +410,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 size="inline"
                 icon={<Sparkles size={20} aria-hidden="true" />}
                 title="ИИ-предложений пока нет"
-                description="Форма проверки остается полностью ручной."
+                description="Когда ИИ предложит оценку, её можно будет принять, отклонить или изменить здесь."
               />
             )}
           </div>
@@ -711,6 +751,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                   reviewSource={reviewSource}
                   returnTo={returnTo}
                   title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
+                  aiPredictions={aiPredictions}
                 />
               </div>
             ) : (

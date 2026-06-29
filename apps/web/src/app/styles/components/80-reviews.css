@@ -369,6 +369,68 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   padding-top: 8px;
 }
 
+/* Accept / reject / override controls on a pending AI "score" draft card. */
+.ai-draft-decision {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.ai-draft-decision__field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.ai-draft-decision__label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.3;
+}
+
+.ai-draft-decision__hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.ai-draft-decision__override {
+  min-width: 0;
+}
+
+.ai-draft-decision__override-summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 720;
+  list-style: none;
+}
+
+.ai-draft-decision__override-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ai-draft-decision__override[open] .ai-draft-decision__override-summary {
+  margin-bottom: 6px;
+}
+
+.ai-draft-decision__actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-draft-decision__error {
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .review-panel-column {
   min-height: 0;
   min-width: 0;

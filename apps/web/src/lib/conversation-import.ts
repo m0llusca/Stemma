@@ -1,11 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { enqueueBackendJob, type EnqueueJobClient } from "@/lib/jobs/enqueue";
 import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
 import { applySamplingDecision, evaluateSamplingRules, type SamplingRuleRecord } from "@/lib/sampling-engine";
 import { customConversationLimits, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 type ConversationImportClient = Pick<Prisma.TransactionClient, "conversation" | "message"> & {
   samplingRule?: Pick<Prisma.TransactionClient["samplingRule"], "findMany">;
+  backendJob?: EnqueueJobClient["backendJob"];
 };
 type ConversationImportOptions = {
   samplingRules?: SamplingRuleRecord[];
@@ -56,14 +58,12 @@ export async function upsertCustomConversation(
           orderBy: [{ priority: "asc" }, { createdAt: "asc" }]
         })
       : []);
-  const sampledPayload = applySamplingDecision(
-    payload,
-    evaluateSamplingRules({
-      workspaceId,
-      conversation: payload,
-      rules: samplingRules
-    })
-  );
+  const samplingDecision = evaluateSamplingRules({
+    workspaceId,
+    conversation: payload,
+    rules: samplingRules
+  });
+  const sampledPayload = applySamplingDecision(payload, samplingDecision);
   const conversationData = normalizeCustomConversation(sampledPayload);
   const conversation = await client.conversation.upsert({
     where: {
@@ -106,6 +106,23 @@ export async function upsertCustomConversation(
       }
     }
   });
+
+  // Gate: enqueue AI auto-scoring only for conversations a sampling rule
+  // actively selected for QA (samplingDecision.matched === true) — the same
+  // condition under which applySamplingDecision tagged the row above. Imports
+  // that no rule matched are not queued, so the AI scorer is not run on
+  // conversations the sampling step did not pick. Requires the client to expose
+  // backendJob (transaction client / prisma); skipped otherwise.
+  if (samplingDecision.matched && client.backendJob) {
+    await enqueueBackendJob(
+      {
+        workspaceId,
+        type: "AI_SCORE",
+        payload: { conversationId: conversation.id }
+      },
+      { backendJob: client.backendJob }
+    );
+  }
 
   return {
     id: conversation.id,

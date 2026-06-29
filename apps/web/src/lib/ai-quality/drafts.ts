@@ -9,6 +9,8 @@ export type CreateAiQualityDraftInput = {
   modelVersion: string;
   promptVersion: string;
   suggestedValue: unknown;
+  /** 0..1 overall model confidence, persisted to AiQualityDraft.confidence. */
+  confidence?: number;
   evidenceRefs?: string[];
 };
 
@@ -36,6 +38,7 @@ export async function createAiQualityDraft(input: CreateAiQualityDraftInput) {
       status: "draft",
       modelVersion: input.modelVersion,
       promptVersion: input.promptVersion,
+      confidence: input.confidence ?? null,
       suggestedValueJson: jsonText(input.suggestedValue, {}),
       evidenceRefsJson: jsonText(input.evidenceRefs ?? [], []),
       finalizedById: null

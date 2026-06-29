@@ -10,12 +10,14 @@ import type {
 } from "@prisma/client";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import { criterionPredictionChipLabel } from "@/components/review/ai-prediction-chip";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
 import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
 import { ReviewKeyboard } from "@/components/review/review-keyboard";
 import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
 import { Chip } from "@/components/ui/chip";
+import type { CriterionPrediction } from "@/lib/ai-quality/scoring/types";
 import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
 import { formatQualityScore } from "@/lib/score-display";
 import styles from "./review-panel-workbench.module.css";
@@ -28,6 +30,11 @@ type ReviewPanelProps = {
   reviewSource?: ReviewSource;
   returnTo?: string;
   title?: string;
+  /**
+   * Real per-criterion AI predictions from the latest "score" draft, keyed by
+   * criterion id. Absent when no score draft exists (then no AI chip renders).
+   */
+  aiPredictions?: Record<string, CriterionPrediction>;
 };
 
 const categoryTemplates = [
@@ -130,30 +137,30 @@ function getCriterionDensityMeta(score?: CriterionScore) {
 }
 
 /**
- * AI prediction for a criterion. There is no per-criterion AI verdict in the
- * data model yet, so the predicted state is the model's optimistic default
- * (pass / "3 · стандарт") — this renders the violet provenance chip and the
- * agree/override affordance now; the override LOGIC is wired in a later phase.
+ * Whether the human draft verdict matches the real AI prediction for this
+ * criterion. Used to flip the violet chip to the quiet "ИИ согласен" state and
+ * to decide the indigo override border. Returns `false` when either side is
+ * unscored/non-applicable so a real disagreement is never hidden.
  */
-function aiPrediction(criterion: ScorecardCriterion): { label: string; passed: boolean; value: number } {
-  if (criterion.kind === "SCALE_1_3") {
-    return { label: "3 · стандарт", passed: true, value: 3 };
+function aiAgreesWithDraft(
+  criterion: ScorecardCriterion,
+  prediction: CriterionPrediction,
+  score?: CriterionScore
+) {
+  if (score?.isNotApplicable || prediction.isNotApplicable) {
+    return Boolean(score?.isNotApplicable) && Boolean(prediction.isNotApplicable);
   }
 
-  return { label: "Зачёт", passed: true, value: 3 };
-}
-
-function aiAgreesWithDraft(criterion: ScorecardCriterion, score?: CriterionScore) {
-  if (score?.isNotApplicable) {
-    return false;
-  }
-
-  const prediction = aiPrediction(criterion);
-
   if (criterion.kind === "SCALE_1_3") {
+    if (typeof prediction.value !== "number") {
+      return false;
+    }
     return (score?.value ?? 3) === prediction.value;
   }
 
+  if (typeof prediction.passed !== "boolean") {
+    return false;
+  }
   return (score?.passed ?? true) === prediction.passed;
 }
 
@@ -241,7 +248,8 @@ export function ReviewPanel({
   draftReview,
   reviewSource = "HUMAN",
   returnTo,
-  title = "Проверка"
+  title = "Проверка",
+  aiPredictions
 }: ReviewPanelProps) {
   const draftScores = new Map(draftReview?.scores.map((score) => [score.criterionId, score]) ?? []);
   const draftFinding = draftReview?.findings[0];
@@ -449,14 +457,16 @@ export function ReviewPanel({
                       const densityMeta = getCriterionDensityMeta(draftScore);
                       const hasIssue = isCriterionIssue(criterion, draftScore);
                       const contribution = criterionContribution(criterion, draftScore);
-                      const prediction = aiPrediction(criterion);
-                      const aiAgrees = aiAgreesWithDraft(criterion, draftScore);
+                      const prediction = aiPredictions?.[criterion.id];
+                      const aiAgrees = prediction ? aiAgreesWithDraft(criterion, prediction, draftScore) : false;
                       const evidenceMessage = draftScore?.evidenceMessageId
                         ? messageById.get(draftScore.evidenceMessageId)
                         : undefined;
                       // The active/AI-flagged criterion (a failing one, or one where
-                      // the human overrode the AI) earns the indigo 1.5px border.
-                      const aiFlagged = hasIssue || (!aiAgrees && !draftScore?.isNotApplicable);
+                      // the human overrode a real AI prediction) earns the indigo
+                      // 1.5px border. Without a prediction only a real issue flags it.
+                      const aiFlagged =
+                        hasIssue || (Boolean(prediction) && !aiAgrees && !draftScore?.isNotApplicable);
 
                       return (
                         <details
@@ -474,12 +484,18 @@ export function ReviewPanel({
                               <div className={styles.criterionTopline}>
                                 <h4 className={styles.criterionTitle}>{criterion.label}</h4>
                                 <span className={styles.criterionToplineSignals}>
-                                  <span
-                                    className={`${styles.aiChip} ${aiAgrees ? styles.aiChipAgree : ""}`}
-                                    title={`Предсказание ИИ: ${prediction.label}`}
-                                  >
-                                    {aiAgrees ? "ИИ согласен" : `ИИ: ${prediction.label}`}
-                                  </span>
+                                  {prediction ? (
+                                    <span
+                                      className={`${styles.aiChip} ${aiAgrees ? styles.aiChipAgree : ""}`}
+                                      title={
+                                        prediction.rationale
+                                          ? `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)} — ${prediction.rationale}`
+                                          : `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)}`
+                                      }
+                                    >
+                                      {aiAgrees ? "ИИ согласен" : criterionPredictionChipLabel(prediction)}
+                                    </span>
+                                  ) : null}
                                   <WorkbenchStatus tone={status.tone}>
                                     {status.label}
                                   </WorkbenchStatus>

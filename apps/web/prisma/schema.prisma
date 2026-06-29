@@ -95,6 +95,7 @@ enum BackendJobType {
   DIRECTORY_SYNC
   RETENTION_CLEANUP
   WEBHOOK_INGEST
+  AI_SCORE
 }
 
 enum BackendJobStatus {
@@ -1222,6 +1223,7 @@ model AiQualityDraft {
   status             String        @default("draft")
   modelVersion       String
   promptVersion      String
+  confidence         Float?
   suggestedValueJson String        @default("{}")
   evidenceRefsJson   String        @default("[]")
   finalizedById      String?

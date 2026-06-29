@@ -19,6 +19,9 @@ export function getRuntimeConfigDiagnostics() {
   const isProduction = process.env.NODE_ENV === "production";
   const secretKey = process.env.QC_SECRET_KEY;
   const demoAuth = isDemoAuthEnabled();
+  // Non-fatal: AI scoring always works (deterministic fallback). This only reports
+  // whether the live YandexGPT adapter is wired up.
+  const aiScoringReady = Boolean(process.env.YANDEX_GPT_API_KEY && process.env.YANDEX_GPT_CATALOG_ID);
   const checks: RuntimeCheck[] = [
     {
       key: "database_url",
@@ -42,6 +45,13 @@ export function getRuntimeConfigDiagnostics() {
       key: "demo_auth",
       status: isProduction && demoAuth ? "error" : demoAuth ? "warn" : "ok",
       message: demoAuth ? "Демо-авторизация включена." : "Демо-авторизация отключена."
+    },
+    {
+      key: "ai_scoring",
+      status: aiScoringReady ? "ok" : "warn",
+      message: aiScoringReady
+        ? "AI-оценка использует YandexGPT (yandexgpt): ключ и каталог заданы."
+        : "AI-оценка использует детерминированный fallback: задайте YANDEX_GPT_API_KEY и YANDEX_GPT_CATALOG_ID для YandexGPT."
     }
   ];
 

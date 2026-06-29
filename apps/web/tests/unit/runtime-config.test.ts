@@ -27,4 +27,44 @@ describe("runtime config diagnostics", () => {
       process.env.QC_SECRET_KEY = previousSecretKey;
     }
   });
+
+  it("reports AI scoring readiness as fallback without YandexGPT credentials", () => {
+    const previousApiKey = process.env.YANDEX_GPT_API_KEY;
+    const previousCatalogId = process.env.YANDEX_GPT_CATALOG_ID;
+    delete process.env.YANDEX_GPT_API_KEY;
+    delete process.env.YANDEX_GPT_CATALOG_ID;
+
+    const diagnostics = getRuntimeConfigDiagnostics();
+    const check = diagnostics.checks.find((entry) => entry.key === "ai_scoring");
+
+    expect(check).toMatchObject({ status: "warn" });
+    expect(check?.message).toContain("fallback");
+
+    restoreEnv("YANDEX_GPT_API_KEY", previousApiKey);
+    restoreEnv("YANDEX_GPT_CATALOG_ID", previousCatalogId);
+  });
+
+  it("reports AI scoring readiness as yandexgpt when credentials are present", () => {
+    const previousApiKey = process.env.YANDEX_GPT_API_KEY;
+    const previousCatalogId = process.env.YANDEX_GPT_CATALOG_ID;
+    process.env.YANDEX_GPT_API_KEY = "key";
+    process.env.YANDEX_GPT_CATALOG_ID = "catalog";
+
+    const diagnostics = getRuntimeConfigDiagnostics();
+    const check = diagnostics.checks.find((entry) => entry.key === "ai_scoring");
+
+    expect(check).toMatchObject({ status: "ok" });
+    expect(check?.message).toContain("yandexgpt");
+
+    restoreEnv("YANDEX_GPT_API_KEY", previousApiKey);
+    restoreEnv("YANDEX_GPT_CATALOG_ID", previousCatalogId);
+  });
 });
+
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}

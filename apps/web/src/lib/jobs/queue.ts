@@ -2,6 +2,7 @@ import type { BackendJob, BackendJobStatus, Prisma } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import type { IntegrationJobOperation } from "@/lib/integration-import-service";
+import { runAiScoreJob } from "@/lib/jobs/ai-score-job";
 import type { BackendJobPayload } from "@/lib/jobs/enqueue";
 import { logBackendEvent } from "@/lib/observability";
 
@@ -726,6 +727,8 @@ async function executeBackendJob(job: BackendJob) {
     result = await runIntegrationImportJob(job, payload);
   } else if (job.type === "WEBHOOK_INGEST") {
     result = await runWebhookIngestJob(job, payload);
+  } else if (job.type === "AI_SCORE") {
+    result = await runAiScoreJob(job, payload);
   } else if (job.type === "DIRECTORY_SYNC") {
     const transactionResult = await prisma.$transaction(async (tx) => runDirectorySyncJob(tx, job, payload));
     applyJobLockState(job, transactionResult.lockState);

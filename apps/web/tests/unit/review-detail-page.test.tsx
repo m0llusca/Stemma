@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     },
     aiQualityDraft: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       count: vi.fn()
     },
     conversation: {
@@ -33,8 +34,18 @@ vi.mock("@/components/review/conversation-timeline", () => ({
   ConversationTimeline: () => <div data-testid="timeline" />
 }));
 
+vi.mock("@/components/review/ai-draft-decision-controls", () => ({
+  AiDraftDecisionControls: ({ draftId }: { draftId: string }) => (
+    <div data-testid="ai-draft-decision" data-draft-id={draftId} />
+  )
+}));
+
 vi.mock("@/components/review/review-panel", () => ({
-  ReviewPanel: ({ title }: { title?: string }) => <div data-testid="review-panel">{title}</div>
+  ReviewPanel: ({ title, aiPredictions }: { title?: string; aiPredictions?: Record<string, unknown> }) => (
+    <div data-testid="review-panel" data-ai-predictions={Object.keys(aiPredictions ?? {}).length}>
+      {title}
+    </div>
+  )
 }));
 
 vi.mock("@/components/review/workflow-management-panel", () => ({
@@ -112,6 +123,7 @@ describe("review detail page", () => {
       criteria: []
     });
     mocks.prisma.aiQualityDraft.findMany.mockResolvedValue([]);
+    mocks.prisma.aiQualityDraft.findFirst.mockResolvedValue(null);
     mocks.prisma.aiQualityDraft.count.mockResolvedValue(0);
     // The workbench footer's "N из M" batch counter queries the priority-ordered
     // queue ids; an empty queue renders the neutral "Вне очереди" hint.
@@ -135,9 +147,11 @@ describe("review detail page", () => {
     expect(mocks.canSelfReview).toHaveBeenCalledWith("SUPPORT_AGENT");
     expect(mocks.getActiveScorecard).toHaveBeenCalledWith("workspace-1");
     expect(mocks.prisma.aiQualityDraft.findMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.aiQualityDraft.findFirst).not.toHaveBeenCalled();
     expect(mocks.prisma.aiQualityDraft.count).not.toHaveBeenCalled();
     expect(screen.queryByText("ИИ-предложения")).toBeNull();
     expect(reviewPanel.textContent).toBe("Комментарий оператора");
+    expect(reviewPanel.dataset.aiPredictions).toBe("0");
   });
 
   it("shows pending-first AI suggestions with full counts for QA roles", async () => {
@@ -216,5 +230,55 @@ describe("review detail page", () => {
     expect(screen.getByText("ИИ-предложения").textContent).toBe("ИИ-предложения");
     expect(screen.getAllByText("3/9").length).toBeGreaterThan(0);
     expect(screen.getByText(/Проверить тон ответа/).textContent).toContain("Проверить тон ответа");
+    // The pending draft exposes accept/reject/override controls; the decided one does not.
+    const decisionControls = screen.getAllByTestId("ai-draft-decision");
+    expect(decisionControls).toHaveLength(1);
+    expect(decisionControls[0].dataset.draftId).toBe("pending-1");
+  });
+
+  it("parses the latest score draft into per-criterion predictions for the panel", async () => {
+    mocks.requireCurrentUserPermission.mockResolvedValue({
+      id: "qa-1",
+      workspaceId: "workspace-1",
+      role: "QA_ANALYST",
+      name: "Проверяющий"
+    });
+    mocks.canSaveReviewDraft.mockReturnValue(true);
+    mocks.canSelfReview.mockReturnValue(false);
+    mocks.getActiveScorecard.mockResolvedValue({
+      id: "scorecard-1",
+      version: 1,
+      criteria: []
+    });
+    mocks.prisma.aiQualityDraft.findMany.mockResolvedValue([]);
+    mocks.prisma.aiQualityDraft.count.mockResolvedValue(0);
+    mocks.prisma.aiQualityDraft.findFirst.mockResolvedValue({
+      suggestedValueJson: JSON.stringify({
+        overallConfidence: 0.82,
+        summary: "Оценка ИИ",
+        criteria: [
+          { criterionId: "criterion-1", criterionKey: "tone", value: 2, confidence: 0.86, rationale: "Тон" },
+          { criterionId: "criterion-2", criterionKey: "policy", passed: false, confidence: 0.7, rationale: "Регламент" }
+        ]
+      })
+    });
+
+    const { ReviewDetailPageContent } = await import("@/app/reviews/[conversationId]/page");
+    const page = await ReviewDetailPageContent({
+      params: Promise.resolve({ conversationId: "conversation-1" }),
+      searchParams: Promise.resolve({})
+    });
+
+    render(page);
+
+    expect(mocks.prisma.aiQualityDraft.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          conversationId: "conversation-1",
+          kind: "score"
+        })
+      })
+    );
+    expect(screen.getByTestId("review-panel").dataset.aiPredictions).toBe("2");
   });
 });
