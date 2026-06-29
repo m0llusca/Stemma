@@ -4,7 +4,6 @@ import { Suspense, type ReactNode } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
-import { CertificationEvidenceList } from "@/components/integrations/integration-ui";
 import { SourceLogoMark } from "@/components/integrations/source-logo-mark";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
@@ -158,10 +157,6 @@ function readinessTone(readiness: string): StatusTone {
   if (readiness === "adapter_ready") return "info";
   if (readiness === "roadmap") return "warning";
   return "neutral";
-}
-
-function readinessActionTone(input: { hasBaseUrl: boolean; hasRequiredSecrets: boolean }): StatusTone {
-  return input.hasBaseUrl && input.hasRequiredSecrets ? "positive" : "warning";
 }
 
 function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
@@ -725,9 +720,6 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                 const syncState = parseIntegrationSyncState(integration.syncStateJson);
                 const hasBaseUrl = Boolean(integration.baseUrl?.trim());
                 const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
-                const canOpenDiagnostics =
-                  capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets && integration.type === "otrs_family";
-                const diagnosticsReady = capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets;
                 const canQueueImport = canQueueIntegrationImport(capability);
                 const latestActivityStatus = latestRunStatus ?? latestJobStatus ?? latestDiagnosticStatus;
 
@@ -750,82 +742,45 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                      />
 	                    </div>
 	                    <div className="ops-table__cell">
-	                      <span className="ops-table__label">Состояние</span>
-	                      <div className="integration-chip-list">
-	                        <StatusBadge
-	                          label="Готовность"
-	                          value={compactCertificationLabel(capability.certification.summary.label)}
-	                          tone={certificationTone(capability.certification.summary.status)}
-	                        />
-	                        <StatusBadge
-	                          label="Live"
-	                          value={compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })}
-	                          tone={readinessActionTone({ hasBaseUrl, hasRequiredSecrets })}
-	                        />
-	                        <CertificationHelpTooltip label={`Что значит статус сертификации для ${integration.displayName}?`} />
-	                      </div>
-	                      <span className="record-meta">{capabilityReadinessLabel(capability.readiness)}</span>
-                        <EvidenceDrawer title="Evidence">
-                          <CertificationEvidenceList evidence={integration.certificationEvidence} />
-                        </EvidenceDrawer>
-	                    </div>
-	                    <div className="ops-table__cell">
-	                      <span className="ops-table__label">Импорт</span>
-	                      <span className="integration-stat-row">
-	                        <span>Лимит {integration.importLimit}</span>
-	                        <span>пакет {integration.batchSize}</span>
-	                      </span>
-	                      <span className="record-meta tabular-nums">Импорт: {formatCompactDate(integration.lastImportAt)}</span>
-	                      <span className="record-meta tabular-nums">Проверка: {formatCompactDate(integration.lastDryRunAt)}</span>
-	                    </div>
-	                    <div className="ops-table__cell">
-	                      <span className="ops-table__label">Активность</span>
-	                      <span className="integration-stat-row integration-stat-row--strong">
-	                        <span>Проверено {syncState.progress.checkedCount}</span>
-	                        <span>импортировано {syncState.progress.importedCount}</span>
-	                      </span>
-	                      <span className="record-meta">ошибок {syncState.progress.errorCount}</span>
-	                      {latestActivityStatus ? (
-	                        <StatusBadge
-	                          label="Статус"
-	                          value={latestActivityStatus.label}
-	                          tone={operationalTone(latestActivityStatus.tone)}
-	                        />
-	                      ) : (
-	                        <span className="record-meta">Запусков еще не было</span>
-	                      )}
-	                      {latestJob && latestJobStatus ? (
-	                        <Link href={`/admin/system/jobs/${latestJob.id}`} className="quiet-link text-sm">
-	                          Задача {latestJob.id.slice(0, 8)}
-	                        </Link>
-	                      ) : null}
-	                    </div>
-	                    <div className="ops-table__cell ops-table__cell--actions">
-	                      <span className="ops-table__label">Действия</span>
+                      <span className="ops-table__label">Состояние</span>
+                      <StatusBadge
+                        label="Готовность"
+                        value={compactCertificationLabel(capability.certification.summary.label)}
+                        tone={certificationTone(capability.certification.summary.status)}
+                      />
+                      <span className="record-meta compact-text">
+                        {compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })} · {capabilityReadinessLabel(capability.readiness)}
+                      </span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Импорт</span>
+                      <span className="record-meta tabular-nums">Импорт {formatCompactDate(integration.lastImportAt)}</span>
+                      <span className="record-meta tabular-nums compact-text">Проверка {formatCompactDate(integration.lastDryRunAt)}</span>
+                    </div>
+                    <div className="ops-table__cell">
+                      <span className="ops-table__label">Активность</span>
+                      {latestActivityStatus ? (
+                        <StatusBadge
+                          label="Статус"
+                          value={latestActivityStatus.label}
+                          tone={operationalTone(latestActivityStatus.tone)}
+                        />
+                      ) : (
+                        <span className="record-meta">Запусков еще не было</span>
+                      )}
+                      <span className="record-meta tabular-nums compact-text">
+                        проверено {syncState.progress.checkedCount} · импортировано {syncState.progress.importedCount} · ошибок {syncState.progress.errorCount}
+                      </span>
+                    </div>
+                    <div className="ops-table__cell ops-table__cell--actions">
+                      <span className="ops-table__label">Действия</span>
                       <div className="integration-action-stack">
                         <Link href={`/admin/integrations/${integration.id}`} className="quiet-link text-sm">
-                          Открыть панель
+                          Открыть
                         </Link>
-                        {canOpenDiagnostics ? (
-                          <Link href={`/admin/integrations/${integration.id}?section=operations`} className="quiet-link text-sm">
-                            Диагностика
-                          </Link>
-	                        ) : diagnosticsReady ? (
-	                          <span className="record-meta compact-text">
-	                            Диагностика готова
-	                          </span>
-	                        ) : (
-	                          <span className="record-meta compact-text">
-	                            Нужны доступы
-	                          </span>
-	                        )}
                         {canQueueImport ? (
                           <IntegrationImportQueueForm integrationId={integration.id} />
-	                        ) : (
-	                          <span className="record-meta compact-text">
-	                            Нужна авторизация
-	                          </span>
-	                        )}
+                        ) : null}
                       </div>
                     </div>
                   </article>

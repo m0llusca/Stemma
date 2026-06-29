@@ -257,7 +257,7 @@ export function PeriodMovementPanel({
           />
         </div>
         {driverItems.length > 0 ? (
-          <div className="improvement-panel__section">
+          <div className="improvement-panel__section improvement-panel__section--full">
             <div className="improvement-panel__section-header">
               <strong>Где искать причину</strong>
               <span>Слабейшие срезы и следующее действие</span>

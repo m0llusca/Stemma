@@ -317,7 +317,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                   </span>
                 </summary>
                 <div className="border-t border-[var(--border)] p-3">
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                     {scorecard.criteria.map((criterion) => (
                       <article key={criterion.id} className="soft-callout">
                         <div className="record-row">

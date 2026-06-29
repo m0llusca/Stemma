@@ -196,7 +196,8 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
               />
             ) : null}
             {apiTokens.length > 0 ? (
-              apiTokens.map((apiToken) => {
+              <div className="grid gap-2 md:grid-cols-2 items-start">
+              {apiTokens.map((apiToken) => {
                 const health = tokenHealth(apiToken);
                 const isExpired = Boolean(apiToken.expiresAt && apiToken.expiresAt <= now);
 
@@ -233,7 +234,8 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                     </div>
                   </div>
                 );
-              })
+              })}
+              </div>
             ) : (
               <EmptyState
                 size="inline"
@@ -276,7 +278,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
             </div>
           </div>
           {demoAuthEnabled ? (
-            <div className="grid gap-2 p-4">
+            <div className="grid gap-2 p-4 md:grid-cols-2 items-start">
               <div className="admin-tile admin-tile--compact">
                 <span className="admin-tile__icon admin-tile__icon--plain">K</span>
                 <div className="admin-tile__body">

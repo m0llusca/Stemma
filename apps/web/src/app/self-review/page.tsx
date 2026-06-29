@@ -280,6 +280,38 @@ async function SelfReviewPageContent() {
       ? `Осталось закрыть ${assignments.length} учебных задач после разбора.`
       : "Новые финальные проверки и апелляции появятся здесь первыми.";
 
+  const hasCriteriaPanel = strengthCriteria.length > 0 || focusCriteria.length > 0;
+
+  const heroPanel = (
+    <section className="self-review-hero panel" aria-label="Личный результат качества">
+      <div className="self-review-hero__score">
+        <span className="self-review-hero__eyebrow">Средний балл качества</span>
+        <div className="self-review-hero__value-row">
+          <span className="self-review-hero__number">{myAverage != null ? clampQualityScore(myAverage) : "—"}</span>
+          <span className="self-review-hero__unit">из 100</span>
+          {periodDelta != null && periodDelta !== 0 ? (
+            <Chip tone={periodDelta > 0 ? "success" : "warning"} size="sm" numeric>
+              {periodDelta > 0 ? "↑" : "↓"} {formatQualityScoreDelta(periodDelta)}
+            </Chip>
+          ) : periodDelta === 0 ? (
+            <Chip tone="neutral" size="sm" numeric>→ без изменений</Chip>
+          ) : null}
+        </div>
+        <p className="self-review-hero__context">
+          {myReviewScores.length > 0 ? `${myReviewScores.length} проверок за период` : "Проверок пока нет"}
+          {benchmarkDelta != null
+            ? benchmarkDelta === 0
+              ? " · на уровне команды"
+              : benchmarkDelta > 0
+                ? ` · выше команды на ${Math.abs(benchmarkDelta)}`
+                : ` · ниже команды на ${Math.abs(benchmarkDelta)}`
+            : ""}
+        </p>
+        {myReviewScores.length >= 2 ? <ScoreSparkline points={myReviewScores} /> : null}
+      </div>
+    </section>
+  );
+
   return (
     <PageShell
       className="self-review-shell"
@@ -302,35 +334,10 @@ async function SelfReviewPageContent() {
         }
       />
 
-      <section className="self-review-hero panel" aria-label="Личный результат качества">
-        <div className="self-review-hero__score">
-          <span className="self-review-hero__eyebrow">Средний балл качества</span>
-          <div className="self-review-hero__value-row">
-            <span className="self-review-hero__number">{myAverage != null ? clampQualityScore(myAverage) : "—"}</span>
-            <span className="self-review-hero__unit">из 100</span>
-            {periodDelta != null && periodDelta !== 0 ? (
-              <Chip tone={periodDelta > 0 ? "success" : "warning"} size="sm" numeric>
-                {periodDelta > 0 ? "↑" : "↓"} {formatQualityScoreDelta(periodDelta)}
-              </Chip>
-            ) : periodDelta === 0 ? (
-              <Chip tone="neutral" size="sm" numeric>→ без изменений</Chip>
-            ) : null}
-          </div>
-          <p className="self-review-hero__context">
-            {myReviewScores.length > 0 ? `${myReviewScores.length} проверок за период` : "Проверок пока нет"}
-            {benchmarkDelta != null
-              ? benchmarkDelta === 0
-                ? " · на уровне команды"
-                : benchmarkDelta > 0
-                  ? ` · выше команды на ${Math.abs(benchmarkDelta)}`
-                  : ` · ниже команды на ${Math.abs(benchmarkDelta)}`
-              : ""}
-          </p>
-          {myReviewScores.length >= 2 ? <ScoreSparkline points={myReviewScores} /> : null}
-        </div>
-      </section>
+      {hasCriteriaPanel ? (
+        <div className="grid gap-[16px] items-start lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.2fr)]">
+        {heroPanel}
 
-      {(strengthCriteria.length > 0 || focusCriteria.length > 0) ? (
         <section className="self-review-criteria panel" aria-label="Сильные стороны и зоны роста">
           <div className="learning-section-header">
             <div className="min-w-0">
@@ -373,7 +380,10 @@ async function SelfReviewPageContent() {
             ) : null}
           </div>
         </section>
-      ) : null}
+        </div>
+      ) : (
+        heroPanel
+      )}
 
       <section className="feedback-layout" aria-label="Операторская обратная связь">
         <div className="feedback-main panel">

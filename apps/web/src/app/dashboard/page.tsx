@@ -502,7 +502,8 @@ async function DashboardPageContent() {
             </div>
           </div>
 
-          <div className="dashboard-panel dashboard-panel--growth">
+          <div className="grid gap-3 items-start xl:grid-cols-2 [grid-column:1/-1]">
+          <div className="dashboard-panel">
             <div className="dashboard-panel__header">
               <p className="dashboard-section-label">
                 <TrendingUp size={14} aria-hidden="true" />
@@ -541,7 +542,7 @@ async function DashboardPageContent() {
             </div>
           </div>
 
-          <div className="dashboard-panel dashboard-panel--growth">
+          <div className="dashboard-panel">
             <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении." defaultOpen>
               <div className="evidence-drawer__toolbar">
                 <Link href={canReadAudit ? "/admin/audit" : "/reviews"} className="quiet-link">{canReadAudit ? "Аудит" : "Очередь"}</Link>
@@ -570,6 +571,7 @@ async function DashboardPageContent() {
                 )}
               </div>
             </EvidenceDrawer>
+          </div>
           </div>
         </section>
       </PageShell>

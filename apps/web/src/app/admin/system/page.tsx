@@ -762,7 +762,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               </div>
             </div>
           ) : null}
-          <div className="record-list px-5">
+          <div className={`record-list px-5${recentJobs.length > 0 ? " record-list--cols" : ""}`}>
             {recentJobs.length === 0 ? (
               <EmptyState size="inline" icon={<ListChecks size={20} aria-hidden="true" />} title="Фоновых задач пока нет" description="Очередь обработчика пуста — новые задачи появятся при импорте или обслуживании." />
             ) : (
@@ -912,7 +912,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
             <StatCard label="Окружение" value={environmentLabel(runtime.environment)} hint="Текущий режим приложения" tone="info" />
             <StatCard label="Проблемы" value={runtimeIssues} hint="Проверки не в статусе Готово" tone={runtimeIssues > 0 ? "negative" : "positive"} />
           </section>
-          <div className="record-list px-5">
+          <div className="record-list record-list--cols px-5">
             {runtime.checks.map((check) => {
               const Icon = check.status === "ok" ? CheckCircle2 : AlertTriangle;
 
@@ -1004,7 +1004,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               tone={expiredActiveSessions > 0 ? "warning" : "positive"}
             />
           </div>
-          <div className="record-list px-5">
+          <div className={`record-list px-5${providers.length > 0 ? " record-list--cols" : ""}`}>
             {providers.length === 0 ? (
               <EmptyState size="inline" icon={<ShieldCheck size={20} aria-hidden="true" />} title="Провайдеры не настроены" description="SSO появится здесь после настройки провайдера входа в разделе «Доступ и SSO»." />
             ) : (

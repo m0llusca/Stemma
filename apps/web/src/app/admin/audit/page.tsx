@@ -311,7 +311,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                 description={hasFilters ? "Под текущий фильтр нет записей. Сбросьте условия отбора." : "Записей в журнале пока нет."}
               />
             ) : (
-              logs.map((log) => (
+              <div className="grid gap-2 md:grid-cols-2 items-start">{logs.map((log) => (
                 <article key={log.id} className="admin-tile admin-tile--compact">
                   <span className="admin-tile__icon admin-tile__icon--plain">A</span>
                   <div className="admin-tile__body">
@@ -335,7 +335,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                     </details>
                   </div>
                 </article>
-              ))
+              ))}</div>
             )}
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-4 text-sm">
@@ -366,7 +366,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
               <p className="ops-panel__subtitle">Фильтр применяется к списку событий и сбрасывает страницу на первую.</p>
             </div>
           </div>
-          <AutoSubmitFilterForm action="/admin/audit" className="ops-form-grid p-5">
+          <AutoSubmitFilterForm action="/admin/audit" className="ops-form-grid ops-form-grid--three p-5">
             <input type="hidden" name="section" value="events" />
             <input type="hidden" name="page" value="1" />
             <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
@@ -414,7 +414,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
             <Chip tone="neutral" size="sm" numeric>{apiTokens.length}</Chip>
           </div>
           <div className="grid gap-2 p-4">
-            {apiTokens.map((token) => (
+            <div className="grid gap-2 md:grid-cols-2 items-start">{apiTokens.map((token) => (
               <article key={token.id} className="admin-tile admin-tile--compact">
                 <span className="admin-tile__icon admin-tile__icon--plain">K</span>
                 <div className="admin-tile__body">
@@ -429,7 +429,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                   </span>
                 </div>
               </article>
-            ))}
+            ))}</div>
             {apiTokens.length === 0 ? (
               <EmptyState
                 size="inline"

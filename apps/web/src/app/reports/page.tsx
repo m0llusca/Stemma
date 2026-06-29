@@ -773,12 +773,22 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "overview" ? (
-        <PrimaryScorePanel
-          finalizedCount={finalizedCount}
-          previousCount={previousReviews.length}
-          trendRows={trendRows}
-          period={period}
-        />
+        <div className="grid gap-[18px] items-start xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <PrimaryScorePanel
+            finalizedCount={finalizedCount}
+            previousCount={previousReviews.length}
+            trendRows={trendRows}
+            period={period}
+          />
+          <ChartPanel
+            title="Распределение оценок"
+            description="Сколько проверок попало в каждый диапазон."
+            actionHref={reportReviewHref(period)}
+            actionLabel="Список"
+          >
+            <ScoreDistribution rows={distributionRows} />
+          </ChartPanel>
+        </div>
       ) : null}
 
       {reportView === "overview" ? (
@@ -802,21 +812,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
 
       {reportView === "process" ? (
         <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} period={period} />
-      ) : null}
-
-      {reportView === "overview" ? (
-        <>
-          <div className="reports-main-grid">
-            <ChartPanel
-              title="Распределение оценок"
-              description="Сколько проверок попало в каждый диапазон."
-              actionHref={reportReviewHref(period)}
-              actionLabel="Список"
-            >
-              <ScoreDistribution rows={distributionRows} />
-            </ChartPanel>
-          </div>
-        </>
       ) : null}
 
       {reportView === "performance" ? (

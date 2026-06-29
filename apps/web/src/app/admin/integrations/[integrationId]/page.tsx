@@ -358,26 +358,28 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
           />
         </div>
 
-        <OperationalBrief
-          className="operational-brief--inline"
-          eyebrow="Командный контур"
-          title={hasBaseUrl && hasRequiredSecrets ? "Источник готов к проверкам" : "Источник ожидает настройки"}
-          description={
-            hasBaseUrl && hasRequiredSecrets
-              ? "Можно двигаться по диагностикам, preview и live evidence без раскрытия секретов."
-              : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."
-          }
-          items={[
-            {
-              label: "Последний запуск",
-              value: latestRunStatus?.label ?? "нет",
-              detail: latestRun ? `${latestRun.dryRun ? "Preview" : "Import"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",
-              tone: latestRun ? integrationRunTone(latestRun.status) : "neutral"
+        <div className="grid gap-4 items-start xl:grid-cols-2">
+          <OperationalBrief
+            className="operational-brief--inline"
+            eyebrow="Командный контур"
+            title={hasBaseUrl && hasRequiredSecrets ? "Источник готов к проверкам" : "Источник ожидает настройки"}
+            description={
+              hasBaseUrl && hasRequiredSecrets
+                ? "Можно двигаться по диагностикам, preview и live evidence без раскрытия секретов."
+                : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."
             }
-          ]}
-        />
+            items={[
+              {
+                label: "Последний запуск",
+                value: latestRunStatus?.label ?? "нет",
+                detail: latestRun ? `${latestRun.dryRun ? "Preview" : "Import"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",
+                tone: latestRun ? integrationRunTone(latestRun.status) : "neutral"
+              }
+            ]}
+          />
 
-        <OperationalStepRail steps={readinessSteps} ariaLabel="Маршрут готовности источника" />
+          <OperationalStepRail steps={readinessSteps} ariaLabel="Маршрут готовности источника" />
+        </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {gates.map((gate) => (
@@ -756,7 +758,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
               <p className="ops-panel__subtitle">Статус, последний запуск и состояние импорта без раскрытия технических payload.</p>
             </div>
           </div>
-          <div className="px-4 pt-4">
+          <div className="grid gap-4 items-start p-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
             <div className="admin-tile admin-tile--compact">
               <span className="admin-tile__icon admin-tile__icon--plain">{integration.displayName.slice(0, 1).toUpperCase()}</span>
               <span className="admin-tile__body">
@@ -765,8 +767,6 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
                 {integration.lastError ? <span className="record-meta text-[var(--danger)]">{integration.lastError}</span> : null}
               </span>
             </div>
-          </div>
-          <div className="p-4">
             <AdapterReadinessPanel integration={integration} />
           </div>
         </section>

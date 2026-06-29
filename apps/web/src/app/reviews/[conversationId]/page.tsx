@@ -307,6 +307,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
 
   const detailPane = (
     <div id="review-evidence" className="review-detail-stack">
+      <div className="grid gap-[18px] items-start lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       {canSeeAiQualityDrafts ? (
         <section className="ai-draft-summary" aria-label="ИИ-подсказки проверки">
           <div className="ai-draft-summary__header">
@@ -380,9 +381,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           </div>
         ) : null}
       </div>
+      </div>
 
+      <div className="grid gap-[18px] items-start md:grid-cols-2">
       {latestFinalizedReview ? (
-        <details className="review-secondary panel disclosure-panel overflow-clip">
+        <details className="review-secondary panel disclosure-panel overflow-clip [&[open]]:md:col-span-2">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Последнее замечание</h2>
@@ -540,7 +543,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       ) : null}
 
       {canEvaluateReviewPermission && conversation.reviews.length > 0 ? (
-        <details className="review-secondary panel disclosure-panel overflow-clip">
+        <details className="review-secondary panel disclosure-panel overflow-clip [&[open]]:md:col-span-2">
           <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold">История проверок</h2>
@@ -571,6 +574,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           </div>
         </details>
       ) : null}
+      </div>
     </div>
   );
 

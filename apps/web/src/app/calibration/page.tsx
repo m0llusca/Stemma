@@ -324,6 +324,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         </Link>
       }
     >
+      <div className="grid gap-[14px] items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <TriageStrip
         tone={calibrationTriageTone}
         icon={selectedDisagreementCount > 0 ? <TriangleAlert size={18} aria-hidden="true" /> : <Crosshair size={18} aria-hidden="true" />}
@@ -369,6 +370,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           icon={<ClipboardCheck size={16} aria-hidden="true" />}
           hint={`${sessions.length} всего в рабочей области`}
         />
+      </div>
       </div>
 
       {openNewSession ? (
