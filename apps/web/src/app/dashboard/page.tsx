@@ -80,14 +80,6 @@ function formatRelative(value: Date, now = new Date()) {
   return formatDate(value);
 }
 
-function formatSignedNumber(value: number, suffix = "") {
-  if (value === 0) {
-    return `0${suffix}`;
-  }
-
-  return `${value > 0 ? "+" : ""}${value}${suffix}`;
-}
-
 function weekdayLabel(value: Date) {
   return value.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "");
 }
@@ -343,20 +335,11 @@ async function DashboardPageContent() {
       : null
   ];
   const focusItems = focusItemCandidates.filter((item): item is FocusItem => Boolean(item));
-  const primaryFocusHref = focusItems[0]?.href ?? "/reviews?status=unreviewed";
-  const displayedFocusItems: FocusItem[] = focusItems.length
-    ? focusItems
-    : [
-        {
-          icon: CheckCircle2,
-          href: "/reviews?status=unreviewed",
-          label: "Обычная очередь",
-          value: totalQueueCount,
-          tone: totalQueueCount > 0 ? "info" : "positive",
-          hint: "Критичных отклонений нет"
-        }
-      ];
-  const primaryFocus = displayedFocusItems[0];
+  // The TriageStrip is the single home for the top signal; the "Фокус сейчас"
+  // panel carries only the remaining signals so nothing is restated.
+  const primaryFocus = focusItems[0];
+  const secondaryFocusItems = focusItems.slice(1);
+  const primaryFocusHref = primaryFocus?.href ?? "/reviews?status=unreviewed";
   const checkedStatus = semanticStatusForMetric({ kind: "completed_count", value: checkedThisWeek });
   const scoreStatus = semanticStatusForMetric({ kind: "average_score", value: currentAverage });
   const queueStatus = semanticStatusForMetric({ kind: "queue_count", value: totalQueueCount });
@@ -438,30 +421,32 @@ async function DashboardPageContent() {
       </section>
 
       <section className="dashboard-main-grid" aria-label="Операционные детали">
-          <div className="dashboard-panel">
-            <div className="dashboard-panel__header">
-              <p className="dashboard-section-label">Фокус сейчас</p>
-            </div>
-            <div className="dashboard-focus-list">
-              {displayedFocusItems.map((item) => {
-                const Icon = item.icon;
+          {secondaryFocusItems.length > 0 ? (
+            <div className="dashboard-panel">
+              <div className="dashboard-panel__header">
+                <p className="dashboard-section-label">Ещё в фокусе</p>
+              </div>
+              <div className="dashboard-focus-list">
+                {secondaryFocusItems.map((item) => {
+                  const Icon = item.icon;
 
-                return (
-                  <Link key={item.href} href={item.href} className="dashboard-focus-row">
-                    <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
-                    <span className="dashboard-focus-row__copy">
-                      <strong>{item.label}</strong>
-                      <small>{item.hint}</small>
-                    </span>
-                    <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
-                      <em>{item.value}</em>
-                      <ArrowRight size={14} aria-hidden="true" />
-                    </span>
-                  </Link>
-                );
-              })}
+                  return (
+                    <Link key={item.href} href={item.href} className="dashboard-focus-row">
+                      <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
+                      <span className="dashboard-focus-row__copy">
+                        <strong>{item.label}</strong>
+                        <small>{item.hint}</small>
+                      </span>
+                      <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
+                        <em>{item.value}</em>
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="dashboard-panel dashboard-panel--wide">
             <div className="dashboard-panel__header">
@@ -469,7 +454,6 @@ async function DashboardPageContent() {
                 <TrendingUp size={14} aria-hidden="true" />
                 Качество по неделям
               </p>
-              <Chip tone="neutral" size="sm" numeric>{formatSignedNumber(checkedDelta)}</Chip>
             </div>
             {checkedThisWeek === 0 ? (
               <EmptyState

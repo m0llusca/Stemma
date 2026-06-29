@@ -32,7 +32,7 @@ import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, qu
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
-import { toneForCount, type StatusTone } from "@/lib/ui/status-tone";
+import type { StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
 
@@ -742,7 +742,6 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h2 id="system-jobs-title" className="ops-panel__title">Фоновые задачи</h2>
               <p className="ops-panel__subtitle">Импорты, отчеты, синхронизация каталога и обслуживание данных.</p>
             </div>
-            <StatusBadge label="Ошибки" value={failedJobs} tone={toneForCount(failedJobs, { zero: "positive", nonZero: "negative" })} />
           </div>
           <div className="system-section-summary system-section-summary--four">
             <StatCard label="В очереди" value={queuedJobs} hint="Ожидают worker" tone={queuedJobs > 0 ? "warning" : "positive"} />

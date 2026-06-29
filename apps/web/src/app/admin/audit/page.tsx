@@ -309,7 +309,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
               <p className="ops-panel__eyebrow">История</p>
               <h2 id="audit-events-title" className="ops-panel__title">История действий</h2>
               <p className="ops-panel__subtitle tabular-nums">
-                Страница {page} · событий найдено: {totalLogs}
+                Страница {page}
               </p>
             </div>
             {hasFilters ? <Chip tone="accent" size="sm" icon={<Filter size={13} aria-hidden="true" />}>Фильтр активен</Chip> : null}

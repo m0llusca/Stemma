@@ -272,11 +272,8 @@ details[open] > summary .queue-filterbar__chevron {
   padding: 12px;
 }
 
-.review-ide-signal span,
 .review-linked-evidence-item span,
-.report-narrative-card span,
-.integration-readiness-stage span,
-.coaching-outcome-card span {
+.integration-readiness-stage span {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 800;

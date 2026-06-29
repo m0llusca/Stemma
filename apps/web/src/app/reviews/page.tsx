@@ -8,7 +8,6 @@ import { QueueTable } from "@/components/review/queue-table";
 import { Chip } from "@/components/ui/chip";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatKpi } from "@/components/ui/stat-kpi";
-import { TriageStrip } from "@/components/ui/triage-strip";
 import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
 import {
   channelLabels,
@@ -90,18 +89,6 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
         }
       : null
   ].filter((item): item is { href: string; label: string; value: number; description: string } => Boolean(item)).slice(0, 3);
-  const primaryReviewFocus = reviewFocusItems[0];
-  const queueActionHref = primaryReviewFocus?.href ?? "/reviews?status=unreviewed";
-  const triageTone =
-    overdue > 0 || visibleCriticalCount > 0
-      ? "danger"
-      : visibleUnassignedCount > 0 || queued + inWork > 0
-        ? "warning"
-        : "success";
-  const triageTitle = primaryReviewFocus?.label ?? "Критичных действий нет";
-  const triageDescription = primaryReviewFocus
-    ? `${primaryReviewFocus.value} · ${primaryReviewFocus.description}`
-    : "Продолжайте обычный разбор незавершенной очереди.";
   const queuePreview = data.conversations[0];
   const queuePreviewFinalized = queuePreview?.reviews.find(
     (review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN"
@@ -189,19 +176,6 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           icon={<CheckCircle2 size={16} aria-hidden="true" />}
         />
       </section>
-
-      <TriageStrip
-        tone={triageTone}
-        icon={<TriangleAlert size={18} aria-hidden="true" />}
-        title={triageTitle}
-        description={triageDescription}
-        action={
-          <Link href={queueActionHref} className="action-button action-button--primary">
-            {primaryReviewFocus ? "Перейти к задаче" : "Открыть очередь"}
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-        }
-      />
 
       <section className="queue-focus panel" aria-label="Где смотреть в очереди сейчас">
         <div className="queue-focus__head">

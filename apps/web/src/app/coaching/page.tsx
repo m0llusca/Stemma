@@ -355,7 +355,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const topCategories = Array.from(activeCategoryCounts.entries())
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "ru"))
     .slice(0, 5);
-  const quickCategories = topCategories.slice(0, 4);
   const isSecondaryViewSelected = secondaryViewOptions.some((option) => option.id === view);
   const resetFiltersHref = view === "active" ? "/coaching" : `/coaching?view=${view}`;
   const baseCoachingHref = viewHref(view, { q, assigneeId, category });
@@ -398,34 +397,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const measuredTrainingEffectCount = trainingEffects.size;
   const positiveTrainingEffectCount = trainingEffectValues.filter((value) => value > 0).length;
   const linkedAssignmentShare = assignments.length > 0 ? Math.round((linkedAssignmentCount / assignments.length) * 100) : 0;
-  const outcomeItems = [
-    {
-      label: "Закрытие",
-      value: `${doneAssignments.length}/${assignments.length}`,
-      detail:
-        assignments.length > 0
-          ? `${Math.round((doneAssignments.length / assignments.length) * 100)}% всех разборов закрыто.`
-          : "Разборы появятся после задач обучения."
-    },
-    {
-      label: "Связь с QA",
-      value: `${linkedAssignmentShare}%`,
-      detail: `${linkedAssignmentCount} задач с проверкой и контекстом доказательств.`
-    },
-    {
-      label: "Эффект",
-      value: averageTrainingEffect == null ? "Нет данных" : formatQualityScoreDelta(averageTrainingEffect),
-      detail:
-        measuredTrainingEffectCount > 0
-          ? `${positiveTrainingEffectCount} из ${measuredTrainingEffectCount} измеримых разборов дали рост.`
-          : "Нужно минимум две оценки до и после закрытия задачи."
-    },
-    {
-      label: "Нагрузка",
-      value: overdueAssignments.length > 0 ? `${overdueAssignments.length} срочно` : `${openAssignments.length} активно`,
-      detail: weekAssignments.length > 0 ? `${weekAssignments.length} задач со сроком на неделе.` : "Ближайшие сроки не перегружены."
-    }
-  ];
 
   const coachingTriageTone: TriageStripTone =
     coachingActionTone === "negative" ? "danger" : coachingActionTone === "warning" ? "warning" : "success";
@@ -491,10 +462,15 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           }
         />
         <StatKpi
-          label="Закрыто"
-          value={doneAssignments.length}
-          icon={<Archive size={16} aria-hidden="true" />}
-          hint={assignments.length > 0 ? `${Math.round((doneAssignments.length / assignments.length) * 100)}% всех разборов` : "Разборов пока нет"}
+          label="Связь с QA"
+          value={linkedAssignmentShare}
+          unit="%"
+          icon={<Link2 size={16} aria-hidden="true" />}
+          hint={
+            assignments.length > 0
+              ? `${linkedAssignmentCount} задач с проверкой · закрыто ${doneAssignments.length}/${assignments.length}`
+              : "Разборов пока нет"
+          }
         />
       </div>
 
@@ -662,23 +638,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </section>
       ) : null}
 
-      <section className="coaching-outcome-board panel" aria-label="Контур результата обучения">
-        <div className="coaching-outcome-board__lead">
-          <span className="page-kicker">Контур результата</span>
-          <h2>От разбора к изменению качества</h2>
-          <p>Сводка показывает, закрываются ли задачи, связаны ли они с проверками и появился ли измеримый эффект.</p>
-        </div>
-        <div className="coaching-outcome-board__items">
-          {outcomeItems.map((item) => (
-            <div key={item.label} className="coaching-outcome-card">
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <small>{item.detail}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="coaching-rule-strip panel" aria-label="Правила для разбора">
         <div className="learning-section-header coaching-rule-strip__header">
           <div className="min-w-0">
@@ -723,13 +682,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               className="coaching-rule-empty"
               icon={<BookOpenCheck size={20} aria-hidden="true" />}
               title="Нет правила для текущего фокуса"
-              description="Добавьте типовую ошибку, и она будет показываться здесь для похожих разборов."
-              action={
-                <Link href={createRuleHref} className="action-button">
-                  <PlusCircle size={14} aria-hidden="true" />
-                  Добавить правило
-                </Link>
-              }
+              description="Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
             />
           )}
         </div>
@@ -828,29 +781,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               </Link>
             ) : null}
           </AutoSubmitFilterForm>
-
-          <div className="coaching-quick-categories" aria-label="Частые категории активных задач">
-            <span>Часто:</span>
-            {category ? (
-              <Link href={viewHref(view, { q, assigneeId, category: "" })} className="coaching-quick-chip">
-                Все категории
-              </Link>
-            ) : null}
-            {quickCategories.length > 0 ? (
-              quickCategories.map(([categoryName, count]) => (
-                <Link
-                  key={categoryName}
-                  href={viewHref(view, { q, assigneeId, category: categoryName })}
-                  className={`coaching-quick-chip ${category === categoryName ? "coaching-quick-chip--active" : ""}`}
-                >
-                  <span>{categoryName}</span>
-                  <strong>{count}</strong>
-                </Link>
-              ))
-            ) : (
-              <span className="coaching-quick-categories__empty">Категории появятся после привязки задач к проверкам.</span>
-            )}
-          </div>
         </div>
       </section>
 

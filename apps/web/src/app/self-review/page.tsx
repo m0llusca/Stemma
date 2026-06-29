@@ -138,7 +138,6 @@ async function SelfReviewPageContent() {
   });
   const historyConversations = conversations.filter((conversation) => !actionConversations.some((action) => action.id === conversation.id));
   const nextConversation = actionConversations[0];
-  const nextReview = nextConversation?.reviews[0];
   const renderFeedbackCard = (conversation: (typeof conversations)[number], mode: "action" | "history" = "action") => {
     const review = conversation.reviews[0];
     const findings = review?.findings ?? [];
@@ -328,34 +327,6 @@ async function SelfReviewPageContent() {
               : ""}
           </p>
           {myReviewScores.length >= 2 ? <ScoreSparkline points={myReviewScores} /> : null}
-        </div>
-        <div className="self-review-hero__action">
-          <span className="self-review-hero__action-eyebrow">{nextConversation ? "Требует ответа" : "Очередь пуста"}</span>
-          {nextConversation && nextReview ? (
-            <>
-              <strong className="self-review-hero__action-title">{nextConversation.subject}</strong>
-              <p className="self-review-hero__excerpt">{nextReview.summary}</p>
-              <div className="self-review-hero__action-meta">
-                <Chip tone="neutral" size="xs" numeric>{clampQualityScore(nextReview.totalScore)} баллов</Chip>
-                <Chip tone={feedbackTone(nextReview.feedbackStatus)} size="xs">
-                  {feedbackStatusLabels[nextReview.feedbackStatus] ?? nextReview.feedbackStatus}
-                </Chip>
-              </div>
-              <Link href={`/reviews/${nextConversation.id}`} className="action-button self-review-hero__cta">
-                Открыть проверку
-                <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-            </>
-          ) : (
-            <>
-              <strong className="self-review-hero__action-title">Нет срочных ответов</strong>
-              <p className="self-review-hero__excerpt">
-                {assignments.length > 0
-                  ? `Осталось закрыть ${assignments.length} учебных задач после разбора.`
-                  : "Новые финальные проверки и апелляции появятся здесь первыми."}
-              </p>
-            </>
-          )}
         </div>
       </section>
 

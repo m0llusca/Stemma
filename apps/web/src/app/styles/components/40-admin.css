@@ -527,86 +527,71 @@
   min-height: 0;
 }
 
-.admin-section-grid {
+/* Admin home — per-section status overview (replaces the old grouped
+   `.admin-home-link` re-list, which duplicated the AdminSubnav rail). A flat,
+   de-grouped list that surfaces each section's current value + tone — data the
+   rail does not show — without re-presenting the rail's nav menu. */
+.admin-status-list {
   display: grid;
   min-width: 0;
-  align-items: start;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
 }
 
-.admin-section-card {
+.admin-status-row {
   display: grid;
   min-width: 0;
-  grid-template-rows: auto 1fr;
-  overflow: clip;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-page);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-panel);
-}
-
-.admin-section-card__header {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 3px;
-  border-bottom: 1px solid var(--line-soft);
-  background: var(--surface-soft);
-  padding: 14px 16px;
-}
-
-.admin-section-card__list {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 4px;
-  padding: 10px;
-}
-
-.admin-home-link {
-  display: grid;
-  min-width: 0;
-  min-height: 82px;
-  grid-template-columns: 34px minmax(0, 1fr) 18px;
-  align-items: start;
+  grid-template-columns: 30px minmax(0, 1fr) auto 16px;
+  align-items: center;
   gap: 11px;
   border: 1px solid transparent;
   border-radius: var(--radius-card);
-  padding: 10px;
+  padding: 9px 10px;
   outline: 2px solid transparent;
   outline-offset: 2px;
-  transition: background-color 140ms ease, border-color 140ms ease, outline-color 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, outline-color 140ms ease;
 }
 
-.admin-home-link:hover {
+.admin-status-row:hover {
   border-color: var(--accent-border);
   background: var(--button-secondary-hover);
 }
 
-.admin-home-link:active {
-  transform: translateY(1px);
-}
-
-.admin-home-link:focus-visible {
+.admin-status-row:focus-visible {
   outline-color: var(--button-focus-ring);
 }
 
-.admin-home-link__body {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-}
-
-.admin-home-link__title {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
+.admin-status-row__icon {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--panel-muted);
+  color: var(--text-subtle);
 }
 
-.admin-home-link__metric {
+.admin-status-row__icon--ok {
+  border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.admin-status-row__icon--warn {
+  border-color: color-mix(in srgb, var(--warning) 30%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.admin-status-row__label {
+  min-width: 0;
+}
+
+.admin-status-row__metric {
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
@@ -616,27 +601,26 @@
   border-radius: var(--radius-small);
   background: var(--surface-soft);
   color: var(--muted);
-  padding: 3px 7px;
+  padding: 3px 8px;
   font-size: 11px;
   font-weight: 820;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
-.admin-home-link__metric--ok {
+.admin-status-row__metric--ok {
   border-color: color-mix(in srgb, var(--success) 34%, var(--border));
   background: var(--success-soft);
   color: var(--success);
 }
 
-.admin-home-link__metric--warn {
+.admin-status-row__metric--warn {
   border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
   background: var(--warning-soft);
   color: var(--warning);
 }
 
-.admin-home-link__arrow {
-  margin-top: 9px;
+.admin-status-row__arrow {
   color: var(--muted);
 }
 
@@ -2376,31 +2360,6 @@
   }
 }
 
-/* Admin home — attention items as discrete cards (decoupled from the old
-   single-row `.admin-attention-strip`; the shared `.admin-attention-card`
-   visuals are reused, but here each is a standalone bordered card). */
-.admin-attention-grid {
-  display: grid;
-  min-width: 0;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
-}
-
-.admin-attention-grid .admin-attention-card {
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  box-shadow: var(--shadow-panel);
-}
-
-.admin-attention-grid .admin-attention-card:last-child {
-  border-right: 1px solid var(--line-soft);
-}
-
-.admin-attention-grid .admin-attention-card--warn {
-  border-color: color-mix(in srgb, var(--warning) 38%, var(--border));
-}
-
 /* ------------------------------------------------------------------ *
  * Admin frame — contained 2-col (sub-nav rail + content) — plan B3
  * ------------------------------------------------------------------ */
@@ -2410,11 +2369,6 @@
   grid-template-columns: 204px minmax(0, 1fr);
   gap: 28px;
   align-items: start;
-}
-
-/* Index variant (admin home): no rail — the section grid is itself the nav. */
-.admin-frame--solo {
-  display: block;
 }
 
 .admin-frame__rail {

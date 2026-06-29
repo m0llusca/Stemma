@@ -197,20 +197,11 @@
   outline-offset: 2px;
 }
 
-.auth-provider--selected {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-}
-
 .auth-provider__name {
   color: var(--foreground);
   font-size: 13px;
   font-weight: 620;
   overflow-wrap: anywhere;
-}
-
-.auth-provider--selected .auth-provider__name {
-  color: var(--accent-ink);
 }
 
 .auth-provider__meta {

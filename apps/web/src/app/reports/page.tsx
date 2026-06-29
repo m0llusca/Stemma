@@ -26,16 +26,16 @@ import { ReportExportMenu, ReportPeriodControls } from "@/components/reports/rep
 import { ReportKpiRow } from "@/components/reports/report-kpi-row";
 import {
   DetailsIndexPanel,
-  ImprovementPanel,
   InsightSummary,
+  PeriodMovementPanel,
   ProcessSummary,
   ReportFocusPanel,
   type DetailsIndexItem,
+  type DriverChainItem,
   type FocusItem,
   type ReportFocusItem
 } from "@/components/reports/report-panels";
 import { PrimaryScorePanel } from "@/components/reports/report-score-panel";
-import { ReportAgentLeaderboard } from "@/components/reports/report-agent-leaderboard";
 import { BreakdownTable, QuotaTable } from "@/components/reports/report-tables";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -504,34 +504,16 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     process: processRiskCount,
     details: 9
   };
+  // Overview "где смотреть" cards. Источник/Блок/Команда live in the merged
+  // period-movement driver chain below, so this grid carries only the slices
+  // that chain does not cover: the weakest operator and the process-risk count.
   const focusItems: FocusItem[] = [
-    {
-      label: "Источник с худшей оценкой",
-      value: weakestSourceFocus ? `${weakestSourceFocus.label}: ${formatAverageScore(weakestSourceFocus.averageScore)}` : "Нет данных",
-      detail: weakestSourceFocus ? `${formatReviewCount(weakestSourceFocus.count)}, ${reportDeltaLabel(weakestSourceFocus.delta)}` : "Появится после первых завершенных проверок.",
-      href: weakestSourceFocus?.href,
-      actionLabel: "Открыть источник"
-    },
-    {
-      label: "Блок критериев",
-      value: weakestBlock ? `${weakestBlock.label}: ${formatAverageScore(weakestBlock.averageScore)}` : "Нет данных",
-      detail: "Самая низкая средняя оценка по блоку.",
-      href: reportHref(period, { view: "details" }),
-      actionLabel: "Посмотреть блоки"
-    },
     {
       label: "Оператор для разбора",
       value: weakestAssigneeFocus ? `${weakestAssigneeFocus.label}: ${formatAverageScore(weakestAssigneeFocus.averageScore)}` : "Нет данных",
       detail: weakestAssigneeFocus ? `${formatReviewCount(weakestAssigneeFocus.count)}, ${reportDeltaLabel(weakestAssigneeFocus.delta)}` : "Операторы появятся после завершенных проверок.",
       href: weakestAssigneeFocus?.href,
       actionLabel: "Открыть очередь"
-    },
-    {
-      label: "Команда поддержки",
-      value: weakestTeamFocus ? `${weakestTeamFocus.label}: ${formatAverageScore(weakestTeamFocus.averageScore)}` : "Нет данных",
-      detail: weakestTeamFocus ? `${formatReviewCount(weakestTeamFocus.count)}, ${reportDeltaLabel(weakestTeamFocus.delta)}` : "Команды появятся после завершенных проверок.",
-      href: weakestTeamFocus?.href,
-      actionLabel: "Открыть команду"
     },
     {
       label: "Процессный риск",
@@ -584,35 +566,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       detail: quotaCompletionPercent == null ? "Нормы на период пока не заданы." : `${quotaCompletionPercent}% выполнения по плану периода.`,
       href: reportHref(period, { view: "details" }),
       tone: quotaCompletionPercent == null ? "neutral" : quotaCompletionPercent >= 100 ? "ok" : "warn"
-    }
-  ];
-  const detailsFocusItems: ReportFocusItem[] = [
-    {
-      label: "Выборка",
-      value: formatReviewCount(finalizedCount),
-      detail: "Финализированные проверки в выбранном периоде.",
-      href: reportReviewHref(period),
-      tone: finalizedCount >= 10 ? "ok" : "warn"
-    },
-    {
-      label: "Источники",
-      value: String(sourceRows.length),
-      detail: sourceRows.length > 1 ? "Можно сравнивать каналы по объему и оценке." : "Нужна выборка из нескольких источников.",
-      href: reportReviewHref(period),
-      tone: sourceRows.length > 1 ? "ok" : "neutral"
-    },
-    {
-      label: "Операторы",
-      value: String(assigneeRows.length),
-      detail: teamRows.length > 1 ? `${teamRows.length} команд поддержки в выборке.` : "Пока недостаточно срезов по командам.",
-      href: reportHref(period, { view: "performance" }),
-      tone: assigneeRows.length > 1 && teamRows.length > 1 ? "ok" : "neutral"
-    },
-    {
-      label: "Проверяющие",
-      value: String(reviewerRows.length),
-      detail: reviewerRows.length > 1 ? "Можно сверять нагрузку и стиль оценивания." : "Пока работает один проверяющий.",
-      tone: reviewerRows.length > 1 ? "ok" : "neutral"
     }
   ];
   const detailsIndexItems: DetailsIndexItem[] = [
@@ -688,53 +641,14 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
                 tone: "positive" as const
               };
   const averageDelta = averageScore == null || previousAverageScore == null ? null : averageScore - previousAverageScore;
-  const weakestNarrativeDriver =
-    weakestBlock
-      ? `${weakestBlock.label}: ${formatAverageScore(weakestBlock.averageScore)}`
-      : weakestSourceFocus
-        ? `${weakestSourceFocus.label}: ${formatAverageScore(weakestSourceFocus.averageScore)}`
-        : "Нет явного драйвера";
-  const confidenceLabel =
-    finalizedCount >= 10 && (quotaCompletionPercent == null || quotaCompletionPercent >= 80)
-      ? "Высокая"
-      : finalizedCount >= 5
-        ? "Средняя"
-        : "Низкая";
-  const reportNarrativeItems = [
-    {
-      label: "Что изменилось",
-      value: averageDelta == null ? "Нет базы" : reportDeltaLabel(averageDelta),
-      detail:
-        previousAverageScore == null
-          ? "Прошлый период пока не дает базы сравнения."
-          : `Сейчас ${formatAverageScore(averageScore)}, было ${formatAverageScore(previousAverageScore)}.`
-    },
-    {
-      label: "Почему",
-      value: weakestNarrativeDriver,
-      detail: highRiskFindings > 0 ? `${highRiskFindings} HIGH+ замечаний усиливают приоритет.` : "Смотрите слабейший блок и источник."
-    },
-    {
-      label: "Что сделать",
-      value: reportAction.title,
-      detail: reportAction.description
-    },
-    {
-      label: "Доверие к выборке",
-      value: confidenceLabel,
-      detail:
-        quotaCompletionPercent == null
-          ? `${formatReviewCount(finalizedCount)}, норма не задана.`
-          : `${formatReviewCount(finalizedCount)}, норма ${quotaCompletionPercent}%.`
-    }
-  ];
   const driverStackItems = [
     weakestBlock
       ? {
           label: "Критерий",
           value: weakestBlock.label,
           evidence: `${formatAverageScore(weakestBlock.averageScore)} · ${formatReviewCount(weakestBlock.count)}`,
-          action: "Открыть проверки по слабому блоку"
+          action: "Открыть проверки по слабому блоку",
+          href: reportHref(period, { view: "details" })
         }
       : null,
     weakestSourceFocus
@@ -742,7 +656,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           label: "Источник",
           value: weakestSourceFocus.label,
           evidence: `${formatAverageScore(weakestSourceFocus.averageScore)} · ${formatReviewCount(weakestSourceFocus.count)}`,
-          action: "Сравнить канал с общей выборкой"
+          action: "Сравнить канал с общей выборкой",
+          href: weakestSourceFocus.href
         }
       : null,
     weakestTeamFocus
@@ -750,10 +665,11 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           label: "Команда",
           value: weakestTeamFocus.label,
           evidence: `${formatAverageScore(weakestTeamFocus.averageScore)} · ${formatReviewCount(weakestTeamFocus.count)}`,
-          action: "Проверить повторяющиеся причины"
+          action: "Проверить повторяющиеся причины",
+          href: weakestTeamFocus.href
         }
       : null
-  ].filter((item): item is { label: string; value: string; evidence: string; action: string } => Boolean(item));
+  ].filter((item): item is NonNullable<typeof item> => item != null);
 
   // Map the resolved priority action (semantic tone) onto the TriageStrip's
   // tone + icon. Indigo accent is the calm default; semantic tones are rationed
@@ -845,40 +761,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
             items={metricInsightItems}
           />
 
-          <section className="report-narrative-board panel" aria-label="Решение по аналитике">
-            <div className="report-narrative-board__lead">
-              <span className="page-kicker">Решение</span>
-              <h2>Что делать по периоду</h2>
-              <p>Один рабочий слой перед графиками: изменение, драйвер, действие и доверие к выборке.</p>
-            </div>
-            <div className="report-narrative-board__items">
-              {reportNarrativeItems.map((item) => (
-                <div key={item.label} className="report-narrative-card">
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                  <small>{item.detail}</small>
-                </div>
-              ))}
-            </div>
-          </section>
-          {driverStackItems.length > 0 ? (
-            <section className="report-driver-stack panel" aria-label="Цепочка драйверов качества">
-              <div className="report-driver-stack__lead">
-                <span className="page-kicker">Драйверы</span>
-                <h2>Где искать причину</h2>
-              </div>
-              <div className="report-driver-stack__items">
-                {driverStackItems.map((item) => (
-                  <div key={`${item.label}:${item.value}`} className="report-driver-item">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                    <small>{item.evidence}</small>
-                    <em>{item.action}</em>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
           <InsightSummary
             averageScore={averageScore}
             finalizedCount={finalizedCount}
@@ -901,7 +783,13 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         />
       ) : null}
 
-      {reportView === "overview" ? <ImprovementPanel negativeItems={deteriorationItems} items={improvementItems} /> : null}
+      {reportView === "overview" ? (
+        <PeriodMovementPanel
+          negativeItems={deteriorationItems}
+          positiveItems={improvementItems}
+          driverItems={driverStackItems}
+        />
+      ) : null}
 
       {reportView === "performance" ? (
         <ReportFocusPanel
@@ -916,17 +804,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
 
       {reportView === "process" ? (
         <ProcessSummary criticalCount={criticalCount} reanswerCount={reanswerCount} appealCount={appealCount} period={period} />
-      ) : null}
-
-      {reportView === "details" ? (
-        <ReportFocusPanel
-          kicker="Разрезы"
-          title="Состав выборки для ручного разбора"
-          description="Сколько данных доступно в таблицах по источникам, операторам, проверяющим и очереди проверок."
-          actionHref={reportReviewHref(period)}
-          actionLabel="Открыть проверки"
-          items={detailsFocusItems}
-        />
       ) : null}
 
       {reportView === "overview" ? (
@@ -973,7 +850,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
             <RankedList rows={operatorRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>
-          <ReportAgentLeaderboard title="Баллы по агентам" rows={assigneeRows} />
           <ChartPanel title="По источникам" description="Средняя оценка по системам-источникам." actionHref={reportReviewHref(period)} actionLabel="Открыть">
             <RankedList rows={sourceRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>

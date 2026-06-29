@@ -176,18 +176,9 @@ export function PageSkeleton({ label = "Загрузка страницы", vari
             </aside>
             <div className="admin-frame__content" style={{ display: "grid", gap: 14 }}>
               <Skeleton style={{ width: "100%", height: 72 }} />
-              <section className="admin-attention-grid" aria-hidden="true">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={index} style={{ width: "100%", height: 96 }} />
-                ))}
-              </section>
-              <div className="admin-section-grid">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={index} className="admin-section-card" style={{ display: "grid", gap: 12, padding: 16 }}>
-                    <Skeleton style={{ width: 160, height: 18 }} />
-                    <SkeletonRows rows={3} height={48} />
-                  </div>
-                ))}
+              <div className="ops-panel admin-status-panel" style={{ display: "grid", gap: 12, padding: 16 }}>
+                <Skeleton style={{ width: 180, height: 18 }} />
+                <SkeletonRows rows={9} height={44} />
               </div>
             </div>
           </div>

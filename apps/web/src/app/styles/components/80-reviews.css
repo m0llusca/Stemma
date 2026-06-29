@@ -1,6 +1,7 @@
-/* Workbench header: status chips wrap below the title — one rationed hue per
-   signal, the rest neutral. Flat, no banner fill (separation by hairline). */
-.review-header-chips {
+/* Workbench context: review-state chips live inside the single "Контекст"
+   block, wrapping below the header — one rationed hue per signal, the rest
+   neutral. Flat, separated from the detail grid by the panel hairline. */
+.review-context-panel__chips {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
@@ -47,27 +48,7 @@
   min-width: 0;
 }
 
-.review-ide-strip {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
-  overflow: clip;
-}
-
-.review-ide-strip__lead {
-  display: grid;
-  min-width: 0;
-  align-content: center;
-  gap: 6px;
-  border-right: 1px solid var(--line-soft);
-  background: var(--surface-soft);
-  padding: 16px 18px;
-}
-
-.review-ide-strip__lead h2,
-.report-narrative-board__lead h2,
-.integration-readiness-pipeline__lead h2,
-.coaching-outcome-board__lead h2 {
+.integration-readiness-pipeline__lead h2 {
   color: var(--foreground);
   font-size: 18px;
   font-weight: 820;
@@ -75,39 +56,14 @@
   text-wrap: pretty;
 }
 
-.review-ide-strip__lead p,
-.report-narrative-board__lead p,
-.integration-readiness-pipeline__lead p,
-.coaching-outcome-board__lead p {
+.integration-readiness-pipeline__lead p {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
 }
 
-.review-ide-strip__signals {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-}
-
-.review-ide-signal {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 4px;
-  border-right: 1px solid var(--line-soft);
-  padding: 14px;
-}
-
-.review-ide-signal:last-child {
-  border-right: 0;
-}
-
-.review-ide-signal strong,
 .review-linked-evidence-item strong,
-.report-narrative-card strong,
-.integration-readiness-stage strong,
-.coaching-outcome-card strong {
+.integration-readiness-stage strong {
   min-width: 0;
   color: var(--foreground);
   font-size: 17px;
@@ -116,25 +72,11 @@
   overflow-wrap: anywhere;
 }
 
-.review-ide-signal small,
 .review-linked-evidence-item small,
-.report-narrative-card small,
-.integration-readiness-stage small,
-.coaching-outcome-card small {
+.integration-readiness-stage small {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
-}
-
-.review-ide-strip__flow {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  grid-column: 1 / -1;
-  gap: 7px;
-  border-top: 1px solid var(--line-soft);
-  background: color-mix(in srgb, var(--panel-muted) 58%, var(--panel));
-  padding: 10px 14px;
 }
 
 .review-decision-step {

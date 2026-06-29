@@ -34,6 +34,14 @@ export type ReportFocusItem = {
   tone?: "neutral" | "ok" | "warn" | "danger";
 };
 
+export type DriverChainItem = {
+  label: string;
+  value: string;
+  evidence: string;
+  action: string;
+  href?: string;
+};
+
 export function ProcessSummary({
   criticalCount,
   reanswerCount,
@@ -204,20 +212,22 @@ function MovementHighlightGrid({
   );
 }
 
-export function ImprovementPanel({
+export function PeriodMovementPanel({
   negativeItems,
-  items
+  positiveItems,
+  driverItems
 }: {
   negativeItems: ImprovementHighlight[];
-  items: ImprovementHighlight[];
+  positiveItems: ImprovementHighlight[];
+  driverItems: DriverChainItem[];
 }) {
   return (
     <section className="panel improvement-panel" aria-labelledby="analytics-movement-title">
       <div className="improvement-panel__header">
         <div>
           <p className="page-kicker">Динамика периода</p>
-          <h2 id="analytics-movement-title">Что изменилось</h2>
-          <p>Сначала просадки, затем срезы, где текущий период уже лучше сопоставимого прошлого периода.</p>
+          <h2 id="analytics-movement-title">Что изменилось и почему</h2>
+          <p>Сначала просадки и улучшения к сопоставимому прошлому периоду, затем цепочка драйверов — где искать причину и что сделать.</p>
         </div>
       </div>
 
@@ -240,12 +250,42 @@ export function ImprovementPanel({
             <span>Что стало лучше</span>
           </div>
           <MovementHighlightGrid
-            items={items}
+            items={positiveItems}
             tone="positive"
             emptyTitle="Пока нет устойчивого улучшения"
             emptyBody="Появится, когда срез в текущем периоде будет выше прошлого по среднему баллу."
           />
         </div>
+        {driverItems.length > 0 ? (
+          <div className="improvement-panel__section">
+            <div className="improvement-panel__section-header">
+              <strong>Где искать причину</strong>
+              <span>Слабейшие срезы и следующее действие</span>
+            </div>
+            <div className="report-driver-stack__items">
+              {driverItems.map((item) => {
+                const content = (
+                  <>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <small>{item.evidence}</small>
+                    <em>{item.action}</em>
+                  </>
+                );
+
+                return item.href ? (
+                  <Link key={`${item.label}:${item.value}`} href={item.href} className="report-driver-item report-driver-item--link">
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={`${item.label}:${item.value}`} className="report-driver-item">
+                    {content}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

@@ -14,7 +14,6 @@ import { OtrsRunHistory } from "@/components/integrations/otrs-run-history";
 import { OtrsWebserviceChecklist } from "@/components/integrations/otrs-webservice-checklist";
 import { CertificationEvidenceList } from "@/components/integrations/integration-ui";
 import { EmptyState } from "@/components/ui/empty-state";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
@@ -728,9 +727,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
     }
   }
   const latestRun = integration.runs[0];
-  const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
   const credentialSummaries = summarizeIntegrationSecretSlots(integration.credentials);
-  const capability = getIntegrationCapability(integration.source, integration.type);
 
   return (
     <PageShell
@@ -777,7 +774,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
               <p className="ops-panel__subtitle">Статус, последний запуск и состояние импорта без раскрытия технических payload.</p>
             </div>
           </div>
-          <div className="grid gap-2 p-4 md:grid-cols-3">
+          <div className="px-4 pt-4">
             <div className="admin-tile admin-tile--compact">
               <span className="admin-tile__icon admin-tile__icon--plain">{integration.displayName.slice(0, 1).toUpperCase()}</span>
               <span className="admin-tile__body">
@@ -786,45 +783,8 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
                 {integration.lastError ? <span className="record-meta text-[var(--danger)]">{integration.lastError}</span> : null}
               </span>
             </div>
-            <div className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">{latestRun?.dryRun ? "P" : "I"}</span>
-              <span className="admin-tile__body">
-                {latestRun && latestRunStatus ? (
-                  <>
-                    <span className="record-title record-title--tight">
-                      <StatusBadge label="Запуск" value={latestRunStatus.label} tone={statusViewTone(latestRunStatus.tone)} />
-                    </span>
-                    <span className="record-meta tabular-nums">
-                      Импортировано {latestRun.importedCount}/{latestRun.requestedLimit} · ошибок {latestRun.errorCount} · items {latestRun.items.length}
-                    </span>
-                  </>
-                ) : (
-                  <span className="record-meta">Запусков еще нет.</span>
-                )}
-              </span>
-            </div>
-            <div className="ops-status-item">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="ops-status-item__label">Статус сертификации</span>
-                <HelpTooltip
-                  label="Что значит статус сертификации?"
-                  content="Статус показывает прохождение gate-проверок: документация, контракт, заглушка и живая сертификация."
-                  placement="top-end"
-                />
-              </div>
-              <StatusBadge
-                label="Готовность"
-                value={capability.certification.summary.label}
-                tone={certificationTone(capability.certification.summary.status)}
-              />
-              <span className="record-meta">
-                {capability.certification.summary.productionReady
-                  ? "Можно использовать в промышленном контуре."
-                  : "Нужны дополнительные проверки перед промышленным контуром."}
-              </span>
-            </div>
           </div>
-          <div className="p-4 pt-0">
+          <div className="p-4">
             <AdapterReadinessPanel integration={integration} />
           </div>
         </section>
@@ -840,9 +800,6 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
             </div>
           </div>
           <div className="p-4">
-            <div className="mb-6">
-              <AdapterReadinessPanel integration={integration} />
-            </div>
             {integration.type === "otrs_family" ? (
               <OtrsDetailCockpit
                 integration={integration}

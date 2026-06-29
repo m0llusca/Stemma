@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import {
-  ArrowRight,
   ChevronDown,
   MessageSquareWarning,
   RotateCcw,
@@ -15,7 +14,6 @@ import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MasterDetail } from "@/components/ui/master-detail";
 import { PageShell } from "@/components/ui/page-shell";
-import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import {
@@ -91,12 +89,6 @@ function chipToneForStatus(tone: StatusTone): ChipTone {
   if (tone === "warning") return "warning";
   if (tone === "info") return "accent";
   return "neutral";
-}
-
-function triageToneForActionTone(tone: "warning" | "info" | "positive" | "neutral"): TriageStripTone {
-  if (tone === "positive") return "success";
-  if (tone === "warning") return "warning";
-  return "accent";
 }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
@@ -312,46 +304,6 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const canAcknowledgeFeedback = Boolean(latestFinalizedReview && !feedbackClosed && !hasOpenAppeal);
   const canOpenAppeal = Boolean(latestFinalizedReview && !feedbackClosed && latestFinalizedReview.appealStatus === "none");
   const canCompleteReanswer = Boolean(latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested");
-  const reviewAction =
-    hasOpenAppeal
-      ? {
-          title: "Разобрать апелляцию",
-          description: "Апелляция открыта. Зафиксируйте решение руководителя перед дальнейшими действиями.",
-          label: "К feedback",
-          href: "#review-evidence",
-          tone: "warning" as const
-        }
-      : canCompleteReanswer
-        ? {
-            title: "Закрыть переответ",
-            description: "Клиенту нужен новый ответ. Проверьте статус и отметьте выполнение после подтверждения.",
-            label: "К feedback",
-            href: "#review-evidence",
-            tone: "warning" as const
-          }
-        : canShowReviewPanel
-          ? {
-              title: currentDraftReview ? "Продолжить проверку" : "Заполнить оценку",
-              description: "Сверьте диалог, выберите evidence и сохраните итоговую оценку с человеческим подтверждением.",
-              label: "К форме",
-              href: "#review-workspace",
-              tone: "info" as const
-            }
-          : latestFinalizedReview
-            ? {
-                title: feedbackClosed ? "Проверка закрыта" : "Проверить обратную связь",
-                description: feedbackClosed ? "Финальная оценка и обратная связь зафиксированы." : "Оператор еще не закрыл feedback loop по этой проверке.",
-                label: "К evidence",
-                href: "#review-evidence",
-                tone: feedbackClosed ? "positive" as const : "warning" as const
-              }
-            : {
-                title: "Открыть контекст обращения",
-                description: "Проверка еще не начата. Начните с контекста диалога и критериев оценки.",
-                label: "К диалогу",
-                href: "#review-workspace",
-                tone: "neutral" as const
-              };
 
   const detailPane = (
     <div id="review-evidence" className="review-detail-stack">
@@ -629,51 +581,6 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       title={conversation.subject}
       description="Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц."
     >
-      <div className="review-header-chips">
-        <Chip label="Состояние" value={reviewStateLabels[reviewState]} tone={chipToneForStatus(reviewStateTone(reviewState))} />
-        <Chip label="Оценка" value={scoreLabel} numeric tone={chipToneForStatus(toneForScore(scorePreviewReview?.totalScore))} />
-        <Chip label="Клиент" value={conversation.customerName} tone="neutral" />
-        <Chip label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
-        {conversation.teamName ? (
-          <Chip label="Команда" value={conversation.teamName} tone="neutral" />
-        ) : null}
-        {conversation.qaAssigneeName ? (
-          <Chip label="Проверяющий" value={conversation.qaAssigneeName} tone="neutral" />
-        ) : null}
-        <Chip
-          label="Срок"
-          value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-          numeric
-          tone={chipToneForStatus(dueDateTone(conversation.reviewDueAt, now, reviewState))}
-        />
-        {conversation.riskHint ? (
-          <Chip label="Риск" value={conversation.riskHint} tone="warning" />
-        ) : null}
-        {hasAppeal ? (
-          <Chip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "accent"} />
-        ) : null}
-        {hasReanswer ? (
-          <Chip
-            label="Переответ"
-            value={reanswerLabel}
-            tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
-          />
-        ) : null}
-      </div>
-
-      <TriageStrip
-        tone={triageToneForActionTone(reviewAction.tone)}
-        icon={<ArrowRight size={18} aria-hidden="true" />}
-        title={reviewAction.title}
-        description={reviewAction.description}
-        action={
-          <a href={reviewAction.href} className="action-button action-button--primary">
-            {reviewAction.label}
-            <ArrowRight size={16} aria-hidden="true" />
-          </a>
-        }
-      />
-
       {latestFinalizedReview && hasOpenAppeal ? (
         <section className="appeal-alert">
           <div className="appeal-alert__icon" aria-hidden="true">
@@ -707,8 +614,35 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       <section className="review-context-panel panel" aria-label="Контекст обращения">
         <div className="review-context-panel__details">
           <div className="review-context-panel__header">
-            <h2>Контекст обращения</h2>
+            <h2>Контекст</h2>
             <p>Клиент {conversation.customerName} · оператор {conversation.assigneeName ?? "не назначен"}</p>
+          </div>
+          <div className="review-context-panel__chips">
+            <Chip label="Состояние" value={reviewStateLabels[reviewState]} tone={chipToneForStatus(reviewStateTone(reviewState))} />
+            <Chip label="Оценка" value={scoreLabel} numeric tone={chipToneForStatus(toneForScore(scorePreviewReview?.totalScore))} />
+            <Chip label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
+            {conversation.teamName ? (
+              <Chip label="Команда" value={conversation.teamName} tone="neutral" />
+            ) : null}
+            <Chip
+              label="Срок"
+              value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
+              numeric
+              tone={chipToneForStatus(dueDateTone(conversation.reviewDueAt, now, reviewState))}
+            />
+            {conversation.riskHint ? (
+              <Chip label="Риск" value={conversation.riskHint} tone="warning" />
+            ) : null}
+            {hasAppeal ? (
+              <Chip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "accent"} />
+            ) : null}
+            {hasReanswer ? (
+              <Chip
+                label="Переответ"
+                value={reanswerLabel}
+                tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
+              />
+            ) : null}
           </div>
         </div>
         <div className="review-detail-grid">

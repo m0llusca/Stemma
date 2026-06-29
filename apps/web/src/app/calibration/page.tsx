@@ -226,6 +226,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       };
     })
     .filter((row): row is NonNullable<typeof row> => row !== null);
+  const participantBiasById = new Map(participantBiasRows.map((row) => [row.id, row.averageDelta]));
   const sessionSummaries = sessions.map((session) => {
     const participantIds = new Set(session.participants.map((participant) => participant.userId));
     const calibrationReviews = session.items.flatMap((item) =>
@@ -276,9 +277,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         { label: "Обращения", value: selectedItemCount.toString(), icon: ClipboardCheck },
         { label: "Участники", value: selectedParticipantCount.toString(), icon: UsersRound },
         {
-          label: "Согласованность",
-          value: selectedAlignmentPercent != null ? `${selectedAlignmentPercent}%` : "нет данных",
-          icon: Crosshair
+          label: "Готово",
+          value: `${selectedCompletedCount}/${selectedExpectedCount}`,
+          icon: Gauge
         },
         {
           label: "Срок",
@@ -515,40 +516,12 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 })}
               </div>
 
-              {participantBiasRows.length > 0 ? (
-                <div className="calibration-bias-row" aria-label="Отклонение участников от эталона">
-                  <span className="calibration-bias-row__lead">Среднее отклонение от эталона</span>
-                  <div className="calibration-bias-row__items">
-                    {participantBiasRows.map((row) => {
-                      const outOfBand = Math.abs(row.averageDelta) > ALIGNMENT_BAND;
-
-                      return (
-                        <span
-                          key={row.id}
-                          className={`calibration-bias-chip ${outOfBand ? "calibration-bias-chip--out" : ""}`}
-                          title={
-                            row.averageDelta === 0
-                              ? "В пределах эталона"
-                              : row.averageDelta > 0
-                                ? `Мягче эталона на ${row.averageDelta}`
-                                : `Строже эталона на ${Math.abs(row.averageDelta)}`
-                          }
-                        >
-                          <span className="calibration-bias-chip__name">{row.name}</span>
-                          <span className="calibration-bias-chip__delta">{signedDelta(row.averageDelta)}</span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
               {selectedItemStates.length > 0 && selectedSession.participants.length > 0 ? (
                 <div className="calibration-matrix" aria-label="Согласованность по участникам и обращениям">
                   <div className="learning-section-header calibration-matrix__header">
                     <div className="min-w-0">
                       <h2>Матрица согласованности</h2>
-                      <p>Отклонение каждого участника от эталона по каждому обращению. Чем темнее, тем дальше от ±{ALIGNMENT_BAND}.</p>
+                      <p>Отклонение каждого участника от эталона по каждому обращению. Чем темнее, тем дальше от ±{ALIGNMENT_BAND}. Нижняя строка — среднее смещение участника.</p>
                     </div>
                   </div>
                   <div className="calibration-matrix__scroll">
@@ -601,6 +574,46 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                           </tr>
                         ))}
                       </tbody>
+                      {participantBiasRows.length > 0 ? (
+                        <tfoot>
+                          <tr className="calibration-matrix__summary-row">
+                            <th scope="row" className="calibration-matrix__row-label calibration-matrix__summary-label">
+                              <span>Среднее смещение</span>
+                              <small>отклонение от эталона</small>
+                            </th>
+                            {selectedSession.participants.map((participant) => {
+                              const averageDelta = participantBiasById.get(participant.id);
+
+                              if (averageDelta == null) {
+                                return (
+                                  <td key={participant.id} className="calibration-matrix__cell calibration-matrix__cell--empty">
+                                    <span aria-hidden="true">·</span>
+                                    <span className="sr-only">нет оценки</span>
+                                  </td>
+                                );
+                              }
+
+                              const outOfBand = Math.abs(averageDelta) > ALIGNMENT_BAND;
+
+                              return (
+                                <td
+                                  key={participant.id}
+                                  className={`calibration-matrix__cell calibration-matrix__summary-cell ${outOfBand ? "calibration-matrix__cell--out" : ""}`}
+                                  title={
+                                    averageDelta === 0
+                                      ? `${participant.user.name}: в пределах эталона`
+                                      : averageDelta > 0
+                                        ? `${participant.user.name}: мягче эталона на ${averageDelta}`
+                                        : `${participant.user.name}: строже эталона на ${Math.abs(averageDelta)}`
+                                  }
+                                >
+                                  {signedDelta(averageDelta)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </tfoot>
+                      ) : null}
                     </table>
                   </div>
                 </div>

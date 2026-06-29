@@ -183,7 +183,6 @@ pre,
   .dashboard-panel,
   .dashboard-kpi,
   .ops-panel,
-  .admin-section-card,
   .queue-controls,
   .inbox-list,
   .metric-strip,
@@ -214,7 +213,6 @@ pre,
 
 :is(
   .ops-panel__header,
-  .admin-section-card__header,
   .panel > .border-b,
   .chart-panel__header,
   .review-conversation-panel__header
@@ -341,21 +339,14 @@ pre,
   .command-center--split,
   .dashboard-hero,
   .dashboard-main-grid,
-  .workflow-focus-strip,
-  .admin-attention-strip,
-  .calibration-exception-band,
-  .calibration-decision-strip,
-  .admin-section-grid,
   .section-grid--three,
   .focus-summary,
   .ops-form-grid,
   .ops-form-grid--three,
   .review-main,
-  .review-ide-strip,
   .review-linked-evidence-grid,
   .review-brief-grid,
   .coaching-control-grid,
-  .coaching-outcome-board,
   .coaching-workbench,
   .learning-layout,
   .feedback-layout,
@@ -368,7 +359,6 @@ pre,
   .report-command-bar,
   .report-command-bar__form,
   .insight-summary,
-  .report-narrative-board,
   .report-metrics-layout,
   .primary-score-panel,
   .reports-main-grid,
@@ -564,18 +554,12 @@ pre,
     position: static;
   }
 
-  .review-ide-strip__lead,
-  .report-narrative-board__lead,
-  .integration-readiness-pipeline__lead,
-  .coaching-outcome-board__lead {
+  .integration-readiness-pipeline__lead {
     border-right: 0;
     border-bottom: 1px solid var(--line-soft);
   }
 
-  .review-ide-strip__signals,
-  .report-narrative-board__items,
-  .integration-readiness-pipeline__stages,
-  .coaching-outcome-board__items {
+  .integration-readiness-pipeline__stages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -876,11 +860,6 @@ pre,
     padding-inline: 14px;
   }
 
-  .admin-section-card__header {
-    min-height: 0;
-    padding: 14px;
-  }
-
   .ops-table,
   .ops-table--users {
     min-width: 0;
@@ -903,15 +882,7 @@ pre,
   .learning-metrics,
   .coaching-view-list,
   .dashboard-metric-grid,
-  .calibration-summary-strip,
-  .calibration-decision-strip__meta,
-  .review-ide-strip__signals,
-  .report-narrative-board__items,
   .integration-readiness-pipeline__stages,
-  .coaching-outcome-board__items,
-  .workflow-focus-strip__items,
-  .admin-attention-strip__list,
-  .calibration-exception-band__list,
   .report-view-selector,
   .report-command-bar__form,
   .report-command-bar__meta,
@@ -958,44 +929,12 @@ pre,
     grid-template-columns: 1fr;
   }
 
-  .workflow-focus-strip__lead,
-  .admin-attention-strip__lead,
-  .calibration-exception-band__lead,
-  .calibration-decision-strip__lead,
-  .workflow-focus-card,
-  .admin-attention-card,
-  .calibration-exception-card,
-  .calibration-decision-strip__meta > span {
-    border-right: 0;
-  }
-
-  .workflow-focus-card,
-  .admin-attention-card,
-  .calibration-exception-card,
-  .calibration-decision-strip__meta > span {
-    min-height: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .workflow-focus-card:last-child,
-  .admin-attention-card:last-child,
-  .calibration-exception-card:last-child,
-  .calibration-decision-strip__meta > span:last-child {
-    border-bottom: 0;
-  }
-
-  .review-ide-signal,
-  .report-narrative-card,
-  .integration-readiness-stage,
-  .coaching-outcome-card {
+  .integration-readiness-stage {
     border-right: 0;
     border-bottom: 1px solid var(--line-soft);
   }
 
-  .review-ide-signal:last-child,
-  .report-narrative-card:last-child,
-  .integration-readiness-stage:last-child,
-  .coaching-outcome-card:last-child {
+  .integration-readiness-stage:last-child {
     border-bottom: 0;
   }
 
@@ -1050,14 +989,6 @@ pre,
   .learning-task__actions .action-button {
     width: auto;
     flex: 1 1 120px;
-  }
-
-  .calibration-summary-strip > div {
-    border: 1px solid var(--border);
-  }
-
-  .calibration-summary-strip > div:last-child {
-    border: 1px solid var(--border);
   }
 
   .metric-strip__item {

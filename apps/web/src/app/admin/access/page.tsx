@@ -556,6 +556,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               <p className="ops-panel__eyebrow">Настройка</p>
               <h2 id="provider-settings-title" className="ops-panel__title">{selectedProvider?.name ?? "Провайдер авторизации"}</h2>
               <p className="ops-panel__subtitle">Редактируйте поля при смене каталога, приложения или технических адресов.</p>
+              <p className="ops-panel__subtitle compact-text">Готовность: {readiness.details.join(", ")}</p>
               {selectedProvider && selectedProvider.type !== "DEMO" ? (
                 <div className="admin-actions mt-3">
                   {readiness.canDryRun ? (
@@ -581,11 +582,6 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
             <Chip tone={readiness.tone} size="sm">{readiness.label}</Chip>
           </div>
           <div className="ops-status-strip" aria-label="Готовность выбранного провайдера">
-            <div className="ops-status-item">
-              <span className="ops-status-item__label">Готовность входа</span>
-              <span className="ops-status-item__value">{readiness.label}</span>
-              <span className="record-meta compact-text">{readiness.details.join(", ")}</span>
-            </div>
             <div className="ops-status-item">
               <span className="ops-status-item__label">Адрес возврата</span>
               <span className="ops-status-item__value font-mono text-sm compact-text">{callbackPath(selectedProvider)}</span>

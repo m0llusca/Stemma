@@ -129,89 +129,6 @@
   background: var(--panel-tint);
 }
 
-.agent-leaderboard__list {
-  display: grid;
-  gap: 10px;
-  padding-top: 14px;
-  padding-bottom: 16px;
-}
-
-.agent-leaderboard__row {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
-  grid-template-areas:
-    "rank name score"
-    "rank bar bar";
-  align-items: center;
-  gap: 4px 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  padding: 10px;
-  text-decoration: none;
-  transition: background-color 140ms ease, border-color 140ms ease;
-}
-
-a.agent-leaderboard__row:hover {
-  border-color: var(--border-strong);
-  background: var(--panel-muted);
-}
-
-.agent-leaderboard__rank {
-  grid-area: rank;
-  align-self: start;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 640;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.4;
-  text-align: center;
-}
-
-.agent-leaderboard__row strong {
-  grid-area: name;
-  overflow: hidden;
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 620;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agent-leaderboard__row em {
-  grid-area: score;
-  color: var(--foreground);
-  font-style: normal;
-  font-size: 13px;
-  font-weight: 680;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* Bar cell: full-width subtle track via the grid cell, fill width set inline on <i>. */
-.agent-leaderboard__row::before {
-  content: "";
-  grid-area: bar;
-  align-self: center;
-  height: 6px;
-  border-radius: 999px;
-  /* Subtle track: a light blend of muted over the panel surface. */
-  background: color-mix(in srgb, var(--muted) 22%, var(--panel));
-}
-
-.agent-leaderboard__row i {
-  grid-area: bar;
-  align-self: center;
-  display: block;
-  height: 6px;
-  max-width: 100%;
-  border-radius: 999px;
-  /* Score fill width is set inline (score as a percentage of 100). */
-  background: var(--accent);
-}
-
 .insight-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -366,69 +283,38 @@ a.agent-leaderboard__row:hover {
   }
 }
 
-.report-narrative-board {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
-  overflow: clip;
-}
-
-.report-narrative-board__lead {
-  display: grid;
-  min-width: 0;
-  align-content: center;
-  gap: 6px;
-  border-right: 1px solid var(--line-soft);
-  background: var(--surface-soft);
-  padding: 16px 18px;
-}
-
-.report-narrative-board__items {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.report-driver-stack {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1.58fr);
-  overflow: clip;
-}
-
-.report-driver-stack__lead {
-  display: grid;
-  min-width: 0;
-  align-content: center;
-  gap: 5px;
-  border-right: 1px solid var(--line-soft);
-  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface-raised));
-  padding: 14px 18px;
-}
-
-.report-driver-stack__lead h2 {
-  color: var(--foreground);
-  font-size: 17px;
-  font-weight: 820;
-  line-height: 1.2;
-}
-
+/* Driver chain — the "где искать причину" section inside the merged
+ * period-movement panel. Boxed like the movement grids above it. */
 .report-driver-stack__items {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel);
 }
 
 .report-driver-item {
   display: grid;
   min-width: 0;
   gap: 4px;
-  border-right: 1px solid var(--line-soft);
-  padding: 14px;
+  border-right: 1px solid var(--border);
+  padding: 13px 14px;
+  color: inherit;
 }
 
 .report-driver-item:last-child {
   border-right: 0;
+}
+
+.report-driver-item--link {
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.report-driver-item--link:hover {
+  background: var(--panel-muted);
+  transform: translateY(-1px);
 }
 
 .report-driver-item span {
@@ -452,39 +338,9 @@ a.agent-leaderboard__row:hover {
   line-height: 1.35;
 }
 
-.report-narrative-card {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 5px;
-  border-right: 1px solid var(--line-soft);
-  padding: 14px;
-}
-
-.report-narrative-card:last-child {
-  border-right: 0;
-}
-
-.report-narrative-card span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.report-narrative-card strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: var(--foreground);
-  font-size: 15px;
-  font-weight: 840;
-  line-height: 1.2;
-}
-
-.report-narrative-card small {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
+.report-driver-item em {
+  color: var(--accent-strong);
+  font-weight: 720;
 }
 
 .primary-score-panel {
@@ -2312,10 +2168,6 @@ a.agent-leaderboard__row:hover {
 }
 
 @media (max-width: 1200px) {
-  .admin-section-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .report-period-controls {
     grid-template-columns: 1fr;
   }

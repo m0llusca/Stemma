@@ -1,4 +1,4 @@
-import { ArrowUpRight, DatabaseZap, PlugZap } from "lucide-react";
+import { ArrowUpRight, PlugZap } from "lucide-react";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
@@ -719,13 +719,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
               <h2 id="sources-title" className="ops-panel__title">Подключенные источники</h2>
               <CertificationHelpTooltip />
             </div>
-            <p className="ops-panel__subtitle">Активные и готовые источники: {activeSources.length}/{integrations.length}</p>
-            <div className="admin-actions mt-3">
-              <Link href="/admin/integrations/new" className="action-button action-button--small">
-                <DatabaseZap size={15} aria-hidden="true" />
-                Добавить
-              </Link>
-            </div>
+            <p className="ops-panel__subtitle">Состояние подключений, сертификация, доступы и последний импорт по каждому источнику.</p>
           </div>
         </div>
         {integrationSetupHint ? (

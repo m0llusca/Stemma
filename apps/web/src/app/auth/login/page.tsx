@@ -204,23 +204,24 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
               {providers.length > 1 ? (
                 <div className="auth-provider-list">
-                  {providers.map((provider) => (
-                    <Link
-                      key={provider.id}
-                      href={providerSelectionHref({
-                        provider: provider.slug,
-                        workspaceId: provider.workspaceId,
-                        returnTo
-                      })}
-                      aria-current={provider.id === selectedProvider.id ? "true" : undefined}
-                      className={`auth-provider ${provider.id === selectedProvider.id ? "auth-provider--selected" : ""}`}
-                    >
-                      <span className="auth-provider__name">{provider.name}</span>
-                      <span className="auth-provider__meta">
-                        {provider.workspace.name} · {providerStatusLabels[provider.status] ?? provider.status}
-                      </span>
-                    </Link>
-                  ))}
+                  {providers
+                    .filter((provider) => provider.id !== selectedProvider.id)
+                    .map((provider) => (
+                      <Link
+                        key={provider.id}
+                        href={providerSelectionHref({
+                          provider: provider.slug,
+                          workspaceId: provider.workspaceId,
+                          returnTo
+                        })}
+                        className="auth-provider"
+                      >
+                        <span className="auth-provider__name">{provider.name}</span>
+                        <span className="auth-provider__meta">
+                          {provider.workspace.name} · {providerStatusLabels[provider.status] ?? provider.status}
+                        </span>
+                      </Link>
+                    ))}
                 </div>
               ) : null}
             </div>

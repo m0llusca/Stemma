@@ -16,7 +16,6 @@ export const dynamic = "force-dynamic";
 type AdminCard = {
   href: string;
   title: string;
-  description: string;
   icon: typeof Gauge;
   roles: RoleName[];
   metric?: string;
@@ -128,7 +127,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/scorecards",
       title: "Формы оценки",
-      description: "Критерии, веса и версии формы проверки.",
       icon: Gauge,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: activeScorecard ? `Версия ${activeScorecard.version}` : "Не настроено",
@@ -137,7 +135,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/sampling",
       title: "Выборки",
-      description: "Правила отбора обращений на ручную проверку.",
       icon: ListChecks,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: `${activeSamplingRules} активных`,
@@ -146,7 +143,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/integrations",
       title: "Интеграции",
-      description: "Источники обращений и импорт из helpdesk-систем.",
       icon: Plug,
       roles: ["ADMIN"],
       metric: `${integrations} источников`,
@@ -155,7 +151,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/access",
       title: "Доступ и SSO",
-      description: "Провайдеры входа, AD/Entra-группы и сессии.",
       icon: ShieldCheck,
       roles: ["ADMIN"],
       metric: providerWarnings > 0 ? `${providerWarnings} требуют настройки` : "Готово",
@@ -164,7 +159,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/users",
       title: "Пользователи и роли",
-      description: "Локальные учетные записи и назначение ролей.",
       icon: UsersRound,
       roles: ["ADMIN"],
       metric: `${users} пользователей`,
@@ -173,7 +167,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/system",
       title: "Состояние системы",
-      description: "Очереди, окружение, задачи обслуживания.",
       icon: Activity,
       roles: ["ADMIN"],
       metric: failedJobs > 0 ? `${failedJobs} ошибок` : "Без ошибок",
@@ -182,7 +175,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/tokens",
       title: "API-доступ",
-      description: "Ключи для интеграций и кастомных источников.",
       icon: KeyRound,
       roles: ["ADMIN"],
       metric: `${apiTokens} ключей`,
@@ -191,7 +183,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/appearance",
       title: "Внешний вид",
-      description: "Темы, плотность, радиусы, контраст и единый стиль интерфейса.",
       icon: Palette,
       roles: ["ADMIN"],
       metric: `${currentTheme.label}, ${currentDensity.label}`,
@@ -200,7 +191,6 @@ async function AdminHomePageContent() {
     {
       href: "/admin/audit",
       title: "Журнал действий",
-      description: "История изменений и админских операций.",
       icon: History,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: `${recentAuditLogs} событий`,
@@ -216,115 +206,23 @@ async function AdminHomePageContent() {
     { href: "/admin/access?section=provider", label: "Настроить SSO", icon: ShieldCheck, roles: ["ADMIN"] as RoleName[] },
     { href: "/admin/system", label: "Проверить систему", icon: Activity, roles: ["ADMIN"] as RoleName[] }
   ].filter((action) => canSee(user.role, action.roles));
-  const groupedCards = [
-    {
-      id: "methodology",
-      title: "Методология",
-      description: "То, по чему проверяем и как отбираем обращения.",
-      hrefs: ["/admin/scorecards", "/admin/sampling"]
-    },
-    {
-      id: "connections",
-      title: "Подключения",
-      description: "Источники обращений, вход пользователей, API-доступ и состояние системных очередей.",
-      hrefs: ["/admin/integrations", "/admin/users", "/admin/access", "/admin/tokens", "/admin/system"]
-    },
-    {
-      id: "control",
-      title: "Контроль",
-      description: "Внешний вид и история изменений.",
-      hrefs: ["/admin/appearance", "/admin/audit"]
-    }
-  ]
-    .map((group) => ({
-      ...group,
-      cards: group.hrefs
-        .map((href) => visibleCards.find((card) => card.href === href))
-        .filter((card): card is AdminCard => Boolean(card))
-    }))
-    .filter((group) => group.cards.length > 0);
-  type AttentionItem = {
-    href: string;
-    label: string;
-    value: string;
-    description: string;
-    tone: "warn" | "neutral";
-    roles: RoleName[];
-  };
-
-  const attentionItems = [
-    failedJobs > 0
-      ? {
-          href: "/admin/system",
-          label: "Фоновые задачи",
-          value: `${failedJobs} ошибок`,
-          description: "Проверить очередь и повторить сбойные задания",
-          tone: "warn" as const,
-          roles: ["ADMIN"] as RoleName[]
-        }
-      : null,
-    providerWarnings > 0
-      ? {
-          href: "/admin/access",
-          label: "SSO и доступ",
-          value: `${providerWarnings} требуют настройки`,
-          description: "Закрыть поля провайдера и групповые правила",
-          tone: "warn" as const,
-          roles: ["ADMIN"] as RoleName[]
-        }
-      : null,
-    !activeScorecard
-      ? {
-          href: "/admin/scorecards",
-          label: "Форма оценки",
-          value: "Не настроено",
-          description: "Создать активную версию scorecard",
-          tone: "warn" as const,
-          roles: ["ADMIN", "TEAM_LEAD"] as RoleName[]
-        }
-      : null,
-    activeSamplingRules === 0
-      ? {
-          href: "/admin/sampling",
-          label: "Выборки",
-          value: "0 активных",
-          description: "Добавить правила отбора в очередь",
-          tone: "warn" as const,
-          roles: ["ADMIN", "TEAM_LEAD"] as RoleName[]
-        }
-      : null,
-    integrations === 0
-      ? {
-          href: "/admin/integrations/new",
-          label: "Интеграции",
-          value: "Нет источников",
-          description: "Подключить helpdesk или API-источник",
-          tone: "warn" as const,
-          roles: ["ADMIN"] as RoleName[]
-        }
-      : null,
-    apiTokens === 0
-      ? {
-          href: "/admin/tokens",
-          label: "API-доступ",
-          value: "Нет ключей",
-          description: "Создать ключ для demo/API загрузки",
-          tone: "neutral" as const,
-          roles: ["ADMIN"] as RoleName[]
-        }
-      : null
-  ].filter((item): item is AttentionItem => item !== null && canSee(user.role, item.roles)).slice(0, 4);
-  const visibleAttentionItems = primarySetupCoachmark
-    ? attentionItems.filter((item) => item.href !== primarySetupCoachmark.href).slice(0, 3)
-    : attentionItems;
+  const attentionBlockers = [
+    { active: failedJobs > 0, roles: ["ADMIN"] as RoleName[] },
+    { active: providerWarnings > 0, roles: ["ADMIN"] as RoleName[] },
+    { active: !activeScorecard, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { active: activeSamplingRules === 0, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
+    { active: integrations === 0, roles: ["ADMIN"] as RoleName[] },
+    { active: apiTokens === 0, roles: ["ADMIN"] as RoleName[] }
+  ].filter((blocker) => blocker.active && canSee(user.role, blocker.roles));
+  const attentionCount = attentionBlockers.length;
   const priorityTitle = primarySetupCoachmark
     ? primarySetupCoachmark.title
-    : attentionItems.length > 0
+    : attentionCount > 0
       ? "Продолжить настройку"
       : "Настройки в рабочем состоянии";
   const priorityBody = primarySetupCoachmark
     ? primarySetupCoachmark.body
-    : attentionItems.length > 0
+    : attentionCount > 0
       ? "Сначала закрывайте блокеры, которые мешают проверкам и импорту."
       : "Можно переходить к методологии, источникам или журналу действий.";
 
@@ -343,9 +241,9 @@ async function AdminHomePageContent() {
         );
       })}
     >
-      <AdminFrame rail={false}>
+      <AdminFrame>
         <TriageStrip
-          tone={primarySetupCoachmark || attentionItems.length > 0 ? "warning" : "success"}
+          tone={primarySetupCoachmark || attentionCount > 0 ? "warning" : "success"}
           icon={<Sparkles size={18} aria-hidden="true" />}
           title={priorityTitle}
           description={priorityBody}
@@ -358,50 +256,37 @@ async function AdminHomePageContent() {
           }
         />
 
-        {visibleAttentionItems.length > 0 ? (
-          <section className="admin-attention-grid" aria-label="Что требует внимания">
-            {visibleAttentionItems.map((item) => (
-              <Link key={item.href} href={item.href} className={`admin-attention-card admin-attention-card--${item.tone}`}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-                <small>{item.description}</small>
-                <ArrowRight size={15} aria-hidden="true" />
-              </Link>
-            ))}
+        {visibleCards.length > 0 ? (
+          <section className="ops-panel admin-status-panel" aria-labelledby="admin-status-heading">
+            <div className="ops-panel__header">
+              <div>
+                <h2 id="admin-status-heading" className="ops-panel__title">Состояние разделов</h2>
+                <p className="ops-panel__subtitle">Текущее значение и статус по каждой области настроек.</p>
+              </div>
+            </div>
+            <ul className="admin-status-list">
+              {visibleCards.map((card) => {
+                const Icon = card.icon;
+                const tone = card.tone ?? "neutral";
+
+                return (
+                  <li key={card.href}>
+                    <Link href={card.href} className="admin-status-row">
+                      <span className={`admin-status-row__icon admin-status-row__icon--${tone}`} aria-hidden="true">
+                        <Icon size={15} aria-hidden="true" />
+                      </span>
+                      <span className="admin-status-row__label record-title record-title--tight">{card.title}</span>
+                      {card.metric ? (
+                        <span className={`admin-status-row__metric tabular-nums admin-status-row__metric--${tone}`}>{card.metric}</span>
+                      ) : null}
+                      <ArrowRight className="admin-status-row__arrow" size={14} aria-hidden="true" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
         ) : null}
-
-        <div className="admin-section-grid">
-          {groupedCards.map((group) => (
-            <section key={group.id} className="admin-section-card" aria-labelledby={`admin-section-${group.id}`}>
-              <div className="admin-section-card__header">
-                <h2 id={`admin-section-${group.id}`} className="ops-panel__title">{group.title}</h2>
-                <p className="ops-panel__subtitle">{group.description}</p>
-              </div>
-              <div className="admin-section-card__list">
-                {group.cards.map((card) => {
-                  const Icon = card.icon;
-
-                  return (
-                    <Link key={card.href} href={card.href} className="admin-home-link">
-                      <span className="admin-tile__icon">
-                        <Icon size={16} aria-hidden="true" />
-                      </span>
-                      <span className="admin-home-link__body">
-                        <span className="admin-home-link__title">
-                          <span className="record-title record-title--tight">{card.title}</span>
-                          {card.metric ? <span className={`admin-home-link__metric tabular-nums admin-home-link__metric--${card.tone === "warn" ? "warn" : "neutral"}`}>{card.metric}</span> : null}
-                        </span>
-                        <span className="record-meta">{card.description}</span>
-                      </span>
-                      <ArrowRight className="admin-home-link__arrow" size={14} aria-hidden="true" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
       </AdminFrame>
     </PageShell>
   );
