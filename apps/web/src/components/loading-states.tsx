@@ -27,6 +27,31 @@ function SkeletonTextBlock({ titleWidth = 260, subtitleWidth = "min(460px, 90%)"
   );
 }
 
+/**
+ * Mirrors the PageShell header: an eyebrow + title + description stack on the
+ * left and a right-aligned primary-action placeholder. Used by the
+ * dashboard/reports/admin skeletons so the loading state matches the loaded
+ * screen's contextual header.
+ */
+function PageShellHeaderSkeleton({
+  titleWidth = 220,
+  subtitleWidth = "min(520px, 90%)",
+  actionWidth = 150
+}: {
+  titleWidth?: number;
+  subtitleWidth?: string;
+  actionWidth?: number;
+}) {
+  return (
+    <header className="page-shell__header">
+      <SkeletonTextBlock titleWidth={titleWidth} subtitleWidth={subtitleWidth} />
+      <div className="page-shell__actions">
+        <Skeleton style={{ width: actionWidth, height: 38 }} />
+      </div>
+    </header>
+  );
+}
+
 function MetricSkeletons({ count = 4, className = "learning-metrics" }: { count?: number; className?: string }) {
   return (
     <div className={className} aria-hidden="true">
@@ -58,83 +83,96 @@ function SkeletonRows({ rows = 5, height = 56 }: { rows?: number; height?: numbe
 export function PageSkeleton({ label = "Загрузка страницы", variant = "workspace" }: PageSkeletonProps) {
   if (variant === "dashboard") {
     return (
-      <section className="page-shell dashboard-shell" aria-busy="true" aria-label={label}>
-        <div className="command-center dashboard-hero">
-          <SkeletonTextBlock />
-        </div>
+      <div className="page-shell dashboard-shell" aria-busy="true" aria-label={label}>
+        <PageShellHeaderSkeleton titleWidth={180} actionWidth={168} />
 
-        <section className="dashboard-metric-grid" aria-hidden="true">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} style={{ width: "100%", height: 112 }} />
-          ))}
-        </section>
+        <div className="page-shell__content">
+          <Skeleton style={{ width: "100%", height: 72 }} />
 
-        <section className="dashboard-main-grid">
-          <div className="dashboard-panel dashboard-panel--wide" style={{ display: "grid", gap: 12, padding: 16 }}>
-            <Skeleton style={{ width: 200, height: 18 }} />
-            <SkeletonRows rows={4} height={48} />
-          </div>
-          <div className="dashboard-panel" style={{ display: "grid", gap: 12, padding: 16 }}>
-            <Skeleton style={{ width: 140, height: 18 }} />
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} style={{ width: "100%", height: 56 }} />
+          <section className="dashboard-metric-grid" aria-hidden="true">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} style={{ width: "100%", height: 112 }} />
             ))}
-          </div>
-          <div className="dashboard-panel dashboard-panel--wide" style={{ display: "grid", gap: 12, padding: 16 }}>
-            <Skeleton style={{ width: 200, height: 18 }} />
-            <Skeleton style={{ width: "100%", height: 160 }} />
-          </div>
-        </section>
-      </section>
+          </section>
+
+          <section className="dashboard-main-grid" aria-hidden="true">
+            <div className="dashboard-panel" style={{ display: "grid", gap: 12, padding: 16 }}>
+              <Skeleton style={{ width: 140, height: 18 }} />
+              <SkeletonRows rows={3} height={56} />
+            </div>
+            <div className="dashboard-panel dashboard-panel--wide" style={{ display: "grid", gap: 12, padding: 16 }}>
+              <Skeleton style={{ width: 200, height: 18 }} />
+              <Skeleton style={{ width: "100%", height: 160 }} />
+            </div>
+          </section>
+        </div>
+      </div>
     );
   }
 
   if (variant === "reports") {
     return (
-      <section className="page-shell workspace-shell" aria-busy="true" aria-label={label}>
-        <div className="panel" style={{ display: "grid", gap: 14, padding: 16 }}>
-          <SkeletonTextBlock titleWidth={260} />
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} style={{ flex: "1 1 160px", height: 56, minWidth: 140 }} />
+      <div className="page-shell" aria-busy="true" aria-label={label}>
+        <PageShellHeaderSkeleton titleWidth={240} actionWidth={188} />
+
+        <div className="page-shell__content">
+          <div className="report-kpi-row" aria-hidden="true">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} style={{ width: "100%", height: 92 }} />
             ))}
           </div>
+
+          <div className="panel" style={{ display: "grid", gap: 12, padding: 16 }}>
+            <Skeleton style={{ width: 200, height: 18 }} />
+            <Skeleton style={{ width: "100%", height: 220 }} />
+          </div>
+
+          <div className="panel" style={{ display: "grid", gap: 10, padding: 16 }}>
+            <Skeleton style={{ width: 180, height: 18 }} />
+            <SkeletonRows rows={5} height={52} />
+          </div>
         </div>
-        <div className="panel" style={{ display: "flex", gap: 12, flexWrap: "wrap", padding: 16 }}>
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} style={{ flex: "1 1 140px", height: 48, minWidth: 120 }} />
-          ))}
-        </div>
-        <div className="report-metrics-layout">
-          <PanelRows rows={3} height={64} />
-          <PanelRows rows={4} height={64} />
-        </div>
-        <PanelRows rows={4} height={72} />
-      </section>
+      </div>
     );
   }
 
   if (variant === "admin") {
     return (
-      <section className="page-shell admin-shell" aria-busy="true" aria-label={label}>
-        <div className="command-center">
-          <SkeletonTextBlock titleWidth={220} subtitleWidth="min(520px, 90%)" />
+      <div className="page-shell" aria-busy="true" aria-label={label}>
+        <PageShellHeaderSkeleton titleWidth={200} actionWidth={196} />
+
+        <div className="page-shell__content">
+          <div className="admin-frame" aria-hidden="true">
+            <aside className="admin-frame__rail" style={{ display: "grid", gap: 18, padding: 14 }}>
+              <Skeleton style={{ width: "100%", height: 34 }} />
+              {Array.from({ length: 3 }).map((_, group) => (
+                <div key={group} style={{ display: "grid", gap: 8 }}>
+                  <Skeleton style={{ width: 96, height: 12 }} />
+                  {Array.from({ length: 3 }).map((_, item) => (
+                    <Skeleton key={item} style={{ width: "100%", height: 30 }} />
+                  ))}
+                </div>
+              ))}
+            </aside>
+            <div className="admin-frame__content" style={{ display: "grid", gap: 14 }}>
+              <Skeleton style={{ width: "100%", height: 72 }} />
+              <section className="admin-attention-grid" aria-hidden="true">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} style={{ width: "100%", height: 96 }} />
+                ))}
+              </section>
+              <div className="admin-section-grid">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="admin-section-card" style={{ display: "grid", gap: 12, padding: 16 }}>
+                    <Skeleton style={{ width: 160, height: 18 }} />
+                    <SkeletonRows rows={3} height={48} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <section className="ops-metric-grid" aria-hidden="true">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} style={{ width: "100%", height: 88 }} />
-          ))}
-        </section>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={index} style={{ width: 120, height: 36 }} />
-          ))}
-        </div>
-        <section className="ops-panel" style={{ display: "grid", gap: 14 }}>
-          <Skeleton style={{ width: 240, height: 22 }} />
-          <PanelRows rows={4} height={80} />
-        </section>
-      </section>
+      </div>
     );
   }
 

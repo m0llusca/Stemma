@@ -202,7 +202,6 @@ pre,
   .dashboard-focus-row,
   .dashboard-agent-row,
   .dashboard-training-row,
-  .dashboard-hero__meta span,
   .ops-metric,
   .ops-status-item,
   .admin-command-panel,
@@ -904,7 +903,6 @@ pre,
   .learning-metrics,
   .coaching-view-list,
   .dashboard-metric-grid,
-  .dashboard-week-chart,
   .calibration-summary-strip,
   .calibration-decision-strip__meta,
   .review-ide-strip__signals,
@@ -945,10 +943,6 @@ pre,
   .dashboard-activity-row time {
     grid-column: 2;
     justify-self: start;
-  }
-
-  .dashboard-week-chart__day {
-    height: 88px;
   }
 
   .ranked-list__row {
@@ -1239,20 +1233,6 @@ pre,
 @media (max-width: 640px) {
   .dashboard-hero {
     gap: 12px;
-  }
-
-  .dashboard-hero__rail a {
-    gap: 2px;
-    padding: 9px 10px;
-  }
-
-  .dashboard-hero__rail strong {
-    font-size: 18px;
-  }
-
-  .dashboard-hero__rail span,
-  .dashboard-hero__rail small {
-    font-size: 10px;
   }
 
   .dashboard-kpi {
