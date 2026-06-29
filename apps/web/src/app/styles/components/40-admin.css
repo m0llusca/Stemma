@@ -2412,6 +2412,11 @@
   align-items: start;
 }
 
+/* Index variant (admin home): no rail — the section grid is itself the nav. */
+.admin-frame--solo {
+  display: block;
+}
+
 .admin-frame__rail {
   position: sticky;
   top: calc(var(--app-topbar-height) + 18px);

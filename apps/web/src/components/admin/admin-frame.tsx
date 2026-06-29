@@ -14,11 +14,22 @@ import { AdminSubnav } from "@/components/admin/admin-subnav";
  */
 export function AdminFrame({
   children,
-  className
+  className,
+  rail = true
 }: {
   children: ReactNode;
   className?: string;
+  /** Render the contained sub-nav rail. Off for the admin index, which is itself the section grid. */
+  rail?: boolean;
 }) {
+  if (!rail) {
+    return (
+      <div className={clsx("admin-frame admin-frame--solo", className)}>
+        <div className="admin-frame__content">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div className={clsx("admin-frame", className)}>
       <aside className="admin-frame__rail">

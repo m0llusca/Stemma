@@ -343,7 +343,7 @@ async function AdminHomePageContent() {
         );
       })}
     >
-      <AdminFrame>
+      <AdminFrame rail={false}>
         <TriageStrip
           tone={primarySetupCoachmark || attentionItems.length > 0 ? "warning" : "success"}
           icon={<Sparkles size={18} aria-hidden="true" />}
