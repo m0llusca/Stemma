@@ -421,33 +421,6 @@ async function DashboardPageContent() {
       </section>
 
       <section className="dashboard-main-grid" aria-label="Операционные детали">
-          {secondaryFocusItems.length > 0 ? (
-            <div className="dashboard-panel">
-              <div className="dashboard-panel__header">
-                <p className="dashboard-section-label">Ещё в фокусе</p>
-              </div>
-              <div className="dashboard-focus-list">
-                {secondaryFocusItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <Link key={item.href} href={item.href} className="dashboard-focus-row">
-                      <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
-                      <span className="dashboard-focus-row__copy">
-                        <strong>{item.label}</strong>
-                        <small>{item.hint}</small>
-                      </span>
-                      <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
-                        <em>{item.value}</em>
-                        <ArrowRight size={14} aria-hidden="true" />
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
           <div className="dashboard-panel dashboard-panel--wide">
             <div className="dashboard-panel__header">
               <p className="dashboard-section-label">
@@ -478,6 +451,33 @@ async function DashboardPageContent() {
             )}
           </div>
 
+          <div className="grid gap-3 content-start min-w-0">
+          {secondaryFocusItems.length > 0 ? (
+            <div className="dashboard-panel">
+              <div className="dashboard-panel__header">
+                <p className="dashboard-section-label">Ещё в фокусе</p>
+              </div>
+              <div className="dashboard-focus-list">
+                {secondaryFocusItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <Link key={item.href} href={item.href} className="dashboard-focus-row">
+                      <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
+                      <span className="dashboard-focus-row__copy">
+                        <strong>{item.label}</strong>
+                        <small>{item.hint}</small>
+                      </span>
+                      <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
+                        <em>{item.value}</em>
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           <div className="dashboard-panel">
             <div className="dashboard-panel__header">
               <p className="dashboard-section-label">Ближайшее обучение</p>
@@ -501,6 +501,8 @@ async function DashboardPageContent() {
               )}
             </div>
           </div>
+          </div>
+
 
           <div className="grid gap-3 items-start xl:grid-cols-2 [grid-column:1/-1]">
           <div className="dashboard-panel">

@@ -759,10 +759,6 @@ pre,
     width: 100%;
   }
 
-  .coaching-control-panel__header {
-    align-items: flex-start;
-  }
-
   .coaching-create-inline__header .action-button {
     width: auto;
     min-width: 92px;

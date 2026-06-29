@@ -532,7 +532,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </section>
       ) : null}
 
-
       {createTaskOpen ? (
         <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">
           <div className="learning-section-header coaching-create-inline__header">
@@ -688,14 +687,17 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </div>
       </section>
 
-      <section className="coaching-control-panel panel" aria-label="Срезы и фильтры обучения">
-        <div className="learning-section-header coaching-control-panel__header">
-          <div className="min-w-0">
-            <h2>Очередь обучения</h2>
-            <p>Сначала срочное, затем по сроку. Срез и фильтры — ниже.</p>
+      <section className="coaching-workbench" aria-label="Рабочая область обучения">
+        <div className="coaching-board panel">
+          <div className="learning-section-header coaching-board__header">
+            <div className="min-w-0">
+              <h2>{selectedViewOption.label}</h2>
+              <p>{selectedViewOption.helper}.</p>
+            </div>
+            <Chip tone="neutral" numeric>{filteredAssignments.length}</Chip>
           </div>
-        </div>
-        <div className="coaching-control-stack">
+
+<div className="coaching-control-stack">
           <div className="coaching-segment-row">
             <nav className="coaching-segment-list" aria-label="Основные срезы обучения">
               {primaryViewOptions.map((option) => {
@@ -782,19 +784,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             ) : null}
           </AutoSubmitFilterForm>
         </div>
-      </section>
 
-      <section className="coaching-workbench" aria-label="Рабочая область обучения">
-        <div className="coaching-board panel">
-          <div className="learning-section-header coaching-board__header">
-            <div className="min-w-0">
-              <h2>{selectedViewOption.label}</h2>
-              <p>{selectedViewOption.helper}.</p>
-            </div>
-            <Chip tone="neutral" numeric>{filteredAssignments.length}</Chip>
-          </div>
-
-          <div className="learning-task-list coaching-task-list">
+                    <div className="learning-task-list coaching-task-list">
             {filteredAssignments.length > 0 ? (
               filteredAssignments.map((assignment) => {
                 const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);

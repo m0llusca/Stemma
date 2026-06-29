@@ -167,21 +167,6 @@
   }
 }
 
-.coaching-control-panel {
-  display: grid;
-  min-width: 0;
-  overflow: clip;
-}
-
-.coaching-control-panel__header {
-  align-items: center;
-  padding: 13px 15px;
-}
-
-.coaching-control-panel__header .pill {
-  white-space: nowrap;
-}
-
 .coaching-control-stack {
   display: grid;
   min-width: 0;
