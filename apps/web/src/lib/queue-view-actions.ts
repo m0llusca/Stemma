@@ -1,10 +1,10 @@
 "use server";
 
-import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canManageReviewWorkflow, getCurrentUser, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { nextReviewOrderBy, nextReviewWhere, type NextReviewUser } from "@/lib/review/next-review-query";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -77,28 +77,33 @@ export async function deleteSavedQueueView(formData: FormData) {
   revalidatePath("/reviews");
 }
 
-// Открывает самое срочное непроверенное обращение для ручной проверки.
-// Только навигация: ничего не назначает и не меняет, чтобы избежать гонок при параллельной работе.
-// where + orderBy зеркалят приоритет очереди проверок (reviewDueAt — SLA-срочность, см. фильтр due=overdue).
-export async function takeNextReview() {
-  const user = await requireCurrentUserPermission("reviews:read");
-
-  const supportAgentScope: Prisma.ConversationWhereInput =
-    user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : {};
-
+// Resolves the id of the next conversation to grade, or null when the queue is
+// empty for this user. Only reads — never assigns or mutates — to avoid races
+// during parallel work. Priority order + scope live in the shared pure helper so
+// the queue button and the "finalize & take next" workbench action never drift.
+export async function selectNextReviewConversationId(
+  user: NextReviewUser,
+  excludeConversationId?: string
+): Promise<string | null> {
   const conversation = await prisma.conversation.findFirst({
-    where: {
-      workspaceId: user.workspaceId,
-      qaStatus: { not: "FINALIZED" },
-      ...supportAgentScope
-    },
-    orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
+    where: nextReviewWhere(user, excludeConversationId),
+    orderBy: nextReviewOrderBy,
     select: { id: true }
   });
 
-  if (!conversation) {
+  return conversation?.id ?? null;
+}
+
+// Открывает самое срочное непроверенное обращение для ручной проверки.
+// Только навигация: ничего не назначает и не меняет, чтобы избежать гонок при параллельной работе.
+export async function takeNextReview() {
+  const user = await requireCurrentUserPermission("reviews:read");
+
+  const nextId = await selectNextReviewConversationId(user);
+
+  if (!nextId) {
     redirect("/reviews?empty=1");
   }
 
-  redirect(`/reviews/${conversation.id}`);
+  redirect(`/reviews/${nextId}`);
 }

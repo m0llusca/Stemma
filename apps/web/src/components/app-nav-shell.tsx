@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Command,
   GraduationCap,
+  Menu,
   Scale,
   Search,
   SlidersHorizontal,
@@ -81,12 +82,15 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
   const pathname = usePathname();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
+  const [areaMenuOpen, setAreaMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
   const panelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
+  const areaMenuRef = useRef<HTMLDivElement>(null);
+  const areaMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const activeAreaId = useMemo(() => activeAreaForPath(pathname), [pathname]);
   const visibleCommands = useMemo(
     () => navigation.commandItems.filter((command) => commandMatches(command, query)).slice(0, 9),
@@ -106,6 +110,10 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
 
   const closeCommand = useCallback(() => {
     setCommandOpen(false);
+  }, []);
+
+  const closeAreaMenu = useCallback(() => {
+    setAreaMenuOpen(false);
   }, []);
 
   useEffect(() => {
@@ -233,6 +241,94 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
     [activeIndex, closeCommand, router, visibleCommands]
   );
 
+  // Mobile area-disclosure menu: close on route change so a navigation always
+  // dismisses the panel even when the click target is intercepted upstream.
+  useEffect(() => {
+    setAreaMenuOpen(false);
+  }, [pathname]);
+
+  // While the area menu is open: Escape closes it, an outside pointer dismisses
+  // it, and focus is moved into the panel then restored to the trigger on close.
+  useEffect(() => {
+    if (!areaMenuOpen || typeof document === "undefined") {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAreaMenu();
+      }
+    };
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (
+        target &&
+        !areaMenuRef.current?.contains(target) &&
+        !areaMenuTriggerRef.current?.contains(target)
+      ) {
+        closeAreaMenu();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+
+    const firstItem = areaMenuRef.current?.querySelector<HTMLElement>("[role='menuitem']");
+    firstItem?.focus();
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      if (areaMenuTriggerRef.current && typeof areaMenuTriggerRef.current.focus === "function") {
+        areaMenuTriggerRef.current.focus();
+      }
+    };
+  }, [areaMenuOpen, closeAreaMenu]);
+
+  const handleAreaMenuKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const menu = areaMenuRef.current;
+      if (!menu) {
+        return;
+      }
+
+      const items = getTabbableElements(menu);
+      if (items.length === 0) {
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const target = nextTabStop(items, document.activeElement, event.key === "ArrowUp");
+        target?.focus();
+        return;
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        items[0]?.focus();
+        return;
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        items[items.length - 1]?.focus();
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const target = nextTabStop(items, document.activeElement, event.shiftKey);
+        if (target) {
+          event.preventDefault();
+          target.focus();
+        }
+      }
+    },
+    []
+  );
+
   return (
     <header className="app-nav" aria-label="Глобальная навигация">
       <div className="app-nav__inner">
@@ -245,6 +341,49 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
             )}
           </span>
         </Link>
+
+        <div className="app-nav__menu">
+          <button
+            ref={areaMenuTriggerRef}
+            type="button"
+            className="app-nav__menu-trigger"
+            aria-haspopup="menu"
+            aria-expanded={areaMenuOpen}
+            aria-label="Разделы"
+            onClick={() => setAreaMenuOpen((open) => !open)}
+          >
+            <Menu size={18} aria-hidden="true" />
+          </button>
+          {areaMenuOpen ? (
+            <div
+              ref={areaMenuRef}
+              className="app-nav__menu-popover"
+              role="menu"
+              aria-label="Основные разделы"
+              onKeyDown={handleAreaMenuKeyDown}
+            >
+              {areas.map((area) => {
+                const Icon = areaIcons[area.icon];
+                const isActive = area.id === activeAreaId;
+
+                return (
+                  <Link
+                    key={area.id}
+                    href={area.href}
+                    role="menuitem"
+                    title={area.description}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`app-nav__menu-item ${isActive ? "app-nav__menu-item--active" : ""}`}
+                    onClick={closeAreaMenu}
+                  >
+                    <Icon size={16} aria-hidden="true" />
+                    <span>{area.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
 
         <nav className="app-nav__areas" aria-label="Основные разделы">
           {areas.map((area) => {

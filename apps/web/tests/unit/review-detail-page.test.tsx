@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
     aiQualityDraft: {
       findMany: vi.fn(),
       count: vi.fn()
+    },
+    conversation: {
+      findMany: vi.fn()
     }
   }
 }));
@@ -36,6 +39,10 @@ vi.mock("@/components/review/review-panel", () => ({
 
 vi.mock("@/components/review/workflow-management-panel", () => ({
   WorkflowManagementPanel: () => <div data-testid="workflow-panel" />
+}));
+
+vi.mock("@/components/review/review-saved-toast", () => ({
+  ReviewSavedToast: () => null
 }));
 
 vi.mock("@/components/ui/validated-submit-button", () => ({
@@ -106,6 +113,9 @@ describe("review detail page", () => {
     });
     mocks.prisma.aiQualityDraft.findMany.mockResolvedValue([]);
     mocks.prisma.aiQualityDraft.count.mockResolvedValue(0);
+    // The workbench footer's "N из M" batch counter queries the priority-ordered
+    // queue ids; an empty queue renders the neutral "Вне очереди" hint.
+    mocks.prisma.conversation.findMany.mockResolvedValue([]);
   });
 
   it("renders the self-review form for support agents with self-review permission", async () => {

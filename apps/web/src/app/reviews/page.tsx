@@ -2,9 +2,11 @@ import { ArrowRight, CheckCircle2, Clock3, Inbox, TriangleAlert } from "lucide-r
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { QueueEmptyBanner } from "@/components/review/queue-empty-banner";
 import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
+import { ReviewSavedToast } from "@/components/review/review-saved-toast";
 import { Chip } from "@/components/ui/chip";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatKpi } from "@/components/ui/stat-kpi";
@@ -74,8 +76,14 @@ export default function ReviewsPage({ searchParams }: ReviewsPageProps) {
   );
 }
 
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
   const rawParams = await searchParams;
+  const queueEmpty = firstParam(rawParams.empty) === "1";
+  const savedMarker = firstParam(rawParams.saved);
   const data = await getReviewQueuePageData(rawParams);
   const filteredCount = data.conversations.length;
   const { total, queued, inWork, reviewed, overdue } = data.summary;
@@ -194,6 +202,8 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
         </form>
       }
     >
+      <ReviewSavedToast marker={savedMarker} />
+      {queueEmpty ? <QueueEmptyBanner /> : null}
       <section className="reviews-queue-kpis" aria-label="Сводка очереди проверок">
         <StatKpi
           label="Ожидают"

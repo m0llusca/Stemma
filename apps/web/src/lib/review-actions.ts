@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { selectNextReviewConversationId } from "@/lib/queue-view-actions";
 import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
   ReviewLifecycleTransitionError,
@@ -25,6 +26,20 @@ const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const reviewSources = ["HUMAN", "AI", "CALIBRATION", "SELF_REVIEW"] as const satisfies readonly ReviewSource[];
 
 type ReviewScorecard = Scorecard & { criteria: ScorecardCriterion[] };
+
+/** Success markers surfaced as a toast on the destination page after a redirect. */
+export type ReviewSavedMarker = "draft" | "final";
+
+// Save & finalize always redirect, so the success toast cannot be returned from
+// the action — it rides along on the destination URL as `?saved=...`, where a
+// mount-time client component reads it and then strips it from the address bar.
+// Internal-only marker on an already-trusted internal href; never widens scope.
+function withSavedMarker(href: string, marker: ReviewSavedMarker) {
+  const [path, query = ""] = href.split("?");
+  const params = new URLSearchParams(query);
+  params.set("saved", marker);
+  return `${path}?${params.toString()}`;
+}
 
 function requiredString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -460,16 +475,22 @@ export async function saveReviewDraft(formData: FormData) {
 
   revalidatePath("/reviews");
   revalidatePath(`/reviews/${conversationId}`);
-  redirect(returnTo);
+  redirect(withSavedMarker(returnTo, "draft"));
 }
 
-export async function finalizeReview(formData: FormData) {
+/**
+ * Transactional finalize core shared by {@link finalizeReview} (which bounces
+ * back to `returnTo`) and {@link finalizeReviewAndTakeNext} (which advances to
+ * the next queued conversation). Performs every guard, write and audit step but
+ * NO navigation, so callers own the redirect. Returns the finalized
+ * conversation id and the acting user for downstream next-selection.
+ */
+async function finalizeReviewCore(formData: FormData) {
   const user = await getCurrentUser();
 
   const conversationId = requiredString(formData, "conversationId");
   const scorecardId = requiredString(formData, "scorecardId");
   const reviewSource = reviewSourceField(formData);
-  const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
 
   if (reviewSource === "SELF_REVIEW" ? !canSelfReview(user.role) : !canFinalizeReview(user.role)) {
     throw new Error("Нет прав на завершение проверок.");
@@ -626,5 +647,42 @@ export async function finalizeReview(formData: FormData) {
 
   revalidatePath("/reviews");
   revalidatePath(`/reviews/${conversationId}`);
-  redirect(returnTo);
+
+  return { user, conversationId };
+}
+
+export async function finalizeReview(formData: FormData) {
+  const conversationId = requiredString(formData, "conversationId");
+  const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
+
+  await finalizeReviewCore(formData);
+
+  redirect(withSavedMarker(returnTo, "final"));
+}
+
+/**
+ * Завершить и взять следующий: finalize the current review, then jump straight
+ * to the next queued conversation instead of bouncing back to the queue. Keeps
+ * the reviewer in flow-state grading. Falls back to the empty-queue marker when
+ * nothing is left to take. Next-selection reuses the exact queue priority order
+ * via {@link selectNextReviewConversationId}, excluding the just-finalized case.
+ */
+export async function finalizeReviewAndTakeNext(formData: FormData) {
+  // Carry the reviewer's queue view forward so the eventual "back to queue" from
+  // the next workbench lands on their filtered view, not the bare queue.
+  const returnTo = optionalString(formData, "returnTo");
+  const { user, conversationId } = await finalizeReviewCore(formData);
+
+  const nextId = await selectNextReviewConversationId(user, conversationId);
+
+  if (!nextId) {
+    redirect(withSavedMarker("/reviews?empty=1", "final"));
+  }
+
+  const params = new URLSearchParams({ saved: "final" });
+  if (returnTo) {
+    params.set("returnTo", returnTo);
+  }
+
+  redirect(`/reviews/${nextId}?${params.toString()}`);
 }

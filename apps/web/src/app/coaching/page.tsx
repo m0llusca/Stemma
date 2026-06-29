@@ -26,7 +26,8 @@ import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip"
 import { TrendChart } from "@/components/reports/trend-chart";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
-import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
+import { ToastActionForm } from "@/app/coaching/toast-action-form";
+import { createTrainingAssignmentState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
@@ -543,7 +544,11 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               Скрыть
             </Link>
           </div>
-          <form action={createTrainingAssignment} className="training-create-form coaching-create-inline__form">
+          <ToastActionForm
+            action={createTrainingAssignmentState}
+            className="training-create-form coaching-create-inline__form"
+            aria-label="Новая учебная задача"
+          >
             <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
               Исполнитель
               <select name="assigneeId" required className="form-control">
@@ -588,7 +593,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             <div className="training-create-form__action">
               <ValidatedSubmitButton>Создать задачу</ValidatedSubmitButton>
             </div>
-          </form>
+          </ToastActionForm>
         </section>
       ) : null}
 
@@ -839,13 +844,13 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                           Открыть
                         </Link>
                       ) : null}
-                      <form action={updateTrainingAssignmentStatus}>
+                      <ToastActionForm action={updateTrainingAssignmentStatusState}>
                         <input type="hidden" name="id" value={assignment.id} />
                         <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
                         <button type="submit" className="action-button action-button--primary">
                           {assignment.status === "done" ? "Вернуть" : "Готово"}
                         </button>
-                      </form>
+                      </ToastActionForm>
                     </div>
                   </article>
                 );

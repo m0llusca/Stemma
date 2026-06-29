@@ -5,8 +5,31 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { canAcknowledgeFeedback, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import {
+  feedbackToastMessage,
+  trainingCreatedToastMessage,
+  trainingStatusToastMessage
+} from "@/lib/feedback-toast-messages";
 import { recordReviewEvent } from "@/lib/review-events";
 import { assertFeedbackTransition, reviewFeedbackTransitionStatuses } from "@/lib/review-lifecycle";
+
+/**
+ * Result of a feedback/coaching server action consumed via `useActionState`.
+ * `null` is the initial (pre-submit) state. On success the `toast` message is
+ * surfaced by the client shell; `nonce` makes every success a fresh object so
+ * the toast effect can fire once per submit. Errors are reported inline.
+ */
+export type FeedbackActionState =
+  | null
+  | { ok: true; toast: string; nonce: number }
+  | { ok: false; message: string };
+
+function feedbackActionError(error: unknown): FeedbackActionState {
+  return {
+    ok: false,
+    message: error instanceof Error ? error.message : "Не удалось обновить обратную связь."
+  };
+}
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -314,4 +337,54 @@ export async function updateTrainingAssignmentStatus(formData: FormData) {
   });
 
   revalidatePath("/coaching");
+}
+
+/**
+ * `useActionState` wrappers around the feedback/coaching actions above. They
+ * reuse the exact same logic (including its thrown validation/permission
+ * errors) and add a success state so the client shells can raise a toast. The
+ * original `void` actions stay untouched for the review-workbench forms that
+ * post to them directly.
+ */
+export async function updateReviewFeedbackState(
+  _state: FeedbackActionState,
+  formData: FormData
+): Promise<FeedbackActionState> {
+  const action = stringField(formData, "action");
+
+  try {
+    await updateReviewFeedback(formData);
+  } catch (error) {
+    return feedbackActionError(error);
+  }
+
+  return { ok: true, toast: feedbackToastMessage(action), nonce: Date.now() };
+}
+
+export async function createTrainingAssignmentState(
+  _state: FeedbackActionState,
+  formData: FormData
+): Promise<FeedbackActionState> {
+  try {
+    await createTrainingAssignment(formData);
+  } catch (error) {
+    return feedbackActionError(error);
+  }
+
+  return { ok: true, toast: trainingCreatedToastMessage, nonce: Date.now() };
+}
+
+export async function updateTrainingAssignmentStatusState(
+  _state: FeedbackActionState,
+  formData: FormData
+): Promise<FeedbackActionState> {
+  const status = stringField(formData, "status");
+
+  try {
+    await updateTrainingAssignmentStatus(formData);
+  } catch (error) {
+    return feedbackActionError(error);
+  }
+
+  return { ok: true, toast: trainingStatusToastMessage(status), nonce: Date.now() };
 }

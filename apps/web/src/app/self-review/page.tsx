@@ -7,7 +7,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
-import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
+import { ToastActionForm } from "@/app/coaching/toast-action-form";
+import { updateReviewFeedbackState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
@@ -208,18 +209,18 @@ async function SelfReviewPageContent() {
         {mode === "action" ? (
           <div className="feedback-card__decision">
             {canAcknowledge ? (
-              <form action={updateReviewFeedback} className="feedback-card__decision-acknowledge">
+              <ToastActionForm action={updateReviewFeedbackState} className="feedback-card__decision-acknowledge">
                 <input type="hidden" name="reviewId" value={review.id} />
                 <input type="hidden" name="action" value="acknowledged" />
                 <button type="submit" className="action-button action-button--primary">
                   Принять оценку
                 </button>
-              </form>
+              </ToastActionForm>
             ) : null}
             {canOpenAppeal ? (
               <details className="feedback-dispute">
                 <summary className="feedback-dispute__summary">Оспорить</summary>
-                <form action={updateReviewFeedback} className="feedback-dispute__form">
+                <ToastActionForm action={updateReviewFeedbackState} className="feedback-dispute__form">
                   <input type="hidden" name="reviewId" value={review.id} />
                   <input type="hidden" name="action" value="appeal_opened" />
                   <label className="feedback-dispute__label">
@@ -235,17 +236,17 @@ async function SelfReviewPageContent() {
                   <button type="submit" className="action-button">
                     Открыть апелляцию
                   </button>
-                </form>
+                </ToastActionForm>
               </details>
             ) : null}
             {canCompleteReanswer ? (
-              <form action={updateReviewFeedback}>
+              <ToastActionForm action={updateReviewFeedbackState}>
                 <input type="hidden" name="reviewId" value={review.id} />
                 <input type="hidden" name="action" value="reanswer_completed" />
                 <button type="submit" className="action-button action-button--primary">
                   Переответ выполнен
                 </button>
-              </form>
+              </ToastActionForm>
             ) : null}
             {needsReviewLink ? (
               <Link href={`/reviews/${conversation.id}`} className="action-button">
@@ -448,13 +449,13 @@ async function SelfReviewPageContent() {
                     {assignment.dueAt ? `до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : "без срока"}
                     {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
                   </span>
-                  <form action={updateTrainingAssignmentStatus}>
+                  <ToastActionForm action={updateTrainingAssignmentStatusState}>
                     <input type="hidden" name="id" value={assignment.id} />
                     <input type="hidden" name="status" value="done" />
                     <button type="submit" className="action-button">
                       Закрыть задачу
                     </button>
-                  </form>
+                  </ToastActionForm>
                 </article>
               ))
             ) : (

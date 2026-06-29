@@ -391,3 +391,39 @@
   border-color: var(--border-strong);
   background: var(--panel-tint);
 }
+
+/* Responsive — reflow only, never shrink type or padding ----------------- *
+ * Two breakpoints. At <=1024px (tablet) the 4-up KPI grid folds to 2 columns
+ * and the asymmetric main grid stacks into a single column. At <=640px (phone)
+ * the KPI grid goes single-column and the agent-row grid-template-areas reflow
+ * so the flag + score sit on their own row beneath the name/meta stack. Holds
+ * in both light and Night-Ops themes — every value here is token-driven. */
+@media (max-width: 1024px) {
+  .dashboard-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-agent-row {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "avatar name score"
+      "avatar meta score"
+      "flag flag flag"
+      "bar bar bar";
+  }
+
+  .dashboard-agent-row__flag {
+    justify-self: start;
+    margin-top: 2px;
+  }
+}

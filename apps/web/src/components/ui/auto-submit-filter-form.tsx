@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useCallback, useRef, useTransition } from "react";
 
+import styles from "./auto-submit-filter-form.module.css";
+
 type AutoSubmitFilterFormProps = {
   action: string;
   children: ReactNode;
@@ -72,8 +74,12 @@ export function AutoSubmitFilterForm({
           return;
         }
 
-        startTransition(() => {
-          router.push(filterFormUrl(form, action), { scroll: false });
+        // Awaiting the navigation keeps the transition `pending` for the whole
+        // round-trip, so the affordance below stays visible on a slow network
+        // instead of flickering for a single frame. (React 19: state updates
+        // only remain a Transition while the async callback is awaited.)
+        startTransition(async () => {
+          await router.push(filterFormUrl(form, action), { scroll: false });
         });
       }, delay);
     },
@@ -89,7 +95,8 @@ export function AutoSubmitFilterForm({
     <form
       ref={formRef}
       action={action}
-      className={className}
+      className={className ? `${className} ${styles.form}` : styles.form}
+      data-pending={pending ? "true" : undefined}
       aria-busy={pending}
       onSubmit={handleSubmit}
       onChange={(event) => {
@@ -108,6 +115,18 @@ export function AutoSubmitFilterForm({
       }}
     >
       {children}
+      {pending ? (
+        <span
+          className={styles.pending}
+          data-testid="filter-pending"
+          role="status"
+        >
+          <span className={styles.pendingTrack} aria-hidden="true">
+            <span className={styles.pendingBar} />
+          </span>
+          <span className={styles.pendingLabel}>Обновляем результаты…</span>
+        </span>
+      ) : null}
     </form>
   );
 }

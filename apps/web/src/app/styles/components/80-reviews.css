@@ -35,10 +35,166 @@
   overflow-y: visible;
 }
 
+/* Top bar holds the narrow-screen pane toggle. On wide screens the toggle is
+   hidden (see media query) and the bar collapses to nothing visible. */
+.review-workbench__bar {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Segmented "Диалог / Оценка" switch. Hidden on wide screens — both panes show
+   there — and revealed only once the workspace collapses to one column. */
+.workbench-pane-toggle {
+  display: none;
+}
+
+.workbench-pane-toggle__btn {
+  display: inline-flex;
+  min-height: 36px;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.workbench-pane-toggle__btn[data-active="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.review-workbench__footer {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.review-workbench__footer-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.review-workbench__progress-value {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.review-workbench__footer-hint {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 @media (max-width: 1100px) {
+  .review-workbench {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+
   .review-workbench__panes {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  /* Reveal the toggle and let it switch which single pane is visible. Both panes
+     stay mounted (display only) so form state + keyboard grading are preserved. */
+  .workbench-pane-toggle {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .review-workbench[data-active-pane="dialog"] .review-workbench__panes .master-detail__detail {
+    display: none;
+  }
+
+  .review-workbench[data-active-pane="score"] .review-workbench__panes .master-detail__list {
+    display: none;
+  }
+
+  /* Unpin the score panel when it is the sole visible pane so it scrolls with
+     the page instead of sticking to a now-missing transcript. */
+  .review-workbench[data-active-pane="score"] .review-panel-column {
+    position: static;
+    top: auto;
+  }
+}
+
+/* Empty-queue banner shown after "take next" finds nothing left to grade. */
+.queue-empty-banner {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-page);
+  background: var(--surface-soft);
+  padding: 12px 14px;
+}
+
+.queue-empty-banner__icon {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--accent-ink);
+}
+
+.queue-empty-banner__text {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.queue-empty-banner__close {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.queue-empty-banner__close:hover {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--foreground);
 }
 
 .review-detail-stack {

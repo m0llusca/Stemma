@@ -137,6 +137,56 @@ describe("app nav shell", () => {
     expect(logoutForm?.getAttribute("method")).toBe("post");
   });
 
+  it("collapses the primary areas into an accessible disclosure menu trigger", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: "Разделы" });
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+    // The disclosure menu is closed until the trigger is activated.
+    expect(screen.queryByRole("menu", { name: "Основные разделы" })).toBeNull();
+  });
+
+  it("opens and closes the mobile area menu and exposes the areas as menu links", () => {
+    mocks.pathname = "/reviews/abc";
+    render(<AppNavShell {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: "Разделы" });
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const menu = screen.getByRole("menu", { name: "Основные разделы" });
+    const links = within(menu).getAllByRole("menuitem");
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Сегодня",
+      "Проверки",
+      "Калибровка",
+      "Обучение",
+      "Аналитика",
+      "Настройки"
+    ]);
+    // The active area is marked inside the disclosure menu too.
+    expect(within(menu).getByRole("menuitem", { name: /Проверки/ }).getAttribute("aria-current")).toBe("page");
+
+    // Escape closes the menu and returns aria-expanded to false.
+    fireEvent.keyDown(menu, { key: "Escape" });
+    expect(screen.queryByRole("menu", { name: "Основные разделы" })).toBeNull();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes the mobile area menu when one of its links is chosen", () => {
+    render(<AppNavShell {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: "Разделы" });
+    fireEvent.click(trigger);
+    const menu = screen.getByRole("menu", { name: "Основные разделы" });
+
+    fireEvent.click(within(menu).getByRole("menuitem", { name: /Аналитика/ }));
+    expect(screen.queryByRole("menu", { name: "Основные разделы" })).toBeNull();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("renders the demo switcher form bound to the switch action when provided", () => {
     render(
       <AppNavShell

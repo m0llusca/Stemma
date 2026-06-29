@@ -9,6 +9,8 @@ import { Suspense, type ReactNode } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
+import { ReviewSavedToast } from "@/components/review/review-saved-toast";
+import { WorkbenchPaneToggle } from "@/components/review/workbench-pane-toggle";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -38,6 +40,8 @@ import {
   riskLevelLabels,
   samplingTypeLabels
 } from "@/lib/labels";
+import { computeBatchProgress, formatBatchProgress } from "@/lib/review/batch-progress";
+import { nextReviewOrderBy, nextReviewWhere } from "@/lib/review/next-review-query";
 import { reviewEventActionLabel } from "@/lib/review-events";
 import { getActiveScorecard, getConversationForReview } from "@/lib/review-repository";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
@@ -169,6 +173,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const reviewSource =
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const returnTo = singleParam(rawSearchParams.returnTo);
+  const savedMarker = singleParam(rawSearchParams.saved);
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
   const canSaveHumanReviewDraft = canSaveReviewDraft(user.role);
   const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveHumanReviewDraft;
@@ -195,7 +200,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       }
     }
   } as const;
-  const [conversation, scorecard, qaAssignees, pendingAiDrafts, decidedAiDrafts, aiDraftTotalCount, pendingAiDraftCount] = await Promise.all([
+  const [conversation, scorecard, qaAssignees, pendingAiDrafts, decidedAiDrafts, aiDraftTotalCount, pendingAiDraftCount, queueConversations] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
     canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
     canManageWorkflow
@@ -258,12 +263,27 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             status: "draft"
           }
         })
-      : Promise.resolve(0)
+      : Promise.resolve(0),
+    // Priority-ordered ids of the unreviewed queue, for the "N из M" footer
+    // counter. Same where/order as "take next" so the position is consistent
+    // with the case the reviewer would be sent to. Ids only; bounded.
+    prisma.conversation.findMany({
+      where: nextReviewWhere(user),
+      orderBy: nextReviewOrderBy,
+      select: { id: true },
+      take: 500
+    })
   ]);
 
   if (!conversation) {
     notFound();
   }
+
+  const batchProgress = computeBatchProgress(
+    conversation.id,
+    queueConversations.map((item) => item.id)
+  );
+  const batchProgressLabel = formatBatchProgress(batchProgress);
 
   const latestFinalizedReview =
     conversation.qaStatus === "FINALIZED"
@@ -585,6 +605,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
       title={conversation.subject}
       description="Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц."
     >
+      <ReviewSavedToast marker={savedMarker} />
       {latestFinalizedReview && hasOpenAppeal ? (
         <section className="appeal-alert">
           <div className="appeal-alert__icon" aria-hidden="true">
@@ -661,7 +682,10 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         </div>
       </section>
 
-      <div id="review-workspace" className="review-workbench">
+      <div id="review-workspace" className="review-workbench" data-active-pane="dialog">
+        <div className="review-workbench__bar">
+          <WorkbenchPaneToggle targetId="review-workspace" />
+        </div>
         <MasterDetail
           className="review-workbench__panes"
           listWidth="minmax(0, 1fr)"
@@ -709,6 +733,19 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             )
           }
         />
+        <footer className="review-workbench__footer">
+          <span className="review-workbench__footer-label">Прогресс по очереди</span>
+          <strong className="review-workbench__progress-value" aria-live="polite">
+            {batchProgressLabel}
+          </strong>
+          <span className="review-workbench__footer-hint">
+            {batchProgress.position === 0
+              ? "Обращение вне активной очереди проверки."
+              : batchProgress.isLast
+                ? "Это последнее обращение в очереди."
+                : `Осталось ещё ${batchProgress.remaining} в очереди.`}
+          </span>
+        </footer>
       </div>
 
       {detailPane}

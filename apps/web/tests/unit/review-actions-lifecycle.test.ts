@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => {
     recordReviewEvent: vi.fn(),
     redirect: vi.fn(),
     revalidatePath: vi.fn(),
+    selectNextReviewConversationId: vi.fn(),
     tx
   };
 });
@@ -78,6 +79,10 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
     recordReviewEvent: mocks.recordReviewEvent
   };
 });
+
+vi.mock("@/lib/queue-view-actions", () => ({
+  selectNextReviewConversationId: mocks.selectNextReviewConversationId
+}));
 
 function reviewerUser() {
   return {
@@ -274,6 +279,49 @@ describe("review action lifecycle guards", () => {
         })
       })
     );
+  });
+
+  it("finalizes then redirects to the next queued conversation", async () => {
+    const { finalizeReviewAndTakeNext } = await import("@/lib/review-actions");
+    mocks.selectNextReviewConversationId.mockResolvedValue("conversation-next");
+
+    await finalizeReviewAndTakeNext(baseFinalizeForm());
+
+    expect(mocks.tx.review.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FINALIZED" })
+      })
+    );
+    expect(mocks.selectNextReviewConversationId).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "workspace-1" }),
+      "conversation-1"
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith("/reviews/conversation-next?saved=final");
+  });
+
+  it("redirects to the empty-queue marker when nothing remains after finalizing", async () => {
+    const { finalizeReviewAndTakeNext } = await import("@/lib/review-actions");
+    mocks.selectNextReviewConversationId.mockResolvedValue(null);
+
+    await finalizeReviewAndTakeNext(baseFinalizeForm());
+
+    expect(mocks.tx.review.create).toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith("/reviews?empty=1&saved=final");
+  });
+
+  it("does not advance to the next conversation when finalization fails", async () => {
+    const { finalizeReviewAndTakeNext } = await import("@/lib/review-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED",
+      qaAssigneeId: "reviewer-old",
+      qaAssigneeName: "Другой проверяющий"
+    });
+
+    await expect(finalizeReviewAndTakeNext(baseFinalizeForm())).rejects.toThrow();
+
+    expect(mocks.selectNextReviewConversationId).not.toHaveBeenCalled();
+    expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
   it("ignores forged process status fields during finalization", async () => {
