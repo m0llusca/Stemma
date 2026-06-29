@@ -12,7 +12,6 @@ import { OperationalPageFrame } from "@/components/operations/operational-page-f
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
-import { StatKpi } from "@/components/ui/stat-kpi";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
@@ -56,14 +55,6 @@ function integrationSectionParam(value: string | string[] | undefined): Integrat
 
 function integrationSectionHref(section: IntegrationSection) {
   return `/admin/integrations?section=${section}`;
-}
-
-function formatDate(value: Date | null | undefined) {
-  if (!value) {
-    return "Нет данных";
-  }
-
-  return value.toLocaleString("ru-RU");
 }
 
 function formatCompactDate(value: Date | null | undefined) {
@@ -644,31 +635,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
       <AdminFrame>
         <OperationalPageFrame
           title="Интеграции"
-          signals={
-        <>
-      <section className="ops-metric-grid" aria-label="Состояние интеграций">
-        <StatKpi label="Источники" value={integrations.length} hint={`Активные и готовые: ${activeSources.length}`} />
-        <StatKpi
-          label="Диагностика"
-          value={diagnosticRuns.length}
-          tone={failedDiagnostics > 0 ? "danger" : "neutral"}
-          hint={`Требуют внимания: ${failedDiagnostics}`}
-        />
-        <StatKpi
-          label="Задачи обработчика"
-          value={activeJobs}
-          tone={activeJobs > 0 ? "warning" : "neutral"}
-          hint="В очереди или в работе"
-        />
-        <StatKpi
-          label="Последний импорт"
-          value={lastImportRun ? formatDate(lastImportRun.startedAt).split(",")[0] : "Нет"}
-          hint={lastImportRun ? externalSourceLabel(lastImportRun.source) : "Реальные импорты еще не запускались"}
-        />
-      </section>
-        </>
-      }
-      action={
+          action={
         <PriorityActionPanel
           title={integrationAction.title}
           description={integrationAction.description}
@@ -1091,7 +1058,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         </>
       }
       evidence={
-        <EvidenceDrawer title="Evidence readiness" defaultOpen>
+        <EvidenceDrawer title="Evidence readiness">
           <div className="operational-evidence-grid">
             <div className="operational-evidence-item">
               <span>Источники</span>

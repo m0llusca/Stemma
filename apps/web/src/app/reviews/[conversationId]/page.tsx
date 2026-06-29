@@ -693,7 +693,6 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                     <p className="mt-1 text-sm text-[var(--text-muted)]">Оператор видит только собственное обращение и финальную обратную связь.</p>
                   </div>
                   <div className="grid gap-3 p-5 text-sm">
-                    <DetailItem label="Оценка">{scoreLabel}</DetailItem>
                     <DetailItem label="Обратная связь">
                       {latestFinalizedReview
                         ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus

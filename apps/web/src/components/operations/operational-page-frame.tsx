@@ -10,18 +10,18 @@ export function OperationalPageFrame({
   className
 }: {
   title: string;
-  signals: ReactNode;
+  signals?: ReactNode;
   action: ReactNode;
   details: ReactNode;
-  evidence: ReactNode;
+  evidence?: ReactNode;
   className?: string;
 }) {
   return (
     <section className={clsx("operational-page-frame", className)} aria-label={title}>
-      <div className="operational-page-frame__signals">{signals}</div>
+      {signals ? <div className="operational-page-frame__signals">{signals}</div> : null}
       <div className="operational-page-frame__action">{action}</div>
       <div className="operational-page-frame__details">{details}</div>
-      <div className="operational-page-frame__evidence">{evidence}</div>
+      {evidence ? <div className="operational-page-frame__evidence">{evidence}</div> : null}
     </section>
   );
 }

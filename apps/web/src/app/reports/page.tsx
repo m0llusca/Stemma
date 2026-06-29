@@ -774,8 +774,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
 
       {reportView === "overview" ? (
         <PrimaryScorePanel
-          averageScore={averageScore}
-          previousAverageScore={previousAverageScore}
           finalizedCount={finalizedCount}
           previousCount={previousReviews.length}
           trendRows={trendRows}
@@ -951,7 +949,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         </div>
       ) : null}
 
-      <EvidenceDrawer title="Evidence аналитики" defaultOpen>
+      <EvidenceDrawer title="Evidence аналитики">
         <div className="operational-evidence-grid">
           <div className="operational-evidence-item">
             <span>Период</span>

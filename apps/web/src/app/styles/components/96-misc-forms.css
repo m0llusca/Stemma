@@ -360,7 +360,6 @@ pre,
   .report-command-bar__form,
   .insight-summary,
   .report-metrics-layout,
-  .primary-score-panel,
   .reports-main-grid,
   .reports-panel-grid--four,
   .reports-panel-grid--three,
@@ -511,13 +510,6 @@ pre,
 
   .quota-meter {
     max-width: 180px;
-  }
-
-  .primary-score-panel__chart {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-    padding-left: 0;
-    padding-top: 16px;
   }
 
   .primary-score-panel__signals .trend-signal-list {
