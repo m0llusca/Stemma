@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties, ReactNode } from "react";
-import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 // Order is load-bearing: Tailwind layers, then tokens/themes, then component styles.
 import "./globals.css";
 import "./styles/theme.css";
@@ -29,15 +29,15 @@ import { TrpcProvider } from "@/components/trpc-provider";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { resolveUiAppearance, uiPaletteOverridesToCssVariables } from "@/lib/ui-theme";
 
-const sans = Manrope({
+const sans = Inter({
   subsets: ["latin", "cyrillic"],
   display: "swap",
   variable: "--font-sans"
 });
 
-const mono = IBM_Plex_Mono({
+const mono = JetBrains_Mono({
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500"],
   display: "swap",
   variable: "--font-mono"
 });

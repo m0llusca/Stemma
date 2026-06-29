@@ -3,31 +3,31 @@
    and before components.css in layout.tsx; order is load-bearing. */
 :root {
   color-scheme: light;
-  --background: #FAFAFB;
+  --background: #F7F8FA;
   --page-sheen: rgba(255, 255, 255, 0.74);
   --foreground: #16181D;
-  --muted: #8A8F9C;
-  --text-body: #3A3F4B;
-  --text-subtle: #5B6170;
-  --text-muted: #8A8F9C;
+  --muted: #8A94A3;
+  --text-body: #363B44;
+  --text-subtle: #5B6470;
+  --text-muted: #8A94A3;
   --panel: #FFFFFF;
   --panel-muted: #F4F5F7;
-  --panel-tint: #f4f8ff;
-  --panel-header: #f7f9fc;
-  --panel-header-border: #d7e0ec;
-  --panel-header-muted: #66758a;
+  --panel-tint: #FBFBFE;
+  --panel-header: #FAFBFC;
+  --panel-header-border: #E7EAEF;
+  --panel-header-muted: #5B6470;
   --surface-raised: color-mix(in srgb, var(--panel) 96%, transparent);
   --surface-soft: color-mix(in srgb, var(--panel-muted) 72%, var(--panel));
   --surface-hover: color-mix(in srgb, var(--accent-soft) 56%, var(--panel));
   --line-soft: color-mix(in srgb, var(--border) 72%, transparent);
-  --border: #E6E8EC;
-  --border-strong: #C4C8D0;
-  --accent: #2f5fff;
-  --accent-strong: #274fc7;
-  --accent-soft: #eef3ff;
-  --accent-muted: #dfe8ff;
-  --accent-border: #b9c9ff;
-  --accent-ink: #172554;
+  --border: #E7EAEF;
+  --border-strong: #D6DAE1;
+  --accent: #4F46E5;
+  --accent-strong: #4338CA;
+  --accent-soft: #EEF0FE;
+  --accent-muted: #E0E3FB;
+  --accent-border: #C7CBF7;
+  --accent-ink: #3730A3;
   --brand-primary: #3157d5;
   --brand-accent: #7c97ff;
   --sidebar-bg: #121a26;
@@ -45,33 +45,33 @@
   --control-selected-border: color-mix(in srgb, var(--accent) 44%, var(--border));
   --accent-warm: #d97706;
   --accent-coral: #dc2626;
-  --danger: #C5352F;
-  --warning: #B26B00;
+  --danger: #DC2626;
+  --warning: #B45309;
   --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--panel));
-  --success: #1F7A4D;
+  --success: #15803D;
   --success-soft: color-mix(in srgb, var(--success) 12%, var(--panel));
   --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--panel));
   /* AI-provenance hue (Iris). ONLY for AI automation provenance, never primary actions. */
-  --ai: #6D4AFF;
-  --ai-strong: #5338D5;
-  --ai-soft: color-mix(in srgb, #6D4AFF 12%, var(--panel));
-  --ai-border: color-mix(in srgb, #6D4AFF 40%, var(--border));
-  --ai-ink: #2D2868;
+  --ai: #6D28D9;
+  --ai-strong: #5B21B6;
+  --ai-soft: #F3F0FF;
+  --ai-border: #DDD3F5;
+  --ai-ink: #5B21B6;
   /* Status surface tokens. Light values match the dominant hardcoded hex so the default
      theme is unchanged; dark theme derives tinted equivalents from the status hue. */
-  --status-success-bg: #ecfdf5;
-  --status-success-border: #bbf7d0;
-  --status-danger-bg: #fef2f2;
-  --status-danger-border: #fecaca;
-  --status-warning-bg: #fff7ed;
-  --status-warning-border: #fed7aa;
+  --status-success-bg: #E7F4EC;
+  --status-success-border: #BFE3CC;
+  --status-danger-bg: #FCEAEA;
+  --status-danger-border: #F6CFCF;
+  --status-warning-bg: #FBF0E1;
+  --status-warning-border: #F0D9B5;
   --content-max-width: 1420px;
   --app-topbar-height: 52px;
   --app-topbar-inline: 10px;
-  --radius-page: 18px;
-  --radius-card: 12px;
-  --radius-control: 10px;
-  --radius-small: 8px;
+  --radius-page: 14px;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-small: 6px;
   --radius-chip: 6px;
   --control-height: 38px;
   --control-padding-y: 8px;
@@ -80,8 +80,8 @@
   --page-shell-inline: 34px;
   /* Panels separate by hairline border + tint, not elevation; shadow is near-zero.
      --shadow-raised stays reserved for true overlays (popovers/drawers/menus). */
-  --shadow-panel: 0 1px 2px rgba(16, 18, 29, 0.035);
-  --shadow-raised: 0 14px 36px rgba(16, 18, 29, 0.10);
+  --shadow-panel: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .05);
+  --shadow-raised: 0 8px 24px rgba(16, 24, 40, .12);
 }
 
 /* Derived tokens are re-declared on body so they re-compute from the
