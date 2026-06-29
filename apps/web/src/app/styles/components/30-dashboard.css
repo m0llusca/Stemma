@@ -347,7 +347,13 @@
 
 .dashboard-agent-row__avatar { grid-area: avatar; }
 .dashboard-agent-row strong { grid-area: name; }
-.dashboard-agent-row__meta { grid-area: meta; }
+.dashboard-agent-row__meta {
+  grid-area: meta;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .dashboard-agent-row__flag { grid-area: flag; align-self: center; }
 
 .dashboard-agent-row em {

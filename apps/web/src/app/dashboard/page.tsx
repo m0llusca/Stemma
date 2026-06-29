@@ -384,12 +384,6 @@ async function DashboardPageContent() {
       eyebrow="Рабочее пространство"
       title="Сегодня"
       description="Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
-      actions={
-        <Link href={primaryFocusHref} className="action-button action-button--primary">
-          <span>{focusItems.length ? "Разобрать сигнал" : "Открыть очередь"}</span>
-          <ArrowRight size={16} aria-hidden="true" />
-        </Link>
-      }
     >
       <TriageStrip
         tone={focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : "success"}

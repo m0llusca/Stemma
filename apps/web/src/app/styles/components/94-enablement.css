@@ -193,7 +193,18 @@
 .coaching-outcome-board__items {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+
+@media (max-width: 860px) {
+  .coaching-outcome-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .coaching-outcome-board__lead {
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
 }
 
 .coaching-outcome-card {
@@ -219,11 +230,13 @@
 }
 
 .coaching-outcome-card > strong {
+  min-width: 0;
   color: var(--foreground);
   font-size: 22px;
   font-weight: 680;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .coaching-outcome-card > small {

@@ -46,8 +46,14 @@
 }
 
 .chip__label {
-  flex: 0 0 auto;
+  /* The label keeps its size by default (the value truncates first), but it may
+     shrink as a last resort so a long Russian label can never overflow the chip
+     row — it ellipsizes cleanly instead of pushing the value out. */
+  flex: 0 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: color-mix(in srgb, var(--chip-fg) 78%, var(--text-muted));
   font-weight: 660;
 }
@@ -59,6 +65,18 @@
   white-space: nowrap;
   color: var(--chip-fg);
   font-weight: 760;
+}
+
+/* In the stacked (label-over-value) metric shape the label sits on its own row,
+   so let it wrap to the full width instead of ellipsis-clipping like the inline
+   pill label does. */
+.chip--stacked .chip__label {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 /* Numeric values get tabular figures so digits align across rows. */

@@ -64,20 +64,24 @@
 }
 
 .stat-kpi__value {
+  min-width: 0;
   color: var(--stat-kpi-accent);
   font-size: 34px;
   font-weight: 680;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .stat-kpi__unit {
+  min-width: 0;
   color: var(--text-muted);
   font-size: 14px;
   font-weight: 560;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .stat-kpi__delta {

@@ -375,7 +375,6 @@ async function AdminHomePageContent() {
           {groupedCards.map((group) => (
             <section key={group.id} className="admin-section-card" aria-labelledby={`admin-section-${group.id}`}>
               <div className="admin-section-card__header">
-                <p className="ops-panel__eyebrow">Раздел</p>
                 <h2 id={`admin-section-${group.id}`} className="ops-panel__title">{group.title}</h2>
                 <p className="ops-panel__subtitle">{group.description}</p>
               </div>
@@ -384,7 +383,7 @@ async function AdminHomePageContent() {
                   const Icon = card.icon;
 
                   return (
-                    <Link key={card.href} href={card.href} className="admin-home-link" title={card.description}>
+                    <Link key={card.href} href={card.href} className="admin-home-link">
                       <span className="admin-tile__icon">
                         <Icon size={16} aria-hidden="true" />
                       </span>

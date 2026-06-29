@@ -608,6 +608,8 @@
 
 .admin-home-link__metric {
   display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
   min-height: 22px;
   align-items: center;
   border: 1px solid var(--line-soft);
@@ -617,7 +619,8 @@
   padding: 3px 7px;
   font-size: 11px;
   font-weight: 820;
-  line-height: 1;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .admin-home-link__metric--ok {
@@ -1013,10 +1016,37 @@
   display: grid;
   min-width: 0;
   align-content: center;
-  gap: 6px;
+  gap: 4px;
   border-right: 1px solid var(--line-soft);
   background: var(--surface-soft);
   padding: 16px 18px;
+}
+
+/* Bring the pipeline lead into the ops-panel typographic grammar so its
+   eyebrow/title/copy match the surrounding admin panels (was rendering with
+   default browser h2 sizing + accent kicker — inconsistent with v2). */
+.integration-readiness-pipeline__lead .page-kicker {
+  color: var(--panel-header-muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.integration-readiness-pipeline__lead h2 {
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 17px;
+  font-weight: 780;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.integration-readiness-pipeline__lead p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .integration-readiness-pipeline__stages {

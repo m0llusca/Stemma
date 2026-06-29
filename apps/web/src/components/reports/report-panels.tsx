@@ -121,7 +121,7 @@ export function ReportFocusPanel({
   return (
     <section className="panel report-focus-panel">
       <div className="report-focus-panel__header">
-        <div>
+        <div className="min-w-0">
           <p className="page-kicker">{kicker}</p>
           <h2>{title}</h2>
           <p>{description}</p>

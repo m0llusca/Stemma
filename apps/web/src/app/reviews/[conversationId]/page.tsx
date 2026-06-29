@@ -708,9 +708,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         <div className="review-context-panel__details">
           <div className="review-context-panel__header">
             <h2>Контекст обращения</h2>
-            <p>
-              {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
-            </p>
+            <p>Клиент {conversation.customerName} · оператор {conversation.assigneeName ?? "не назначен"}</p>
           </div>
         </div>
         <div className="review-detail-grid">

@@ -513,7 +513,7 @@ export function ReviewPanel({
                               {criterion.kind === "SCALE_1_3" ? (
                                 <fieldset className={styles.resultFieldset}>
                                   <legend className={styles.fieldLabel}>Оценка</legend>
-                                  <div className={styles.segmentGrid}>
+                                  <div className={`${styles.segmentGrid} ${styles.segmentGridScale}`}>
                                     <label className={styles.segment}>
                                       <input
                                         type="radio"

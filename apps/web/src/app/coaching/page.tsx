@@ -739,9 +739,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         <div className="learning-section-header coaching-control-panel__header">
           <div className="min-w-0">
             <h2>Очередь обучения</h2>
-            <p>{selectedViewOption.helper}. Показано {filteredAssignments.length} из {assignments.length}.</p>
+            <p>Сначала срочное, затем по сроку. Срез и фильтры — ниже.</p>
           </div>
-          <Chip tone="neutral" numeric label="Показано" value={filteredAssignments.length} />
         </div>
         <div className="coaching-control-stack">
           <div className="coaching-segment-row">
@@ -860,7 +859,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           <div className="learning-section-header coaching-board__header">
             <div className="min-w-0">
               <h2>{selectedViewOption.label}</h2>
-              <p>{selectedViewOption.helper}. Показано {filteredAssignments.length} из {assignments.length}.</p>
+              <p>{selectedViewOption.helper}.</p>
             </div>
             <Chip tone="neutral" numeric>{filteredAssignments.length}</Chip>
           </div>

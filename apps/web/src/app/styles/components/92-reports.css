@@ -366,13 +366,6 @@ a.agent-leaderboard__row:hover {
   }
 }
 
-.report-metrics-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
 .report-narrative-board {
   display: grid;
   min-width: 0;
@@ -470,6 +463,28 @@ a.agent-leaderboard__row:hover {
 
 .report-narrative-card:last-child {
   border-right: 0;
+}
+
+.report-narrative-card span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.report-narrative-card strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 840;
+  line-height: 1.2;
+}
+
+.report-narrative-card small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .primary-score-panel {
@@ -2301,8 +2316,7 @@ a.agent-leaderboard__row:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .report-period-controls,
-  .report-metrics-layout {
+  .report-period-controls {
     grid-template-columns: 1fr;
   }
 

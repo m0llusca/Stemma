@@ -1,6 +1,5 @@
 import {
   CriterionHeatmapPanel,
-  MetricInsightStrip,
   type CriterionHeatmapRow,
   type MetricInsightItem
 } from "@/components/reports/analytics-intelligence";
@@ -892,21 +891,14 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "overview" ? (
-        <div className="report-metrics-layout">
-          <PrimaryScorePanel
-            averageScore={averageScore}
-            previousAverageScore={previousAverageScore}
-            finalizedCount={finalizedCount}
-            previousCount={previousReviews.length}
-            trendRows={trendRows}
-            period={period}
-          />
-          <MetricInsightStrip
-            title="Операционные сигналы"
-            description="Короткая проверка рисков, разборов, источников и выполнения нормы без перехода в таблицы."
-            items={metricInsightItems}
-          />
-        </div>
+        <PrimaryScorePanel
+          averageScore={averageScore}
+          previousAverageScore={previousAverageScore}
+          finalizedCount={finalizedCount}
+          previousCount={previousReviews.length}
+          trendRows={trendRows}
+          period={period}
+        />
       ) : null}
 
       {reportView === "overview" ? <ImprovementPanel negativeItems={deteriorationItems} items={improvementItems} /> : null}
