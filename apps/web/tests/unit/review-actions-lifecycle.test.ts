@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => {
     canFinalizeReview: vi.fn(),
     canSaveReviewDraft: vi.fn(),
     canSelfReview: vi.fn(),
+    enqueueBackendJob: vi.fn(),
     getCurrentUser: vi.fn(),
     prisma: {
       $transaction: vi.fn(),
@@ -82,6 +83,10 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
 
 vi.mock("@/lib/queue-view-actions", () => ({
   selectNextReviewConversationId: mocks.selectNextReviewConversationId
+}));
+
+vi.mock("@/lib/jobs/enqueue", () => ({
+  enqueueBackendJob: mocks.enqueueBackendJob
 }));
 
 function reviewerUser() {
@@ -140,6 +145,42 @@ describe("review action lifecycle guards", () => {
     mocks.tx.review.update.mockResolvedValue({ id: "review-existing" });
     mocks.auditLog.mockResolvedValue({});
     mocks.recordReviewEvent.mockResolvedValue({});
+    mocks.enqueueBackendJob.mockResolvedValue({ id: "job-1" });
+  });
+
+  it("enqueues a MESSAGING_DELIVERY job for the manager when a review is finalized", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    const formData = baseFinalizeForm();
+    formData.set("criterion.x.score", "3");
+
+    await finalizeReview(formData);
+
+    expect(mocks.enqueueBackendJob).toHaveBeenCalledTimes(1);
+    expect(mocks.enqueueBackendJob).toHaveBeenCalledWith(
+      {
+        workspaceId: "workspace-1",
+        type: "MESSAGING_DELIVERY",
+        payload: expect.objectContaining({
+          eventType: "review.finalized",
+          recipientType: "manager",
+          context: expect.objectContaining({
+            title: "Проверка завершена",
+            body: "Оператор · 0 баллов",
+            href: "/reviews/conversation-1"
+          })
+        })
+      },
+      mocks.tx
+    );
+  });
+
+  it("enqueues the finalize messaging job inside the same transaction client", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+
+    await finalizeReview(baseFinalizeForm());
+
+    const [, txClient] = mocks.enqueueBackendJob.mock.calls[0];
+    expect(txClient).toBe(mocks.tx);
   });
 
   it("blocks HUMAN finalization when the conversation is already FINALIZED", async () => {

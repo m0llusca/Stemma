@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { enqueueBackendJob } from "@/lib/jobs/enqueue";
+import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
 import { selectNextReviewConversationId } from "@/lib/queue-view-actions";
 import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
@@ -643,6 +645,27 @@ async function finalizeReviewCore(formData: FormData) {
         needsReanswer: processFields.needsReanswer
       }
     });
+
+    // Notify the manager that this conversation has been graded. Enqueued
+    // unconditionally inside the transaction so the job commits atomically with
+    // the finalize; the delivery worker no-ops when no active channel exists.
+    const finalizePayload: MessagingDeliveryJobPayload = {
+      eventType: "review.finalized",
+      recipientType: "manager",
+      context: {
+        title: "Проверка завершена",
+        body: `${conversation.assigneeName ?? "Оператор"} · ${reviewTotalScore} баллов`,
+        href: `/reviews/${conversationId}`
+      }
+    };
+    await enqueueBackendJob(
+      {
+        workspaceId: user.workspaceId,
+        type: "MESSAGING_DELIVERY",
+        payload: finalizePayload
+      },
+      tx
+    );
   });
 
   revalidatePath("/reviews");

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { canAcknowledgeFeedback, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { enqueueBackendJob } from "@/lib/jobs/enqueue";
+import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
 import {
   feedbackToastMessage,
   trainingCreatedToastMessage,
@@ -149,6 +151,28 @@ export async function updateReviewFeedback(formData: FormData) {
       toStatus: eventStatuses.toStatus,
       metadata: { comment }
     });
+
+    // An opened appeal needs a manager's attention. Enqueued inside the same
+    // transaction so it commits atomically; the worker no-ops with no channel.
+    if (action === "appeal_opened") {
+      const appealPayload: MessagingDeliveryJobPayload = {
+        eventType: "appeal.opened",
+        recipientType: "manager",
+        context: {
+          title: "Открыта апелляция",
+          body: `Обращение ${review.conversation.assigneeName ?? "оператора"}`,
+          href: `/reviews/${review.conversationId}`
+        }
+      };
+      await enqueueBackendJob(
+        {
+          workspaceId: user.workspaceId,
+          type: "MESSAGING_DELIVERY",
+          payload: appealPayload
+        },
+        tx
+      );
+    }
   });
 
   revalidatePath(`/reviews/${review.conversationId}`);
@@ -204,6 +228,27 @@ export async function createTrainingAssignmentFromReview(formData: FormData) {
         assigneeName
       }
     });
+
+    // Tell the assignee a training task was created for them. Enqueued in-tx so
+    // it commits with the assignment; the worker no-ops with no active channel.
+    const trainingPayload: MessagingDeliveryJobPayload = {
+      eventType: "training.assigned",
+      recipientType: "assignee",
+      recipientRef: assigneeName,
+      context: {
+        title: "Назначена учебная задача",
+        body: `${assigneeName}: ${title}`,
+        href: "/coaching"
+      }
+    };
+    await enqueueBackendJob(
+      {
+        workspaceId: user.workspaceId,
+        type: "MESSAGING_DELIVERY",
+        payload: trainingPayload
+      },
+      tx
+    );
   });
 
   revalidatePath(`/reviews/${review.conversationId}`);
@@ -293,6 +338,28 @@ export async function createTrainingAssignment(formData: FormData) {
         }
       });
     }
+
+    // Tell the assignee a training task was created for them. Enqueued in-tx so
+    // it commits with the assignment; the worker no-ops with no active channel.
+    const resolvedAssigneeName = assignee?.name ?? fallbackAssigneeName;
+    const trainingPayload: MessagingDeliveryJobPayload = {
+      eventType: "training.assigned",
+      recipientType: "assignee",
+      recipientRef: resolvedAssigneeName,
+      context: {
+        title: "Назначена учебная задача",
+        body: `${resolvedAssigneeName}: ${title}`,
+        href: "/coaching"
+      }
+    };
+    await enqueueBackendJob(
+      {
+        workspaceId: user.workspaceId,
+        type: "MESSAGING_DELIVERY",
+        payload: trainingPayload
+      },
+      tx
+    );
   });
 
   revalidatePath("/coaching");

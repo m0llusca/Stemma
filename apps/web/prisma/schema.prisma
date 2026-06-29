@@ -96,6 +96,7 @@ enum BackendJobType {
   RETENTION_CLEANUP
   WEBHOOK_INGEST
   AI_SCORE
+  MESSAGING_DELIVERY
 }
 
 enum BackendJobStatus {

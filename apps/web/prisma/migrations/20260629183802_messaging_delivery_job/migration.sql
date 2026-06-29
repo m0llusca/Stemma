@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "BackendJobType" ADD VALUE 'MESSAGING_DELIVERY';

@@ -23,10 +23,13 @@ import { MetricValue } from "@/components/ui/metric-value";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { MessagingChannelForm } from "@/components/admin/messaging-channel-form";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { setMessagingChannelStatus } from "@/lib/messaging-actions";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
+import { maskSecret } from "@/lib/secrets";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
@@ -261,6 +264,24 @@ function parseCapabilities(value: string | undefined) {
   }
 
   return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function parseWebhookUrl(value: string | undefined | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && typeof (parsed as Record<string, unknown>).webhookUrl === "string") {
+      const webhookUrl = (parsed as Record<string, string>).webhookUrl.trim();
+      return webhookUrl || null;
+    }
+  } catch {
+    // Malformed config — treat as unset rather than throwing in the admin view.
+  }
+
+  return null;
 }
 
 function messagingCapabilityLabel(value: string) {
@@ -823,11 +844,16 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           ) : null}
           <div className="grid gap-5 p-5 pt-0 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.75fr)]">
             <section aria-labelledby="channel-readiness-title">
-              <h3 id="channel-readiness-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Готовность каналов</h3>
+              <h3 id="channel-readiness-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Настройка каналов</h3>
               <div className="record-list">
                 {Object.values(messagingChannelRegistry).map((definition) => {
                   const channel = configuredChannelByKind.get(definition.kind);
                   const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
+                  const webhookUrl = parseWebhookUrl(channel?.configJson);
+                  const maskedWebhook = maskSecret(webhookUrl);
+                  const hasSecret = Boolean(channel?.secretRef);
+                  const channelStatus = channel?.status ?? "draft";
+                  const isActive = channelStatus === "active";
 
                   return (
                     <article key={definition.kind} className="record-card">
@@ -844,17 +870,37 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         </div>
                         <StatusBadge
                           label="Статус"
-                          value={channel ? messagingChannelStatusLabel(channel.status) : "Не настроен"}
-                          tone={channel ? messagingChannelTone(channel.status) : "neutral"}
+                          value={channel ? messagingChannelStatusLabel(channelStatus) : "Не настроен"}
+                          tone={channel ? messagingChannelTone(channelStatus) : "neutral"}
                         />
                       </div>
+
+                      <MessagingChannelForm
+                        kind={definition.kind}
+                        displayName={channel?.displayName ?? definition.displayName}
+                        status={channelStatus}
+                        maskedWebhook={maskedWebhook}
+                        hasSecret={hasSecret}
+                      />
+
                       <p className="record-meta tabular-nums">
                         Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
                       </p>
                       {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
-                      <a href={definition.docsHref} target="_blank" rel="noreferrer" className="quiet-link text-sm">
-                        Документация канала
-                      </a>
+                      <div className="messaging-channel-footer">
+                        <a href={definition.docsHref} target="_blank" rel="noreferrer" className="quiet-link text-sm">
+                          Документация канала
+                        </a>
+                        {channel ? (
+                          <form action={setMessagingChannelStatus} className="messaging-channel-footer__toggle">
+                            <input type="hidden" name="kind" value={definition.kind} />
+                            <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
+                            <button type="submit" className="action-button action-button--small">
+                              {isActive ? "В черновик" : "Активировать"}
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
                     </article>
                   );
                 })}
