@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 import type { ChartDatum } from "@/components/reports/report-charts";
 
@@ -52,14 +52,34 @@ export function InteractiveSparklineChart({
   annotation
 }: InteractiveSparklineChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // Measure the real plot width so the chart geometry is built 1:1 in CSS pixels.
+  // A fixed viewBox would letterbox on wide columns (the dots drift away from the
+  // hover strips), so the points are placed against the actual rendered width.
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [plotWidth, setPlotWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const node = plotRef.current;
+    if (!node || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width && width > 0) {
+        setPlotWidth(width);
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const chart = useMemo(() => {
     if (points.length === 0) {
       return null;
     }
 
-    const width = 360;
-    const height = 112;
+    const width = plotWidth ?? 360;
+    const height = 132;
     const values = points.map((point) => point.value);
     const min = Math.min(...values, target ?? values[0]);
     const max = Math.max(...values, target ?? values[0]);
@@ -92,7 +112,7 @@ export function InteractiveSparklineChart({
       targetY,
       width
     };
-  }, [points, target]);
+  }, [points, target, plotWidth]);
 
   if (!chart) {
     return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок за выбранный период.</p>;
@@ -121,10 +141,11 @@ export function InteractiveSparklineChart({
         </div>
       </div>
 
-      <div className="interactive-sparkline__plot">
+      <div className="interactive-sparkline__plot" ref={plotRef}>
         <svg
           viewBox={`0 0 ${chart.width} ${chart.height}`}
           className="interactive-sparkline__svg"
+          preserveAspectRatio="none"
           role="img"
           aria-label="Тренд средней оценки"
         >

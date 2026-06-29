@@ -56,8 +56,8 @@ describe("SparklineChart", () => {
     const path = container.querySelector("path");
     const circles = container.querySelectorAll(".interactive-sparkline__point-marker");
 
-    expect(path).toHaveAttribute("d", "M 0.0 56.0 L 360.0 0.0");
-    expect(circles[0]).toHaveAttribute("cy", "56");
+    expect(path).toHaveAttribute("d", "M 0.0 66.0 L 360.0 0.0");
+    expect(circles[0]).toHaveAttribute("cy", "66");
     expect(circles[1]).toHaveAttribute("cy", "0");
   });
 
