@@ -1164,12 +1164,15 @@
   pointer-events: none;
 }
 
+/* Full-height hover strip — as wide as the gap between points (set inline) and
+   spanning the whole plot. Strips tile horizontally with no overlap, so every
+   point stays reachable no matter how narrow the chart column gets. The point
+   tooltip is anchored to the point via its own inline top. */
 .interactive-sparkline__point-control {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
   outline: 2px solid transparent;
   outline-offset: 2px;
   pointer-events: auto;
@@ -1181,12 +1184,11 @@
 
 .interactive-sparkline__point-tooltip {
   position: absolute;
-  bottom: calc(100% + 8px);
   left: 50%;
-  z-index: 2;
+  z-index: 3;
   display: none;
   width: min(210px, calc(100vw - 48px));
-  transform: translateX(-50%);
+  transform: translate(-50%, calc(-100% - 12px));
   border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
   border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--panel) 96%, transparent);
@@ -1203,18 +1205,26 @@
 
 .interactive-sparkline__point-control--left .interactive-sparkline__point-tooltip {
   left: 0;
-  transform: none;
+  transform: translate(0, calc(-100% - 12px));
 }
 
 .interactive-sparkline__point-control--right .interactive-sparkline__point-tooltip {
   right: 0;
   left: auto;
-  transform: none;
+  transform: translate(0, calc(-100% - 12px));
 }
 
+/* Point sits high in the plot — drop the tooltip below it so it stays in view. */
 .interactive-sparkline__point-control--top .interactive-sparkline__point-tooltip {
-  top: calc(100% + 8px);
-  bottom: auto;
+  transform: translate(-50%, 12px);
+}
+
+.interactive-sparkline__point-control--top.interactive-sparkline__point-control--left .interactive-sparkline__point-tooltip {
+  transform: translate(0, 12px);
+}
+
+.interactive-sparkline__point-control--top.interactive-sparkline__point-control--right .interactive-sparkline__point-tooltip {
+  transform: translate(0, 12px);
 }
 
 .interactive-sparkline__point-tooltip strong {

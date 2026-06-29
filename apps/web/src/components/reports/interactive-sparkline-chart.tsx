@@ -100,6 +100,9 @@ export function InteractiveSparklineChart({
 
   const firstPoint = chart.points[0];
   const lastPoint = chart.points[chart.points.length - 1];
+  // Each hover control is a vertical strip as wide as the gap between points, so
+  // every point stays reachable no matter how narrow the chart column gets.
+  const controlWidthPercent = chart.points.length > 1 ? 100 / (chart.points.length - 1) : 100;
   const targetLabel = target == null ? null : `Цель ${target}`;
   const targetBandY = chart.targetY == null ? null : Math.max(0, Math.min(chart.height, chart.targetY));
 
@@ -192,7 +195,7 @@ export function InteractiveSparklineChart({
               point.yPercent < 44 ? "interactive-sparkline__point-control--top" : ""
             ].filter(Boolean).join(" ");
             const content = (
-              <span className="interactive-sparkline__point-tooltip" aria-hidden="true">
+              <span className="interactive-sparkline__point-tooltip" aria-hidden="true" style={{ top: `${point.yPercent}%` }}>
                 <strong>{point.label}</strong>
                 <span>{formatQualityScore(point.value)}</span>
                 <small>{[point.detail, pointDeltaLabel(point.delta)].filter(Boolean).join(", ")}</small>
@@ -201,7 +204,7 @@ export function InteractiveSparklineChart({
             const controlProps = {
               "aria-label": point.href ? `${point.tooltip}. Открыть проверки` : point.tooltip,
               className: pointControlClass,
-              style: { left: `${point.xPercent}%`, top: `${point.yPercent}%` },
+              style: { left: `${point.xPercent}%`, width: `${controlWidthPercent}%` },
               onFocus: showPoint,
               onBlur: hidePoint,
               onMouseEnter: showPoint,
