@@ -2241,7 +2241,10 @@ a.agent-leaderboard__row:hover {
   gap: 4px;
   min-width: 72px;
   border-radius: var(--radius-small);
-  background: color-mix(in srgb, var(--foreground) var(--matrix-fill), var(--panel));
+  /* Single-hue heat ramp keyed off the indigo accent: weaker scores read as a
+     denser indigo tint, not a traffic-light red. Token-driven so it restyles
+     with the theme (including Night Ops). */
+  background: color-mix(in srgb, var(--accent) var(--matrix-fill), var(--panel));
   padding: 7px 9px;
 }
 
@@ -2275,31 +2278,32 @@ a.agent-leaderboard__row:hover {
   height: 3px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--foreground) 10%, var(--panel-muted));
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-muted));
 }
 
 .criterion-matrix__cell-bar span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: color-mix(in srgb, var(--foreground) 58%, var(--panel));
+  background: color-mix(in srgb, var(--accent) 64%, var(--panel));
 }
 
-/* Lower score => denser ink fill (single hue, no traffic light). */
+/* Lower score => denser indigo tint (single hue, no traffic light). Accent
+   reads lighter than near-black foreground, so the ramp runs a touch stronger. */
 .criterion-matrix__cell--t1 {
-  --matrix-fill: 4%;
+  --matrix-fill: 6%;
 }
 
 .criterion-matrix__cell--t2 {
-  --matrix-fill: 9%;
+  --matrix-fill: 13%;
 }
 
 .criterion-matrix__cell--t3 {
-  --matrix-fill: 15%;
+  --matrix-fill: 22%;
 }
 
 .criterion-matrix__cell--t4 {
-  --matrix-fill: 24%;
+  --matrix-fill: 34%;
 }
 
 .criterion-matrix__cell--empty {

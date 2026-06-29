@@ -12,9 +12,9 @@ import { EmptyState } from "@/components/ui/empty-state";
  * - sticky first column (the agent / row label) so the name never scrolls away;
  * - a pinned "Среднее по команде" row at the top as the reference line;
  * - small-caps column headers;
- * - a SINGLE-HUE desaturated tint ramp for the cell background (no
- *   green-yellow-red traffic light) — stronger ink = lower pass-rate, so weak
- *   cells read as "darker/denser", not "red";
+ * - a SINGLE-HUE indigo tint ramp for the cell background (keyed off the
+ *   `--accent` accent, no green-yellow-red traffic light) — denser tint = lower
+ *   pass-rate, so weak cells read as "darker/denser", not "red";
  * - an inline micro-bar inside every pass-rate cell;
  * - a column picker to hide/show criteria columns.
  *
