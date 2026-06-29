@@ -21,6 +21,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MetricValue } from "@/components/ui/metric-value";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -661,17 +663,12 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   ];
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Состояние системы</h1>
-          <p className="page-subtitle">
-            Единый контур для окружения, очереди, каналов, SSO/AD, интеграций и обслуживания.
-          </p>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Администрирование"
+      title="Состояние системы"
+      description="Единый контур для окружения, очереди, каналов, SSO/AD, интеграций и обслуживания."
+    >
+      <AdminFrame>
       <section className={`system-cockpit system-cockpit--${overallTone}`} aria-label="Операционная сводка системы">
         <div className="system-cockpit__lead">
           <div className="system-cockpit__status">
@@ -1174,6 +1171,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { StatKpi, type StatKpiDelta, type StatKpiTone } from "@/components/ui/stat-kpi";
 import type { StatusTone } from "@/lib/ui/status-tone";
 
@@ -28,7 +29,8 @@ export function OperationKpiCard({
   delta,
   tone,
   label,
-  hint
+  hint,
+  trend
 }: {
   href: string;
   className?: string;
@@ -39,6 +41,7 @@ export function OperationKpiCard({
   tone: StatusTone;
   label: string;
   hint: string;
+  trend?: ReactNode;
 }) {
   return (
     <Link href={href} className={`dashboard-kpi ${className ?? ""}`.trim()}>
@@ -48,6 +51,7 @@ export function OperationKpiCard({
         unit={unit}
         delta={delta}
         hint={hint}
+        trend={trend}
         icon={<Icon size={16} aria-hidden="true" />}
         tone={statKpiToneForStatusTone[tone]}
       />

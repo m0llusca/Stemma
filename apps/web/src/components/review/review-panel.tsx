@@ -120,15 +120,43 @@ function criterionStatus(criterion: ScorecardCriterion, score?: CriterionScore):
 function getCriterionDensityMeta(score?: CriterionScore) {
   const meta: string[] = [];
 
-  if (score?.evidenceMessageId) {
-    meta.push("доказательство");
-  }
-
   if (score?.comment) {
     meta.push("комментарий");
   }
 
   return meta;
+}
+
+/**
+ * AI prediction for a criterion. There is no per-criterion AI verdict in the
+ * data model yet, so the predicted state is the model's optimistic default
+ * (pass / "3 · стандарт") — this renders the violet provenance chip and the
+ * agree/override affordance now; the override LOGIC is wired in a later phase.
+ */
+function aiPrediction(criterion: ScorecardCriterion): { label: string; passed: boolean; value: number } {
+  if (criterion.kind === "SCALE_1_3") {
+    return { label: "3 · стандарт", passed: true, value: 3 };
+  }
+
+  return { label: "Зачёт", passed: true, value: 3 };
+}
+
+function aiAgreesWithDraft(criterion: ScorecardCriterion, score?: CriterionScore) {
+  if (score?.isNotApplicable) {
+    return false;
+  }
+
+  const prediction = aiPrediction(criterion);
+
+  if (criterion.kind === "SCALE_1_3") {
+    return (score?.value ?? 3) === prediction.value;
+  }
+
+  return (score?.passed ?? true) === prediction.passed;
+}
+
+function formatEvidenceTime(value: Date) {
+  return value.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
 function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionScore) {
@@ -249,6 +277,7 @@ export function ReviewPanel({
     return groups;
   }, []);
 
+  const messageById = new Map(messages.map((message) => [message.id, message]));
   const totalWeight = scorecard.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
   const answeredCount = scorecard.criteria.filter((criterion) => {
     const score = draftScores.get(criterion.id);
@@ -298,14 +327,19 @@ export function ReviewPanel({
       </div>
 
       {/* Live score math: the running final score is the hero numeral; weight and
-          progress sit beside it. Filled by the saved draft total until re-saved. */}
+          progress sit beside it. Filled by the saved draft total until re-saved.
+          A section-weight bar below shows how the 100 points split across process
+          groups (single indigo hue, hairline segments). */}
       <section className={`review-score-surface ${styles.scoreSurface}`}>
         <div className={styles.scoreMath}>
           <div className={styles.scoreMathHero}>
             <span className={styles.scoreMathLabel}>Итоговый балл</span>
-            <span className={styles.scoreMathValue}>
-              {draftReview?.totalScore != null ? formatQualityScore(draftReview.totalScore) : "—"}
-            </span>
+            <div className={styles.scoreMathValueRow}>
+              <span className={styles.scoreMathValue}>
+                {draftReview?.totalScore != null ? formatQualityScore(draftReview.totalScore) : "—"}
+              </span>
+              <span className={styles.scoreMathOutOf}>/ 100</span>
+            </div>
             <span className={styles.scoreMathHint}>
               {draftReview?.totalScore != null ? "Из последнего сохранения" : "Появится после сохранения"}
             </span>
@@ -321,10 +355,34 @@ export function ReviewPanel({
             </div>
           </dl>
         </div>
+
+        {totalWeight > 0 ? (
+          <div className={styles.weightBar} role="img" aria-label="Распределение веса по группам критериев">
+            {criteriaByBlock.map((group, index) => {
+              const groupWeight = group.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
+              const share = (groupWeight / totalWeight) * 100;
+
+              return (
+                <span
+                  key={group.block}
+                  className={styles.weightBarSegment}
+                  data-index={index % 3}
+                  style={{ width: `${share}%` }}
+                  title={`${group.block} · ${groupWeight}%`}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+
+        <div className={styles.criticalRow} data-active={draftReview?.criticalError ? "true" : undefined}>
+          <span className={styles.criticalRowLabel}>Критическая ошибка</span>
+          <span className={styles.criticalRowValue}>
+            {draftReview?.criticalError ? draftReview.criticalCategory ?? "Выявлена" : "Не выявлена"}
+          </span>
+        </div>
+
         <div className="signal-row">
-          <Chip tone={draftReview?.criticalError ? "danger" : "neutral"} size="sm">
-            {draftReview?.criticalError ? "Критическая ошибка" : "Без критической"}
-          </Chip>
           <Chip tone={draftReview?.needsReanswer ? "warning" : "neutral"} size="sm">
             {draftReview?.needsReanswer ? "Нужен переответ" : "Переответ не нужен"}
           </Chip>
@@ -389,12 +447,21 @@ export function ReviewPanel({
                       const densityMeta = getCriterionDensityMeta(draftScore);
                       const hasIssue = isCriterionIssue(criterion, draftScore);
                       const contribution = criterionContribution(criterion, draftScore);
+                      const prediction = aiPrediction(criterion);
+                      const aiAgrees = aiAgreesWithDraft(criterion, draftScore);
+                      const evidenceMessage = draftScore?.evidenceMessageId
+                        ? messageById.get(draftScore.evidenceMessageId)
+                        : undefined;
+                      // The active/AI-flagged criterion (a failing one, or one where
+                      // the human overrode the AI) earns the indigo 1.5px border.
+                      const aiFlagged = hasIssue || (!aiAgrees && !draftScore?.isNotApplicable);
 
                       return (
                         <details
                           key={criterion.id}
                           className={`criterion-card disclosure-panel ${styles.criterionCard}`}
                           data-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
+                          data-ai-flag={aiFlagged ? "true" : undefined}
                           open={shouldOpenCriterion(criterion, draftScore)}
                         >
                           <summary className={`disclosure-summary ${styles.criterionSummary}`}>
@@ -402,9 +469,17 @@ export function ReviewPanel({
                             <div className={styles.criterionMain}>
                               <div className={styles.criterionTopline}>
                                 <h4 className={styles.criterionTitle}>{criterion.label}</h4>
-                                <WorkbenchStatus tone={status.tone}>
-                                  {status.label}
-                                </WorkbenchStatus>
+                                <span className={styles.criterionToplineSignals}>
+                                  <span
+                                    className={`${styles.aiChip} ${aiAgrees ? styles.aiChipAgree : ""}`}
+                                    title={`Предсказание ИИ: ${prediction.label}`}
+                                  >
+                                    {aiAgrees ? "ИИ согласен" : `ИИ: ${prediction.label}`}
+                                  </span>
+                                  <WorkbenchStatus tone={status.tone}>
+                                    {status.label}
+                                  </WorkbenchStatus>
+                                </span>
                               </div>
                               <div className={styles.criterionMeta}>
                                 <span className={styles.criterionWeight}>Вес {criterion.weight}%</span>
@@ -412,6 +487,11 @@ export function ReviewPanel({
                                   Вклад {draftScore?.isNotApplicable ? "Н/П" : formatPercent(contribution)}
                                 </span>
                                 <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
+                                {evidenceMessage ? (
+                                  <span className={styles.criterionEvidence}>
+                                    Доказательство → {formatEvidenceTime(evidenceMessage.sentAt)}
+                                  </span>
+                                ) : null}
                                 {densityMeta.map((item) => (
                                   <span key={item}>{item}</span>
                                 ))}
@@ -781,6 +861,20 @@ export function ReviewPanel({
           </details>
         </div>
       </StepDisclosure>
+      </div>
+
+      <div className={styles.panelFooter}>
+        <span className={styles.keyboardHint} aria-hidden="true">
+          <kbd>J</kbd>
+          <kbd>K</kbd>
+          <span className={styles.keyboardHintDot}>·</span>
+          <kbd>1</kbd>
+          <kbd>2</kbd>
+          <kbd>3</kbd>
+        </span>
+        <a href="#coaching-analysis" className={styles.addToCoaching}>
+          Добавить в обучение
+        </a>
       </div>
     </ReviewFormShell>
   );

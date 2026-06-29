@@ -33,7 +33,8 @@ vi.mock("next/headers", () => ({
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
-  })
+  }),
+  usePathname: () => "/admin/tokens"
 }));
 
 vi.mock("next/link", () => ({

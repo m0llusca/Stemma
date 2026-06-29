@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
 import { PageSkeleton } from "@/components/loading-states";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
 import { getIntegrationInstallContract } from "@/lib/integrations/install-contracts/registry";
@@ -50,41 +52,39 @@ async function NewIntegrationPageContent() {
   });
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Новый источник</h1>
-          <p className="page-subtitle">
-            Выберите тип, укажите адрес и доступы — Stemma проверит права и подготовит импорт.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href="/admin/integrations" className="action-button">
-              <ArrowLeft size={16} aria-hidden="true" />
-              К интеграциям
-            </Link>
-            <Link href="/admin/tokens" className="action-button action-button--quiet">
-              <KeyRound size={16} aria-hidden="true" />
-              API-доступ
-            </Link>
+    <PageShell
+      eyebrow="Администрирование"
+      title="Новый источник"
+      description="Выберите тип, укажите адрес и доступы — Stemma проверит права и подготовит импорт."
+      actions={
+        <>
+          <Link href="/admin/integrations" className="action-button">
+            <ArrowLeft size={16} aria-hidden="true" />
+            К интеграциям
+          </Link>
+          <Link href="/admin/tokens" className="action-button action-button--quiet">
+            <KeyRound size={16} aria-hidden="true" />
+            API-доступ
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
+        <section className="ops-panel" aria-labelledby="new-integration-title">
+          <div className="ops-panel__header">
+            <div>
+              <p className="ops-panel__eyebrow">Источник</p>
+              <h2 id="new-integration-title" className="ops-panel__title">Мастер подключения источника</h2>
+              <p className="ops-panel__subtitle">
+                Сейчас мастер принимает URL и учётные данные; OAuth/маркетплейс-установка появятся там, где это указано в контракте.
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <section className="ops-panel" aria-labelledby="new-integration-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Источник</p>
-            <h2 id="new-integration-title" className="ops-panel__title">Мастер подключения источника</h2>
-            <p className="ops-panel__subtitle">
-              Сейчас мастер принимает URL и учётные данные; OAuth/маркетплейс-установка появятся там, где это указано в контракте.
-            </p>
+          <div className="p-4">
+            <ConnectSourceForm sources={sources} />
           </div>
-        </div>
-        <div className="p-4">
-          <ConnectSourceForm sources={sources} />
-        </div>
-      </section>
-    </section>
+        </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

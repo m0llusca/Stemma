@@ -6,6 +6,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { SamplingRuleForm } from "@/components/admin/sampling-rule-form";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -114,26 +116,23 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
   const samplingSetupHint = activeRules > 0 ? null : getSettingCoachmark("sampling");
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Правила выборки</h1>
-          <p className="page-subtitle">
-            Управляют тем, какие обращения попадают в ручную проверку: случайная выборка, негативный CSAT, новые сотрудники и ручные сигналы.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href={samplingSectionHref("create")} className="action-button action-button--primary">
-              <Plus size={16} aria-hidden="true" />
-              Новое правило
-            </Link>
-            <Link href="/reviews" className="action-button">
-              Очередь проверок
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Администрирование"
+      title="Правила выборки"
+      description="Управляют тем, какие обращения попадают в ручную проверку: случайная выборка, негативный CSAT, новые сотрудники и ручные сигналы."
+      actions={
+        <>
+          <Link href={samplingSectionHref("create")} className="action-button action-button--primary">
+            <Plus size={16} aria-hidden="true" />
+            Новое правило
+          </Link>
+          <Link href="/reviews" className="action-button">
+            Очередь проверок
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы правил выборки">
         {samplingSections.map((section) => (
           <Link
@@ -261,6 +260,7 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
           </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { LocalizationEditor } from "@/components/i18n/localization-editor";
 import { PageSkeleton } from "@/components/loading-states";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { Chip } from "@/components/ui/chip";
 import {
   createLocaleAction,
@@ -66,53 +68,49 @@ async function AdminLocalizationPageContent() {
   ]);
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Локализация</h1>
-          <p className="page-subtitle">
-            Управление языками рабочего пространства и публикацией переводов для интерфейсных ключей. Черновики можно сохранить отдельно от публикации.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href="/admin" className="action-button">
-              <ArrowLeft size={16} aria-hidden="true" />
-              К настройкам
-            </Link>
+    <PageShell
+      eyebrow="Администрирование"
+      title="Локализация"
+      description="Управление языками рабочего пространства и публикацией переводов для интерфейсных ключей. Черновики можно сохранить отдельно от публикации."
+      actions={
+        <Link href="/admin" className="action-button">
+          <ArrowLeft size={16} aria-hidden="true" />
+          К настройкам
+        </Link>
+      }
+    >
+      <AdminFrame>
+        <section className="ops-panel" aria-labelledby="localization-editor-title">
+          <div className="ops-panel__header">
+            <div className="min-w-0">
+              <p className="ops-panel__eyebrow">Рабочее пространство</p>
+              <h2 id="localization-editor-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
+              <p className="ops-panel__subtitle tabular-nums">
+                {locales.length} языков, {translationKeys.length} ключей. Публикация применяет текущий черновик выбранного языка.
+              </p>
+            </div>
+            <Chip tone="neutral" size="sm" icon={<Languages size={13} aria-hidden="true" />}>
+              i18n
+            </Chip>
           </div>
-        </div>
-      </div>
 
-      <section className="ops-panel" aria-labelledby="localization-editor-title">
-        <div className="ops-panel__header">
-          <div className="min-w-0">
-            <p className="ops-panel__eyebrow">Рабочее пространство</p>
-            <h2 id="localization-editor-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
-            <p className="ops-panel__subtitle tabular-nums">
-              {locales.length} языков, {translationKeys.length} ключей. Публикация применяет текущий черновик выбранного языка.
-            </p>
-          </div>
-          <Chip tone="neutral" size="sm" icon={<Languages size={13} aria-hidden="true" />}>
-            i18n
-          </Chip>
-        </div>
-
-        <LocalizationEditor
-          locales={locales}
-          translationKeys={translationKeys.map((translationKey) => ({
-            ...translationKey,
-            fullKey: `${translationKey.namespace}.${translationKey.key}`,
-            values: translationKey.values.map((value) => ({
-              ...value,
-              publishedAt: value.publishedAt?.toISOString() ?? null
-            }))
-          }))}
-          createLocaleAction={createLocaleAction}
-          saveDraftAction={saveTranslationDraftAction}
-          publishAction={publishTranslationAction}
-          rollbackAction={rollbackTranslationAction}
-        />
-      </section>
-    </section>
+          <LocalizationEditor
+            locales={locales}
+            translationKeys={translationKeys.map((translationKey) => ({
+              ...translationKey,
+              fullKey: `${translationKey.namespace}.${translationKey.key}`,
+              values: translationKey.values.map((value) => ({
+                ...value,
+                publishedAt: value.publishedAt?.toISOString() ?? null
+              }))
+            }))}
+            createLocaleAction={createLocaleAction}
+            saveDraftAction={saveTranslationDraftAction}
+            publishAction={publishTranslationAction}
+            rollbackAction={rollbackTranslationAction}
+          />
+        </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

@@ -477,18 +477,43 @@ details[open] > summary .queue-filterbar__chevron {
   min-width: 0;
   grid-template-columns:
     22px
+    28px
     minmax(132px, max-content)
     minmax(0, 1fr)
     minmax(120px, max-content)
     minmax(76px, max-content)
     minmax(72px, max-content)
     max-content;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
   border-bottom: 1px solid var(--border);
   background-color: var(--panel);
   padding: 9px 16px;
   transition: background-color 120ms ease;
+}
+
+/* Self-describing row avatar: operator (or customer) initials. Quiet by default,
+   inverts with the row on selection. */
+.queue-row__avatar {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-muted);
+  color: var(--text-subtle);
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.queue-row:has(.queue-row__checkbox:checked) .queue-row__avatar {
+  border-color: color-mix(in srgb, var(--background) 30%, transparent);
+  background: color-mix(in srgb, var(--background) 16%, var(--foreground));
+  color: var(--background);
 }
 
 .queue-row:last-child {
@@ -656,21 +681,21 @@ details[open] > summary .queue-filterbar__chevron {
 
 @media (max-width: 1100px) {
   .queue-row {
-    grid-template-columns: 22px minmax(120px, max-content) minmax(0, 1fr) max-content;
-    gap: 10px 14px;
+    grid-template-columns: 22px 28px minmax(120px, max-content) minmax(0, 1fr) max-content;
+    gap: 10px 12px;
     row-gap: 6px;
   }
 
   .queue-row__assignee,
   .queue-row__sla {
-    grid-column: 3;
+    grid-column: 4;
     justify-items: start;
     text-align: left;
   }
 
   .queue-row__score,
   .queue-row__open {
-    grid-column: 4;
+    grid-column: 5;
     justify-self: end;
   }
 }

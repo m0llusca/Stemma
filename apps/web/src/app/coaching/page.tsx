@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Archive,
+  ArrowRight,
   BookOpenCheck,
   CalendarDays,
   ClipboardList,
@@ -16,13 +17,13 @@ import {
 } from "lucide-react";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
-import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
-import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
-import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
+import { TrendChart } from "@/components/reports/trend-chart";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
 import { createTrainingAssignment, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
@@ -261,7 +262,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const weekAssignments = openAssignments.filter((assignment) => isDueThisWeek(assignment.dueAt, now));
   const mineAssignments = openAssignments.filter((assignment) => assignment.assigneeId === user.id || assignment.assigneeName === user.name);
   const unlinkedAssignments = openAssignments.filter((assignment) => !assignment.reviewId);
-  const criticalKnowledgeCount = knowledgeEntries.filter((entry) => entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH").length;
   const linkedAssignmentCount = assignments.filter((assignment) => assignment.reviewId).length;
   const viewCounts: Record<CoachingViewId, number> = {
     active: openAssignments.length,
@@ -364,6 +364,37 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const closeCreatePanelHref = baseCoachingHref;
   const coachingActionHref = nextConversation ? `/reviews/${nextConversation.id}` : createTaskHref;
   const coachingActionTone = overdueAssignments.length > 0 ? "negative" : openAssignments.length > 0 ? "warning" : "positive";
+  // Team score-over-time: bucket finalized review scores by month (oldest -> newest)
+  // for the TrendChart. Volume = number of reviews in the bucket.
+  const scoreBuckets = new Map<string, { sum: number; count: number; order: number }>();
+  for (const review of agentScoreHistory) {
+    if (!review.finalizedAt) {
+      continue;
+    }
+    const date = review.finalizedAt;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const order = date.getFullYear() * 12 + date.getMonth();
+    const bucket = scoreBuckets.get(key);
+    if (bucket) {
+      bucket.sum += review.totalScore;
+      bucket.count += 1;
+    } else {
+      scoreBuckets.set(key, { sum: review.totalScore, count: 1, order });
+    }
+  }
+  const scoreTrend = [...scoreBuckets.entries()]
+    .sort((left, right) => left[1].order - right[1].order)
+    .slice(-8)
+    .map(([key, bucket]) => {
+      const [, month] = key.split("-");
+      return {
+        label: `${month}`,
+        value: Math.round(bucket.sum / bucket.count),
+        volume: bucket.count
+      };
+    });
+  const trendPoints = scoreTrend.map((point) => ({ label: point.label, value: point.value }));
+  const trendVolume = scoreTrend.map((point) => point.volume);
   const measuredTrainingEffectCount = trainingEffects.size;
   const positiveTrainingEffectCount = trainingEffectValues.filter((value) => value > 0).length;
   const linkedAssignmentShare = assignments.length > 0 ? Math.round((linkedAssignmentCount / assignments.length) * 100) : 0;
@@ -396,78 +427,135 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     }
   ];
 
+  const coachingTriageTone: TriageStripTone =
+    coachingActionTone === "negative" ? "danger" : coachingActionTone === "warning" ? "warning" : "success";
+
   return (
-    <OperationalPageFrame
+    <PageShell
+      eyebrow="Развитие качества"
       title="Обучение"
-      className="page-shell workspace-shell"
-      signals={
-        <section className="enablement-header" aria-label="Сводка обучения">
-          <div className="enablement-header__lead min-w-0">
-            <p className="page-kicker">Развитие качества</p>
-            <h1 className="page-title">Обучение</h1>
-            <p className="page-subtitle">
-              Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить.
-            </p>
-            <div className="admin-actions coaching-command-actions">
-              <Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} className={`action-button ${createTaskOpen ? "" : "action-button--primary"}`}>
-                {createTaskOpen ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
-                {createTaskOpen ? "Скрыть форму" : "Новая задача"}
-              </Link>
-              <Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} className="action-button">
-                {createRuleOpen ? <X size={18} aria-hidden="true" /> : <BookOpenCheck size={18} aria-hidden="true" />}
-                {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
-              </Link>
+      description="Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить."
+      actions={
+        <>
+          <Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} className={`action-button ${createTaskOpen ? "" : "action-button--primary"}`}>
+            {createTaskOpen ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+            {createTaskOpen ? "Скрыть форму" : "Новая задача"}
+          </Link>
+          <Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} className="action-button">
+            {createRuleOpen ? <X size={18} aria-hidden="true" /> : <BookOpenCheck size={18} aria-hidden="true" />}
+            {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
+          </Link>
+        </>
+      }
+    >
+      <TriageStrip
+        tone={coachingTriageTone}
+        icon={overdueAssignments.length > 0 ? <TriangleAlert size={18} aria-hidden="true" /> : <ClipboardList size={18} aria-hidden="true" />}
+        title={nextAssignment ? nextAssignment.title : "Создать следующий разбор"}
+        description={
+          nextAssignment
+            ? `${nextAssignment.assigneeName} · ${dueText(nextAssignment.dueAt)}. Сначала закройте этот разбор.`
+            : "Активных разборов нет. Создайте задачу из проверки с замечанием или добавьте ручной разбор."
+        }
+        action={
+          <Link href={coachingActionHref} className="action-button action-button--primary">
+            {nextConversation ? "Открыть проверку" : "Новая задача"}
+            <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        }
+      />
+
+      <div className="enablement-kpi-grid" aria-label="Ключевые показатели обучения">
+        <StatKpi
+          label="В работе"
+          value={openAssignments.length}
+          icon={<Clock3 size={16} aria-hidden="true" />}
+          hint={weekAssignments.length > 0 ? `${weekAssignments.length} со сроком на неделе` : "Сроки под контролем"}
+        />
+        <StatKpi
+          label="Просрочено"
+          value={overdueAssignments.length}
+          tone={overdueAssignments.length > 0 ? "danger" : "neutral"}
+          icon={<TriangleAlert size={16} aria-hidden="true" />}
+          hint={overdueAssignments.length > 0 ? "Поднимаются в начало очереди" : "Просроченных разборов нет"}
+        />
+        <StatKpi
+          label="Эффект обучения"
+          value={averageTrainingEffect == null ? "—" : formatQualityScoreDelta(averageTrainingEffect)}
+          tone={averageTrainingEffect != null && averageTrainingEffect !== 0 ? (averageTrainingEffect > 0 ? "success" : "danger") : "neutral"}
+          icon={<BookOpenCheck size={16} aria-hidden="true" />}
+          hint={
+            measuredTrainingEffectCount > 0
+              ? `${positiveTrainingEffectCount} из ${measuredTrainingEffectCount} разборов дали рост`
+              : "Нужны оценки до и после"
+          }
+        />
+        <StatKpi
+          label="Закрыто"
+          value={doneAssignments.length}
+          icon={<Archive size={16} aria-hidden="true" />}
+          hint={assignments.length > 0 ? `${Math.round((doneAssignments.length / assignments.length) * 100)}% всех разборов` : "Разборов пока нет"}
+        />
+      </div>
+
+      {trendPoints.length >= 2 || topCategories.length > 0 ? (
+        <section className="coaching-trend-board panel" aria-label="Динамика качества и зоны роста">
+          <div className="coaching-trend-board__chart">
+            <div className="coaching-trend-board__chart-head">
+              <span className="page-kicker">Качество во времени</span>
+              <h2>Средний балл команды</h2>
+              <p>Динамика финальных проверок по месяцам. Закрытые разборы должны двигать линию вверх.</p>
             </div>
+            {trendPoints.length >= 2 ? (
+              <TrendChart
+                points={trendPoints}
+                volume={trendVolume}
+                height={120}
+                ariaLabel="Средний балл команды по месяцам"
+              />
+            ) : (
+              <EmptyState
+                size="inline"
+                icon={<BookOpenCheck size={20} aria-hidden="true" />}
+                title="Недостаточно данных для тренда"
+                description="Линия появится после финальных проверок за несколько месяцев."
+              />
+            )}
           </div>
-          <div className="enablement-kpi-grid" aria-label="Ключевые показатели обучения">
-            <StatKpi
-              label="В работе"
-              value={openAssignments.length}
-              icon={<Clock3 size={16} aria-hidden="true" />}
-              hint={weekAssignments.length > 0 ? `${weekAssignments.length} со сроком на неделе` : "Сроки под контролем"}
-            />
-            <StatKpi
-              label="Просрочено"
-              value={overdueAssignments.length}
-              tone={overdueAssignments.length > 0 ? "danger" : "neutral"}
-              icon={<TriangleAlert size={16} aria-hidden="true" />}
-              hint={overdueAssignments.length > 0 ? "Поднимаются в начало очереди" : "Просроченных разборов нет"}
-            />
-            <StatKpi
-              label="Эффект обучения"
-              value={averageTrainingEffect == null ? "—" : formatQualityScoreDelta(averageTrainingEffect)}
-              tone={averageTrainingEffect != null && averageTrainingEffect !== 0 ? (averageTrainingEffect > 0 ? "success" : "danger") : "neutral"}
-              icon={<BookOpenCheck size={16} aria-hidden="true" />}
-              hint={
-                measuredTrainingEffectCount > 0
-                  ? `${positiveTrainingEffectCount} из ${measuredTrainingEffectCount} разборов дали рост`
-                  : "Нужны оценки до и после"
-              }
-            />
-            <StatKpi
-              label="Закрыто"
-              value={doneAssignments.length}
-              icon={<Archive size={16} aria-hidden="true" />}
-              hint={assignments.length > 0 ? `${Math.round((doneAssignments.length / assignments.length) * 100)}% всех разборов` : "Разборов пока нет"}
-            />
+          <div className="coaching-trend-board__opportunities">
+            <div className="coaching-trend-board__opportunities-head">
+              <h3>Зоны роста</h3>
+              <p>Категории с наибольшим числом активных разборов.</p>
+            </div>
+            {topCategories.length > 0 ? (
+              <ol className="coaching-opportunity-list">
+                {topCategories.map(([categoryName, count], index) => (
+                  <li key={categoryName} className="coaching-opportunity">
+                    <span className="coaching-opportunity__rank" aria-hidden="true">{index + 1}</span>
+                    <span className="coaching-opportunity__name">{categoryName}</span>
+                    <Chip tone="neutral" size="xs" numeric>{count}</Chip>
+                    <Link
+                      href={viewHref(view, { q, assigneeId, category: categoryName })}
+                      className="coaching-opportunity__action"
+                    >
+                      <PlusCircle size={14} aria-hidden="true" />
+                      <span>В обучение</span>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <EmptyState
+                size="inline"
+                icon={<ClipboardList size={20} aria-hidden="true" />}
+                title="Зон роста пока нет"
+                description="Категории появятся после привязки разборов к проверкам."
+              />
+            )}
           </div>
         </section>
-      }
-      action={
-        <PriorityActionPanel
-          title={nextAssignment ? nextAssignment.title : "Создать следующий разбор"}
-          description={
-            nextAssignment
-              ? `${nextAssignment.assigneeName} / ${dueText(nextAssignment.dueAt)}. Сначала закройте этот coaching follow-up.`
-              : "Активных разборов нет. Создайте задачу из проверки с замечанием или добавьте ручной разбор."
-          }
-          actionLabel={nextConversation ? "Открыть проверку" : "Новая задача"}
-          href={coachingActionHref}
-          tone={coachingActionTone}
-        />
-      }
-      details={
-        <>
+      ) : null}
+
 
       {createTaskOpen ? (
         <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">
@@ -858,34 +946,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </div>
         </div>
       </section>
-        </>
-      }
-      evidence={
-        <EvidenceDrawer title="Evidence обучения" defaultOpen>
-          <div className="operational-evidence-grid">
-            <div className="operational-evidence-item">
-              <span>Активные</span>
-              <strong>{openAssignments.length}</strong>
-              <small>Все незакрытые coaching и training задачи.</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Просрочено</span>
-              <strong>{overdueAssignments.length}</strong>
-              <small>{overdueAssignments.length > 0 ? "Эти разборы поднимаются в основной action." : "Сроки активных разборов под контролем."}</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Связано с QA</span>
-              <strong>{linkedAssignmentCount}</strong>
-              <small>Задачи с привязкой к проверке и тикету.</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Правила</span>
-              <strong>{criticalKnowledgeCount}</strong>
-              <small>HIGH/CRITICAL правила, доступные для разбора.</small>
-            </div>
-          </div>
-        </EvidenceDrawer>
-      }
-    />
+    </PageShell>
   );
 }

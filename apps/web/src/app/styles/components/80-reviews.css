@@ -5,7 +5,6 @@
   min-width: 0;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 12px;
 }
 
 .review-main {
@@ -13,7 +12,39 @@
   grid-template-columns: minmax(0, 1fr) minmax(380px, 480px);
   align-items: start;
   gap: 18px;
-  order: 2;
+}
+
+/* v2 workbench: two-pane workspace — clean transcript left, dense scorecard
+   right. MasterDetail provides the grid; we tune the right pane width to the
+   approved mockup and let it stick while the transcript scrolls. */
+.review-workbench {
+  min-width: 0;
+}
+
+.review-workbench__panes {
+  --master-detail-list-width: minmax(0, 1fr);
+
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
+  gap: 18px;
+}
+
+.review-workbench__panes .master-detail__list {
+  position: static;
+  max-height: none;
+  overflow-y: visible;
+}
+
+@media (max-width: 1100px) {
+  .review-workbench__panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.review-detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
 }
 
 .review-ide-strip {
@@ -249,7 +280,7 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
 
 .review-panel-form {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   max-height: calc(100vh - 40px);
   min-width: 0;
 }
@@ -266,16 +297,39 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   grid-template-rows: auto auto;
 }
 
+.review-conversation-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--panel-header-border);
+  background: var(--panel-header);
+  padding: 13px 16px;
+}
+
+.review-conversation-panel__header h2 {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 720;
+  line-height: 1.25;
+}
+
+.review-conversation-panel__count {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
 .review-conversation-panel__body {
   min-height: 0;
   overflow: visible;
+  padding: 4px 20px 8px;
 }
 
 .review-context-panel {
   display: grid;
   gap: 0;
   overflow: clip;
-  order: 0;
 }
 
 .review-context-panel__details {
@@ -292,11 +346,6 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   align-items: baseline;
   justify-content: space-between;
   gap: 6px 12px;
-}
-
-.review-conversation-panel__header {
-  border-bottom-color: var(--panel-header-border) !important;
-  background: var(--panel-header);
 }
 
 .review-context-panel__header h2 {
@@ -391,7 +440,6 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  order: 1;
   border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
   border-radius: var(--radius-page);
   background: var(--warning-soft);
@@ -438,17 +486,18 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   display: contents;
 }
 
-.review-context,
-.review-secondary {
-  order: 3;
-}
-
+/* Modern transcript row: avatar initials + name/role + mono timestamp, message
+   text in Inter ~13.5px/1.5. Agent replies sit in a bordered bubble; an inline
+   violet "ИИ" tag marks AI-assisted answers (AI provenance only, never an
+   action). */
 .conversation-message {
   display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
   min-width: 0;
   gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding: 18px 0;
+  padding: 16px 0;
 }
 
 .conversation-message:last-child {
@@ -456,11 +505,51 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
 }
 
 .conversation-message--selected {
-  margin: 12px -12px;
-  border: 1px solid var(--accent-border);
+  margin: 8px -12px;
+  border: 1.5px solid var(--accent-border);
   border-radius: var(--radius-card);
   background: var(--panel-tint);
-  padding: 16px 12px;
+  padding: 14px 12px;
+}
+
+.conversation-message__avatar {
+  display: inline-flex;
+  height: 32px;
+  width: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-muted);
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.conversation-message[data-party="CUSTOMER"] .conversation-message__avatar {
+  border-color: var(--border-strong);
+  background: var(--surface-soft);
+}
+
+.conversation-message--agent .conversation-message__avatar {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.conversation-message[data-party="AI_AGENT"] .conversation-message__avatar {
+  border-color: var(--ai-border);
+  background: var(--ai-soft);
+  color: var(--ai-ink);
+}
+
+.conversation-message__content {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
 }
 
 .conversation-message__header {
@@ -468,25 +557,27 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
+  gap: 6px 10px;
 }
 
 .conversation-message__author {
   color: var(--foreground);
-  font-size: 14px;
-  font-weight: 780;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .conversation-message__role,
 .conversation-message__evidence,
-.conversation-message__private {
+.conversation-message__private,
+.conversation-message__ai-tag {
   display: inline-flex;
-  min-height: 24px;
+  min-height: 22px;
   width: fit-content;
   align-items: center;
-  border-radius: var(--radius-small);
-  padding: 4px 9px;
-  font-size: 12px;
+  border-radius: var(--radius-chip);
+  padding: 3px 8px;
+  font-size: 11px;
   font-weight: 720;
   line-height: 1.2;
 }
@@ -506,21 +597,83 @@ body[data-theme="ops"] .ai-draft-summary .page-kicker {
   color: var(--warning);
 }
 
+/* AI provenance tag — quiet violet, never colors an action. */
+.conversation-message__ai-tag {
+  border: 1px solid var(--ai-border);
+  background: var(--ai-soft);
+  color: var(--ai-ink);
+  letter-spacing: 0.02em;
+}
+
+.conversation-message__time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.conversation-message__plain,
+.conversation-message__bubble {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+/* Agent reply bubble — bordered, subtly raised off the plain transcript. */
+.conversation-message__bubble {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  padding: 12px 14px;
+}
+
+.conversation-message[data-party="AI_AGENT"] .conversation-message__bubble {
+  border-color: var(--ai-border);
+  background: color-mix(in srgb, var(--ai-soft) 38%, var(--panel));
+}
+
+.conversation-message__ai-rationale {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--ai-ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.conversation-message__ai-rationale-tag {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius-chip);
+  background: var(--ai-soft);
+  padding: 1px 6px;
+  color: var(--ai-ink);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
 .conversation-message__body {
   white-space: pre-wrap;
   color: var(--text-body);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .conversation-message__pin-count {
   display: inline-flex;
-  min-height: 24px;
+  min-height: 22px;
   width: fit-content;
   align-items: center;
-  border-radius: var(--radius-small);
-  padding: 4px 9px;
-  font-size: 12px;
+  border-radius: var(--radius-chip);
+  padding: 3px 8px;
+  font-size: 11px;
   font-weight: 720;
   line-height: 1.2;
   background: color-mix(in srgb, var(--accent) 14%, transparent);

@@ -1,7 +1,10 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, UsersRound } from "lucide-react";
+import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
+import { TriageStrip } from "@/components/ui/triage-strip";
 import { PageSkeleton } from "@/components/loading-states";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -326,95 +329,81 @@ async function AdminHomePageContent() {
       : "Можно переходить к методологии, источникам или журналу действий.";
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center admin-command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Настройки</h1>
-          <p className="page-subtitle">
-            Главные действия доступны отсюда напрямую, а редкие технические детали остаются внутри профильных разделов.
-          </p>
-          <div className="admin-actions mt-5">
-            {quickActions.slice(0, 3).map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <Link key={action.href} href={action.href} className={`action-button ${index === 0 ? "action-button--primary" : ""}`}>
-                  <Icon size={16} aria-hidden="true" />
-                  {action.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+    <PageShell
+      eyebrow="Администрирование"
+      title="Настройки"
+      description="Главные действия доступны отсюда напрямую, а редкие технические детали остаются внутри профильных разделов."
+      actions={quickActions.slice(0, 3).map((action, index) => {
+        const Icon = action.icon;
+        return (
+          <Link key={action.href} href={action.href} className={`action-button ${index === 0 ? "action-button--primary" : ""}`}>
+            <Icon size={16} aria-hidden="true" />
+            {action.label}
+          </Link>
+        );
+      })}
+    >
+      <AdminFrame>
+        <TriageStrip
+          tone={primarySetupCoachmark || attentionItems.length > 0 ? "warning" : "success"}
+          icon={<Sparkles size={18} aria-hidden="true" />}
+          title={priorityTitle}
+          description={priorityBody}
+          action={
+            primarySetupCoachmark ? (
+              <Link href={primarySetupCoachmark.href} className="action-button action-button--small action-button--primary">
+                {primarySetupCoachmark.actionLabel}
+              </Link>
+            ) : undefined
+          }
+        />
 
-      <section className="admin-attention-strip" aria-label="Что требует внимания">
-        <div className="admin-attention-strip__lead">
-          <p className="ops-panel__eyebrow">Приоритет настройки</p>
-          <h2>{priorityTitle}</h2>
-          <p>{priorityBody}</p>
-          {primarySetupCoachmark ? (
-            <Link href={primarySetupCoachmark.href} className="action-button action-button--primary">
-              {primarySetupCoachmark.actionLabel}
-            </Link>
-          ) : null}
-        </div>
-        <div className="admin-attention-strip__list">
-          {visibleAttentionItems.length > 0 ? (
-            visibleAttentionItems.map((item) => (
+        {visibleAttentionItems.length > 0 ? (
+          <section className="admin-attention-grid" aria-label="Что требует внимания">
+            {visibleAttentionItems.map((item) => (
               <Link key={item.href} href={item.href} className={`admin-attention-card admin-attention-card--${item.tone}`}>
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
                 <small>{item.description}</small>
                 <ArrowRight size={15} aria-hidden="true" />
               </Link>
-            ))
-          ) : (
-            <div className="admin-attention-card admin-attention-card--static">
-              <span>{primarySetupCoachmark ? "Остальные блоки" : "Блокеров нет"}</span>
-              <strong>{primarySetupCoachmark ? "Без срочных действий" : "Готово"}</strong>
-              <small>
-                {primarySetupCoachmark
-                  ? "Закройте приоритетный шаг слева, затем переходите к разделам ниже."
-                  : "Основные настройки, источники и системные очереди доступны в разделах ниже."}
-              </small>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <div className="admin-section-grid">
-        {groupedCards.map((group) => (
-          <section key={group.id} className={`admin-section-card admin-section-card--${group.id}`} aria-labelledby={`admin-section-${group.id}`}>
-            <div className="admin-section-card__header">
-              <p className="ops-panel__eyebrow">Разделы администрирования</p>
-              <h2 id={`admin-section-${group.id}`} className="ops-panel__title">{group.title}</h2>
-              <p className="ops-panel__subtitle">{group.description}</p>
-            </div>
-            <div className="admin-section-card__list">
-              {group.cards.map((card) => {
-                const Icon = card.icon;
-
-                return (
-                  <Link key={card.href} href={card.href} className="admin-home-link" title={card.description}>
-                    <span className="admin-tile__icon">
-                      <Icon size={16} aria-hidden="true" />
-                    </span>
-                    <span className="admin-home-link__body">
-                      <span className="admin-home-link__title">
-                        <span className="record-title record-title--tight">{card.title}</span>
-                        {card.metric ? <span className={`admin-home-link__metric tabular-nums admin-home-link__metric--${card.tone === "warn" ? "warn" : "neutral"}`}>{card.metric}</span> : null}
-                      </span>
-                      <span className="record-meta">{card.description}</span>
-                    </span>
-                    <ArrowRight className="admin-home-link__arrow" size={14} aria-hidden="true" />
-                  </Link>
-                );
-              })}
-            </div>
+            ))}
           </section>
-        ))}
-      </div>
-    </section>
+        ) : null}
+
+        <div className="admin-section-grid">
+          {groupedCards.map((group) => (
+            <section key={group.id} className="admin-section-card" aria-labelledby={`admin-section-${group.id}`}>
+              <div className="admin-section-card__header">
+                <p className="ops-panel__eyebrow">Раздел</p>
+                <h2 id={`admin-section-${group.id}`} className="ops-panel__title">{group.title}</h2>
+                <p className="ops-panel__subtitle">{group.description}</p>
+              </div>
+              <div className="admin-section-card__list">
+                {group.cards.map((card) => {
+                  const Icon = card.icon;
+
+                  return (
+                    <Link key={card.href} href={card.href} className="admin-home-link" title={card.description}>
+                      <span className="admin-tile__icon">
+                        <Icon size={16} aria-hidden="true" />
+                      </span>
+                      <span className="admin-home-link__body">
+                        <span className="admin-home-link__title">
+                          <span className="record-title record-title--tight">{card.title}</span>
+                          {card.metric ? <span className={`admin-home-link__metric tabular-nums admin-home-link__metric--${card.tone === "warn" ? "warn" : "neutral"}`}>{card.metric}</span> : null}
+                        </span>
+                        <span className="record-meta">{card.description}</span>
+                      </span>
+                      <ArrowRight className="admin-home-link__arrow" size={14} aria-hidden="true" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      </AdminFrame>
+    </PageShell>
   );
 }

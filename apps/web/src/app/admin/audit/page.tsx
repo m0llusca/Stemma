@@ -5,6 +5,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -262,27 +264,24 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
   const hasFilters = Boolean(action || targetType || start || end);
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Журнал действий</h1>
-          <p className="page-subtitle">
-            Аудит показывает события списком, а технические данные раскрываются внутри конкретной записи.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href={auditSectionHref("filters", action, targetType, start, end)} className="action-button action-button--primary">
-              <Filter size={16} aria-hidden="true" />
-              Фильтры
-            </Link>
-            <Link href={auditSectionHref("tokens", action, targetType, start, end)} className="action-button">
-              <KeyRound size={16} aria-hidden="true" />
-              API-ключи
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Администрирование"
+      title="Журнал действий"
+      description="Аудит показывает события списком, а технические данные раскрываются внутри конкретной записи."
+      actions={
+        <>
+          <Link href={auditSectionHref("filters", action, targetType, start, end)} className="action-button action-button--primary">
+            <Filter size={16} aria-hidden="true" />
+            Фильтры
+          </Link>
+          <Link href={auditSectionHref("tokens", action, targetType, start, end)} className="action-button">
+            <KeyRound size={16} aria-hidden="true" />
+            API-ключи
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка журнала действий">
         <StatKpi label="События" value={totalLogs} hint={hasFilters ? "По текущему фильтру" : "Все найденные события"} />
         <StatKpi label="Действия" value={actionRows.length} hint="Типов событий в журнале" />
@@ -454,6 +453,7 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
           </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

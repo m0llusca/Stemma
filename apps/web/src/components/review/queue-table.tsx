@@ -39,6 +39,20 @@ function samplingIsSignal(samplingType: string) {
   return samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE";
 }
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "—";
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toLocaleUpperCase("ru-RU");
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("ru-RU");
+}
+
 export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
   if (conversations.length === 0) {
     return (
@@ -176,6 +190,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                 aria-label={`Выбрать ${conversation.subject}`}
                 className="queue-row__checkbox"
               />
+
+              <span className="queue-row__avatar" aria-hidden="true">
+                {initials(conversation.assigneeName ?? conversation.customerName)}
+              </span>
 
               <span className="queue-row__status">
                 <Chip tone={statusChipTone} size="sm">

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldCheck, UserRoundCheck } from "lucide-react";
+import { Chip } from "@/components/ui/chip";
 import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
@@ -124,13 +125,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const loggedOut = firstParam(params.loggedOut) === "1";
 
   return (
-    <section className="page-shell auth-shell">
+    <section className="auth-shell">
       <div className="auth-card">
         <header className="auth-card__head">
-          <span className="auth-brand" aria-hidden="true">
-            <ShieldCheck size={18} />
+          <span className="auth-brand">
+            <span className="auth-brand__mark" aria-hidden="true">
+              <ShieldCheck size={18} />
+            </span>
+            <span className="auth-brand__wordmark">Stemma</span>
           </span>
-          <p className="auth-kicker">Stemma</p>
           <h1 className="auth-title">Вход в систему</h1>
           <p className="auth-subtitle">Единая точка входа для проверяющих, руководителей и операторов поддержки.</p>
         </header>
@@ -164,17 +167,21 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {selectedProvider ? (
           <div className="auth-section">
-            <h2 className="auth-section-title auth-section-title--icon">
+            <h2 className="auth-section-title">
               <ShieldCheck size={14} aria-hidden="true" />
               SSO
             </h2>
             <div className="auth-sso">
               <div className="auth-sso__head">
                 <div className="min-w-0">
-                  <h2 className="auth-sso__name">{selectedProvider.name}</h2>
+                  <h2 className="auth-sso__name">
+                    {selectedProvider.name}
+                    <Chip tone={selectedProviderIsActive ? "success" : "neutral"} size="xs">
+                      {providerStatusLabels[selectedProvider.status] ?? selectedProvider.status}
+                    </Chip>
+                  </h2>
                   <p className="auth-sso__meta">
-                    {selectedProvider.workspace.name} · {selectedProvider.type} ·{" "}
-                    {providerStatusLabels[selectedProvider.status] ?? selectedProvider.status}
+                    {selectedProvider.workspace.name} · {selectedProvider.type}
                   </p>
                 </div>
                 {selectedProviderIsActive ? (

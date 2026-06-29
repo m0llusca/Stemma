@@ -13,6 +13,7 @@ export default function ReviewsLoading() {
         {Array.from({ length: 8 }).map((_, index) => (
           <div key={index} className="queue-loading__row">
             <Skeleton className="queue-loading__cell queue-loading__cell--check" />
+            <Skeleton className="queue-loading__cell queue-loading__cell--avatar" />
             <Skeleton className="queue-loading__cell queue-loading__cell--chip" />
             <div className="queue-loading__cell-stack">
               <Skeleton className="queue-loading__cell queue-loading__cell--title" />

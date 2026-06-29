@@ -8,6 +8,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
@@ -110,31 +112,28 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
   const apiTokenSetupHint = activeTokens > 0 ? null : getSettingCoachmark("apiTokens");
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Ключи API</h1>
-          <p className="page-subtitle">
-            Рабочие ключи и локальный ключ для проверки интеграций. Технические поля собраны в компактные карточки.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href={tokensSectionHref("create")} className="action-button action-button--primary">
-              <KeyRound size={16} aria-hidden="true" />
-              Новый ключ
-            </Link>
-            <Link href="/admin/integrations" className="action-button">
-              <Plug size={16} aria-hidden="true" />
-              Интеграции
-            </Link>
-            <Link href="/admin/audit" className="action-button action-button--quiet">
-              <History size={16} aria-hidden="true" />
-              Журнал действий
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Администрирование"
+      title="Ключи API"
+      description="Рабочие ключи и локальный ключ для проверки интеграций. Технические поля собраны в компактные карточки."
+      actions={
+        <>
+          <Link href={tokensSectionHref("create")} className="action-button action-button--primary">
+            <KeyRound size={16} aria-hidden="true" />
+            Новый ключ
+          </Link>
+          <Link href="/admin/integrations" className="action-button">
+            <Plug size={16} aria-hidden="true" />
+            Интеграции
+          </Link>
+          <Link href="/admin/audit" className="action-button action-button--quiet">
+            <History size={16} aria-hidden="true" />
+            Журнал действий
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка API-ключей">
         <StatKpi label="Ключи" value={apiTokens.length} hint={`Активных: ${activeTokens}`} />
         <StatKpi
@@ -311,6 +310,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
           )}
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

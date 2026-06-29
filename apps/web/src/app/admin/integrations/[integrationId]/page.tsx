@@ -16,6 +16,8 @@ import { CertificationEvidenceList } from "@/components/integrations/integration
 import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
@@ -731,32 +733,28 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
   const capability = getIntegrationCapability(integration.source, integration.type);
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Интеграции</p>
-          <h1 className="page-title">{integration.displayName}</h1>
-          <p className="page-subtitle">
-            {externalSourceLabel(integration.source)} · {integration.type} · {integrationStatusLabel(integration.status)} · последний запуск{" "}
-            {formatDate(latestRun?.startedAt)}
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href="/admin/integrations" className="action-button">
-              <ArrowLeft size={16} aria-hidden="true" />
-              К обзору
-            </Link>
-            <Link href="/admin/integrations/new" className="action-button">
-              <Plus size={16} aria-hidden="true" />
-              Новый источник
-            </Link>
-            <Link href="/reviews" className="action-button action-button--quiet">
-              <ListChecks size={16} aria-hidden="true" />
-              Очередь проверок
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Интеграции"
+      title={integration.displayName}
+      description={`${externalSourceLabel(integration.source)} · ${integration.type} · ${integrationStatusLabel(integration.status)} · последний запуск ${formatDate(latestRun?.startedAt)}`}
+      actions={
+        <>
+          <Link href="/admin/integrations" className="action-button">
+            <ArrowLeft size={16} aria-hidden="true" />
+            К обзору
+          </Link>
+          <Link href="/admin/integrations/new" className="action-button">
+            <Plus size={16} aria-hidden="true" />
+            Новый источник
+          </Link>
+          <Link href="/reviews" className="action-button action-button--quiet">
+            <ListChecks size={16} aria-hidden="true" />
+            Очередь проверок
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы источника">
         {integrationDetailsSections.map((section) => (
           <Link
@@ -857,7 +855,8 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
           </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }
 

@@ -12,6 +12,8 @@ import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 
 export const dynamic = "force-dynamic";
@@ -199,27 +201,24 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
   const usersSetupHint = users.length > 1 ? null : getSettingCoachmark("users");
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Пользователи и роли</h1>
-          <p className="page-subtitle">
-            Управление учетными записями, ролями, командами, линиями поддержки и доступом без длинных скрытых блоков.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href={createUserHref()} className="action-button action-button--primary">
-              <UserCog size={16} aria-hidden="true" />
-              Создать пользователя
-            </Link>
-            <Link href="/admin/access" className="action-button">
-              <ShieldCheck size={16} aria-hidden="true" />
-              SSO и сессии
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Администрирование"
+      title="Пользователи и роли"
+      description="Управление учетными записями, ролями, командами, линиями поддержки и доступом без длинных скрытых блоков."
+      actions={
+        <>
+          <Link href={createUserHref()} className="action-button action-button--primary">
+            <UserCog size={16} aria-hidden="true" />
+            Создать пользователя
+          </Link>
+          <Link href="/admin/access" className="action-button">
+            <ShieldCheck size={16} aria-hidden="true" />
+            SSO и сессии
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка пользователей">
         <StatKpi
           label="Пользователи"
@@ -441,6 +440,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
           </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

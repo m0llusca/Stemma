@@ -1,18 +1,42 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
-import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
 import { reportDateInputValue, reportPeriodUsesCustomDates, type ReportPeriod } from "@/lib/report-period";
 import type { ReportTrendGranularity } from "@/lib/report-trends";
 import {
   formatPeriod,
   reportExportFormatHref,
   reportExportHref,
-  reportViewHref,
-  reportViews,
   type ReportView
 } from "@/lib/reports/report-format";
 
-export function ReportCommandBar({
+/**
+ * Export menu — sits in the PageShell `actions` slot. A quiet details/summary
+ * popover with CSV / XLSX / PDF links. All behavior (hrefs) preserved.
+ */
+export function ReportExportMenu({ period }: { period: ReportPeriod }) {
+  return (
+    <details className="report-export-menu">
+      <summary className="action-button">
+        <Download size={16} aria-hidden="true" />
+        Экспорт
+      </summary>
+      <div className="report-export-menu__panel">
+        <Link href={reportExportHref(period)}>CSV</Link>
+        <Link href={reportExportFormatHref(period, "xlsx")}>XLSX</Link>
+        <Link href={reportExportFormatHref(period, "pdf")}>PDF</Link>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Period control strip — the analytics cockpit's contextual filter row. A clean
+ * card holding the period preset (+ optional custom dates), the trend
+ * granularity, the resolved range and the comparison baseline. Auto-submits on
+ * change. All field names / hrefs / form action preserved.
+ */
+export function ReportPeriodControls({
   period,
   previousPeriod,
   view,
@@ -24,23 +48,16 @@ export function ReportCommandBar({
   trendGranularity: ReportTrendGranularity;
 }) {
   const showDateInputs = reportPeriodUsesCustomDates(period);
-  const compactPeriodLabel = `${period.label}: ${formatPeriod(period)}`;
 
   return (
-    <StickyCommandBarShell className="report-command-bar" ariaLabel="Настройки аналитики">
-      <div className="report-command-bar__title">
-        <p className="page-kicker">Контроль качества</p>
-        <h1 className="page-title">Аналитика качества</h1>
-        <p className="report-command-bar__compact-title">{compactPeriodLabel}</p>
-      </div>
-
+    <section className="report-period-controls" aria-label="Настройки аналитики">
       <AutoSubmitFilterForm
         action="/reports"
-        className={`report-command-bar__form ${showDateInputs ? "report-command-bar__form--custom" : ""}`}
+        className={`report-period-controls__form ${showDateInputs ? "report-period-controls__form--custom" : ""}`}
       >
         <input type="hidden" name="view" value={view} />
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          <span className="report-command-bar__label-text">Период</span>
+        <label className="report-period-controls__field">
+          <span className="report-period-controls__label-text">Период</span>
           <select name="period" defaultValue={period.preset} className="form-control">
             <option value="vk-current">Текущий 22-21</option>
             <option value="vk-previous">Прошлый 22-21</option>
@@ -52,8 +69,8 @@ export function ReportCommandBar({
         </label>
         {showDateInputs ? (
           <>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              <span className="report-command-bar__label-text">С даты</span>
+            <label className="report-period-controls__field">
+              <span className="report-period-controls__label-text">С даты</span>
               <input
                 name="start"
                 type="date"
@@ -61,8 +78,8 @@ export function ReportCommandBar({
                 className="form-control"
               />
             </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              <span className="report-command-bar__label-text">По дату</span>
+            <label className="report-period-controls__field">
+              <span className="report-period-controls__label-text">По дату</span>
               <input
                 name="end"
                 type="date"
@@ -72,13 +89,13 @@ export function ReportCommandBar({
             </label>
           </>
         ) : (
-          <div className="report-command-bar__range" aria-label={`Диапазон периода: ${formatPeriod(period)}`}>
+          <div className="report-period-controls__range" aria-label={`Диапазон периода: ${formatPeriod(period)}`}>
             <span>Диапазон</span>
             <strong>{formatPeriod(period)}</strong>
           </div>
         )}
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          <span className="report-command-bar__label-text">График</span>
+        <label className="report-period-controls__field">
+          <span className="report-period-controls__label-text">График</span>
           <select name="trend" defaultValue={trendGranularity} className="form-control">
             <option value="day">По дням</option>
             <option value="week">По неделям</option>
@@ -87,56 +104,10 @@ export function ReportCommandBar({
         </label>
       </AutoSubmitFilterForm>
 
-      <div className="report-command-bar__meta">
+      <div className="report-period-controls__meta">
         <span>{period.label}: {formatPeriod(period)}</span>
         <span>Сравнение: {formatPeriod(previousPeriod)}</span>
       </div>
-
-      <details className="report-export-menu">
-        <summary className="action-button">Экспорт</summary>
-        <div className="report-export-menu__panel">
-          <Link href={reportExportHref(period)}>CSV</Link>
-          <Link href={reportExportFormatHref(period, "xlsx")}>XLSX</Link>
-          <Link href={reportExportFormatHref(period, "pdf")}>PDF</Link>
-        </div>
-      </details>
-    </StickyCommandBarShell>
-  );
-}
-
-export function ReportViewSelector({
-  period,
-  view,
-  counts,
-  trendGranularity
-}: {
-  period: ReportPeriod;
-  view: ReportView;
-  counts: Record<ReportView, number>;
-  trendGranularity: ReportTrendGranularity;
-}) {
-  const activeView = reportViews.find((item) => item.id === view) ?? reportViews[0];
-
-  return (
-    <div className="report-view-selector-wrap">
-      <nav className="report-view-selector" aria-label="Режим аналитики">
-        {reportViews.map((item) => {
-          const isActive = item.id === view;
-
-          return (
-            <Link
-              key={item.id}
-              href={reportViewHref(period, item.id, trendGranularity)}
-              className={`report-view-selector__item ${isActive ? "report-view-selector__item--active" : ""}`}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <span>{item.label}</span>
-              <strong>{counts[item.id]}</strong>
-            </Link>
-          );
-        })}
-      </nav>
-      <p className="report-view-selector__description">{activeView.description}</p>
-    </div>
+    </section>
   );
 }

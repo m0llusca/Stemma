@@ -1,18 +1,21 @@
 import { notFound } from "next/navigation";
 import {
+  ArrowRight,
   ChevronDown,
   MessageSquareWarning,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
-import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
-import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
-import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
 import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MasterDetail } from "@/components/ui/master-detail";
+import { PageShell } from "@/components/ui/page-shell";
+import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import {
@@ -88,6 +91,12 @@ function chipToneForStatus(tone: StatusTone): ChipTone {
   if (tone === "warning") return "warning";
   if (tone === "info") return "accent";
   return "neutral";
+}
+
+function triageToneForActionTone(tone: "warning" | "info" | "positive" | "neutral"): TriageStripTone {
+  if (tone === "positive") return "success";
+  if (tone === "warning") return "warning";
+  return "accent";
 }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
@@ -343,288 +352,56 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 href: "#review-workspace",
                 tone: "neutral" as const
               };
-  const reviewIdeSignals = [
-    {
-      label: "Доказательства",
-      value: String(evidenceMessageIds.length),
-      detail:
-        evidenceMessageIds.length > 0
-          ? "Сообщения уже привязаны к оценке."
-          : "Выберите сообщения, которые доказывают итог."
-    },
-    {
-      label: "Замечание",
-      value: latestFinding?.category ?? "Нет",
-      detail: latestFinding ? riskLevelLabels[latestFinding.riskLevel] : "Замечание появится после финализации."
-    },
-    {
-      label: "Обратная связь",
-      value: latestFinalizedReview
-        ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
-        : "Не начат",
-      detail: hasOpenAppeal ? "Сначала закрыть апелляцию." : hasReanswer ? "Проверить переответ клиенту." : "Контур обратной связи."
-    },
-    {
-      label: "Аудит",
-      value: latestFinalizedReview ? String(latestFinalizedReview.feedbackEvents.length) : String(conversation.reviews.length),
-      detail: latestFinalizedReview ? "События обратной связи." : "История черновиков и проверок."
-    },
-    ...(canSeeAiQualityDrafts
-      ? [
-          {
-            label: "ИИ-подсказки",
-            value: aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0",
-            detail:
-              aiDraftTotalCount > 0
-                ? "Ожидают / всего, решение остается за человеком."
-                : "Нет ИИ-предложений для этого диалога."
-          }
-        ]
-      : [])
-  ];
-  const reviewDecisionSteps = [
-    { label: "Контекст", state: "ready" },
-    ...(canSeeAiQualityDrafts
-      ? [{ label: "ИИ-подсказка", state: pendingAiDraftCount > 0 ? "open" : aiDraftTotalCount > 0 ? "ready" : "waiting" }]
-      : []),
-    { label: "Доказательства", state: evidenceMessageIds.length > 0 ? "ready" : "open" },
-    { label: "Оценка", state: latestFinalizedReview ? "ready" : currentDraftReview ? "open" : "waiting" },
-    { label: "Обратная связь", state: feedbackClosed ? "ready" : latestFinalizedReview ? "open" : "waiting" }
-  ];
 
-  return (
-    <OperationalPageFrame
-      title={conversation.subject}
-      className="page-shell workspace-shell"
-      signals={
-        <>
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Доска проверки</p>
-          <h1 className="page-title">{conversation.subject}</h1>
-          <p className="page-subtitle">
-            Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц.
-          </p>
-        </div>
-        <div className="review-header-chips">
-          <Chip label="Состояние" value={reviewStateLabels[reviewState]} tone={chipToneForStatus(reviewStateTone(reviewState))} />
-          <Chip label="Оценка" value={scoreLabel} numeric tone={chipToneForStatus(toneForScore(scorePreviewReview?.totalScore))} />
-          <Chip label="Клиент" value={conversation.customerName} tone="neutral" />
-          <Chip label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
-          {conversation.teamName ? (
-            <Chip label="Команда" value={conversation.teamName} tone="neutral" />
-          ) : null}
-          {conversation.qaAssigneeName ? (
-            <Chip label="Проверяющий" value={conversation.qaAssigneeName} tone="neutral" />
-          ) : null}
-          <Chip
-            label="Срок"
-            value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
-            numeric
-            tone={chipToneForStatus(dueDateTone(conversation.reviewDueAt, now, reviewState))}
-          />
-          {conversation.riskHint ? (
-            <Chip label="Риск" value={conversation.riskHint} tone="warning" />
-          ) : null}
-          {hasAppeal ? (
-            <Chip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "accent"} />
-          ) : null}
-          {hasReanswer ? (
-            <Chip
-              label="Переответ"
-              value={reanswerLabel}
-              tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      <section className="review-context-panel panel" aria-label="Контекст обращения">
-        <div className="review-context-panel__details">
-          <div className="review-context-panel__header">
-            <h2>Контекст обращения</h2>
-            <p>
-              {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
-            </p>
-          </div>
-          <div className="review-detail-grid">
-            <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
-            <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
-            <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
-            <DetailItem label="Проверяющий">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
-            <DetailItem label="Выборка">{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</DetailItem>
-            <DetailItem label="CSAT">
-              {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
-            </DetailItem>
-          </div>
-        </div>
-      </section>
-        </>
-      }
-      action={
-        <PriorityActionPanel
-          title={reviewAction.title}
-          description={reviewAction.description}
-          actionLabel={reviewAction.label}
-          href={reviewAction.href}
-          tone={reviewAction.tone}
-        />
-      }
-      details={
-        <>
-
-      {latestFinalizedReview && hasOpenAppeal ? (
-        <section className="appeal-alert">
-          <div className="appeal-alert__icon" aria-hidden="true">
-            <MessageSquareWarning size={18} />
-          </div>
-          <div className="appeal-alert__body">
-            <h2>Открыта апелляция</h2>
-            <p>
-              Статус: {appealLabel}
-              {latestFinalizedReview.appealDueAt ? ` · срок ${latestFinalizedReview.appealDueAt.toLocaleDateString("ru-RU")}` : ""}.
-              Руководитель должен принять решение и зафиксировать итог.
-            </p>
-          </div>
-          {canManageWorkflow ? (
-            <div className="appeal-alert__actions">
-              <form action={updateReviewFeedback}>
-                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                <input type="hidden" name="action" value="appeal_confirmed" />
-                <button type="submit" className="action-button">Оценка верна</button>
-              </form>
-              <form action={updateReviewFeedback}>
-                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                <input type="hidden" name="action" value="appeal_corrected" />
-                <button type="submit" className="action-button action-button--primary">Нужна корректировка</button>
-              </form>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      <section className="review-ide-strip panel" aria-label="Контур решения проверки">
-        <div className="review-ide-strip__lead">
-          <span className="page-kicker">Контур решения</span>
-          <h2>{reviewAction.title}</h2>
-          <p>{reviewAction.description}</p>
-        </div>
-        <div className="review-ide-strip__signals">
-          {reviewIdeSignals.map((signal) => (
-            <div key={signal.label} className="review-ide-signal">
-              <span>{signal.label}</span>
-              <strong>{signal.value}</strong>
-              <small>{signal.detail}</small>
-            </div>
-          ))}
-        </div>
-        <div className="review-ide-strip__flow" aria-label="Состояние рабочего контура">
-          {reviewDecisionSteps.map((step) => (
-            <span key={step.label} className={`review-decision-step review-decision-step--${step.state}`}>
-              {step.label}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <div id="review-workspace" className="review-main">
-        <ConversationTimeline
-          messages={conversation.messages}
-          highlightedMessageIds={evidenceMessageIds}
-          conversationId={conversation.id}
-          coachingPins={canSeeCoachingPins ? conversation.coachingPins : []}
-          canCoach={canSeeCoachingPins && reviewSource === "CALIBRATION"}
-          canManagePins={canManageWorkflow}
-          currentUserId={user.id}
-        />
-        {canShowReviewPanel && scorecard ? (
-          <div className="review-panel-column">
-            <ReviewPanel
-              conversationId={conversation.id}
-              messages={conversation.messages}
-              scorecard={scorecard}
-              draftReview={currentDraftReview}
-              reviewSource={reviewSource}
-              returnTo={returnTo}
-              title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
-            />
-          </div>
-        ) : (
-          <aside className="review-panel-column">
-            <section className="panel overflow-clip">
-              <div className="border-b border-[var(--border)] px-5 py-4">
-                <h2 className="text-lg font-semibold">Итог проверки</h2>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">Оператор видит только собственное обращение и финальную обратную связь.</p>
-              </div>
-              <div className="grid gap-3 p-5 text-sm">
-                <DetailItem label="Оценка">{scoreLabel}</DetailItem>
-                <DetailItem label="Обратная связь">
-                  {latestFinalizedReview
-                    ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
-                    : "Пока нет финальной проверки"}
-                </DetailItem>
-                <DetailItem label="Апелляция">{appealLabel}</DetailItem>
-              </div>
-            </section>
-          </aside>
-        )}
-      </div>
-
-      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
-        </>
-      }
-      evidence={
-        <EvidenceDrawer
-          title="Доказательства проверки"
-          description={canSeeAiQualityDrafts ? "Связанные сообщения, ИИ-предложения, обратная связь и история решений." : "Связанные сообщения, обратная связь и история решений."}
-          defaultOpen
-        >
-          <div id="review-evidence" className="grid min-w-0 gap-4">
-
+  const detailPane = (
+    <div id="review-evidence" className="review-detail-stack">
       {canSeeAiQualityDrafts ? (
-      <section className="ai-draft-summary" aria-label="ИИ-подсказки проверки">
-        <div className="ai-draft-summary__header">
-          <div className="min-w-0">
-            <p className="page-kicker">ИИ-контроль</p>
-            <h2>ИИ-предложения</h2>
-            <p>Подсказки показывают гипотезу, ссылки на доказательства и статус решения человека.</p>
-          </div>
-          <Chip
-            label="Ожидают"
-            value={pendingAiDraftCount}
-            numeric
-            tone={pendingAiDraftCount > 0 ? "warning" : "neutral"}
-          />
-        </div>
-        <div className="ai-draft-list">
-          {aiDrafts.length > 0 ? (
-            aiDrafts.map((draft) => (
-              <article key={draft.id} className="ai-draft-card">
-                <div className="ai-draft-card__header">
-                  <div className="min-w-0">
-                    <h3>{aiDraftKindLabel(draft.kind)}</h3>
-                    <p>{draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}</p>
-                  </div>
-                  <Chip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
-                </div>
-                <p className="ai-draft-card__preview">{suggestedValuePreview(draft.suggestedValueJson)}</p>
-                {draft.finalizedAt || draft.decisionReason ? (
-                  <p className="ai-draft-card__decision">
-                    {draft.finalizedBy?.name ?? "Проверяющий"} · {draft.finalizedAt ? draft.finalizedAt.toLocaleString("ru-RU") : "решение зафиксировано"}
-                    {draft.decisionReason ? ` · ${draft.decisionReason}` : ""}
-                  </p>
-                ) : (
-                  <p className="ai-draft-card__decision">Не подставляется автоматически: проверяющий должен принять, отклонить или изменить предложение.</p>
-                )}
-              </article>
-            ))
-          ) : (
-            <div className="soft-callout text-sm text-[var(--text-muted)]">
-              ИИ-предложений пока нет. Форма проверки остается полностью ручной.
+        <section className="ai-draft-summary" aria-label="ИИ-подсказки проверки">
+          <div className="ai-draft-summary__header">
+            <div className="min-w-0">
+              <p className="page-kicker">ИИ-контроль</p>
+              <h2>ИИ-предложения</h2>
+              <p>Подсказки показывают гипотезу, ссылки на доказательства и статус решения человека.</p>
             </div>
-          )}
-        </div>
-      </section>
+            <Chip
+              label="Ожидают"
+              value={pendingAiDraftCount}
+              numeric
+              tone={pendingAiDraftCount > 0 ? "warning" : "neutral"}
+            />
+          </div>
+          <div className="ai-draft-list">
+            {aiDrafts.length > 0 ? (
+              aiDrafts.map((draft) => (
+                <article key={draft.id} className="ai-draft-card">
+                  <div className="ai-draft-card__header">
+                    <div className="min-w-0">
+                      <h3>{aiDraftKindLabel(draft.kind)}</h3>
+                      <p>{draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}</p>
+                    </div>
+                    <Chip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
+                  </div>
+                  <p className="ai-draft-card__preview">{suggestedValuePreview(draft.suggestedValueJson)}</p>
+                  {draft.finalizedAt || draft.decisionReason ? (
+                    <p className="ai-draft-card__decision">
+                      {draft.finalizedBy?.name ?? "Проверяющий"} · {draft.finalizedAt ? draft.finalizedAt.toLocaleString("ru-RU") : "решение зафиксировано"}
+                      {draft.decisionReason ? ` · ${draft.decisionReason}` : ""}
+                    </p>
+                  ) : (
+                    <p className="ai-draft-card__decision">Не подставляется автоматически: проверяющий должен принять, отклонить или изменить предложение.</p>
+                  )}
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                size="inline"
+                icon={<Sparkles size={20} aria-hidden="true" />}
+                title="ИИ-предложений пока нет"
+                description="Форма проверки остается полностью ручной."
+              />
+            )}
+          </div>
+        </section>
       ) : null}
 
       <div className="review-linked-evidence-grid" aria-label="Сводка доказательств проверки">
@@ -644,11 +421,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           <small>{hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}</small>
         </div>
         {canSeeAiQualityDrafts ? (
-        <div className="review-linked-evidence-item">
-          <span>ИИ-подсказки</span>
-          <strong>{aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0"}</strong>
-          <small>{decidedAiDraftCount > 0 ? `${decidedAiDraftCount} уже имеют решение человека.` : "Ожидают ручного решения."}</small>
-        </div>
+          <div className="review-linked-evidence-item">
+            <span>ИИ-подсказки</span>
+            <strong>{aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0"}</strong>
+            <small>{decidedAiDraftCount > 0 ? `${decidedAiDraftCount} уже имеют решение человека.` : "Ожидают ручного решения."}</small>
+          </div>
         ) : null}
       </div>
 
@@ -842,9 +619,166 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           </div>
         </details>
       ) : null}
+    </div>
+  );
+
+  return (
+    <PageShell
+      className="review-workbench-shell"
+      eyebrow="Доска проверки"
+      title={conversation.subject}
+      description="Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц."
+    >
+      <div className="review-header-chips">
+        <Chip label="Состояние" value={reviewStateLabels[reviewState]} tone={chipToneForStatus(reviewStateTone(reviewState))} />
+        <Chip label="Оценка" value={scoreLabel} numeric tone={chipToneForStatus(toneForScore(scorePreviewReview?.totalScore))} />
+        <Chip label="Клиент" value={conversation.customerName} tone="neutral" />
+        <Chip label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
+        {conversation.teamName ? (
+          <Chip label="Команда" value={conversation.teamName} tone="neutral" />
+        ) : null}
+        {conversation.qaAssigneeName ? (
+          <Chip label="Проверяющий" value={conversation.qaAssigneeName} tone="neutral" />
+        ) : null}
+        <Chip
+          label="Срок"
+          value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
+          numeric
+          tone={chipToneForStatus(dueDateTone(conversation.reviewDueAt, now, reviewState))}
+        />
+        {conversation.riskHint ? (
+          <Chip label="Риск" value={conversation.riskHint} tone="warning" />
+        ) : null}
+        {hasAppeal ? (
+          <Chip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "accent"} />
+        ) : null}
+        {hasReanswer ? (
+          <Chip
+            label="Переответ"
+            value={reanswerLabel}
+            tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
+          />
+        ) : null}
+      </div>
+
+      <TriageStrip
+        tone={triageToneForActionTone(reviewAction.tone)}
+        icon={<ArrowRight size={18} aria-hidden="true" />}
+        title={reviewAction.title}
+        description={reviewAction.description}
+        action={
+          <a href={reviewAction.href} className="action-button action-button--primary">
+            {reviewAction.label}
+            <ArrowRight size={16} aria-hidden="true" />
+          </a>
+        }
+      />
+
+      {latestFinalizedReview && hasOpenAppeal ? (
+        <section className="appeal-alert">
+          <div className="appeal-alert__icon" aria-hidden="true">
+            <MessageSquareWarning size={18} />
           </div>
-        </EvidenceDrawer>
-      }
-    />
+          <div className="appeal-alert__body">
+            <h2>Открыта апелляция</h2>
+            <p>
+              Статус: {appealLabel}
+              {latestFinalizedReview.appealDueAt ? ` · срок ${latestFinalizedReview.appealDueAt.toLocaleDateString("ru-RU")}` : ""}.
+              Руководитель должен принять решение и зафиксировать итог.
+            </p>
+          </div>
+          {canManageWorkflow ? (
+            <div className="appeal-alert__actions">
+              <form action={updateReviewFeedback}>
+                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                <input type="hidden" name="action" value="appeal_confirmed" />
+                <button type="submit" className="action-button">Оценка верна</button>
+              </form>
+              <form action={updateReviewFeedback}>
+                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                <input type="hidden" name="action" value="appeal_corrected" />
+                <button type="submit" className="action-button action-button--primary">Нужна корректировка</button>
+              </form>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="review-context-panel panel" aria-label="Контекст обращения">
+        <div className="review-context-panel__details">
+          <div className="review-context-panel__header">
+            <h2>Контекст обращения</h2>
+            <p>
+              {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messages.length)} · {conversation.qaAssigneeName ?? "не назначен"}
+            </p>
+          </div>
+        </div>
+        <div className="review-detail-grid">
+          <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
+          <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
+          <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
+          <DetailItem label="Проверяющий">{conversation.qaAssigneeName ?? "Не назначен"}</DetailItem>
+          <DetailItem label="Выборка">{samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType}</DetailItem>
+          <DetailItem label="CSAT">
+            {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
+          </DetailItem>
+        </div>
+      </section>
+
+      <div id="review-workspace" className="review-workbench">
+        <MasterDetail
+          className="review-workbench__panes"
+          listWidth="minmax(0, 1fr)"
+          list={
+            <ConversationTimeline
+              messages={conversation.messages}
+              highlightedMessageIds={evidenceMessageIds}
+              conversationId={conversation.id}
+              coachingPins={canSeeCoachingPins ? conversation.coachingPins : []}
+              canCoach={canSeeCoachingPins && reviewSource === "CALIBRATION"}
+              canManagePins={canManageWorkflow}
+              currentUserId={user.id}
+            />
+          }
+          detail={
+            canShowReviewPanel && scorecard ? (
+              <div className="review-panel-column">
+                <ReviewPanel
+                  conversationId={conversation.id}
+                  messages={conversation.messages}
+                  scorecard={scorecard}
+                  draftReview={currentDraftReview}
+                  reviewSource={reviewSource}
+                  returnTo={returnTo}
+                  title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
+                />
+              </div>
+            ) : (
+              <aside className="review-panel-column">
+                <section className="panel overflow-clip">
+                  <div className="border-b border-[var(--border)] px-5 py-4">
+                    <h2 className="text-lg font-semibold">Итог проверки</h2>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">Оператор видит только собственное обращение и финальную обратную связь.</p>
+                  </div>
+                  <div className="grid gap-3 p-5 text-sm">
+                    <DetailItem label="Оценка">{scoreLabel}</DetailItem>
+                    <DetailItem label="Обратная связь">
+                      {latestFinalizedReview
+                        ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
+                        : "Пока нет финальной проверки"}
+                    </DetailItem>
+                    <DetailItem label="Апелляция">{appealLabel}</DetailItem>
+                  </div>
+                </section>
+              </aside>
+            )
+          }
+        />
+      </div>
+
+      {detailPane}
+
+      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
+    </PageShell>
   );
 }

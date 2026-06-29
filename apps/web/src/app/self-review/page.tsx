@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
-import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
+import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { updateReviewFeedback, updateTrainingAssignmentStatus } from "@/lib/feedback-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -16,7 +17,7 @@ import {
   riskLevelLabels
 } from "@/lib/labels";
 import { criterionEarnedPercent } from "@/lib/reports/report-aggregation";
-import { clampQualityScore, formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
+import { clampQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
 
@@ -123,10 +124,6 @@ async function SelfReviewPageContent() {
   // Head and tail never overlap: together they take at most criterionStats.length entries.
   const strengthCriteria = criterionStats.slice(0, Math.min(3, Math.floor(criterionStats.length / 2)));
   const focusCriteria = criterionStats.slice(-Math.min(3, criterionStats.length - strengthCriteria.length)).reverse();
-  const waitingFeedback = conversations.filter((conversation) => {
-    const review = conversation.reviews[0];
-    return review && review.feedbackStatus !== "acknowledged" && review.feedbackStatus !== "corrected";
-  }).length;
   const appealCount = conversations.filter((conversation) => conversation.reviews[0]?.appealStatus === "open").length;
   const actionConversations = conversations.filter((conversation) => {
     const review = conversation.reviews[0];
@@ -271,20 +268,39 @@ async function SelfReviewPageContent() {
   const periodDelta = recentAverage != null && earlierAverage != null ? Math.round(recentAverage - earlierAverage) : null;
   const benchmarkDelta = myAverage != null && teamAverage != null ? Math.round(myAverage - teamAverage) : null;
 
-  return (
-    <section className="page-shell workspace-shell self-review-shell">
-      <p className="page-kicker">Обратная связь</p>
-      <h1 className="page-title">Моя обратная связь</h1>
-      <p className="page-subtitle self-review-intro">
-        Это не отдельная самооценка, а рабочее место оператора: принять проверку, открыть апелляцию и закрыть учебные задачи.
-      </p>
+  const pendingResponseCount = actionConversations.length;
+  const triageTone: TriageStripTone = nextConversation ? (appealCount > 0 ? "warning" : "accent") : "success";
+  const triageTitle = nextConversation
+    ? `${pendingResponseCount} ${pendingResponseCount === 1 ? "проверка ждёт" : "проверок ждут"} вашего ответа`
+    : "Срочных ответов нет";
+  const triageDescription = nextConversation
+    ? appealCount > 0
+      ? `Среди них ${appealCount} с открытой апелляцией. Подтвердите оценку или оспорьте спорные пункты.`
+      : "Подтвердите оценку, если замечания понятны; спорные пункты можно оспорить."
+    : assignments.length > 0
+      ? `Осталось закрыть ${assignments.length} учебных задач после разбора.`
+      : "Новые финальные проверки и апелляции появятся здесь первыми.";
 
-      <StickyMetricsBar
-        ariaLabel="Сводка обратной связи"
-        items={[
-          { icon: <MessageSquareText size={14} aria-hidden="true" />, value: waitingFeedback, label: "ожидают ответа" },
-          { icon: <ShieldQuestion size={14} aria-hidden="true" />, value: appealCount, label: "апелляции" }
-        ]}
+  return (
+    <PageShell
+      className="self-review-shell"
+      eyebrow="Обратная связь"
+      title="Моя обратная связь"
+      description="Это не отдельная самооценка, а рабочее место оператора: принять проверку, открыть апелляцию и закрыть учебные задачи."
+    >
+      <TriageStrip
+        tone={triageTone}
+        icon={appealCount > 0 ? <ShieldQuestion size={18} aria-hidden="true" /> : <MessageSquareText size={18} aria-hidden="true" />}
+        title={triageTitle}
+        description={triageDescription}
+        action={
+          nextConversation ? (
+            <Link href={`/reviews/${nextConversation.id}`} className="action-button action-button--primary">
+              Ответить сейчас
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          ) : undefined
+        }
       />
 
       <section className="self-review-hero panel" aria-label="Личный результат качества">
@@ -325,8 +341,8 @@ async function SelfReviewPageContent() {
                   {feedbackStatusLabels[nextReview.feedbackStatus] ?? nextReview.feedbackStatus}
                 </Chip>
               </div>
-              <Link href={`/reviews/${nextConversation.id}`} className="action-button action-button--primary self-review-hero__cta">
-                Ответить сейчас
+              <Link href={`/reviews/${nextConversation.id}`} className="action-button self-review-hero__cta">
+                Открыть проверку
                 <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </>
@@ -471,6 +487,6 @@ async function SelfReviewPageContent() {
           </div>
         </aside>
       </section>
-    </section>
+    </PageShell>
   );
 }

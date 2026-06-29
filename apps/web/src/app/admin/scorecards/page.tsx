@@ -6,6 +6,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -101,26 +103,23 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
   const scorecardSetupHint = activeScorecard ? null : getSettingCoachmark("scorecards");
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Формы оценки</h1>
-          <p className="page-subtitle">
-            Активную форму можно править точечно, а новую версию выпускать, когда нужно сохранить историческую методику без пересчета.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href={scorecardSectionHref("create")} className="action-button">
-              <Plus size={16} aria-hidden="true" />
-              Новая версия
-            </Link>
-            <Link href="/reviews" className="action-button">
-              Очередь проверок
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Администрирование"
+      title="Формы оценки"
+      description="Активную форму можно править точечно, а новую версию выпускать, когда нужно сохранить историческую методику без пересчета."
+      actions={
+        <>
+          <Link href={scorecardSectionHref("create")} className="action-button">
+            <Plus size={16} aria-hidden="true" />
+            Новая версия
+          </Link>
+          <Link href="/reviews" className="action-button">
+            Очередь проверок
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <nav className="ops-tabs ops-tabs--section" aria-label="Разделы форм оценки">
         {scorecardSections.map((section) => (
           <Link
@@ -342,6 +341,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
           </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

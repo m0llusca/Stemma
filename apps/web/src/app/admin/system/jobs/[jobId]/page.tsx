@@ -7,6 +7,8 @@ import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import type { StatusTone } from "@/lib/ui/status-tone";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -105,39 +107,36 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
   const jobStatus = backendJobStatusView(job.status);
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Фоновые задачи</p>
-          <h1 className="page-title">{backendJobTypeLabel(job.type)}</h1>
-          <p className="page-subtitle">
-            Очередь {queueNameLabel(job.queueName)}, попытка {job.attempts}/{job.maxAttempts}, создано {formatDate(job.createdAt)}.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href="/admin/system" className="action-button">
-              <ArrowLeft size={16} aria-hidden="true" />
-              К системе
-            </Link>
-            {job.status === "QUEUED" ? (
-              <form action={cancelQueuedBackendJob}>
-                <input type="hidden" name="jobId" value={job.id} />
-                <button type="submit" className="action-button">
-                  <Ban size={16} aria-hidden="true" />
-                  Отменить
-                </button>
-              </form>
-            ) : null}
-            <form action={runQueuedBackendJobs}>
-              <input type="hidden" name="limit" value="1" />
-              <button type="submit" className="action-button action-button--primary">
-                <Play size={16} aria-hidden="true" />
-                Запустить очередь
+    <PageShell
+      eyebrow="Фоновые задачи"
+      title={backendJobTypeLabel(job.type)}
+      description={`Очередь ${queueNameLabel(job.queueName)}, попытка ${job.attempts}/${job.maxAttempts}, создано ${formatDate(job.createdAt)}.`}
+      actions={
+        <>
+          <Link href="/admin/system" className="action-button">
+            <ArrowLeft size={16} aria-hidden="true" />
+            К системе
+          </Link>
+          {job.status === "QUEUED" ? (
+            <form action={cancelQueuedBackendJob}>
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="action-button">
+                <Ban size={16} aria-hidden="true" />
+                Отменить
               </button>
             </form>
-          </div>
-        </div>
-      </div>
-
+          ) : null}
+          <form action={runQueuedBackendJobs}>
+            <input type="hidden" name="limit" value="1" />
+            <button type="submit" className="action-button action-button--primary">
+              <Play size={16} aria-hidden="true" />
+              Запустить очередь
+            </button>
+          </form>
+        </>
+      }
+    >
+      <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка фоновой задачи">
         <StatKpi
           label="Статус"
@@ -260,6 +259,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
           </pre>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ClipboardCheck, Crosshair, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, ClipboardCheck, Crosshair, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
 import { Suspense, type CSSProperties } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
 import { StatKpi } from "@/components/ui/stat-kpi";
-import { StickyMetricsBar } from "@/components/ui/sticky-metrics-bar";
+import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -189,6 +190,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       };
     }) ?? [];
   const selectedDisagreementCount = selectedItemStates.filter((state) => state.spread != null && state.spread > 10).length;
+  // First item still missing at least one participant's grade (else the first item) — the "Разобрать" target.
+  const selectedFirstOpenItem =
+    selectedItemStates.find((state) => state.missingParticipants.length > 0)?.item ?? selectedSession?.items[0];
   // Alignment vs baseline: industry practice expects 85–90% of calibration scores
   // to land within ±10 points of the reference review.
   const alignmentPairs = selectedItemStates.flatMap((state) => {
@@ -285,68 +289,86 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
     : [];
   const newSessionHref = calibrationHref({ sessionId: selectedSession?.id, newSession: true });
   const closeNewSessionHref = calibrationHref({ sessionId: selectedSession?.id });
+  const calibrationTriageTone: TriageStripTone = !selectedSession
+    ? "accent"
+    : selectedDisagreementCount > 0
+      ? "warning"
+      : selectedWaitingCount > 0
+        ? "accent"
+        : selectedAlignmentPercent != null && selectedAlignmentPercent < 85
+          ? "warning"
+          : selectedSessionIsOpen
+            ? "accent"
+            : "success";
+  const calibrationTriageAction =
+    selectedSession && selectedSessionIsOpen && selectedFirstOpenItem ? (
+      <Link
+        href={`/reviews/${selectedFirstOpenItem.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+        className="action-button action-button--primary"
+      >
+        Разобрать
+        <ArrowRight size={16} aria-hidden="true" />
+      </Link>
+    ) : undefined;
 
   return (
-    <section className="page-shell workspace-shell">
-      <section className="enablement-header" aria-label="Сводка калибровок">
-        <div className="enablement-header__lead min-w-0">
-          <p className="page-kicker">Контроль качества</p>
-          <h1 className="page-title">Калибровка</h1>
-          <p className="page-subtitle">
-            Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило.
-          </p>
-          <div className="admin-actions">
-            <Link href={openNewSession ? closeNewSessionHref : newSessionHref} className={`action-button ${openNewSession ? "" : "action-button--primary"}`}>
-              {openNewSession ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
-              {openNewSession ? "Скрыть форму" : "Новая сессия"}
-            </Link>
-          </div>
-        </div>
-        <div className="enablement-kpi-grid" aria-label="Ключевые показатели калибровки">
-          <StatKpi
-            label="Согласованность"
-            value={selectedAlignmentPercent != null ? selectedAlignmentPercent : "—"}
-            unit={selectedAlignmentPercent != null ? "%" : undefined}
-            tone={selectedAlignmentPercent != null && selectedAlignmentPercent < 85 ? "warning" : "neutral"}
-            icon={<Crosshair size={16} aria-hidden="true" />}
-            hint={selectedAlignmentPercent != null ? "Цель — 85–90% в пределах ±10" : "Появится после оценок участников"}
-          />
-          <StatKpi
-            label="Готовность"
-            value={selectedProgress}
-            unit="%"
-            icon={<Gauge size={16} aria-hidden="true" />}
-            hint={selectedWaitingCount > 0 ? `${selectedWaitingCount} оценок ещё ждут` : "Все оценки собраны"}
-          />
-          <StatKpi
-            label="Расхождения"
-            value={selectedDisagreementCount}
-            tone={selectedDisagreementCount > 0 ? "warning" : "neutral"}
-            icon={<TriangleAlert size={16} aria-hidden="true" />}
-            hint={selectedDisagreementCount > 0 ? `Разброс выше ±${ALIGNMENT_BAND} баллов` : "Оценки в пределах нормы"}
-          />
-          <StatKpi
-            label="Активных сессий"
-            value={activeSessionCount}
-            icon={<ClipboardCheck size={16} aria-hidden="true" />}
-            hint={`${sessions.length} всего в рабочей области`}
-          />
-        </div>
-      </section>
-
-      <StickyMetricsBar
-        ariaLabel="Сводка калибровок"
-        items={[
-          { icon: <Crosshair size={14} aria-hidden="true" />, value: selectedAlignmentPercent != null ? `${selectedAlignmentPercent}%` : "—", label: "согласованность" },
-          { icon: <Gauge size={14} aria-hidden="true" />, value: `${selectedProgress}%`, label: "готовность" },
-          {
-            icon: <TriangleAlert size={14} aria-hidden="true" />,
-            value: selectedDisagreementCount,
-            label: "расхождений",
-            tone: selectedDisagreementCount > 0 ? "danger" : "success"
-          }
-        ]}
+    <PageShell
+      eyebrow="Контроль качества"
+      title="Калибровка"
+      description="Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило."
+      actions={
+        <Link href={openNewSession ? closeNewSessionHref : newSessionHref} className={`action-button ${openNewSession ? "" : "action-button--primary"}`}>
+          {openNewSession ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+          {openNewSession ? "Скрыть форму" : "Новая сессия"}
+        </Link>
+      }
+    >
+      <TriageStrip
+        tone={calibrationTriageTone}
+        icon={selectedDisagreementCount > 0 ? <TriangleAlert size={18} aria-hidden="true" /> : <Crosshair size={18} aria-hidden="true" />}
+        title={
+          selectedSession
+            ? selectedDisagreementCount > 0
+              ? `${selectedDisagreementCount} ${selectedDisagreementCount === 1 ? "расхождение требует" : "расхождений требуют"} разбора`
+              : selectedWaitingCount > 0
+                ? `${selectedWaitingCount} ${selectedWaitingCount === 1 ? "оценка ещё ждёт" : "оценок ещё ждут"}`
+                : "Сессия готова к разбору"
+            : "Нет активной калибровки"
+        }
+        description={calibrationNextAction}
+        action={calibrationTriageAction}
       />
+
+      <div className="enablement-kpi-grid" aria-label="Ключевые показатели калибровки">
+        <StatKpi
+          label="Согласованность"
+          value={selectedAlignmentPercent != null ? selectedAlignmentPercent : "—"}
+          unit={selectedAlignmentPercent != null ? "%" : undefined}
+          tone={selectedAlignmentPercent != null && selectedAlignmentPercent < 85 ? "warning" : "neutral"}
+          icon={<Crosshair size={16} aria-hidden="true" />}
+          hint={selectedAlignmentPercent != null ? "Цель — 85–90% в пределах ±10" : "Появится после оценок участников"}
+        />
+        <StatKpi
+          label="Готовность"
+          value={selectedProgress}
+          unit="%"
+          icon={<Gauge size={16} aria-hidden="true" />}
+          hint={selectedWaitingCount > 0 ? `${selectedWaitingCount} оценок ещё ждут` : "Все оценки собраны"}
+        />
+        <StatKpi
+          label="Расхождения"
+          value={selectedDisagreementCount}
+          tone={selectedDisagreementCount > 0 ? "warning" : "neutral"}
+          icon={<TriangleAlert size={16} aria-hidden="true" />}
+          hint={selectedDisagreementCount > 0 ? `Разброс выше ±${ALIGNMENT_BAND} баллов` : "Оценки в пределах нормы"}
+        />
+        <StatKpi
+          label="Активных сессий"
+          value={activeSessionCount}
+          icon={<ClipboardCheck size={16} aria-hidden="true" />}
+          hint={`${sessions.length} всего в рабочей области`}
+        />
+      </div>
 
       {openNewSession ? (
         <section className="calibration-create-panel workflow-create-panel calibration-create-inline" aria-label="Новая калибровка">
@@ -479,24 +501,18 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                 </div>
               </div>
 
-              <div className="calibration-decision-strip" aria-label="Следующее решение по калибровке">
-                <div className="calibration-decision-strip__lead">
-                  <span>Следующее решение</span>
-                  <strong>{calibrationNextAction}</strong>
-                </div>
-                <div className="calibration-decision-strip__meta">
-                  {calibrationDecisionMeta.map((meta) => {
-                    const Icon = meta.icon;
+              <div className="calibration-session-meta" aria-label="Параметры сессии калибровки">
+                {calibrationDecisionMeta.map((meta) => {
+                  const Icon = meta.icon;
 
-                    return (
-                      <span key={meta.label}>
-                        <Icon size={15} aria-hidden="true" />
-                        <small>{meta.label}</small>
-                        <strong>{meta.value}</strong>
-                      </span>
-                    );
-                  })}
-                </div>
+                  return (
+                    <span key={meta.label} className="calibration-session-meta__item">
+                      <Icon size={15} aria-hidden="true" />
+                      <small>{meta.label}</small>
+                      <strong>{meta.value}</strong>
+                    </span>
+                  );
+                })}
               </div>
 
               {participantBiasRows.length > 0 ? (
@@ -714,6 +730,6 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           )}
         </div>
       </section>
-    </section>
+    </PageShell>
   );
 }

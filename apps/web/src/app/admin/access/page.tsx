@@ -15,6 +15,8 @@ import { ScimTokenManager } from "@/components/admin/scim-token-manager";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -403,34 +405,31 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
       : null;
 
   return (
-    <section className="page-shell admin-shell">
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Доступ и SSO</h1>
-          <p className="page-subtitle">
-            Настройка сквозной авторизации, связки AD/Entra-групп с ролями и контроль активных сессий.
-          </p>
-          <div className="admin-actions mt-5">
-            {readiness.canTest ? (
-              <Link href={selectedProviderSsoPath} className="action-button action-button--primary">
-                <KeyRound size={16} aria-hidden="true" />
-                Проверить вход
-              </Link>
-            ) : (
-              <button type="button" className="action-button action-button--primary" disabled aria-disabled="true">
-                <KeyRound size={16} aria-hidden="true" />
-                Проверить вход
-              </button>
-            )}
-            <Link href="/admin/users" className="action-button">
-              <UsersRound size={16} aria-hidden="true" />
-              Пользователи
+    <PageShell
+      eyebrow="Администрирование"
+      title="Доступ и SSO"
+      description="Настройка сквозной авторизации, связки AD/Entra-групп с ролями и контроль активных сессий."
+      actions={
+        <>
+          {readiness.canTest ? (
+            <Link href={selectedProviderSsoPath} className="action-button action-button--primary">
+              <KeyRound size={16} aria-hidden="true" />
+              Проверить вход
             </Link>
-          </div>
-        </div>
-      </div>
-
+          ) : (
+            <button type="button" className="action-button action-button--primary" disabled aria-disabled="true">
+              <KeyRound size={16} aria-hidden="true" />
+              Проверить вход
+            </button>
+          )}
+          <Link href="/admin/users" className="action-button">
+            <UsersRound size={16} aria-hidden="true" />
+            Пользователи
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка доступа">
         <StatKpi
           label="Провайдеры"
@@ -985,6 +984,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
         </div>
         </section>
       ) : null}
-    </section>
+      </AdminFrame>
+    </PageShell>
   );
 }

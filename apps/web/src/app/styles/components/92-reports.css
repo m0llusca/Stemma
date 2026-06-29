@@ -1,93 +1,49 @@
-.report-toolbar {
+/* Period control strip — the analytics cockpit's contextual filter row. A clean
+   subtle-elevation card under the PageShell header: period preset, optional
+   custom dates, trend granularity, and the resolved range + comparison meta.
+   Tokens only; holds in light + dark. */
+.report-period-controls {
   display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(180px, 260px) repeat(2, minmax(150px, 170px)) auto;
+  gap: 10px 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   border: 1px solid var(--border);
-  border-radius: var(--radius-page);
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
-  padding: 16px;
-  box-shadow: var(--shadow-panel);
-}
-
-.report-command-bar__slot {
-  min-width: 0;
-}
-
-.report-command-bar {
-  position: relative;
-  z-index: 14;
-  display: grid;
-  grid-template-areas:
-    "title form export"
-    "meta . .";
-  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.6fr) auto;
-  gap: 8px 14px;
-  align-items: start;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-page);
+  border-radius: var(--radius-card);
   background: var(--panel);
-  padding: 14px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-panel);
-  transition: border-radius 160ms ease, box-shadow 160ms ease, padding 160ms ease, background-color 160ms ease;
 }
 
-.page:has(.report-command-bar) .app-nav {
-  border-bottom-color: transparent;
-  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
-}
-
-.report-command-bar__title .page-title {
-  margin-top: 2px;
-  font-size: clamp(24px, 2vw, 32px);
-  transition: opacity 140ms ease, transform 140ms ease, max-height 160ms ease;
-}
-
-.report-command-bar__title {
-  grid-area: title;
-}
-
-.report-command-bar__compact-title {
-  display: none;
-  min-width: 0;
-  margin-top: 4px;
-  overflow: hidden;
-  color: var(--foreground);
-  font-size: 14px;
-  font-weight: 820;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.report-command-bar__form {
-  grid-area: form;
-  align-self: end;
+.report-period-controls__form {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(230px, 0.9fr) minmax(140px, 0.62fr);
+  grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(140px, 0.6fr);
   gap: 10px;
   align-items: end;
 }
 
-.report-command-bar__form--custom {
-  grid-template-columns: minmax(170px, 1.1fr) repeat(3, minmax(126px, 0.75fr));
+.report-period-controls__form--custom {
+  grid-template-columns: minmax(170px, 1fr) repeat(3, minmax(126px, 0.72fr));
 }
 
-.report-command-bar .action-button {
-  height: var(--control-height);
-}
-
-.report-command-bar__meta {
-  grid-area: meta;
+.report-period-controls__field {
   display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 720;
-  line-height: 1.3;
+  gap: 5px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 560;
+  color: var(--text-body);
 }
 
-.report-command-bar__range {
+.report-period-controls__label-text {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.report-period-controls__range {
   display: grid;
   min-width: 0;
   height: var(--control-height);
@@ -96,97 +52,51 @@
   gap: 1px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: var(--control-bg, var(--panel));
+  background: var(--panel-muted);
   padding: 4px 11px;
 }
 
-.report-command-bar__range span {
-  color: var(--muted);
+.report-period-controls__range span {
+  color: var(--text-subtle);
   font-size: 10px;
-  font-weight: 820;
+  font-weight: 620;
   line-height: 1;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.report-command-bar__range strong {
+.report-period-controls__range strong {
   overflow: hidden;
   color: var(--foreground);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.report-command-bar.report-command-bar--stuck {
-  --report-sticky-main-width: calc(100vw - var(--app-sidebar-width));
-  --report-sticky-content-inset: var(--app-topbar-inline);
-  grid-template-areas: "title form export";
-  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr) auto;
-  align-items: center;
-  position: fixed;
-  top: var(--app-topbar-height);
-  left: var(--app-sidebar-width);
-  z-index: 19;
-  width: var(--report-sticky-main-width);
-  margin-inline: 0;
-  min-height: var(--app-topbar-height);
-  border-top: 1px solid var(--line-soft);
-  border-right: 0;
-  border-bottom: 1px solid var(--line-soft);
-  border-left: 0;
-  border-radius: 0;
-  background: color-mix(in srgb, var(--background) 38%, var(--panel) 62%);
-  padding: 7px var(--report-sticky-content-inset);
-  box-shadow: none;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
-.report-command-bar.report-command-bar--stuck .page-kicker,
-.report-command-bar.report-command-bar--stuck .page-title,
-.report-command-bar.report-command-bar--stuck .report-command-bar__meta,
-.report-command-bar.report-command-bar--stuck .report-command-bar__label-text {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: clip;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
-
-.report-command-bar.report-command-bar--stuck .report-command-bar__compact-title {
-  display: block;
-  margin-top: 0;
-}
-
-.report-command-bar.report-command-bar--stuck .report-command-bar__form {
-  align-self: center;
-  grid-template-columns: minmax(170px, 1fr) minmax(136px, 0.65fr);
-  gap: 8px;
-}
-
-.report-command-bar.report-command-bar--stuck .report-command-bar__form label {
-  display: block;
-}
-
-.report-command-bar.report-command-bar--stuck .report-command-bar__form--custom {
-  grid-template-columns: minmax(170px, 1fr) repeat(3, minmax(116px, 0.62fr));
-}
-
-.report-command-bar.report-command-bar--stuck .report-command-bar__range {
-  display: none;
+.report-period-controls__meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  align-self: end;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 560;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .report-export-menu {
-  grid-area: export;
-  align-self: end;
   position: relative;
-  justify-self: end;
 }
 
 .report-export-menu summary {
   display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   list-style: none;
 }
@@ -399,80 +309,61 @@ a.agent-leaderboard__row:hover {
   line-height: 1.35;
 }
 
-.report-view-selector-wrap {
+/* Analytics-cockpit KPI row — a 4-up StatKpi strip. The lead tile carries the
+   trend sparkline; every tile is a subtle-elevation card and may be a drill
+   link. Tokens only; holds in light + dark (Night Ops). */
+.report-kpi-row {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
 }
 
-.report-view-selector {
-  display: grid;
-  --metric-card-min: 180px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--metric-card-min)), 1fr));
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-page);
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  padding: 8px;
-  box-shadow: var(--shadow-panel);
-}
-
-.report-view-selector__item {
-  display: flex;
+.report-kpi-tile {
+  display: block;
   min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 3px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  padding: 10px 12px;
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  transition: background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease;
+  background: var(--panel);
+  box-shadow: var(--shadow-panel);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
-.report-view-selector__item:hover {
+.report-kpi-tile .stat-kpi {
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.report-kpi-tile--link:hover {
   border-color: var(--accent-border);
-  background: var(--panel-tint);
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-1px);
 }
 
-.report-view-selector__item:focus-visible {
-  outline-color: var(--button-focus-ring);
+.report-kpi-tile--link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.report-view-selector__item--active {
-  border-color: var(--control-selected-border);
-  background: var(--control-selected-bg);
+.report-kpi-tile .stat-kpi__trend {
+  margin-top: 12px;
 }
 
-.report-view-selector__item span {
-  color: var(--foreground);
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.2;
+@media (max-width: 1100px) {
+  .report-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.report-view-selector__item strong {
-  display: inline-flex;
-  min-width: 28px;
-  justify-content: center;
-  border-radius: var(--radius-small);
-  background: var(--panel-muted);
-  padding: 4px 7px;
-  color: var(--muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.report-view-selector__item--active strong {
-  background: color-mix(in srgb, var(--accent) 15%, var(--panel));
-  color: var(--accent-strong);
-}
-
-.report-view-selector__description {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
+@media (max-width: 560px) {
+  .report-kpi-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .report-metrics-layout {
@@ -738,12 +629,6 @@ a.agent-leaderboard__row:hover {
   border-left: 0;
 }
 
-.report-secondary-metrics {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
 .report-focus-panel {
   overflow: clip;
 }
@@ -985,7 +870,6 @@ a.agent-leaderboard__row:hover {
   line-height: 1.4;
 }
 
-.focus-panel,
 .process-summary {
   background: color-mix(in srgb, var(--panel) 94%, transparent);
 }
@@ -1092,14 +976,6 @@ a.agent-leaderboard__row:hover {
 .process-summary__item--warn .process-summary__icon,
 .process-summary__item--warn dd {
   color: var(--foreground);
-}
-
-.focus-panel__link {
-  display: inline-flex;
-  margin-top: 12px;
-  color: var(--accent-strong);
-  font-size: 12px;
-  font-weight: 820;
 }
 
 .reports-main-grid {
@@ -2425,51 +2301,22 @@ a.agent-leaderboard__row:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .report-command-bar,
+  .report-period-controls,
   .report-metrics-layout {
     grid-template-columns: 1fr;
   }
 
-  .report-command-bar {
-    grid-template-areas:
-      "title form export"
-      "meta meta meta";
-    grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1.45fr) auto;
-    align-items: start;
+  .report-period-controls__meta {
+    justify-items: start;
+    text-align: left;
   }
 
-  .report-command-bar__form {
+  .report-period-controls__form {
     grid-template-columns: minmax(170px, 1fr) minmax(190px, 0.78fr) minmax(126px, 0.58fr);
   }
 
-  .report-command-bar__form--custom {
+  .report-period-controls__form--custom {
     grid-template-columns: minmax(160px, 1fr) repeat(3, minmax(116px, 0.62fr));
-  }
-
-  .report-command-bar.report-command-bar--stuck {
-    grid-template-areas: "title form export";
-    grid-template-columns: minmax(230px, 0.62fr) minmax(0, 1.38fr) auto;
-    align-items: center;
-  }
-
-  .report-command-bar.report-command-bar--stuck .report-command-bar__form {
-    grid-template-columns: minmax(160px, 1fr) minmax(132px, 0.7fr);
-  }
-
-  .report-command-bar.report-command-bar--stuck .report-command-bar__form--custom {
-    grid-template-columns: minmax(160px, 1fr) repeat(3, minmax(116px, 0.62fr));
-  }
-
-  .report-command-bar.report-command-bar--stuck .report-command-bar__range {
-    display: none;
-  }
-
-  .report-command-bar__meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .report-secondary-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .details-workbench,

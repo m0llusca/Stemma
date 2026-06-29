@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PageShell } from "@/components/ui/page-shell";
+import { AdminFrame } from "@/components/admin/admin-frame";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -619,34 +621,31 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             };
 
   return (
-    <OperationalPageFrame
+    <PageShell
+      eyebrow="Администрирование"
       title="Интеграции"
-      className="page-shell admin-shell"
-      signals={
+      description="Операционный обзор источников: состояние подключений, последняя диагностика, проверочные запуски, импорт и фоновые задачи."
+      actions={
         <>
-      <div className="command-center">
-        <div className="min-w-0">
-          <p className="page-kicker">Администрирование</p>
-          <h1 className="page-title">Интеграции</h1>
-          <p className="page-subtitle">
-            Операционный обзор источников: состояние подключений, последняя диагностика, проверочные запуски, импорт и фоновые задачи.
-          </p>
-          <div className="admin-actions mt-5">
-            <Link href="/admin/integrations/new" className="action-button action-button--primary">
-              <PlugZap size={16} aria-hidden="true" />
-              Новый источник
-            </Link>
-            <IntegrationQueueRunForm />
-            <Link href="/admin/tokens" className="action-button">
-              API-доступ
-            </Link>
-            <Link href="/reviews" className="action-button action-button--quiet">
-              Очередь проверок
-            </Link>
-          </div>
-        </div>
-      </div>
-
+          <Link href="/admin/integrations/new" className="action-button action-button--primary">
+            <PlugZap size={16} aria-hidden="true" />
+            Новый источник
+          </Link>
+          <IntegrationQueueRunForm />
+          <Link href="/admin/tokens" className="action-button">
+            API-доступ
+          </Link>
+          <Link href="/reviews" className="action-button action-button--quiet">
+            Очередь проверок
+          </Link>
+        </>
+      }
+    >
+      <AdminFrame>
+        <OperationalPageFrame
+          title="Интеграции"
+          signals={
+        <>
       <section className="ops-metric-grid" aria-label="Состояние интеграций">
         <StatKpi label="Источники" value={integrations.length} hint={`Активные и готовые: ${activeSources.length}`} />
         <StatKpi
@@ -1122,7 +1121,9 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             </div>
           </div>
         </EvidenceDrawer>
-      }
-    />
+          }
+        />
+      </AdminFrame>
+    </PageShell>
   );
 }

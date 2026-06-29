@@ -11,6 +11,7 @@ import {
 } from "@/components/reports/criterion-matrix";
 import Link from "next/link";
 import { Suspense } from "react";
+import { AlertTriangle, ArrowRight, BarChart3, CircleCheck } from "lucide-react";
 import { PageSkeleton } from "@/components/loading-states";
 import {
   ChartPanel,
@@ -20,9 +21,10 @@ import {
   StackedBar
 } from "@/components/reports/report-charts";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
-import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
-import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
-import { ReportCommandBar, ReportViewSelector } from "@/components/reports/report-command-bar";
+import { PageShell, type PageShellTab } from "@/components/ui/page-shell";
+import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
+import { ReportExportMenu, ReportPeriodControls } from "@/components/reports/report-command-bar";
+import { ReportKpiRow } from "@/components/reports/report-kpi-row";
 import {
   DetailsIndexPanel,
   ImprovementPanel,
@@ -53,7 +55,7 @@ import {
 } from "@/lib/report-period";
 import { buildScoreTrendRows, resolveReportTrendGranularity } from "@/lib/report-trends";
 import { buildDeteriorationHighlights, buildImprovementHighlights } from "@/lib/report-improvements";
-import { formatQualityScore } from "@/lib/score-display";
+import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 import {
   addCountGroup,
   addScoreGroup,
@@ -71,11 +73,14 @@ import {
 import {
   formatAverageScore,
   formatCriterionCount,
+  formatPeriod,
   formatReviewCount,
   reportDeltaLabel,
   reportHref,
   reportReviewHref,
   reportReviewRangeHref,
+  reportViewHref,
+  reportViews,
   resolveReportView,
   type ReportView
 } from "@/lib/reports/report-format";
@@ -751,25 +756,96 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       : null
   ].filter((item): item is { label: string; value: string; evidence: string; action: string } => Boolean(item));
 
+  // Map the resolved priority action (semantic tone) onto the TriageStrip's
+  // tone + icon. Indigo accent is the calm default; semantic tones are rationed
+  // to true risk states.
+  const triageToneByActionTone: Record<typeof reportAction.tone, TriageStripTone> = {
+    negative: "danger",
+    warning: "warning",
+    info: "accent",
+    positive: "success"
+  };
+  const triageTone = triageToneByActionTone[reportAction.tone];
+  const TriageIcon =
+    triageTone === "danger" || triageTone === "warning"
+      ? AlertTriangle
+      : triageTone === "success"
+        ? CircleCheck
+        : BarChart3;
+
+  // Hero KPI: average score + signed delta to the comparable previous period.
+  const scoreDeltaChip =
+    averageDelta == null
+      ? undefined
+      : {
+          // Drop the leading sign — the StatKpi delta renders its own direction glyph.
+          value: formatQualityScoreDelta(averageDelta).replace(/^\+/, ""),
+          direction: averageDelta > 0 ? ("up" as const) : averageDelta < 0 ? ("down" as const) : ("flat" as const),
+          tone: averageDelta > 0 ? ("success" as const) : averageDelta < 0 ? ("danger" as const) : ("neutral" as const)
+        };
+  const [scoreHero, ...scoreUnitParts] = formatAverageScore(averageScore).split(" ");
+  const scoreUnit = scoreUnitParts.join(" ") || undefined;
+  // Trend sparkline for the hero KPI: indigo line over muted volume bars.
+  const trendPoints = trendRows.map((row) => ({ label: row.label, value: row.value }));
+  const trendVolume = trendRows.map((row) => row.count);
+
+  // PageShell tabs replace the old standalone view selector. Counts ride along
+  // as pills; hrefs preserve the period + trend granularity.
+  const shellTabs: PageShellTab[] = reportViews.map((item) => ({
+    label: item.label,
+    href: reportViewHref(period, item.id, trendGranularity),
+    active: item.id === reportView,
+    count: viewCounts[item.id]
+  }));
+  const activeView = reportViews.find((item) => item.id === reportView) ?? reportViews[0];
+
   return (
-    <OperationalPageFrame
+    <PageShell
+      eyebrow="Контроль качества"
       title="Аналитика качества"
-      className="page-shell workspace-shell"
-      signals={<ReportCommandBar period={period} previousPeriod={previousPeriod} view={reportView} trendGranularity={trendGranularity} />}
-      action={
-        <PriorityActionPanel
-          title={reportAction.title}
-          description={reportAction.description}
-          actionLabel={reportAction.label}
-          href={reportAction.href}
-          tone={reportAction.tone}
-        />
-      }
-      details={
-        <>
+      description={`${activeView.description}. ${period.label}: ${formatPeriod(period)}.`}
+      actions={<ReportExportMenu period={period} />}
+      tabs={shellTabs}
+    >
+      <ReportPeriodControls
+        period={period}
+        previousPeriod={previousPeriod}
+        view={reportView}
+        trendGranularity={trendGranularity}
+      />
+
+      <TriageStrip
+        tone={triageTone}
+        icon={<TriageIcon size={18} aria-hidden="true" />}
+        title={reportAction.title}
+        description={reportAction.description}
+        action={
+          <Link href={reportAction.href} className="action-button action-button--primary">
+            <span>{reportAction.label}</span>
+            <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        }
+      />
 
       {reportView === "overview" ? (
         <>
+          <ReportKpiRow
+            scoreLabel="Средняя оценка"
+            scoreValue={scoreHero}
+            scoreUnit={scoreUnit}
+            scoreDelta={scoreDeltaChip}
+            scoreHint={
+              previousAverageScore == null
+                ? `${formatReviewCount(finalizedCount)} · нет базы сравнения`
+                : `${formatReviewCount(finalizedCount)} · было ${formatAverageScore(previousAverageScore)}`
+            }
+            scoreHref={reportReviewHref(period)}
+            trendPoints={trendPoints}
+            trendVolume={trendVolume}
+            trendAriaLabel="Тренд средней оценки по периоду"
+            items={metricInsightItems}
+          />
+
           <section className="report-narrative-board panel" aria-label="Решение по аналитике">
             <div className="report-narrative-board__lead">
               <span className="page-kicker">Решение</span>
@@ -814,8 +890,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           />
         </>
       ) : null}
-
-      <ReportViewSelector period={period} view={reportView} counts={viewCounts} trendGranularity={trendGranularity} />
 
       {reportView === "overview" ? (
         <div className="report-metrics-layout">
@@ -1008,34 +1082,31 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           </div>
         </div>
       ) : null}
-        </>
-      }
-      evidence={
-        <EvidenceDrawer title="Evidence аналитики" defaultOpen>
-          <div className="operational-evidence-grid">
-            <div className="operational-evidence-item">
-              <span>Период</span>
-              <strong>{finalizedCount}</strong>
-              <small>{formatReviewCount(finalizedCount)} в текущей выборке.</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Средний балл</span>
-              <strong>{formatAverageScore(averageScore)}</strong>
-              <small>{previousAverageScore == null ? "Нет базы сравнения." : `${reportDeltaLabel(averageScore == null || previousAverageScore == null ? null : averageScore - previousAverageScore)} к прошлому периоду.`}</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>HIGH+</span>
-              <strong>{highRiskFindings}</strong>
-              <small>Замечания высокого и критического риска.</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Норма</span>
-              <strong>{quotaCompletionPercent == null ? "Нет" : `${quotaCompletionPercent}%`}</strong>
-              <small>{quotaCompletionPercent == null ? "План периода не задан." : `${actualQuotaTotal} из ${plannedQuotaTotal} проверок.`}</small>
-            </div>
+
+      <EvidenceDrawer title="Evidence аналитики" defaultOpen>
+        <div className="operational-evidence-grid">
+          <div className="operational-evidence-item">
+            <span>Период</span>
+            <strong>{finalizedCount}</strong>
+            <small>{formatReviewCount(finalizedCount)} в текущей выборке.</small>
           </div>
-        </EvidenceDrawer>
-      }
-    />
+          <div className="operational-evidence-item">
+            <span>Средний балл</span>
+            <strong>{formatAverageScore(averageScore)}</strong>
+            <small>{previousAverageScore == null ? "Нет базы сравнения." : `${reportDeltaLabel(averageScore == null || previousAverageScore == null ? null : averageScore - previousAverageScore)} к прошлому периоду.`}</small>
+          </div>
+          <div className="operational-evidence-item">
+            <span>HIGH+</span>
+            <strong>{highRiskFindings}</strong>
+            <small>Замечания высокого и критического риска.</small>
+          </div>
+          <div className="operational-evidence-item">
+            <span>Норма</span>
+            <strong>{quotaCompletionPercent == null ? "Нет" : `${quotaCompletionPercent}%`}</strong>
+            <small>{quotaCompletionPercent == null ? "План периода не задан." : `${actualQuotaTotal} из ${plannedQuotaTotal} проверок.`}</small>
+          </div>
+        </div>
+      </EvidenceDrawer>
+    </PageShell>
   );
 }

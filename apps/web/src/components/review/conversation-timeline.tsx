@@ -23,6 +23,29 @@ type ConversationTimelineProps = {
   currentUserId?: string;
 };
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "—";
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toLocaleUpperCase("ru-RU");
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("ru-RU");
+}
+
+function formatTimestamp(value: Date) {
+  return value.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 export function ConversationTimeline({
   messages,
   highlightedMessageIds = [],
@@ -45,87 +68,107 @@ export function ConversationTimeline({
 
   return (
     <section className="review-conversation-panel panel overflow-clip">
-      <div className="review-conversation-panel__header flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">Таймлайн диалога</h2>
-        <span className="text-sm text-[var(--text-muted)]">{formatMessageCount(messages.length)}</span>
+      <div className="review-conversation-panel__header">
+        <h2>Таймлайн диалога</h2>
+        <span className="review-conversation-panel__count">{formatMessageCount(messages.length)}</span>
       </div>
-      <div className="review-conversation-panel__body record-list px-5">
+      <div className="review-conversation-panel__body">
         {messages.map((message) => {
           const isHighlighted = highlightedMessages.has(message.id);
           const messagePins = pinsByMessage.get(message.id) ?? [];
+          const isAgent = message.participantType === "HUMAN_AGENT" || message.participantType === "AI_AGENT";
+          const isAiAuthored = message.participantType === "AI_AGENT";
 
           return (
             <article
               key={message.id}
-              className={`conversation-message ${isHighlighted ? "conversation-message--selected" : ""}`}
+              data-party={message.participantType}
+              className={`conversation-message ${isAgent ? "conversation-message--agent" : ""} ${isHighlighted ? "conversation-message--selected" : ""}`}
             >
-              <div className="conversation-message__header">
-                <span className="conversation-message__author">{message.authorName}</span>
-                <span className="conversation-message__role">
-                  {participantLabels[message.participantType]}
-                </span>
-                {isHighlighted ? (
-                  <span className="conversation-message__evidence">Доказательство</span>
-                ) : null}
-                {messagePins.length > 0 ? (
-                  <span className="conversation-message__pin-count">
-                    {messagePins.length === 1 ? "1 заметка" : `${messagePins.length} заметок`}
+              <span className="conversation-message__avatar" aria-hidden="true">
+                {initials(message.authorName)}
+              </span>
+              <div className="conversation-message__content">
+                <div className="conversation-message__header">
+                  <span className="conversation-message__author">{message.authorName}</span>
+                  <span className="conversation-message__role">
+                    {participantLabels[message.participantType]}
                   </span>
-                ) : null}
-                {message.isPrivate ? (
-                  <span className="conversation-message__private">Приватно</span>
-                ) : null}
-                <div className="message-toolbar">
-                  <time className="text-xs text-[var(--text-muted)]" dateTime={message.sentAt.toISOString()}>
-                    {message.sentAt.toLocaleString("ru-RU")}
-                  </time>
-                  <EvidenceMessageButton messageId={message.id} />
+                  {isAiAuthored ? (
+                    <span className="conversation-message__ai-tag">ИИ</span>
+                  ) : null}
+                  {isHighlighted ? (
+                    <span className="conversation-message__evidence">Доказательство</span>
+                  ) : null}
+                  {messagePins.length > 0 ? (
+                    <span className="conversation-message__pin-count">
+                      {messagePins.length === 1 ? "1 заметка" : `${messagePins.length} заметок`}
+                    </span>
+                  ) : null}
+                  {message.isPrivate ? (
+                    <span className="conversation-message__private">Приватно</span>
+                  ) : null}
+                  <div className="message-toolbar">
+                    <time className="conversation-message__time" dateTime={message.sentAt.toISOString()}>
+                      {formatTimestamp(message.sentAt)}
+                    </time>
+                    <EvidenceMessageButton messageId={message.id} />
+                  </div>
                 </div>
-              </div>
-              <p className="conversation-message__body">{message.body}</p>
 
-              {messagePins.length > 0 ? (
-                <ul className="coaching-pins">
-                  {messagePins.map((pin) => {
-                    const isResolved = pin.resolvedAt !== null;
-                    const canMutate = canManagePins || pin.author.id === currentUserId;
+                <div className={isAgent ? "conversation-message__bubble" : "conversation-message__plain"}>
+                  {isAiAuthored ? (
+                    <p className="conversation-message__ai-rationale">
+                      <span className="conversation-message__ai-rationale-tag">ИИ</span>
+                      Ответ подготовлен с подсказкой ИИ — проверьте формулировку перед зачётом.
+                    </p>
+                  ) : null}
+                  <p className="conversation-message__body">{message.body}</p>
+                </div>
 
-                    return (
-                      <li key={pin.id} className={`coaching-pin ${isResolved ? "coaching-pin--resolved" : ""}`}>
-                        <div className="coaching-pin__head">
-                          <span className="coaching-pin__author">{pin.author.name}</span>
-                          <span className="coaching-pin__role">{roleLabels[pin.author.role]}</span>
-                          <time className="coaching-pin__time" dateTime={pin.createdAt.toISOString()}>
-                            {pin.createdAt.toLocaleDateString("ru-RU")}
-                          </time>
-                          {isResolved ? <span className="coaching-pin__status">Закрыта</span> : null}
-                        </div>
-                        <p className="coaching-pin__body">{pin.body}</p>
-                        {canMutate ? (
-                          <div className="coaching-pin__actions">
-                            <form action={toggleCoachingPinResolved}>
-                              <input type="hidden" name="pinId" value={pin.id} />
-                              <button type="submit" className="action-button action-button--small">
-                                {isResolved ? "Вернуть в работу" : "Отметить решённой"}
-                              </button>
-                            </form>
-                            <form action={deleteCoachingPin}>
-                              <input type="hidden" name="pinId" value={pin.id} />
-                              <button type="submit" className="action-button action-button--small action-button--danger">
-                                Удалить
-                              </button>
-                            </form>
+                {messagePins.length > 0 ? (
+                  <ul className="coaching-pins">
+                    {messagePins.map((pin) => {
+                      const isResolved = pin.resolvedAt !== null;
+                      const canMutate = canManagePins || pin.author.id === currentUserId;
+
+                      return (
+                        <li key={pin.id} className={`coaching-pin ${isResolved ? "coaching-pin--resolved" : ""}`}>
+                          <div className="coaching-pin__head">
+                            <span className="coaching-pin__author">{pin.author.name}</span>
+                            <span className="coaching-pin__role">{roleLabels[pin.author.role]}</span>
+                            <time className="coaching-pin__time" dateTime={pin.createdAt.toISOString()}>
+                              {pin.createdAt.toLocaleDateString("ru-RU")}
+                            </time>
+                            {isResolved ? <span className="coaching-pin__status">Закрыта</span> : null}
                           </div>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
+                          <p className="coaching-pin__body">{pin.body}</p>
+                          {canMutate ? (
+                            <div className="coaching-pin__actions">
+                              <form action={toggleCoachingPinResolved}>
+                                <input type="hidden" name="pinId" value={pin.id} />
+                                <button type="submit" className="action-button action-button--small">
+                                  {isResolved ? "Вернуть в работу" : "Отметить решённой"}
+                                </button>
+                              </form>
+                              <form action={deleteCoachingPin}>
+                                <input type="hidden" name="pinId" value={pin.id} />
+                                <button type="submit" className="action-button action-button--small action-button--danger">
+                                  Удалить
+                                </button>
+                              </form>
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
 
-              {canCoach && conversationId ? (
-                <CoachingPinComposer conversationId={conversationId} messageId={message.id} />
-              ) : null}
+                {canCoach && conversationId ? (
+                  <CoachingPinComposer conversationId={conversationId} messageId={message.id} />
+                ) : null}
+              </div>
             </article>
           );
         })}

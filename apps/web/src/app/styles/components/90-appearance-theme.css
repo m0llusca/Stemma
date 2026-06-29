@@ -807,7 +807,7 @@
 
 .appearance-save-status--error {
   border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
-  background: #fff7f7;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
