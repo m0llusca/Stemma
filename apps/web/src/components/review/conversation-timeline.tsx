@@ -82,6 +82,7 @@ export function ConversationTimeline({
           return (
             <article
               key={message.id}
+              id={`msg-${message.id}`}
               data-party={message.participantType}
               className={`conversation-message ${isAgent ? "conversation-message--agent" : ""} ${isHighlighted ? "conversation-message--selected" : ""}`}
             >

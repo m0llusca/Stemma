@@ -304,12 +304,19 @@ const modeDefinitions: ModeDefinition[] = [
   }
 ];
 
+/**
+ * Action-type command items turn the ⌘K palette into a real fast path: instead
+ * of only jumping to a section, these run the most common manager moves with the
+ * exact filters used elsewhere in the product (queue triage, SLA, quarterly
+ * analytics, coaching). Routes/filters mirror real links so a click lands on the
+ * same filtered view the rest of the app produces.
+ */
 const actionDefinitions: Array<ShellCommandItem & { permission?: Permission; roles?: RoleName[] }> = [
   {
     href: "/reviews?status=unreviewed",
-    label: "Взять следующую проверку",
+    label: "Взять следующий кейс",
     description: "Открыть очередь с непроверенными диалогами.",
-    aliases: ["начать проверку", "next review", "проверить"],
+    aliases: ["следующий кейс", "начать проверку", "next case", "next review", "проверить"],
     modeId: "work",
     modeLabel: "Работа",
     kind: "action",
@@ -317,20 +324,31 @@ const actionDefinitions: Array<ShellCommandItem & { permission?: Permission; rol
     roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
   },
   {
-    href: "/admin/integrations/new",
-    label: "Подключить источник",
-    description: "Добавить helpdesk, API или data source.",
-    aliases: ["новый источник", "интеграция", "connect"],
-    modeId: "system",
-    modeLabel: "Система",
+    href: "/reviews?due=overdue",
+    label: "Открыть просроченные SLA",
+    description: "Проверки с нарушенным сроком — поднимаются в начало очереди.",
+    aliases: ["просрочено", "sla", "overdue", "сроки", "срочно"],
+    modeId: "work",
+    modeLabel: "Работа",
     kind: "action",
-    permission: "integrations:manage"
+    permission: "reviews:read",
+    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+  },
+  {
+    href: "/reports?period=quarter-current",
+    label: "Открыть аналитику за квартал",
+    description: "Тренды качества и факторы риска за текущий квартал.",
+    aliases: ["квартал", "quarter", "аналитика", "отчеты", "reports"],
+    modeId: "quality",
+    modeLabel: "Качество",
+    kind: "action",
+    permission: "reports:read"
   },
   {
     href: "/coaching",
-    label: "Разобрать обучение",
+    label: "Перейти к обучению",
     description: "Открыть задачи обучения и коучинга.",
-    aliases: ["training", "коучинг", "обучение"],
+    aliases: ["обучение", "training", "коучинг", "coaching"],
     modeId: "team",
     modeLabel: "Команда",
     kind: "action",

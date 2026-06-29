@@ -245,7 +245,10 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
                       <strong>{command.label}</strong>
                       <small>{command.description}</small>
                     </span>
-                    <em>{command.modeLabel}</em>
+                    <span className="command-palette__meta">
+                      {command.kind === "action" ? <em className="command-palette__kind">Действие</em> : null}
+                      <em>{command.modeLabel}</em>
+                    </span>
                   </Link>
                 ))
               ) : (

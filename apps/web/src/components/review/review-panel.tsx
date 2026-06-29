@@ -11,6 +11,8 @@ import type {
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
+import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
+import { ReviewKeyboard } from "@/components/review/review-keyboard";
 import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
 import { Chip } from "@/components/ui/chip";
@@ -460,6 +462,8 @@ export function ReviewPanel({
                         <details
                           key={criterion.id}
                           className={`criterion-card disclosure-panel ${styles.criterionCard}`}
+                          data-criterion-card=""
+                          data-criterion-id={criterion.id}
                           data-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
                           data-ai-flag={aiFlagged ? "true" : undefined}
                           open={shouldOpenCriterion(criterion, draftScore)}
@@ -488,9 +492,11 @@ export function ReviewPanel({
                                 </span>
                                 <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
                                 {evidenceMessage ? (
-                                  <span className={styles.criterionEvidence}>
-                                    Доказательство → {formatEvidenceTime(evidenceMessage.sentAt)}
-                                  </span>
+                                  <EvidenceJumpLink
+                                    messageId={evidenceMessage.id}
+                                    timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
+                                    className={styles.criterionEvidence}
+                                  />
                                 ) : null}
                                 {densityMeta.map((item) => (
                                   <span key={item}>{item}</span>
@@ -863,6 +869,8 @@ export function ReviewPanel({
       </StepDisclosure>
       </div>
 
+      <ReviewKeyboard />
+
       <div className={styles.panelFooter}>
         <span className={styles.keyboardHint} aria-hidden="true">
           <kbd>J</kbd>
@@ -871,6 +879,8 @@ export function ReviewPanel({
           <kbd>1</kbd>
           <kbd>2</kbd>
           <kbd>3</kbd>
+          <span className={styles.keyboardHintDot}>·</span>
+          <kbd>?</kbd>
         </span>
         <a href="#coaching-analysis" className={styles.addToCoaching}>
           Добавить в обучение
