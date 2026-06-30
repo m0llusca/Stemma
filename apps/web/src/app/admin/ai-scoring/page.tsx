@@ -6,11 +6,10 @@ import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { AiProviderKeyExtraField } from "@/components/admin/ai-provider-key-form";
-import { AiProviderKeysPanel, type AiProviderConfig } from "@/components/admin/ai-provider-keys-panel";
+import { AiScoringEnginePanel, type AiProviderConfig } from "@/components/admin/ai-scoring-engine-panel";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
-import { saveAiScoringProvider } from "@/lib/ai-scoring-settings-actions";
 import {
   loadWorkspaceAiCredentials,
   loadWorkspaceAiCredentialViews,
@@ -121,14 +120,12 @@ async function AdminAiScoringPageContent() {
       modelField: { value: view.model ?? "", options: meta.modelOptions, placeholder: meta.modelPlaceholder }
     };
   });
-  // Open the keys panel on the engine that actually runs (skip the no-key fallback).
-  const defaultKeyProvider = usingFallback ? "yandexgpt" : activeScoringProvider;
 
   return (
     <PageShell
       eyebrow="Администрирование"
       title="AI-оценка"
-      description="Движок автоскоринга диалогов: YandexGPT, Claude (Anthropic) или ChatGPT (OpenAI). Ключи задаются прямо здесь — они шифруются и хранятся в базе по рабочему пространству, поэтому править .env вручную не нужно. Если ключ не задан, оценка переходит на детерминированный fallback без обращения к сети."
+      description="Движок автоскоринга диалогов: YandexGPT, Claude (Anthropic) или ChatGPT (OpenAI). Выберите движок — его ключ и модель настраиваются тут же. Ключи шифруются и хранятся в базе по рабочему пространству, поэтому править .env вручную не нужно. Если ключ не задан, оценка переходит на детерминированный fallback без обращения к сети."
       actions={
         <Link href="/admin" className="action-button">
           <ArrowLeft size={16} aria-hidden="true" />
@@ -152,35 +149,7 @@ async function AdminAiScoringPageContent() {
               tone={usingFallback ? "warning" : "positive"}
             />
           </div>
-          <div className="px-5 pb-5">
-            <p className="text-sm leading-5 text-[var(--text-muted)]">
-              При выборе «Авто» берётся первый настроенный провайдер в порядке YandexGPT → Claude → ChatGPT, иначе детерминированный fallback. Ключи задаются ниже.
-            </p>
-            <form action={saveAiScoringProvider} className="mt-3 flex flex-wrap items-end gap-3">
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Движок оценки
-                <select name="provider" defaultValue={currentScoringProvider} className="form-control">
-                  <option value="auto">Авто (первый настроенный)</option>
-                  <option value="yandexgpt">YandexGPT</option>
-                  <option value="anthropic">Claude (Anthropic)</option>
-                  <option value="openai">ChatGPT (OpenAI)</option>
-                  <option value="deterministic">Детерминированный (без сети)</option>
-                </select>
-              </label>
-              <button type="submit" className="action-button action-button--primary">Сохранить</button>
-            </form>
-          </div>
-        </section>
-
-        <section className="ops-panel" aria-labelledby="ai-keys-title">
-          <div className="ops-panel__header">
-            <div className="min-w-0">
-              <p className="ops-panel__eyebrow">Доступы</p>
-              <h2 id="ai-keys-title" className="ops-panel__title">Ключи провайдеров</h2>
-              <p className="ops-panel__subtitle">Выберите провайдера из списка, чтобы задать его ключ и модель. Ключи шифруются и хранятся в БД, применяются сразу; переменные окружения остаются запасным вариантом.</p>
-            </div>
-          </div>
-          <AiProviderKeysPanel providers={providers} defaultProvider={defaultKeyProvider} />
+          <AiScoringEnginePanel currentEngine={currentScoringProvider} providers={providers} />
         </section>
       </AdminFrame>
     </PageShell>
