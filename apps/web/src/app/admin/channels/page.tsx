@@ -206,39 +206,41 @@ async function AdminChannelsPageContent() {
               </div>
             </div>
           ) : null}
-          <div className="grid gap-5 p-5 pt-0 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.75fr)]">
-            <section aria-labelledby="channel-readiness-title">
-              <h3 id="channel-readiness-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Настройка каналов</h3>
-              <div className="record-list">
-                {Object.values(messagingChannelRegistry).map((definition) => {
-                  const channel = configuredChannelByKind.get(definition.kind);
-                  const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
-                  const webhookUrl = parseWebhookUrl(channel?.configJson);
-                  const maskedWebhook = maskSecret(webhookUrl);
-                  const hasSecret = Boolean(channel?.secretRef);
-                  const channelStatus = channel?.status ?? "draft";
-                  const isActive = channelStatus === "active";
+          <div className="p-5 pt-0">
+            <h3 className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Настройка каналов</h3>
+            <div className="record-list">
+              {Object.values(messagingChannelRegistry).map((definition) => {
+                const channel = configuredChannelByKind.get(definition.kind);
+                const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
+                const webhookUrl = parseWebhookUrl(channel?.configJson);
+                const maskedWebhook = maskSecret(webhookUrl);
+                const hasSecret = Boolean(channel?.secretRef);
+                const channelStatus = channel?.status ?? "draft";
+                const isActive = channelStatus === "active";
 
-                  return (
-                    <article key={definition.kind} className="record-card">
-                      <div className="record-row">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Send size={16} aria-hidden="true" />
-                            <h4 className="record-title">{channel?.displayName ?? definition.displayName}</h4>
-                          </div>
-                          <p className="record-meta mt-1">
-                            {capabilities.map(messagingCapabilityLabel).join(", ")} ·{" "}
-                            {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
-                          </p>
-                        </div>
+                return (
+                  <details key={definition.kind} className="compact-details">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Send size={16} aria-hidden="true" />
+                        <span className="min-w-0">
+                          <span className="record-title block truncate">{channel?.displayName ?? definition.displayName}</span>
+                          <span className="record-meta">{capabilities.map(messagingCapabilityLabel).join(", ")}</span>
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-3">
                         <StatusBadge
                           label="Статус"
                           value={channel ? messagingChannelStatusLabel(channelStatus) : "Не настроен"}
                           tone={channel ? messagingChannelTone(channelStatus) : "neutral"}
                         />
-                      </div>
-
+                        <span className="text-sm font-semibold text-[var(--accent-strong)]">Настроить</span>
+                      </span>
+                    </summary>
+                    <div className="border-t border-[var(--border)] p-4">
+                      <p className="record-meta">
+                        {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
+                      </p>
                       <MessagingChannelForm
                         kind={definition.kind}
                         displayName={channel?.displayName ?? definition.displayName}
@@ -246,8 +248,7 @@ async function AdminChannelsPageContent() {
                         maskedWebhook={maskedWebhook}
                         hasSecret={hasSecret}
                       />
-
-                      <p className="record-meta tabular-nums">
+                      <p className="record-meta tabular-nums mt-2">
                         Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
                       </p>
                       {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
@@ -265,39 +266,45 @@ async function AdminChannelsPageContent() {
                           </form>
                         ) : null}
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-            <section aria-labelledby="channel-deliveries-title">
-              <h3 id="channel-deliveries-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Последние action notifications</h3>
-              <div className="record-list">
-                {recentDeliveries.length === 0 ? (
-                  <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
-                ) : (
-                  recentDeliveries.map((delivery) => (
-                    <article key={delivery.id} className="record-card">
-                      <div className="record-row">
-                        <div className="min-w-0">
-                          <h4 className="record-title">{delivery.title}</h4>
-                          <p className="record-meta mt-1">
-                            {delivery.channel?.displayName ?? delivery.kind} · {messagingEventTypeLabel(delivery.eventType)} · {messagingRecipientLabel(delivery.recipientType)}
-                          </p>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+
+            <details className="compact-details mt-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                <span className="font-semibold text-[var(--foreground)]">Журнал доставок</span>
+                <span className="text-sm font-semibold text-[var(--accent-strong)]">{recentDeliveries.length} последних</span>
+              </summary>
+              <div className="border-t border-[var(--border)] p-4">
+                <div className="record-list">
+                  {recentDeliveries.length === 0 ? (
+                    <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
+                  ) : (
+                    recentDeliveries.map((delivery) => (
+                      <article key={delivery.id} className="record-card">
+                        <div className="record-row">
+                          <div className="min-w-0">
+                            <h4 className="record-title">{delivery.title}</h4>
+                            <p className="record-meta mt-1">
+                              {delivery.channel?.displayName ?? delivery.kind} · {messagingEventTypeLabel(delivery.eventType)} · {messagingRecipientLabel(delivery.recipientType)}
+                            </p>
+                          </div>
+                          <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
                         </div>
-                        <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
-                      </div>
-                      <p className="record-meta">{delivery.body}</p>
-                      <p className="record-meta tabular-nums">
-                        Создано: {formatDate(delivery.createdAt)} · доставлено: {formatDate(delivery.deliveredAt)}
-                      </p>
-                      {delivery.error ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{delivery.error}</p> : null}
-                      {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
-                    </article>
-                  ))
-                )}
+                        <p className="record-meta">{delivery.body}</p>
+                        <p className="record-meta tabular-nums">
+                          Создано: {formatDate(delivery.createdAt)} · доставлено: {formatDate(delivery.deliveredAt)}
+                        </p>
+                        {delivery.error ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{delivery.error}</p> : null}
+                        {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
+                      </article>
+                    ))
+                  )}
+                </div>
               </div>
-            </section>
+            </details>
           </div>
         </section>
       </AdminFrame>

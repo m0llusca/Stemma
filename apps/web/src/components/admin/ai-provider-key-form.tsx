@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { saveAiProviderCredential, type SaveAiProviderCredentialState } from "@/lib/ai-provider-credentials-actions";
@@ -15,6 +16,12 @@ export type AiProviderKeyExtraField = {
   placeholder?: string;
 };
 
+export type AiProviderModelField = {
+  value: string;
+  options: string[];
+  placeholder?: string;
+};
+
 function SaveKeySubmitButton() {
   const { pending } = useFormStatus();
 
@@ -25,16 +32,58 @@ function SaveKeySubmitButton() {
   );
 }
 
+function ModelField({ field }: { field: AiProviderModelField }) {
+  const isInitiallyCustom = Boolean(field.value) && !field.options.includes(field.value);
+  const [choice, setChoice] = useState(isInitiallyCustom ? "__custom__" : field.value);
+  const [custom, setCustom] = useState(isInitiallyCustom ? field.value : "");
+
+  return (
+    <label className="messaging-channel-form__field">
+      <span className="messaging-channel-form__label">Модель</span>
+      <select className="form-control" value={choice} onChange={(event) => setChoice(event.target.value)}>
+        <option value="">По умолчанию (провайдера)</option>
+        {field.options.map((model) => (
+          <option key={model} value={model}>
+            {model}
+          </option>
+        ))}
+        <option value="__custom__">Другая модель…</option>
+      </select>
+      {choice === "__custom__" ? (
+        <input
+          name="model"
+          type="text"
+          value={custom}
+          onChange={(event) => setCustom(event.target.value)}
+          placeholder={field.placeholder ?? "Идентификатор модели"}
+          className="form-control mt-2"
+          autoComplete="off"
+          aria-label="Идентификатор модели"
+        />
+      ) : (
+        <input type="hidden" name="model" value={choice} />
+      )}
+      <span className="messaging-channel-form__hint">
+        {choice === "__custom__"
+          ? "Введите точный идентификатор модели провайдера."
+          : "Пусто — используется модель провайдера по умолчанию."}
+      </span>
+    </label>
+  );
+}
+
 export function AiProviderKeyForm({
   provider,
   maskedDbKey,
   hasEnvKey,
-  extraFields
+  extraFields,
+  modelField
 }: {
   provider: string;
   maskedDbKey: string | null;
   hasEnvKey: boolean;
   extraFields: AiProviderKeyExtraField[];
+  modelField?: AiProviderModelField;
 }) {
   const [state, formAction] = useActionState(saveAiProviderCredential, initialState);
 
@@ -79,6 +128,8 @@ export function AiProviderKeyForm({
           />
         </label>
       ))}
+
+      {modelField ? <ModelField field={modelField} /> : null}
 
       {maskedDbKey ? (
         <label className="messaging-channel-form__toggle">

@@ -5,7 +5,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { AiProviderKeyForm, type AiProviderKeyExtraField } from "@/components/admin/ai-provider-key-form";
+import type { AiProviderKeyExtraField } from "@/components/admin/ai-provider-key-form";
+import { AiProviderKeysPanel, type AiProviderConfig } from "@/components/admin/ai-provider-keys-panel";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
@@ -30,30 +31,34 @@ const scoringProviderLabels: Record<string, string> = {
 type ProviderMeta = {
   provider: AiCredentialProvider;
   name: string;
-  extraFields: (view: AiCredentialView) => AiProviderKeyExtraField[];
+  modelOptions: string[];
+  modelPlaceholder: string;
+  textFields: (view: AiCredentialView) => AiProviderKeyExtraField[];
 };
 
 const PROVIDER_META: ProviderMeta[] = [
   {
     provider: "yandexgpt",
     name: "YandexGPT",
-    extraFields: (view) => [
-      { name: "catalogId", label: "ID каталога", defaultValue: view.catalogId ?? "", placeholder: "b1g..." },
-      { name: "model", label: "Модель (необязательно)", defaultValue: view.model ?? "", placeholder: "yandexgpt/latest" }
+    modelOptions: ["yandexgpt/latest", "yandexgpt-lite/latest", "yandexgpt-32k/latest"],
+    modelPlaceholder: "yandexgpt/latest",
+    textFields: (view) => [
+      { name: "catalogId", label: "ID каталога", defaultValue: view.catalogId ?? "", placeholder: "b1g..." }
     ]
   },
   {
     provider: "anthropic",
     name: "Claude (Anthropic)",
-    extraFields: (view) => [
-      { name: "model", label: "Модель (необязательно)", defaultValue: view.model ?? "", placeholder: "claude-opus-4-8" }
-    ]
+    modelOptions: ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
+    modelPlaceholder: "claude-opus-4-8",
+    textFields: () => []
   },
   {
     provider: "openai",
     name: "ChatGPT (OpenAI)",
-    extraFields: (view) => [
-      { name: "model", label: "Модель (необязательно)", defaultValue: view.model ?? "", placeholder: "gpt-4o" },
+    modelOptions: ["gpt-4o", "gpt-4o-mini", "gpt-4.1"],
+    modelPlaceholder: "gpt-4o",
+    textFields: (view) => [
       { name: "organization", label: "Organization ID (необязательно)", defaultValue: view.organization ?? "", placeholder: "org-..." }
     ]
   }
@@ -67,6 +72,16 @@ function credentialStatus(view: AiCredentialView): { label: string; tone: Status
     return { label: "Из окружения", tone: "info" };
   }
   return { label: "Не задан", tone: "neutral" };
+}
+
+function providerSummary(view: AiCredentialView): string {
+  if (view.hasDbKey) {
+    return `Сохранён ключ ${view.maskedDbKey}.`;
+  }
+  if (view.hasEnvKey) {
+    return "Используется ключ из переменных окружения.";
+  }
+  return "Ключ ещё не задан.";
 }
 
 export default function AdminAiScoringPage() {
@@ -90,6 +105,24 @@ async function AdminAiScoringPageContent() {
   const currentScoringProvider = workspaceSettings?.aiScoringProvider ?? "auto";
   const activeScoringProvider = resolveAiScoringProviderName(currentScoringProvider, credentials);
   const usingFallback = activeScoringProvider === "deterministic";
+
+  const providers: AiProviderConfig[] = PROVIDER_META.map((meta) => {
+    const view = views[meta.provider];
+    const status = credentialStatus(view);
+    return {
+      provider: meta.provider,
+      name: meta.name,
+      summary: providerSummary(view),
+      statusLabel: status.label,
+      statusTone: status.tone,
+      maskedDbKey: view.maskedDbKey,
+      hasEnvKey: view.hasEnvKey,
+      extraFields: meta.textFields(view),
+      modelField: { value: view.model ?? "", options: meta.modelOptions, placeholder: meta.modelPlaceholder }
+    };
+  });
+  // Open the keys panel on the engine that actually runs (skip the no-key fallback).
+  const defaultKeyProvider = usingFallback ? "yandexgpt" : activeScoringProvider;
 
   return (
     <PageShell
@@ -144,39 +177,10 @@ async function AdminAiScoringPageContent() {
             <div className="min-w-0">
               <p className="ops-panel__eyebrow">Доступы</p>
               <h2 id="ai-keys-title" className="ops-panel__title">Ключи провайдеров</h2>
-              <p className="ops-panel__subtitle">Хранятся в зашифрованном виде в БД. Применяются сразу, без перезапуска. Переменные окружения остаются запасным вариантом.</p>
+              <p className="ops-panel__subtitle">Выберите провайдера из списка, чтобы задать его ключ и модель. Ключи шифруются и хранятся в БД, применяются сразу; переменные окружения остаются запасным вариантом.</p>
             </div>
           </div>
-          <div className="record-list p-5 pt-0">
-            {PROVIDER_META.map((meta) => {
-              const view = views[meta.provider];
-              const status = credentialStatus(view);
-
-              return (
-                <article key={meta.provider} className="record-card">
-                  <div className="record-row">
-                    <div className="min-w-0">
-                      <h3 className="record-title">{meta.name}</h3>
-                      <p className="record-meta mt-1">
-                        {view.hasDbKey
-                          ? `Сохранён ключ ${view.maskedDbKey}.`
-                          : view.hasEnvKey
-                            ? "Используется ключ из переменных окружения."
-                            : "Ключ ещё не задан."}
-                      </p>
-                    </div>
-                    <StatusBadge label="Ключ" value={status.label} tone={status.tone} />
-                  </div>
-                  <AiProviderKeyForm
-                    provider={meta.provider}
-                    maskedDbKey={view.maskedDbKey}
-                    hasEnvKey={view.hasEnvKey}
-                    extraFields={meta.extraFields(view)}
-                  />
-                </article>
-              );
-            })}
-          </div>
+          <AiProviderKeysPanel providers={providers} defaultProvider={defaultKeyProvider} />
         </section>
       </AdminFrame>
     </PageShell>
