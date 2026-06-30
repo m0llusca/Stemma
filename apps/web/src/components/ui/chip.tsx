@@ -5,8 +5,8 @@ import clsx from "clsx";
  * Canonical, token-driven chip primitive.
  *
  * This is the single source of truth for the chip / badge / metric look. The
- * legacy `StatusChip`, `StatusBadge` and `MetricValue` components are thin
- * wrappers around it (keeping their public APIs), and the `.meta-chip` CSS
+ * legacy `StatusBadge` and `MetricValue` components are thin wrappers around it
+ * (keeping their public APIs and legacy class hooks), and the `.meta-chip` CSS
  * family is aligned to the same `.chip` tokens. All styling lives in
  * `src/app/styles/components/05-chip.css` and is driven entirely by design
  * tokens (no raw hex), so it holds across every theme including Night Ops.

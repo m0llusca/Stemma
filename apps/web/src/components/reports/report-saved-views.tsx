@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { StatusChip } from "@/components/ui/status-chip";
+import { Chip } from "@/components/ui/chip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createSavedReportView, deleteSavedReportView } from "@/lib/saved-report-view-actions";
 import type { SavedReportViewSummary } from "@/lib/saved-report-view";
@@ -57,9 +57,9 @@ export function ReportSavedViews({
             return (
               <span key={view.id ?? `preset-${index}-${view.href}`} className="inline-flex items-center gap-1">
                 <Link href={view.href}>
-                  <StatusChip tone={isActive ? "accent" : view.tone} size="sm">
+                  <Chip tone={isActive ? "accent" : view.tone} size="sm">
                     {view.label}
-                  </StatusChip>
+                  </Chip>
                 </Link>
                 {view.id ? (
                   <form action={deleteSavedReportView}>

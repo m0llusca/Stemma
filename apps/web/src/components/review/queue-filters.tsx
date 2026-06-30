@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { QueueAdvancedFilters } from "@/components/review/queue-advanced-filters";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
-import { StatusChip } from "@/components/ui/status-chip";
+import { Chip } from "@/components/ui/chip";
 import {
   channelLabels,
   csatBucketLabels,
@@ -283,9 +283,9 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
       {activeFilters.length > 0 ? (
         <div className="queue-filterbar__active">
           {activeFilters.map((filter) => (
-            <StatusChip key={`${filter.label}:${filter.value}`} tone="accent" size="xs">
+            <Chip key={`${filter.label}:${filter.value}`} tone="accent" size="xs">
               {filter.label}: {filter.value}
-            </StatusChip>
+            </Chip>
           ))}
         </div>
       ) : null}

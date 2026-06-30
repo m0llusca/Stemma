@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { StatusChip } from "@/components/ui/status-chip";
+import { Chip } from "@/components/ui/chip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createSavedQueueView, deleteSavedQueueView } from "@/lib/queue-view-actions";
 
@@ -61,9 +61,9 @@ export function QueueSavedViews({
             return (
               <span key={view.id ?? `default-${index}-${view.href}`} className="inline-flex items-center gap-1">
                 <Link href={view.href}>
-                  <StatusChip tone={isActive ? "accent" : view.tone} size="sm">
+                  <Chip tone={isActive ? "accent" : view.tone} size="sm">
                     {view.label}
-                  </StatusChip>
+                  </Chip>
                 </Link>
                 {view.id ? (
                   <form action={deleteSavedQueueView}>
