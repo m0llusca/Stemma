@@ -54,7 +54,7 @@ describe("saveAiScoringProvider", () => {
       data: { aiScoringProvider: "anthropic" }
     });
     expect(mocks.auditLog).toHaveBeenCalledTimes(1);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/ai-scoring");
   });
 
   it.each(["auto", "yandexgpt", "anthropic", "openai", "deterministic"])(

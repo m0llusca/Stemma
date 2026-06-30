@@ -64,43 +64,102 @@ export function isYandexGptConfigured(): boolean {
   return Boolean(process.env.YANDEX_GPT_API_KEY && process.env.YANDEX_GPT_CATALOG_ID);
 }
 
-function isAnthropicConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}
+/**
+ * Provider credentials sourced from per-workspace storage (the DB). Any field
+ * left empty falls back to the corresponding environment variable, so an
+ * operator can configure keys in the UI without ever editing .env by hand.
+ */
+export type AiProviderCredentialInput = {
+  yandexgpt?: { apiKey?: string | null; catalogId?: string | null; model?: string | null };
+  anthropic?: { apiKey?: string | null; model?: string | null };
+  openai?: { apiKey?: string | null; organization?: string | null; model?: string | null };
+};
 
-function isOpenAiConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
+type EffectiveCredentials = {
+  yandexgpt?: { apiKey: string; catalogId: string; model?: string };
+  anthropic?: { apiKey: string; model?: string };
+  openai?: { apiKey: string; organization?: string; model?: string };
+};
+
+function firstNonEmpty(...values: Array<string | null | undefined>): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
 }
 
 /**
- * Pure: which provider WOULD run for the given preference, given current env —
- * without constructing it. Used by readiness/diagnostics and the admin UI.
+ * Merges injected (DB) credentials over environment variables and keeps only the
+ * providers that are fully configured (YandexGPT needs both key and catalog id).
  */
-export function resolveAiScoringProviderName(preference?: string): ResolvedScoringProviderName {
+function effectiveCredentials(credentials?: AiProviderCredentialInput): EffectiveCredentials {
+  const result: EffectiveCredentials = {};
+
+  const yandexApiKey = firstNonEmpty(credentials?.yandexgpt?.apiKey, process.env.YANDEX_GPT_API_KEY);
+  const yandexCatalog = firstNonEmpty(credentials?.yandexgpt?.catalogId, process.env.YANDEX_GPT_CATALOG_ID);
+  if (yandexApiKey && yandexCatalog) {
+    result.yandexgpt = {
+      apiKey: yandexApiKey,
+      catalogId: yandexCatalog,
+      model: firstNonEmpty(credentials?.yandexgpt?.model, process.env.YANDEX_GPT_MODEL)
+    };
+  }
+
+  const anthropicApiKey = firstNonEmpty(credentials?.anthropic?.apiKey, process.env.ANTHROPIC_API_KEY);
+  if (anthropicApiKey) {
+    result.anthropic = {
+      apiKey: anthropicApiKey,
+      model: firstNonEmpty(credentials?.anthropic?.model, process.env.ANTHROPIC_MODEL)
+    };
+  }
+
+  const openaiApiKey = firstNonEmpty(credentials?.openai?.apiKey, process.env.OPENAI_API_KEY);
+  if (openaiApiKey) {
+    result.openai = {
+      apiKey: openaiApiKey,
+      organization: firstNonEmpty(credentials?.openai?.organization, process.env.OPENAI_ORG_ID),
+      model: firstNonEmpty(credentials?.openai?.model, process.env.OPENAI_MODEL)
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Pure: which provider WOULD run for the given preference and credentials —
+ * without constructing it. Credentials default to env-only. Used by
+ * readiness/diagnostics and the admin UI.
+ */
+export function resolveAiScoringProviderName(
+  preference?: string,
+  credentials?: AiProviderCredentialInput
+): ResolvedScoringProviderName {
   const pref = (preference ?? "auto").trim().toLowerCase();
+  const eff = effectiveCredentials(credentials);
 
   if (pref === "deterministic") {
     return "deterministic";
   }
-
   if (pref === "yandexgpt") {
-    return isYandexGptConfigured() ? "yandexgpt" : "deterministic";
+    return eff.yandexgpt ? "yandexgpt" : "deterministic";
   }
   if (pref === "anthropic") {
-    return isAnthropicConfigured() ? "anthropic" : "deterministic";
+    return eff.anthropic ? "anthropic" : "deterministic";
   }
   if (pref === "openai") {
-    return isOpenAiConfigured() ? "openai" : "deterministic";
+    return eff.openai ? "openai" : "deterministic";
   }
 
   // "auto" or unknown: first configured wins, deterministic otherwise.
-  if (isYandexGptConfigured()) {
+  if (eff.yandexgpt) {
     return "yandexgpt";
   }
-  if (isAnthropicConfigured()) {
+  if (eff.anthropic) {
     return "anthropic";
   }
-  if (isOpenAiConfigured()) {
+  if (eff.openai) {
     return "openai";
   }
   return "deterministic";
@@ -108,27 +167,32 @@ export function resolveAiScoringProviderName(preference?: string): ResolvedScori
 
 /**
  * Selects and constructs the scoring provider for a workspace preference.
- * Reads env at call time so credential/setting changes take effect without a
- * restart.
+ * Credentials (DB) take precedence over env and are read at call time, so
+ * changes take effect without a restart.
  */
-export function resolveScoringProvider(preference?: string): QualityScoringProvider {
-  switch (resolveAiScoringProviderName(preference)) {
+export function resolveScoringProvider(
+  preference?: string,
+  credentials?: AiProviderCredentialInput
+): QualityScoringProvider {
+  const eff = effectiveCredentials(credentials);
+
+  switch (resolveAiScoringProviderName(preference, credentials)) {
     case "yandexgpt":
       return new YandexGptScoringProvider({
-        apiKey: process.env.YANDEX_GPT_API_KEY as string,
-        catalogId: process.env.YANDEX_GPT_CATALOG_ID as string,
-        model: process.env.YANDEX_GPT_MODEL
+        apiKey: eff.yandexgpt!.apiKey,
+        catalogId: eff.yandexgpt!.catalogId,
+        model: eff.yandexgpt!.model
       });
     case "anthropic":
       return new AnthropicScoringProvider({
-        apiKey: process.env.ANTHROPIC_API_KEY as string,
-        model: process.env.ANTHROPIC_MODEL
+        apiKey: eff.anthropic!.apiKey,
+        model: eff.anthropic!.model
       });
     case "openai":
       return new OpenAiScoringProvider({
-        apiKey: process.env.OPENAI_API_KEY as string,
-        model: process.env.OPENAI_MODEL,
-        organization: process.env.OPENAI_ORG_ID
+        apiKey: eff.openai!.apiKey,
+        model: eff.openai!.model,
+        organization: eff.openai!.organization
       });
     default:
       return new DeterministicScoringProvider();

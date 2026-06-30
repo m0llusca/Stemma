@@ -8,6 +8,8 @@ const routes = [
   "/admin/integrations",
   "/admin/integrations/new",
   "/admin/access",
+  "/admin/ai-scoring",
+  "/admin/channels",
   "/admin/users",
   "/admin/scorecards",
   "/admin/tokens",

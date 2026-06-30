@@ -9,9 +9,9 @@ import { prisma } from "@/lib/db";
 /**
  * Sets the workspace's AI scoring engine preference (auto | yandexgpt |
  * anthropic | openai | deterministic). Gated behind the same system-admin
- * permission as the other admin/system writes. Credentials still come from env
- * per provider; the deterministic fallback runs when the chosen provider has no
- * key.
+ * permission as the other settings writes. Per-provider API keys are managed
+ * separately (saveAiProviderCredential — encrypted in the DB, with env as
+ * fallback); the deterministic fallback runs when the chosen provider has no key.
  */
 export async function saveAiScoringProvider(formData: FormData) {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
@@ -38,5 +38,6 @@ export async function saveAiScoringProvider(formData: FormData) {
     metadata: { provider }
   });
 
-  revalidatePath("/admin/system");
+  revalidatePath("/admin/ai-scoring");
+  revalidatePath("/admin");
 }

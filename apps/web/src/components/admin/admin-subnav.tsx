@@ -10,7 +10,9 @@ import {
   ListChecks,
   Palette,
   Plug,
+  Send,
   ShieldCheck,
+  Sparkles,
   UsersRound
 } from "lucide-react";
 import Link from "next/link";
@@ -41,13 +43,14 @@ type AdminSubnavGroup = {
   items: AdminSubnavItem[];
 };
 
-const groups: AdminSubnavGroup[] = [
+export const adminSubnavGroups: AdminSubnavGroup[] = [
   {
     id: "methodology",
     label: "Методология",
     items: [
       { href: "/admin/scorecards", label: "Формы оценки", icon: Gauge },
-      { href: "/admin/sampling", label: "Выборки", icon: ListChecks }
+      { href: "/admin/sampling", label: "Выборки", icon: ListChecks },
+      { href: "/admin/ai-scoring", label: "AI-оценка", icon: Sparkles }
     ]
   },
   {
@@ -57,6 +60,7 @@ const groups: AdminSubnavGroup[] = [
       { href: "/admin/integrations", label: "Интеграции", icon: Plug },
       { href: "/admin/users", label: "Пользователи", icon: UsersRound },
       { href: "/admin/access", label: "Доступ и SSO", icon: ShieldCheck },
+      { href: "/admin/channels", label: "Каналы", icon: Send },
       { href: "/admin/tokens", label: "API-доступ", icon: KeyRound },
       { href: "/admin/system", label: "Система", icon: Activity }
     ]
@@ -91,7 +95,7 @@ export function AdminSubnav({ className }: { className?: string }) {
       >
         Обзор настроек
       </Link>
-      {groups.map((group) => (
+      {adminSubnavGroups.map((group) => (
         <div key={group.id} className="admin-subnav__group">
           <p className="admin-subnav__group-label">{group.label}</p>
           <ul className="admin-subnav__list">

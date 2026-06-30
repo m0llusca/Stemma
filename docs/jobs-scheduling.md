@@ -64,9 +64,16 @@ the CLI loop covers all workspaces in one process.
 
 ## AI scoring provider keys
 
-Per-workspace engine is chosen on `/admin/system` (`Workspace.aiScoringProvider`);
-credentials come from the environment, with a deterministic fallback when absent:
+Per-workspace engine and API keys are managed on `/admin/ai-scoring`. Keys entered
+there are **encrypted at rest** in the DB (`AiProviderCredential`, AES-256-GCM via
+`QC_SECRET_KEY`) and take effect immediately — no `.env` edit or restart. The
+environment variables below remain a fallback when no DB key is set (and are how the
+CLI jobs worker authenticates if you don't store keys per workspace). When the chosen
+provider has no key from either source, scoring uses the deterministic fallback.
 
 - YandexGPT: `YANDEX_GPT_API_KEY` + `YANDEX_GPT_CATALOG_ID` (+ `YANDEX_GPT_MODEL`)
 - Claude (Anthropic): `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`, default `claude-opus-4-8`)
 - ChatGPT (OpenAI): `OPENAI_API_KEY` (+ `OPENAI_MODEL` default `gpt-4o`, + `OPENAI_ORG_ID`)
+
+`QC_SECRET_KEY` must be set (and stable) in every process that reads or writes these
+keys — the web app and the jobs worker — or stored keys can't be decrypted.

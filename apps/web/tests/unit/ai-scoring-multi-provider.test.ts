@@ -204,3 +204,51 @@ describe("resolveScoringProvider selection", () => {
     expect(resolveAiScoringProviderName("auto")).toBe("deterministic");
   });
 });
+
+describe("resolveScoringProvider credential injection (DB over env)", () => {
+  const keys = ["YANDEX_GPT_API_KEY", "YANDEX_GPT_CATALOG_ID", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"] as const;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of keys) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of keys) {
+      if (saved[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = saved[key];
+      }
+    }
+  });
+
+  it("uses an injected key when no env var is set", () => {
+    expect(resolveAiScoringProviderName("anthropic", { anthropic: { apiKey: "db-key" } })).toBe("anthropic");
+    expect(resolveScoringProvider("anthropic", { anthropic: { apiKey: "db-key" } })).toBeInstanceOf(AnthropicScoringProvider);
+  });
+
+  it("requires both key and catalog id for YandexGPT", () => {
+    expect(resolveAiScoringProviderName("yandexgpt", { yandexgpt: { apiKey: "db-key" } })).toBe("deterministic");
+    expect(resolveAiScoringProviderName("yandexgpt", { yandexgpt: { apiKey: "db-key", catalogId: "cat" } })).toBe("yandexgpt");
+  });
+
+  it("auto picks an injected provider", () => {
+    expect(resolveAiScoringProviderName("auto", { openai: { apiKey: "db-key" } })).toBe("openai");
+    expect(resolveScoringProvider("auto", { openai: { apiKey: "db-key" } })).toBeInstanceOf(OpenAiScoringProvider);
+  });
+
+  it("respects auto priority when both env and injected keys exist", () => {
+    process.env.OPENAI_API_KEY = "env-openai";
+    // openai from env + anthropic injected → anthropic wins (yandex > anthropic > openai).
+    expect(resolveAiScoringProviderName("auto", { anthropic: { apiKey: "db-anthropic" } })).toBe("anthropic");
+  });
+
+  it("ignores empty injected values and falls through to deterministic", () => {
+    expect(resolveAiScoringProviderName("anthropic", { anthropic: { apiKey: "" } })).toBe("deterministic");
+    expect(resolveAiScoringProviderName("auto", {})).toBe("deterministic");
+  });
+});

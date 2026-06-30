@@ -63,8 +63,8 @@ export function getRuntimeConfigDiagnostics() {
       key: "ai_scoring",
       status: aiScoringReady ? "ok" : "warn",
       message: aiScoringReady
-        ? `AI-оценка по умолчанию (auto) использует ${aiScoringLabel[aiScoringProvider]}.`
-        : "AI-оценка использует детерминированный fallback: задайте ключи провайдера (YandexGPT: YANDEX_GPT_API_KEY+YANDEX_GPT_CATALOG_ID; Anthropic: ANTHROPIC_API_KEY; OpenAI: OPENAI_API_KEY)."
+        ? `AI-оценка (уровень окружения) использует ${aiScoringLabel[aiScoringProvider]}. Ключи, заданные по рабочему пространству на /admin/ai-scoring, имеют приоритет.`
+        : "AI-оценка использует детерминированный fallback на уровне окружения: задайте ключи на /admin/ai-scoring (хранятся в БД и имеют приоритет) или через env (YandexGPT: YANDEX_GPT_API_KEY+YANDEX_GPT_CATALOG_ID; Anthropic: ANTHROPIC_API_KEY; OpenAI: OPENAI_API_KEY)."
     }
   ];
 

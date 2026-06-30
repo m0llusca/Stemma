@@ -41,11 +41,19 @@ export class AiScoreMalformedError extends Error {
   }
 }
 
-async function defaultProvider(preference?: string): Promise<QualityScoringProvider> {
+async function defaultProvider(workspaceId: string): Promise<QualityScoringProvider> {
   // Lazy import mirrors the sibling handlers in queue.ts and keeps this module
   // loadable even while the provider package index is authored in parallel.
-  const { resolveScoringProvider } = await import("@/lib/ai-quality/scoring");
-  return resolveScoringProvider(preference);
+  const [{ resolveScoringProvider }, { loadWorkspaceAiCredentials }] = await Promise.all([
+    import("@/lib/ai-quality/scoring"),
+    import("@/lib/ai-quality/credentials")
+  ]);
+  const [preference, credentials] = await Promise.all([
+    loadWorkspaceProviderPreference(workspaceId),
+    loadWorkspaceAiCredentials(workspaceId)
+  ]);
+  // DB-stored keys take precedence; env vars remain the fallback.
+  return resolveScoringProvider(preference, credentials);
 }
 
 async function loadWorkspaceProviderPreference(workspaceId: string): Promise<string | undefined> {
@@ -136,7 +144,7 @@ export async function runAiScoreJob(
     weight: criterion.weight
   }));
 
-  const provider = options.provider ?? (await defaultProvider(await loadWorkspaceProviderPreference(job.workspaceId)));
+  const provider = options.provider ?? (await defaultProvider(job.workspaceId));
 
   const input: ScoringInput = {
     conversationId: conversation.id,

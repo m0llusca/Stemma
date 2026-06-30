@@ -10,7 +10,6 @@ import {
   Play,
   Plug,
   RotateCcw,
-  Send,
   ServerCog,
   ShieldCheck,
   type LucideIcon
@@ -19,22 +18,16 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MetricValue } from "@/components/ui/metric-value";
+import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { MessagingChannelForm } from "@/components/admin/messaging-channel-form";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { setMessagingChannelStatus } from "@/lib/messaging-actions";
-import { messagingChannelRegistry } from "@/lib/messaging/registry";
-import { maskSecret } from "@/lib/secrets";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
-import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
-import { saveAiScoringProvider } from "@/lib/ai-scoring-settings-actions";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 import type { StatusTone } from "@/lib/ui/status-tone";
@@ -45,7 +38,7 @@ type AdminSystemPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type SystemSection = "jobs" | "channels" | "runtime" | "readiness" | "sso" | "integrations" | "maintenance";
+type SystemSection = "jobs" | "runtime" | "readiness" | "sso" | "integrations" | "maintenance";
 
 type SystemHealthItem = {
   section: SystemSection;
@@ -65,7 +58,6 @@ type SystemNextAction = {
 
 const systemSections: Array<{ value: SystemSection; label: string }> = [
   { value: "jobs", label: "Задачи" },
-  { value: "channels", label: "Каналы" },
   { value: "runtime", label: "Окружение" },
   { value: "readiness", label: "Готовность" },
   { value: "sso", label: "SSO и каталог" },
@@ -215,108 +207,6 @@ function evidenceDiagnosticsText(value: Record<string, unknown>) {
   return text.length > 220 ? `${text.slice(0, 220)}...` : text;
 }
 
-function messagingChannelStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    active: "Активен",
-    draft: "Черновик",
-    disabled: "Отключен",
-    error: "Ошибка"
-  };
-
-  return labels[status] ?? status;
-}
-
-function messagingDeliveryStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    queued: "В очереди",
-    delivered: "Доставлено",
-    failed: "Ошибка",
-    skipped: "Пропущено"
-  };
-
-  return labels[status] ?? status;
-}
-
-function messagingDeliveryTone(status: string): StatusTone {
-  if (status === "delivered") return "positive";
-  if (status === "failed") return "negative";
-  if (status === "queued") return "warning";
-  return "neutral";
-}
-
-function messagingChannelTone(status: string): StatusTone {
-  if (status === "active") return "positive";
-  if (status === "error") return "negative";
-  if (status === "disabled") return "warning";
-  return "neutral";
-}
-
-function parseCapabilities(value: string | undefined) {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item): item is string => typeof item === "string");
-    }
-  } catch {
-    // Fall through to the comma-separated legacy format.
-  }
-
-  return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
-function parseWebhookUrl(value: string | undefined | null) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === "object" && typeof (parsed as Record<string, unknown>).webhookUrl === "string") {
-      const webhookUrl = (parsed as Record<string, string>).webhookUrl.trim();
-      return webhookUrl || null;
-    }
-  } catch {
-    // Malformed config — treat as unset rather than throwing in the admin view.
-  }
-
-  return null;
-}
-
-function messagingCapabilityLabel(value: string) {
-  const labels: Record<string, string> = {
-    action_notification: "исходящие уведомления",
-    conversation_ingest: "прием диалогов"
-  };
-
-  return labels[value] ?? value;
-}
-
-function messagingEventTypeLabel(value: string) {
-  const labels: Record<string, string> = {
-    source_certification_lost: "сертификация источника",
-    training_overdue: "просрочено обучение",
-    queue_without_start: "очередь без старта",
-    risk_spike: "рост риска"
-  };
-
-  return labels[value] ?? value;
-}
-
-function messagingRecipientLabel(value: string) {
-  const labels: Record<string, string> = {
-    reviewer: "проверяющий",
-    manager: "руководитель",
-    admin: "администратор",
-    assignee: "исполнитель"
-  };
-
-  return labels[value] ?? value;
-}
-
 function renderReadinessItem(item: PhaseDReadinessItem) {
   return (
     <article key={item.key} className="record-card">
@@ -348,34 +238,6 @@ function renderReadinessItem(item: PhaseDReadinessItem) {
         </p>
       </div>
     </article>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-  tone = "neutral"
-}: {
-  label: string;
-  value: string | number;
-  hint: string;
-  tone?: StatusTone;
-}) {
-  const toneClass = {
-    positive: "soft-callout--ok",
-    warning: "soft-callout--warn",
-    negative: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]",
-    info: "",
-    neutral: ""
-  }[tone];
-
-  return (
-    <div className={`soft-callout ${toneClass}`}>
-      <p className="soft-callout__label">{label}</p>
-      <MetricValue value={value} tone={tone} />
-      <p className="record-meta">{hint}</p>
-    </div>
   );
 }
 
@@ -430,11 +292,6 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
     expiredIdempotencyKeys,
     staleRateLimits,
     apiTokens,
-    messagingChannels,
-    queuedDeliveries,
-    failedDeliveries,
-    deliveredDeliveries,
-    recentDeliveries,
     phaseDReport
   ] = await Promise.all([
     prisma.backendJob.count({ where: { workspaceId: user.workspaceId, status: "QUEUED" } }),
@@ -498,67 +355,25 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
         lastError: true
       }
     }),
-    prisma.messagingChannel.findMany({
-      where: { workspaceId: user.workspaceId },
-      orderBy: [{ kind: "asc" }],
-      include: {
-        _count: {
-          select: {
-            deliveries: true
-          }
-        }
-      }
-    }),
-    prisma.messagingDelivery.count({ where: { workspaceId: user.workspaceId, status: "queued" } }),
-    prisma.messagingDelivery.count({ where: { workspaceId: user.workspaceId, status: "failed" } }),
-    prisma.messagingDelivery.count({ where: { workspaceId: user.workspaceId, status: "delivered" } }),
-    prisma.messagingDelivery.findMany({
-      where: { workspaceId: user.workspaceId },
-      orderBy: [{ createdAt: "desc" }],
-      take: 8,
-      include: {
-        channel: {
-          select: {
-            displayName: true,
-            status: true
-          }
-        }
-      }
-    }),
     getPhaseDReadinessReport(user.workspaceId)
   ]);
   const runtime = getRuntimeConfigDiagnostics();
-  const workspaceSettings = await prisma.workspace.findUnique({
-    where: { id: user.workspaceId },
-    select: { aiScoringProvider: true }
-  });
-  const currentScoringProvider = workspaceSettings?.aiScoringProvider ?? "auto";
-  const activeScoringProvider = resolveAiScoringProviderName(currentScoringProvider);
-  const scoringProviderLabels: Record<string, string> = {
-    yandexgpt: "YandexGPT",
-    anthropic: "Claude (Anthropic)",
-    openai: "ChatGPT (OpenAI)",
-    deterministic: "детерминированный (без сети)"
-  };
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
   const integrationErrors = integrations.filter((integration) => integration.lastError || integration.status === "error").length;
   const apiTokenErrors = apiTokens.filter(
     (token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
   ).length;
-  const configuredChannelByKind = new Map(messagingChannels.map((channel) => [channel.kind, channel]));
-  const activeActionChannels = messagingChannels.filter((channel) => channel.status === "active").length;
   const runtimeIssues = runtime.checks.filter((check) => check.status !== "ok").length;
   const runtimeHealthyChecks = runtime.checks.length - runtimeIssues;
   const readinessBlockers = phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess;
   const maintenanceBacklog = expiredActiveSessions + expiredIdempotencyKeys + staleRateLimits;
   const integrationRiskCount = integrationErrors + apiTokenErrors;
   const runtimeCritical = runtime.status === "error";
-  const highSeverityIssues = (runtimeCritical ? 1 : 0) + failedJobs + failedDeliveries + integrationRiskCount;
+  const highSeverityIssues = (runtimeCritical ? 1 : 0) + failedJobs + integrationRiskCount;
   const warningSignals =
     (runtime.status === "warn" ? Math.max(runtimeIssues, 1) : 0) +
     queuedJobs +
     runningJobs +
-    queuedDeliveries +
     providerWarnings +
     readinessBlockers +
     maintenanceBacklog;
@@ -567,7 +382,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
     overallTone === "negative" ? "Требует вмешательства" : overallTone === "warning" ? "Есть операционный риск" : "Система стабильна";
   const overallSummary =
     overallTone === "negative"
-      ? `${highSeverityIssues} критичных сигналов: проверьте задачи, каналы, интеграции или окружение.`
+      ? `${highSeverityIssues} критичных сигналов: проверьте задачи, интеграции или окружение.`
       : overallTone === "warning"
         ? `${warningSignals} сигналов требуют плановой проверки, критичных ошибок нет.`
         : "Критичных сигналов нет, ключевые подсистемы готовы к работе.";
@@ -585,14 +400,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
           title: "Снять ошибки очереди",
           detail: `${failedJobs} задач завершились ошибкой. Откройте детали и повторите запуск после исправления причины.`
         }
-      : failedDeliveries > 0
-        ? {
-            section: "channels",
-            label: "Проверить каналы",
-            title: "Восстановить доставку уведомлений",
-            detail: `${failedDeliveries} доставок не ушли адресатам. Проверьте статус канала и последнюю ошибку.`
-          }
-        : integrationRiskCount > 0
+      : integrationRiskCount > 0
           ? {
               section: "integrations",
               label: "Открыть интеграции",
@@ -651,14 +459,6 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
       icon: Activity
     },
     {
-      section: "channels",
-      label: "Каналы",
-      value: activeActionChannels,
-      hint: `Активны из ${messagingChannels.length} · ошибок доставок: ${failedDeliveries}`,
-      tone: failedDeliveries > 0 ? "negative" : queuedDeliveries > 0 ? "warning" : activeActionChannels > 0 ? "positive" : "neutral",
-      icon: Send
-    },
-    {
       section: "readiness",
       label: "Готовность",
       value: `${phaseDReport.summary.liveCertified}/${phaseDReport.summary.total}`,
@@ -701,7 +501,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
     <PageShell
       eyebrow="Администрирование"
       title="Состояние системы"
-      description="Единый контур для окружения, очереди, каналов, SSO/AD, интеграций и обслуживания."
+      description="Единый контур для окружения, очереди, SSO/AD, интеграций и обслуживания."
     >
       <AdminFrame>
       <section className={`system-cockpit system-cockpit--${overallTone}`} aria-label="Операционная сводка системы">
@@ -831,127 +631,6 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
         </section>
       ) : null}
 
-      {activeSection === "channels" ? (
-        <section className="ops-panel" aria-labelledby="system-channels-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Каналы действий</p>
-              <h2 id="system-channels-title" className="ops-panel__title">Каналы сообщений</h2>
-              <p className="ops-panel__subtitle">Рабочий контур для Slack, Teams, Telegram и WhatsApp: готовность, защитные проверки и очередь доставок.</p>
-            </div>
-            <StatusBadge label="Активны" value={activeActionChannels} tone={activeActionChannels > 0 ? "positive" : "neutral"} />
-          </div>
-          <section className="system-section-summary system-section-summary--four" aria-label="Сводка каналов действий">
-            <StatCard label="Каналы" value={messagingChannels.length} hint="Настроены в workspace" tone={messagingChannels.length > 0 ? "info" : "neutral"} />
-            <StatCard label="В очереди" value={queuedDeliveries} hint="Ожидают отправки" tone={queuedDeliveries > 0 ? "warning" : "positive"} />
-            <StatCard label="Ошибки" value={failedDeliveries} hint="Требуют проверки" tone={failedDeliveries > 0 ? "negative" : "positive"} />
-            <StatCard label="Доставлено" value={deliveredDeliveries} hint="За все время" tone={deliveredDeliveries > 0 ? "positive" : "neutral"} />
-          </section>
-          {failedDeliveries > 0 ? (
-            <div className="system-attention system-attention--negative">
-              <AlertTriangle size={17} aria-hidden="true" />
-              <div>
-                <p className="system-attention__title">Доставка уведомлений деградировала</p>
-                <p className="system-attention__text">Проверьте последний error у канала и scope токена перед повторной отправкой.</p>
-              </div>
-            </div>
-          ) : null}
-          <div className="grid gap-5 p-5 pt-0 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.75fr)]">
-            <section aria-labelledby="channel-readiness-title">
-              <h3 id="channel-readiness-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Настройка каналов</h3>
-              <div className="record-list">
-                {Object.values(messagingChannelRegistry).map((definition) => {
-                  const channel = configuredChannelByKind.get(definition.kind);
-                  const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
-                  const webhookUrl = parseWebhookUrl(channel?.configJson);
-                  const maskedWebhook = maskSecret(webhookUrl);
-                  const hasSecret = Boolean(channel?.secretRef);
-                  const channelStatus = channel?.status ?? "draft";
-                  const isActive = channelStatus === "active";
-
-                  return (
-                    <article key={definition.kind} className="record-card">
-                      <div className="record-row">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Send size={16} aria-hidden="true" />
-                            <h4 className="record-title">{channel?.displayName ?? definition.displayName}</h4>
-                          </div>
-                          <p className="record-meta mt-1">
-                            {capabilities.map(messagingCapabilityLabel).join(", ")} ·{" "}
-                            {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
-                          </p>
-                        </div>
-                        <StatusBadge
-                          label="Статус"
-                          value={channel ? messagingChannelStatusLabel(channelStatus) : "Не настроен"}
-                          tone={channel ? messagingChannelTone(channelStatus) : "neutral"}
-                        />
-                      </div>
-
-                      <MessagingChannelForm
-                        kind={definition.kind}
-                        displayName={channel?.displayName ?? definition.displayName}
-                        status={channelStatus}
-                        maskedWebhook={maskedWebhook}
-                        hasSecret={hasSecret}
-                      />
-
-                      <p className="record-meta tabular-nums">
-                        Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
-                      </p>
-                      {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
-                      <div className="messaging-channel-footer">
-                        <a href={definition.docsHref} target="_blank" rel="noreferrer" className="quiet-link text-sm">
-                          Документация канала
-                        </a>
-                        {channel ? (
-                          <form action={setMessagingChannelStatus} className="messaging-channel-footer__toggle">
-                            <input type="hidden" name="kind" value={definition.kind} />
-                            <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
-                            <button type="submit" className="action-button action-button--small">
-                              {isActive ? "В черновик" : "Активировать"}
-                            </button>
-                          </form>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-            <section aria-labelledby="channel-deliveries-title">
-              <h3 id="channel-deliveries-title" className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Последние action notifications</h3>
-              <div className="record-list">
-                {recentDeliveries.length === 0 ? (
-                  <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
-                ) : (
-                  recentDeliveries.map((delivery) => (
-                    <article key={delivery.id} className="record-card">
-                      <div className="record-row">
-                        <div className="min-w-0">
-                          <h4 className="record-title">{delivery.title}</h4>
-                          <p className="record-meta mt-1">
-                            {delivery.channel?.displayName ?? delivery.kind} · {messagingEventTypeLabel(delivery.eventType)} · {messagingRecipientLabel(delivery.recipientType)}
-                          </p>
-                        </div>
-                        <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
-                      </div>
-                      <p className="record-meta">{delivery.body}</p>
-                      <p className="record-meta tabular-nums">
-                        Создано: {formatDate(delivery.createdAt)} · доставлено: {formatDate(delivery.deliveredAt)}
-                      </p>
-                      {delivery.error ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{delivery.error}</p> : null}
-                      {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
-                    </article>
-                  ))
-                )}
-              </div>
-            </section>
-          </div>
-        </section>
-      ) : null}
-
       {activeSection === "runtime" ? (
         <section className="ops-panel" aria-labelledby="runtime-title">
           <div className="ops-panel__header">
@@ -991,25 +670,6 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                 </div>
               );
             })}
-          </div>
-          <div className="px-5 pb-5">
-            <h3 className="text-sm font-semibold text-[var(--foreground)]">Провайдер AI-оценки</h3>
-            <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
-              Сейчас активен: {scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider}. Ключи задаются в env: YandexGPT — YANDEX_GPT_API_KEY + YANDEX_GPT_CATALOG_ID; Claude — ANTHROPIC_API_KEY; ChatGPT — OPENAI_API_KEY. Если у выбранного провайдера нет ключа, используется детерминированный fallback.
-            </p>
-            <form action={saveAiScoringProvider} className="mt-3 flex flex-wrap items-end gap-3">
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Движок оценки
-                <select name="provider" defaultValue={currentScoringProvider} className="form-control">
-                  <option value="auto">Авто (первый настроенный)</option>
-                  <option value="yandexgpt">YandexGPT</option>
-                  <option value="anthropic">Claude (Anthropic)</option>
-                  <option value="openai">ChatGPT (OpenAI)</option>
-                  <option value="deterministic">Детерминированный (без сети)</option>
-                </select>
-              </label>
-              <button type="submit" className="action-button action-button--primary">Сохранить</button>
-            </form>
           </div>
         </section>
       ) : null}

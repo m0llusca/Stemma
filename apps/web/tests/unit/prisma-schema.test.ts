@@ -103,6 +103,16 @@ describe("prisma schema database foundations", () => {
     expect(workspacePaletteMigration).toContain('ADD COLUMN "uiPaletteOverridesJson" TEXT NOT NULL DEFAULT');
   });
 
+  it("stores AI provider keys as an encrypted, per-workspace credential", () => {
+    const model = modelBlock("AiProviderCredential");
+
+    expect(model).toMatch(/provider\s+String/);
+    expect(model).toMatch(/secretRef\s+String\?/);
+    expect(model).toMatch(/configJson\s+String\s+@default\("\{\}"\)/);
+    expect(model).toContain("@@unique([workspaceId, provider])");
+    expect(modelBlock("Workspace")).toMatch(/aiProviderCredentials\s+AiProviderCredential\[\]/);
+  });
+
   it("keeps evidence and calibration baseline references as database foreign keys", () => {
     expect(schema).toMatch(
       /evidenceMessage\s+Message\?\s+@relation\("CriterionScoreEvidenceMessage", fields: \[evidenceMessageId], references: \[id], onDelete: SetNull\)/

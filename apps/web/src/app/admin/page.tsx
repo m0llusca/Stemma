@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, CalendarClock, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { Activity, ArrowRight, CalendarClock, Gauge, History, KeyRound, ListChecks, Palette, Plug, Send, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageShell } from "@/components/ui/page-shell";
@@ -9,6 +9,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
+import { loadWorkspaceAiCredentials } from "@/lib/ai-quality/credentials";
 import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
 
 export const dynamic = "force-dynamic";
@@ -48,11 +50,13 @@ async function AdminHomePageContent() {
     failedJobs,
     recentAuditLogs,
     apiTokens,
-    reportSchedules
+    reportSchedules,
+    messagingActiveChannels,
+    aiCredentials
   ] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { uiTheme: true, uiDensity: true, brandLogoUrl: true, uiPaletteOverridesJson: true }
+      select: { uiTheme: true, uiDensity: true, brandLogoUrl: true, uiPaletteOverridesJson: true, aiScoringProvider: true }
     }),
     prisma.scorecard.findFirst({
       where: { workspaceId: user.workspaceId, isActive: true },
@@ -98,10 +102,21 @@ async function AdminHomePageContent() {
     }),
     prisma.reportSchedule.count({
       where: { workspaceId: user.workspaceId, isActive: true }
-    })
+    }),
+    prisma.messagingChannel.count({
+      where: { workspaceId: user.workspaceId, status: "active" }
+    }),
+    loadWorkspaceAiCredentials(user.workspaceId)
   ]);
   const currentTheme = getUiThemeOption(workspace?.uiTheme);
   const currentDensity = getUiDensityOption(workspace?.uiDensity);
+  const activeScoringProvider = resolveAiScoringProviderName(workspace?.aiScoringProvider ?? "auto", aiCredentials);
+  const scoringProviderLabels: Record<string, string> = {
+    yandexgpt: "YandexGPT",
+    anthropic: "Claude (Anthropic)",
+    openai: "ChatGPT (OpenAI)",
+    deterministic: "Детерминированный"
+  };
   const setupCoachmarkRoles: Record<SettingCoachmarkId, RoleName[]> = {
     scorecards: ["ADMIN", "TEAM_LEAD"],
     sampling: ["ADMIN", "TEAM_LEAD"],
@@ -145,6 +160,14 @@ async function AdminHomePageContent() {
       tone: activeSamplingRules > 0 ? "ok" : "warn"
     },
     {
+      href: "/admin/ai-scoring",
+      title: "AI-оценка",
+      icon: Sparkles,
+      roles: ["ADMIN"],
+      metric: scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider,
+      tone: activeScoringProvider === "deterministic" ? "warn" : "ok"
+    },
+    {
       href: "/admin/integrations",
       title: "Интеграции",
       icon: Plug,
@@ -159,6 +182,14 @@ async function AdminHomePageContent() {
       roles: ["ADMIN"],
       metric: providerWarnings > 0 ? `${providerWarnings} требуют настройки` : "Готово",
       tone: providerWarnings > 0 ? "warn" : "ok"
+    },
+    {
+      href: "/admin/channels",
+      title: "Каналы",
+      icon: Send,
+      roles: ["ADMIN"],
+      metric: `${messagingActiveChannels} активных`,
+      tone: messagingActiveChannels > 0 ? "ok" : "neutral"
     },
     {
       href: "/admin/users",

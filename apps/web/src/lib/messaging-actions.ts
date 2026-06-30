@@ -139,7 +139,8 @@ export async function saveMessagingChannel(
       }
     });
 
-    revalidatePath("/admin/system");
+    revalidatePath("/admin/channels");
+    revalidatePath("/admin");
 
     return {
       status: "success",
@@ -197,5 +198,6 @@ export async function setMessagingChannelStatus(formData: FormData) {
     }
   });
 
-  revalidatePath("/admin/system");
+  revalidatePath("/admin/channels");
+  revalidatePath("/admin");
 }

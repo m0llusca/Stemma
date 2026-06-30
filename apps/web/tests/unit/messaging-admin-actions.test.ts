@@ -106,7 +106,7 @@ describe("messaging channel admin actions", () => {
     expect(args.create.kind).toBe("slack");
 
     expect(state.status).toBe("success");
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/channels");
   });
 
   it("preserves an existing secretRef when no new token is provided", async () => {
@@ -165,7 +165,7 @@ describe("messaging channel admin actions", () => {
       where: { workspaceId_kind: { workspaceId: "workspace-1", kind: "slack" } },
       data: { status: "draft" }
     });
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/system");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/channels");
   });
 
   it("rejects an unknown status in setMessagingChannelStatus", async () => {

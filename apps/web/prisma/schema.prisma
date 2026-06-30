@@ -156,6 +156,7 @@ model Workspace {
   webhookIngestEvents       WebhookIngestEvent[]
   messagingChannels         MessagingChannel[]
   messagingDeliveries       MessagingDelivery[]
+  aiProviderCredentials     AiProviderCredential[]
   aiQualityDrafts           AiQualityDraft[]
   certificationRuns         CertificationRun[]
   certificationEvidence     CertificationEvidence[]
@@ -1214,6 +1215,24 @@ model MessagingChannel {
   @@unique([workspaceId, kind])
   @@index([workspaceId, status])
   @@index([workspaceId, kind])
+}
+
+// Per-workspace AI scoring provider credentials, set from /admin/ai-scoring.
+// The API key is encrypted at rest (encryptSecret -> secretRef); non-secret
+// extras (catalogId/model/organization) live in configJson. Resolution prefers
+// these over environment variables, so operators never edit .env by hand.
+model AiProviderCredential {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  provider    String
+  secretRef   String?
+  configJson  String    @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
 }
 
 model MessagingDelivery {

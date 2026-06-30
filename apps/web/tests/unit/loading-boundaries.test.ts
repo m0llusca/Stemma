@@ -11,6 +11,8 @@ const heavyRoutes = [
   "coaching",
   "reports",
   "admin",
+  "admin/ai-scoring",
+  "admin/channels",
   "admin/integrations",
   "admin/integrations/new",
   "admin/integrations/[integrationId]",
