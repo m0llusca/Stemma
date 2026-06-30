@@ -13,3 +13,12 @@ test-results/
 .superpowers/
 .worktrees/
 apps/web/next-env.d.ts
+.vite/
+
+# Design-research artifacts (kept locally, not in the repo)
+.lazyweb/
+.research-cresta/
+.lazyweb-design/
+night-ops-*.png
+recon-dashboard.png
+verint-sa-screenshot1.png
