@@ -169,6 +169,7 @@ model Workspace {
   samplingRules             SamplingRule[]
   knowledgeEntries          QualityKnowledgeEntry[]
   trainingAssignments       TrainingAssignment[]
+  coachingPlans             CoachingPlan[]
   coachingPins              CoachingPin[]
   locales                   Locale[]
   translationValues         TranslationValue[]
@@ -290,6 +291,7 @@ model User {
   feedbackEvents              ReviewFeedbackEvent[]
   assignedTrainingAssignments TrainingAssignment[]       @relation("TrainingAssignee")
   createdTrainingAssignments  TrainingAssignment[]       @relation("TrainingAssignedBy")
+  createdCoachingPlans        CoachingPlan[]             @relation("CoachingPlanCreatedBy")
   integrationRuns             IntegrationRun[]
   integrationDiagnosticRuns   IntegrationDiagnosticRun[]
   coachingPins                CoachingPin[]
@@ -1057,34 +1059,34 @@ model IntegrationRunItem {
 }
 
 model CertificationRun {
-  id                      String                  @id @default(cuid())
-  workspaceId             String
-  workspace               Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  targetType              String
-  source                  String
-  provider                String?
-  integrationId           String?
-  integration             Integration?            @relation(fields: [integrationId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  identityProviderId      String?
-  identityProvider        IdentityProvider?       @relation(fields: [identityProviderId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  actorId                 String?
-  actor                   User?                   @relation("CertificationRunActor", fields: [actorId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  status                  String                  @default("running")
-  startedAt               DateTime                @default(now())
-  finishedAt              DateTime?
-  nextActionJson          String                  @default("{}")
-  summaryJson             String                  @default("{}")
-  steps                   CertificationRunStep[]
-  evidence                CertificationEvidence[]
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
+  id                 String                  @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  targetType         String
+  source             String
+  provider           String?
+  integrationId      String?
+  integration        Integration?            @relation(fields: [integrationId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  identityProviderId String?
+  identityProvider   IdentityProvider?       @relation(fields: [identityProviderId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  actorId            String?
+  actor              User?                   @relation("CertificationRunActor", fields: [actorId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  status             String                  @default("running")
+  startedAt          DateTime                @default(now())
+  finishedAt         DateTime?
+  nextActionJson     String                  @default("{}")
+  summaryJson        String                  @default("{}")
+  steps              CertificationRunStep[]
+  evidence           CertificationEvidence[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
+  @@unique([id, workspaceId])
   @@index([workspaceId, targetType, source, startedAt])
   @@index([workspaceId, status, startedAt])
   @@index([integrationId, startedAt])
   @@index([identityProviderId, startedAt])
   @@index([actorId, startedAt])
-  @@unique([id, workspaceId])
 }
 
 model CertificationRunStep {
@@ -1359,26 +1361,47 @@ model QualityKnowledgeEntry {
 }
 
 model TrainingAssignment {
-  id           String    @id @default(cuid())
-  workspaceId  String
-  workspace    Workspace @relation(fields: [workspaceId], references: [id])
-  reviewId     String?
-  review       Review?   @relation(fields: [reviewId], references: [id])
-  assigneeId   String?
-  assignee     User?     @relation("TrainingAssignee", fields: [assigneeId], references: [id])
-  assignedById String?
-  assignedBy   User?     @relation("TrainingAssignedBy", fields: [assignedById], references: [id])
-  assigneeName String
-  title        String
-  description  String
-  dueAt        DateTime?
-  status       String    @default("open")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String        @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id])
+  reviewId       String?
+  review         Review?       @relation(fields: [reviewId], references: [id])
+  assigneeId     String?
+  assignee       User?         @relation("TrainingAssignee", fields: [assigneeId], references: [id])
+  assignedById   String?
+  assignedBy     User?         @relation("TrainingAssignedBy", fields: [assignedById], references: [id])
+  coachingPlanId String?
+  coachingPlan   CoachingPlan? @relation(fields: [coachingPlanId], references: [id])
+  assigneeName   String
+  title          String
+  description    String
+  dueAt          DateTime?
+  status         String        @default("open")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([workspaceId, status])
   @@index([workspaceId, status, dueAt])
   @@index([workspaceId, assigneeName])
+  @@index([coachingPlanId])
+}
+
+model CoachingPlan {
+  id          String               @id @default(cuid())
+  workspaceId String
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id])
+  agentName   String
+  title       String
+  focusArea   String?
+  status      String               @default("active")
+  createdById String?
+  createdBy   User?                @relation("CoachingPlanCreatedBy", fields: [createdById], references: [id])
+  assignments TrainingAssignment[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([workspaceId, agentName])
+  @@index([workspaceId, status])
 }
 
 model ReportSnapshot {

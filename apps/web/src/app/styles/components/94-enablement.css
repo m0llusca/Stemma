@@ -1712,3 +1712,206 @@ details.calibration-create-panel:not([open]) .calibration-create-form {
   }
 }
 
+/* Coaching plans (Workstream C1): grouped, per-agent development plans with
+ * progress and the before/after coaching-impact metric (C2). Tokens only, so
+ * the board holds across every theme including the dark variants. */
+.coaching-plan-board {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-page);
+  background: var(--panel);
+}
+
+.coaching-plan-board__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coaching-plan-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--panel-muted) 46%, var(--panel));
+}
+
+.coaching-plan-form__title {
+  grid-column: 1 / -1;
+}
+
+.coaching-plan-form__action {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+
+.coaching-plan-list {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coaching-plan-card {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--panel-muted) 34%, var(--panel));
+}
+
+.coaching-plan-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.coaching-plan-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--accent);
+}
+
+.coaching-plan-card__title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 720;
+  color: var(--foreground);
+}
+
+.coaching-plan-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.coaching-plan-card__agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 660;
+  color: var(--foreground);
+}
+
+.coaching-plan-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coaching-plan-card__progress-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-chip);
+  background: var(--surface-soft);
+}
+
+.coaching-plan-card__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.coaching-plan-card__progress-label {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.coaching-plan-card__impact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-small);
+  font-size: 12px;
+  font-weight: 660;
+  background: var(--surface-soft);
+  color: var(--foreground);
+}
+
+.coaching-plan-card__impact--up {
+  background: color-mix(in srgb, var(--success-soft) 70%, var(--panel));
+  color: var(--success);
+}
+
+.coaching-plan-card__impact--down {
+  background: color-mix(in srgb, var(--danger-soft) 64%, var(--panel));
+  color: var(--danger);
+}
+
+.coaching-plan-card__assignments {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coaching-plan-assignment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+.coaching-plan-assignment__title {
+  min-width: 0;
+  font-weight: 620;
+}
+
+.coaching-plan-assignment__impact {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.coaching-plan-assignment__impact--up {
+  color: var(--success);
+}
+
+.coaching-plan-assignment__impact--down {
+  color: var(--danger);
+}
+
+.coaching-plan-card__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.coaching-plan-card__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 880px) {
+  .coaching-plan-list,
+  .coaching-plan-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+

@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpenCheck,
   CalendarDays,
+  CheckCircle2,
   ClipboardList,
   Clock3,
   Link2,
@@ -11,6 +12,8 @@ import {
   PlusCircle,
   Search,
   SlidersHorizontal,
+  Sparkles,
+  Target,
   TriangleAlert,
   UserRound,
   X
@@ -28,6 +31,9 @@ import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { createTrainingAssignmentState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
+import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
+import { listCoachingPlans } from "@/lib/coaching-plan";
+import { loadAssignmentCoachingImpact, type CoachingImpact } from "@/lib/coaching-impact";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
@@ -133,6 +139,42 @@ function statusRank(status: string) {
   return 3;
 }
 
+function planStatusLabel(status: string) {
+  return status === "completed" ? "Завершён" : "Активный";
+}
+
+function planStatusTone(status: string): ChipTone {
+  return status === "completed" ? "success" : "accent";
+}
+
+/**
+ * Renders the C2 coaching-impact metric as a compact Russian "до X → после Y"
+ * line. Returns null when either window lacks reviews (trend "insufficient"),
+ * so the UI silently omits the metric instead of showing a misleading delta.
+ */
+function impactSummary(impact: CoachingImpact) {
+  if (impact.trend === "insufficient" || impact.beforeAvg == null || impact.afterAvg == null || impact.delta == null) {
+    return null;
+  }
+
+  return {
+    text: `до ${formatQualityScore(impact.beforeAvg)} → после ${formatQualityScore(impact.afterAvg)}, ${formatQualityScoreDelta(impact.delta)}`,
+    trend: impact.trend
+  };
+}
+
+function impactTone(trend: CoachingImpact["trend"]): ChipTone {
+  if (trend === "up") {
+    return "success";
+  }
+
+  if (trend === "down") {
+    return "danger";
+  }
+
+  return "neutral";
+}
+
 export default function CoachingPage({ searchParams }: CoachingPageProps) {
   return (
     <Suspense fallback={<PageSkeleton label="Загрузка обучения" />}>
@@ -150,11 +192,12 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const category = cleanParam(rawSearchParams.category);
   const createTaskOpen = cleanParam(rawSearchParams.create) === "1";
   const createRuleOpen = cleanParam(rawSearchParams.rule) === "1";
+  const createPlanOpen = cleanParam(rawSearchParams.plan) === "1";
   const trainingWhere =
     user.role === "SUPPORT_AGENT"
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
       : { workspaceId: user.workspaceId };
-  const [rawAssignments, knowledgeEntries, supportUsers, reviewCandidates, agentScoreHistory] = await Promise.all([
+  const [rawAssignments, knowledgeEntries, supportUsers, reviewCandidates, agentScoreHistory, coachingPlans] = await Promise.all([
     prisma.trainingAssignment.findMany({
       where: trainingWhere,
       include: {
@@ -207,7 +250,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       },
       orderBy: { finalizedAt: "desc" },
       take: 600
-    })
+    }),
+    listCoachingPlans(user.workspaceId)
   ]);
   const assignments = [...rawAssignments].sort((left, right) => {
     const leftOverdue = left.status !== "done" && isOverdue(left.dueAt, now);
@@ -260,6 +304,54 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     trainingEffectValues.length > 0
       ? Math.round(trainingEffectValues.reduce((sum, value) => sum + value, 0) / trainingEffectValues.length)
       : null;
+  // Coaching impact (Workstream C2): for every completed assignment, compute the
+  // before/after score delta around its completion moment (updatedAt = pivot).
+  // Loaded through C2's loadAssignmentCoachingImpact so the page owns no scoring
+  // math of its own. Keyed by assignment id for per-row display and grouped by
+  // plan id so each coaching plan shows its strongest measured result.
+  const assignmentImpacts = new Map<string, CoachingImpact>();
+  await Promise.all(
+    doneAssignments.map(async (assignment) => {
+      const impact = await loadAssignmentCoachingImpact(
+        {
+          workspaceId: user.workspaceId,
+          assigneeName: assignment.assigneeName,
+          pivot: assignment.updatedAt
+        },
+        prisma
+      );
+      assignmentImpacts.set(assignment.id, impact);
+    })
+  );
+  // Best measured impact per plan: prefer the assignment with the largest
+  // positive delta so a plan headlines its most convincing win.
+  const planImpacts = new Map<string, CoachingImpact>();
+  for (const assignment of doneAssignments) {
+    if (!assignment.coachingPlanId) {
+      continue;
+    }
+    const impact = assignmentImpacts.get(assignment.id);
+    if (!impact || impact.delta == null) {
+      continue;
+    }
+    const current = planImpacts.get(assignment.coachingPlanId);
+    if (!current || current.delta == null || impact.delta > current.delta) {
+      planImpacts.set(assignment.coachingPlanId, impact);
+    }
+  }
+  const assignmentsByPlan = new Map<string, typeof assignments>();
+  for (const assignment of assignments) {
+    if (!assignment.coachingPlanId) {
+      continue;
+    }
+    const bucket = assignmentsByPlan.get(assignment.coachingPlanId);
+    if (bucket) {
+      bucket.push(assignment);
+    } else {
+      assignmentsByPlan.set(assignment.coachingPlanId, [assignment]);
+    }
+  }
+  const activePlanCount = coachingPlans.filter((plan) => plan.status === "active").length;
   const weekAssignments = openAssignments.filter((assignment) => isDueThisWeek(assignment.dueAt, now));
   const mineAssignments = openAssignments.filter((assignment) => assignment.assigneeId === user.id || assignment.assigneeName === user.name);
   const unlinkedAssignments = openAssignments.filter((assignment) => !assignment.reviewId);
@@ -361,6 +453,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const baseCoachingHref = viewHref(view, { q, assigneeId, category });
   const createTaskHref = `${baseCoachingHref}&create=1`;
   const createRuleHref = `${baseCoachingHref}&rule=1`;
+  const createPlanHref = `${baseCoachingHref}&plan=1`;
   const closeCreatePanelHref = baseCoachingHref;
   const coachingActionHref = nextConversation ? `/reviews/${nextConversation.id}` : createTaskHref;
   const coachingActionTone = overdueAssignments.length > 0 ? "negative" : openAssignments.length > 0 ? "warning" : "positive";
@@ -532,6 +625,171 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           </div>
         </section>
       ) : null}
+
+      <section className="coaching-plan-board panel" aria-label="Планы коучинга">
+        <div className="learning-section-header coaching-plan-board__header">
+          <div className="min-w-0">
+            <h2>Планы коучинга</h2>
+            <p>
+              {coachingPlans.length > 0
+                ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
+                : "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."}
+            </p>
+          </div>
+          <Link
+            href={createPlanOpen ? closeCreatePanelHref : createPlanHref}
+            className={`action-button ${createPlanOpen ? "" : "action-button--primary"}`}
+          >
+            {createPlanOpen ? <X size={16} aria-hidden="true" /> : <Target size={16} aria-hidden="true" />}
+            {createPlanOpen ? "Скрыть форму" : "Новый план"}
+          </Link>
+        </div>
+
+        {createPlanOpen ? (
+          <ToastActionForm
+            action={createCoachingPlanState}
+            className="coaching-plan-form"
+            aria-label="Новый план коучинга"
+          >
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Оператор
+              <select name="agentName" required className="form-control">
+                <option value="">Выберите оператора</option>
+                {supportUsers.map((supportUser) => (
+                  <option key={supportUser.id} value={supportUser.name}>
+                    {supportUser.name}
+                    {supportUser.teamName ? ` / ${supportUser.teamName}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Фокус-тема
+              <input name="focusArea" placeholder="Например: работа с возражениями" className="form-control" />
+            </label>
+            <label className="coaching-plan-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
+              Название плана
+              <input name="title" required placeholder="Например: рост качества по эмпатии" className="form-control" />
+            </label>
+            <div className="coaching-plan-form__action">
+              <ValidatedSubmitButton>Создать план</ValidatedSubmitButton>
+            </div>
+          </ToastActionForm>
+        ) : null}
+
+        {coachingPlans.length > 0 ? (
+          <ul className="coaching-plan-list">
+            {coachingPlans.map((plan) => {
+              const planAssignments = assignmentsByPlan.get(plan.id) ?? [];
+              const planImpact = planImpacts.get(plan.id);
+              const summary = planImpact ? impactSummary(planImpact) : null;
+
+              return (
+                <li key={plan.id} className="coaching-plan-card">
+                  <div className="coaching-plan-card__head">
+                    <div className="coaching-plan-card__title">
+                      <Target size={16} aria-hidden="true" />
+                      <h3>{plan.title}</h3>
+                    </div>
+                    <Chip tone={planStatusTone(plan.status)} size="xs">
+                      {planStatusLabel(plan.status)}
+                    </Chip>
+                  </div>
+                  <div className="coaching-plan-card__meta">
+                    <span className="coaching-plan-card__agent">
+                      <UserRound size={14} aria-hidden="true" />
+                      {plan.agentName}
+                    </span>
+                    {plan.focusArea ? <span>{plan.focusArea}</span> : null}
+                  </div>
+                  <div className="coaching-plan-card__progress" aria-label="Прогресс плана">
+                    <div
+                      className="coaching-plan-card__progress-track"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={plan.progress.total}
+                      aria-valuenow={plan.progress.done}
+                    >
+                      <span
+                        className="coaching-plan-card__progress-fill"
+                        style={{ width: `${plan.progress.percent}%` }}
+                      />
+                    </div>
+                    <span className="coaching-plan-card__progress-label">
+                      {plan.progress.done}/{plan.progress.total} закрыто
+                    </span>
+                  </div>
+                  {summary ? (
+                    <div className={`coaching-plan-card__impact coaching-plan-card__impact--${summary.trend}`}>
+                      <Sparkles size={14} aria-hidden="true" />
+                      <span>Эффект коучинга: {summary.text}</span>
+                      <Chip tone={impactTone(summary.trend)} size="xs">
+                        {formatQualityScoreDelta(planImpact?.delta ?? 0)}
+                      </Chip>
+                    </div>
+                  ) : null}
+                  {planAssignments.length > 0 ? (
+                    <ul className="coaching-plan-card__assignments">
+                      {planAssignments.map((assignment) => {
+                        const assignmentImpact = assignmentImpacts.get(assignment.id);
+                        const assignmentSummary = assignmentImpact ? impactSummary(assignmentImpact) : null;
+
+                        return (
+                          <li key={assignment.id} className="coaching-plan-assignment">
+                            <span className="coaching-plan-assignment__title">{assignment.title}</span>
+                            <Chip tone={trainingStatusTone(assignment.status)} size="xs">
+                              {trainingStatusLabel(assignment.status)}
+                            </Chip>
+                            {assignmentSummary ? (
+                              <span className={`coaching-plan-assignment__impact coaching-plan-assignment__impact--${assignmentSummary.trend}`}>
+                                {assignmentSummary.text}
+                              </span>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="coaching-plan-card__empty">К плану ещё не привязаны разборы.</p>
+                  )}
+                  <div className="coaching-plan-card__actions">
+                    <ToastActionForm action={updateCoachingPlanStatusState} aria-label="Сменить статус плана">
+                      <input type="hidden" name="id" value={plan.id} />
+                      <input type="hidden" name="status" value={plan.status === "completed" ? "active" : "completed"} />
+                      <button type="submit" className="action-button">
+                        {plan.status === "completed" ? (
+                          <>
+                            <ArrowRight size={15} aria-hidden="true" />
+                            Возобновить
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={15} aria-hidden="true" />
+                            Завершить
+                          </>
+                        )}
+                      </button>
+                    </ToastActionForm>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <EmptyState
+            size="inline"
+            icon={<Target size={20} aria-hidden="true" />}
+            title="Планов коучинга пока нет"
+            description="Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
+            action={
+              <Link href={createPlanHref} className="action-button action-button--primary">
+                <Target size={16} aria-hidden="true" />
+                Новый план
+              </Link>
+            }
+          />
+        )}
+      </section>
 
       {createTaskOpen ? (
         <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">

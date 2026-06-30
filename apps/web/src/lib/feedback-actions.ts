@@ -268,12 +268,15 @@ export async function createTrainingAssignment(formData: FormData) {
   const title = stringField(formData, "title");
   const description = stringField(formData, "description");
   const dueAt = stringField(formData, "dueAt");
+  // Optional link to a coaching plan (Workstream C1). Absent on existing
+  // training-create forms, so the assignment is created plan-less as before.
+  const coachingPlanId = stringField(formData, "coachingPlanId");
 
   if (!title || !description || (!assigneeId && !fallbackAssigneeName)) {
     throw new Error("Нужны название, описание и исполнитель.");
   }
 
-  const [assignee, review] = await Promise.all([
+  const [assignee, review, coachingPlan] = await Promise.all([
     assigneeId
       ? prisma.user.findFirst({
           where: { id: assigneeId, workspaceId: user.workspaceId },
@@ -284,6 +287,12 @@ export async function createTrainingAssignment(formData: FormData) {
       ? prisma.review.findFirst({
           where: { id: reviewId, workspaceId: user.workspaceId },
           select: { id: true, conversationId: true }
+        })
+      : null,
+    coachingPlanId
+      ? prisma.coachingPlan.findFirst({
+          where: { id: coachingPlanId, workspaceId: user.workspaceId },
+          select: { id: true }
         })
       : null
   ]);
@@ -296,6 +305,10 @@ export async function createTrainingAssignment(formData: FormData) {
     throw new Error("Проверка не найдена.");
   }
 
+  if (coachingPlanId && !coachingPlan) {
+    throw new Error("План коучинга не найден.");
+  }
+
   await prisma.$transaction(async (tx) => {
     const assignment = await tx.trainingAssignment.create({
       data: {
@@ -303,6 +316,7 @@ export async function createTrainingAssignment(formData: FormData) {
         reviewId: review?.id,
         assigneeId: assignee?.id,
         assignedById: user.id,
+        coachingPlanId: coachingPlan?.id,
         assigneeName: assignee?.name ?? fallbackAssigneeName,
         title,
         description,
