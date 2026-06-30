@@ -134,6 +134,7 @@ model Workspace {
   uiCorners                 String                     @default("medium")
   uiContrast                String                     @default("standard")
   uiPaletteOverridesJson    String                     @default("{}")
+  aiScoringProvider         String                     @default("auto")
   users                     User[]
   identityProviders         IdentityProvider[]
   identityGroups            IdentityGroup[]

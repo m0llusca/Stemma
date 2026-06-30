@@ -19,9 +19,22 @@ export function getRuntimeConfigDiagnostics() {
   const isProduction = process.env.NODE_ENV === "production";
   const secretKey = process.env.QC_SECRET_KEY;
   const demoAuth = isDemoAuthEnabled();
-  // Non-fatal: AI scoring always works (deterministic fallback). This only reports
-  // whether the live YandexGPT adapter is wired up.
-  const aiScoringReady = Boolean(process.env.YANDEX_GPT_API_KEY && process.env.YANDEX_GPT_CATALOG_ID);
+  // Non-fatal: AI scoring always works (deterministic fallback). This reports which
+  // engine the default ("auto") configuration would use given current credentials.
+  const aiScoringProvider =
+    process.env.YANDEX_GPT_API_KEY && process.env.YANDEX_GPT_CATALOG_ID
+      ? "yandexgpt"
+      : process.env.ANTHROPIC_API_KEY
+        ? "anthropic"
+        : process.env.OPENAI_API_KEY
+          ? "openai"
+          : "fallback";
+  const aiScoringReady = aiScoringProvider !== "fallback";
+  const aiScoringLabel: Record<string, string> = {
+    yandexgpt: "YandexGPT",
+    anthropic: "Claude (Anthropic)",
+    openai: "ChatGPT (OpenAI)"
+  };
   const checks: RuntimeCheck[] = [
     {
       key: "database_url",
@@ -50,8 +63,8 @@ export function getRuntimeConfigDiagnostics() {
       key: "ai_scoring",
       status: aiScoringReady ? "ok" : "warn",
       message: aiScoringReady
-        ? "AI-оценка использует YandexGPT (yandexgpt): ключ и каталог заданы."
-        : "AI-оценка использует детерминированный fallback: задайте YANDEX_GPT_API_KEY и YANDEX_GPT_CATALOG_ID для YandexGPT."
+        ? `AI-оценка по умолчанию (auto) использует ${aiScoringLabel[aiScoringProvider]}.`
+        : "AI-оценка использует детерминированный fallback: задайте ключи провайдера (YandexGPT: YANDEX_GPT_API_KEY+YANDEX_GPT_CATALOG_ID; Anthropic: ANTHROPIC_API_KEY; OpenAI: OPENAI_API_KEY)."
     }
   ];
 

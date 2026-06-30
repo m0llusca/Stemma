@@ -54,7 +54,7 @@ describe("runtime config diagnostics", () => {
     const check = diagnostics.checks.find((entry) => entry.key === "ai_scoring");
 
     expect(check).toMatchObject({ status: "ok" });
-    expect(check?.message).toContain("yandexgpt");
+    expect(check?.message).toContain("YandexGPT");
 
     restoreEnv("YANDEX_GPT_API_KEY", previousApiKey);
     restoreEnv("YANDEX_GPT_CATALOG_ID", previousCatalogId);

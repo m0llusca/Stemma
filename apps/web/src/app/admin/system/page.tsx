@@ -33,6 +33,8 @@ import { maskSecret } from "@/lib/secrets";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
+import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
+import { saveAiScoringProvider } from "@/lib/ai-scoring-settings-actions";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 import type { StatusTone } from "@/lib/ui/status-tone";
@@ -526,6 +528,18 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
     getPhaseDReadinessReport(user.workspaceId)
   ]);
   const runtime = getRuntimeConfigDiagnostics();
+  const workspaceSettings = await prisma.workspace.findUnique({
+    where: { id: user.workspaceId },
+    select: { aiScoringProvider: true }
+  });
+  const currentScoringProvider = workspaceSettings?.aiScoringProvider ?? "auto";
+  const activeScoringProvider = resolveAiScoringProviderName(currentScoringProvider);
+  const scoringProviderLabels: Record<string, string> = {
+    yandexgpt: "YandexGPT",
+    anthropic: "Claude (Anthropic)",
+    openai: "ChatGPT (OpenAI)",
+    deterministic: "детерминированный (без сети)"
+  };
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
   const integrationErrors = integrations.filter((integration) => integration.lastError || integration.status === "error").length;
   const apiTokenErrors = apiTokens.filter(
@@ -977,6 +991,25 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                 </div>
               );
             })}
+          </div>
+          <div className="px-5 pb-5">
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">Провайдер AI-оценки</h3>
+            <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
+              Сейчас активен: {scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider}. Ключи задаются в env: YandexGPT — YANDEX_GPT_API_KEY + YANDEX_GPT_CATALOG_ID; Claude — ANTHROPIC_API_KEY; ChatGPT — OPENAI_API_KEY. Если у выбранного провайдера нет ключа, используется детерминированный fallback.
+            </p>
+            <form action={saveAiScoringProvider} className="mt-3 flex flex-wrap items-end gap-3">
+              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
+                Движок оценки
+                <select name="provider" defaultValue={currentScoringProvider} className="form-control">
+                  <option value="auto">Авто (первый настроенный)</option>
+                  <option value="yandexgpt">YandexGPT</option>
+                  <option value="anthropic">Claude (Anthropic)</option>
+                  <option value="openai">ChatGPT (OpenAI)</option>
+                  <option value="deterministic">Детерминированный (без сети)</option>
+                </select>
+              </label>
+              <button type="submit" className="action-button action-button--primary">Сохранить</button>
+            </form>
           </div>
         </section>
       ) : null}

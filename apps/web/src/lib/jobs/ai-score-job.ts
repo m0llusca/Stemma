@@ -41,11 +41,19 @@ export class AiScoreMalformedError extends Error {
   }
 }
 
-async function defaultProvider(): Promise<QualityScoringProvider> {
+async function defaultProvider(preference?: string): Promise<QualityScoringProvider> {
   // Lazy import mirrors the sibling handlers in queue.ts and keeps this module
   // loadable even while the provider package index is authored in parallel.
   const { resolveScoringProvider } = await import("@/lib/ai-quality/scoring");
-  return resolveScoringProvider();
+  return resolveScoringProvider(preference);
+}
+
+async function loadWorkspaceProviderPreference(workspaceId: string): Promise<string | undefined> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { aiScoringProvider: true }
+  });
+  return workspace?.aiScoringProvider ?? undefined;
 }
 
 function uniqueEvidenceRefs(prediction: ConversationScorePrediction): string[] {
@@ -128,7 +136,7 @@ export async function runAiScoreJob(
     weight: criterion.weight
   }));
 
-  const provider = options.provider ?? (await defaultProvider());
+  const provider = options.provider ?? (await defaultProvider(await loadWorkspaceProviderPreference(job.workspaceId)));
 
   const input: ScoringInput = {
     conversationId: conversation.id,

@@ -11,51 +11,50 @@ import type {
   ScoringInput
 } from "@/lib/ai-quality/scoring/types";
 
-const completionEndpoint = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion";
-const defaultModel = "yandexgpt";
+const chatCompletionsEndpoint = "https://api.openai.com/v1/chat/completions";
+const defaultModel = "gpt-4o";
 const defaultTimeoutMs = 30_000;
 const defaultMaxResponseBytes = 1_000_000;
 const maxTokens = 2000;
-const temperature = 0.2;
 
-const providerName = "yandexgpt";
-const modelVersion = "yandexgpt/latest";
-const promptVersion = "yandexgpt-scoring-1";
+const providerName = "openai";
+const promptVersion = "openai-scoring-1";
 
-export type YandexGptScoringProviderOptions = {
+export type OpenAiScoringProviderOptions = {
   apiKey: string;
-  catalogId: string;
   model?: string;
+  organization?: string;
   transport?: ScoringTransport;
   timeoutMs?: number;
   maxResponseBytes?: number;
 };
 
 /**
- * YandexGPT (Yandex Foundation Models) scoring adapter.
+ * OpenAI (ChatGPT) scoring adapter — Chat Completions API.
  *
- * Calls the `foundationModels/v1/completion` REST endpoint, instructs the model
- * (in Russian) to return STRICT JSON matching the per-criterion schema, then
+ * Uses json_object response format (the shared system prompt mentions "JSON",
+ * which OpenAI requires for that mode), reads `choices[0].message.content`, and
  * normalizes it into a `ConversationScorePrediction`. Any parse/shape failure
- * throws a `ScoringProviderError` so the AI_SCORE job can fall back to the
+ * throws a `ScoringProviderError` so the AI_SCORE job falls back to the
  * deterministic provider.
  */
-export class YandexGptScoringProvider implements QualityScoringProvider {
+export class OpenAiScoringProvider implements QualityScoringProvider {
   readonly name = providerName;
-  readonly modelVersion = modelVersion;
+  readonly modelVersion: string;
   readonly promptVersion = promptVersion;
 
   private readonly apiKey: string;
-  private readonly catalogId: string;
   private readonly model: string;
+  private readonly organization?: string;
   private readonly timeoutMs: number;
   private readonly maxResponseBytes: number;
   private readonly client: ReturnType<typeof createScoringHttpClient>;
 
-  constructor(options: YandexGptScoringProviderOptions) {
+  constructor(options: OpenAiScoringProviderOptions) {
     this.apiKey = options.apiKey;
-    this.catalogId = options.catalogId;
     this.model = options.model?.trim() || defaultModel;
+    this.modelVersion = this.model;
+    this.organization = options.organization?.trim() || undefined;
     this.timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
     this.maxResponseBytes = options.maxResponseBytes ?? defaultMaxResponseBytes;
     this.client = createScoringHttpClient({ provider: providerName, transport: options.transport });
@@ -63,32 +62,37 @@ export class YandexGptScoringProvider implements QualityScoringProvider {
 
   async scoreConversation(input: ScoringInput): Promise<ConversationScorePrediction> {
     const body = JSON.stringify({
-      modelUri: `gpt://${this.catalogId}/${this.model}/latest`,
-      completionOptions: { stream: false, temperature, maxTokens },
+      model: this.model,
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" },
       messages: [
-        { role: "system", text: buildScoringSystemPrompt() },
-        { role: "user", text: buildScoringUserPrompt(input) }
+        { role: "system", content: buildScoringSystemPrompt() },
+        { role: "user", content: buildScoringUserPrompt(input) }
       ]
     });
 
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${this.apiKey}`,
+      "content-type": "application/json"
+    };
+    if (this.organization) {
+      headers["openai-organization"] = this.organization;
+    }
+
     const responseText = await this.client.requestText({
       method: "POST",
-      url: completionEndpoint,
-      headers: {
-        authorization: `Api-Key ${this.apiKey}`,
-        "x-folder-id": this.catalogId,
-        "content-type": "application/json"
-      },
+      url: chatCompletionsEndpoint,
+      headers,
       body,
       timeoutMs: this.timeoutMs,
       maxResponseBytes: this.maxResponseBytes
     });
 
-    const alternativeText = this.extractAlternativeText(responseText);
-    return finalizePrediction(alternativeText, input, providerName);
+    const text = this.extractMessageContent(responseText);
+    return finalizePrediction(text, input, providerName);
   }
 
-  private extractAlternativeText(responseText: string): string {
+  private extractMessageContent(responseText: string): string {
     let envelope: unknown;
     try {
       envelope = JSON.parse(responseText);
@@ -101,33 +105,29 @@ export class YandexGptScoringProvider implements QualityScoringProvider {
       });
     }
 
-    const text = readAlternativeText(envelope);
-    if (typeof text !== "string" || text.trim().length === 0) {
+    const content = readChoiceContent(envelope);
+    if (typeof content !== "string" || content.trim().length === 0) {
       throw new ScoringProviderError({
         code: "malformed_payload",
         provider: providerName,
-        safeMessage: "Ответ модели не содержит ожидаемого результата.",
+        safeMessage: "Ответ модели не содержит текстового результата.",
         diagnostic: redactScoringDiagnostic({ envelope })
       });
     }
 
-    return text;
+    return content;
   }
 }
 
-function readAlternativeText(envelope: unknown): unknown {
+function readChoiceContent(envelope: unknown): unknown {
   if (!envelope || typeof envelope !== "object") {
     return undefined;
   }
-  const result = (envelope as Record<string, unknown>).result;
-  if (!result || typeof result !== "object") {
+  const choices = (envelope as Record<string, unknown>).choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
     return undefined;
   }
-  const alternatives = (result as Record<string, unknown>).alternatives;
-  if (!Array.isArray(alternatives) || alternatives.length === 0) {
-    return undefined;
-  }
-  const first = alternatives[0];
+  const first = choices[0];
   if (!first || typeof first !== "object") {
     return undefined;
   }
@@ -135,7 +135,7 @@ function readAlternativeText(envelope: unknown): unknown {
   if (!message || typeof message !== "object") {
     return undefined;
   }
-  return (message as Record<string, unknown>).text;
+  return (message as Record<string, unknown>).content;
 }
 
 function serializeError(error: unknown) {
