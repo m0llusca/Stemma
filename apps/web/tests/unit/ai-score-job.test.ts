@@ -9,7 +9,8 @@ import type {
 const mocks = vi.hoisted(() => ({
   prisma: {
     conversation: {
-      findFirst: vi.fn()
+      findFirst: vi.fn(),
+      update: vi.fn()
     },
     message: {
       findMany: vi.fn()
@@ -123,6 +124,7 @@ beforeEach(() => {
       { id: "crit-resolution", key: "resolution", label: "Решение", kind: "SCALE_1_3", block: "Итог", weight: 3 }
     ]
   });
+  mocks.prisma.conversation.update.mockResolvedValue({ id: "conv-1" });
   mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
   mocks.prisma.backendJobEvent.create.mockResolvedValue({});
   mocks.createAiQualityDraft.mockResolvedValue({ id: "draft-1" });
@@ -168,6 +170,43 @@ describe("runAiScoreJob", () => {
     expect(mocks.prisma.backendJobEvent.create).toHaveBeenCalledTimes(1);
 
     expect(result).toMatchObject({ conversationId: "conv-1", draftId: "draft-1" });
+  });
+
+  it("does not touch the conversation row when the prediction carries no sentiment", async () => {
+    const { runAiScoreJob } = await import("@/lib/jobs/ai-score-job");
+    const provider = fakeProvider(prediction());
+
+    await runAiScoreJob(backendJob(), { conversationId: "conv-1" }, { provider });
+
+    expect(mocks.prisma.conversation.update).not.toHaveBeenCalled();
+    // The score-draft persistence is unaffected.
+    expect(mocks.createAiQualityDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists whole-conversation sentiment onto the conversation row when present", async () => {
+    const { runAiScoreJob } = await import("@/lib/jobs/ai-score-job");
+    const provider = fakeProvider(
+      prediction({ sentiment: { label: "negative", score: 0.82 } })
+    );
+
+    await runAiScoreJob(backendJob(), { conversationId: "conv-1" }, { provider });
+
+    expect(mocks.prisma.conversation.update).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conv-1" },
+      data: {
+        sentiment: "negative",
+        sentimentScore: 0.82,
+        sentimentModel: "fake-model-v9"
+      }
+    });
+
+    // The score draft is still persisted alongside the sentiment update.
+    expect(mocks.createAiQualityDraft).toHaveBeenCalledTimes(1);
+
+    // The job event records the sentiment label for observability.
+    const eventMetadata = JSON.parse(mocks.prisma.backendJobEvent.create.mock.calls[0][0].data.metadata);
+    expect(eventMetadata.sentiment).toBe("negative");
   });
 
   it("dedupes evidence refs and drops missing ones", async () => {

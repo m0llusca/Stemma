@@ -6,6 +6,8 @@ import {
   averageScoreFor,
   blockRows,
   computeAgentLeaderboard,
+  computeReasonTrends,
+  computeSentimentCorrelation,
   countGroupRows,
   criterionEarnedPercent,
   rankedScoreRows,
@@ -15,7 +17,9 @@ import {
   withScoreDeltas,
   type AgentLeaderboardReview,
   type BreakdownRow,
-  type ReviewForReport
+  type ReasonFinding,
+  type ReviewForReport,
+  type SentimentReview
 } from "@/lib/reports/report-aggregation";
 import type { ReportPeriod } from "@/lib/report-period";
 
@@ -339,5 +343,141 @@ describe("riskSegments", () => {
       { label: "Критический", value: 0, severity: "t4" }
     ]);
     expect(segments[2].href).toContain("riskLevel=HIGH");
+  });
+});
+
+function reasonFinding(partial: Partial<ReasonFinding>): ReasonFinding {
+  return {
+    ownerType: partial.ownerType ?? "AGENT",
+    category: partial.category ?? "Категория",
+    rootCause: partial.rootCause ?? "Причина",
+    riskLevel: partial.riskLevel ?? "LOW"
+  };
+}
+
+describe("computeReasonTrends", () => {
+  const current: ReasonFinding[] = [
+    reasonFinding({ category: "Тон общения", ownerType: "AGENT", riskLevel: "HIGH" }),
+    reasonFinding({ category: "Тон общения", ownerType: "AGENT", riskLevel: "LOW" }),
+    reasonFinding({ category: "Тон общения", ownerType: "PROCESS", riskLevel: "CRITICAL" }),
+    reasonFinding({ category: "Решение вопроса", ownerType: "PROCESS", riskLevel: "MEDIUM" }),
+    reasonFinding({ category: "Скрипт", ownerType: "POLICY", riskLevel: "LOW" })
+  ];
+  const previous: ReasonFinding[] = [
+    reasonFinding({ category: "Тон общения" }),
+    reasonFinding({ category: "Решение вопроса" }),
+    reasonFinding({ category: "Решение вопроса" })
+  ];
+
+  it("aggregates per reason category with counts, high-risk and dominant owner type", () => {
+    const rows = computeReasonTrends(current, previous);
+    const byCategory = new Map(rows.map((row) => [row.category, row]));
+
+    expect(byCategory.get("Тон общения")).toMatchObject({
+      category: "Тон общения",
+      count: 3,
+      previousCount: 1,
+      delta: 2,
+      highRiskCount: 2, // HIGH + CRITICAL
+      topOwnerType: "AGENT" // 2 AGENT vs 1 PROCESS
+    });
+    expect(byCategory.get("Решение вопроса")).toMatchObject({
+      category: "Решение вопроса",
+      count: 1,
+      previousCount: 2,
+      delta: -1,
+      highRiskCount: 0,
+      topOwnerType: "PROCESS"
+    });
+  });
+
+  it("ranks by current count desc, then category asc (ru), and caps to the limit", () => {
+    const rows = computeReasonTrends(current, previous, 2);
+
+    expect(rows.map((row) => row.category)).toEqual(["Тон общения", "Решение вопроса"]);
+  });
+
+  it("treats categories absent from the previous period as a null delta base", () => {
+    const rows = computeReasonTrends(current, previous);
+    const script = rows.find((row) => row.category === "Скрипт");
+
+    expect(script?.previousCount).toBe(0);
+    expect(script?.delta).toBe(1);
+  });
+
+  it("returns an empty list when there are no findings", () => {
+    expect(computeReasonTrends([], [])).toEqual([]);
+  });
+});
+
+function sentimentReview(partial: Partial<SentimentReview>): SentimentReview {
+  return {
+    sentiment: partial.sentiment ?? null,
+    totalScore: partial.totalScore ?? 0
+  };
+}
+
+describe("computeSentimentCorrelation", () => {
+  it("buckets known sentiments in a fixed order with per-bucket average score", () => {
+    const reviews: SentimentReview[] = [
+      sentimentReview({ sentiment: "positive", totalScore: 90 }),
+      sentimentReview({ sentiment: "positive", totalScore: 80 }),
+      sentimentReview({ sentiment: "neutral", totalScore: 70 }),
+      sentimentReview({ sentiment: "negative", totalScore: 50 }),
+      sentimentReview({ sentiment: "negative", totalScore: 40 })
+    ];
+
+    const result = computeSentimentCorrelation(reviews);
+
+    expect(result.rows.map((row) => row.key)).toEqual(["positive", "neutral", "negative"]);
+    expect(result.rows).toEqual([
+      { key: "positive", label: "Позитивная", count: 2, averageScore: 85 },
+      { key: "neutral", label: "Нейтральная", count: 1, averageScore: 70 },
+      { key: "negative", label: "Негативная", count: 2, averageScore: 45 }
+    ]);
+    expect(result.scoredCount).toBe(5);
+    expect(result.unscoredCount).toBe(0);
+    expect(result.totalCount).toBe(5);
+  });
+
+  it("counts null and unknown sentiment as unscored without dropping totals", () => {
+    const reviews: SentimentReview[] = [
+      sentimentReview({ sentiment: "positive", totalScore: 100 }),
+      sentimentReview({ sentiment: null, totalScore: 60 }),
+      sentimentReview({ sentiment: "UNKNOWN", totalScore: 30 })
+    ];
+
+    const result = computeSentimentCorrelation(reviews);
+    const byKey = new Map(result.rows.map((row) => [row.key, row]));
+
+    expect(byKey.get("positive")).toEqual({ key: "positive", label: "Позитивная", count: 1, averageScore: 100 });
+    expect(byKey.get("neutral")).toEqual({ key: "neutral", label: "Нейтральная", count: 0, averageScore: null });
+    expect(byKey.get("negative")).toEqual({ key: "negative", label: "Негативная", count: 0, averageScore: null });
+    expect(result.scoredCount).toBe(1);
+    expect(result.unscoredCount).toBe(2);
+    expect(result.totalCount).toBe(3);
+  });
+
+  it("normalizes sentiment casing so POSITIVE and positive land in one bucket", () => {
+    const result = computeSentimentCorrelation([
+      sentimentReview({ sentiment: "POSITIVE", totalScore: 90 }),
+      sentimentReview({ sentiment: "positive", totalScore: 70 })
+    ]);
+
+    expect(result.rows[0]).toEqual({ key: "positive", label: "Позитивная", count: 2, averageScore: 80 });
+    expect(result.scoredCount).toBe(2);
+    expect(result.unscoredCount).toBe(0);
+  });
+
+  it("reports all sentiment as unscored when nothing has been scored yet", () => {
+    const result = computeSentimentCorrelation([
+      sentimentReview({ sentiment: null, totalScore: 80 }),
+      sentimentReview({ sentiment: null, totalScore: 60 })
+    ]);
+
+    expect(result.scoredCount).toBe(0);
+    expect(result.unscoredCount).toBe(2);
+    expect(result.totalCount).toBe(2);
+    expect(result.rows.every((row) => row.count === 0 && row.averageScore === null)).toBe(true);
   });
 });

@@ -58,6 +58,21 @@ export type CriterionPrediction = {
   evidenceRef?: string;
 };
 
+/** Coarse sentiment of the conversation as a whole. */
+export type ConversationSentimentLabel = "positive" | "neutral" | "negative";
+
+/**
+ * Optional whole-conversation sentiment produced in the same scoring pass.
+ * `score` is a 0..1 confidence/intensity for the chosen `label`. Persisted onto
+ * the Conversation row (sentiment / sentimentScore / sentimentModel) by the
+ * AI_SCORE job; absent when the provider does not emit one.
+ */
+export type ConversationSentiment = {
+  label: ConversationSentimentLabel;
+  /** 0..1 confidence/intensity for the chosen label. */
+  score: number;
+};
+
 /** The full per-conversation prediction stored in a "score" draft. */
 export type ConversationScorePrediction = {
   criteria: CriterionPrediction[];
@@ -65,6 +80,8 @@ export type ConversationScorePrediction = {
   overallConfidence: number;
   /** Short Russian summary of the assessment. */
   summary: string;
+  /** Optional whole-conversation sentiment (same pass; tolerate its absence). */
+  sentiment?: ConversationSentiment;
 };
 
 /**
@@ -153,9 +170,38 @@ export function parseConversationScorePrediction(json: string): ConversationScor
     return null;
   }
 
-  return {
+  const prediction: ConversationScorePrediction = {
     criteria,
     overallConfidence: clampUnit(record.overallConfidence),
     summary: typeof record.summary === "string" ? record.summary : ""
+  };
+
+  const sentiment = parseSentiment(record.sentiment);
+  if (sentiment) {
+    prediction.sentiment = sentiment;
+  }
+
+  return prediction;
+}
+
+/**
+ * Defensive parse of the optional sentiment block. Returns null when absent or
+ * malformed so the caller simply omits sentiment rather than failing the parse.
+ */
+export function parseSentiment(raw: unknown): ConversationSentiment | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const label = record.label;
+
+  if (label !== "positive" && label !== "neutral" && label !== "negative") {
+    return null;
+  }
+
+  return {
+    label,
+    score: clampUnit(record.score)
   };
 }

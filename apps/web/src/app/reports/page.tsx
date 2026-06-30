@@ -61,6 +61,8 @@ import {
   average,
   averageScoreFor,
   blockRows,
+  computeReasonTrends,
+  computeSentimentCorrelation,
   countGroupRows,
   criterionEarnedPercent,
   rankedScoreRows,
@@ -69,6 +71,9 @@ import {
   scoreDistributionRows,
   scoreGroupRows
 } from "@/lib/reports/report-aggregation";
+import { ReasonTrendPanel, SentimentCorrelationPanel } from "@/components/reports/insight-correlation-panels";
+import { ReportSavedViews } from "@/components/reports/report-saved-views";
+import { listSavedReportViews } from "@/lib/saved-report-view";
 import {
   formatAverageScore,
   formatCriterionCount,
@@ -83,7 +88,12 @@ import {
   resolveReportView,
   type ReportView
 } from "@/lib/reports/report-format";
-import { loadFinalizedReviews, loadPreviousFinalizedReviews, reviewWhere } from "@/lib/reports/report-page-data";
+import {
+  loadFinalizedReviews,
+  loadPeriodFindings,
+  loadPreviousFinalizedReviews,
+  reviewWhere
+} from "@/lib/reports/report-page-data";
 
 export const dynamic = "force-dynamic";
 
@@ -107,9 +117,21 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const reportView = resolveReportView(params);
   const trendGranularity = resolveReportTrendGranularity(params);
 
-  const [finalizedReviews, previousReviews, highRiskFindings, coachingBacklog, quotas] = await Promise.all([
+  const [
+    finalizedReviews,
+    previousReviews,
+    periodFindings,
+    previousPeriodFindings,
+    savedReportViews,
+    highRiskFindings,
+    coachingBacklog,
+    quotas
+  ] = await Promise.all([
     loadFinalizedReviews(user.workspaceId, period),
     loadPreviousFinalizedReviews(user.workspaceId, previousPeriod),
+    loadPeriodFindings(user.workspaceId, period),
+    loadPeriodFindings(user.workspaceId, previousPeriod),
+    listSavedReportViews(user.workspaceId, user.id),
     prisma.finding.count({
       where: {
         riskLevel: {
@@ -300,6 +322,21 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     ...row,
     href: reportReviewHref(period, { criticalCategory: row.label })
   }));
+  // Reason/root-cause trend: rank recurring finding categories by current volume
+  // with a period-over-period count delta, then attach the queue drill-through
+  // (findingCategory) so leads jump straight to the affected reviews.
+  const reasonTrendItems = computeReasonTrends(periodFindings, previousPeriodFindings).map((row) => ({
+    ...row,
+    href: reportReviewHref(period, { findingCategory: row.category })
+  }));
+  // Sentiment × QA-score correlation. sentiment is nullable until AI scoring
+  // backfills it, so the aggregation tracks scored vs unscored for a partial state.
+  const sentimentCorrelation = computeSentimentCorrelation(
+    finalizedReviews.map((review) => ({
+      sentiment: review.conversation.sentiment,
+      totalScore: review.totalScore
+    }))
+  );
   const blockScoreRows = blockRows(finalizedReviews);
   const previousBlockScoreRows = blockRows(previousReviews);
   const finalizedCount = finalizedReviews.length;
@@ -713,6 +750,10 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     count: viewCounts[item.id]
   }));
   const activeView = reportViews.find((item) => item.id === reportView) ?? reportViews[0];
+  // Canonical href the "save this view" control persists: the resolved period,
+  // active tab and trend granularity. Matches the tab hrefs so a saved view
+  // highlights as active when re-opened.
+  const currentReportHref = reportViewHref(period, reportView, trendGranularity);
 
   return (
     <PageShell
@@ -728,6 +769,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         view={reportView}
         trendGranularity={trendGranularity}
       />
+
+      <ReportSavedViews currentHref={currentReportHref} savedViews={savedReportViews} />
 
       <TriageStrip
         tone={triageTone}
@@ -789,14 +832,17 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "overview" ? (
-        <ChartPanel
-          title="Распределение оценок"
-          description="Сколько проверок попало в каждый диапазон."
-          actionHref={reportReviewHref(period)}
-          actionLabel="Список"
-        >
-          <ScoreDistribution rows={distributionRows} />
-        </ChartPanel>
+        <div className="grid gap-[18px] items-start xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <ChartPanel
+            title="Распределение оценок"
+            description="Сколько проверок попало в каждый диапазон."
+            actionHref={reportReviewHref(period)}
+            actionLabel="Список"
+          >
+            <ScoreDistribution rows={distributionRows} />
+          </ChartPanel>
+          <SentimentCorrelationPanel correlation={sentimentCorrelation} actionHref={reportReviewHref(period)} />
+        </div>
       ) : null}
 
       {reportView === "performance" ? (
@@ -876,6 +922,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
             <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
             <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
           </div>
+          <ReasonTrendPanel rows={reasonTrendItems} />
           <div className="metric-strip" aria-label="Скорость обратной связи">
             <div className="metric-strip__item">
               <div className="metric-strip__label">Медиана до ознакомления</div>

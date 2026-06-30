@@ -2050,3 +2050,146 @@
   border-color: var(--accent-strong);
   background: var(--accent-muted);
 }
+
+/* Saved report views — collapsible card mirroring the reviews-surface quick
+   views. Pinned presets + the user's saved /reports URLs, plus a save form.
+   Tokens only; holds in light + dark. */
+.report-saved-views {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  box-shadow: var(--shadow-panel);
+  overflow: clip;
+}
+
+.report-saved-views__summary {
+  display: flex;
+  min-width: 0;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.report-saved-views__summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-saved-views__summary-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.2;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.report-saved-views__summary:hover .report-saved-views__summary-action,
+.report-saved-views[open] > .report-saved-views__summary .report-saved-views__summary-action {
+  border-color: var(--accent-border);
+  background: var(--button-secondary-active);
+  color: var(--accent-strong);
+}
+
+.report-saved-views__summary-open {
+  display: none;
+}
+
+.report-saved-views[open] > .report-saved-views__summary .report-saved-views__summary-closed {
+  display: none;
+}
+
+.report-saved-views[open] > .report-saved-views__summary .report-saved-views__summary-open {
+  display: inline;
+}
+
+.report-saved-views__content {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+/* Sentiment × QA-score correlation: one density bar per sentiment bucket with
+   the bucket's average score. Single calm accent ramp keyed off the bucket, no
+   traffic-light hues — reads as one ordered scale in every theme. */
+.sentiment-correlation {
+  display: grid;
+  gap: 14px;
+}
+
+.sentiment-correlation__row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sentiment-correlation__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sentiment-correlation__label {
+  font-size: 13px;
+  font-weight: 620;
+  color: var(--text-body);
+}
+
+.sentiment-correlation__score {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.sentiment-correlation__track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--track-muted, var(--panel-muted));
+  overflow: clip;
+}
+
+.sentiment-correlation__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 160ms ease;
+}
+
+.sentiment-correlation__row--positive .sentiment-correlation__fill {
+  background: var(--success-strong, var(--success));
+}
+
+.sentiment-correlation__row--neutral .sentiment-correlation__fill {
+  background: var(--accent);
+}
+
+.sentiment-correlation__row--negative .sentiment-correlation__fill {
+  background: var(--danger-strong, var(--danger));
+}
+
+.sentiment-correlation__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sentiment-correlation__coverage {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}

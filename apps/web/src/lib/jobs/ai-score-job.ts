@@ -147,6 +147,19 @@ export async function runAiScoreJob(
 
   const evidenceRefs = uniqueEvidenceRefs(prediction);
 
+  // Persist whole-conversation sentiment when the same scoring pass produced it.
+  // The score-draft persistence below is independent of this and must stay intact.
+  if (prediction.sentiment) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        sentiment: prediction.sentiment.label,
+        sentimentScore: prediction.sentiment.score,
+        sentimentModel: provider.modelVersion
+      }
+    });
+  }
+
   const draft = await createAiQualityDraft({
     workspaceId: job.workspaceId,
     conversationId: conversation.id,
@@ -172,7 +185,8 @@ export async function runAiScoreJob(
         promptVersion: provider.promptVersion,
         criteriaCount: prediction.criteria.length,
         evidenceCount: evidenceRefs.length,
-        overallConfidence: prediction.overallConfidence
+        overallConfidence: prediction.overallConfidence,
+        ...(prediction.sentiment ? { sentiment: prediction.sentiment.label } : {})
       })
     }
   });

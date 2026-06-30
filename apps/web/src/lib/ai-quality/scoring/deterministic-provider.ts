@@ -1,5 +1,7 @@
 import type {
   ConversationScorePrediction,
+  ConversationSentiment,
+  ConversationSentimentLabel,
   CriterionPrediction,
   QualityScoringProvider,
   ScoringCriterionSpec,
@@ -30,7 +32,8 @@ export class DeterministicScoringProvider implements QualityScoringProvider {
     return {
       criteria,
       overallConfidence,
-      summary: buildSummary(input, criteria)
+      summary: buildSummary(input, criteria),
+      sentiment: predictSentiment(input)
     };
   }
 
@@ -83,6 +86,22 @@ function passFailRationale(spec: ScoringCriterionSpec, passed: boolean): string 
   return passed
     ? `Критерий «${spec.label}» соблюден.`
     : `Критерий «${spec.label}» не соблюден, нужна корректировка.`;
+}
+
+const sentimentLabels: ConversationSentimentLabel[] = ["negative", "neutral", "positive"];
+
+/**
+ * Stable pseudo-sentiment derived purely from the transcript (a hash of the
+ * conversation id + each message id/text). No `Date`, no `Math.random`, so the
+ * same conversation always yields the same label + score.
+ */
+function predictSentiment(input: ScoringInput): ConversationSentiment {
+  const transcriptSignature = input.transcript.map((message) => `${message.id}:${message.text}`).join("\n");
+  const seed = hashString(`${input.conversationId}::sentiment::${transcriptSignature}`);
+  const label = sentimentLabels[seed % sentimentLabels.length];
+  // Score in a plausible 0.55..0.95 band, stable per conversation+transcript.
+  const score = round2(0.55 + ((seed >>> 5) % 41) / 100);
+  return { label, score };
 }
 
 function buildSummary(input: ScoringInput, criteria: CriterionPrediction[]): string {

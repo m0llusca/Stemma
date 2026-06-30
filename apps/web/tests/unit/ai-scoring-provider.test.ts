@@ -3,6 +3,7 @@ import {
   DeterministicScoringProvider,
   YandexGptScoringProvider,
   ScoringProviderError,
+  parseConversationScorePrediction,
   resolveScoringProvider
 } from "@/lib/ai-quality/scoring";
 import type { ScoringInput, ScoringTransport } from "@/lib/ai-quality/scoring";
@@ -87,6 +88,31 @@ describe("DeterministicScoringProvider", () => {
     for (const criterion of prediction.criteria) {
       expect(criterion.evidenceRef).toBeUndefined();
     }
+  });
+
+  it("emits a stable, well-formed sentiment derived from the transcript", async () => {
+    const first = await provider.scoreConversation(baseInput);
+    const second = await provider.scoreConversation(baseInput);
+
+    expect(first.sentiment).toBeDefined();
+    expect(first.sentiment).toEqual(second.sentiment);
+    expect(["positive", "neutral", "negative"]).toContain(first.sentiment?.label);
+    expect(first.sentiment?.score).toBeGreaterThanOrEqual(0);
+    expect(first.sentiment?.score).toBeLessThanOrEqual(1);
+  });
+
+  it("is transcript-sensitive: ignores criteria but keys off the conversation+transcript", async () => {
+    // Same conversation id + same transcript ⇒ identical sentiment even if criteria differ.
+    const a = await provider.scoreConversation(baseInput);
+    const b = await provider.scoreConversation({ ...baseInput, criteria: [baseInput.criteria[0]] });
+    expect(a.sentiment).toEqual(b.sentiment);
+
+    // A different transcript yields a well-formed (independently derived) sentiment.
+    const c = await provider.scoreConversation({
+      ...baseInput,
+      transcript: [{ id: "msg-9", author: "Клиент", text: "Это просто возмутительно!" }]
+    });
+    expect(["positive", "neutral", "negative"]).toContain(c.sentiment?.label);
   });
 });
 
@@ -173,6 +199,40 @@ describe("YandexGptScoringProvider", () => {
     expect(JSON.parse(calls[0].body ?? "{}").modelUri).toBe("gpt://cat-2/yandexgpt-lite/latest");
   });
 
+  it("asks for sentiment in the system prompt and parses it from the response", async () => {
+    const { transport, calls } = fakeTransport({
+      body: yandexResponse({
+        criteria: [{ criterionKey: "greeting", passed: true, confidence: 0.9, rationale: "ok", evidenceRef: "msg-2" }],
+        overallConfidence: 0.8,
+        summary: "ок",
+        sentiment: { label: "positive", score: 0.91 }
+      })
+    });
+    const provider = new YandexGptScoringProvider({ apiKey: "k", catalogId: "c", transport });
+
+    const prediction = await provider.scoreConversation(baseInput);
+
+    // The strict-JSON system prompt mentions sentiment in the same pass (no extra round-trip).
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body && JSON.parse(calls[0].body).messages[0].text).toContain("sentiment");
+    expect(prediction.sentiment).toEqual({ label: "positive", score: 0.91 });
+  });
+
+  it("tolerates a response without sentiment", async () => {
+    const { transport } = fakeTransport({
+      body: yandexResponse({
+        criteria: [{ criterionKey: "greeting", passed: true, confidence: 0.5, rationale: "ok" }],
+        overallConfidence: 0.5,
+        summary: "ok"
+      })
+    });
+    const provider = new YandexGptScoringProvider({ apiKey: "k", catalogId: "c", transport });
+
+    const prediction = await provider.scoreConversation(baseInput);
+
+    expect(prediction.sentiment).toBeUndefined();
+  });
+
   it("parses a well-formed response and maps criterionKey back to criterionId", async () => {
     const { transport } = fakeTransport({
       body: yandexResponse({
@@ -237,6 +297,35 @@ describe("YandexGptScoringProvider", () => {
       const serialized = JSON.stringify((error as ScoringProviderError).diagnostic ?? {});
       expect(serialized).not.toContain("super-secret-key");
     }
+  });
+});
+
+describe("parseConversationScorePrediction sentiment", () => {
+  function payload(extra: Record<string, unknown>): string {
+    return JSON.stringify({
+      criteria: [{ criterionKey: "greeting", passed: true, confidence: 0.5, rationale: "ok" }],
+      overallConfidence: 0.5,
+      summary: "ok",
+      ...extra
+    });
+  }
+
+  it("parses a well-formed sentiment block and clamps the score to 0..1", () => {
+    const a = parseConversationScorePrediction(payload({ sentiment: { label: "neutral", score: 0.4 } }));
+    expect(a?.sentiment).toEqual({ label: "neutral", score: 0.4 });
+
+    const clamped = parseConversationScorePrediction(payload({ sentiment: { label: "positive", score: 5 } }));
+    expect(clamped?.sentiment).toEqual({ label: "positive", score: 1 });
+  });
+
+  it("omits sentiment when absent", () => {
+    expect(parseConversationScorePrediction(payload({}))?.sentiment).toBeUndefined();
+  });
+
+  it("omits sentiment when the label is unknown or the block is malformed", () => {
+    expect(parseConversationScorePrediction(payload({ sentiment: { label: "angry", score: 0.9 } }))?.sentiment).toBeUndefined();
+    expect(parseConversationScorePrediction(payload({ sentiment: "positive" }))?.sentiment).toBeUndefined();
+    expect(parseConversationScorePrediction(payload({ sentiment: null }))?.sentiment).toBeUndefined();
   });
 });
 

@@ -38,6 +38,7 @@ export async function loadFinalizedReviews(workspaceId: string, period: ReportPe
           samplingType: true,
           csatBucket: true,
           csatScore: true,
+          sentiment: true,
           supportLine: true,
           teamName: true
         }
@@ -58,7 +59,9 @@ export async function loadFinalizedReviews(workspaceId: string, period: ReportPe
       },
       findings: {
         select: {
+          ownerType: true,
           category: true,
+          rootCause: true,
           riskLevel: true
         }
       }
@@ -104,3 +107,24 @@ export async function loadPreviousFinalizedReviews(workspaceId: string, period: 
 }
 
 export type PreviousReviewForReport = Awaited<ReturnType<typeof loadPreviousFinalizedReviews>>[number];
+
+// Narrow loader for the reason/root-cause trend. Pulls only the Finding columns
+// the aggregation needs (ownerType/category/rootCause/riskLevel) for finalized
+// reviews in the period, flattened across reviews. Used for both the current
+// period (the count base) and the comparison period (the delta base) so neither
+// pulls the full review shape just to count themes.
+export async function loadPeriodFindings(workspaceId: string, period: ReportPeriod) {
+  return prisma.finding.findMany({
+    where: {
+      review: reviewWhere(workspaceId, period)
+    },
+    select: {
+      ownerType: true,
+      category: true,
+      rootCause: true,
+      riskLevel: true
+    }
+  });
+}
+
+export type PeriodFinding = Awaited<ReturnType<typeof loadPeriodFindings>>[number];

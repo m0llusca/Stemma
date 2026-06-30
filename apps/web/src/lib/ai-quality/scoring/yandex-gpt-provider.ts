@@ -176,7 +176,9 @@ export class YandexGptScoringProvider implements QualityScoringProvider {
     return {
       criteria,
       overallConfidence: prediction.overallConfidence,
-      summary: prediction.summary
+      summary: prediction.summary,
+      // Carry sentiment through when the model emitted it; tolerate its absence.
+      ...(prediction.sentiment ? { sentiment: prediction.sentiment } : {})
     };
   }
 }
@@ -220,11 +222,12 @@ function systemPrompt(): string {
     "Ты — ассистент контроля качества контакт-центра.",
     "Оцени диалог оператора с клиентом по заданным критериям.",
     "Верни СТРОГО валидный JSON без markdown и пояснений вне JSON.",
-    "Структура: {\"criteria\":[{\"criterionKey\":string,\"value\":1..3 (только для шкальных критериев),\"passed\":boolean (только для критериев да/нет),\"isNotApplicable\":boolean,\"confidence\":0..1,\"rationale\":краткое обоснование на русском,\"evidenceRef\":id сообщения-доказательства}],\"overallConfidence\":0..1,\"summary\":краткое резюме на русском}.",
+    "Структура: {\"criteria\":[{\"criterionKey\":string,\"value\":1..3 (только для шкальных критериев),\"passed\":boolean (только для критериев да/нет),\"isNotApplicable\":boolean,\"confidence\":0..1,\"rationale\":краткое обоснование на русском,\"evidenceRef\":id сообщения-доказательства}],\"overallConfidence\":0..1,\"summary\":краткое резюме на русском,\"sentiment\":{\"label\":\"positive|neutral|negative\",\"score\":0..1}}.",
     "Для критерия типа SCALE_1_3 укажи value (1..3) и не указывай passed.",
     "Для критерия типа PASS_FAIL укажи passed (true/false) и не указывай value.",
     "criterionKey должен совпадать с ключом критерия из запроса.",
-    "evidenceRef — это id сообщения из транскрипта, подтверждающего вывод."
+    "evidenceRef — это id сообщения из транскрипта, подтверждающего вывод.",
+    "sentiment — общая тональность диалога клиента: label из набора positive/neutral/negative, score (0..1) — уверенность в тональности."
   ].join("\n");
 }
 

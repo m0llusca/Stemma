@@ -164,6 +164,7 @@ model Workspace {
   reviews                   Review[]
   reviewQuotas              ReviewQuota[]
   savedQueueViews           SavedQueueView[]
+  savedReportViews          SavedReportView[]
   calibrationSessions       CalibrationSession[]
   samplingRules             SamplingRule[]
   knowledgeEntries          QualityKnowledgeEntry[]
@@ -283,6 +284,7 @@ model User {
   decidedAiQualityDrafts      AiQualityDraft[]           @relation("AiQualityDraftFinalizedBy")
   reviews                     Review[]
   savedQueueViews             SavedQueueView[]
+  savedReportViews            SavedReportView[]
   ownedCalibrationSessions    CalibrationSession[]       @relation("CalibrationOwner")
   calibrationParticipants     CalibrationParticipant[]
   feedbackEvents              ReviewFeedbackEvent[]
@@ -606,6 +608,9 @@ model Conversation {
   samplingType        String                   @default("RANDOM")
   csatScore           Int?
   csatBucket          String                   @default("NO_SCORE")
+  sentiment           String?
+  sentimentScore      Float?
+  sentimentModel      String?
   supportLine         String?
   teamName            String?
   riskHint            String?
@@ -850,6 +855,23 @@ model ReviewQuota {
 }
 
 model SavedQueueView {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  name        String
+  href        String
+  scope       String    @default("private")
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, userId])
+  @@index([workspaceId, scope, order])
+}
+
+model SavedReportView {
   id          String    @id @default(cuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
