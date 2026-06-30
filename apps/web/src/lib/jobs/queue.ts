@@ -6,6 +6,7 @@ import { runAiScoreJob } from "@/lib/jobs/ai-score-job";
 import { runMessagingDeliveryJob } from "@/lib/jobs/messaging-delivery-job";
 import type { BackendJobPayload } from "@/lib/jobs/enqueue";
 import { logBackendEvent } from "@/lib/observability";
+import { enqueueDueReportSchedules } from "@/lib/report-schedule";
 
 export { enqueueBackendJob } from "@/lib/jobs/enqueue";
 export type { BackendJobPayload } from "@/lib/jobs/enqueue";
@@ -778,6 +779,22 @@ export async function runDueBackendJobs(input: {
   const workerId = input.workerId ?? `worker-${process.pid}`;
   const limit = input.limit ?? 5;
   const results: Array<{ jobId: string; status: "SUCCEEDED" | "FAILED"; result?: unknown; error?: string }> = [];
+
+  // Materialize any due recurring report schedules into REPORT_EXPORT jobs
+  // before claiming work, so this same on-demand worker drains them in the loop
+  // below. A schedule failure must never block ordinary job draining.
+  try {
+    await enqueueDueReportSchedules(new Date(), prisma);
+  } catch (error) {
+    logBackendEvent({
+      level: "error",
+      event: "report_schedule.enqueue_failed",
+      metadata: {
+        workerId,
+        error: error instanceof Error ? error.message : "Неизвестная ошибка планировщика отчетов."
+      }
+    });
+  }
 
   if (input.recoverStale ?? true) {
     await recoverStaleBackendJobs({

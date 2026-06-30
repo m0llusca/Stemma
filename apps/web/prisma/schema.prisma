@@ -145,6 +145,7 @@ model Workspace {
   backendJobs               BackendJob[]
   idempotencyKeys           IdempotencyKey[]
   reportSnapshots           ReportSnapshot[]
+  reportSchedules           ReportSchedule[]
   reviewEvents              ReviewEvent[]
   integrations              Integration[]
   integrationRuns           IntegrationRun[]
@@ -275,6 +276,7 @@ model User {
   localCredential             LocalCredential?
   createdBackendJobs          BackendJob[]               @relation("BackendJobCreatedBy")
   reportSnapshots             ReportSnapshot[]           @relation("ReportSnapshotCreatedBy")
+  reportSchedules             ReportSchedule[]           @relation("ReportScheduleCreatedBy")
   reviewEvents                ReviewEvent[]
   certificationRuns           CertificationRun[]         @relation("CertificationRunActor")
   certificationEvidence       CertificationEvidence[]
@@ -1378,6 +1380,27 @@ model ReportSnapshot {
   @@index([workspaceId, periodStart, periodEnd])
   @@index([workspaceId, status])
   @@index([workspaceId, createdById, createdAt])
+}
+
+model ReportSchedule {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  name           String
+  periodPreset   String    @default("last_7_days")
+  exportFormat   String    @default("xlsx")
+  cadence        String    @default("weekly")
+  filtersJson    String    @default("{}")
+  isActive       Boolean   @default(true)
+  nextRunAt      DateTime
+  lastRunAt      DateTime?
+  lastSnapshotId String?
+  createdById    String?
+  createdBy      User?     @relation("ReportScheduleCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([workspaceId, isActive, nextRunAt])
 }
 
 model AuditLog {

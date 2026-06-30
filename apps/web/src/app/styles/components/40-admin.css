@@ -2354,3 +2354,67 @@
   min-width: 0;
 }
 
+/* Recurring report exports (Workstream A2) — schedule table + create form. */
+.admin-data-table--schedules .admin-data-table__head,
+.admin-data-table--schedules .admin-data-table__row {
+  grid-template-columns: minmax(150px, 1.3fr) minmax(96px, 0.7fr) minmax(70px, 0.5fr) minmax(150px, 1.1fr);
+}
+
+.quiet-link--danger {
+  color: var(--danger);
+}
+
+.report-schedule-form {
+  display: grid;
+  gap: 14px;
+}
+
+.report-schedule-form__field {
+  display: grid;
+  gap: 4px;
+}
+
+.report-schedule-form__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+.report-schedule-form__hint {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.report-schedule-form__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.report-schedule-form__textarea {
+  resize: vertical;
+  min-height: 64px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.report-schedule-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-schedule-form__status {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.report-schedule-form__status--ok {
+  color: var(--success);
+}
+
+.report-schedule-form__status--error {
+  color: var(--danger);
+}
+

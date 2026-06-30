@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { Activity, ArrowRight, CalendarClock, Gauge, History, KeyRound, ListChecks, Palette, Plug, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageShell } from "@/components/ui/page-shell";
@@ -47,7 +47,8 @@ async function AdminHomePageContent() {
     activeGroupMappings,
     failedJobs,
     recentAuditLogs,
-    apiTokens
+    apiTokens,
+    reportSchedules
   ] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
@@ -94,6 +95,9 @@ async function AdminHomePageContent() {
     }),
     prisma.apiToken.count({
       where: { workspaceId: user.workspaceId }
+    }),
+    prisma.reportSchedule.count({
+      where: { workspaceId: user.workspaceId, isActive: true }
     })
   ]);
   const currentTheme = getUiThemeOption(workspace?.uiTheme);
@@ -195,6 +199,14 @@ async function AdminHomePageContent() {
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: `${recentAuditLogs} событий`,
       tone: "neutral"
+    },
+    {
+      href: "/admin/report-schedules",
+      title: "Расписания отчетов",
+      icon: CalendarClock,
+      roles: ["ADMIN", "TEAM_LEAD"],
+      metric: `${reportSchedules} активных`,
+      tone: reportSchedules > 0 ? "ok" : "neutral"
     }
   ];
   const visibleCards = cards.filter((card) => canSee(user.role, card.roles));
