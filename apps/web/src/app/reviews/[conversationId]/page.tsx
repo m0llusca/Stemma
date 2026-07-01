@@ -19,6 +19,7 @@ import { MasterDetail } from "@/components/ui/master-detail";
 import { PageShell } from "@/components/ui/page-shell";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
+import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
 import {
   canManageReviewWorkflow,
   canManageTraining,
@@ -390,7 +391,12 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                       <h3>{aiDraftKindLabel(draft.kind)}</h3>
                       <p>{draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}</p>
                     </div>
-                    <Chip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {isDeterministicAiModel(draft.modelVersion) ? (
+                        <Chip label="Движок" value="Эвристика (без AI)" tone="warning" />
+                      ) : null}
+                      <Chip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
+                    </div>
                   </div>
                   <p className="ai-draft-card__preview">{suggestedValuePreview(draft.suggestedValueJson)}</p>
                   {draft.finalizedAt || draft.decisionReason ? (
