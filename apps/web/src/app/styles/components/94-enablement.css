@@ -1702,6 +1702,112 @@ details.calibration-create-panel:not([open]) .calibration-create-form {
   color: var(--warning);
 }
 
+/* Per-criterion calibration consensus: which criteria the group agrees on, and
+ * where the modal answer drifts from the baseline. Tokens only, so it holds
+ * across every theme. */
+.calibration-criteria {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.calibration-criteria__head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.calibration-criteria__head strong {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.calibration-criteria__hint {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.calibration-criteria__list {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-criteria__row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  background: var(--panel);
+  padding: 5px 9px;
+}
+
+.calibration-criteria__row--attention {
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+  background: color-mix(in srgb, var(--warning) 6%, var(--panel));
+}
+
+.calibration-criteria__label {
+  display: inline-flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.calibration-criteria__block {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.calibration-criteria__name {
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 640;
+  line-height: 1.28;
+}
+
+.calibration-criteria__metrics {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.calibration-criteria__rate {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-criteria__row--attention .calibration-criteria__rate {
+  color: var(--warning);
+}
+
+.calibration-criteria__spread {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 640px) {
   .calibration-consensus-card {
     grid-template-columns: minmax(0, 1fr);

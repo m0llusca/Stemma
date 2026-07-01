@@ -9,6 +9,7 @@ import { StatKpi } from "@/components/ui/stat-kpi";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
+import { computeCalibrationItemAgreement, type CalibrationCriterionKind } from "@/lib/calibration/agreement";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { formatQualityScore } from "@/lib/score-display";
@@ -101,13 +102,13 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       where: { workspaceId: user.workspaceId },
       include: {
         owner: true,
-        scorecard: true,
+        scorecard: { include: { criteria: { orderBy: { order: "asc" } } } },
         participants: { include: { user: true }, orderBy: { createdAt: "asc" } },
         items: {
           include: {
             conversation: {
               include: {
-                reviews: { include: { reviewer: true } },
+                reviews: { include: { reviewer: true, scores: true } },
                 _count: { select: { coachingPins: true } }
               }
             }
@@ -148,6 +149,16 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
   const selectedWaitingCount = Math.max(selectedExpectedCount - selectedCompletedCount, 0);
   const selectedProgress = selectedExpectedCount > 0 ? Math.round((selectedCompletedCount / selectedExpectedCount) * 100) : 0;
   const activeSessionCount = sessions.filter((session) => session.status === "active" || session.status === "draft").length;
+  // Criteria of the scorecard this session was created against — the reference set
+  // for per-criterion consensus.
+  const selectedScorecardCriteria = selectedSession?.scorecard.criteria ?? [];
+  const agreementCriteria = selectedScorecardCriteria.map((criterion) => ({
+    id: criterion.id,
+    kind: criterion.kind as CalibrationCriterionKind
+  }));
+  const criterionMetaById = new Map(
+    selectedScorecardCriteria.map((criterion) => [criterion.id, { label: criterion.label, block: criterion.block }])
+  );
   const selectedItemStates =
     selectedSession?.items.map((item) => {
       const baselineReview =
@@ -175,6 +186,13 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       const itemDeltas = [...reviewerDeltas.values()];
       const alignedCount = itemDeltas.filter((delta) => Math.abs(delta) <= ALIGNMENT_BAND).length;
       const alignmentPercent = itemDeltas.length > 0 ? Math.round((alignedCount / itemDeltas.length) * 100) : null;
+      // Per-criterion consensus: how often participants land on the same answer for
+      // each criterion, plus scale spread and whether the modal answer matches the baseline.
+      const criterionAgreement = computeCalibrationItemAgreement({
+        criteria: agreementCriteria,
+        participants: reviews.map((review) => ({ scores: review.scores })),
+        baseline: baselineReview ? { scores: baselineReview.scores } : null
+      });
 
       return {
         item,
@@ -186,7 +204,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
         gradedCount: itemDeltas.length,
         alignmentPercent,
         spread,
-        missingParticipants
+        missingParticipants,
+        criterionAgreement
       };
     }) ?? [];
   const selectedDisagreementCount = selectedItemStates.filter((state) => state.spread != null && state.spread > 10).length;
@@ -629,7 +648,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                   </div>
                   <Chip tone="neutral" numeric>{selectedItemStates.length}</Chip>
                 </div>
-                {selectedItemStates.map(({ item, baselineReview, baselineScore, reviews, reviewerDeltas, alignedCount, gradedCount, alignmentPercent, spread, missingParticipants }) => {
+                {selectedItemStates.map(({ item, baselineReview, baselineScore, reviews, reviewerDeltas, alignedCount, gradedCount, alignmentPercent, spread, missingParticipants, criterionAgreement }) => {
                   const completedCount = reviews.length;
                   const expectedCount = selectedSession.participants.length;
                   const attention = spread != null && spread > ALIGNMENT_BAND;
@@ -637,6 +656,16 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                   const offBandCount = Math.max(gradedCount - alignedCount, 0);
                   const alignedPct = gradedCount > 0 ? (alignedCount / gradedCount) * 100 : 0;
                   const offBandPct = gradedCount > 0 ? (offBandCount / gradedCount) * 100 : 0;
+                  // Per-criterion consensus rows, most-misaligned first. Rows without a
+                  // rate (fewer than two answers) sink to the bottom.
+                  const criterionRows = criterionAgreement.criteria
+                    .map((entry) => ({ ...entry, meta: criterionMetaById.get(entry.criterionId) }))
+                    .filter((entry) => entry.meta != null && entry.participantCount > 0)
+                    .sort((a, b) => {
+                      const rateA = a.agreementRate ?? Number.POSITIVE_INFINITY;
+                      const rateB = b.agreementRate ?? Number.POSITIVE_INFINITY;
+                      return rateA - rateB;
+                    });
 
                   return (
                     <article
@@ -712,6 +741,47 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                             );
                           })}
                         </div>
+
+                        {criterionRows.length > 0 ? (
+                          <div className="calibration-criteria" aria-label="Согласованность по критериям">
+                            <div className="calibration-criteria__head">
+                              <strong>По критериям</strong>
+                              <span className="calibration-criteria__hint">Доля совпавших ответов участников. Сначала самые спорные.</span>
+                            </div>
+                            <ul className="calibration-criteria__list">
+                              {criterionRows.map((row) => {
+                                const misaligned = row.agreementRate != null && row.agreementRate < 0.75;
+
+                                return (
+                                  <li
+                                    key={row.criterionId}
+                                    className={`calibration-criteria__row ${misaligned ? "calibration-criteria__row--attention" : ""}`}
+                                  >
+                                    <span className="calibration-criteria__label">
+                                      <span className="calibration-criteria__block">{row.meta?.block}</span>
+                                      <span className="calibration-criteria__name">{row.meta?.label}</span>
+                                    </span>
+                                    <span className="calibration-criteria__metrics">
+                                      <span className="calibration-criteria__rate">
+                                        {row.agreementRate != null ? `${Math.round(row.agreementRate * 100)}%` : "—"}
+                                      </span>
+                                      {row.scaleSpread != null && row.scaleSpread > 0 ? (
+                                        <span className="calibration-criteria__spread" title="Разброс баллов по шкале">
+                                          разброс {row.scaleSpread}
+                                        </span>
+                                      ) : null}
+                                      {row.matchesBaseline === false ? (
+                                        <Chip tone="warning" size="xs">≠ эталон</Chip>
+                                      ) : row.matchesBaseline === true ? (
+                                        <Chip tone="success" size="xs">= эталон</Chip>
+                                      ) : null}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="calibration-consensus-card__aside">
                         {selectedSession.status === "active" || selectedSession.status === "draft" ? (
