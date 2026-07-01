@@ -74,6 +74,8 @@ import {
 import { ReasonTrendPanel, SentimentCorrelationPanel } from "@/components/reports/insight-correlation-panels";
 import { ReportSavedViews } from "@/components/reports/report-saved-views";
 import { listSavedReportViews } from "@/lib/saved-report-view";
+import { loadAiHumanAgreementReport } from "@/lib/ai-quality/agreement-report";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   formatAverageScore,
   formatCriterionCount,
@@ -125,7 +127,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     savedReportViews,
     highRiskFindings,
     coachingBacklog,
-    quotas
+    quotas,
+    aiAgreement
   ] = await Promise.all([
     loadFinalizedReviews(user.workspaceId, period),
     loadPreviousFinalizedReviews(user.workspaceId, previousPeriod),
@@ -159,7 +162,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         periodEnd: { gte: period.start }
       },
       orderBy: [{ supportLine: "asc" }, { assigneeName: "asc" }]
-    })
+    }),
+    loadAiHumanAgreementReport(user.workspaceId, { since: period.start, until: period.end })
   ]);
   const sourceGroups = new Map<string, number[]>();
   const assigneeGroups = new Map<string, number[]>();
@@ -880,6 +884,82 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
               rows={matrixRows}
               teamAverage={matrixTeamAverage}
             />
+          </div>
+        </section>
+      ) : null}
+
+      {reportView === "performance" ? (
+        <section className="panel" aria-labelledby="ai-agreement-title">
+          <div className="criterion-matrix-panel__header">
+            <div className="min-w-0">
+              <p className="page-kicker">AI-качество</p>
+              <h2 id="ai-agreement-title" className="criterion-matrix-panel__title">AI↔человек: согласие</h2>
+              <p className="criterion-matrix-panel__desc">
+                Насколько AI-оценка совпадает с решениями проверяющих по каждому критерию. Учитываются финализированные ревью и реальная AI-оценка (детерминированный fallback исключён); критерии с наибольшим расхождением подняты выше.
+              </p>
+            </div>
+          </div>
+          <div className="p-5 pt-0">
+            {!aiAgreement || aiAgreement.aggregate.comparedCount === 0 ? (
+              <p className="record-meta">
+                Нет данных для сравнения за период: нужны финализированные ревью проверяющих и реальная AI-оценка (не fallback) по тем же обращениям.
+              </p>
+            ) : (
+              <>
+                <div className="system-section-summary system-section-summary--three">
+                  <StatCard
+                    label="Согласие AI и людей"
+                    value={`${Math.round((aiAgreement.aggregate.agreementRate ?? 0) * 100)}%`}
+                    hint={`${aiAgreement.aggregate.agreeCount} из ${aiAgreement.aggregate.comparedCount} совпадений по критериям`}
+                    tone={
+                      (aiAgreement.aggregate.agreementRate ?? 0) >= 0.8
+                        ? "positive"
+                        : (aiAgreement.aggregate.agreementRate ?? 0) >= 0.6
+                          ? "warning"
+                          : "negative"
+                    }
+                  />
+                  <StatCard
+                    label="Сравнено диалогов"
+                    value={aiAgreement.aiComparedConversations}
+                    hint={`из ${aiAgreement.reviewsConsidered} финализированных ревью`}
+                    tone="info"
+                  />
+                  <StatCard
+                    label="Ср. расхождение (1–3)"
+                    value={aiAgreement.aggregate.meanScaleDelta != null ? aiAgreement.aggregate.meanScaleDelta.toFixed(2) : "—"}
+                    hint="Средняя |AI − человек| по балльным критериям"
+                    tone={
+                      aiAgreement.aggregate.meanScaleDelta == null
+                        ? "neutral"
+                        : aiAgreement.aggregate.meanScaleDelta <= 0.3
+                          ? "positive"
+                          : aiAgreement.aggregate.meanScaleDelta <= 0.7
+                            ? "warning"
+                            : "negative"
+                    }
+                  />
+                </div>
+                <div className="record-list mt-4">
+                  {aiAgreement.criteria.map((row) => (
+                    <article key={row.criterionId} className="record-card">
+                      <div className="record-row">
+                        <div className="min-w-0">
+                          <h3 className="record-title">{row.label}</h3>
+                          <p className="record-meta mt-1">
+                            {row.block} · сравнений: {row.comparedCount}
+                            {row.meanScaleDelta != null ? ` · ср. расхождение ${row.meanScaleDelta.toFixed(2)}` : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-lg font-semibold tabular-nums">
+                          {row.agreementRate != null ? `${Math.round(row.agreementRate * 100)}%` : "—"}
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </section>
       ) : null}
