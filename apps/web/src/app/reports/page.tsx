@@ -75,6 +75,7 @@ import { ReasonTrendPanel, SentimentCorrelationPanel } from "@/components/report
 import { ReportSavedViews } from "@/components/reports/report-saved-views";
 import { listSavedReportViews } from "@/lib/saved-report-view";
 import { loadAiHumanAgreementReport } from "@/lib/ai-quality/agreement-report";
+import { loadAiScoreDriftReport } from "@/lib/ai-quality/drift-report";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   formatAverageScore,
@@ -128,7 +129,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     highRiskFindings,
     coachingBacklog,
     quotas,
-    aiAgreement
+    aiAgreement,
+    aiDrift
   ] = await Promise.all([
     loadFinalizedReviews(user.workspaceId, period),
     loadPreviousFinalizedReviews(user.workspaceId, previousPeriod),
@@ -163,7 +165,8 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       },
       orderBy: [{ supportLine: "asc" }, { assigneeName: "asc" }]
     }),
-    loadAiHumanAgreementReport(user.workspaceId, { since: period.start, until: period.end })
+    loadAiHumanAgreementReport(user.workspaceId, { since: period.start, until: period.end }),
+    loadAiScoreDriftReport(user.workspaceId, { since: period.start, until: period.end, bucket: "week" })
   ]);
   const sourceGroups = new Map<string, number[]>();
   const assigneeGroups = new Map<string, number[]>();
@@ -959,6 +962,105 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {reportView === "performance" ? (
+        <section className="panel" aria-labelledby="ai-drift-title">
+          <div className="criterion-matrix-panel__header">
+            <div className="min-w-0">
+              <p className="page-kicker">AI-качество</p>
+              <h2 id="ai-drift-title" className="criterion-matrix-panel__title">Дрейф AI-оценки</h2>
+              <p className="criterion-matrix-panel__desc">
+                Как меняются средняя уверенность модели и доля детерминированного fallback по неделям. Регрессии — заметное падение уверенности или всплеск доли fallback между соседними периодами — подняты отдельно.
+              </p>
+            </div>
+          </div>
+          <div className="p-5 pt-0">
+            {!aiDrift || aiDrift.buckets.length === 0 ? (
+              <p className="record-meta">
+                Нет данных для анализа дрейфа за период: за это время не создавалось AI-оценок.
+              </p>
+            ) : (
+              (() => {
+                const latest = aiDrift.buckets[aiDrift.buckets.length - 1];
+                return (
+                  <>
+                    <div className="system-section-summary system-section-summary--three">
+                      <StatCard
+                        label="Уверенность (посл. период)"
+                        value={latest.meanConfidence != null ? `${Math.round(latest.meanConfidence * 100)}%` : "—"}
+                        hint={`${latest.periodStart} · оценок: ${latest.count}`}
+                        tone={
+                          latest.meanConfidence == null
+                            ? "neutral"
+                            : latest.meanConfidence >= 0.8
+                              ? "positive"
+                              : latest.meanConfidence >= 0.6
+                                ? "warning"
+                                : "negative"
+                        }
+                      />
+                      <StatCard
+                        label="Доля fallback (посл. период)"
+                        value={`${Math.round(latest.fallbackRate * 100)}%`}
+                        hint="Детерминированный движок вместо LLM"
+                        tone={
+                          latest.fallbackRate <= 0.2
+                            ? "positive"
+                            : latest.fallbackRate <= 0.5
+                              ? "warning"
+                              : "negative"
+                        }
+                      />
+                      <StatCard
+                        label="Регрессии"
+                        value={aiDrift.regressions.length}
+                        hint="Падения уверенности и всплески fallback"
+                        tone={aiDrift.regressions.length === 0 ? "positive" : "negative"}
+                      />
+                    </div>
+                    {aiDrift.regressions.length > 0 ? (
+                      <div className="record-list mt-4">
+                        {aiDrift.regressions.map((regression, index) => (
+                          <article key={`${regression.periodStart}-${regression.kind}-${index}`} className="record-card">
+                            <div className="record-row">
+                              <div className="min-w-0">
+                                <h3 className="record-title text-[var(--danger)]">
+                                  {regression.kind === "confidence_drop" ? "Падение уверенности" : "Всплеск fallback"}
+                                </h3>
+                                <p className="record-meta mt-1">
+                                  {regression.periodStart} · {regression.detail}
+                                </p>
+                              </div>
+                              <AlertTriangle size={18} aria-hidden="true" className="shrink-0 text-[var(--danger)]" />
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="record-list mt-4">
+                      {aiDrift.buckets.map((bucket) => (
+                        <article key={bucket.periodStart} className="record-card">
+                          <div className="record-row">
+                            <div className="min-w-0">
+                              <h3 className="record-title">{bucket.periodStart}</h3>
+                              <p className="record-meta mt-1">
+                                оценок: {bucket.count} · уверенность {bucket.meanConfidence != null ? `${Math.round(bucket.meanConfidence * 100)}%` : "—"} · fallback {Math.round(bucket.fallbackRate * 100)}%
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-lg font-semibold tabular-nums">
+                              {bucket.meanConfidence != null ? `${Math.round(bucket.meanConfidence * 100)}%` : "—"}
+                            </span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()
             )}
           </div>
         </section>

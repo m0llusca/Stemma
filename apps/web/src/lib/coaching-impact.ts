@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { hasAdequateSample } from "@/lib/analytics/significance";
 
 /**
  * "Did coaching help?" metric. Compares an agent's QA score before vs after a
@@ -36,6 +37,12 @@ export type CoachingImpact = {
   beforeCount: number;
   afterCount: number;
   trend: CoachingImpactTrend;
+  /**
+   * True only when BOTH the before and after windows carry enough finalized
+   * reviews to trust the delta (see {@link hasAdequateSample}). When false the
+   * move may be noise from a thin sample and the UI should caveat it.
+   */
+  sampleAdequate: boolean;
 };
 
 function roundToOneDecimal(value: number): number {
@@ -65,6 +72,9 @@ export function computeCoachingImpact(input: CoachingImpactInput): CoachingImpac
   const afterCount = input.after.length;
   const beforeAvg = average(input.before);
   const afterAvg = average(input.after);
+  // Adequate only when BOTH sides clear the minimum: a delta anchored on a
+  // thin window on either end is not a signal worth reading as a real move.
+  const sampleAdequate = hasAdequateSample(beforeCount) && hasAdequateSample(afterCount);
 
   if (beforeAvg === null || afterAvg === null) {
     return {
@@ -73,7 +83,8 @@ export function computeCoachingImpact(input: CoachingImpactInput): CoachingImpac
       delta: null,
       beforeCount,
       afterCount,
-      trend: "insufficient"
+      trend: "insufficient",
+      sampleAdequate
     };
   }
 
@@ -94,7 +105,8 @@ export function computeCoachingImpact(input: CoachingImpactInput): CoachingImpac
     delta,
     beforeCount,
     afterCount,
-    trend
+    trend,
+    sampleAdequate
   };
 }
 

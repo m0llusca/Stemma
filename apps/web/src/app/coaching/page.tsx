@@ -159,7 +159,8 @@ function impactSummary(impact: CoachingImpact) {
 
   return {
     text: `до ${formatQualityScore(impact.beforeAvg)} → после ${formatQualityScore(impact.afterAvg)}, ${formatQualityScoreDelta(impact.delta)}`,
-    trend: impact.trend
+    trend: impact.trend,
+    sampleAdequate: impact.sampleAdequate
   };
 }
 
@@ -726,6 +727,11 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                       <Chip tone={impactTone(summary.trend)} size="xs">
                         {formatQualityScoreDelta(planImpact?.delta ?? 0)}
                       </Chip>
+                      {summary.sampleAdequate ? null : (
+                        <Chip tone="neutral" size="xs">
+                          мало данных для вывода
+                        </Chip>
+                      )}
                     </div>
                   ) : null}
                   {planAssignments.length > 0 ? (
@@ -743,6 +749,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                             {assignmentSummary ? (
                               <span className={`coaching-plan-assignment__impact coaching-plan-assignment__impact--${assignmentSummary.trend}`}>
                                 {assignmentSummary.text}
+                                {assignmentSummary.sampleAdequate ? "" : " · мало данных для вывода"}
                               </span>
                             ) : null}
                           </li>
