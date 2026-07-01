@@ -61,13 +61,28 @@ async function runWorkerIteration(options: WorkerOptions) {
 async function main() {
   const options = parseWorkerOptions(process.argv.slice(2));
 
+  let shuttingDown = false;
+  const requestShutdown = () => {
+    shuttingDown = true;
+  };
+  process.on("SIGTERM", requestShutdown);
+  process.on("SIGINT", requestShutdown);
+
   do {
     await runWorkerIteration(options);
+
+    if (shuttingDown) {
+      break;
+    }
 
     if (!options.once) {
       await sleep(options.intervalMs);
     }
-  } while (!options.once);
+  } while (!options.once && !shuttingDown);
+
+  if (shuttingDown) {
+    process.exit(0);
+  }
 }
 
 main().catch((error) => {
