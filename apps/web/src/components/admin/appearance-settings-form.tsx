@@ -2,9 +2,10 @@
 
 import type { CSSProperties, ChangeEvent } from "react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, ChevronDown, Gauge, ImageUp, Layers3, Palette, RotateCcw, Rows3, Type, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Gauge, ImageUp, Layers3, Palette, RotateCcw, Rows3, Type, Undo2, X } from "lucide-react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { getSettingCoachmark, hasAppearancePaletteOverrides } from "@/lib/admin-setup-guidance";
+import { resolveUndoTarget } from "@/lib/appearance-undo";
 import { updateWorkspaceAppearance } from "@/lib/ui-theme-actions";
 import {
   maxBrandLogoUrlLength,
@@ -198,18 +199,15 @@ function appearancesEqual(left: AppearanceState, right: AppearanceState) {
 
 function saveStatusLabel(state: SaveState) {
   if (state === "saving") {
-    return "Сохраняем автоматически...";
-  }
-
-  if (state === "saved") {
-    return "Сохранено";
+    return "Сохранение…";
   }
 
   if (state === "error") {
-    return "Не удалось сохранить. Изменение видно до обновления страницы.";
+    return "Ошибка сохранения — повторите";
   }
 
-  return "Изменения применяются в предпросмотре и сохраняются автоматически.";
+  // idle (ничего не менялось) и saved: все зафиксировано на сервере.
+  return "Все изменения сохранены";
 }
 
 export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettingsFormProps) {
@@ -220,6 +218,9 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   const [, startTransition] = useTransition();
   const latestAppearanceRef = useRef<AppearanceState>(initialAppearance);
   const lastPersistedRef = useRef<AppearanceState>(initialAppearance);
+  // Предыдущее сохраненное состояние: цель отката, когда текущие правки уже
+  // зафиксированы автосейвом (см. resolveUndoTarget в lib/appearance-undo.ts).
+  const previousPersistedRef = useRef<AppearanceState | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSavingRef = useRef(false);
   const hasQueuedSaveRef = useRef(false);
@@ -249,6 +250,7 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
     startTransition(() => {
       void updateWorkspaceAppearance(appearanceToFormData(snapshot))
         .then(() => {
+          previousPersistedRef.current = lastPersistedRef.current;
           lastPersistedRef.current = snapshot;
           setSaveState("saved");
         })
@@ -396,6 +398,19 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
       setLogoError("Не удалось прочитать файл.");
     });
     reader.readAsDataURL(file);
+  };
+
+  const undoTarget = resolveUndoTarget(appearance, lastPersistedRef.current, previousPersistedRef.current, appearancesEqual);
+
+  const handleUndo = () => {
+    if (!undoTarget) {
+      return;
+    }
+
+    // Возврат к последнему сохраненному состоянию; если правки уже
+    // зафиксированы — к предыдущему сохраненному шагу. Повторное сохранение
+    // выполняет обычный автосейв через эффект на appearance.
+    setAppearance(undoTarget);
   };
 
   const logoIsUploaded = appearance.brandLogoUrl.startsWith("data:image/");
@@ -805,7 +820,22 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
       </section>
 
       <div className="appearance-form__footer">
-        <span className={`appearance-save-status appearance-save-status--${saveState}`} role={saveState === "error" ? "alert" : "status"}>
+        <button
+          type="button"
+          className="action-button action-button--small"
+          disabled={!undoTarget}
+          onClick={handleUndo}
+        >
+          <Undo2 size={14} aria-hidden="true" />
+          Отменить последнее изменение
+        </button>
+        {/* Постоянно отрендеренный статус автосейва: меняется только текст,
+            aria-live="polite" озвучивает смену состояния. */}
+        <span
+          className={`appearance-save-status appearance-save-status--${saveState}`}
+          role="status"
+          aria-live="polite"
+        >
           {saveStatusLabel(saveState)}
         </span>
       </div>

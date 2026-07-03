@@ -266,6 +266,16 @@
   font-weight: 780;
 }
 
+/* Подпись поля — канонический стиль лейбла админ-форм (зеркалит .form-group__label в 40-admin.css). */
+.appearance-field > span,
+.brand-color-field span {
+  color: var(--panel-header-muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .appearance-field--short {
   max-width: 140px;
 }

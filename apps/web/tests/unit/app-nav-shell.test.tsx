@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppNavShell } from "@/components/app-nav-shell";
-import { buildShellNavigation } from "@/lib/shell/navigation";
+import { buildShellNavigation, visibleTopNavAreas } from "@/lib/shell/navigation";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/reviews",
@@ -21,6 +21,8 @@ vi.mock("@/lib/user-actions", () => ({
 const navigation = buildShellNavigation({ role: "ADMIN" });
 const baseProps = {
   navigation,
+  // AppNav всегда передает роль-фильтрованный список — тест повторяет это.
+  areas: visibleTopNavAreas("ADMIN"),
   pulseItems: [
     { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 4 },
     { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: 1, tone: "risk" as const },
@@ -146,6 +148,14 @@ describe("app nav shell", () => {
 
     // The disclosure menu is closed until the trigger is activated.
     expect(screen.queryByRole("menu", { name: "Основные разделы" })).toBeNull();
+  });
+
+  it("drops the burger trigger entirely when there are no visible areas", () => {
+    render(<AppNavShell {...baseProps} areas={[]} />);
+
+    // Пустой список областей не должен оставлять кнопку-огрызок «Разделы».
+    expect(screen.queryByRole("button", { name: "Разделы" })).toBeNull();
+    expect(document.querySelector(".app-nav__areas")).toBeNull();
   });
 
   it("opens and closes the mobile area menu and exposes the areas as menu links", () => {

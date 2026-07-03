@@ -1,13 +1,15 @@
-import { AlertTriangle, ArrowLeft, Send } from "lucide-react";
+import { AlertTriangle, Send } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
-import { StatCard } from "@/components/ui/stat-card";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { MessagingChannelForm } from "@/components/admin/messaging-channel-form";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { setMessagingChannelStatus } from "@/lib/messaging-actions";
@@ -129,7 +131,7 @@ function messagingRecipientLabel(value: string) {
 
 export default function AdminChannelsPage() {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка каналов уведомлений" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/channels")} />}>
       <AdminChannelsPageContent />
     </Suspense>
   );
@@ -168,35 +170,31 @@ async function AdminChannelsPageContent() {
   ]);
   const configuredChannelByKind = new Map(messagingChannels.map((channel) => [channel.kind, channel]));
   const activeActionChannels = messagingChannels.filter((channel) => channel.status === "active").length;
+  const latestDeliveries = recentDeliveries.slice(0, 3);
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Каналы уведомлений"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/channels"]}
       description="Исходящие уведомления в Slack, Microsoft Teams, Telegram и WhatsApp: готовность каналов, защитные проверки и очередь доставок."
-      actions={
-        <Link href="/admin" className="action-button">
-          <ArrowLeft size={16} aria-hidden="true" />
-          К настройкам
-        </Link>
-      }
     >
       <AdminFrame>
         <section className="ops-panel" aria-labelledby="channels-title">
           <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Каналы действий</p>
-              <h2 id="channels-title" className="ops-panel__title">Каналы сообщений</h2>
-              <p className="ops-panel__subtitle">Рабочий контур для Slack, Teams, Telegram и WhatsApp: готовность, защитные проверки и очередь доставок.</p>
-            </div>
+            <h2 id="channels-title" className="ops-panel__title">Каналы</h2>
             <StatusBadge label="Активны" value={activeActionChannels} tone={activeActionChannels > 0 ? "positive" : "neutral"} />
           </div>
-          <section className="system-section-summary system-section-summary--four" aria-label="Сводка каналов действий">
-            <StatCard label="Каналы" value={messagingChannels.length} hint="Настроены в workspace" tone={messagingChannels.length > 0 ? "info" : "neutral"} />
-            <StatCard label="В очереди" value={queuedDeliveries} hint="Ожидают отправки" tone={queuedDeliveries > 0 ? "warning" : "positive"} />
-            <StatCard label="Ошибки" value={failedDeliveries} hint="Требуют проверки" tone={failedDeliveries > 0 ? "negative" : "positive"} />
-            <StatCard label="Доставлено" value={deliveredDeliveries} hint="За все время" tone={deliveredDeliveries > 0 ? "positive" : "neutral"} />
-          </section>
+          <div className="px-5 pt-1">
+            <StatStrip
+              ariaLabel="Сводка каналов и доставок"
+              items={[
+                { label: "Настроено", value: messagingChannels.length, tone: messagingChannels.length > 0 ? "accent" : "neutral" },
+                { label: "В очереди", value: queuedDeliveries, tone: queuedDeliveries > 0 ? "warning" : "neutral" },
+                { label: "Ошибки", value: failedDeliveries, tone: failedDeliveries > 0 ? "danger" : "neutral" },
+                { label: "Доставлено", value: deliveredDeliveries, tone: deliveredDeliveries > 0 ? "success" : "neutral", hint: "за все время" }
+              ]}
+            />
+          </div>
           {failedDeliveries > 0 ? (
             <div className="system-attention system-attention--negative">
               <AlertTriangle size={17} aria-hidden="true" />
@@ -206,58 +204,44 @@ async function AdminChannelsPageContent() {
               </div>
             </div>
           ) : null}
-          <div className="p-5 pt-0">
-            <h3 className="mb-3 text-sm font-semibold uppercase text-[var(--text-muted)]">Настройка каналов</h3>
-            <div className="record-list">
-              {Object.values(messagingChannelRegistry).map((definition) => {
-                const channel = configuredChannelByKind.get(definition.kind);
-                const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
-                const webhookUrl = parseWebhookUrl(channel?.configJson);
-                const maskedWebhook = maskSecret(webhookUrl);
-                const hasSecret = Boolean(channel?.secretRef);
-                const channelStatus = channel?.status ?? "draft";
-                const isActive = channelStatus === "active";
+          <div className="p-5 pt-2">
+            {Object.values(messagingChannelRegistry).length === 0 ? (
+              <EmptyState
+                size="inline"
+                icon={<Send size={20} aria-hidden="true" />}
+                title="Каналы недоступны"
+                description="Реестр каналов уведомлений пуст — доступные каналы появятся после обновления приложения."
+              />
+            ) : (
+              <div className="setting-rows">
+                {Object.values(messagingChannelRegistry).map((definition) => {
+                  const channel = configuredChannelByKind.get(definition.kind);
+                  const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
+                  const webhookUrl = parseWebhookUrl(channel?.configJson);
+                  const maskedWebhook = maskSecret(webhookUrl);
+                  const hasSecret = Boolean(channel?.secretRef);
+                  const channelStatus = channel?.status ?? "draft";
+                  const isActive = channelStatus === "active";
+                  const channelName = channel?.displayName ?? definition.displayName;
 
-                return (
-                  <details key={definition.kind} className="compact-details">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Send size={16} aria-hidden="true" />
-                        <span className="min-w-0">
-                          <span className="record-title block truncate">{channel?.displayName ?? definition.displayName}</span>
-                          <span className="record-meta">{capabilities.map(messagingCapabilityLabel).join(", ")}</span>
+                  return (
+                    <div key={definition.kind} className="setting-row">
+                      <div className="setting-row__copy">
+                        <span className="setting-row__label">
+                          {channelName}
+                          <StatusBadge
+                            label="Статус"
+                            value={channel ? messagingChannelStatusLabel(channelStatus) : "Не настроен"}
+                            tone={channel ? messagingChannelTone(channelStatus) : "neutral"}
+                          />
                         </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-3">
-                        <StatusBadge
-                          label="Статус"
-                          value={channel ? messagingChannelStatusLabel(channelStatus) : "Не настроен"}
-                          tone={channel ? messagingChannelTone(channelStatus) : "neutral"}
-                        />
-                        <span className="text-sm font-semibold text-[var(--accent-strong)]">Настроить</span>
-                      </span>
-                    </summary>
-                    <div className="border-t border-[var(--border)] p-4">
-                      <p className="record-meta">
-                        {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
-                      </p>
-                      <MessagingChannelForm
-                        kind={definition.kind}
-                        displayName={channel?.displayName ?? definition.displayName}
-                        status={channelStatus}
-                        maskedWebhook={maskedWebhook}
-                        hasSecret={hasSecret}
-                      />
-                      <p className="record-meta tabular-nums mt-2">
-                        Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
-                      </p>
-                      {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
-                      <div className="messaging-channel-footer">
-                        <a href={definition.docsHref} target="_blank" rel="noreferrer" className="quiet-link text-sm">
-                          Документация канала
-                        </a>
+                        <p className="setting-row__hint">
+                          {capabilities.map(messagingCapabilityLabel).join(", ")} · {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
+                        </p>
+                      </div>
+                      <div className="setting-row__control">
                         {channel ? (
-                          <form action={setMessagingChannelStatus} className="messaging-channel-footer__toggle">
+                          <form action={setMessagingChannelStatus}>
                             <input type="hidden" name="kind" value={definition.kind} />
                             <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
                             <button type="submit" className="action-button action-button--small">
@@ -265,46 +249,61 @@ async function AdminChannelsPageContent() {
                             </button>
                           </form>
                         ) : null}
+                        <AdminDialog
+                          triggerLabel="Настроить"
+                          triggerClassName="action-button action-button--small"
+                          title={`Канал: ${channelName}`}
+                        >
+                          <MessagingChannelForm
+                            kind={definition.kind}
+                            displayName={channelName}
+                            status={channelStatus}
+                            maskedWebhook={maskedWebhook}
+                            hasSecret={hasSecret}
+                          />
+                          <p className="record-meta tabular-nums mt-2">
+                            Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
+                          </p>
+                          {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
+                          <p className="mt-2">
+                            <a href={definition.docsHref} target="_blank" rel="noreferrer" className="quiet-link text-sm">
+                              Документация канала
+                            </a>
+                          </p>
+                        </AdminDialog>
                       </div>
                     </div>
-                  </details>
-                );
-              })}
-            </div>
-
-            <details className="compact-details mt-5">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                <span className="font-semibold text-[var(--foreground)]">Журнал доставок</span>
-                <span className="text-sm font-semibold text-[var(--accent-strong)]">{recentDeliveries.length} последних</span>
-              </summary>
-              <div className="border-t border-[var(--border)] p-4">
-                <div className="record-list">
-                  {recentDeliveries.length === 0 ? (
-                    <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
-                  ) : (
-                    recentDeliveries.map((delivery) => (
-                      <article key={delivery.id} className="record-card">
-                        <div className="record-row">
-                          <div className="min-w-0">
-                            <h4 className="record-title">{delivery.title}</h4>
-                            <p className="record-meta mt-1">
-                              {delivery.channel?.displayName ?? delivery.kind} · {messagingEventTypeLabel(delivery.eventType)} · {messagingRecipientLabel(delivery.recipientType)}
-                            </p>
-                          </div>
-                          <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
-                        </div>
-                        <p className="record-meta">{delivery.body}</p>
-                        <p className="record-meta tabular-nums">
-                          Создано: {formatDate(delivery.createdAt)} · доставлено: {formatDate(delivery.deliveredAt)}
-                        </p>
-                        {delivery.error ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{delivery.error}</p> : null}
-                        {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
-                      </article>
-                    ))
-                  )}
-                </div>
+                  );
+                })}
               </div>
-            </details>
+            )}
+
+            <section className="mt-6" aria-labelledby="delivery-log-title">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 id="delivery-log-title" className="font-semibold text-[var(--foreground)]">Журнал доставок</h3>
+                <span className="text-sm font-semibold tabular-nums text-[var(--accent-strong)]">{latestDeliveries.length} последних</span>
+              </div>
+              {latestDeliveries.length === 0 ? (
+                <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
+              ) : (
+                <div className="setting-rows">
+                  {latestDeliveries.map((delivery) => (
+                    <div key={delivery.id} className="setting-row">
+                      <div className="setting-row__copy">
+                        <span className="setting-row__label">{delivery.channel?.displayName ?? delivery.kind}</span>
+                        <p className="setting-row__hint tabular-nums">
+                          {formatDate(delivery.createdAt)} · {messagingEventTypeLabel(delivery.eventType)} · {messagingRecipientLabel(delivery.recipientType)}
+                        </p>
+                      </div>
+                      <div className="setting-row__control">
+                        <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
+                        {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </section>
       </AdminFrame>

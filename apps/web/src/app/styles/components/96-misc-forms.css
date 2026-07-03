@@ -72,19 +72,23 @@
   transition: border-color 140ms ease, background-color 140ms ease, outline-color 140ms ease;
 }
 
-select.form-control {
-  background-color: var(--panel);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right 12px center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
-  padding-right: 40px;
-}
+/* The select chevron (image/position/size/padding-right) is sourced once from
+   00-base.css via `select, select.form-control`; the background-color comes
+   from the `.form-control` shorthand above. No duplicate rule needed here. */
 
 .form-control:focus {
   border-color: var(--accent);
   outline: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
   outline-offset: 0;
+}
+
+/* Required-field asterisk (ui/required-mark.tsx), rendered inside the label
+   right after the caption text. --danger adapts per theme (#B91C1C light,
+   #F87171 Night Ops). */
+.field-required {
+  margin-left: 3px;
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .panel,
@@ -157,25 +161,18 @@ pre,
 .learning-metric span,
 .score-value,
 .pill,
-.meta-chip__value {
+.meta-chip__value,
+.metric-value__value {
   font-variant-numeric: tabular-nums;
 }
 
-:is(
-  .page-kicker,
-  .metric-card__label,
-  .ops-metric__label,
-  .ops-panel__eyebrow,
-  .ops-table__row--head,
-  .ops-status-item__label,
-  .soft-callout__label,
-  .metric-strip__label,
-  .review-detail-item__label,
-  .focus-summary__label
-) {
-  letter-spacing: 0.01em;
-  text-transform: none;
-}
+/* Caption-case policy: table heads and panel caption labels are UPPERCASE
+   everywhere (the prevailing 40-admin.css style, matching
+   .admin-data-table__head). The former :is() normalizer that re-cased part of
+   them (.ops-table__row--head, .ops-panel__eyebrow, .ops-status-item__label,
+   .soft-callout__label, .metric-strip__label, .review-detail-item__label,
+   .focus-summary__label) to sentence case was removed so the native uppercase
+   rules apply; .page-kicker keeps its own non-uppercase style in 40-admin.css. */
 
 :is(
   .panel,

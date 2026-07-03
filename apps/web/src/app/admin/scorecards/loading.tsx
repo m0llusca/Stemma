@@ -1,5 +1,6 @@
 import { PageSkeleton } from "@/components/loading-states";
+import { adminLoadingLabel } from "@/lib/admin-sections";
 
 export default function AdminScorecardsLoading() {
-  return <PageSkeleton variant="admin" label="Загрузка чек-листов" />;
+  return <PageSkeleton variant="admin" label={adminLoadingLabel("/admin/scorecards")} />;
 }

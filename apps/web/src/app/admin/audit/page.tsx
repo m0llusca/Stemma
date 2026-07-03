@@ -1,26 +1,43 @@
-import { Filter, History, KeyRound } from "lucide-react";
+import { ChevronDown, Filter, History, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatKpi } from "@/components/ui/stat-kpi";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 const pageSize = 20;
 
-type AuditSection = "events" | "filters" | "tokens";
+type AuditSection = "events" | "tokens";
 
 const auditSections: Array<{ value: AuditSection; label: string }> = [
   { value: "events", label: "События" },
-  { value: "filters", label: "Фильтры" },
   { value: "tokens", label: "API-ключи" }
 ];
+
+/**
+ * Колонки строки события: время · актор · действие · объект · детали.
+ * Инлайн-стилем, потому что admin-data-table__row задаёт собственный
+ * 4-колоночный шаблон, а CSS менять нельзя.
+ */
+const auditEventGridColumns =
+  "minmax(96px, 0.55fr) minmax(104px, 0.85fr) minmax(150px, 1.7fr) minmax(100px, 0.85fr) auto";
+
+const shortDateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit"
+});
 
 const auditActionLabels: Record<string, string> = {
   "api_token.created": "Создан API-ключ",
@@ -86,6 +103,12 @@ function firstParam(value: string | string[] | undefined) {
 
 function auditSectionParam(value: string | string[] | undefined): AuditSection {
   const section = firstParam(value);
+
+  // Легаси-диплинк: вкладка «Фильтры» слита со «Событиями», фильтры теперь
+  // инлайн над списком. Старые ссылки ?section=filters открывают события.
+  if (section === "filters") {
+    return "events";
+  }
 
   return auditSections.some((item) => item.value === section) ? (section as AuditSection) : "events";
 }
@@ -184,7 +207,7 @@ function buildAuditHref(page: number, action?: string, targetType?: string, star
 
 export default function AdminAuditPage({ searchParams }: AuditPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка аудита" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/audit")} />}>
       <AdminAuditPageContent searchParams={searchParams} />
     </Suspense>
   );
@@ -262,47 +285,96 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
     })
   ]);
   const hasFilters = Boolean(action || targetType || start || end);
+  const totalPages = Math.max(1, Math.ceil(totalLogs / pageSize));
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Журнал действий"
-      description="Аудит показывает события списком, а технические данные раскрываются внутри конкретной записи."
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/audit"]}
+      description="События идут компактной лентой с фильтрами прямо над списком, а технические данные раскрываются внутри конкретной записи."
     >
       <AdminFrame>
-      <section className="ops-metric-grid" aria-label="Сводка журнала действий">
-        <StatKpi label="События" value={totalLogs} hint={hasFilters ? "По текущему фильтру" : "Все найденные события"} />
-        <StatKpi label="Действия" value={actionRows.length} hint="Типов событий в журнале" />
-        <StatKpi label="Объекты" value={targetTypeRows.length} hint="Типов объектов в журнале" />
-        <StatKpi label="API-ключи" value={apiTokens.length} hint="Для сверки активности" />
-      </section>
+      <StatStrip
+        ariaLabel="Сводка журнала действий"
+        items={[
+          {
+            label: "событий",
+            value: totalLogs,
+            tone: hasFilters ? "accent" : "neutral",
+            hint: hasFilters ? "по текущему фильтру" : "за все время"
+          },
+          { label: "типов действий", value: actionRows.length },
+          { label: "типов объектов", value: targetTypeRows.length },
+          { label: "API-ключей", value: apiTokens.length, hint: "для сверки активности" }
+        ]}
+      />
 
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы журнала действий">
-        {auditSections.map((section) => (
-          <Link
-            key={section.value}
-            href={auditSectionHref(section.value, action, targetType, start, end)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
+      <AdminSectionTabs
+        ariaLabel="Разделы журнала действий"
+        items={auditSections.map((section) => ({
+          href: auditSectionHref(section.value, action, targetType, start, end),
+          label: section.label,
+          active: activeSection === section.value,
+          count: section.value === "events" ? totalLogs : apiTokens.length
+        }))}
+      />
 
       {activeSection === "events" ? (
         <section className="ops-panel" aria-labelledby="audit-events-title">
           <div className="ops-panel__header">
             <div>
-              <p className="ops-panel__eyebrow">История</p>
               <h2 id="audit-events-title" className="ops-panel__title">История действий</h2>
               <p className="ops-panel__subtitle tabular-nums">
-                Страница {page}
+                Страница {page} из {totalPages}
               </p>
             </div>
             {hasFilters ? <Chip tone="accent" size="sm" icon={<Filter size={13} aria-hidden="true" />}>Фильтр активен</Chip> : null}
           </div>
-          <div className="grid gap-2 p-4">
+
+          <AutoSubmitFilterForm
+            action="/admin/audit"
+            className="flex flex-wrap items-end gap-3 border-b border-[var(--border)] px-5 py-4"
+          >
+            <input type="hidden" name="section" value="events" />
+            <input type="hidden" name="page" value="1" />
+            <label className="grid min-w-[180px] flex-1 gap-1 text-xs font-semibold text-[var(--text-body)]">
+              Действие
+              <select name="action" defaultValue={action ?? ""} className="form-control">
+                <option value="">Все</option>
+                {actionRows.map((row) => (
+                  <option key={row.action} value={row.action}>
+                    {auditActionLabel(row.action)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid min-w-[160px] flex-1 gap-1 text-xs font-semibold text-[var(--text-body)]">
+              Тип объекта
+              <select name="targetType" defaultValue={targetType ?? ""} className="form-control">
+                <option value="">Все</option>
+                {targetTypeRows.map((row) => (
+                  <option key={row.targetType} value={row.targetType}>
+                    {auditTargetTypeLabel(row.targetType)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid w-[142px] gap-1 text-xs font-semibold text-[var(--text-body)]">
+              С даты
+              <input type="date" name="start" defaultValue={dateInputValue(start)} className="form-control" />
+            </label>
+            <label className="grid w-[142px] gap-1 text-xs font-semibold text-[var(--text-body)]">
+              По дату
+              <input type="date" name="end" defaultValue={dateInputValue(end)} className="form-control" />
+            </label>
+            {hasFilters ? (
+              <Link href="/admin/audit?section=events" className="action-button action-button--small">
+                Сбросить
+              </Link>
+            ) : null}
+          </AutoSubmitFilterForm>
+
+          <div className="p-4">
             {logs.length === 0 ? (
               <EmptyState
                 size="inline"
@@ -311,33 +383,46 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
                 description={hasFilters ? "Под текущий фильтр нет записей. Сбросьте условия отбора." : "Записей в журнале пока нет."}
               />
             ) : (
-              <div className="grid gap-2 md:grid-cols-2 items-start">{logs.map((log) => (
-                <article key={log.id} className="admin-tile admin-tile--compact">
-                  <span className="admin-tile__icon admin-tile__icon--plain">A</span>
-                  <div className="admin-tile__body">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="record-title record-title--tight">{auditActionLabel(log.action)}</h3>
-                      <time className="record-meta tabular-nums" dateTime={log.createdAt.toISOString()}>
-                        {formatDate(log.createdAt)}
+              <div className="admin-data-table admin-data-table--compact" aria-label="События журнала">
+                <div className="admin-data-table__head" style={{ gridTemplateColumns: auditEventGridColumns }}>
+                  <span>Время</span>
+                  <span>Актор</span>
+                  <span>Действие</span>
+                  <span>Объект</span>
+                  <span aria-hidden="true" />
+                </div>
+                {logs.map((log) => (
+                  <details key={log.id} className="group border-t border-[var(--line-soft)] first-of-type:border-t-0">
+                    <summary
+                      className="admin-data-table__row cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
+                      style={{ gridTemplateColumns: auditEventGridColumns }}
+                    >
+                      <time className="admin-data-table__muted tabular-nums" dateTime={log.createdAt.toISOString()}>
+                        {shortDateTimeFormat.format(log.createdAt)}
                       </time>
-                    </div>
-                    <span className="record-meta">
-                      {auditTargetTypeLabel(log.targetType)} · {log.actor?.name ?? "Системное событие"}
-                    </span>
-                    <details className="compact-details bg-[var(--panel-muted)]">
-                      <summary>
-                        <span className="text-sm font-semibold text-[var(--text-body)]">Детали события</span>
-                        <span className="text-sm font-semibold text-[var(--accent-strong)]">Показать</span>
-                      </summary>
-                      <pre className="m-0 overflow-x-auto rounded-b-md bg-[var(--panel-muted)] p-3 text-xs leading-5 text-[var(--text-body)]">
-                        <code>{parseMetadata(log.metadata)}</code>
-                      </pre>
-                    </details>
-                  </div>
-                </article>
-              ))}</div>
+                      <span className="admin-data-table__muted truncate" title={log.actor?.name ?? undefined}>
+                        {log.actor?.name ?? "Система"}
+                      </span>
+                      <h3 className="admin-data-table__primary truncate" title={log.action}>
+                        {auditActionLabel(log.action)}
+                      </h3>
+                      <span className="truncate" title={log.targetType}>
+                        {auditTargetTypeLabel(log.targetType)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 justify-self-end text-xs font-bold text-[var(--accent-strong)]">
+                        Детали
+                        <ChevronDown size={13} aria-hidden="true" className="transition-transform group-open:rotate-180" />
+                      </span>
+                    </summary>
+                    <pre className="m-0 overflow-x-auto border-t border-dashed border-[var(--line-soft)] bg-[var(--panel-muted)] px-4 py-3 text-xs leading-5 text-[var(--text-body)]">
+                      <code>{parseMetadata(log.metadata)}</code>
+                    </pre>
+                  </details>
+                ))}
+              </div>
             )}
           </div>
+
           <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-4 text-sm">
             {page > 1 ? (
               <Link href={buildAuditHref(page - 1, action, targetType, start, end)} className="action-button action-button--small">
@@ -357,57 +442,10 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
         </section>
       ) : null}
 
-      {activeSection === "filters" ? (
-        <section className="ops-panel" aria-labelledby="audit-filters-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Отбор</p>
-              <h2 id="audit-filters-title" className="ops-panel__title">Фильтры журнала</h2>
-              <p className="ops-panel__subtitle">Фильтр применяется к списку событий и сбрасывает страницу на первую.</p>
-            </div>
-          </div>
-          <AutoSubmitFilterForm action="/admin/audit" className="ops-form-grid ops-form-grid--three p-5">
-            <input type="hidden" name="section" value="events" />
-            <input type="hidden" name="page" value="1" />
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Действие
-              <select name="action" defaultValue={action ?? ""} className="form-control">
-                <option value="">Все</option>
-                {actionRows.map((row) => (
-                  <option key={row.action} value={row.action}>
-                    {auditActionLabel(row.action)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Тип объекта
-              <select name="targetType" defaultValue={targetType ?? ""} className="form-control">
-                <option value="">Все</option>
-                {targetTypeRows.map((row) => (
-                  <option key={row.targetType} value={row.targetType}>
-                    {auditTargetTypeLabel(row.targetType)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              С даты
-              <input type="date" name="start" defaultValue={dateInputValue(start)} className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              По дату
-              <input type="date" name="end" defaultValue={dateInputValue(end)} className="form-control" />
-            </label>
-          </AutoSubmitFilterForm>
-        </section>
-      ) : null}
-
       {activeSection === "tokens" ? (
         <section className="ops-panel" aria-labelledby="audit-api-title">
           <div className="ops-panel__header">
             <div>
-              <p className="ops-panel__eyebrow">Интеграции</p>
               <h2 id="audit-api-title" className="ops-panel__title">Активность API-ключей</h2>
               <p className="ops-panel__subtitle">Последнее использование ключей рядом с событиями аудита.</p>
             </div>

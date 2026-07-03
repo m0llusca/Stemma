@@ -1,10 +1,11 @@
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { adminEyebrow } from "@/lib/admin-sections";
 import { listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
 import { getIntegrationInstallContract } from "@/lib/integrations/install-contracts/registry";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default function NewIntegrationPage() {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка подключения источника" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка: Подключение источника" />}>
       <NewIntegrationPageContent />
     </Suspense>
   );
@@ -53,20 +54,14 @@ async function NewIntegrationPageContent() {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
+      eyebrow={adminEyebrow}
       title="Новый источник"
       description="Выберите тип, укажите адрес и доступы — Stemma проверит права и подготовит импорт."
       actions={
-        <>
-          <Link href="/admin/integrations" className="action-button">
-            <ArrowLeft size={16} aria-hidden="true" />
-            К интеграциям
-          </Link>
-          <Link href="/admin/tokens" className="action-button action-button--quiet">
-            <KeyRound size={16} aria-hidden="true" />
-            API-доступ
-          </Link>
-        </>
+        <Link href="/admin/tokens" className="action-button action-button--quiet">
+          <KeyRound size={16} aria-hidden="true" />
+          API-доступ
+        </Link>
       }
     >
       <AdminFrame>

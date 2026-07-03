@@ -4,6 +4,7 @@ import { KeyRound, RotateCw, ShieldOff } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { Chip } from "@/components/ui/chip";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 
 type ScimTokenManagerProps = {
   titleId: string;
@@ -138,15 +139,15 @@ export function ScimTokenManager({
           <RotateCw size={16} aria-hidden="true" />
           {pendingAction === "rotate" ? "Ротируем..." : "Ротировать"}
         </button>
-        <button
-          type="button"
+        <ConfirmSubmitButton
           className="action-button action-button--quiet"
           disabled={!hasToken || pendingAction !== null}
+          confirmMessage={`Отозвать SCIM-токен для «${providerName}»? Входящий provisioning и синхронизация каталога остановятся, пока не будет выпущен новый токен.`}
           onClick={() => void mutateToken("revoke")}
         >
           <ShieldOff size={16} aria-hidden="true" />
           {pendingAction === "revoke" ? "Отзываем..." : "Отозвать"}
-        </button>
+        </ConfirmSubmitButton>
       </div>
 
       {plainToken ? (

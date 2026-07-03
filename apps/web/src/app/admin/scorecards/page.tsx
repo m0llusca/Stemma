@@ -1,4 +1,4 @@
-import { ChevronDown, Gauge, Plus } from "lucide-react";
+import { ChevronDown, Gauge, History, Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
@@ -8,7 +8,10 @@ import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { AdminDialog } from "@/components/admin/admin-dialog";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -22,9 +25,9 @@ type AdminScorecardsPageProps = {
 
 type ScorecardSection = "overview" | "create" | "history";
 
+/** «Новая версия» больше не вкладка: короткий вход через диалог поверх списка. */
 const scorecardSections: Array<{ value: ScorecardSection; label: string }> = [
   { value: "overview", label: "Активная форма" },
-  { value: "create", label: "Новая версия" },
   { value: "history", label: "История" }
 ];
 
@@ -43,6 +46,10 @@ function scorecardSectionParam(
 
   const section = firstParam(value);
 
+  if (section === "create") {
+    return "create";
+  }
+
   return scorecardSections.some((item) => item.value === section) ? (section as ScorecardSection) : "overview";
 }
 
@@ -56,7 +63,7 @@ function activeScorecardEditHref(editing: boolean) {
 
 export default function AdminScorecardsPage({ searchParams }: AdminScorecardsPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка чек-листов" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/scorecards")} />}>
       <AdminScorecardsPageContent searchParams={searchParams} />
     </Suspense>
   );
@@ -64,7 +71,10 @@ export default function AdminScorecardsPage({ searchParams }: AdminScorecardsPag
 
 async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageProps) {
   const params = await searchParams;
-  const activeSection = scorecardSectionParam(params.section, params.new);
+  const requestedSection = scorecardSectionParam(params.section, params.new);
+  // «create» — не ветка контента, а флаг открытого диалога поверх обзора.
+  const createDialogOpen = requestedSection === "create";
+  const activeSection = createDialogOpen ? "overview" : requestedSection;
   const isEditingActiveScorecard = activeSection === "overview" && firstParam(params.edit) === "1";
   const user = await requireCurrentUserPermission("scorecards:manage");
   const activeScorecard = await prisma.scorecard.findFirst({
@@ -104,34 +114,67 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Формы оценки"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/scorecards"]}
       description="Активную форму можно править точечно, а новую версию выпускать, когда нужно сохранить историческую методику без пересчета."
-      actions={
-        <>
-          <Link href={scorecardSectionHref("create")} className="action-button">
-            <Plus size={16} aria-hidden="true" />
-            Новая версия
-          </Link>
-          <Link href="/reviews" className="action-button">
-            Очередь проверок
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы форм оценки">
-        {scorecardSections.map((section) => (
-          <Link
-            key={section.value}
-            href={scorecardSectionHref(section.value)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
+      <AdminSectionTabs
+        ariaLabel="Разделы форм оценки"
+        items={scorecardSections.map((section) => ({
+          href: scorecardSectionHref(section.value),
+          label: section.label,
+          active: activeSection === section.value
+        }))}
+        actions={
+          <>
+            <AdminDialog
+              wide
+              defaultOpen={createDialogOpen}
+              triggerLabel={
+                <>
+                  <Plus size={16} aria-hidden="true" />
+                  Новая версия
+                </>
+              }
+              title="Новая версия формы оценки"
+              description="Новая версия становится активной, а исторические проверки остаются на прежней методике."
+            >
+              {activeScorecard ? (
+                <>
+                  <div className="setup-stepper" aria-label="Шаги выпуска формы оценки">
+                    <span className="setup-step setup-step--done">1. Критерии</span>
+                    <span className="setup-step setup-step--active">2. Веса и шкалы</span>
+                    <span className="setup-step">3. Выпуск версии</span>
+                  </div>
+                  <ScorecardVersionForm
+                    initialName={activeScorecard.name}
+                    initialCriteria={activeScorecard.criteria.map((criterion) => ({
+                      id: criterion.id,
+                      key: criterion.key,
+                      label: criterion.label,
+                      block: criterion.block,
+                      kind: criterion.kind,
+                      weight: criterion.weight,
+                      required: criterion.required
+                    }))}
+                  />
+                </>
+              ) : (
+                <EmptyState
+                  size="inline"
+                  icon={<Gauge size={20} aria-hidden="true" />}
+                  title="Нет активной формы"
+                  description="Новую версию можно выпустить после появления активной формы. Создайте первую форму через начальную настройку проекта."
+                />
+              )}
+            </AdminDialog>
+            <Link href="/reviews" className="action-button">
+              Очередь проверок
+            </Link>
+          </>
+        }
+      />
 
       {activeSection === "overview" ? (
         <section className="ops-panel" aria-labelledby="scorecard-overview-title">
@@ -242,48 +285,6 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
         </section>
       ) : null}
 
-      {activeSection === "create" ? (
-        <section className="ops-panel" aria-labelledby="scorecard-create-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Новая версия</p>
-              <h2 id="scorecard-create-title" className="ops-panel__title">Выпуск формы оценки</h2>
-              <p className="ops-panel__subtitle">
-                Новая версия становится активной, а исторические проверки остаются на прежней методике.
-              </p>
-            </div>
-          </div>
-          {activeScorecard ? (
-            <div className="p-4">
-              <div className="setup-stepper" aria-label="Шаги выпуска формы оценки">
-                <span className="setup-step setup-step--done">1. Критерии</span>
-                <span className="setup-step setup-step--active">2. Веса и шкалы</span>
-                <span className="setup-step">3. Выпуск версии</span>
-              </div>
-              <ScorecardVersionForm
-                initialName={activeScorecard.name}
-                initialCriteria={activeScorecard.criteria.map((criterion) => ({
-                  id: criterion.id,
-                  key: criterion.key,
-                  label: criterion.label,
-                  block: criterion.block,
-                  kind: criterion.kind,
-                  weight: criterion.weight,
-                  required: criterion.required
-                }))}
-              />
-            </div>
-          ) : (
-            <EmptyState
-              size="inline"
-              icon={<Gauge size={20} aria-hidden="true" />}
-              title="Нет активной формы"
-              description="Новую версию можно выпустить после появления активной формы. Создайте первую форму через начальную настройку проекта."
-            />
-          )}
-        </section>
-      ) : null}
-
       {activeSection === "history" ? (
         <section className="ops-panel" aria-labelledby="scorecard-history-title">
           <div className="ops-panel__header">
@@ -294,21 +295,29 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
             </div>
           </div>
           <div className="grid gap-2 p-4">
+            {scorecards.length === 0 ? (
+              <EmptyState
+                size="inline"
+                icon={<History size={20} aria-hidden="true" />}
+                title="История пуста"
+                description="Здесь появятся прошлые версии формы после публикации новой."
+              />
+            ) : null}
             {scorecards.map((scorecard) => (
               <details key={scorecard.id} className="compact-details" open={scorecard.isActive}>
                 <summary className="disclosure-summary version-summary cursor-pointer list-none">
                   <span className="admin-tile__icon admin-tile__icon--plain tabular-nums">{scorecard.version}</span>
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="record-title">{scorecard.name}</span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="record-title">{scorecard.name}</h3>
                       <Chip tone={scorecard.isActive ? "success" : "neutral"} size="xs">
                         {scorecard.isActive ? "Активна" : "Неактивна"}
                       </Chip>
-                    </span>
+                    </div>
                     <span className="record-meta mt-1 block tabular-nums">
                       критериев: {scorecard.criteria.length}
                     </span>
-                  </span>
+                  </div>
                   <span
                     className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
                     aria-hidden="true"

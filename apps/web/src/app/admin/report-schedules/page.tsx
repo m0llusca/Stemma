@@ -4,9 +4,12 @@ import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { ReportScheduleForm } from "@/components/admin/report-schedule-form";
 import { Chip } from "@/components/ui/chip";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { deleteReportSchedule, setReportScheduleActive } from "@/lib/report-schedule-actions";
@@ -17,6 +20,10 @@ import {
 } from "@/lib/report-schedule";
 
 export const dynamic = "force-dynamic";
+
+type ReportSchedulesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 const periodPresetLabels: Record<string, string> = {
   last_7_days: "Последние 7 дней",
@@ -40,15 +47,19 @@ function formatDateTime(value: Date | null) {
   return value ? value.toLocaleString("ru-RU") : "—";
 }
 
-export default function ReportSchedulesPage() {
+export default function ReportSchedulesPage({ searchParams }: ReportSchedulesPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка расписаний отчетов" />}>
-      <ReportSchedulesPageContent />
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/report-schedules")} />}>
+      <ReportSchedulesPageContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function ReportSchedulesPageContent() {
+async function ReportSchedulesPageContent({ searchParams }: ReportSchedulesPageProps) {
+  const params = await searchParams;
+  // Единый deep-link паттерн админки: ?section=create открывает окно создания.
+  const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
+  const createDialogOpen = sectionParam?.trim() === "create";
   const user = await requireCurrentUserPermission("reports:read");
   const schedules = await prisma.reportSchedule.findMany({
     where: { workspaceId: user.workspaceId },
@@ -58,14 +69,9 @@ async function ReportSchedulesPageContent() {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Расписания отчетов"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/report-schedules"]}
       description="Автоматическая регулярная выгрузка отчетов по качеству: формат, период данных и периодичность. Готовые отчеты появляются в снимках вместе с ручными выгрузками."
-      actions={
-        <Link href="/reports" className="action-button">
-          Отчеты
-        </Link>
-      }
     >
       <AdminFrame>
         <section className="ops-panel" aria-labelledby="report-schedules-title">
@@ -78,6 +84,37 @@ async function ReportSchedulesPageContent() {
               <p className="ops-panel__subtitle">
                 Активно: {activeCount} · всего: {schedules.length}
               </p>
+            </div>
+            <div className="admin-actions">
+              <AdminDialog
+                triggerLabel={
+                  <>
+                    <CalendarClock size={16} aria-hidden="true" />
+                    Новое расписание
+                  </>
+                }
+                title="Новое расписание"
+                description="Выберите период данных, периодичность и формат регулярной выгрузки."
+                defaultOpen={createDialogOpen}
+              >
+                <ReportScheduleForm
+                  periodPresetOptions={REPORT_SCHEDULE_PERIOD_PRESETS.map((value) => ({
+                    value,
+                    label: periodPresetLabels[value] ?? value
+                  }))}
+                  cadenceOptions={REPORT_SCHEDULE_CADENCES.map((value) => ({
+                    value,
+                    label: cadenceLabels[value] ?? value
+                  }))}
+                  formatOptions={REPORT_SCHEDULE_FORMATS.map((value) => ({
+                    value,
+                    label: formatLabels[value] ?? value
+                  }))}
+                />
+              </AdminDialog>
+              <Link href="/reports" className="action-button">
+                Отчеты
+              </Link>
             </div>
           </div>
           <div className="p-4">
@@ -116,9 +153,12 @@ async function ReportSchedulesPageContent() {
                         </form>
                         <form action={deleteReportSchedule}>
                           <input type="hidden" name="scheduleId" value={schedule.id} />
-                          <button type="submit" className="quiet-link quiet-link--danger text-sm">
+                          <ConfirmSubmitButton
+                            className="quiet-link quiet-link--danger text-sm"
+                            confirmMessage={`Удалить расписание «${schedule.name}»? Регулярная выгрузка остановится, расписание будет удалено безвозвратно. Уже созданные отчеты останутся в снимках.`}
+                          >
                             Удалить
-                          </button>
+                          </ConfirmSubmitButton>
                         </form>
                       </span>
                     </span>
@@ -133,34 +173,6 @@ async function ReportSchedulesPageContent() {
                 description="Создайте расписание, чтобы отчеты по качеству формировались автоматически без ручной выгрузки."
               />
             )}
-          </div>
-        </section>
-
-        <section className="ops-panel" aria-labelledby="report-schedules-create-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Новое расписание</p>
-              <h2 id="report-schedules-create-title" className="ops-panel__title">
-                Создание расписания
-              </h2>
-              <p className="ops-panel__subtitle">Выберите период данных, периодичность и формат регулярной выгрузки.</p>
-            </div>
-          </div>
-          <div className="p-4">
-            <ReportScheduleForm
-              periodPresetOptions={REPORT_SCHEDULE_PERIOD_PRESETS.map((value) => ({
-                value,
-                label: periodPresetLabels[value] ?? value
-              }))}
-              cadenceOptions={REPORT_SCHEDULE_CADENCES.map((value) => ({
-                value,
-                label: cadenceLabels[value] ?? value
-              }))}
-              formatOptions={REPORT_SCHEDULE_FORMATS.map((value) => ({
-                value,
-                label: formatLabels[value] ?? value
-              }))}
-            />
           </div>
         </section>
       </AdminFrame>

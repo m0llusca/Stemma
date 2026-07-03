@@ -3,6 +3,7 @@ import {
   activeAreaForPath,
   buildShellNavigation,
   topNavAreas,
+  visibleTopNavAreas,
   type ShellCommandItem
 } from "@/lib/shell/navigation";
 
@@ -20,18 +21,75 @@ function commandMatches(command: ShellCommandItem, query: string) {
 
 describe("topNavAreas", () => {
   it("exposes the primary product areas in order", () => {
-    expect(topNavAreas.map((area) => area.id)).toEqual(["today", "review", "calibration", "coaching", "analytics", "settings"]);
+    expect(topNavAreas.map((area) => area.id)).toEqual([
+      "today",
+      "feedback",
+      "review",
+      "calibration",
+      "coaching",
+      "analytics",
+      "settings"
+    ]);
   });
 
   it("derives labels and hrefs from the shell mode model", () => {
     const byId = Object.fromEntries(topNavAreas.map((area) => [area.id, area]));
 
     expect(byId.today.href).toBe("/dashboard");
+    expect(byId.feedback.href).toBe("/self-review");
     expect(byId.review.href).toBe("/reviews");
     expect(byId.calibration.href).toBe("/calibration");
     expect(byId.coaching.href).toBe("/coaching");
     expect(byId.analytics.href).toBe("/reports");
     expect(byId.settings.href).toBe("/admin");
+  });
+});
+
+describe("visibleTopNavAreas", () => {
+  it("gives a support agent only the areas its permissions can open", () => {
+    // Калибровка (calibration:manage), Аналитика (reports:read) и Настройки
+    // недоступны роли SUPPORT_AGENT — их страницы бросают "Недостаточно прав".
+    expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).toEqual([
+      "today",
+      "feedback",
+      "review",
+      "coaching"
+    ]);
+  });
+
+  it("keeps the manager areas for admins and hides the agent feedback area", () => {
+    expect(visibleTopNavAreas("ADMIN").map((area) => area.id)).toEqual([
+      "today",
+      "review",
+      "calibration",
+      "coaching",
+      "analytics",
+      "settings"
+    ]);
+    expect(visibleTopNavAreas("TEAM_LEAD").map((area) => area.id)).toEqual([
+      "today",
+      "review",
+      "calibration",
+      "coaching",
+      "analytics",
+      "settings"
+    ]);
+  });
+
+  it("hides settings from QA analysts because /admin requires audit:read", () => {
+    expect(visibleTopNavAreas("QA_ANALYST").map((area) => area.id)).toEqual([
+      "today",
+      "review",
+      "calibration",
+      "coaching",
+      "analytics"
+    ]);
+  });
+
+  it("gives a viewer no areas because it holds no permissions", () => {
+    // VIEWER не имеет ни одного права → ни одна область топ-навигации не должна
+    // вести на страницу, чей собственный гвард бросит «Недостаточно прав».
+    expect(visibleTopNavAreas("VIEWER").map((area) => area.id)).toEqual([]);
   });
 });
 
@@ -57,8 +115,9 @@ describe("activeAreaForPath", () => {
   });
 
   it("uses the longest matching prefix", () => {
-    // /reviews and /self-review must not collide; /self-review has no area.
-    expect(activeAreaForPath("/self-review")).toBeNull();
+    // /reviews and /self-review must not collide; /self-review highlights the
+    // agent feedback area, not the review queue.
+    expect(activeAreaForPath("/self-review")).toBe("feedback");
   });
 
   it("maps admin paths to the settings area", () => {
@@ -114,5 +173,51 @@ describe("command palette action items", () => {
     expect(agentHrefs).not.toContain("/reviews?status=unreviewed");
     expect(agentHrefs).not.toContain("/reviews?due=overdue");
     expect(agentHrefs).not.toContain("/reports?period=quarter-current");
+  });
+});
+
+describe("buildShellNavigation gating gaps", () => {
+  it("gives a viewer an empty palette because it holds no permissions", () => {
+    // VIEWER не имеет прав, поэтому ни моды, ни действия не должны попадать в
+    // ⌘K-палитру. В частности mode/destination «Пульс дня» → /dashboard требует
+    // reviews:read, которого у VIEWER нет.
+    const navigation = buildShellNavigation({ role: "VIEWER" });
+    expect(navigation.commandItems).toEqual([]);
+    expect(navigation.modes).toEqual([]);
+  });
+
+  it("surfaces the report-schedules destination for everyone holding reports:manage", () => {
+    // /admin/report-schedules гейтится reports:read, но точка входа скрыта:
+    // /admin индекс требует audit:read, а область «Настройки» ограничена
+    // ADMIN/TEAM_LEAD. Добавляем destination по reports:manage, чтобы его
+    // получили ADMIN, TEAM_LEAD и QA_ANALYST.
+    for (const role of ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] as const) {
+      const hrefs = buildShellNavigation({ role }).commandItems.map((item) => item.href);
+      expect(hrefs).toContain("/admin/report-schedules");
+    }
+  });
+
+  it("hides the report-schedules destination from roles without reports:manage", () => {
+    // У SUPPORT_AGENT нет reports:manage, поэтому расписания отчётов ему не видны.
+    const agentHrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map(
+      (item) => item.href
+    );
+    expect(agentHrefs).not.toContain("/admin/report-schedules");
+    const viewerHrefs = buildShellNavigation({ role: "VIEWER" }).commandItems.map(
+      (item) => item.href
+    );
+    expect(viewerHrefs).not.toContain("/admin/report-schedules");
+  });
+
+  it("labels the report-schedules destination inside the quality mode", () => {
+    const reportSchedules = buildShellNavigation({ role: "QA_ANALYST" }).commandItems.find(
+      (item) => item.href === "/admin/report-schedules"
+    );
+    expect(reportSchedules).toBeDefined();
+    expect(reportSchedules!.label).toBe("Расписания отчетов");
+    expect(reportSchedules!.modeId).toBe("quality");
+    expect(reportSchedules!.aliases).toEqual(
+      expect.arrayContaining(["расписания", "report schedules"])
+    );
   });
 });

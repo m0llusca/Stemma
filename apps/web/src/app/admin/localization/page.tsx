@@ -1,11 +1,11 @@
-import { ArrowLeft, Languages } from "lucide-react";
-import Link from "next/link";
+import { Languages } from "lucide-react";
 import { Suspense } from "react";
 import { LocalizationEditor } from "@/components/i18n/localization-editor";
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { Chip } from "@/components/ui/chip";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import {
   createLocaleAction,
   publishTranslationAction,
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export default function AdminLocalizationPage() {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка локализации" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/localization")} />}>
       <AdminLocalizationPageContent />
     </Suspense>
   );
@@ -69,15 +69,9 @@ async function AdminLocalizationPageContent() {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Локализация"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/localization"]}
       description="Управление языками рабочего пространства и публикацией переводов для интерфейсных ключей. Черновики можно сохранить отдельно от публикации."
-      actions={
-        <Link href="/admin" className="action-button">
-          <ArrowLeft size={16} aria-hidden="true" />
-          К настройкам
-        </Link>
-      }
     >
       <AdminFrame>
         <section className="ops-panel" aria-labelledby="localization-editor-title">

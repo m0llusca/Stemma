@@ -269,6 +269,7 @@ async function DashboardPageContent() {
   // (averages, risk/appeal load, ordering) is verifiable and not re-derived here.
   const agentRows = computeAgentLeaderboard(agentReviews, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
+  const canReadReports = hasPermission(user.role, "reports:read");
   const totalQueueCount = queuedCount + inWorkCount;
   const focusItemCandidates: Array<FocusItem | null> = [
     highRiskCount > 0
@@ -360,7 +361,7 @@ async function DashboardPageContent() {
           hint="к прошлой неделе"
         />
         <OperationKpiCard
-          href="/reports"
+          href={canReadReports ? "/reports" : "/reviews"}
           icon={Star}
           value={currentAverage == null ? "—" : Math.round(currentAverage)}
           unit={currentAverage == null ? undefined : "баллов"}
@@ -479,7 +480,7 @@ async function DashboardPageContent() {
                 <TrendingUp size={14} aria-hidden="true" />
                 Области для роста
               </p>
-              <Link href="/reports?view=details" className="quiet-link">Подробнее</Link>
+              {canReadReports ? <Link href="/reports?view=details" className="quiet-link">Подробнее</Link> : null}
             </div>
             <p className="dashboard-panel__note">Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней.</p>
             <div className="dashboard-agent-list">

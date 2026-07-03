@@ -1,4 +1,4 @@
-import { ArrowLeft, Ban, ListChecks, Play } from "lucide-react";
+import { ArrowLeft, Ban, Braces, ListChecks, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { adminEyebrow } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
@@ -59,9 +60,29 @@ function parseJson(value: string) {
   }
 }
 
+/** Пустая строка, `null`, `{}` или `[]` — показывать нечего, вместо голого JSON выводим EmptyState. */
+function isEmptyJson(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed == null) {
+      return true;
+    }
+
+    return typeof parsed === "object" && Object.keys(parsed).length === 0;
+  } catch {
+    return false;
+  }
+}
+
 export default function JobDetailsPage({ params, searchParams }: JobDetailsPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка задания" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка: Детали задачи" />}>
       <JobDetailsPageContent params={params} searchParams={searchParams} />
     </Suspense>
   );
@@ -99,7 +120,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
 
   return (
     <PageShell
-      eyebrow="Фоновые задачи"
+      eyebrow={adminEyebrow}
       title={backendJobTypeLabel(job.type)}
       description={`Создано ${formatDate(job.createdAt)}.`}
       actions={
@@ -228,9 +249,20 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
               <p className="ops-panel__subtitle">Техническое тело задачи для отладки обработчика.</p>
             </div>
           </div>
-          <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
-            {parseJson(job.payloadJson)}
-          </pre>
+          {isEmptyJson(job.payloadJson) ? (
+            <div className="px-5 pb-5">
+              <EmptyState
+                size="inline"
+                icon={<Braces size={20} aria-hidden="true" />}
+                title="Полезная нагрузка отсутствует"
+                description="Задача создана без параметров — обработчику не передавались данные."
+              />
+            </div>
+          ) : (
+            <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
+              {parseJson(job.payloadJson)}
+            </pre>
+          )}
         </section>
       ) : null}
 
@@ -243,9 +275,20 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
               <p className="ops-panel__subtitle">Ответ обработчика после выполнения задачи.</p>
             </div>
           </div>
-          <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
-            {parseJson(job.resultJson)}
-          </pre>
+          {isEmptyJson(job.resultJson) ? (
+            <div className="px-5 pb-5">
+              <EmptyState
+                size="inline"
+                icon={<Braces size={20} aria-hidden="true" />}
+                title="Задача не вернула результат"
+                description="Ответ обработчика появится после успешного выполнения задачи."
+              />
+            </div>
+          ) : (
+            <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
+              {parseJson(job.resultJson)}
+            </pre>
+          )}
         </section>
       ) : null}
       </AdminFrame>

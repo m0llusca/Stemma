@@ -45,7 +45,6 @@ export async function createApiTokenFromForm(
   formData: FormData
 ): Promise<CreateApiTokenState> {
   const user = await requireCurrentUserPermission("api_tokens:manage");
-  await assertCanPersistSettings(user);
   const name = stringField(formData, "name");
   const scopes = stringListField(formData, "scopes");
   const expiresAt = stringField(formData, "expiresAt");
@@ -58,6 +57,9 @@ export async function createApiTokenFromForm(
   }
 
   try {
+    // Внутри try: демо-гейт должен показать инлайн-ошибку формы,
+    // а не ронять страницу в error boundary.
+    await assertCanPersistSettings(user);
     const created = await createApiToken({
       workspaceId: user.workspaceId,
       name,

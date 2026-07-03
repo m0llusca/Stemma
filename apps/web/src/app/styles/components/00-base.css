@@ -48,13 +48,30 @@ input, select, textarea {
   color: var(--foreground);
 }
 
-select {
+/* Single source of the select chevron. The `select.form-control` part is
+   load-bearing: `.form-control` sets the `background:` shorthand (resetting
+   background-image), so the icon needs (0,1,1) specificity to survive there.
+   A mask-based icon is not possible on a bare <select> — mask would clip the
+   whole control (background + text) and <select> renders no pseudo-elements —
+   so theme adaptation is done with a Night Ops override below instead. */
+select,
+select.form-control {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
   background-position: right 12px center;
   background-repeat: no-repeat;
   background-size: 16px 16px;
   padding-right: 40px;
+}
+
+/* Night Ops chevron: stroke matches the ops --muted value (#7A8494); data URIs
+   cannot reference custom properties, hence the mirrored hex. `:where()` keeps
+   the first selector at (0,0,2) so rules that intentionally drop the chevron
+   via a `background:` shorthand (e.g. .app-nav__identity-form select, (0,1,1))
+   stay chevron-free in dark mode too. */
+body:where([data-theme="ops"]) select,
+body:where([data-theme="ops"]) select.form-control {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%237A8494' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
 
 h1, h2, h3, h4, p, td, th, dd, dt, span {

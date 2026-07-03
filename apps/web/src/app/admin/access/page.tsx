@@ -13,12 +13,15 @@ import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { ScimTokenManager } from "@/components/admin/scim-token-manager";
 import { Chip, type ChipTone } from "@/components/ui/chip";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { sanitizeProviderConfigForDisplay } from "@/lib/auth/provider-config-validation";
 import { buildEntraAuthorizationMetadata, getDirectoryIntegrationGuidance } from "@/lib/auth/providers";
@@ -315,7 +318,7 @@ function ProviderField({
 
 export default function AdminAccessPage({ searchParams }: AccessPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка доступа и SSO" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/access")} />}>
       <AdminAccessPageContent searchParams={searchParams} />
     </Suspense>
   );
@@ -406,28 +409,9 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Доступ и SSO"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/access"]}
       description="Настройка сквозной авторизации, связки AD/Entra-групп с ролями и контроль активных сессий."
-      actions={
-        <>
-          {readiness.canTest ? (
-            <Link href={selectedProviderSsoPath} className="action-button action-button--primary">
-              <KeyRound size={16} aria-hidden="true" />
-              Проверить вход
-            </Link>
-          ) : (
-            <button type="button" className="action-button action-button--primary" disabled aria-disabled="true">
-              <KeyRound size={16} aria-hidden="true" />
-              Проверить вход
-            </button>
-          )}
-          <Link href="/admin/users" className="action-button">
-            <UsersRound size={16} aria-hidden="true" />
-            Пользователи
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка доступа">
@@ -454,18 +438,33 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
         <StatKpi label="Активные сессии" value={activeSessions} hint="Показано до 40 в разделе сессий" />
       </section>
 
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы доступа и SSO">
-        {accessSections.map((section) => (
-          <Link
-            key={section.value}
-            href={accessSectionHref(section.value)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
+      <AdminSectionTabs
+        ariaLabel="Разделы доступа и SSO"
+        items={accessSections.map((section) => ({
+          href: accessSectionHref(section.value),
+          label: section.label,
+          active: activeSection === section.value
+        }))}
+        actions={
+          <>
+            {readiness.canTest ? (
+              <Link href={selectedProviderSsoPath} className="action-button action-button--primary">
+                <KeyRound size={16} aria-hidden="true" />
+                Проверить вход
+              </Link>
+            ) : (
+              <button type="button" className="action-button action-button--primary" disabled aria-disabled="true">
+                <KeyRound size={16} aria-hidden="true" />
+                Проверить вход
+              </button>
+            )}
+            <Link href="/admin/users" className="action-button">
+              <UsersRound size={16} aria-hidden="true" />
+              Пользователи
+            </Link>
+          </>
+        }
+      />
 
       {activeSection === "overview" ? (
         <section className="ops-panel" aria-labelledby="providers-title">
@@ -492,9 +491,22 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 />
               </div>
             ) : null}
+            {providers.length === 0 ? (
+              <EmptyState
+                size="inline"
+                icon={<ShieldCheck size={20} aria-hidden="true" />}
+                title="Провайдеров пока нет"
+                description="Настройте первого провайдера входа, чтобы включить SSO и синхронизацию каталога."
+                action={
+                  <Link href={accessSectionHref("provider")} className="action-button action-button--small">
+                    Настроить провайдера
+                  </Link>
+                }
+              />
+            ) : (
             <div className="ops-table-shell">
-              <div className="ops-table ops-table--providers" role="table" aria-label="Провайдеры входа">
-                <div className="ops-table__row ops-table__row--head" role="row">
+              <div className="ops-table ops-table--providers" aria-label="Провайдеры входа">
+                <div className="ops-table__row ops-table__row--head">
                   <span>Провайдер</span>
                   <span>Тип</span>
                   <span>Готовность</span>
@@ -546,6 +558,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 })}
               </div>
             </div>
+            )}
         </section>
       ) : null}
 
@@ -776,8 +789,8 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
             </div>
           ) : null}
           <div className="ops-table-shell">
-            <div className="ops-table ops-table--mappings" role="table" aria-label="Группы и роли">
-              <div className="ops-table__row ops-table__row--head" role="row">
+            <div className="ops-table ops-table--mappings" aria-label="Группы и роли">
+              <div className="ops-table__row ops-table__row--head">
                 <span>Статус</span>
                 <span>Группа</span>
                 <span>Идентификатор группы</span>
@@ -793,7 +806,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 />
               ) : (
                 selectedProvider.groupRoleMappings.map((mapping) => (
-                  <div key={mapping.id} className="ops-table__row" role="row">
+                  <div key={mapping.id} className="ops-table__row">
                     <form action={toggleGroupRoleMapping} className="ops-table__cell">
                       <span className="ops-table__label">Статус</span>
                       <input type="hidden" name="mappingId" value={mapping.id} />
@@ -882,8 +895,8 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
           />
         ) : (
           <div className="ops-table-shell">
-            <div className="ops-table ops-table--sessions" role="table" aria-label="Сессии пользователей">
-              <div className="ops-table__row ops-table__row--head" role="row">
+            <div className="ops-table ops-table--sessions" aria-label="Сессии пользователей">
+              <div className="ops-table__row ops-table__row--head">
                 <span>Пользователь</span>
                 <span>Провайдер</span>
                 <span>Статус</span>
@@ -892,7 +905,7 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                 <span>Действие</span>
               </div>
               {sessions.map((session) => (
-                <div key={session.id} className="ops-table__row" role="row">
+                <div key={session.id} className="ops-table__row">
                   <div className="ops-table__cell">
                     <span className="ops-table__label">Пользователь</span>
                     <span className="record-title">{session.user.name}</span>
@@ -922,13 +935,13 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                     {session.status === "ACTIVE" ? (
                       <form action={revokeAuthSessionById}>
                         <input type="hidden" name="sessionId" value={session.id} />
-                        <button
-                          type="submit"
+                        <ConfirmSubmitButton
                           className="action-button action-button--small"
                           aria-label={`Отозвать сессию ${session.user.email}`}
+                          confirmMessage={`Отозвать сессию пользователя ${session.user.email}? Пользователь будет разлогинен, сессию нельзя восстановить — потребуется повторный вход.`}
                         >
                           Отозвать
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                     ) : (
                       <span className="record-meta">Нет действия</span>

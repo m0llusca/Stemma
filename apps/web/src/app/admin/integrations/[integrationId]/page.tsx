@@ -1,4 +1,4 @@
-import { ArrowLeft, ListChecks, Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -17,6 +17,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
+import { adminEyebrow } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
@@ -326,7 +328,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
     {
       label: "Preview",
       state: integration.runs.some((run) => run.dryRun && integrationRunStatusView(run.status).tone === "ok") ? "ready" : hasRequiredSecrets ? "active" : "waiting",
-      detail: integration.runs.find((run) => run.dryRun) ? `Последний dry-run: ${formatDate(integration.runs.find((run) => run.dryRun)?.startedAt)}` : "Пока нет preview."
+      detail: integration.runs.find((run) => run.dryRun) ? `Последний пробный запуск: ${formatDate(integration.runs.find((run) => run.dryRun)?.startedAt)}` : "Пока нет preview."
     },
     {
       label: "Импорт",
@@ -365,14 +367,14 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
             title={hasBaseUrl && hasRequiredSecrets ? "Источник готов к проверкам" : "Источник ожидает настройки"}
             description={
               hasBaseUrl && hasRequiredSecrets
-                ? "Можно двигаться по диагностикам, preview и live evidence без раскрытия секретов."
+                ? "Можно переходить к диагностике, предпросмотру и свидетельствам боевого режима без раскрытия секретов."
                 : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."
             }
             items={[
               {
                 label: "Последний запуск",
                 value: latestRunStatus?.label ?? "нет",
-                detail: latestRun ? `${latestRun.dryRun ? "Preview" : "Import"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",
+                detail: latestRun ? `${latestRun.dryRun ? "Пробный запуск" : "Импорт"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",
                 tone: latestRun ? integrationRunTone(latestRun.status) : "neutral"
               }
             ]}
@@ -465,7 +467,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
           </div>
         ) : null}
 
-        <EvidenceDrawer title="Evidence">
+        <EvidenceDrawer title="Свидетельства">
           <CertificationEvidenceList evidence={integration.certificationEvidence} />
         </EvidenceDrawer>
       </div>
@@ -647,7 +649,7 @@ function NonOtrsIntegrationSummary({
 
 export default function IntegrationDetailsPage({ params, searchParams }: IntegrationDetailsPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка интеграции" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка: Источник" />}>
       <IntegrationDetailsPageContent params={params} searchParams={searchParams} />
     </Suspense>
   );
@@ -715,39 +717,31 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
 
   return (
     <PageShell
-      eyebrow="Интеграции"
+      eyebrow={adminEyebrow}
       title={integration.displayName}
       description={`${externalSourceLabel(integration.source)} · ${integration.type} · ${integrationStatusLabel(integration.status)} · последний запуск ${formatDate(latestRun?.startedAt)}`}
-      actions={
-        <>
-          <Link href="/admin/integrations" className="action-button">
-            <ArrowLeft size={16} aria-hidden="true" />
-            К обзору
-          </Link>
-          <Link href="/admin/integrations/new" className="action-button">
-            <Plus size={16} aria-hidden="true" />
-            Новый источник
-          </Link>
-          <Link href="/reviews" className="action-button action-button--quiet">
-            <ListChecks size={16} aria-hidden="true" />
-            Очередь проверок
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы источника">
-        {integrationDetailsSections.map((section) => (
-          <Link
-            key={section.value}
-            href={integrationDetailsSectionHref(section.value)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
+      <AdminSectionTabs
+        ariaLabel="Разделы источника"
+        items={integrationDetailsSections.map((section) => ({
+          href: integrationDetailsSectionHref(section.value),
+          label: section.label,
+          active: activeSection === section.value
+        }))}
+        actions={
+          <>
+            <Link href="/admin/integrations/new" className="action-button">
+              <Plus size={16} aria-hidden="true" />
+              Новый источник
+            </Link>
+            <Link href="/reviews" className="action-button action-button--quiet">
+              <ListChecks size={16} aria-hidden="true" />
+              Очередь проверок
+            </Link>
+          </>
+        }
+      />
 
       {activeSection === "summary" ? (
         <section className="ops-panel" aria-labelledby="integration-summary-title">
@@ -763,7 +757,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
               <span className="admin-tile__icon admin-tile__icon--plain">{integration.displayName.slice(0, 1).toUpperCase()}</span>
               <span className="admin-tile__body">
                 <span className="record-title record-title--tight">{integrationStatusLabel(integration.status)}</span>
-                <span className="record-meta">Dry-run: {formatDate(integration.lastDryRunAt)} · импорт: {formatDate(integration.lastImportAt)}</span>
+                <span className="record-meta">Пробный запуск: {formatDate(integration.lastDryRunAt)} · импорт: {formatDate(integration.lastImportAt)}</span>
                 {integration.lastError ? <span className="record-meta text-[var(--danger)]">{integration.lastError}</span> : null}
               </span>
             </div>

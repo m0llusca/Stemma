@@ -1,5 +1,5 @@
 import type { RoleName } from "@prisma/client";
-import { ArrowLeft, KeyRound, ShieldCheck, UserCog } from "lucide-react";
+import { KeyRound, ShieldCheck, UserCog, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
@@ -11,10 +11,14 @@ import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { Chip, type ChipTone } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RequiredMark } from "@/components/ui/required-mark";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { PageShell } from "@/components/ui/page-shell";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +31,8 @@ type UsersSection = "directory" | "create" | "roles";
 const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
 
 const userSections: Array<{ value: UsersSection; label: string }> = [
-  { value: "directory", label: "Учетные записи" },
-  { value: "roles", label: "Роли и доступы" }
+  { value: "directory", label: "Пользователи" },
+  { value: "roles", label: "Роли" }
 ];
 
 const permissionLabels: Record<Permission, string> = {
@@ -100,10 +104,6 @@ function usersSectionHref(section: UsersSection) {
   return `/admin/users?section=${section}`;
 }
 
-function createUserHref() {
-  return "/admin/users?create=1";
-}
-
 function formatDate(value: Date | null | undefined) {
   if (!value) {
     return "Нет данных";
@@ -144,7 +144,7 @@ function permissionSummary(role: RoleName, permissions: Permission[]) {
 
 export default function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка пользователей" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/users")} />}>
       <AdminUsersPageContent searchParams={searchParams} />
     </Suspense>
   );
@@ -198,25 +198,16 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
   );
   const openCreateUser = firstParam(params.create) === "1";
   const activeSection = usersSectionParam(params.section, openCreateUser);
+  // Deep-link ?section=create / ?create=1: показываем директорию с открытым окном.
+  const createDialogOpen = activeSection === "create";
+  const visibleSection: UsersSection = createDialogOpen ? "directory" : activeSection;
   const usersSetupHint = users.length > 1 ? null : getSettingCoachmark("users");
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Пользователи и роли"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/users"]}
       description="Управление учетными записями, ролями, командами, линиями поддержки и доступом без длинных скрытых блоков."
-      actions={
-        <>
-          <Link href={createUserHref()} className="action-button action-button--primary">
-            <UserCog size={16} aria-hidden="true" />
-            Создать пользователя
-          </Link>
-          <Link href="/admin/access" className="action-button">
-            <ShieldCheck size={16} aria-hidden="true" />
-            SSO и сессии
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка пользователей">
@@ -243,22 +234,84 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
         />
       </section>
 
-      {activeSection !== "create" ? (
-        <nav className="ops-tabs ops-tabs--section" aria-label="Разделы управления пользователями">
-          {userSections.map((section) => (
-            <Link
-              key={section.value}
-              href={usersSectionHref(section.value)}
-              className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-              aria-current={activeSection === section.value ? "page" : undefined}
+      <AdminSectionTabs
+        ariaLabel="Разделы управления пользователями"
+        items={userSections.map((section) => ({
+          href: usersSectionHref(section.value),
+          label: section.label,
+          active: visibleSection === section.value,
+          count: section.value === "directory" ? users.length : undefined
+        }))}
+        actions={
+          <>
+            <AdminDialog
+              triggerLabel={
+                <>
+                  <UserCog size={16} aria-hidden="true" />
+                  Создать пользователя
+                </>
+              }
+              title="Новый пользователь"
+              description="Локальный логин создается вместе с учетной записью; внешний профиль привяжется после первого входа."
+              defaultOpen={createDialogOpen}
             >
-              {section.label}
+              <form action={createLocalUser} className="grid gap-4">
+                <div className="ops-form-grid ops-form-grid--three">
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    <span>
+                      Имя
+                      <RequiredMark />
+                    </span>
+                    <input name="name" required className="form-control" />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    <span>
+                      Email
+                      <RequiredMark />
+                    </span>
+                    <input name="email" type="email" autoComplete="email" required className="form-control" />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    Логин
+                    <input name="login" autoComplete="username" className="form-control" />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    <span>
+                      Временный пароль
+                      <RequiredMark />
+                    </span>
+                    <input name="password" type="password" autoComplete="new-password" minLength={8} required className="form-control" />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    Роль
+                    <RoleSelect defaultValue="QA_ANALYST" />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    Команда
+                    <input name="teamName" className="form-control" />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
+                    Линия поддержки
+                    <input name="supportLine" className="form-control" />
+                  </label>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button type="submit" className="action-button action-button--primary">
+                    <KeyRound size={16} aria-hidden="true" />
+                    Создать
+                  </button>
+                </div>
+              </form>
+            </AdminDialog>
+            <Link href="/admin/access" className="action-button">
+              <ShieldCheck size={16} aria-hidden="true" />
+              SSO и сессии
             </Link>
-          ))}
-        </nav>
-      ) : null}
+          </>
+        }
+      />
 
-      {activeSection === "directory" ? (
+      {visibleSection === "directory" ? (
         <section className="ops-panel" aria-labelledby="users-directory-title">
           <div className="ops-panel__header">
             <div>
@@ -282,9 +335,22 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
               />
             </div>
           ) : null}
+          {users.length === 0 ? (
+            <EmptyState
+              size="inline"
+              icon={<UsersRound size={20} aria-hidden="true" />}
+              title="Пользователей пока нет"
+              description="Создайте первую учетную запись, чтобы выдать доступ к рабочему пространству."
+              action={
+                <Link href={usersSectionHref("create")} className="action-button action-button--small">
+                  Новый пользователь
+                </Link>
+              }
+            />
+          ) : (
           <div className="ops-table-shell">
-            <div className="ops-table ops-table--users" role="table" aria-label="Пользователи">
-              <div className="ops-table__row ops-table__row--head" role="row">
+            <div className="ops-table ops-table--users" aria-label="Пользователи">
+              <div className="ops-table__row ops-table__row--head">
                 <span>Пользователь</span>
                 <span>Роль</span>
                 <span>Команда и линия</span>
@@ -295,7 +361,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                 const activeUserSessions = activeSessionsByUser.get(managedUser.id) ?? 0;
 
                 return (
-                  <form key={managedUser.id} action={updateUserAccess} className="ops-table__row ops-table__row--form" role="row">
+                  <form key={managedUser.id} action={updateUserAccess} className="ops-table__row ops-table__row--form">
                     <input type="hidden" name="userId" value={managedUser.id} />
                     <div className="ops-table__cell">
                       <span className="ops-table__label">Пользователь</span>
@@ -340,68 +406,11 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
               })}
             </div>
           </div>
+          )}
         </section>
       ) : null}
 
-      {activeSection === "create" ? (
-        <section className="ops-panel" aria-labelledby="new-user-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Создание</p>
-              <h2 id="new-user-title" className="ops-panel__title">Новый пользователь</h2>
-              <p className="ops-panel__subtitle">Локальный логин создается вместе с учетной записью; внешний профиль привяжется после первого входа.</p>
-            </div>
-            <Link href={usersSectionHref("directory")} className="action-button action-button--small">
-              <ArrowLeft size={14} aria-hidden="true" />
-              К списку пользователей
-            </Link>
-          </div>
-          <form action={createLocalUser} className="grid gap-4 p-5">
-            <div className="ops-form-grid ops-form-grid--three">
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Имя
-                <input name="name" required className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Email
-                <input name="email" type="email" autoComplete="email" required className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Логин
-                <input name="login" autoComplete="username" className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Временный пароль
-                <input name="password" type="password" autoComplete="new-password" minLength={8} required className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Роль
-                <RoleSelect defaultValue="QA_ANALYST" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Команда
-                <input name="teamName" className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Линия поддержки
-                <input name="supportLine" className="form-control" />
-              </label>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Link href={usersSectionHref("directory")} className="action-button">
-                <ArrowLeft size={16} aria-hidden="true" />
-                К списку
-              </Link>
-              <ValidatedSubmitButton>
-                <KeyRound size={16} aria-hidden="true" />
-                Создать
-              </ValidatedSubmitButton>
-            </div>
-          </form>
-        </section>
-      ) : null}
-
-      {activeSection === "roles" ? (
+      {visibleSection === "roles" ? (
         <section className="ops-panel" aria-labelledby="role-matrix-title">
           <div className="ops-panel__header">
             <div>

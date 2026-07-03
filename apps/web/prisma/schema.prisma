@@ -604,6 +604,7 @@ model Conversation {
   tags                String
   customerName        String
   assigneeName        String?
+  assigneeId          String?
   qaStatus            QaStatus                 @default(QUEUED)
   qaAssigneeId        String?
   qaAssigneeName      String?
@@ -638,6 +639,7 @@ model Conversation {
   @@index([workspaceId, reviewDueAt])
   @@index([workspaceId, externalSource])
   @@index([workspaceId, assigneeName])
+  @@index([workspaceId, assigneeId])
   @@index([workspaceId, qaAssigneeName])
   @@index([workspaceId, samplingType])
   @@index([workspaceId, csatBucket])

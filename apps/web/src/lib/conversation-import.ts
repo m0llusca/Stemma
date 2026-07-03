@@ -30,6 +30,36 @@ export class ConversationImportLimitError extends Error {
   }
 }
 
+/**
+ * Resolves an operator display name to a unique workspace user id.
+ *
+ * Fail-closed: returns undefined unless the name matches EXACTLY one active
+ * workspace user. Ambiguous names (duplicate display names), unmatched names,
+ * blank names, and clients without a user accessor all yield undefined so the
+ * conversation is left without an assigneeId rather than pinned to the wrong
+ * operator. assigneeName is still stored verbatim for display; only the
+ * security-relevant assigneeId is gated on uniqueness.
+ */
+export async function resolveAssigneeId(
+  workspaceId: string,
+  assigneeName: string | null | undefined,
+  client: Pick<ConversationImportClient, "user">
+): Promise<string | undefined> {
+  const name = assigneeName?.trim();
+
+  if (!name || !client.user) {
+    return undefined;
+  }
+
+  const matches = await client.user.findMany({
+    where: { workspaceId, name },
+    select: { id: true },
+    take: 2
+  });
+
+  return matches.length === 1 ? matches[0].id : undefined;
+}
+
 export function assertConversationImportBatchLimit(conversations: readonly unknown[]) {
   if (conversations.length > customConversationLimits.maxConversationsPerImportRequest) {
     throw new ConversationImportLimitError(
@@ -67,6 +97,14 @@ export async function upsertCustomConversation(
   });
   const sampledPayload = applySamplingDecision(payload, samplingDecision);
   const conversationData = normalizeCustomConversation(sampledPayload);
+
+  // Resolve the operator display name to a unique user id (fail-closed on
+  // ambiguity / no match). assigneeName stays as-is from normalization; the
+  // security-relevant assigneeId is only set for an unambiguous match. Requires
+  // the client to expose user.findMany (transaction client / prisma); leaves
+  // assigneeId undefined otherwise.
+  const assigneeId = await resolveAssigneeId(workspaceId, conversationData.assigneeName, client);
+  const assigneeIdData = assigneeId ? { assigneeId } : {};
 
   // Auto-assign a reviewer for conversations a sampling rule actively selected
   // for QA (samplingDecision.matched — the same gate as the AI_SCORE enqueue
@@ -110,11 +148,13 @@ export async function upsertCustomConversation(
     },
     create: {
       ...conversationData,
+      ...assigneeIdData,
       ...assignment,
       workspaceId
     },
     update: {
       ...conversationData,
+      ...assigneeIdData,
       ...assignment
     }
   });

@@ -50,7 +50,8 @@ async function loadReviewForAction(reviewId: string, workspaceId: string) {
       reanswerStatus: true,
       conversation: {
         select: {
-          assigneeName: true
+          assigneeName: true,
+          assigneeId: true
         }
       }
     }
@@ -65,10 +66,13 @@ async function loadReviewForAction(reviewId: string, workspaceId: string) {
 
 function assertFeedbackScope(input: {
   userRole: string;
-  userName: string;
-  conversationAssigneeName: string | null;
+  userId: string;
+  conversationAssigneeId: string | null;
 }) {
-  if (input.userRole === "SUPPORT_AGENT" && input.conversationAssigneeName !== input.userName) {
+  // Identity is keyed off the unique assigneeId, never the (non-unique) display
+  // name. Fail-closed: an unassigned conversation (assigneeId === null) is never
+  // an operator's own, so access is denied. Manager roles are unaffected.
+  if (input.userRole === "SUPPORT_AGENT" && input.conversationAssigneeId !== input.userId) {
     throw new Error("Нет прав на работу с обратной связью по чужому обращению.");
   }
 }
@@ -86,8 +90,8 @@ export async function updateReviewFeedback(formData: FormData) {
   const review = await loadReviewForAction(reviewId, user.workspaceId);
   assertFeedbackScope({
     userRole: user.role,
-    userName: user.name,
-    conversationAssigneeName: review.conversation.assigneeName
+    userId: user.id,
+    conversationAssigneeId: review.conversation.assigneeId
   });
   const transition = {
     action,
@@ -258,7 +262,10 @@ export async function createTrainingAssignmentFromReview(formData: FormData) {
 export async function createTrainingAssignment(formData: FormData) {
   const user = await getCurrentUser();
 
-  if (!canManageTraining(user.role)) {
+  // SUPPORT_AGENT carries training:manage (so canManageTraining is true), but
+  // must never create training tasks — only manager roles may. Same guard as
+  // createTrainingAssignmentFromReview.
+  if (!canManageTraining(user.role) || user.role === "SUPPORT_AGENT") {
     throw new Error("Нет прав на создание учебных задач.");
   }
 
@@ -391,10 +398,13 @@ export async function updateTrainingAssignmentStatus(formData: FormData) {
     throw new Error("Некорректный статус учебной задачи.");
   }
 
-  const where =
-    canManageTraining(user.role)
-      ? { id, workspaceId: user.workspaceId }
-      : { id, workspaceId: user.workspaceId, assigneeId: user.id };
+  // SUPPORT_AGENT holds training:manage, so canManageTraining alone would drop
+  // it into the unscoped manager branch. Self-scope operators (and any non-
+  // manager) to their own assignments so they can only advance their own tasks.
+  const selfScoped = !canManageTraining(user.role) || user.role === "SUPPORT_AGENT";
+  const where = selfScoped
+    ? { id, workspaceId: user.workspaceId, assigneeId: user.id }
+    : { id, workspaceId: user.workspaceId };
 
   await prisma.$transaction(async (tx) => {
     const updated = await tx.trainingAssignment.updateMany({

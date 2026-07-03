@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Chip } from "@/components/ui/chip";
-import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 type Option = { value: string; label: string };
 
@@ -44,7 +44,10 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
           <p className="form-group__label">Сегмент</p>
           <div className="form-group__body">
             <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Название
+              <span>
+                Название
+                <RequiredMark />
+              </span>
               <input name="name" value={name} onChange={(event) => setName(event.target.value)} required className="form-control" />
             </label>
             <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
@@ -129,7 +132,11 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
         </div>
 
         <div className="flex justify-end">
-          <ValidatedSubmitButton>Создать правило</ValidatedSubmitButton>
+          {/* Единый паттерн сабмита (#17): кнопка всегда активна, полевые правила
+              закрывает нативный required при отправке. */}
+          <button type="submit" className="action-button action-button--primary">
+            Создать правило
+          </button>
         </div>
       </form>
 

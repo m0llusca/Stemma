@@ -2,8 +2,10 @@
 
 import type { CriterionKind } from "@prisma/client";
 import { ArrowDown, ArrowUp, ChevronDown, GripVertical, Plus, Trash2 } from "lucide-react";
+import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { Chip } from "@/components/ui/chip";
+import { RequiredMark } from "@/components/ui/required-mark";
 import { createScorecardVersion, updateScorecardVersion } from "@/lib/scorecard-actions";
 
 type CriterionRow = {
@@ -65,23 +67,45 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
     }))
   );
   const totalWeight = useMemo(() => criteria.reduce((sum, criterion) => sum + Number(criterion.weight || 0), 0), [criteria]);
-  const canSubmit =
-    name.trim().length > 0 &&
-    criteria.length > 0 &&
-    totalWeight === 100 &&
-    criteria.every(
-      (criterion) =>
-        criterion.key.trim().length > 0 &&
-        criterion.block.trim().length > 0 &&
-        criterion.label.trim().length > 0 &&
-        Number(criterion.weight) >= 1 &&
-        Number(criterion.weight) <= 100
-    );
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function updateCriterion(index: number, patch: Partial<CriterionRow>) {
     setCriteria((current) =>
       current.map((criterion, currentIndex) => (currentIndex === index ? { ...criterion, ...patch } : criterion))
     );
+  }
+
+  function removeCriterion(index: number) {
+    const criterion = criteria[index];
+    const title = criterion?.label.trim() || `Критерий ${index + 1}`;
+    const confirmed = window.confirm(
+      `Удалить критерий «${title}»? Он исчезнет из этой версии формы, а веса остальных критериев придется пересмотреть до суммы 100%.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  // Кнопка сабмита всегда активна (#17): полевые правила закрывает нативный
+  // required, а межполевые инварианты (список не пуст, сумма весов 100%)
+  // проверяем в момент отправки и показываем ошибку инлайн.
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (criteria.length === 0) {
+      event.preventDefault();
+      setSubmitError("Добавьте хотя бы один критерий.");
+      return;
+    }
+
+    if (totalWeight !== 100) {
+      event.preventDefault();
+      setSubmitError(`Сумма весов критериев должна быть 100% (сейчас ${totalWeight}%).`);
+      return;
+    }
+
+    setSubmitError(null);
   }
 
   function addCriterion() {
@@ -106,11 +130,14 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
   const weightShare = (weight: number) => (totalWeight > 0 ? Math.round((Number(weight || 0) / totalWeight) * 100) : 0);
 
   return (
-    <form action={formAction} className="grid gap-4 p-5">
+    <form action={formAction} onSubmit={handleSubmit} className="grid gap-4 p-5">
       {mode === "edit" && scorecardId ? <input type="hidden" name="scorecardId" value={scorecardId} /> : null}
       <input type="hidden" name="criterionCount" value={criteria.length} />
       <label className="grid max-w-xl gap-1 text-sm font-medium text-[var(--text-body)]">
-        Название
+        <span>
+          Название
+          <RequiredMark />
+        </span>
         <input
           name="name"
           value={name}
@@ -165,7 +192,7 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                   <button
                     type="button"
                     title="Удалить"
-                    onClick={() => setCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                    onClick={() => removeCriterion(index)}
                     className="icon-action-button icon-action-button--danger"
                   >
                     <Trash2 size={15} aria-hidden="true" />
@@ -179,7 +206,10 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
               <div className="criterion-card__body">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(150px,0.8fr)_minmax(160px,0.9fr)_minmax(220px,1.2fr)]">
                   <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Ключ
+                    <span>
+                      Ключ
+                      <RequiredMark />
+                    </span>
                     <input
                       name={`criterion.${index}.key`}
                       value={criterion.key}
@@ -193,7 +223,10 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                     ) : null}
                   </label>
                   <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Блок
+                    <span>
+                      Блок
+                      <RequiredMark />
+                    </span>
                     <input
                       name={`criterion.${index}.block`}
                       value={criterion.block}
@@ -203,7 +236,10 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                     />
                   </label>
                   <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Название
+                    <span>
+                      Название
+                      <RequiredMark />
+                    </span>
                     <input
                       name={`criterion.${index}.label`}
                       value={criterion.label}
@@ -246,7 +282,10 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
                     </select>
                   </div>
                   <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Вес, %
+                    <span>
+                      Вес, %
+                      <RequiredMark />
+                    </span>
                     <input
                       name={`criterion.${index}.weight`}
                       value={criterion.weight}
@@ -295,13 +334,16 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
             />
           </span>
         </div>
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="action-button action-button--primary"
-        >
-          {mode === "edit" ? "Сохранить текущую форму" : "Создать новую версию"}
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <button type="submit" className="action-button action-button--primary">
+            {mode === "edit" ? "Сохранить текущую форму" : "Создать новую версию"}
+          </button>
+          {submitError ? (
+            <span role="alert" className="text-sm font-medium text-[var(--danger)]">
+              {submitError}
+            </span>
+          ) : null}
+        </div>
       </div>
     </form>
   );

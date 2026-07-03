@@ -38,6 +38,12 @@ const reviewQueueCoachingStatuses = ["open"] as const satisfies readonly ReviewQ
 
 type ReviewQueueScope = {
   assigneeName?: string;
+  /**
+   * Operator scope keyed on the unique user id (fail-closed). Preferred over
+   * `assigneeName`, which is a non-unique display string; callers pin support
+   * agents to their own conversations via this field.
+   */
+  assigneeId?: string;
 };
 
 type CurrentCycleReview = {
@@ -128,6 +134,7 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
 function scopedConversationWhere(workspaceId: string, scope?: ReviewQueueScope): Prisma.ConversationWhereInput {
   return {
     workspaceId,
+    ...(scope?.assigneeId ? { assigneeId: scope.assigneeId } : {}),
     ...(scope?.assigneeName ? { assigneeName: scope.assigneeName } : {})
   };
 }
@@ -138,6 +145,10 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
   const addFinalizedHumanReviewFilter = (where: Prisma.ReviewWhereInput) => {
     finalizedHumanReviewAnd.push(where);
   };
+
+  if (scope?.assigneeId) {
+    and.push({ assigneeId: scope.assigneeId });
+  }
 
   if (scope?.assigneeName) {
     and.push({ assigneeName: scope.assigneeName });
@@ -586,7 +597,7 @@ export async function getReviewQueueFilterOptions(workspaceId: string, scope?: R
       }
     }),
     prisma.conversation.findMany({
-      where: scope?.assigneeName
+      where: scope?.assigneeName || scope?.assigneeId
         ? baseWhere
         : {
             ...baseWhere,

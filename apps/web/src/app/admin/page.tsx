@@ -1,11 +1,12 @@
 import type { RoleName } from "@prisma/client";
-import { Activity, ArrowRight, CalendarClock, Gauge, History, KeyRound, ListChecks, Palette, Plug, Send, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { Activity, ArrowRight, CalendarClock, Gauge, History, KeyRound, Languages, ListChecks, Palette, Plug, Send, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import { PageSkeleton } from "@/components/loading-states";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -30,7 +31,7 @@ function canSee(role: RoleName, roles: RoleName[]) {
 
 export default function AdminHomePage() {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка администрирования" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin")} />}>
       <AdminHomePageContent />
     </Suspense>
   );
@@ -145,7 +146,7 @@ async function AdminHomePageContent() {
   const cards: AdminCard[] = [
     {
       href: "/admin/scorecards",
-      title: "Формы оценки",
+      title: adminSectionTitles["/admin/scorecards"],
       icon: Gauge,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: activeScorecard ? `Версия ${activeScorecard.version}` : "Не настроено",
@@ -153,7 +154,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/sampling",
-      title: "Выборки",
+      title: adminSectionTitles["/admin/sampling"],
       icon: ListChecks,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: `${activeSamplingRules} активных`,
@@ -161,7 +162,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/ai-scoring",
-      title: "AI-оценка",
+      title: adminSectionTitles["/admin/ai-scoring"],
       icon: Sparkles,
       roles: ["ADMIN"],
       metric: scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider,
@@ -169,7 +170,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/integrations",
-      title: "Интеграции",
+      title: adminSectionTitles["/admin/integrations"],
       icon: Plug,
       roles: ["ADMIN"],
       metric: `${integrations} источников`,
@@ -177,7 +178,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/access",
-      title: "Доступ и SSO",
+      title: adminSectionTitles["/admin/access"],
       icon: ShieldCheck,
       roles: ["ADMIN"],
       metric: providerWarnings > 0 ? `${providerWarnings} требуют настройки` : "Готово",
@@ -185,7 +186,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/channels",
-      title: "Каналы",
+      title: adminSectionTitles["/admin/channels"],
       icon: Send,
       roles: ["ADMIN"],
       metric: `${messagingActiveChannels} активных`,
@@ -193,7 +194,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/users",
-      title: "Пользователи и роли",
+      title: adminSectionTitles["/admin/users"],
       icon: UsersRound,
       roles: ["ADMIN"],
       metric: `${users} пользователей`,
@@ -201,7 +202,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/system",
-      title: "Состояние системы",
+      title: adminSectionTitles["/admin/system"],
       icon: Activity,
       roles: ["ADMIN"],
       metric: failedJobs > 0 ? `${failedJobs} ошибок` : "Без ошибок",
@@ -209,7 +210,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/tokens",
-      title: "API-доступ",
+      title: adminSectionTitles["/admin/tokens"],
       icon: KeyRound,
       roles: ["ADMIN"],
       metric: `${apiTokens} ключей`,
@@ -217,15 +218,23 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/appearance",
-      title: "Внешний вид",
+      title: adminSectionTitles["/admin/appearance"],
       icon: Palette,
       roles: ["ADMIN"],
       metric: `${currentTheme.label}, ${currentDensity.label}`,
       tone: "ok"
     },
     {
+      href: "/admin/localization",
+      title: adminSectionTitles["/admin/localization"],
+      icon: Languages,
+      roles: ["ADMIN"],
+      metric: "Тексты интерфейса",
+      tone: "neutral"
+    },
+    {
       href: "/admin/audit",
-      title: "Журнал действий",
+      title: adminSectionTitles["/admin/audit"],
       icon: History,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: `${recentAuditLogs} событий`,
@@ -233,7 +242,7 @@ async function AdminHomePageContent() {
     },
     {
       href: "/admin/report-schedules",
-      title: "Расписания отчетов",
+      title: adminSectionTitles["/admin/report-schedules"],
       icon: CalendarClock,
       roles: ["ADMIN", "TEAM_LEAD"],
       metric: `${reportSchedules} активных`,
@@ -271,8 +280,8 @@ async function AdminHomePageContent() {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Настройки"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin"]}
       description="Главные действия доступны отсюда напрямую, а редкие технические детали остаются внутри профильных разделов."
       actions={quickActions.slice(0, 3).map((action, index) => {
         const Icon = action.icon;

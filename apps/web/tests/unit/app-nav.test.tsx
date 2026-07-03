@@ -73,6 +73,64 @@ describe("app nav", () => {
     expect(labels).toEqual(["Сегодня", "Проверки", "Калибровка", "Обучение", "Аналитика", "Настройки"]);
   });
 
+  it("shows a support agent only permitted areas including its feedback page", async () => {
+    mockCurrentUser("SUPPORT_AGENT");
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const areaNav = screen.getByRole("navigation", { name: "Основные разделы" });
+    const labels = within(areaNav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(labels).toEqual(["Сегодня", "Моя обратная связь", "Проверки", "Обучение"]);
+  });
+
+  it("hides the take-next-case shortcut from roles without reviews:write", async () => {
+    mockCurrentUser("SUPPORT_AGENT");
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+  });
+
+  it("surfaces the queue and coaching pulse links for a support agent", async () => {
+    mockCurrentUser("SUPPORT_AGENT");
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const pulse = screen.getByLabelText("Рабочий пульс");
+    expect(within(pulse).getByRole("link", { name: /Очередь/ })).not.toBeNull();
+    expect(within(pulse).getByRole("link", { name: /Обучение/ })).not.toBeNull();
+    // reviews:write отсутствует у SUPPORT_AGENT — быстрое действие скрыто.
+    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+  });
+
+  it("hides every pulse link and the take-next-case shortcut from a viewer", async () => {
+    mockCurrentUser("VIEWER");
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const pulse = screen.getByLabelText("Рабочий пульс");
+    // VIEWER без прав не должен видеть счётчики очереди/риска/обучения…
+    expect(within(pulse).queryByRole("link", { name: /Очередь/ })).toBeNull();
+    expect(within(pulse).queryByRole("link", { name: /Риск/ })).toBeNull();
+    expect(within(pulse).queryByRole("link", { name: /Обучение/ })).toBeNull();
+    // …ни быстрое действие «Взять следующий кейс».
+    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+  });
+
+  it("keeps the take-next-case shortcut for reviewers", async () => {
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    expect(screen.getByRole("link", { name: "Взять следующий кейс" })).not.toBeNull();
+  });
+
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(false);
     const { AppNav } = await import("@/components/app-nav");

@@ -2,6 +2,7 @@ import { History, KeyRound, Plug } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ApiTokenCreateForm } from "@/components/admin/api-token-create-form";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { CopyButton } from "@/components/copy-button";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
@@ -10,7 +11,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -28,7 +32,6 @@ type TokensSection = "tokens" | "create" | "local";
 
 const tokenSections: Array<{ value: TokensSection; label: string }> = [
   { value: "tokens", label: "Ключи" },
-  { value: "create", label: "Новый ключ" },
   { value: "local", label: "Локальная проверка" }
 ];
 
@@ -39,6 +42,11 @@ function firstParam(value: string | string[] | undefined) {
 
 function tokensSectionParam(value: string | string[] | undefined): TokensSection {
   const section = firstParam(value);
+
+  // «create» — не вкладка контента, а deep-link на открытое окно создания ключа.
+  if (section === "create") {
+    return "create";
+  }
 
   return tokenSections.some((item) => item.value === section) ? (section as TokensSection) : "tokens";
 }
@@ -86,7 +94,7 @@ function tokenHealth(token: {
 
 export default function AdminTokensPage({ searchParams }: AdminTokensPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка API-токенов" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/tokens")} />}>
       <AdminTokensPageContent searchParams={searchParams} />
     </Suspense>
   );
@@ -94,7 +102,10 @@ export default function AdminTokensPage({ searchParams }: AdminTokensPageProps) 
 
 export async function AdminTokensPageContent({ searchParams }: AdminTokensPageProps) {
   const params = await searchParams;
-  const activeSection = tokensSectionParam(params.section);
+  const requestedSection = tokensSectionParam(params.section);
+  // Deep-link ?section=create открывает окно создания поверх списка ключей.
+  const createDialogOpen = requestedSection === "create";
+  const activeSection: TokensSection = createDialogOpen ? "tokens" : requestedSection;
   const user = await requireCurrentUserPermission("api_tokens:manage");
   const apiTokens = await prisma.apiToken.findMany({
     where: {
@@ -113,25 +124,9 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Ключи API"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/tokens"]}
       description="Рабочие ключи и локальный ключ для проверки интеграций. Технические поля собраны в компактные карточки."
-      actions={
-        <>
-          <Link href={tokensSectionHref("create")} className="action-button action-button--primary">
-            <KeyRound size={16} aria-hidden="true" />
-            Новый ключ
-          </Link>
-          <Link href="/admin/integrations" className="action-button">
-            <Plug size={16} aria-hidden="true" />
-            Интеграции
-          </Link>
-          <Link href="/admin/audit" className="action-button action-button--quiet">
-            <History size={16} aria-hidden="true" />
-            Журнал действий
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
       <section className="ops-metric-grid" aria-label="Сводка API-ключей">
@@ -158,18 +153,40 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
         />
       </section>
 
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы API-ключей">
-        {tokenSections.map((section) => (
-          <Link
-            key={section.value}
-            href={tokensSectionHref(section.value)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
+      <AdminSectionTabs
+        ariaLabel="Разделы API-доступа"
+        items={tokenSections.map((section) => ({
+          href: tokensSectionHref(section.value),
+          label: section.label,
+          active: activeSection === section.value,
+          count: section.value === "tokens" ? apiTokens.length : undefined
+        }))}
+        actions={
+          <>
+            <AdminDialog
+              triggerLabel={
+                <>
+                  <KeyRound size={16} aria-hidden="true" />
+                  Новый ключ
+                </>
+              }
+              title="Новый ключ"
+              description="Создание идет через backend-сервис, секрет показывается только один раз после выпуска."
+              defaultOpen={createDialogOpen}
+            >
+              <ApiTokenCreateForm scopes={allowedApiScopes} />
+            </AdminDialog>
+            <Link href="/admin/integrations" className="action-button">
+              <Plug size={16} aria-hidden="true" />
+              Интеграции
+            </Link>
+            <Link href="/admin/audit" className="action-button action-button--quiet">
+              <History size={16} aria-hidden="true" />
+              Журнал действий
+            </Link>
+          </>
+        }
+      />
 
       {activeSection === "tokens" ? (
         <section className="ops-panel" aria-labelledby="api-tokens-title">
@@ -222,14 +239,14 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                       ) : null}
                       <form action={revokeApiTokenById} className="mt-2">
                         <input type="hidden" name="tokenId" value={apiToken.id} />
-                        <button
-                          type="submit"
+                        <ConfirmSubmitButton
                           className="action-button action-button--small"
                           disabled={isExpired}
                           aria-label={`Отозвать ключ ${apiToken.name}`}
+                          confirmMessage={`Отозвать ключ «${apiToken.name}»? Действие необратимо: интеграции с этим ключом перестанут работать.`}
                         >
                           Отозвать
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                     </div>
                   </div>
@@ -249,21 +266,6 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
                 }
               />
             )}
-          </div>
-        </section>
-      ) : null}
-
-      {activeSection === "create" ? (
-        <section className="ops-panel" aria-labelledby="new-api-token-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Выпуск</p>
-              <h2 id="new-api-token-title" className="ops-panel__title">Новый рабочий ключ</h2>
-              <p className="ops-panel__subtitle">Создание идет через backend-сервис, секрет показывается только один раз после выпуска.</p>
-            </div>
-          </div>
-          <div className="p-4">
-            <ApiTokenCreateForm scopes={allowedApiScopes} />
           </div>
         </section>
       ) : null}

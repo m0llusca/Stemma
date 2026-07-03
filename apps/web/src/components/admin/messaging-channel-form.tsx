@@ -74,10 +74,13 @@ export function MessagingChannelForm({
         </span>
       </label>
 
-      <label className="messaging-channel-form__toggle">
-        <input type="checkbox" name="status" value="active" defaultChecked={isActive} />
-        <span>Активировать канал (готов к доставке)</span>
-      </label>
+      {/*
+        Единственный контрол активации канала — кнопка-тумблер в подвале карточки
+        канала (см. setMessagingChannelStatus на /admin/channels). Скрытое поле
+        передает текущий статус, потому что saveMessagingChannel трактует
+        отсутствующий status как "draft" и сохранение молча деактивировало бы канал.
+      */}
+      <input type="hidden" name="status" value={isActive ? "active" : "draft"} />
 
       <div className="messaging-channel-form__actions">
         <SaveChannelSubmitButton />

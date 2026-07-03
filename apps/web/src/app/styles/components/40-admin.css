@@ -168,6 +168,7 @@
 }
 
 .help-tooltip__trigger {
+  position: relative;
   display: inline-flex;
   width: 22px;
   height: 22px;
@@ -181,6 +182,13 @@
   outline: 2px solid transparent;
   outline-offset: 2px;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, outline-color 120ms ease;
+}
+
+/* Hit area >= 40px при визуале 22px — зона клика без изменения размера. */
+.help-tooltip__trigger::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
 }
 
 .help-tooltip__trigger:hover,
@@ -228,6 +236,7 @@
 }
 
 .action-button {
+  position: relative;
   display: inline-flex;
   min-height: var(--control-height);
   min-width: 0;
@@ -252,7 +261,15 @@
   outline: 2px solid transparent;
   outline-offset: 2px;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, outline-color 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, outline-color 140ms ease, transform 140ms ease, scale 140ms ease;
+}
+
+/* Hit area >= 40px по вертикали: базовая высота 38px (--control-height)
+   в дефолтной плотности — добираем зону клика без изменения визуала. */
+.action-button::before {
+  content: "";
+  position: absolute;
+  inset: -1px 0;
 }
 
 .action-button svg {
@@ -274,6 +291,7 @@
   background: var(--button-secondary-active);
   color: var(--accent-strong);
   transform: translateY(1px);
+  scale: 0.96;
 }
 
 .action-button:disabled,
@@ -284,6 +302,7 @@
   color: var(--text-muted);
   box-shadow: none;
   transform: none;
+  scale: none;
   outline-color: transparent;
 }
 
@@ -332,7 +351,17 @@
   font-size: 12px;
 }
 
+/* Hit area >= 40px по вертикали при визуале 34px (только вертикаль:
+   в inline-рядах таблиц кнопки стоят с зазором 6px — горизонтальное
+   расширение крало бы клики у соседей). */
+.action-button--small::before {
+  content: "";
+  position: absolute;
+  inset: -3px 0;
+}
+
 .icon-action-button {
+  position: relative;
   display: inline-flex;
   width: 34px;
   height: 34px;
@@ -346,6 +375,13 @@
   outline: 2px solid transparent;
   outline-offset: 2px;
   transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, outline-color 140ms ease, transform 140ms ease;
+}
+
+/* Hit area >= 40px при визуале 34px. */
+.icon-action-button::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
 }
 
 .icon-action-button:hover {
@@ -469,6 +505,7 @@
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 820;
+  font-variant-numeric: tabular-nums;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -749,6 +786,7 @@
   color: var(--foreground);
   font-size: 19px;
   font-weight: 830;
+  font-variant-numeric: tabular-nums;
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
@@ -975,12 +1013,37 @@
   color: var(--accent-strong);
 }
 
+/* Compact numeric counter inside a tab (admin-section-tabs.tsx). Mirrors the
+   canonical tab-count chip values from .page-shell__tab-count (07-shell.css). */
+.ops-tab__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.ops-tab:not(.ops-tab--active) .ops-tab__count {
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  color: var(--text-subtle);
+}
+
 .ops-tabs--section .ops-tab {
   min-height: 42px;
   flex: 0 0 auto;
   border-color: transparent;
   border-bottom-color: var(--border);
-  border-radius: 10px 10px 0 0;
+  /* Same token as the .ops-panel the tabs merge into, so the tab curvature
+     follows the data-corners scale (sharp 8px / default 14px / soft 22px). */
+  border-radius: var(--radius-page) var(--radius-page) 0 0;
   background: transparent;
   padding: 9px 14px 10px;
   color: var(--muted);
@@ -1569,6 +1632,7 @@
   color: var(--foreground);
   font-size: 15px;
   font-weight: 780;
+  font-variant-numeric: tabular-nums;
 }
 
 .ops-form-grid {
@@ -1784,6 +1848,7 @@
   color: var(--foreground);
   font-size: 32px;
   font-weight: 840;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
@@ -1816,6 +1881,7 @@
   color: var(--foreground);
   font-size: 13px;
   font-weight: 720;
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
@@ -2024,6 +2090,7 @@
 }
 
 .segmented__option {
+  position: relative;
   display: inline-flex;
   min-height: 32px;
   flex: 1 1 0;
@@ -2043,6 +2110,15 @@
   outline: 2px solid transparent;
   outline-offset: -2px;
   transition: background-color 140ms ease, color 140ms ease, outline-color 140ms ease;
+}
+
+/* Hit area >= 40px по вертикали при визуале 32px (только вертикаль:
+   сегменты стоят вплотную с зазором 2px — горизонтальное расширение
+   крало бы клики у соседних сегментов). */
+.segmented__option::before {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
 }
 
 .segmented__option:hover {
@@ -2297,10 +2373,13 @@
   gap: 4px;
 }
 
+/* Canonical field-label style — same values as .form-group__label. */
 .messaging-channel-form__label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text-body);
+  color: var(--panel-header-muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .messaging-channel-form__hint {
@@ -2374,10 +2453,13 @@
   gap: 4px;
 }
 
+/* Canonical field-label style — same values as .form-group__label. */
 .report-schedule-form__label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text-body);
+  color: var(--panel-header-muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .report-schedule-form__hint {
@@ -2418,3 +2500,232 @@
   color: var(--danger);
 }
 
+
+/* ============================================================
+   Admin dialog — всплывающее окно настроек (native <dialog>).
+   Короткие формы (создание ключа/правила/пользователя/расписания)
+   открываются поверх списка, не уводя со страницы.
+   Радиусы концентричны: панель = radius-page, вложенные контролы
+   остаются на radius-control при внутреннем паддинге 20px.
+   ============================================================ */
+
+.admin-dialog {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: min(560px, calc(100vw - 32px));
+  width: 100%;
+}
+
+.admin-dialog::backdrop {
+  background: color-mix(in srgb, var(--foreground) 42%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.admin-dialog__panel {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius-page);
+  background: var(--panel);
+  color: var(--foreground);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent),
+    0 4px 12px color-mix(in srgb, var(--foreground) 8%, transparent),
+    0 16px 40px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+/* Вход: мягкий fade+scale через @starting-style (interruptible transition). */
+.admin-dialog[open] {
+  opacity: 1;
+  transform: scale(1);
+  transition-property: opacity, transform;
+  transition-duration: 0.18s;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@starting-style {
+  .admin-dialog[open] {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.admin-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 0;
+}
+
+.admin-dialog__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.admin-dialog__description {
+  margin: 4px 0 0;
+  color: var(--text-subtle);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.admin-dialog__close {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+  transition-property: background-color, color, scale;
+  transition-duration: 0.15s;
+}
+
+/* Hit area >= 40px при компактном визуале 28px. */
+.admin-dialog__close::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+.admin-dialog__close:hover {
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  color: var(--foreground);
+}
+
+.admin-dialog__close:active {
+  scale: 0.96;
+}
+
+.admin-dialog__body {
+  padding: 14px 20px 20px;
+}
+
+/* ============================================================
+   Setting rows — компактные строки настроек (подпись слева,
+   контрол справа), взамен тяжёлых details-аккордеонов.
+   ============================================================ */
+
+.setting-rows {
+  display: grid;
+  gap: 0;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 2px;
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+}
+
+.setting-row__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setting-row__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 660;
+  color: var(--foreground);
+}
+
+.setting-row__hint {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.setting-row__control {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+}
+
+/* Широкий диалог для длинных форм (конструктор формы оценки). */
+.admin-dialog--wide {
+  max-width: min(920px, calc(100vw - 32px));
+}
+
+/* Длинные формы скроллятся внутри окна, шапка диалога остаётся на месте. */
+.admin-dialog__body {
+  max-height: calc(100dvh - 190px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Действия раздела в строке вкладок: рядом с контентом, а не в углу шапки. */
+.ops-tabs__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  /* Контейнер вкладок наезжает на панель (-20px) — поднимаем кнопки. */
+  padding-bottom: 26px;
+}
+
+/* ============================================================
+   Stat strip — компактная строка метрик вместо сетки карточек.
+   ============================================================ */
+
+.stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 28px;
+  margin: 0;
+  padding: 12px 0 4px;
+}
+
+.stat-strip__item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.stat-strip__value {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 780;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-strip__value--neutral { color: var(--foreground); }
+.stat-strip__value--accent { color: var(--accent); }
+.stat-strip__value--success { color: var(--success, #15803d); }
+.stat-strip__value--warning { color: var(--warning, #b45309); }
+.stat-strip__value--danger { color: var(--danger); }
+
+.stat-strip__label {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stat-strip__hint {
+  font-weight: 400;
+}

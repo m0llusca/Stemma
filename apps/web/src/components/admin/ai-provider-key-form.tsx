@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { saveAiProviderCredential, type SaveAiProviderCredentialState } from "@/lib/ai-provider-credentials-actions";
 
 const initialState: SaveAiProviderCredentialState = {
@@ -22,12 +23,23 @@ export type AiProviderModelField = {
   placeholder?: string;
 };
 
-function SaveKeySubmitButton() {
+function SaveKeySubmitButton({ confirmMessage }: { confirmMessage: string | null }) {
   const { pending } = useFormStatus();
+  const label = pending ? "Сохраняем..." : "Сохранить";
+
+  // Деструктивные варианты сабмита (удаление или перезапись сохраненного ключа)
+  // требуют подтверждения; обычное сохранение отправляется сразу.
+  if (confirmMessage) {
+    return (
+      <ConfirmSubmitButton className="action-button action-button--primary" disabled={pending} confirmMessage={confirmMessage}>
+        {label}
+      </ConfirmSubmitButton>
+    );
+  }
 
   return (
     <button type="submit" className="action-button action-button--primary" disabled={pending}>
-      {pending ? "Сохраняем..." : "Сохранить"}
+      {label}
     </button>
   );
 }
@@ -86,6 +98,16 @@ export function AiProviderKeyForm({
   modelField?: AiProviderModelField;
 }) {
   const [state, formAction] = useActionState(saveAiProviderCredential, initialState);
+  const [clearRequested, setClearRequested] = useState(false);
+  const [hasNewKey, setHasNewKey] = useState(false);
+
+  // Подтверждение только для деструктивных сабмитов (#6): удаление сохраненного
+  // ключа (чекбокс clear) или его перезапись новым значением.
+  const confirmMessage = clearRequested
+    ? `Удалить сохраненный ключ провайдера из БД? AI-скоринг через этого провайдера остановится, пока не будет сохранен новый ключ${hasEnvKey ? " (продолжит действовать ключ из переменных окружения)" : ""}.`
+    : maskedDbKey && hasNewKey
+      ? `Заменить сохраненный ключ ${maskedDbKey}? Прежний ключ будет перезаписан, восстановить его нельзя.`
+      : null;
 
   const keyPlaceholder = maskedDbKey
     ? `Сохранён ${maskedDbKey} — оставьте пустым, чтобы не менять`
@@ -111,6 +133,7 @@ export function AiProviderKeyForm({
           placeholder={keyPlaceholder}
           className="form-control"
           autoComplete="off"
+          onChange={(event) => setHasNewKey(event.target.value.trim().length > 0)}
         />
         <span className="messaging-channel-form__hint">{keyHint}</span>
       </label>
@@ -133,13 +156,19 @@ export function AiProviderKeyForm({
 
       {maskedDbKey ? (
         <label className="messaging-channel-form__toggle">
-          <input type="checkbox" name="clear" value="1" />
+          <input
+            type="checkbox"
+            name="clear"
+            value="1"
+            checked={clearRequested}
+            onChange={(event) => setClearRequested(event.target.checked)}
+          />
           <span>Удалить сохранённый ключ из БД</span>
         </label>
       ) : null}
 
       <div className="messaging-channel-form__actions">
-        <SaveKeySubmitButton />
+        <SaveKeySubmitButton confirmMessage={confirmMessage} />
         {state.status === "success" ? (
           <span className="messaging-channel-form__status messaging-channel-form__status--ok">{state.message}</span>
         ) : null}

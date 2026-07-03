@@ -1,5 +1,6 @@
 import { PageSkeleton } from "@/components/loading-states";
+import { adminLoadingLabel } from "@/lib/admin-sections";
 
 export default function AdminAccessLoading() {
-  return <PageSkeleton variant="admin" label="Загрузка доступа и SSO" />;
+  return <PageSkeleton variant="admin" label={adminLoadingLabel("/admin/access")} />;
 }

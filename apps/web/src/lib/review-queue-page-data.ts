@@ -30,7 +30,13 @@ function reviewQueueHref(params: ReviewQueueSearchParams) {
 export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams): Promise<ReviewQueuePageData> {
   const user = await requireCurrentUserPermission("reviews:read");
   const filters = parseReviewQueueFilters(rawParams);
-  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
+  // Scope operators by their unique assigneeId, never the non-unique display
+  // name. The id-keyed scope is the authoritative fail-closed pin applied to
+  // every queue query below.
+  // NOTE: ReviewQueueScope (src/lib/review-repository.ts, owned by a parallel
+  // agent) must gain `assigneeId?: string` and honor it in scopedConversationWhere
+  // / buildReviewQueueWhere for this to compile and scope summary/filter-options.
+  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : undefined;
   const effectiveFilters = supportAgentScope ? { ...filters, assignee: user.name } : filters;
   const currentHref = reviewQueueHref(rawParams);
 

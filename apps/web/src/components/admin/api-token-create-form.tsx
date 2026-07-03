@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { CopyButton } from "@/components/copy-button";
+import { RequiredMark } from "@/components/ui/required-mark";
 import { createApiTokenFromForm, type CreateApiTokenState } from "@/lib/api-token-actions";
 import type { ApiScope } from "@/lib/api-auth";
 
@@ -46,7 +47,10 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
     <div className="grid gap-4">
       <form ref={formRef} action={formAction} className="grid gap-3">
         <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Название
+          <span>
+            Название
+            <RequiredMark />
+          </span>
           <input name="name" required minLength={2} maxLength={120} placeholder="Например, Helpdesk import" className="form-control" />
         </label>
 

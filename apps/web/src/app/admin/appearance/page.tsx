@@ -1,11 +1,11 @@
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 import { Suspense } from "react";
 import { AppearanceSettingsForm } from "@/components/admin/appearance-settings-form";
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { Chip } from "@/components/ui/chip";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { resolveUiAppearance } from "@/lib/ui-theme";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default function AdminAppearancePage() {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка оформления" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/appearance")} />}>
       <AdminAppearancePageContent />
     </Suspense>
   );
@@ -44,15 +44,9 @@ async function AdminAppearancePageContent() {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Внешний вид"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/appearance"]}
       description="Настройки применяются ко всему рабочему пространству: навигация, кнопки, панели, выбранные состояния и плотность используют один набор токенов. Палитры всегда светлые; тёмное оформление даёт отдельная тема Night Ops."
-      actions={
-        <Link href="/admin" className="action-button">
-          <ArrowLeft size={16} aria-hidden="true" />
-          К настройкам
-        </Link>
-      }
     >
       <AdminFrame>
         <section className="ops-panel" aria-labelledby="appearance-settings-title">

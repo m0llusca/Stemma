@@ -1,4 +1,4 @@
-import { ArrowUpRight, PlugZap } from "lucide-react";
+import { Activity, ArrowUpRight, Clock3, DownloadCloud, PlugZap } from "lucide-react";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
@@ -14,6 +14,8 @@ import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -348,7 +350,7 @@ function SourceIdentity({
 
 export default function AdminIntegrationsPage({ searchParams }: AdminIntegrationsPageProps) {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка интеграций" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/integrations")} />}>
       <AdminIntegrationsPageContent searchParams={searchParams} />
     </Suspense>
   );
@@ -556,7 +558,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
     {
       label: "Сертификация",
       value: `${certifiedSources}/${integrations.length}`,
-      detail: "Профиль коннектора и доказательства готовности.",
+      detail: "Профиль коннектора и свидетельства готовности.",
       tone: certifiedSources === integrations.length && integrations.length > 0 ? "ok" : "warn"
     },
     {
@@ -585,7 +587,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
       : activeSources.length === 0
         ? {
             title: "Подключить первый источник",
-            description: "Без источника обращения не попадут в очередь QA. Начните с мастера и не отмечайте live-готовность без сертификации.",
+            description: "Без источника обращения не попадут в очередь QA. Начните с мастера и не отмечайте готовность к боевому режиму без сертификации.",
             label: "Новый источник",
             href: "/admin/integrations/new",
             tone: "warning" as const
@@ -599,7 +601,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
               tone: "info" as const
             }
           : {
-              title: "Проверить readiness evidence",
+              title: "Проверить свидетельства готовности",
               description: "Источники настроены. Сверьте сертификацию, доступы и последний импорт перед расширением каталога.",
               label: "Открыть источники",
               href: integrationSectionHref("sources"),
@@ -608,24 +610,9 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="Интеграции"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/integrations"]}
       description="Операционный обзор источников: состояние подключений, последняя диагностика, проверочные запуски, импорт и фоновые задачи."
-      actions={
-        <>
-          <Link href="/admin/integrations/new" className="action-button action-button--primary">
-            <PlugZap size={16} aria-hidden="true" />
-            Новый источник
-          </Link>
-          <IntegrationQueueRunForm />
-          <Link href="/admin/tokens" className="action-button">
-            API-доступ
-          </Link>
-          <Link href="/reviews" className="action-button action-button--quiet">
-            Очередь проверок
-          </Link>
-        </>
-      }
     >
       <AdminFrame>
         <OperationalPageFrame
@@ -642,11 +629,13 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
       details={
         <>
 
-      <section className="integration-readiness-pipeline panel" aria-label="Пайплайн готовности интеграций">
-        <div className="integration-readiness-pipeline__lead">
-          <span className="page-kicker">Готовность источников</span>
-          <h2>Путь от доступа до мониторинга</h2>
-          <p>Каждый этап показывает, где источник еще не готов к надежному импорту обращений.</p>
+      <section className="ops-panel" aria-labelledby="readiness-pipeline-title">
+        <div className="ops-panel__header">
+          <div>
+            <p className="ops-panel__eyebrow">Готовность источников</p>
+            <h2 id="readiness-pipeline-title" className="ops-panel__title">Путь от доступа до мониторинга</h2>
+            <p className="ops-panel__subtitle">Каждый этап показывает, где источник еще не готов к надежному импорту обращений.</p>
+          </div>
         </div>
         <div className="integration-readiness-pipeline__stages">
           {readinessStages.map((stage) => (
@@ -659,18 +648,29 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         </div>
       </section>
 
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы интеграций">
-        {integrationSections.map((section) => (
-          <Link
-            key={section.value}
-            href={integrationSectionHref(section.value)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
+      <AdminSectionTabs
+        ariaLabel="Разделы интеграций"
+        items={integrationSections.map((section) => ({
+          href: integrationSectionHref(section.value),
+          label: section.label,
+          active: activeSection === section.value
+        }))}
+        actions={
+          <>
+            <Link href="/admin/integrations/new" className="action-button action-button--primary">
+              <PlugZap size={16} aria-hidden="true" />
+              Новый источник
+            </Link>
+            <IntegrationQueueRunForm />
+            <Link href="/admin/tokens" className="action-button">
+              API-доступ
+            </Link>
+            <Link href="/reviews" className="action-button action-button--quiet">
+              Очередь проверок
+            </Link>
+          </>
+        }
+      />
 
       {activeSection === "sources" ? (
         <section className="ops-panel" aria-labelledby="sources-title">
@@ -701,8 +701,8 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         ) : null}
         {integrations.length > 0 ? (
           <div className="ops-table-shell">
-            <div className="ops-table ops-table--integrations" role="table" aria-label="Подключенные источники">
-              <div className="ops-table__row ops-table__row--head" role="row">
+            <div className="ops-table ops-table--integrations">
+              <div className="ops-table__row ops-table__row--head">
                 <span>Источник</span>
                 <span>Состояние</span>
                 <span>Импорт</span>
@@ -724,7 +724,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                 const latestActivityStatus = latestRunStatus ?? latestJobStatus ?? latestDiagnosticStatus;
 
                 return (
-                  <article key={integration.id} className="ops-table__row admin-tile admin-tile--table" role="row">
+                  <article key={integration.id} className="ops-table__row admin-tile admin-tile--table">
 	                    <div className="ops-table__cell">
 	                      <span className="ops-table__label">Источник</span>
 	                      <SourceIdentity
@@ -862,7 +862,12 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                   );
                 })
               ) : (
-                <p className="integration-activity-empty">Запуски появятся после проверки или импорта.</p>
+                <EmptyState
+                  size="inline"
+                  icon={<DownloadCloud size={20} aria-hidden="true" />}
+                  title="Импортов ещё не было"
+                  description="Запуски появятся после первой проверки или импорта источника."
+                />
               )}
             </div>
           </section>
@@ -897,7 +902,12 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                   );
                 })
               ) : (
-                <p className="integration-activity-empty">Диагностик пока нет.</p>
+                <EmptyState
+                  size="inline"
+                  icon={<Activity size={20} aria-hidden="true" />}
+                  title="Диагностика не запускалась"
+                  description="Результаты появятся после первой проверки доступов на странице источника."
+                />
               )}
             </div>
           </section>
@@ -936,7 +946,12 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                   );
                 })
               ) : (
-                <p className="integration-activity-empty">В очереди интеграций пока нет задач.</p>
+                <EmptyState
+                  size="inline"
+                  icon={<Clock3 size={20} aria-hidden="true" />}
+                  title="Фоновых задач нет"
+                  description="Задачи появятся после постановки импорта в очередь обработчика."
+                />
               )}
             </div>
           </section>
@@ -960,15 +975,15 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
           </div>
         </div>
         <div className="ops-table-shell">
-          <div className="ops-table ops-table--catalog" role="table" aria-label="План источников">
-            <div className="ops-table__row ops-table__row--head" role="row">
+          <div className="ops-table ops-table--catalog">
+            <div className="ops-table__row ops-table__row--head">
               <span>Источник</span>
               <span>Готовность</span>
               <span>Авторизация</span>
               <span>Возможности</span>
             </div>
             {roadmapCapabilities.map((capability) => (
-              <div key={capability.source} className="ops-table__row" role="row">
+              <div key={capability.source} className="ops-table__row">
                 <div className="ops-table__cell">
                   <span className="ops-table__label">Источник</span>
                   <SourceIdentity
@@ -1013,7 +1028,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         </>
       }
       evidence={
-        <EvidenceDrawer title="Evidence readiness">
+        <EvidenceDrawer title="Свидетельства готовности">
           <div className="operational-evidence-grid">
             <div className="operational-evidence-item">
               <span>Источники</span>
@@ -1033,7 +1048,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             <div className="operational-evidence-item">
               <span>Каталог</span>
               <strong>{roadmapCapabilities.length}</strong>
-              <small>Следующие доступные connector profiles без live-оверлейминга.</small>
+              <small>Следующие доступные профили коннекторов без преждевременной отметки боевой готовности.</small>
             </div>
           </div>
         </EvidenceDrawer>

@@ -1,9 +1,8 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { AiProviderKeyExtraField } from "@/components/admin/ai-provider-key-form";
 import { AiScoringEnginePanel, type AiProviderConfig } from "@/components/admin/ai-scoring-engine-panel";
@@ -85,7 +84,7 @@ function providerSummary(view: AiCredentialView): string {
 
 export default function AdminAiScoringPage() {
   return (
-    <Suspense fallback={<PageSkeleton variant="admin" label="Загрузка настроек AI-оценки" />}>
+    <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/ai-scoring")} />}>
       <AdminAiScoringPageContent />
     </Suspense>
   );
@@ -123,15 +122,9 @@ async function AdminAiScoringPageContent() {
 
   return (
     <PageShell
-      eyebrow="Администрирование"
-      title="AI-оценка"
+      eyebrow={adminEyebrow}
+      title={adminSectionTitles["/admin/ai-scoring"]}
       description="Движок автоскоринга диалогов: YandexGPT, Claude (Anthropic) или ChatGPT (OpenAI). Выберите движок — его ключ и модель настраиваются тут же. Ключи шифруются и хранятся в базе по рабочему пространству, поэтому править .env вручную не нужно. Если ключ не задан, оценка переходит на детерминированный fallback без обращения к сети."
-      actions={
-        <Link href="/admin" className="action-button">
-          <ArrowLeft size={16} aria-hidden="true" />
-          К настройкам
-        </Link>
-      }
     >
       <AdminFrame>
         <section className="ops-panel" aria-labelledby="ai-scoring-title">

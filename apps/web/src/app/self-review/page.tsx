@@ -49,7 +49,9 @@ async function SelfReviewPageContent() {
     prisma.conversation.findMany({
       where: {
         workspaceId: user.workspaceId,
-        assigneeName: scopedToAgent ? user.name : undefined,
+        // Scope operators by their unique assigneeId (never the non-unique
+        // display name); assignments below already scope by assigneeId.
+        assigneeId: scopedToAgent ? user.id : undefined,
         qaStatus: "FINALIZED",
         reviews: { some: { reviewSource: "HUMAN", status: "FINALIZED" } }
       },

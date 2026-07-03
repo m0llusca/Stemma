@@ -11,6 +11,7 @@ import {
   Command,
   GraduationCap,
   Menu,
+  MessageSquareText,
   Scale,
   Search,
   SlidersHorizontal,
@@ -54,10 +55,13 @@ type AppNavShellProps = {
   } | null;
   branding?: WorkspaceBranding;
   areas?: ShellNavArea[];
+  /** Гейт быстрого действия «Взять кейс»: false для ролей без reviews:write. */
+  canTakeNextCase?: boolean;
 };
 
 const areaIcons = {
   today: Activity,
+  feedback: MessageSquareText,
   review: ClipboardCheck,
   calibration: Scale,
   coaching: GraduationCap,
@@ -78,7 +82,15 @@ function commandMatches(command: ShellCommandItem, query: string) {
   );
 }
 
-export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, branding = defaultNavBranding, areas = topNavAreas }: AppNavShellProps) {
+export function AppNavShell({
+  navigation,
+  pulseItems,
+  user,
+  demoSwitcher,
+  branding = defaultNavBranding,
+  areas = topNavAreas,
+  canTakeNextCase = true
+}: AppNavShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
@@ -342,68 +354,72 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
           </span>
         </Link>
 
-        <div className="app-nav__menu">
-          <button
-            ref={areaMenuTriggerRef}
-            type="button"
-            className="app-nav__menu-trigger"
-            aria-haspopup="menu"
-            aria-expanded={areaMenuOpen}
-            aria-label="Разделы"
-            onClick={() => setAreaMenuOpen((open) => !open)}
-          >
-            <Menu size={18} aria-hidden="true" />
-          </button>
-          {areaMenuOpen ? (
-            <div
-              ref={areaMenuRef}
-              className="app-nav__menu-popover"
-              role="menu"
-              aria-label="Основные разделы"
-              onKeyDown={handleAreaMenuKeyDown}
+        {areas.length > 0 ? (
+          <div className="app-nav__menu">
+            <button
+              ref={areaMenuTriggerRef}
+              type="button"
+              className="app-nav__menu-trigger"
+              aria-haspopup="menu"
+              aria-expanded={areaMenuOpen}
+              aria-label="Разделы"
+              onClick={() => setAreaMenuOpen((open) => !open)}
             >
-              {areas.map((area) => {
-                const Icon = areaIcons[area.icon];
-                const isActive = area.id === activeAreaId;
-
-                return (
-                  <Link
-                    key={area.id}
-                    href={area.href}
-                    role="menuitem"
-                    title={area.description}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`app-nav__menu-item ${isActive ? "app-nav__menu-item--active" : ""}`}
-                    onClick={closeAreaMenu}
-                  >
-                    <Icon size={16} aria-hidden="true" />
-                    <span>{area.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-
-        <nav className="app-nav__areas" aria-label="Основные разделы">
-          {areas.map((area) => {
-            const Icon = areaIcons[area.icon];
-            const isActive = area.id === activeAreaId;
-
-            return (
-              <Link
-                key={area.id}
-                href={area.href}
-                title={area.description}
-                aria-current={isActive ? "page" : undefined}
-                className={`app-nav__area ${isActive ? "app-nav__area--active" : ""}`}
+              <Menu size={18} aria-hidden="true" />
+            </button>
+            {areaMenuOpen ? (
+              <div
+                ref={areaMenuRef}
+                className="app-nav__menu-popover"
+                role="menu"
+                aria-label="Основные разделы"
+                onKeyDown={handleAreaMenuKeyDown}
               >
-                <Icon size={16} aria-hidden="true" />
-                <span>{area.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+                {areas.map((area) => {
+                  const Icon = areaIcons[area.icon];
+                  const isActive = area.id === activeAreaId;
+
+                  return (
+                    <Link
+                      key={area.id}
+                      href={area.href}
+                      role="menuitem"
+                      title={area.description}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`app-nav__menu-item ${isActive ? "app-nav__menu-item--active" : ""}`}
+                      onClick={closeAreaMenu}
+                    >
+                      <Icon size={16} aria-hidden="true" />
+                      <span>{area.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {areas.length > 0 ? (
+          <nav className="app-nav__areas" aria-label="Основные разделы">
+            {areas.map((area) => {
+              const Icon = areaIcons[area.icon];
+              const isActive = area.id === activeAreaId;
+
+              return (
+                <Link
+                  key={area.id}
+                  href={area.href}
+                  title={area.description}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`app-nav__area ${isActive ? "app-nav__area--active" : ""}`}
+                >
+                  <Icon size={16} aria-hidden="true" />
+                  <span>{area.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
 
         <button
           type="button"
@@ -426,10 +442,12 @@ export function AppNavShell({ navigation, pulseItems, user, demoSwitcher, brandi
               </Link>
             ))}
           </div>
-          <Link href="/reviews?status=unreviewed" className="app-nav__primary" aria-label="Взять следующий кейс">
-            <span className="app-nav__primary-label">Взять кейс</span>
-            <ArrowRight size={14} aria-hidden="true" />
-          </Link>
+          {canTakeNextCase ? (
+            <Link href="/reviews?status=unreviewed" className="app-nav__primary" aria-label="Взять следующий кейс">
+              <span className="app-nav__primary-label">Взять кейс</span>
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          ) : null}
         </div>
 
         {demoSwitcher ? (

@@ -76,6 +76,14 @@ vi.mock("@/lib/current-user", () => ({
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
 }));
 
+// AdminFrame is an async server component (resolves the role to gate the admin
+// sub-nav); React Testing Library can't render nested async server components,
+// so stub it to a passthrough — this test only asserts on the page content it
+// wraps, and the rail's role gating is covered by admin-subnav.test.ts.
+vi.mock("@/components/admin/admin-frame", () => ({
+  AdminFrame: ({ children }: { children: ReactNode }) => children
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
