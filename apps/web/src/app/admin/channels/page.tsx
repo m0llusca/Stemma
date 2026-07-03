@@ -1,4 +1,4 @@
-import { AlertTriangle, Send } from "lucide-react";
+import { AlertTriangle, MessageCircle, Plus, Send, Slack, UsersRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
@@ -18,6 +18,14 @@ import { maskSecret } from "@/lib/secrets";
 import type { StatusTone } from "@/lib/ui/status-tone";
 
 export const dynamic = "force-dynamic";
+
+/** Иконки каналов по kind — используются в списке и в диалоге «Добавить канал». */
+const messagingChannelIcons: Record<string, LucideIcon> = {
+  slack: Slack,
+  teams: UsersRound,
+  telegram: Send,
+  whatsapp: MessageCircle
+};
 
 function formatDate(value: Date | null | undefined) {
   if (!value) {
@@ -171,6 +179,10 @@ async function AdminChannelsPageContent() {
   const configuredChannelByKind = new Map(messagingChannels.map((channel) => [channel.kind, channel]));
   const activeActionChannels = messagingChannels.filter((channel) => channel.status === "active").length;
   const latestDeliveries = recentDeliveries.slice(0, 3);
+  const registryDefinitions = Object.values(messagingChannelRegistry);
+  // В основном списке — только каналы с записью в БД (любой статус); остальные подключаются через «Добавить канал».
+  const configuredDefinitions = registryDefinitions.filter((definition) => configuredChannelByKind.has(definition.kind));
+  const unconfiguredDefinitions = registryDefinitions.filter((definition) => !configuredChannelByKind.has(definition.kind));
 
   return (
     <PageShell
@@ -182,7 +194,57 @@ async function AdminChannelsPageContent() {
         <section className="ops-panel" aria-labelledby="channels-title">
           <div className="ops-panel__header">
             <h2 id="channels-title" className="ops-panel__title">Каналы</h2>
-            <StatusBadge label="Активны" value={activeActionChannels} tone={activeActionChannels > 0 ? "positive" : "neutral"} />
+            <div className="admin-actions">
+              <StatusBadge label="Активны" value={activeActionChannels} tone={activeActionChannels > 0 ? "positive" : "neutral"} />
+              <AdminDialog
+                triggerLabel={
+                  <>
+                    <Plus size={16} aria-hidden="true" />
+                    Добавить канал
+                  </>
+                }
+                title="Добавить канал"
+                description="Подключите Slack, Teams, Telegram или WhatsApp — уведомления начнут уходить после активации."
+              >
+                {unconfiguredDefinitions.length === 0 ? (
+                  <EmptyState
+                    size="inline"
+                    icon={<Send size={20} aria-hidden="true" />}
+                    title="Все каналы подключены"
+                    description="Все доступные каналы уже настроены — управляйте ими в списке."
+                  />
+                ) : (
+                  <div className="grid gap-4">
+                    {unconfiguredDefinitions.map((definition, index) => {
+                      const ChannelIcon = messagingChannelIcons[definition.kind] ?? Send;
+
+                      return (
+                        <div key={definition.kind} className={index > 0 ? "border-t border-[var(--border)] pt-4" : undefined}>
+                          <div className="setting-row__copy">
+                            <span className="setting-row__label">
+                              <ChannelIcon size={16} aria-hidden="true" />
+                              {definition.displayName}
+                            </span>
+                            <p className="setting-row__hint">
+                              {definition.capabilities.map(messagingCapabilityLabel).join(", ")} · {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
+                            </p>
+                          </div>
+                          <div className="mt-3">
+                            <MessagingChannelForm
+                              kind={definition.kind}
+                              displayName={definition.displayName}
+                              status="draft"
+                              maskedWebhook={null}
+                              hasSecret={false}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </AdminDialog>
+            </div>
           </div>
           <div className="px-5 pt-1">
             <StatStrip
@@ -205,34 +267,40 @@ async function AdminChannelsPageContent() {
             </div>
           ) : null}
           <div className="p-5 pt-2">
-            {Object.values(messagingChannelRegistry).length === 0 ? (
+            {configuredDefinitions.length === 0 ? (
               <EmptyState
                 size="inline"
                 icon={<Send size={20} aria-hidden="true" />}
-                title="Каналы недоступны"
-                description="Реестр каналов уведомлений пуст — доступные каналы появятся после обновления приложения."
+                title="Каналы не подключены"
+                description="Нажмите «Добавить канал» в шапке панели, чтобы подключить Slack, Teams, Telegram или WhatsApp."
               />
             ) : (
               <div className="setting-rows">
-                {Object.values(messagingChannelRegistry).map((definition) => {
+                {configuredDefinitions.map((definition) => {
                   const channel = configuredChannelByKind.get(definition.kind);
-                  const capabilities = channel ? parseCapabilities(channel.capabilities) : definition.capabilities;
-                  const webhookUrl = parseWebhookUrl(channel?.configJson);
+                  if (!channel) {
+                    return null;
+                  }
+
+                  const ChannelIcon = messagingChannelIcons[definition.kind] ?? Send;
+                  const capabilities = parseCapabilities(channel.capabilities);
+                  const webhookUrl = parseWebhookUrl(channel.configJson);
                   const maskedWebhook = maskSecret(webhookUrl);
-                  const hasSecret = Boolean(channel?.secretRef);
-                  const channelStatus = channel?.status ?? "draft";
+                  const hasSecret = Boolean(channel.secretRef);
+                  const channelStatus = channel.status;
                   const isActive = channelStatus === "active";
-                  const channelName = channel?.displayName ?? definition.displayName;
+                  const channelName = channel.displayName ?? definition.displayName;
 
                   return (
                     <div key={definition.kind} className="setting-row">
                       <div className="setting-row__copy">
                         <span className="setting-row__label">
+                          <ChannelIcon size={16} aria-hidden="true" />
                           {channelName}
-                          <StatusBadge
+                          <StatusBadge compact
                             label="Статус"
-                            value={channel ? messagingChannelStatusLabel(channelStatus) : "Не настроен"}
-                            tone={channel ? messagingChannelTone(channelStatus) : "neutral"}
+                            value={messagingChannelStatusLabel(channelStatus)}
+                            tone={messagingChannelTone(channelStatus)}
                           />
                         </span>
                         <p className="setting-row__hint">
@@ -240,15 +308,13 @@ async function AdminChannelsPageContent() {
                         </p>
                       </div>
                       <div className="setting-row__control">
-                        {channel ? (
-                          <form action={setMessagingChannelStatus}>
-                            <input type="hidden" name="kind" value={definition.kind} />
-                            <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
-                            <button type="submit" className="action-button action-button--small">
-                              {isActive ? "В черновик" : "Активировать"}
-                            </button>
-                          </form>
-                        ) : null}
+                        <form action={setMessagingChannelStatus}>
+                          <input type="hidden" name="kind" value={definition.kind} />
+                          <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
+                          <button type="submit" className="action-button action-button--small">
+                            {isActive ? "В черновик" : "Активировать"}
+                          </button>
+                        </form>
                         <AdminDialog
                           triggerLabel="Настроить"
                           triggerClassName="action-button action-button--small"
@@ -296,7 +362,7 @@ async function AdminChannelsPageContent() {
                         </p>
                       </div>
                       <div className="setting-row__control">
-                        <StatusBadge label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
+                        <StatusBadge compact label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
                         {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
                       </div>
                     </div>

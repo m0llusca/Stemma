@@ -1000,26 +1000,6 @@
   border-bottom: 0;
 }
 
-.empty-state {
-  display: grid;
-  min-width: 0;
-  gap: 6px;
-  padding: 24px 16px;
-  color: var(--muted);
-}
-
-.empty-state h3 {
-  color: var(--foreground);
-  font-size: 15px;
-  font-weight: 760;
-}
-
-.empty-state p {
-  max-width: 560px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
 .calibration-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

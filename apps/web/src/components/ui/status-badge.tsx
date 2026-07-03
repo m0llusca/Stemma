@@ -19,13 +19,32 @@ export function StatusBadge({
   label,
   value,
   tone = "neutral",
-  className
+  className,
+  compact = false
 }: {
   label: ReactNode;
   value: ReactNode;
   tone?: StatusTone;
   className?: string;
+  /**
+   * Компактный статус-чип: видимой подписи нет (значение самодостаточно —
+   * «Активен», «В очереди»), рендерится маленьким value-only чипом; подпись
+   * сохраняется в title. Канонический вид статусов в строках/таблицах админки.
+   */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <Chip
+        tone={chipToneForStatusTone[tone]}
+        size="xs"
+        value={value}
+        title={typeof label === "string" && typeof value === "string" ? `${label}: ${value}` : undefined}
+        className={className}
+      />
+    );
+  }
+
   return (
     <Chip
       tone={chipToneForStatusTone[tone]}

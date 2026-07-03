@@ -211,3 +211,88 @@ body[data-theme="ops"] .integration-activity-row .source-logo-mark img {
   filter: grayscale(1) brightness(1.35) opacity(0.7);
 }
 
+/* ---------------------------------------------------------------------------
+   Sources table (.ops-table--integrations): calm rows with a uniform vertical
+   rhythm. The base .ops-table grammar lives in 40-admin.css and stays there;
+   this file loads earlier, so every override below carries the extra
+   `.ops-table` compound to win on specificity, not on source order.
+--------------------------------------------------------------------------- */
+
+.ops-table.ops-table--integrations {
+  min-width: 960px;
+}
+
+/* One column plan for head and body rows: the head previously used the base
+   18px gutter / 12px gap while body rows used 16px / 10px, so the columns
+   drifted between header and content. Pin both to the same track. */
+.ops-table.ops-table--integrations .ops-table__row {
+  grid-template-columns: minmax(230px, 1.3fr) minmax(160px, 0.78fr) minmax(150px, 0.7fr) minmax(200px, 0.98fr) 132px;
+  gap: 12px;
+  padding-inline: 16px;
+}
+
+.ops-table.ops-table--integrations .ops-table__row:not(.ops-table__row--head) {
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.ops-table.ops-table--integrations .ops-table__cell {
+  align-content: start;
+  gap: 6px;
+}
+
+/* Status chips hug their text instead of stretching to the column width. */
+.ops-table.ops-table--integrations .ops-table__cell > .chip {
+  justify-self: start;
+}
+
+/* Secondary lines (hints, dates, counters): one quiet 12px voice. */
+.ops-table.ops-table--integrations .ops-table__cell .record-meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* The quiet "no runs yet" line keeps the first-row height of an xs status
+   chip, so rows with and without a chip share the same vertical rhythm. */
+.ops-table.ops-table--integrations .ops-cell-quiet {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+}
+
+/* Error counter turns red only when there is something to worry about. */
+.ops-table.ops-table--integrations .ops-count-error {
+  color: var(--danger);
+  font-weight: 740;
+}
+
+/* Actions: fixed-width column, flush right edge, identical stack per row. */
+.ops-table.ops-table--integrations .ops-table__row--head > span:last-child {
+  text-align: right;
+}
+
+.ops-table.ops-table--integrations .ops-table__cell--actions {
+  justify-content: end;
+  justify-items: end;
+  text-align: right;
+}
+
+.ops-table.ops-table--integrations .integration-action-stack {
+  justify-items: end;
+  gap: 6px;
+}
+
+/* Только формы самой колонки действий (> form): формы внутри вложенного
+   диалога редактирования не должны наследовать правое выравнивание. */
+.ops-table.ops-table--integrations .integration-action-stack > form {
+  margin-top: 0;
+  justify-items: end;
+}
+
+.ops-table.ops-table--integrations .integration-action-stack > .quiet-link,
+.ops-table.ops-table--integrations .integration-action-stack > button.quiet-link {
+  text-align: right;
+}
+

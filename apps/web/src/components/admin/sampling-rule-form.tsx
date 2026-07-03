@@ -6,23 +6,43 @@ import { RequiredMark } from "@/components/ui/required-mark";
 
 type Option = { value: string; label: string };
 
+/** Начальные значения для режима редактирования существующего правила. */
+type SamplingRuleInitial = {
+  id: string;
+  name: string;
+  type: string;
+  channel?: string;
+  csatBucket?: string;
+  supportLine?: string;
+  tag?: string;
+  targetPercent: number;
+  priority: number;
+  isActive: boolean;
+};
+
 type SamplingRuleFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   channelOptions: Option[];
   csatOptions: Option[];
   ruleTypeOptions: Option[];
+  /**
+   * Режим редактирования: предзаполняет все поля и отправляет форму с hidden
+   * ruleId (страница передаёт action={updateSamplingRule}). Без rule — режим
+   * создания, поведение прежнее.
+   */
+  rule?: SamplingRuleInitial;
 };
 
-export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleTypeOptions }: SamplingRuleFormProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState(ruleTypeOptions[0]?.value ?? "random");
-  const [channel, setChannel] = useState("");
-  const [csatBucket, setCsatBucket] = useState("");
-  const [supportLine, setSupportLine] = useState("");
-  const [tag, setTag] = useState("");
-  const [targetPercent, setTargetPercent] = useState(10);
-  const [priority, setPriority] = useState(100);
-  const [isActive, setIsActive] = useState(true);
+export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleTypeOptions, rule }: SamplingRuleFormProps) {
+  const [name, setName] = useState(rule?.name ?? "");
+  const [type, setType] = useState(rule?.type ?? ruleTypeOptions[0]?.value ?? "random");
+  const [channel, setChannel] = useState(rule?.channel ?? "");
+  const [csatBucket, setCsatBucket] = useState(rule?.csatBucket ?? "");
+  const [supportLine, setSupportLine] = useState(rule?.supportLine ?? "");
+  const [tag, setTag] = useState(rule?.tag ?? "");
+  const [targetPercent, setTargetPercent] = useState(rule?.targetPercent ?? 10);
+  const [priority, setPriority] = useState(rule?.priority ?? 100);
+  const [isActive, setIsActive] = useState(rule?.isActive ?? true);
 
   const conditions = useMemo(() => {
     const parts: Array<{ label: string; value: string }> = [];
@@ -40,6 +60,7 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
   return (
     <div className="sampling-create">
       <form action={action} className="sampling-create__form">
+        {rule ? <input type="hidden" name="ruleId" value={rule.id} /> : null}
         <div className="form-group">
           <p className="form-group__label">Сегмент</p>
           <div className="form-group__body">
@@ -135,7 +156,7 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
           {/* Единый паттерн сабмита (#17): кнопка всегда активна, полевые правила
               закрывает нативный required при отправке. */}
           <button type="submit" className="action-button action-button--primary">
-            Создать правило
+            {rule ? "Сохранить правило" : "Создать правило"}
           </button>
         </div>
       </form>

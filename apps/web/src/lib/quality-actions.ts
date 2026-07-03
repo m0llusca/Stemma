@@ -2,6 +2,7 @@
 
 import type { RiskLevel } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, canManageSamplingRules, canManageTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import type { FeedbackActionState } from "@/lib/feedback-actions";
@@ -78,6 +79,29 @@ export async function createKnowledgeEntryState(
   return { ok: true, toast: knowledgeEntryCreatedToastMessage, nonce: Date.now() };
 }
 
+/**
+ * Общий парсер полей формы правила выборки: create и update принимают одну и
+ * ту же форму (`SamplingRuleForm`), поэтому набор полей, дефолты и сериализация
+ * условий обязаны совпадать.
+ */
+function parseSamplingRuleFields(formData: FormData) {
+  const conditions = {
+    channel: stringField(formData, "channel") || undefined,
+    csatBucket: stringField(formData, "csatBucket") || undefined,
+    supportLine: stringField(formData, "supportLine") || undefined,
+    tag: stringField(formData, "tag") || undefined
+  };
+
+  return {
+    name: stringField(formData, "name"),
+    type: stringField(formData, "type") || "manual",
+    conditionsJson: JSON.stringify(conditions),
+    targetPercent: numberField(formData, "targetPercent", 10),
+    priority: numberField(formData, "priority", 100),
+    isActive: formData.get("isActive") === "on"
+  };
+}
+
 export async function createSamplingRule(formData: FormData) {
   const user = await getCurrentUser();
 
@@ -87,22 +111,57 @@ export async function createSamplingRule(formData: FormData) {
 
   await assertCanPersistSettings(user);
 
-  const conditions = {
-    channel: stringField(formData, "channel") || undefined,
-    csatBucket: stringField(formData, "csatBucket") || undefined,
-    supportLine: stringField(formData, "supportLine") || undefined,
-    tag: stringField(formData, "tag") || undefined
-  };
-
   await prisma.samplingRule.create({
     data: {
       workspaceId: user.workspaceId,
-      name: stringField(formData, "name"),
-      type: stringField(formData, "type") || "manual",
-      conditionsJson: JSON.stringify(conditions),
-      targetPercent: numberField(formData, "targetPercent", 10),
-      priority: numberField(formData, "priority", 100),
-      isActive: formData.get("isActive") === "on"
+      ...parseSamplingRuleFields(formData)
+    }
+  });
+
+  revalidatePath("/admin/sampling");
+}
+
+export async function updateSamplingRule(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!canManageSamplingRules(user.role)) {
+    throw new Error("Нет прав на правила выборки.");
+  }
+
+  await assertCanPersistSettings(user);
+
+  const id = stringField(formData, "ruleId");
+
+  if (!id) {
+    throw new Error("Не указано правило для обновления.");
+  }
+
+  const data = parseSamplingRuleFields(formData);
+
+  // where { id, workspaceId }: updateMany не даст изменить правило чужого
+  // workspace даже при подделанном ruleId — просто не найдёт запись.
+  const result = await prisma.samplingRule.updateMany({
+    where: { id, workspaceId: user.workspaceId },
+    data
+  });
+
+  if (result.count === 0) {
+    throw new Error("Правило не найдено.");
+  }
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "sampling_rule.updated",
+    targetType: "sampling_rule",
+    targetId: id,
+    metadata: {
+      name: data.name,
+      type: data.type,
+      conditionsJson: data.conditionsJson,
+      targetPercent: data.targetPercent,
+      priority: data.priority,
+      isActive: data.isActive
     }
   });
 

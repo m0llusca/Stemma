@@ -235,7 +235,7 @@ function renderReadinessItem(item: PhaseDReadinessItem) {
         <p className="setting-row__hint">{item.blockers.length > 0 ? item.blockers.slice(0, 3).join(" · ") : "Блокеров нет."}</p>
       </div>
       <div className="setting-row__control">
-        <StatusBadge label="Статус" value={item.label} tone={certificationTone(item.status)} />
+        <StatusBadge compact label="Статус" value={item.label} tone={certificationTone(item.status)} />
       </div>
     </div>
   );
@@ -559,7 +559,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                   <article key={job.id} className="record-card">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
+                        <StatusBadge compact label="Статус" value={status.label} tone={operationalTone(status.tone)} />
                         <h3 className="font-semibold text-[var(--foreground)]">{backendJobTypeLabel(job.type)}</h3>
                       </div>
                       <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -589,7 +589,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
               <h2 id="runtime-title" className="ops-panel__title">Готовность окружения</h2>
               <p className="ops-panel__subtitle">Проверки конфигурации перед рабочим запуском.</p>
             </div>
-            <StatusBadge label="Статус" value={runtimeStatusLabel(runtime.status)} tone={runtimeTone(runtime.status)} />
+            <StatusBadge compact label="Статус" value={runtimeStatusLabel(runtime.status)} tone={runtimeTone(runtime.status)} />
           </div>
           <div className="px-5 pb-5">
             <StatStrip
@@ -613,7 +613,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                     <p className="setting-row__hint">{check.message}</p>
                   </div>
                   <div className="setting-row__control">
-                    <StatusBadge label="Статус" value={runtimeStatusLabel(check.status)} tone={runtimeTone(check.status)} />
+                    <StatusBadge compact label="Статус" value={runtimeStatusLabel(check.status)} tone={runtimeTone(check.status)} />
                   </div>
                 </div>
               ))}
@@ -718,7 +718,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                     <div className="setting-row__copy">
                       <span className="setting-row__label">
                         {provider.name}
-                        <StatusBadge label="Статус" value={providerStatusLabel(provider.status)} tone={providerTone(provider.status)} />
+                        <StatusBadge compact label="Статус" value={providerStatusLabel(provider.status)} tone={providerTone(provider.status)} />
                       </span>
                       <p className="setting-row__hint tabular-nums">
                         {providerTypeLabel(provider.type)} · {provider.slug} · маппингов: {provider._count.groupRoleMappings} · сессий:{" "}
@@ -783,7 +783,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         {integration.lastError ? <p className="mt-1 text-sm font-medium text-[var(--danger)]">{integration.lastError}</p> : null}
                       </div>
                       <div className="setting-row__control">
-                        <StatusBadge label="Статус" value={integrationStatusLabel(integration.status)} tone={integrationTone(integration.status)} />
+                        <StatusBadge compact label="Статус" value={integrationStatusLabel(integration.status)} tone={integrationTone(integration.status)} />
                       </div>
                     </div>
                   ))}
@@ -811,7 +811,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                           {token.lastError ? <p className="mt-1 text-sm font-medium text-[var(--danger)]">{token.lastError}</p> : null}
                         </div>
                         <div className="setting-row__control">
-                          <StatusBadge
+                          <StatusBadge compact
                             label="Статус"
                             value={tokenHasError ? "Ошибка" : token.lastSuccessAt ? "Работает" : "Нет запусков"}
                             tone={tokenHasError ? "negative" : token.lastSuccessAt ? "positive" : "neutral"}

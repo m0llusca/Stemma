@@ -6,17 +6,23 @@ import { queueIntegrationImportState, type IntegrationImportActionState } from "
 
 const initialState: IntegrationImportActionState = null;
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
 
   return (
     <button type="submit" className="quiet-link text-sm" disabled={pending}>
-      {pending ? "Ставим в очередь" : "Запланировать импорт"}
+      {pending ? "Ставим в очередь" : label}
     </button>
   );
 }
 
-export function IntegrationImportQueueForm({ integrationId }: { integrationId: string }) {
+export function IntegrationImportQueueForm({
+  integrationId,
+  label = "Запланировать импорт"
+}: {
+  integrationId: string;
+  label?: string;
+}) {
   const [state, formAction] = useActionState(queueIntegrationImportState, initialState);
   const messageRef = useRef<HTMLParagraphElement>(null);
 
@@ -29,7 +35,7 @@ export function IntegrationImportQueueForm({ integrationId }: { integrationId: s
   return (
     <form action={formAction} className="mt-1 grid gap-1">
       <input type="hidden" name="integrationId" value={integrationId} />
-      <SubmitButton />
+      <SubmitButton label={label} />
       {state ? (
         <p
           ref={messageRef}

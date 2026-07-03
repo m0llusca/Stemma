@@ -9,13 +9,12 @@ import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { channelLabels, csatBucketLabels } from "@/lib/labels";
-import { createSamplingRule, updateSamplingRuleStatus } from "@/lib/quality-actions";
+import { createSamplingRule, updateSamplingRule, updateSamplingRuleStatus } from "@/lib/quality-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,37 +22,18 @@ type SamplingRulesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type SamplingSection = "rules" | "create";
-
-const samplingSections: Array<{ value: SamplingSection; label: string }> = [
-  { value: "rules", label: "Правила" }
-];
+/** Deep-link на открытое окно создания правила (используется и из коуч-подсказок). */
+const createRuleHref = "/admin/sampling?section=create";
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
   return firstValue?.trim() || undefined;
 }
 
-function samplingSectionParam(
-  value: string | string[] | undefined,
-  newValue: string | string[] | undefined
-): SamplingSection {
-  if (firstParam(newValue) === "1") {
-    return "create";
-  }
-
-  const section = firstParam(value);
-
-  // «create» — не вкладка контента, а deep-link на открытое окно создания правила.
-  if (section === "create") {
-    return "create";
-  }
-
-  return samplingSections.some((item) => item.value === section) ? (section as SamplingSection) : "rules";
-}
-
-function samplingSectionHref(section: SamplingSection) {
-  return `/admin/sampling?section=${section}`;
+// ?section=create и ?new=1 открывают окно создания поверх списка; любой другой
+// хвост (включая исторический ?section=rules) просто показывает страницу.
+function createDialogRequested(params: Record<string, string | string[] | undefined>) {
+  return firstParam(params.new) === "1" || firstParam(params.section) === "create";
 }
 
 function parseConditions(value: string) {
@@ -103,6 +83,11 @@ function formatConditions(conditions: Record<string, string | string[] | undefin
   return parts.join(" · ") || "Без условий";
 }
 
+/** Условие из JSON в значение поля формы: форма редактирует одиночные строки. */
+function conditionFieldValue(value: string | string[] | undefined) {
+  return (Array.isArray(value) ? value[0] : value) || undefined;
+}
+
 export default function SamplingRulesPage({ searchParams }: SamplingRulesPageProps) {
   return (
     <Suspense fallback={<PageSkeleton variant="admin" label={adminLoadingLabel("/admin/sampling")} />}>
@@ -113,10 +98,8 @@ export default function SamplingRulesPage({ searchParams }: SamplingRulesPagePro
 
 async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps) {
   const params = await searchParams;
-  const requestedSection = samplingSectionParam(params.section, params.new);
   // Deep-link ?section=create (или ?new=1) открывает окно создания поверх списка правил.
-  const createDialogOpen = requestedSection === "create";
-  const activeSection: SamplingSection = createDialogOpen ? "rules" : requestedSection;
+  const createDialogOpen = createDialogRequested(params);
   const user = await requireCurrentUserPermission("sampling:manage");
   const rules = await prisma.samplingRule.findMany({
     where: { workspaceId: user.workspaceId },
@@ -125,6 +108,11 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
   const activeRules = rules.filter((rule) => rule.isActive).length;
   const samplingSetupHint = activeRules > 0 ? null : getSettingCoachmark("sampling");
 
+  // Общие наборы опций для формы создания и построчных форм редактирования.
+  const channelOptions = Object.entries(channelLabels).map(([value, label]) => ({ value, label }));
+  const csatOptions = Object.entries(csatBucketLabels).map(([value, label]) => ({ value, label }));
+  const ruleTypeOptions = Object.entries(samplingRuleTypeLabels).map(([value, label]) => ({ value, label }));
+
   return (
     <PageShell
       eyebrow={adminEyebrow}
@@ -132,50 +120,6 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
       description="Управляют тем, какие обращения попадают в ручную проверку: случайная выборка, негативный CSAT, новые сотрудники и ручные сигналы."
     >
       <AdminFrame>
-      <AdminSectionTabs
-        ariaLabel="Разделы правил выборки"
-        items={samplingSections.map((section) => ({
-          href: samplingSectionHref(section.value),
-          label: section.label,
-          active: activeSection === section.value,
-          count: section.value === "rules" ? rules.length : undefined
-        }))}
-        actions={
-          <>
-            <AdminDialog
-              triggerLabel="Новое правило"
-              title="Новое правило выборки"
-              description="Настройте условия и долю обращений для ручной проверки."
-              defaultOpen={createDialogOpen}
-            >
-              {samplingSetupHint ? (
-                <div className="admin-setup-inline mb-4 rounded-[var(--radius-card)] border border-[var(--line-soft)]">
-                  <CoachCallout
-                    title="Сэмплируйте по тому, что важно"
-                    body="CSAT, канал, линия, тег и приоритет — это единый конструктор условий, а не разрозненные поля."
-                    variant="spotlight"
-                    placement="top"
-                    anchorLabel="Подсказка к созданию правила"
-                    stepIndex={2}
-                    dismissId="settings:sampling"
-                  />
-                </div>
-              ) : null}
-              <SamplingRuleForm
-                action={createSamplingRule}
-                channelOptions={Object.entries(channelLabels).map(([value, label]) => ({ value, label }))}
-                csatOptions={Object.entries(csatBucketLabels).map(([value, label]) => ({ value, label }))}
-                ruleTypeOptions={Object.entries(samplingRuleTypeLabels).map(([value, label]) => ({ value, label }))}
-              />
-            </AdminDialog>
-            <Link href="/reviews" className="action-button">
-              Очередь проверок
-            </Link>
-          </>
-        }
-      />
-
-      {activeSection === "rules" ? (
         <section className="ops-panel" aria-labelledby="sampling-rules-title">
           <div className="ops-panel__header">
             <div>
@@ -184,6 +128,37 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
               <p className="ops-panel__subtitle">
                 Активно: {activeRules} · всего: {rules.length}
               </p>
+            </div>
+            <div className="admin-actions">
+              <AdminDialog
+                triggerLabel="Новое правило"
+                title="Новое правило выборки"
+                description="Настройте условия и долю обращений для ручной проверки."
+                defaultOpen={createDialogOpen}
+              >
+                {samplingSetupHint ? (
+                  <div className="admin-setup-inline mb-4 rounded-[var(--radius-card)] border border-[var(--line-soft)]">
+                    <CoachCallout
+                      title="Сэмплируйте по тому, что важно"
+                      body="CSAT, канал, линия, тег и приоритет — это единый конструктор условий, а не разрозненные поля."
+                      variant="spotlight"
+                      placement="top"
+                      anchorLabel="Подсказка к созданию правила"
+                      stepIndex={2}
+                      dismissId="settings:sampling"
+                    />
+                  </div>
+                ) : null}
+                <SamplingRuleForm
+                  action={createSamplingRule}
+                  channelOptions={channelOptions}
+                  csatOptions={csatOptions}
+                  ruleTypeOptions={ruleTypeOptions}
+                />
+              </AdminDialog>
+              <Link href="/reviews" className="action-button">
+                Очередь проверок
+              </Link>
             </div>
           </div>
           <div className={samplingSetupHint ? "setup-guide-layout p-4" : "p-4"}>
@@ -214,6 +189,32 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                                 {rule.isActive ? "Выключить" : "Включить"}
                               </button>
                             </form>
+                            {/* Тумблер рядом — quiet-link, поэтому и «Изменить» в том же стиле. */}
+                            <AdminDialog
+                              triggerLabel="Изменить"
+                              triggerClassName="quiet-link text-sm"
+                              title={`Правило: ${rule.name}`}
+                              description="Обновите условия и долю обращений для ручной проверки."
+                            >
+                              <SamplingRuleForm
+                                action={updateSamplingRule}
+                                rule={{
+                                  id: rule.id,
+                                  name: rule.name,
+                                  type: rule.type,
+                                  channel: conditionFieldValue(conditions.channel),
+                                  csatBucket: conditionFieldValue(conditions.csatBucket),
+                                  supportLine: conditionFieldValue(conditions.supportLine),
+                                  tag: conditionFieldValue(conditions.tag),
+                                  targetPercent: rule.targetPercent,
+                                  priority: rule.priority,
+                                  isActive: rule.isActive
+                                }}
+                                channelOptions={channelOptions}
+                                csatOptions={csatOptions}
+                                ruleTypeOptions={ruleTypeOptions}
+                              />
+                            </AdminDialog>
                           </span>
                         </span>
                         <span>{samplingRuleTypeLabels[rule.type] ?? rule.type}</span>
@@ -233,7 +234,7 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                   title="Правил пока нет"
                   description="Добавьте правило, чтобы обращения автоматически попадали в очередь проверки."
                   action={
-                    <Link href={samplingSectionHref("create")} className="action-button action-button--small">
+                    <Link href={createRuleHref} className="action-button action-button--small">
                       Новое правило
                     </Link>
                   }
@@ -255,8 +256,6 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
             ) : null}
           </div>
         </section>
-      ) : null}
-
       </AdminFrame>
     </PageShell>
   );

@@ -22,6 +22,19 @@ describe("StatusBadge", () => {
     expect(badge?.textContent).toBe("SLA 31.05.2026");
   });
 
+  it("compact mode drops the visible label and renders an xs value-only chip", () => {
+    const { container } = render(<StatusBadge compact label="Статус" value="Активен" tone="positive" />);
+
+    // Видимой подписи «Статус» нет — значение самодостаточно.
+    expect(screen.queryByText("Статус")).toBeNull();
+    expect(screen.getByText("Активен")).toBeInTheDocument();
+
+    const chip = container.querySelector(".chip");
+    expect(chip).toHaveClass("chip--xs", "chip--success");
+    // Контекст подписи сохраняется для тултипа.
+    expect(chip).toHaveAttribute("title", "Статус: Активен");
+  });
+
   it("applies custom classes without replacing alignment classes", () => {
     const { container } = render(<StatusBadge label="Quality" value="94" tone="positive" className="queue-status" />);
     const badge = container.querySelector(".status-badge");

@@ -2526,6 +2526,9 @@
   display: grid;
   gap: 0;
   overflow: hidden;
+  /* Диалог рендерится в DOM у места вызова (иногда внутри правых колонок
+     таблиц) — выравнивание текста не должно наследоваться. */
+  text-align: start;
   border-radius: var(--radius-page);
   background: var(--panel);
   color: var(--foreground);

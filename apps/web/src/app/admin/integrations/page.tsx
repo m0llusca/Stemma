@@ -4,15 +4,18 @@ import { Suspense, type ReactNode } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { IntegrationImportQueueForm } from "@/components/integrations/integration-import-queue-form";
 import { IntegrationQueueRunForm } from "@/components/integrations/integration-queue-run-form";
+import { IntegrationSettingsForm } from "@/components/integrations/integration-settings-form";
 import { SourceLogoMark } from "@/components/integrations/source-logo-mark";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
+import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
@@ -70,6 +73,10 @@ function formatCompactDate(value: Date | null | undefined) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(value);
+}
+
+function formatCompactDateOrDash(value: Date | null | undefined) {
+  return value ? formatCompactDate(value) : "—";
 }
 
 function parsePayloadJson(value: string) {
@@ -167,6 +174,15 @@ function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone 
   if (tone === "error") return "negative";
   return "neutral";
 }
+
+/** Value-only chips in the sources table share the StatusBadge tone contract. */
+const chipToneByStatusTone: Record<StatusTone, ChipTone> = {
+  positive: "success",
+  warning: "warning",
+  negative: "danger",
+  info: "info",
+  neutral: "neutral"
+};
 
 function capabilityReadinessLabel(value: string) {
   const labels: Record<string, string> = {
@@ -733,7 +749,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                        href={`/admin/integrations/${integration.id}`}
 	                        meta={capabilityTypeLabel(integration.type)}
 	                        status={
-	                          <StatusBadge
+	                          <StatusBadge compact
 	                            label="Статус"
 	                            value={integrationStatusLabel(integration.status)}
 	                            tone={integrationTone(integration.status)}
@@ -743,43 +759,74 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
 	                    </div>
 	                    <div className="ops-table__cell">
                       <span className="ops-table__label">Состояние</span>
-                      <StatusBadge
-                        label="Готовность"
-                        value={compactCertificationLabel(capability.certification.summary.label)}
-                        tone={certificationTone(capability.certification.summary.status)}
-                      />
+                      <Chip
+                        size="xs"
+                        tone={chipToneByStatusTone[certificationTone(capability.certification.summary.status)]}
+                      >
+                        {compactCertificationLabel(capability.certification.summary.label)}
+                      </Chip>
                       <span className="record-meta compact-text">
                         {compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })} · {capabilityReadinessLabel(capability.readiness)}
                       </span>
                     </div>
                     <div className="ops-table__cell">
                       <span className="ops-table__label">Импорт</span>
-                      <span className="record-meta tabular-nums">Импорт {formatCompactDate(integration.lastImportAt)}</span>
-                      <span className="record-meta tabular-nums compact-text">Проверка {formatCompactDate(integration.lastDryRunAt)}</span>
+                      <span className="record-meta tabular-nums">Импорт: {formatCompactDateOrDash(integration.lastImportAt)}</span>
+                      <span className="record-meta tabular-nums">Проверка: {formatCompactDateOrDash(integration.lastDryRunAt)}</span>
                     </div>
                     <div className="ops-table__cell">
                       <span className="ops-table__label">Активность</span>
                       {latestActivityStatus ? (
-                        <StatusBadge
-                          label="Статус"
-                          value={latestActivityStatus.label}
-                          tone={operationalTone(latestActivityStatus.tone)}
-                        />
+                        <Chip size="xs" tone={chipToneByStatusTone[operationalTone(latestActivityStatus.tone)]}>
+                          {latestActivityStatus.label}
+                        </Chip>
                       ) : (
-                        <span className="record-meta">Запусков еще не было</span>
+                        <span className="record-meta ops-cell-quiet">Запусков не было</span>
                       )}
                       <span className="record-meta tabular-nums compact-text">
-                        проверено {syncState.progress.checkedCount} · импортировано {syncState.progress.importedCount} · ошибок {syncState.progress.errorCount}
+                        {syncState.progress.checkedCount} проверено · {syncState.progress.importedCount} импортировано ·{" "}
+                        <span className={syncState.progress.errorCount > 0 ? "ops-count-error" : undefined}>
+                          {syncState.progress.errorCount} ошибок
+                        </span>
                       </span>
                     </div>
                     <div className="ops-table__cell ops-table__cell--actions">
                       <span className="ops-table__label">Действия</span>
                       <div className="integration-action-stack">
-                        <Link href={`/admin/integrations/${integration.id}`} className="quiet-link text-sm">
+                        <Link href={`/admin/integrations/${integration.id}`} className="action-button action-button--small">
                           Открыть
                         </Link>
+                        {/* «Импорт» рядом — quiet-link, поэтому и «Изменить» в том же стиле. */}
+                        {integration.type === "otrs_family" ? (
+                          /* Generic-сохранение пересобирает configJson без TLS-блока
+                             (caBundle) — OTRS редактируется только на деталке, где
+                             специализированная форма делает корректный merge. */
+                          <Link href={`/admin/integrations/${integration.id}`} className="quiet-link text-sm">
+                            Изменить
+                          </Link>
+                        ) : (
+                          <AdminDialog
+                            triggerLabel="Изменить"
+                            triggerClassName="quiet-link text-sm"
+                            title={`Источник: ${integration.displayName}`}
+                            description="Обновите название, адрес и лимиты импорта. Секрет меняется только при вводе нового значения."
+                          >
+                            <IntegrationSettingsForm
+                              integration={{
+                                source: integration.source,
+                                displayName: integration.displayName,
+                                type: integration.type,
+                                baseUrl: integration.baseUrl,
+                                importLimit: integration.importLimit,
+                                batchSize: integration.batchSize,
+                                dateRangeDays: integration.dateRangeDays,
+                                configJson: integration.configJson
+                              }}
+                            />
+                          </AdminDialog>
+                        )}
                         {canQueueImport ? (
-                          <IntegrationImportQueueForm integrationId={integration.id} />
+                          <IntegrationImportQueueForm integrationId={integration.id} label="Импорт" />
                         ) : null}
                       </div>
                     </div>
@@ -849,9 +896,9 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       />
                       <div className="integration-activity-row__body">
                         <div className="integration-chip-list">
-                          <StatusBadge label="Запуск" value={runStatus.label} tone={operationalTone(runStatus.tone)} />
+                          <StatusBadge compact label="Запуск" value={runStatus.label} tone={operationalTone(runStatus.tone)} />
                           {job && jobStatus ? (
-                            <StatusBadge label="Задача" value={jobStatus.label} tone={operationalTone(jobStatus.tone)} />
+                            <StatusBadge compact label="Задача" value={jobStatus.label} tone={operationalTone(jobStatus.tone)} />
                           ) : null}
                         </div>
                         <span className="record-meta tabular-nums">
@@ -895,7 +942,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                         compact
                       />
                       <div className="integration-activity-row__body">
-                        <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
+                        <StatusBadge compact label="Статус" value={status.label} tone={operationalTone(status.tone)} />
                         <span className="record-meta compact-text tabular-nums">{formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}</span>
                       </div>
                     </Link>
@@ -936,7 +983,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                     <Link key={job.id} href={`/admin/system/jobs/${job.id}`} className="integration-activity-row">
                       <SourceIdentity source={source} name={sourceName} meta={`Задача ${job.id.slice(0, 8)}`} compact />
                       <div className="integration-activity-row__body">
-                        <StatusBadge label="Статус" value={status.label} tone={operationalTone(status.tone)} />
+                        <StatusBadge compact label="Статус" value={status.label} tone={operationalTone(status.tone)} />
                         <span className="record-meta tabular-nums">
                           {formatCompactDate(job.runAfter)} · попытка {job.attempts}/{job.maxAttempts}
                           {runId ? ` · запуск ${runId.slice(0, 8)}` : ""}
@@ -996,12 +1043,12 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                 <div className="ops-table__cell">
                   <span className="ops-table__label">Готовность</span>
                   <div className="integration-chip-list">
-                    <StatusBadge
+                    <StatusBadge compact
                       label="Готовность"
                       value={capability.certification.summary.label}
                       tone={certificationTone(capability.certification.summary.status)}
                     />
-                    <StatusBadge
+                    <StatusBadge compact
                       label="Этап"
                       value={capabilityReadinessLabel(capability.readiness)}
                       tone={readinessTone(capability.readiness)}

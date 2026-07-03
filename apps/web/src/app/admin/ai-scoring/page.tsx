@@ -136,7 +136,7 @@ async function AdminAiScoringPageContent() {
                 Сейчас активен: {scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider}.
               </p>
             </div>
-            <StatusBadge
+            <StatusBadge compact
               label="Состояние"
               value={usingFallback ? "Fallback" : "Провайдер активен"}
               tone={usingFallback ? "warning" : "positive"}

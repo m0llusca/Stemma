@@ -2,6 +2,7 @@ import { ListChecks, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { IntegrationSettingsForm } from "@/components/integrations/integration-settings-form";
 import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
@@ -16,6 +17,7 @@ import { CertificationEvidenceList } from "@/components/integrations/integration
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow } from "@/lib/admin-sections";
@@ -353,7 +355,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
               {capability.displayName} · {capability.authModes.map(authModeLabel).join(", ")}
             </p>
           </div>
-          <StatusBadge
+          <StatusBadge compact
             label="Готовность"
             value={capability.certification.summary.label}
             tone={certificationTone(capability.certification.summary.status)}
@@ -627,7 +629,7 @@ function NonOtrsIntegrationSummary({
                   <span className="admin-tile__body">
                     <span className="record-title record-title--tight">Job {job.id.slice(0, 8)}</span>
                     <span className="flex flex-wrap items-center gap-2">
-                      <StatusBadge label="Статус" value={status.label} tone={statusViewTone(status.tone)} />
+                      <StatusBadge compact label="Статус" value={status.label} tone={statusViewTone(status.tone)} />
                       <span className="record-meta tabular-nums">попытка {job.attempts}/{job.maxAttempts}</span>
                     </span>
                   </span>
@@ -731,6 +733,29 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
         }))}
         actions={
           <>
+            {integration.type !== "otrs_family" ? (
+              /* У OTRS своя форма подключения ниже на странице (корректный
+                 TLS-merge) — generic-диалог для него не показываем. */
+              <AdminDialog
+                triggerLabel="Изменить"
+                triggerClassName="action-button"
+                title={`Источник: ${integration.displayName}`}
+                description="Обновите название, адрес и лимиты импорта. Секрет меняется только при вводе нового значения."
+              >
+                <IntegrationSettingsForm
+                  integration={{
+                    source: integration.source,
+                    displayName: integration.displayName,
+                    type: integration.type,
+                    baseUrl: integration.baseUrl,
+                    importLimit: integration.importLimit,
+                    batchSize: integration.batchSize,
+                    dateRangeDays: integration.dateRangeDays,
+                    configJson: integration.configJson
+                  }}
+                />
+              </AdminDialog>
+            ) : null}
             <Link href="/admin/integrations/new" className="action-button">
               <Plus size={16} aria-hidden="true" />
               Новый источник
