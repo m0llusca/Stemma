@@ -3,6 +3,9 @@
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { cn } from "@/lib/utils";
 
 type QueueAdvancedFiltersProps = {
   activeCount: number;
@@ -44,18 +47,25 @@ export function QueueAdvancedFilters({
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="action-button queue-filterbar__advanced-button"
+        variant="outline"
+        className="queue-filterbar__advanced-button min-w-[196px] justify-start"
         aria-controls={panelId}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <SlidersHorizontal size={16} aria-hidden="true" />
+        <SlidersHorizontal size={16} aria-hidden="true" data-icon="inline-start" />
         <span>Точные фильтры</span>
-        <span className="queue-filterbar__advanced-count">{counterLabel}</span>
-        <ChevronDown className="queue-filterbar__advanced-chevron" size={15} aria-hidden="true" />
-      </button>
+        <Chip tone="neutral" className="queue-filterbar__advanced-count ml-1">
+          {counterLabel}
+        </Chip>
+        <ChevronDown
+          className={cn("queue-filterbar__advanced-chevron ml-auto transition-transform", open && "rotate-180")}
+          size={15}
+          aria-hidden="true"
+        />
+      </Button>
       {actions}
       <div id={panelId} className="queue-filterbar__advanced-panel" hidden={!open}>
         {children}

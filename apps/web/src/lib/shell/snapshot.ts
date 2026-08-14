@@ -1,7 +1,10 @@
 import type { RoleName } from "@prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { buildShellNavigation, type ShellNavigation } from "@/lib/shell/navigation";
-import { resolveWorkspaceBranding, type WorkspaceBranding } from "@/lib/ui-theme";
+import {
+  resolveWorkspaceBranding,
+  type WorkspaceBranding
+} from "@/lib/ui-branding";
 
 export type ShellSnapshot = {
   user: {

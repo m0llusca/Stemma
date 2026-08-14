@@ -4,7 +4,8 @@ import { LocalizationEditor } from "@/components/i18n/localization-editor";
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import {
   createLocaleAction,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/i18n/actions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { russianPlural } from "@/lib/reports/report-format";
 
 export const dynamic = "force-dynamic";
 
@@ -74,36 +76,41 @@ async function AdminLocalizationPageContent() {
       description="Управление языками рабочего пространства и публикацией переводов для интерфейсных ключей. Черновики можно сохранить отдельно от публикации."
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="localization-editor-title">
-          <div className="ops-panel__header">
-            <div className="min-w-0">
-              <p className="ops-panel__eyebrow">Рабочее пространство</p>
-              <h2 id="localization-editor-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
-              <p className="ops-panel__subtitle tabular-nums">
-                {locales.length} языков, {translationKeys.length} ключей. Публикация применяет текущий черновик выбранного языка.
-              </p>
+        <Card aria-labelledby="localization-editor-title">
+          <CardHeader className="border-b">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Рабочее пространство</p>
+                <CardTitle id="localization-editor-title">{workspace?.name ?? "Рабочее пространство"}</CardTitle>
+                <CardDescription className="tabular-nums">
+                  {russianPlural(locales.length, ["язык", "языка", "языков"])},{" "}
+                  {russianPlural(translationKeys.length, ["ключ", "ключа", "ключей"])}. Публикация применяет текущий черновик выбранного языка.
+                </CardDescription>
+              </div>
+              <Badge variant="secondary" className="shrink-0">
+                <Languages data-icon="inline-start" aria-hidden="true" />
+                i18n
+              </Badge>
             </div>
-            <Chip tone="neutral" size="sm" icon={<Languages size={13} aria-hidden="true" />}>
-              i18n
-            </Chip>
-          </div>
-
-          <LocalizationEditor
-            locales={locales}
-            translationKeys={translationKeys.map((translationKey) => ({
-              ...translationKey,
-              fullKey: `${translationKey.namespace}.${translationKey.key}`,
-              values: translationKey.values.map((value) => ({
-                ...value,
-                publishedAt: value.publishedAt?.toISOString() ?? null
-              }))
-            }))}
-            createLocaleAction={createLocaleAction}
-            saveDraftAction={saveTranslationDraftAction}
-            publishAction={publishTranslationAction}
-            rollbackAction={rollbackTranslationAction}
-          />
-        </section>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <LocalizationEditor
+              locales={locales}
+              translationKeys={translationKeys.map((translationKey) => ({
+                ...translationKey,
+                fullKey: `${translationKey.namespace}.${translationKey.key}`,
+                values: translationKey.values.map((value) => ({
+                  ...value,
+                  publishedAt: value.publishedAt?.toISOString() ?? null
+                }))
+              }))}
+              createLocaleAction={createLocaleAction}
+              saveDraftAction={saveTranslationDraftAction}
+              publishAction={publishTranslationAction}
+              rollbackAction={rollbackTranslationAction}
+            />
+          </CardContent>
+        </Card>
       </AdminFrame>
     </PageShell>
   );

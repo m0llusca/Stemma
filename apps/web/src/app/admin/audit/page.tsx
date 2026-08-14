@@ -2,10 +2,36 @@ import { ChevronDown, Filter, History, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatStrip } from "@/components/ui/stat-strip";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { PageShell } from "@/components/ui/page-shell";
+import { StatStrip } from "@/components/ui/stat-strip";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
@@ -22,14 +48,6 @@ const auditSections: Array<{ value: AuditSection; label: string }> = [
   { value: "events", label: "События" },
   { value: "tokens", label: "API-ключи" }
 ];
-
-/**
- * Колонки строки события: время · актор · действие · объект · детали.
- * Инлайн-стилем, потому что admin-data-table__row задаёт собственный
- * 4-колоночный шаблон, а CSS менять нельзя.
- */
-const auditEventGridColumns =
-  "minmax(96px, 0.55fr) minmax(104px, 0.85fr) minmax(150px, 1.7fr) minmax(100px, 0.85fr) auto";
 
 const shortDateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
@@ -294,191 +312,249 @@ async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
       description="События идут компактной лентой с фильтрами прямо над списком, а технические данные раскрываются внутри конкретной записи."
     >
       <AdminFrame>
-      <StatStrip
-        ariaLabel="Сводка журнала действий"
-        items={[
-          {
-            label: "событий",
-            value: totalLogs,
-            tone: hasFilters ? "accent" : "neutral",
-            hint: hasFilters ? "по текущему фильтру" : "за все время"
-          },
-          { label: "типов действий", value: actionRows.length },
-          { label: "типов объектов", value: targetTypeRows.length },
-          { label: "API-ключей", value: apiTokens.length, hint: "для сверки активности" }
-        ]}
-      />
+        <StatStrip
+          items={[
+            {
+              label: "событий",
+              value: totalLogs,
+              tone: hasFilters ? "accent" : "neutral",
+              hint: hasFilters ? "по текущему фильтру" : "за все время"
+            },
+            { label: "типов действий", value: actionRows.length },
+            { label: "типов объектов", value: targetTypeRows.length },
+            { label: "API-ключей", value: apiTokens.length, hint: "для сверки активности" }
+          ]}
+        />
 
-      <AdminSectionTabs
-        ariaLabel="Разделы журнала действий"
-        items={auditSections.map((section) => ({
-          href: auditSectionHref(section.value, action, targetType, start, end),
-          label: section.label,
-          active: activeSection === section.value,
-          count: section.value === "events" ? totalLogs : apiTokens.length
-        }))}
-      />
+        <AdminSectionTabs
+          ariaLabel="Разделы журнала действий"
+          items={auditSections.map((section) => ({
+            href: auditSectionHref(section.value, action, targetType, start, end),
+            label: section.label,
+            active: activeSection === section.value,
+            count: section.value === "events" ? totalLogs : apiTokens.length
+          }))}
+        />
 
-      {activeSection === "events" ? (
-        <section className="ops-panel" aria-labelledby="audit-events-title">
-          <div className="ops-panel__header">
-            <div>
-              <h2 id="audit-events-title" className="ops-panel__title">История действий</h2>
-              <p className="ops-panel__subtitle tabular-nums">
+        {activeSection === "events" ? (
+          <Card aria-labelledby="audit-events-title">
+            <CardHeader className="border-b">
+              <CardTitle id="audit-events-title" role="heading" aria-level={2}>
+                История действий
+              </CardTitle>
+              <CardDescription className="tabular-nums">
                 Страница {page} из {totalPages}
-              </p>
-            </div>
-            {hasFilters ? <Chip tone="accent" size="sm" icon={<Filter size={13} aria-hidden="true" />}>Фильтр активен</Chip> : null}
-          </div>
+              </CardDescription>
+              {hasFilters ? (
+                <CardAction>
+                  <Badge variant="outline" className="gap-1 border-transparent bg-primary/10 text-primary">
+                    <Filter size={13} aria-hidden="true" />
+                    Фильтр активен
+                  </Badge>
+                </CardAction>
+              ) : null}
+            </CardHeader>
 
-          <AutoSubmitFilterForm
-            action="/admin/audit"
-            className="flex flex-wrap items-end gap-3 border-b border-[var(--border)] px-5 py-4"
-          >
-            <input type="hidden" name="section" value="events" />
-            <input type="hidden" name="page" value="1" />
-            <label className="grid min-w-[180px] flex-1 gap-1 text-xs font-semibold text-[var(--text-body)]">
-              Действие
-              <select name="action" defaultValue={action ?? ""} className="form-control">
-                <option value="">Все</option>
-                {actionRows.map((row) => (
-                  <option key={row.action} value={row.action}>
-                    {auditActionLabel(row.action)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid min-w-[160px] flex-1 gap-1 text-xs font-semibold text-[var(--text-body)]">
-              Тип объекта
-              <select name="targetType" defaultValue={targetType ?? ""} className="form-control">
-                <option value="">Все</option>
-                {targetTypeRows.map((row) => (
-                  <option key={row.targetType} value={row.targetType}>
-                    {auditTargetTypeLabel(row.targetType)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid w-[142px] gap-1 text-xs font-semibold text-[var(--text-body)]">
-              С даты
-              <input type="date" name="start" defaultValue={dateInputValue(start)} className="form-control" />
-            </label>
-            <label className="grid w-[142px] gap-1 text-xs font-semibold text-[var(--text-body)]">
-              По дату
-              <input type="date" name="end" defaultValue={dateInputValue(end)} className="form-control" />
-            </label>
-            {hasFilters ? (
-              <Link href="/admin/audit?section=events" className="action-button action-button--small">
-                Сбросить
-              </Link>
-            ) : null}
-          </AutoSubmitFilterForm>
+            <AutoSubmitFilterForm
+              action="/admin/audit"
+              className="flex flex-wrap items-end gap-3 border-b border-border px-4 py-4"
+            >
+              <input type="hidden" name="section" value="events" />
+              <input type="hidden" name="page" value="1" />
+              <Field className="min-w-[180px] flex-1 gap-1.5">
+                <FieldLabel htmlFor="audit-action">Действие</FieldLabel>
+                <NativeSelect id="audit-action" name="action" defaultValue={action ?? ""} className="w-full">
+                  <NativeSelectOption value="">Все</NativeSelectOption>
+                  {actionRows.map((row) => (
+                    <NativeSelectOption key={row.action} value={row.action}>
+                      {auditActionLabel(row.action)}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field className="min-w-[160px] flex-1 gap-1.5">
+                <FieldLabel htmlFor="audit-target-type">Тип объекта</FieldLabel>
+                <NativeSelect
+                  id="audit-target-type"
+                  name="targetType"
+                  defaultValue={targetType ?? ""}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Все</NativeSelectOption>
+                  {targetTypeRows.map((row) => (
+                    <NativeSelectOption key={row.targetType} value={row.targetType}>
+                      {auditTargetTypeLabel(row.targetType)}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field className="w-[142px] gap-1.5">
+                <FieldLabel htmlFor="audit-start">С даты</FieldLabel>
+                <Input id="audit-start" type="date" name="start" defaultValue={dateInputValue(start)} />
+              </Field>
+              <Field className="w-[142px] gap-1.5">
+                <FieldLabel htmlFor="audit-end">По дату</FieldLabel>
+                <Input id="audit-end" type="date" name="end" defaultValue={dateInputValue(end)} />
+              </Field>
+              {hasFilters ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<Link href="/admin/audit?section=events" />}
+                  nativeButton={false}
+                >
+                  Сбросить
+                </Button>
+              ) : null}
+            </AutoSubmitFilterForm>
 
-          <div className="p-4">
-            {logs.length === 0 ? (
-              <EmptyState
-                size="inline"
-                icon={<History size={20} aria-hidden="true" />}
-                title="События не найдены"
-                description={hasFilters ? "Под текущий фильтр нет записей. Сбросьте условия отбора." : "Записей в журнале пока нет."}
-              />
-            ) : (
-              <div className="admin-data-table admin-data-table--compact" aria-label="События журнала">
-                <div className="admin-data-table__head" style={{ gridTemplateColumns: auditEventGridColumns }}>
-                  <span>Время</span>
-                  <span>Актор</span>
-                  <span>Действие</span>
-                  <span>Объект</span>
-                  <span aria-hidden="true" />
+            <CardContent className="p-0">
+              {logs.length === 0 ? (
+                <div className="p-4">
+                  <EmptyState
+                    size="inline"
+                    icon={<History size={20} aria-hidden="true" />}
+                    title="События не найдены"
+                    description={
+                      hasFilters
+                        ? "Под текущий фильтр нет записей. Сбросьте условия отбора."
+                        : "Записей в журнале пока нет."
+                    }
+                  />
                 </div>
-                {logs.map((log) => (
-                  <details key={log.id} className="group border-t border-[var(--line-soft)] first-of-type:border-t-0">
-                    <summary
-                      className="admin-data-table__row cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
-                      style={{ gridTemplateColumns: auditEventGridColumns }}
-                    >
-                      <time className="admin-data-table__muted tabular-nums" dateTime={log.createdAt.toISOString()}>
-                        {shortDateTimeFormat.format(log.createdAt)}
-                      </time>
-                      <span className="admin-data-table__muted truncate" title={log.actor?.name ?? undefined}>
-                        {log.actor?.name ?? "Система"}
-                      </span>
-                      <h3 className="admin-data-table__primary truncate" title={log.action}>
-                        {auditActionLabel(log.action)}
-                      </h3>
-                      <span className="truncate" title={log.targetType}>
-                        {auditTargetTypeLabel(log.targetType)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 justify-self-end text-xs font-bold text-[var(--accent-strong)]">
-                        Детали
-                        <ChevronDown size={13} aria-hidden="true" className="transition-transform group-open:rotate-180" />
-                      </span>
-                    </summary>
-                    <pre className="m-0 overflow-x-auto border-t border-dashed border-[var(--line-soft)] bg-[var(--panel-muted)] px-4 py-3 text-xs leading-5 text-[var(--text-body)]">
-                      <code>{parseMetadata(log.metadata)}</code>
-                    </pre>
-                  </details>
-                ))}
-              </div>
-            )}
-          </div>
+              ) : (
+                <Table aria-label="События журнала">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Время</TableHead>
+                      <TableHead>Актор</TableHead>
+                      <TableHead>Действие</TableHead>
+                      <TableHead>Объект</TableHead>
+                      <TableHead className="w-[1%] text-right">
+                        <span className="sr-only">Детали</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {logs.map((log) => (
+                      <TableRow key={log.id} className="align-top hover:bg-transparent">
+                        <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                          <time dateTime={log.createdAt.toISOString()}>
+                            {shortDateTimeFormat.format(log.createdAt)}
+                          </time>
+                        </TableCell>
+                        <TableCell className="max-w-[10rem] truncate text-muted-foreground" title={log.actor?.name ?? undefined}>
+                          {log.actor?.name ?? "Система"}
+                        </TableCell>
+                        <TableCell className="max-w-[16rem]">
+                          <div className="truncate font-medium" title={log.action}>
+                            {auditActionLabel(log.action)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[10rem] truncate" title={log.targetType}>
+                          {auditTargetTypeLabel(log.targetType)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Collapsible className="group text-left">
+                            <CollapsibleTrigger
+                              render={<Button variant="ghost" size="xs" />}
+                              className="justify-self-end"
+                            >
+                              Детали
+                              <ChevronDown
+                                size={13}
+                                aria-hidden="true"
+                                className="transition-transform group-data-open:rotate-180"
+                              />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <pre className="mt-2 max-w-[min(36rem,70vw)] overflow-x-auto rounded-lg border border-dashed border-border bg-muted/50 px-3 py-2 text-left text-xs leading-5 text-muted-foreground whitespace-pre-wrap">
+                                <code>{parseMetadata(log.metadata)}</code>
+                              </pre>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
 
-          <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-4 text-sm">
-            {page > 1 ? (
-              <Link href={buildAuditHref(page - 1, action, targetType, start, end)} className="action-button action-button--small">
-                Назад
-              </Link>
-            ) : (
-              <span className="text-[var(--text-muted)]">Назад</span>
-            )}
-            {page * pageSize < totalLogs ? (
-              <Link href={buildAuditHref(page + 1, action, targetType, start, end)} className="action-button action-button--small">
-                Вперед
-              </Link>
-            ) : (
-              <span className="text-[var(--text-muted)]">Вперед</span>
-            )}
-          </div>
-        </section>
-      ) : null}
+            <CardFooter className="justify-between gap-3 text-sm">
+              {page > 1 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<Link href={buildAuditHref(page - 1, action, targetType, start, end)} />}
+                  nativeButton={false}
+                >
+                  Назад
+                </Button>
+              ) : (
+                <span className="text-muted-foreground">Назад</span>
+              )}
+              {page * pageSize < totalLogs ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<Link href={buildAuditHref(page + 1, action, targetType, start, end)} />}
+                  nativeButton={false}
+                >
+                  Вперед
+                </Button>
+              ) : (
+                <span className="text-muted-foreground">Вперед</span>
+              )}
+            </CardFooter>
+          </Card>
+        ) : null}
 
-      {activeSection === "tokens" ? (
-        <section className="ops-panel" aria-labelledby="audit-api-title">
-          <div className="ops-panel__header">
-            <div>
-              <h2 id="audit-api-title" className="ops-panel__title">Активность API-ключей</h2>
-              <p className="ops-panel__subtitle">Последнее использование ключей рядом с событиями аудита.</p>
-            </div>
-            <Chip tone="neutral" size="sm" numeric>{apiTokens.length}</Chip>
-          </div>
-          <div className="grid gap-2 p-4">
-            <div className="grid gap-2 md:grid-cols-2 items-start">{apiTokens.map((token) => (
-              <article key={token.id} className="admin-tile admin-tile--compact">
-                <span className="admin-tile__icon admin-tile__icon--plain">K</span>
-                <div className="admin-tile__body">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="record-title record-title--tight">{token.name}</span>
-                    <Chip tone="neutral" size="xs">API</Chip>
-                  </span>
-                  <span className="record-meta font-mono compact-text">{token.tokenPrefix}</span>
-                  <span className="record-meta tabular-nums">Использование: {formatDate(token.lastUsedAt)} · успех: {formatDate(token.lastSuccessAt)}</span>
-                  <span className="record-meta compact-text tabular-nums">
-                    Ошибка: {token.lastError ? `${formatDate(token.lastErrorAt)} · ${token.lastError}` : "Нет"}
-                  </span>
+        {activeSection === "tokens" ? (
+          <Card aria-labelledby="audit-api-title">
+            <CardHeader className="border-b">
+              <CardTitle id="audit-api-title" role="heading" aria-level={2}>
+                Активность API-ключей
+              </CardTitle>
+              <CardDescription>Последнее использование ключей рядом с событиями аудита.</CardDescription>
+              <CardAction>
+                <Badge variant="secondary" className="tabular-nums">
+                  {apiTokens.length}
+                </Badge>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {apiTokens.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<KeyRound size={20} aria-hidden="true" />}
+                  title="Ключи еще не созданы"
+                  description="Активность появится здесь после создания первого API-ключа."
+                />
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {apiTokens.map((token) => (
+                    <Card key={token.id} size="sm" className="bg-muted/30">
+                      <CardContent className="flex flex-col gap-1.5 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-foreground">{token.name}</span>
+                          <Badge variant="secondary">API</Badge>
+                        </div>
+                        <span className="font-mono text-xs text-muted-foreground">{token.tokenPrefix}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          Использование: {formatDate(token.lastUsedAt)} · успех: {formatDate(token.lastSuccessAt)}
+                        </span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          Ошибка: {token.lastError ? `${formatDate(token.lastErrorAt)} · ${token.lastError}` : "Нет"}
+                        </span>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </article>
-            ))}</div>
-            {apiTokens.length === 0 ? (
-              <EmptyState
-                size="inline"
-                icon={<KeyRound size={20} aria-hidden="true" />}
-                title="Ключи еще не созданы"
-                description="Активность появится здесь после создания первого API-ключа."
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
       </AdminFrame>
     </PageShell>
   );

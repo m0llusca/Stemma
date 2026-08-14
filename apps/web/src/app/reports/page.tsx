@@ -1,4 +1,6 @@
 import {
+  AiAgreementPanel,
+  AiDriftPanel,
   CriterionHeatmapPanel,
   type CriterionHeatmapRow,
   type MetricInsightItem
@@ -16,13 +18,23 @@ import {
   ChartPanel,
   QuotaProgressBars,
   RankedList,
-  ScoreDistribution,
+  ScoreDistributionPanel,
   StackedBar
 } from "@/components/reports/report-charts";
-import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { PageShell, type PageShellTab } from "@/components/ui/page-shell";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
-import { ReportExportMenu, ReportPeriodControls } from "@/components/reports/report-command-bar";
+import { ReportExportMenu } from "@/components/reports/report-command-bar";
+import { ReportEvidenceSheet } from "@/components/reports/report-evidence-sheet";
+import { ReportParameterLens } from "@/components/reports/report-parameter-lens";
 import { ReportKpiRow } from "@/components/reports/report-kpi-row";
 import {
   DetailsIndexPanel,
@@ -49,10 +61,9 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import {
-  resolvePreviousReportPeriod,
   resolveReportPeriod
 } from "@/lib/report-period";
-import { buildScoreTrendRows, resolveReportTrendGranularity } from "@/lib/report-trends";
+import { buildScoreTrendRows } from "@/lib/report-trends";
 import { buildDeteriorationHighlights, buildImprovementHighlights } from "@/lib/report-improvements";
 import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 import {
@@ -72,11 +83,19 @@ import {
   scoreGroupRows
 } from "@/lib/reports/report-aggregation";
 import { ReasonTrendPanel, SentimentCorrelationPanel } from "@/components/reports/insight-correlation-panels";
-import { ReportSavedViews } from "@/components/reports/report-saved-views";
 import { listSavedReportViews } from "@/lib/saved-report-view";
 import { loadAiHumanAgreementReport } from "@/lib/ai-quality/agreement-report";
 import { loadAiScoreDriftReport } from "@/lib/ai-quality/drift-report";
 import { StatCard } from "@/components/ui/stat-card";
+import type { ChartView } from "@/components/charts/chart-view-links";
+import type { QualityTrendSeries } from "@/components/charts/quality-trend-chart.client";
+import {
+  buildAgreementBreakdownChart,
+  buildAiDriftChart,
+  buildQualityTrendModel,
+  buildReasonTimelineChart,
+  buildScoreDistributionChart
+} from "@/lib/reports/report-chart-models";
 import {
   formatAverageScore,
   formatCriterionCount,
@@ -86,15 +105,36 @@ import {
   reportHref,
   reportReviewHref,
   reportReviewRangeHref,
-  reportViewHref,
   reportViews,
-  resolveReportView,
   type ReportView
 } from "@/lib/reports/report-format";
 import {
+  buildReportAnalysisHref,
+  parseReportAnalysisState,
+  reportNavigationLinkProps,
+  serializeReportAnalysisState
+} from "@/lib/reports/report-analysis-state";
+import { loadReportFilterCatalog } from "@/lib/reports/report-filter-catalog";
+import {
+  buildReportAnalysisReviewWhere,
+  reportAnalysisScoreForReview,
+  reportFindingMatchesAnalysis,
+  reportReviewMatchesAnalysis,
+  reportScoreMatchesAnalysis,
+  resolveReportComparisonPeriod
+} from "@/lib/reports/report-analysis-filtering";
+import {
+  findReportEvidenceDescriptor,
+  resolveReportEvidence,
+  type ReportEvidenceDescriptorSelection
+} from "@/lib/reports/report-evidence";
+import {
+  buildTrustedReportEvidenceHref,
+  relinkReportChartModel,
+  relinkReportRows
+} from "@/lib/reports/report-evidence-links";
+import {
   loadFinalizedReviews,
-  loadPeriodFindings,
-  loadPreviousFinalizedReviews,
   reviewWhere
 } from "@/lib/reports/report-page-data";
 
@@ -103,6 +143,13 @@ export const dynamic = "force-dynamic";
 type ReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const qualityTrendSeriesOrder = [
+  "score",
+  "previous",
+  "target",
+  "volume"
+] as const satisfies readonly QualityTrendSeries[];
 
 export default function ReportsPage({ searchParams }: ReportsPageProps) {
   return (
@@ -115,44 +162,89 @@ export default function ReportsPage({ searchParams }: ReportsPageProps) {
 async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const user = await requireCurrentUserPermission("reports:read");
-  const period = resolveReportPeriod(params);
-  const previousPeriod = resolvePreviousReportPeriod(period);
-  const reportView = resolveReportView(params);
-  const trendGranularity = resolveReportTrendGranularity(params);
+  const filterCatalog = await loadReportFilterCatalog(user.workspaceId);
+  const analysisState = parseReportAnalysisState(params, filterCatalog);
+  const canonicalReportHref = serializeReportAnalysisState(analysisState);
+  const currentReportHref = buildReportAnalysisHref(
+    canonicalReportHref,
+    { evidenceType: null, evidenceKey: null },
+    filterCatalog
+  );
+  const evidenceLinkFor = (
+    selection: ReportEvidenceDescriptorSelection,
+    context: {
+      reasons?: readonly string[];
+      operators?: readonly string[];
+      criteria?: readonly string[];
+    } = {}
+  ) => {
+    const descriptor = findReportEvidenceDescriptor({
+      workspaceId: user.workspaceId,
+      state: analysisState,
+      catalog: filterCatalog,
+      reasons: context.reasons,
+      operators: context.operators,
+      criteria: context.criteria,
+      selection
+    });
+    return descriptor
+      ? {
+          descriptor,
+          href: buildTrustedReportEvidenceHref(
+            currentReportHref,
+            descriptor,
+            filterCatalog
+          )
+        }
+      : undefined;
+  };
+  const period = resolveReportPeriod({
+    period: analysisState.period,
+    start: analysisState.start,
+    end: analysisState.end
+  });
+  const comparisonPeriod = resolveReportComparisonPeriod(
+    period,
+    analysisState.compare
+  );
+  const previousPeriod = comparisonPeriod ?? period;
+  const reportView = analysisState.view;
+  const trendGranularity = analysisState.grain;
+  const chartView: ChartView = analysisState.chartView;
+  const visibleTrendSeries: readonly QualityTrendSeries[] =
+    qualityTrendSeriesOrder.filter((key) => analysisState.series.includes(key));
 
+  const analysisReviewWhere = buildReportAnalysisReviewWhere(
+    analysisState,
+    filterCatalog
+  );
+  const hasEntityFilters = Boolean(
+    analysisState.team ||
+      analysisState.source ||
+      analysisState.risk ||
+      analysisState.block
+  );
   const [
-    finalizedReviews,
-    previousReviews,
-    periodFindings,
-    previousPeriodFindings,
+    allFinalizedReviews,
+    allPreviousReviews,
     savedReportViews,
-    highRiskFindings,
     coachingBacklog,
     quotas,
     aiAgreement,
     aiDrift
   ] = await Promise.all([
     loadFinalizedReviews(user.workspaceId, period),
-    loadPreviousFinalizedReviews(user.workspaceId, previousPeriod),
-    loadPeriodFindings(user.workspaceId, period),
-    loadPeriodFindings(user.workspaceId, previousPeriod),
+    comparisonPeriod
+      ? loadFinalizedReviews(user.workspaceId, comparisonPeriod)
+      : Promise.resolve([]),
     listSavedReportViews(user.workspaceId, user.id),
-    prisma.finding.count({
-      where: {
-        riskLevel: {
-          in: ["HIGH", "CRITICAL"]
-        },
-        review: {
-          ...reviewWhere(user.workspaceId, period)
-        }
-      }
-    }),
     prisma.coachingAction.count({
       where: {
         status: "open",
         finding: {
           review: {
-            ...reviewWhere(user.workspaceId, period)
+            ...reviewWhere(user.workspaceId, period),
+            ...analysisReviewWhere
           }
         }
       }
@@ -165,9 +257,84 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       },
       orderBy: [{ supportLine: "asc" }, { assigneeName: "asc" }]
     }),
-    loadAiHumanAgreementReport(user.workspaceId, { since: period.start, until: period.end }),
-    loadAiScoreDriftReport(user.workspaceId, { since: period.start, until: period.end, bucket: "week" })
+    hasEntityFilters
+      ? Promise.resolve(null)
+      : loadAiHumanAgreementReport(user.workspaceId, {
+          since: period.start,
+          until: period.end
+        }),
+    hasEntityFilters
+      ? Promise.resolve(null)
+      : loadAiScoreDriftReport(user.workspaceId, {
+          since: period.start,
+          until: period.end,
+          bucket: "week"
+        })
   ]);
+  const finalizedReviews = allFinalizedReviews
+    .filter((review) =>
+      reportReviewMatchesAnalysis(review, analysisState, filterCatalog)
+    )
+    .map((review) => ({
+      ...review,
+      scores: review.scores.filter((score) =>
+        reportScoreMatchesAnalysis(score, analysisState, filterCatalog)
+      )
+    }));
+  const previousReviews = allPreviousReviews
+    .filter((review) =>
+      reportReviewMatchesAnalysis(review, analysisState, filterCatalog)
+    )
+    .map((review) => ({
+      ...review,
+      scores: review.scores.filter((score) =>
+        reportScoreMatchesAnalysis(score, analysisState, filterCatalog)
+      )
+    }));
+  const analysisScoreByReviewId = new Map(
+    finalizedReviews.map((review) => [
+      review.id,
+      reportAnalysisScoreForReview(review, analysisState, filterCatalog)
+    ])
+  );
+  const previousAnalysisScoreByReviewId = new Map(
+    previousReviews.map((review) => [
+      review.id,
+      reportAnalysisScoreForReview(review, analysisState, filterCatalog)
+    ])
+  );
+  const scoredFinalizedReviews = finalizedReviews.flatMap((review) => {
+    const score = analysisScoreByReviewId.get(review.id);
+    return score == null ? [] : [{ ...review, totalScore: score }];
+  });
+  const scoredPreviousReviews = previousReviews.flatMap((review) => {
+    const score = previousAnalysisScoreByReviewId.get(review.id);
+    return score == null ? [] : [{ ...review, totalScore: score }];
+  });
+  const periodFindings = finalizedReviews.flatMap((review) =>
+    review.findings
+      .filter((finding) =>
+        reportFindingMatchesAnalysis(finding, analysisState)
+      )
+      .map((finding) => ({
+        ...finding,
+        review: { finalizedAt: review.finalizedAt }
+      }))
+  );
+  const previousPeriodFindings = previousReviews.flatMap((review) =>
+    review.findings
+      .filter((finding) =>
+        reportFindingMatchesAnalysis(finding, analysisState)
+      )
+      .map((finding) => ({
+        ...finding,
+        review: { finalizedAt: review.finalizedAt }
+      }))
+  );
+  const highRiskFindings = periodFindings.filter(
+    (finding) =>
+      finding.riskLevel === "HIGH" || finding.riskLevel === "CRITICAL"
+  ).length;
   const sourceGroups = new Map<string, number[]>();
   const assigneeGroups = new Map<string, number[]>();
   const teamGroups = new Map<string, number[]>();
@@ -186,14 +353,17 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const previousTeamGroups = new Map<string, number[]>();
 
   for (const review of finalizedReviews) {
-    addScoreGroup(sourceGroups, review.conversation.externalSource, review.totalScore);
-    addScoreGroup(assigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
-    addScoreGroup(teamGroups, review.conversation.teamName ?? "Команда не указана", review.totalScore);
-    addScoreGroup(reviewerGroups, review.reviewer.name, review.totalScore);
+    const analysisScore = analysisScoreByReviewId.get(review.id);
+    if (analysisScore != null) {
+      addScoreGroup(sourceGroups, review.conversation.externalSource, analysisScore);
+      addScoreGroup(assigneeGroups, review.conversation.assigneeName ?? "Не назначен", analysisScore);
+      addScoreGroup(teamGroups, review.conversation.teamName ?? "Команда не указана", analysisScore);
+      addScoreGroup(reviewerGroups, review.reviewer.name, analysisScore);
+    }
     addCountGroup(samplingGroups, samplingTypeLabels[review.conversation.samplingType] ?? review.conversation.samplingType);
     addCountGroup(csatGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket);
-    if (review.conversation.csatBucket !== "NO_SCORE") {
-      addScoreGroup(csatScoreGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket, review.totalScore);
+    if (review.conversation.csatBucket !== "NO_SCORE" && analysisScore != null) {
+      addScoreGroup(csatScoreGroups, csatBucketLabels[review.conversation.csatBucket] ?? review.conversation.csatBucket, analysisScore);
     }
     addCountGroup(feedbackGroups, feedbackStatusLabels[review.feedbackStatus] ?? review.feedbackStatus);
     addCountGroup(appealGroups, appealStatusLabels[review.appealStatus] ?? review.appealStatus);
@@ -203,16 +373,21 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       addCountGroup(criticalCategoryGroups, review.criticalCategory ?? "Критическая ошибка");
     }
 
-    for (const finding of review.findings) {
+    for (const finding of review.findings.filter((item) =>
+      reportFindingMatchesAnalysis(item, analysisState)
+    )) {
       addCountGroup(categoryGroups, finding.category);
       addCountGroup(riskGroups, riskLevelLabels[finding.riskLevel]);
     }
   }
 
   for (const review of previousReviews) {
-    addScoreGroup(previousSourceGroups, review.conversation.externalSource, review.totalScore);
-    addScoreGroup(previousAssigneeGroups, review.conversation.assigneeName ?? "Не назначен", review.totalScore);
-    addScoreGroup(previousTeamGroups, review.conversation.teamName ?? "Команда не указана", review.totalScore);
+    const analysisScore = previousAnalysisScoreByReviewId.get(review.id);
+    if (analysisScore != null) {
+      addScoreGroup(previousSourceGroups, review.conversation.externalSource, analysisScore);
+      addScoreGroup(previousAssigneeGroups, review.conversation.assigneeName ?? "Не назначен", analysisScore);
+      addScoreGroup(previousTeamGroups, review.conversation.teamName ?? "Команда не указана", analysisScore);
+    }
   }
 
   const riskLevelByLabel = new Map(Object.entries(riskLevelLabels).map(([value, label]) => [label, value]));
@@ -339,16 +514,16 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   // Sentiment × QA-score correlation. sentiment is nullable until AI scoring
   // backfills it, so the aggregation tracks scored vs unscored for a partial state.
   const sentimentCorrelation = computeSentimentCorrelation(
-    finalizedReviews.map((review) => ({
+    scoredFinalizedReviews.map((review) => ({
       sentiment: review.conversation.sentiment,
       totalScore: review.totalScore
     }))
   );
-  const blockScoreRows = blockRows(finalizedReviews);
-  const previousBlockScoreRows = blockRows(previousReviews);
+  const blockScoreRows = blockRows(scoredFinalizedReviews);
+  const previousBlockScoreRows = blockRows(scoredPreviousReviews);
   const finalizedCount = finalizedReviews.length;
-  const previousAverageScore = averageScoreFor(previousReviews);
-  const averageScore = averageScoreFor(finalizedReviews);
+  const previousAverageScore = averageScoreFor(scoredPreviousReviews);
+  const averageScore = averageScoreFor(scoredFinalizedReviews);
   const weakestBlock = blockScoreRows
     .filter((row) => row.averageScore != null)
     .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))[0];
@@ -356,31 +531,225 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const reanswerCount = finalizedReviews.filter((review) => review.needsReanswer).length;
   const appealCount = finalizedReviews.filter((review) => review.appealStatus !== "none").length;
   const trendRows = buildScoreTrendRows(
-    finalizedReviews,
+    scoredFinalizedReviews,
     period,
     trendGranularity,
     (start, end) => reportReviewRangeHref(start, end)
   );
-  const distributionRows = scoreDistributionRows(finalizedReviews);
-  const operatorRankRows = rankedScoreRows(assigneeRows, previousAssigneeRows).map((row) => ({
+  const baseQualityTrendModel = buildQualityTrendModel({
+    // Gap days (count 0) render as null points and must not keep the queue
+    // drill-through href either: Enter on them has no data to show.
+    rows: trendRows.map((row) =>
+      row.count > 0 ? row : { ...row, href: undefined }
+    ),
+    previousAverageScore
+  });
+  // Empty day buckets carry no evidence href: resolving one would find zero
+  // rows and surface the "unavailable" safe state as a dead end, so Enter /
+  // «Показать данные» stay inactive on gap days (matching the null-gap visual).
+  const qualityTrendEvidenceLinks = trendRows.map((row) =>
+    row.count > 0
+      ? evidenceLinkFor({
+          evidenceType: "trend",
+          metric: "quality-score",
+          bucketStart: row.start.toISOString().slice(0, 10)
+        })
+      : undefined
+  );
+  const qualityTrendModel = relinkReportChartModel(
+    baseQualityTrendModel,
+    Object.fromEntries(
+      baseQualityTrendModel.points.flatMap((point, index) => {
+        const href = qualityTrendEvidenceLinks[index]?.href;
+        return href ? [[point.id, href]] : [];
+      })
+    )
+  );
+  let defaultTrendEvidenceLink = qualityTrendEvidenceLinks[0];
+  for (let index = trendRows.length - 1; index >= 0; index -= 1) {
+    if (trendRows[index]?.count && qualityTrendEvidenceLinks[index]) {
+      defaultTrendEvidenceLink = qualityTrendEvidenceLinks[index];
+      break;
+    }
+  }
+  const evidenceResult = await resolveReportEvidence({
+    user,
+    state: analysisState
+  });
+  const distributionRows = scoreDistributionRows(scoredFinalizedReviews);
+  const scoreDistributionBundle = buildScoreDistributionChart({
+    rows: distributionRows,
+    href: reportReviewHref(period)
+  });
+  const baseAiAgreementBundle = buildAgreementBreakdownChart({
+    report: aiAgreement,
+    period
+  });
+  const agreementCriterionIds =
+    aiAgreement?.criteria.map((criterion) => criterion.criterionId) ?? [];
+  const agreementEvidenceLinks: Map<
+    string,
+    NonNullable<ReturnType<typeof evidenceLinkFor>>
+  > = new Map(
+    hasEntityFilters
+      ? []
+      : agreementCriterionIds.flatMap((criterion) => {
+          const link = evidenceLinkFor(
+            {
+              evidenceType: "driver",
+              metric: "agreement",
+              facet: { criterion }
+            },
+            { criteria: agreementCriterionIds }
+          );
+          return link ? [[`agreement-${criterion}`, link] as const] : [];
+        })
+  );
+  const agreementEvidenceLink = agreementEvidenceLinks.values().next().value;
+  const aiAgreementBundle = {
+    ...baseAiAgreementBundle,
+    model: relinkReportChartModel(
+      baseAiAgreementBundle.model,
+      Object.fromEntries(
+        baseAiAgreementBundle.model.points.flatMap((point) => {
+          const link = agreementEvidenceLinks.get(point.id);
+          return link ? [[point.id, link.href]] : [];
+        })
+      )
+    )
+  };
+  const baseAiDriftBundle = buildAiDriftChart({
+    drift: aiDrift,
+    period
+  });
+  const aiDriftBundle = {
+    ...baseAiDriftBundle,
+    model: relinkReportChartModel(
+      baseAiDriftBundle.model,
+      Object.fromEntries(
+        baseAiDriftBundle.model.points.flatMap((point) => {
+          const evidenceLink = evidenceLinkFor({
+            evidenceType: "trend",
+            metric: "ai-confidence",
+            bucketStart: point.sortKey.slice(0, 10)
+          });
+          return evidenceLink ? [[point.id, evidenceLink.href]] : [];
+        })
+      )
+    )
+  };
+  const baseReasonTimelineBundle = buildReasonTimelineChart({
+    category: reasonTrendItems[0]?.category ?? "Нет причины",
+    period,
+    previousPeriod,
+    currentReviews: finalizedReviews,
+    previousReviews,
+    currentFindings: periodFindings,
+    previousFindings: previousPeriodFindings
+  });
+  const reasonEvidenceReasons = reasonTrendItems.map((item) => item.category);
+  const reasonTimelineBundle = {
+    ...baseReasonTimelineBundle,
+    model: relinkReportChartModel(
+      baseReasonTimelineBundle.model,
+      Object.fromEntries(
+        baseReasonTimelineBundle.model.points.flatMap((point) => {
+          const evidenceLink = evidenceLinkFor(
+            {
+              evidenceType: "trend",
+              metric: "reason-trend",
+              facet: { reason: reasonTrendItems[0]?.category },
+              bucketStart: point.sortKey.slice(0, 10)
+            },
+            { reasons: reasonEvidenceReasons }
+          );
+          return evidenceLink ? [[point.id, evidenceLink.href]] : [];
+        })
+      )
+    )
+  };
+  const workspaceOperators = [
+    ...new Set(
+      finalizedReviews
+        .map((review) => review.conversation.assigneeName?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
+  ].sort((left, right) => left.localeCompare(right, "ru-RU"));
+  const baseOperatorRankRows = rankedScoreRows(assigneeRows, previousAssigneeRows).map((row) => ({
     ...row,
+    key: row.label,
     value: Math.round(row.averageScore ?? 0),
     href: row.href,
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
-  const sourceRankRows = rankedScoreRows(sourceRows, previousSourceRows).map((row) => ({
+  const operatorRankRows = relinkReportRows(
+    baseOperatorRankRows,
+    Object.fromEntries(
+      baseOperatorRankRows.flatMap((row) => {
+        if (row.label === "Не назначен") return [];
+        const evidenceLink = evidenceLinkFor(
+          {
+            evidenceType: "driver",
+            metric: "operator-score",
+            facet: { operator: row.label }
+          },
+          { operators: workspaceOperators }
+        );
+        return evidenceLink ? [[row.key, evidenceLink.href]] : [];
+      })
+    )
+  );
+  const baseSourceRankRows = rankedScoreRows(sourceRows, previousSourceRows).map((row) => ({
     ...row,
+    key: row.label,
     value: Math.round(row.averageScore ?? 0),
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
-  const teamRankRows = rankedScoreRows(teamRows, previousTeamRows).map((row) => ({
+  const sourceRankRows = relinkReportRows(
+    baseSourceRankRows,
+    Object.fromEntries(
+      baseSourceRankRows.flatMap((row) => {
+        const source = filterCatalog.sources.find(
+          (candidate) => externalSourceLabel(candidate) === row.label
+        );
+        const evidenceLink = source
+          ? evidenceLinkFor({
+              evidenceType: "driver",
+              metric: "source-score",
+              facet: { source }
+            })
+          : undefined;
+        return evidenceLink ? [[row.key, evidenceLink.href]] : [];
+      })
+    )
+  );
+  const baseTeamRankRows = rankedScoreRows(teamRows, previousTeamRows).map((row) => ({
     ...row,
+    key: row.label,
     value: Math.round(row.averageScore ?? 0),
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
+  const teamRankRows = relinkReportRows(
+    baseTeamRankRows,
+    Object.fromEntries(
+      baseTeamRankRows.flatMap((row) => {
+        const team = filterCatalog.teams.find(
+          (candidate) => candidate.value === row.label
+        );
+        const evidenceLink = team
+          ? evidenceLinkFor({
+              evidenceType: "driver",
+              metric: "team-score",
+              facet: { team: team.slug }
+            })
+          : undefined;
+        return evidenceLink ? [[row.key, evidenceLink.href]] : [];
+      })
+    )
+  );
   const weakestAssigneeFocus = operatorRankRows[0];
   const weakestSourceFocus = sourceRankRows[0];
   const weakestTeamFocus = teamRankRows[0];
@@ -396,7 +765,19 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   ];
   const deteriorationItems = buildDeteriorationHighlights(movementSources);
   const improvementItems = buildImprovementHighlights(movementSources);
-  const riskStackSegments = riskSegments(riskGroups, period);
+  const highRiskEvidenceLink = evidenceLinkFor({
+    evidenceType: "kpi",
+    metric: "high-risk"
+  });
+  const baseRiskStackSegments = riskSegments(riskGroups, period).map(
+    (segment) => ({
+      ...segment,
+      key: segment.label
+    })
+  );
+  // Each stack segment keeps its exact risk-specific queue href. The combined
+  // HIGH+ evidence descriptor belongs only to the aggregate KPI.
+  const riskStackSegments = baseRiskStackSegments;
   const quotaProgressRows = quotas.map((quota) => {
     const actualReviews = finalizedReviews.filter(
       (review) =>
@@ -416,7 +797,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   });
   const plannedQuotaTotal = quotaProgressRows.reduce((sum, row) => sum + row.planned, 0);
   const actualQuotaTotal = quotaProgressRows.reduce((sum, row) => sum + row.actual, 0);
-  const quotaCompletionPercent = plannedQuotaTotal > 0
+  const quotaCompletionPercent = !hasEntityFilters && plannedQuotaTotal > 0
     ? Math.round((actualQuotaTotal / plannedQuotaTotal) * 100)
     : null;
   const totalFindings = categoryRows.reduce((sum, row) => sum + row.count, 0);
@@ -424,7 +805,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const coachingBacklogShare = finalizedCount > 0 ? Math.round((coachingBacklog / finalizedCount) * 100) : null;
   const topSource = sourceRows[0];
   const topSourceShare = topSource && finalizedCount > 0 ? Math.round((topSource.count / finalizedCount) * 100) : null;
-  const metricInsightItems: MetricInsightItem[] = [
+  const baseMetricInsightItems = [
     {
       label: "Риск HIGH+",
       value: String(highRiskFindings),
@@ -460,16 +841,31 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     },
     {
       label: "Норма",
-      value: quotaCompletionPercent == null ? "Нет плана" : `${quotaCompletionPercent}%`,
-      detail: quotaCompletionPercent == null ? "Нормы на период не заданы." : `${actualQuotaTotal} из ${plannedQuotaTotal} проверок`,
+      value: hasEntityFilters
+        ? "Недоступно"
+        : quotaCompletionPercent == null
+          ? "Нет плана"
+          : `${quotaCompletionPercent}%`,
+      detail: hasEntityFilters
+        ? "Нормы рассчитаны только для полной выборки."
+        : quotaCompletionPercent == null
+          ? "Нормы на период не заданы."
+          : `${actualQuotaTotal} из ${plannedQuotaTotal} проверок`,
       progress: quotaCompletionPercent,
       progressLabel: "выполнение",
-      explanation:
-        "Сравнивает фактически завершенные проверки с планом периода. Низкий процент означает риск непредставительной выборки: выводы по качеству лучше читать осторожнее.",
+      explanation: hasEntityFilters
+        ? "Сбросьте фильтры команды, источника, риска и блока, чтобы сопоставить факт с планом полной выборки."
+        : "Сравнивает фактически завершенные проверки с планом периода. Низкий процент означает риск непредставительной выборки: выводы по качеству лучше читать осторожнее.",
       tone: quotaCompletionPercent == null ? "neutral" : quotaCompletionPercent >= 100 ? "ok" : "warn",
       href: reportHref(period, { view: "details" })
     }
-  ];
+  ] satisfies MetricInsightItem[];
+  const metricInsightItems: MetricInsightItem[] = relinkReportRows(
+    baseMetricInsightItems.map((item) => ({ ...item, key: item.label })),
+    highRiskEvidenceLink
+      ? { "Риск HIGH+": highRiskEvidenceLink.href }
+      : {}
+  );
   const criterionHeatmapRows: CriterionHeatmapRow[] = blockScoreRows.map((row) => ({
     label: row.label,
     score: row.averageScore ?? null,
@@ -488,20 +884,27 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const agentReviewCounts = new Map<string, number>();
   for (const review of finalizedReviews) {
     const agent = review.conversation.assigneeName ?? "Не назначен";
-    agentReviewCounts.set(agent, (agentReviewCounts.get(agent) ?? 0) + 1);
     const perBlock = agentBlockScores.get(agent) ?? new Map<string, number[]>();
+    let hasApplicableScore = false;
 
     for (const score of review.scores) {
       const percent = criterionEarnedPercent(score);
       if (percent == null) {
         continue;
       }
+      hasApplicableScore = true;
       addScoreGroup(perBlock, score.criterion.block, percent);
       addScoreGroup(teamBlockScores, score.criterion.block, percent);
     }
 
-    agentBlockScores.set(agent, perBlock);
+    if (hasApplicableScore) {
+      agentReviewCounts.set(agent, (agentReviewCounts.get(agent) ?? 0) + 1);
+      agentBlockScores.set(agent, perBlock);
+    }
   }
+  const matrixEvidenceLinks = [] as Array<
+    NonNullable<ReturnType<typeof evidenceLinkFor>>
+  >;
   const matrixRows: CriterionMatrixRow[] = Array.from(agentBlockScores.entries())
     .map(([agent, perBlock]) => {
       const cells: CriterionMatrixRow["cells"] = {};
@@ -509,10 +912,34 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       for (const column of matrixColumns) {
         const scores = perBlock.get(column.key) ?? [];
         const value = average(scores);
+        const block = filterCatalog.blocks.find(
+          (candidate) => candidate.value === column.key
+        );
+        const evidenceLink =
+          agent !== "Не назначен" && block
+            ? evidenceLinkFor(
+                {
+                  evidenceType: "matrix",
+                  metric: "operator-block",
+                  facet: {
+                    operator: agent,
+                    block: block.slug
+                  }
+                },
+                { operators: workspaceOperators }
+              )
+            : undefined;
+        if (evidenceLink) {
+          matrixEvidenceLinks.push(evidenceLink);
+        }
         cells[column.key] = {
           value,
           count: scores.length,
-          href: agent === "Не назначен" ? undefined : reportReviewHref(period, { assignee: agent })
+          href:
+            evidenceLink?.href ??
+            (agent === "Не назначен"
+              ? undefined
+              : reportReviewHref(period, { assignee: agent }))
         };
       }
 
@@ -606,8 +1033,16 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     },
     {
       label: "Норма проверок",
-      value: plannedQuotaTotal > 0 ? `${actualQuotaTotal}/${plannedQuotaTotal}` : "Нет плана",
-      detail: quotaCompletionPercent == null ? "Нормы на период пока не заданы." : `${quotaCompletionPercent}% выполнения по плану периода.`,
+      value: hasEntityFilters
+        ? "Недоступно"
+        : plannedQuotaTotal > 0
+          ? `${actualQuotaTotal}/${plannedQuotaTotal}`
+          : "Нет плана",
+      detail: hasEntityFilters
+        ? "Нормы рассчитаны только для полной выборки."
+        : quotaCompletionPercent == null
+          ? "Нормы на период пока не заданы."
+          : `${quotaCompletionPercent}% выполнения по плану периода.`,
       href: reportHref(period, { view: "details" }),
       tone: quotaCompletionPercent == null ? "neutral" : quotaCompletionPercent >= 100 ? "ok" : "warn"
     }
@@ -621,8 +1056,10 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     },
     {
       label: "Норма",
-      value: String(quotas.length),
-      detail: "План и факт проверок",
+      value: hasEntityFilters ? "—" : String(quotas.length),
+      detail: hasEntityFilters
+        ? "Недоступно для активного среза"
+        : "План и факт проверок",
       href: "#details-quotas"
     },
     {
@@ -744,40 +1181,103 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         };
   const [scoreHero, ...scoreUnitParts] = formatAverageScore(averageScore).split(" ");
   const scoreUnit = scoreUnitParts.join(" ") || undefined;
-  // Trend sparkline for the hero KPI: indigo line over muted volume bars.
-  const trendPoints = trendRows.map((row) => ({ label: row.label, value: row.value }));
-  const trendVolume = trendRows.map((row) => row.count);
-
   // PageShell tabs replace the old standalone view selector. Counts ride along
   // as pills; hrefs preserve the period + trend granularity.
+  const currentChartHref = canonicalReportHref;
+  const defaultEvidenceLink =
+    reportView === "overview"
+      ? defaultTrendEvidenceLink
+      : reportView === "performance"
+        ? matrixEvidenceLinks[0] ?? agreementEvidenceLink
+        : reportView === "process"
+          ? highRiskEvidenceLink
+          : matrixEvidenceLinks[0] ?? agreementEvidenceLink;
+  const resolvedEvidenceIdentity =
+    analysisState.evidenceType && analysisState.evidenceKey
+      ? `${analysisState.evidenceType}:${analysisState.evidenceKey}`
+      : null;
+  const defaultEvidenceIdentity = defaultEvidenceLink
+    ? `${defaultEvidenceLink.descriptor.evidenceType}:${defaultEvidenceLink.descriptor.key}`
+    : null;
+  const defaultEvidence =
+    defaultEvidenceLink && defaultEvidenceIdentity
+      ? {
+          identity: defaultEvidenceIdentity,
+          result:
+            resolvedEvidenceIdentity === defaultEvidenceIdentity
+              ? evidenceResult
+              : await resolveReportEvidence({
+                  user,
+                  state: {
+                    ...analysisState,
+                    evidenceType:
+                      defaultEvidenceLink.descriptor.evidenceType,
+                    evidenceKey: defaultEvidenceLink.descriptor.key
+                  }
+                })
+        }
+      : undefined;
+  const evidenceFocusHeadingId =
+    reportView === "overview"
+      ? "chart-quality-overview-title"
+      : reportView === "performance"
+        ? hasEntityFilters || analysisState.evidenceType === "matrix"
+          ? "criterion-matrix-title"
+          : analysisState.evidenceType === "trend"
+            ? "chart-ai-drift-title"
+            : "chart-ai-human-agreement-title"
+        : reportView === "process"
+          ? reasonTrendItems.length > 0
+            ? "chart-reason-timeline-title"
+            : "reason-trend-title"
+          : "details-analysis-title";
   const shellTabs: PageShellTab[] = reportViews.map((item) => ({
     label: item.label,
-    href: reportViewHref(period, item.id, trendGranularity),
+    href: reportNavigationLinkProps(
+      currentReportHref,
+      { view: item.id },
+      filterCatalog
+    ).href,
     active: item.id === reportView,
-    count: viewCounts[item.id]
+    count: viewCounts[item.id],
+    prefetch: false
   }));
   const activeView = reportViews.find((item) => item.id === reportView) ?? reportViews[0];
-  // Canonical href the "save this view" control persists: the resolved period,
-  // active tab and trend granularity. Matches the tab hrefs so a saved view
-  // highlights as active when re-opened.
-  const currentReportHref = reportViewHref(period, reportView, trendGranularity);
 
   return (
     <PageShell
-      eyebrow="Контроль качества"
       title="Аналитика качества"
       description={`${activeView.description}. ${period.label}: ${formatPeriod(period)}.`}
       actions={<ReportExportMenu period={period} />}
       tabs={shellTabs}
+      className="[&_[id]]:scroll-mt-[calc(var(--app-topbar-height)+4rem)]"
     >
-      <ReportPeriodControls
-        period={period}
-        previousPeriod={previousPeriod}
-        view={reportView}
-        trendGranularity={trendGranularity}
+      <ReportParameterLens
+        currentHref={currentReportHref}
+        state={analysisState}
+        catalog={filterCatalog}
+        savedViews={savedReportViews}
       />
 
-      <ReportSavedViews currentHref={currentReportHref} savedViews={savedReportViews} />
+      <ReportEvidenceSheet
+        evidence={evidenceResult}
+        open={Boolean(
+          analysisState.evidenceType && analysisState.evidenceKey
+        )}
+        resolvedEvidenceIdentity={
+          resolvedEvidenceIdentity
+        }
+        defaultEvidence={defaultEvidence}
+        openHref={defaultEvidenceLink?.href ?? currentReportHref}
+        closeHref={currentReportHref}
+        chartHeadingId={evidenceFocusHeadingId}
+      >
+        {defaultEvidenceLink ? (
+          <Button variant="outline" size="sm" className="self-start">
+            Показать данные выбранного среза
+          </Button>
+        ) : undefined}
+      </ReportEvidenceSheet>
 
       <TriageStrip
         tone={triageTone}
@@ -785,10 +1285,14 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         title={reportAction.title}
         description={reportAction.description}
         action={
-          <Link href={reportAction.href} className="action-button action-button--primary">
+          <Button
+            render={<Link href={reportAction.href} prefetch={false} />}
+            nativeButton={false}
+            size="sm"
+          >
             <span>{reportAction.label}</span>
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
+            <ArrowRight data-icon="inline-end" aria-hidden="true" />
+          </Button>
         }
       />
 
@@ -805,9 +1309,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
                 : `${formatReviewCount(finalizedCount)} · было ${formatAverageScore(previousAverageScore)}`
             }
             scoreHref={reportReviewHref(period)}
-            trendPoints={trendPoints}
-            trendVolume={trendVolume}
-            trendAriaLabel="Тренд средней оценки по периоду"
             items={metricInsightItems}
           />
 
@@ -823,33 +1324,43 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "overview" ? (
-        <div className="grid gap-[18px] items-start xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <section
+          aria-label="Динамика качества и факторы"
+          className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+        >
           <PrimaryScorePanel
             finalizedCount={finalizedCount}
             previousCount={previousReviews.length}
-            trendRows={trendRows}
-            period={period}
+            model={qualityTrendModel}
+            visibleSeries={visibleTrendSeries}
+            view={chartView}
+            currentHref={currentChartHref}
+            periodLabel={formatPeriod(period)}
           />
           <PeriodMovementPanel
             negativeItems={deteriorationItems}
             positiveItems={improvementItems}
             driverItems={driverStackItems}
+            view={chartView}
+            currentHref={currentChartHref}
+            periodLabel={formatPeriod(period)}
           />
-        </div>
+        </section>
       ) : null}
 
       {reportView === "overview" ? (
-        <div className="grid gap-[18px] items-start xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-          <ChartPanel
-            title="Распределение оценок"
-            description="Сколько проверок попало в каждый диапазон."
-            actionHref={reportReviewHref(period)}
-            actionLabel="Список"
-          >
-            <ScoreDistribution rows={distributionRows} />
-          </ChartPanel>
+        <section
+          aria-label="Распределение оценок и связь с CSAT"
+          className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+        >
+          <ScoreDistributionPanel
+            bundle={scoreDistributionBundle}
+            view={chartView}
+            currentHref={currentChartHref}
+            periodLabel={formatPeriod(period)}
+          />
           <SentimentCorrelationPanel correlation={sentimentCorrelation} actionHref={reportReviewHref(period)} />
-        </div>
+        </section>
       ) : null}
 
       {reportView === "performance" ? (
@@ -868,206 +1379,72 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "performance" ? (
-        <section className="panel criterion-matrix-panel overflow-clip" aria-labelledby="criterion-matrix-title">
-          <div className="criterion-matrix-panel__header">
-            <div className="min-w-0">
-              <p className="page-kicker">Матрица</p>
-              <h2 id="criterion-matrix-title" className="criterion-matrix-panel__title">Операторы × критерии</h2>
-              <p className="criterion-matrix-panel__desc">
+        <Card className="overflow-hidden" aria-labelledby="criterion-matrix-title">
+          <CardHeader className="border-b">
+            <div className="min-w-0 flex flex-col gap-1">
+              <CardDescription>Матрица</CardDescription>
+              <CardTitle id="criterion-matrix-title">Операторы × критерии</CardTitle>
+              <p className="text-sm text-muted-foreground">
                 Pass-rate по блокам критериев для каждого оператора. Закрепленная строка — среднее по команде; слабые операторы и блоки подняты выше.
               </p>
             </div>
-            <Link href={reportHref(period, { view: "details" })} className="chart-panel__action">
-              Таблицы
-            </Link>
-          </div>
-          <div className="criterion-matrix-panel__body">
+            <CardAction>
+              <Button
+                render={<Link href={reportHref(period, { view: "details" })} />}
+                nativeButton={false}
+                variant="outline"
+                size="sm"
+              >
+                Таблицы
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="pt-(--card-spacing)">
             <CriterionMatrix
               columns={matrixColumns}
               rows={matrixRows}
               teamAverage={matrixTeamAverage}
+              scrollRegionLabelledBy="criterion-matrix-title"
             />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {reportView === "performance" && hasEntityFilters ? (
+        <Card>
+          <CardHeader>
+            <CardDescription>AI-аналитика</CardDescription>
+            <CardTitle>Недоступна для активного среза</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Согласие и дрейф AI рассчитываются только для выборки всего
+              пространства. Сбросьте фильтры команды, источника, риска и блока.
+            </p>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      {reportView === "performance" && !hasEntityFilters ? (
+        <AiAgreementPanel
+          report={aiAgreement}
+          bundle={aiAgreementBundle}
+          view={chartView}
+          currentHref={currentChartHref}
+          periodLabel={formatPeriod(period)}
+        />
+      ) : null}
+
+      {reportView === "performance" && !hasEntityFilters ? (
+        <AiDriftPanel
+          report={aiDrift}
+          bundle={aiDriftBundle}
+          view={chartView}
+          currentHref={currentChartHref}
+          periodLabel={formatPeriod(period)}
+        />
       ) : null}
 
       {reportView === "performance" ? (
-        <section className="panel" aria-labelledby="ai-agreement-title">
-          <div className="criterion-matrix-panel__header">
-            <div className="min-w-0">
-              <p className="page-kicker">AI-качество</p>
-              <h2 id="ai-agreement-title" className="criterion-matrix-panel__title">AI↔человек: согласие</h2>
-              <p className="criterion-matrix-panel__desc">
-                Насколько AI-оценка совпадает с решениями проверяющих по каждому критерию. Учитываются финализированные ревью и реальная AI-оценка (детерминированный fallback исключён); критерии с наибольшим расхождением подняты выше.
-              </p>
-            </div>
-          </div>
-          <div className="p-5 pt-0">
-            {!aiAgreement || aiAgreement.aggregate.comparedCount === 0 ? (
-              <p className="record-meta">
-                Нет данных для сравнения за период: нужны финализированные ревью проверяющих и реальная AI-оценка (не fallback) по тем же обращениям.
-              </p>
-            ) : (
-              <>
-                <div className="system-section-summary system-section-summary--three">
-                  <StatCard
-                    label="Согласие AI и людей"
-                    value={`${Math.round((aiAgreement.aggregate.agreementRate ?? 0) * 100)}%`}
-                    hint={`${aiAgreement.aggregate.agreeCount} из ${aiAgreement.aggregate.comparedCount} совпадений по критериям`}
-                    tone={
-                      (aiAgreement.aggregate.agreementRate ?? 0) >= 0.8
-                        ? "positive"
-                        : (aiAgreement.aggregate.agreementRate ?? 0) >= 0.6
-                          ? "warning"
-                          : "negative"
-                    }
-                  />
-                  <StatCard
-                    label="Сравнено диалогов"
-                    value={aiAgreement.aiComparedConversations}
-                    hint={`из ${aiAgreement.reviewsConsidered} финализированных ревью`}
-                    tone="info"
-                  />
-                  <StatCard
-                    label="Ср. расхождение (1–3)"
-                    value={aiAgreement.aggregate.meanScaleDelta != null ? aiAgreement.aggregate.meanScaleDelta.toFixed(2) : "—"}
-                    hint="Средняя |AI − человек| по балльным критериям"
-                    tone={
-                      aiAgreement.aggregate.meanScaleDelta == null
-                        ? "neutral"
-                        : aiAgreement.aggregate.meanScaleDelta <= 0.3
-                          ? "positive"
-                          : aiAgreement.aggregate.meanScaleDelta <= 0.7
-                            ? "warning"
-                            : "negative"
-                    }
-                  />
-                </div>
-                <div className="record-list mt-4">
-                  {aiAgreement.criteria.map((row) => (
-                    <article key={row.criterionId} className="record-card">
-                      <div className="record-row">
-                        <div className="min-w-0">
-                          <h3 className="record-title">{row.label}</h3>
-                          <p className="record-meta mt-1">
-                            {row.block} · сравнений: {row.comparedCount}
-                            {row.meanScaleDelta != null ? ` · ср. расхождение ${row.meanScaleDelta.toFixed(2)}` : ""}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-lg font-semibold tabular-nums">
-                          {row.agreementRate != null ? `${Math.round(row.agreementRate * 100)}%` : "—"}
-                        </span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-      ) : null}
-
-      {reportView === "performance" ? (
-        <section className="panel" aria-labelledby="ai-drift-title">
-          <div className="criterion-matrix-panel__header">
-            <div className="min-w-0">
-              <p className="page-kicker">AI-качество</p>
-              <h2 id="ai-drift-title" className="criterion-matrix-panel__title">Дрейф AI-оценки</h2>
-              <p className="criterion-matrix-panel__desc">
-                Как меняются средняя уверенность модели и доля детерминированного fallback по неделям. Регрессии — заметное падение уверенности или всплеск доли fallback между соседними периодами — подняты отдельно.
-              </p>
-            </div>
-          </div>
-          <div className="p-5 pt-0">
-            {!aiDrift || aiDrift.buckets.length === 0 ? (
-              <p className="record-meta">
-                Нет данных для анализа дрейфа за период: за это время не создавалось AI-оценок.
-              </p>
-            ) : (
-              (() => {
-                const latest = aiDrift.buckets[aiDrift.buckets.length - 1];
-                return (
-                  <>
-                    <div className="system-section-summary system-section-summary--three">
-                      <StatCard
-                        label="Уверенность (посл. период)"
-                        value={latest.meanConfidence != null ? `${Math.round(latest.meanConfidence * 100)}%` : "—"}
-                        hint={`${latest.periodStart} · оценок: ${latest.count}`}
-                        tone={
-                          latest.meanConfidence == null
-                            ? "neutral"
-                            : latest.meanConfidence >= 0.8
-                              ? "positive"
-                              : latest.meanConfidence >= 0.6
-                                ? "warning"
-                                : "negative"
-                        }
-                      />
-                      <StatCard
-                        label="Доля fallback (посл. период)"
-                        value={`${Math.round(latest.fallbackRate * 100)}%`}
-                        hint="Детерминированный движок вместо LLM"
-                        tone={
-                          latest.fallbackRate <= 0.2
-                            ? "positive"
-                            : latest.fallbackRate <= 0.5
-                              ? "warning"
-                              : "negative"
-                        }
-                      />
-                      <StatCard
-                        label="Регрессии"
-                        value={aiDrift.regressions.length}
-                        hint="Падения уверенности и всплески fallback"
-                        tone={aiDrift.regressions.length === 0 ? "positive" : "negative"}
-                      />
-                    </div>
-                    {aiDrift.regressions.length > 0 ? (
-                      <div className="record-list mt-4">
-                        {aiDrift.regressions.map((regression, index) => (
-                          <article key={`${regression.periodStart}-${regression.kind}-${index}`} className="record-card">
-                            <div className="record-row">
-                              <div className="min-w-0">
-                                <h3 className="record-title text-[var(--danger)]">
-                                  {regression.kind === "confidence_drop" ? "Падение уверенности" : "Всплеск fallback"}
-                                </h3>
-                                <p className="record-meta mt-1">
-                                  {regression.periodStart} · {regression.detail}
-                                </p>
-                              </div>
-                              <AlertTriangle size={18} aria-hidden="true" className="shrink-0 text-[var(--danger)]" />
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="record-list mt-4">
-                      {aiDrift.buckets.map((bucket) => (
-                        <article key={bucket.periodStart} className="record-card">
-                          <div className="record-row">
-                            <div className="min-w-0">
-                              <h3 className="record-title">{bucket.periodStart}</h3>
-                              <p className="record-meta mt-1">
-                                оценок: {bucket.count} · уверенность {bucket.meanConfidence != null ? `${Math.round(bucket.meanConfidence * 100)}%` : "—"} · fallback {Math.round(bucket.fallbackRate * 100)}%
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-lg font-semibold tabular-nums">
-                              {bucket.meanConfidence != null ? `${Math.round(bucket.meanConfidence * 100)}%` : "—"}
-                            </span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()
-            )}
-          </div>
-        </section>
-      ) : null}
-
-      {reportView === "performance" ? (
-        <div className="reports-panel-grid reports-panel-grid--four">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <ChartPanel title="По операторам" description="Нижние средние оценки первыми." actionHref={reportReviewHref(period)} actionLabel="Разобрать">
             <RankedList rows={operatorRankRows} valueFormatter={formatQualityScore} actionLabel="Открыть" />
           </ChartPanel>
@@ -1084,15 +1461,24 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
             actionHref={reportHref(period, { view: "details" })}
             actionLabel="Таблица"
           />
-          <ChartPanel title="Выполнение норм" description="Факт проверок против плана периода." actionHref={reportReviewHref(period)} actionLabel="Факт">
-            <QuotaProgressBars rows={quotaProgressRows} />
+          <ChartPanel
+            title="Выполнение норм"
+            description={
+              hasEntityFilters
+                ? "Недоступно для активного среза: нормы заданы для полной выборки."
+                : "Факт проверок против плана периода."
+            }
+            actionHref={reportReviewHref(period)}
+            actionLabel="Факт"
+          >
+            <QuotaProgressBars rows={hasEntityFilters ? [] : quotaProgressRows} />
           </ChartPanel>
         </div>
       ) : null}
 
       {reportView === "process" ? (
         <>
-          <div className="reports-panel-grid reports-panel-grid--three">
+          <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
             <ChartPanel
               title="Профиль рисков"
               description="Доля замечаний по уровню риска."
@@ -1104,22 +1490,31 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
             <BreakdownTable title="Категории" rows={categoryRows} countLabel="Замечаний" />
             <BreakdownTable title="Критические ошибки" rows={criticalCategoryRows} countLabel="Ошибок" />
           </div>
-          <ReasonTrendPanel rows={reasonTrendItems} />
-          <div className="metric-strip" aria-label="Скорость обратной связи">
-            <div className="metric-strip__item">
-              <div className="metric-strip__label">Медиана до ознакомления</div>
-              <div className="metric-strip__value">{medianAckHours != null ? formatAckDuration(medianAckHours) : "—"}</div>
-            </div>
-            <div className="metric-strip__item">
-              <div className="metric-strip__label">Ознакомлены за 48 ч</div>
-              <div className="metric-strip__value">{ackWithin48Percent != null ? `${ackWithin48Percent}%` : "—"}</div>
-            </div>
-            <div className="metric-strip__item">
-              <div className="metric-strip__label">Ожидают ответа оператора</div>
-              <div className="metric-strip__value">{pendingFeedbackCount}</div>
-            </div>
+          <ReasonTrendPanel
+            rows={reasonTrendItems}
+            bundle={reasonTimelineBundle}
+            view={chartView}
+            currentHref={currentChartHref}
+            periodLabel={formatPeriod(period)}
+          />
+          <div className="grid gap-3 sm:grid-cols-3" aria-label="Скорость обратной связи">
+            <StatCard
+              label="Медиана до ознакомления"
+              value={medianAckHours != null ? formatAckDuration(medianAckHours) : "—"}
+              hint="Время от финализации до подтверждения"
+            />
+            <StatCard
+              label="Ознакомлены за 48 ч"
+              value={ackWithin48Percent != null ? `${ackWithin48Percent}%` : "—"}
+              hint="Доля операторов, ответивших за двое суток"
+            />
+            <StatCard
+              label="Ожидают ответа оператора"
+              value={pendingFeedbackCount}
+              hint="Финализированные проверки без ответа"
+            />
           </div>
-          <div className="reports-panel-grid reports-panel-grid--three">
+          <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
             <BreakdownTable title="Обратная связь" rows={feedbackRows} countLabel="Проверок" />
             <BreakdownTable title="Апелляции" rows={appealRows} countLabel="Проверок" />
             <BreakdownTable title="Переответы" rows={reanswerRows} countLabel="Проверок" />
@@ -1128,9 +1523,12 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "details" ? (
-        <div className="details-workbench">
-          <DetailsIndexPanel items={detailsIndexItems} />
-          <div className="reports-table-grid reports-table-grid--details">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1fr)]">
+          <DetailsIndexPanel
+            items={detailsIndexItems}
+            titleId="details-analysis-title"
+          />
+          <div className="grid min-w-0 gap-4 md:grid-cols-2 [&>*]:min-w-0">
             <BreakdownTable
               id="details-blocks"
               title="Блоки критериев"
@@ -1138,7 +1536,24 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
               countLabel="Оценок"
               showAverage
             />
-            <QuotaTable id="details-quotas" quotas={quotas} reviews={finalizedReviews} period={period} />
+            {hasEntityFilters ? (
+              <Card id="details-quotas" size="sm">
+                <CardHeader>
+                  <CardTitle>Нормы проверок недоступны</CardTitle>
+                  <CardDescription>
+                    Нормы рассчитаны для полной выборки. Сбросьте фильтры
+                    команды, источника, риска и блока.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <QuotaTable
+                id="details-quotas"
+                quotas={quotas}
+                reviews={finalizedReviews}
+                period={period}
+              />
+            )}
             <BreakdownTable
               id="details-sources"
               title="Источники"
@@ -1173,30 +1588,6 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
         </div>
       ) : null}
 
-      <EvidenceDrawer title="Evidence аналитики">
-        <div className="operational-evidence-grid">
-          <div className="operational-evidence-item">
-            <span>Период</span>
-            <strong>{finalizedCount}</strong>
-            <small>{formatReviewCount(finalizedCount)} в текущей выборке.</small>
-          </div>
-          <div className="operational-evidence-item">
-            <span>Средний балл</span>
-            <strong>{formatAverageScore(averageScore)}</strong>
-            <small>{previousAverageScore == null ? "Нет базы сравнения." : `${reportDeltaLabel(averageScore == null || previousAverageScore == null ? null : averageScore - previousAverageScore)} к прошлому периоду.`}</small>
-          </div>
-          <div className="operational-evidence-item">
-            <span>HIGH+</span>
-            <strong>{highRiskFindings}</strong>
-            <small>Замечания высокого и критического риска.</small>
-          </div>
-          <div className="operational-evidence-item">
-            <span>Норма</span>
-            <strong>{quotaCompletionPercent == null ? "Нет" : `${quotaCompletionPercent}%`}</strong>
-            <small>{quotaCompletionPercent == null ? "План периода не задан." : `${actualQuotaTotal} из ${plannedQuotaTotal} проверок.`}</small>
-          </div>
-        </div>
-      </EvidenceDrawer>
     </PageShell>
   );
 }

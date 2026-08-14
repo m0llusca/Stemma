@@ -19,16 +19,16 @@ describe("admin access UI", () => {
     expect(accessPage).toContain("hasStringEntry(config.idpCertRefs)");
     expect(accessPage).toContain("hasStringEntry(config.idpCerts)");
     expect(accessPage).toContain('if (provider.type === "OIDC" && !provider.issuer) missing.push("Issuer")');
-    expect(accessPage).toContain("Готов к contract test");
-    expect(accessPage).toContain("Статус означает готовность к contract test");
+    expect(accessPage).toContain("Готов к контрактному тесту");
+    expect(accessPage).toContain("Статус означает готовность к контрактному тесту");
   });
 
   it("displays SAML SP details from the same absolute URL builder used at runtime", () => {
     expect(accessPage).toContain('import { headers } from "next/headers"');
     expect(accessPage).toContain('import { buildSamlServiceProviderUrls } from "@/lib/auth/saml"');
     expect(accessPage).toContain('import { resolvePublicOrigin } from "@/lib/public-origin"');
-    expect(accessPage).toContain("const origin = resolvePublicOrigin({ headers: await headers() })");
-    expect(accessPage).toContain("buildSamlServiceProviderUrls(selectedProvider, origin)");
+    expect(accessPage).not.toContain("const origin = resolvePublicOrigin");
+    expect(accessPage).toContain("buildSamlServiceProviderUrls(selectedProvider, resolvePublicOrigin({ headers: await headers() }))");
     expect(accessPage).toContain("samlMetadata.acsUrl");
     expect(accessPage).toContain("samlMetadata.metadataUrl");
     expect(accessPage).not.toContain("samlMetadata.acsPath");
@@ -52,7 +52,7 @@ describe("admin access UI", () => {
   it("surfaces reachable SCIM token lifecycle controls without production-live claims", () => {
     expect(accessPage).toContain('import { ScimTokenManager } from "@/components/admin/scim-token-manager"');
     expect(accessPage).toContain('{ value: "scim", label: "SCIM" }');
-    expect(accessPage).toContain("SCIM 2.0 bearer token");
+    expect(accessPage).toContain("Bearer-токен SCIM 2.0");
     expect(accessPage).toContain("selectedProvider.scimTokenPrefix");
     expect(accessPage).toContain("scimBaseUrl");
     expect(accessPage).toContain('const scimBaseUrl = "/scim/v2"');

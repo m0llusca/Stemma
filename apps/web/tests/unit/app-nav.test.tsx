@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -101,9 +101,14 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    const pulse = screen.getByLabelText("Рабочий пульс");
-    expect(within(pulse).getByRole("link", { name: /Очередь/ })).not.toBeNull();
-    expect(within(pulse).getByRole("link", { name: /Обучение/ })).not.toBeNull();
+    // Имя «Рабочий пульс» делят два элемента: компактная мобильная кнопка меню
+    // и десктоп-контейнер ссылок — ссылки проверяем внутри контейнера.
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    expect(pulseSurfaces).toHaveLength(2);
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    expect(within(pulse!).getByRole("link", { name: /Очередь/ })).not.toBeNull();
+    expect(within(pulse!).getByRole("link", { name: /Обучение/ })).not.toBeNull();
     // reviews:write отсутствует у SUPPORT_AGENT — быстрое действие скрыто.
     expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
   });
@@ -114,11 +119,16 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    const pulse = screen.getByLabelText("Рабочий пульс");
+    // Имя «Рабочий пульс» делят два элемента: компактная мобильная кнопка меню
+    // и десктоп-контейнер ссылок — отсутствие ссылок проверяем в контейнере.
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    expect(pulseSurfaces).toHaveLength(2);
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
     // VIEWER без прав не должен видеть счётчики очереди/риска/обучения…
-    expect(within(pulse).queryByRole("link", { name: /Очередь/ })).toBeNull();
-    expect(within(pulse).queryByRole("link", { name: /Риск/ })).toBeNull();
-    expect(within(pulse).queryByRole("link", { name: /Обучение/ })).toBeNull();
+    expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
+    expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
+    expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
     // …ни быстрое действие «Взять следующий кейс».
     expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
   });
@@ -151,7 +161,11 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.getByRole("button", { name: "Сменить" })).not.toBeNull();
+    // Demo controls live in a DropdownMenu; open the identity menu first.
+    const trigger = screen.getByRole("button", { name: /Администратор/i });
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole("button", { name: "Сменить" })).not.toBeNull();
     expect(screen.getByRole("combobox", { name: "Демо-пользователь" })).not.toBeNull();
   });
 
@@ -163,5 +177,28 @@ describe("app nav", () => {
     expect(mocks.prisma.conversation.count).toHaveBeenCalled();
     expect(mocks.prisma.review.count).toHaveBeenCalled();
     expect(mocks.prisma.trainingAssignment.count).toHaveBeenCalled();
+  });
+
+  // The root layout renders AppNav on every route, including the login shell.
+  // Suppressing workspace chrome there used to be a CSS concern
+  // (`.page:has(.auth-shell) .app-nav { display: none }`); it is now the
+  // component's own unauthenticated branch, so assert the behaviour directly.
+  it("renders no workspace chrome while the unauthenticated login shell is up", async () => {
+    const { AuthRequiredError } = await import("@/lib/current-user");
+    mocks.getCurrentUser.mockRejectedValue(new AuthRequiredError());
+    const { AppNav } = await import("@/components/app-nav");
+
+    expect(await AppNav()).toBeNull();
+    // No chrome also means no pulse queries for an anonymous visitor.
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+  });
+
+  it("propagates non-auth failures instead of silently dropping the nav", async () => {
+    mocks.getCurrentUser.mockRejectedValue(new Error("database is down"));
+    const { AppNav } = await import("@/components/app-nav");
+
+    await expect(AppNav()).rejects.toThrow("database is down");
   });
 });

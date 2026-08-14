@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 type KnowledgeCategoryFieldsProps = {
   categories: string[];
@@ -15,31 +18,37 @@ export function KnowledgeCategoryFields({ categories, defaultCategory }: Knowled
 
   return (
     <>
-      <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-        Категория
-        <select
+      <Field>
+        <FieldLabel htmlFor="knowledge-category">Категория</FieldLabel>
+        <NativeSelect
+          id="knowledge-category"
           name="category"
           required
           value={selectedCategory}
           onChange={(event) => setSelectedCategory(event.target.value)}
-          className="form-control"
+          className="w-full"
         >
-          <option value="" disabled>
+          <NativeSelectOption value="" disabled>
             Выберите категорию
-          </option>
+          </NativeSelectOption>
           {categories.map((category) => (
-            <option key={category} value={category}>
+            <NativeSelectOption key={category} value={category}>
               {category}
-            </option>
+            </NativeSelectOption>
           ))}
-          <option value={newCategoryValue}>+ Добавить новую категорию</option>
-        </select>
-      </label>
+          <NativeSelectOption value={newCategoryValue}>+ Добавить новую категорию</NativeSelectOption>
+        </NativeSelect>
+      </Field>
       {isNewCategory ? (
-        <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-          Новая категория
-          <input name="newCategory" required placeholder="Например: неверная маршрутизация" className="form-control" />
-        </label>
+        <Field>
+          <FieldLabel htmlFor="knowledge-newCategory">Новая категория</FieldLabel>
+          <Input
+            id="knowledge-newCategory"
+            name="newCategory"
+            required
+            placeholder="Например: неверная маршрутизация"
+          />
+        </Field>
       ) : null}
     </>
   );

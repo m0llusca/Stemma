@@ -7,7 +7,6 @@ import { getDirectoryIntegrationGuidance, buildEntraAuthorizationMetadata } from
 import { buildSamlServiceProviderUrls, validateSamlProviderConfigForSave } from "@/lib/auth/saml";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { resolvePublicOrigin } from "@/lib/public-origin";
 
@@ -50,7 +49,13 @@ function parseProviderConfigJson(value: string) {
 
 export async function GET(request: Request) {
   const requestId = requestIdFromHeaders(request.headers);
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   let origin: string;
 
   try {

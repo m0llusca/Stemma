@@ -19,9 +19,10 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleName } from "@prisma/client";
-import clsx from "clsx";
+import { Button } from "@/components/ui/button";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
+import { cn } from "@/lib/utils";
 
 /**
  * Contained admin sub-navigation (redesign v2, plan B3).
@@ -29,14 +30,12 @@ import { hasPermission, type Permission } from "@/lib/auth/permissions";
  * A quiet, left-rail list of the admin sections, grouped and labeled, with the
  * active item resolved from the current path. Lives ONLY inside the admin area
  * (rendered by AdminFrame next to the page content) — it is not global chrome.
- * Token-driven (no raw hex), holds across every theme including Night Ops. All
- * styling lives in `src/app/styles/components/40-admin.css` under
- * `.admin-subnav*`.
+ * Built from shadcn Button + Link; holds across every theme including Night Ops.
  */
 export type AdminSubnavItem = {
   href: string;
   label: string;
-  icon: ComponentType<{ size?: number | string; "aria-hidden"?: boolean }>;
+  icon: ComponentType<{ size?: number | string; "aria-hidden"?: boolean; className?: string }>;
   /** Extra path prefixes that should also mark this item active. */
   match?: string[];
   /**
@@ -144,38 +143,60 @@ export function AdminSubnav({
   const pathname = usePathname() ?? "/admin";
   const groups = filterAdminSubnavGroups(adminSubnavGroups, role);
   const showOverview = hasPermission(role, adminOverviewPermission);
+  const overviewActive = pathname === "/admin";
 
   return (
-    <nav className={clsx("admin-subnav", className)} aria-label="Разделы администрирования">
+    <nav
+      className={cn(
+        "flex min-w-0 flex-col gap-4 max-lg:gap-2.5 max-lg:rounded-xl max-lg:border max-lg:border-border max-lg:bg-muted/40 max-lg:p-1",
+        className
+      )}
+      aria-label="Разделы администрирования"
+    >
       {showOverview ? (
-        <Link
-          href="/admin"
-          className={clsx("admin-subnav__home", pathname === "/admin" && "admin-subnav__home--active")}
-          aria-current={pathname === "/admin" ? "page" : undefined}
+        <Button
+          variant={overviewActive ? "secondary" : "ghost"}
+          size="sm"
+          className={cn(
+            "h-auto w-full justify-start px-2.5 py-1.5 text-left font-medium",
+            overviewActive ? "text-foreground" : "text-muted-foreground"
+          )}
+          render={<Link href="/admin" aria-current={overviewActive ? "page" : undefined} />}
+          nativeButton={false}
         >
           Обзор настроек
-        </Link>
+        </Button>
       ) : null}
       {groups.map((group) => (
-        <div key={group.id} className="admin-subnav__group">
-          <p className="admin-subnav__group-label">{group.label}</p>
-          <ul className="admin-subnav__list">
+        <div key={group.id} className="flex min-w-0 flex-col gap-1">
+          <p className="px-2.5 text-[10.5px] font-semibold tracking-[0.07em] text-muted-foreground uppercase">
+            {group.label}
+          </p>
+          <ul className="flex min-w-0 flex-col gap-px max-lg:flex-row max-lg:overflow-x-auto max-lg:pb-0.5">
             {group.items.map((item) => {
               const Icon = item.icon;
               const active = isActive(pathname, item);
 
               return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={clsx("admin-subnav__item", active && "admin-subnav__item--active")}
-                    aria-current={active ? "page" : undefined}
+                <li key={item.href} className="min-w-0 max-lg:shrink-0">
+                  <Button
+                    variant={active ? "secondary" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "h-auto w-full justify-start gap-2.5 px-2.5 py-1.5 text-left font-normal",
+                      active ? "font-medium text-foreground" : "text-muted-foreground"
+                    )}
+                    render={
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                      />
+                    }
+                    nativeButton={false}
                   >
-                    <span className="admin-subnav__item-icon" aria-hidden>
-                      <Icon size={15} aria-hidden />
-                    </span>
-                    <span className="admin-subnav__item-label">{item.label}</span>
-                  </Link>
+                    <Icon className="size-3.5 shrink-0 max-lg:hidden" aria-hidden />
+                    <span className="min-w-0 truncate">{item.label}</span>
+                  </Button>
                 </li>
               );
             })}

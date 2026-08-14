@@ -1,15 +1,10 @@
 import type { ReactNode } from "react";
-import clsx from "clsx";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 /**
- * Canonical, token-driven chip primitive.
- *
- * This is the single source of truth for the chip / badge / metric look. The
- * legacy `StatusBadge` and `MetricValue` components are thin wrappers around it
- * (keeping their public APIs and legacy class hooks), and the `.meta-chip` CSS
- * family is aligned to the same `.chip` tokens. All styling lives in
- * `src/app/styles/components/05-chip.css` and is driven entirely by design
- * tokens (no raw hex), so it holds across every theme including Night Ops.
+ * Canonical chip primitive — public API preserved, surface is shadcn Badge.
+ * Keeps legacy `chip` / `chip--{tone}` class hooks for tests and residual CSS.
  */
 export type ChipTone =
   | "neutral"
@@ -25,19 +20,14 @@ export type ChipSize = "xs" | "sm";
 /** Layout shape. `pill` = inline horizontal chip; `stacked` = label over value. */
 export type ChipVariant = "pill" | "stacked";
 
-const toneClassNames: Record<ChipTone, string> = {
-  neutral: "chip--neutral",
-  success: "chip--success",
-  warning: "chip--warning",
-  danger: "chip--danger",
-  accent: "chip--accent",
-  ai: "chip--ai",
-  info: "chip--info"
-};
-
-const sizeClassNames: Record<ChipSize, string> = {
-  xs: "chip--xs",
-  sm: "chip--sm"
+const toneClass: Record<ChipTone, string> = {
+  neutral: "",
+  success: "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300",
+  warning: "border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-300",
+  danger: "border-transparent bg-destructive/15 text-destructive",
+  accent: "border-transparent bg-primary/10 text-primary",
+  ai: "border-transparent bg-violet-500/15 text-violet-800 dark:text-violet-300",
+  info: "border-transparent bg-primary/15 text-primary"
 };
 
 export function Chip({
@@ -51,13 +41,7 @@ export function Chip({
   numeric = false,
   title,
   className,
-  /**
-   * Base class for the root element. Wrappers pass their legacy class (e.g.
-   * `status-badge`, `metric-value`) so existing call-site CSS keeps working;
-   * the `chip` token classes are always applied alongside it.
-   */
   baseClassName = "chip",
-  /** Element class prefix for label/value sub-spans (defaults to `chip`). */
   partPrefix = "chip"
 }: {
   children?: ReactNode;
@@ -74,38 +58,86 @@ export function Chip({
   partPrefix?: string;
 }) {
   const hasLabelValue = label != null || value != null;
+  const legacyTone = `chip--${tone}`;
+  const legacySize = size === "xs" ? "chip--xs" : "chip--sm";
+
+  if (variant === "stacked") {
+    return (
+      <span
+        title={title}
+        className={cn(
+          baseClassName,
+          "chip",
+          legacyTone,
+          legacySize,
+          "inline-flex flex-col gap-0.5 rounded-md border border-border bg-muted/40 px-2 py-1",
+          toneClass[tone],
+          className
+        )}
+      >
+        {label != null ? (
+          <span className={cn(`${partPrefix}__label`, "text-[10px] uppercase tracking-wide text-muted-foreground")}>
+            {label}
+          </span>
+        ) : null}
+        {label != null ? " " : null}
+        <span className={cn(`${partPrefix}__value`, "text-sm font-medium tabular-nums text-foreground")}>
+          {icon}
+          {value ?? children}
+        </span>
+      </span>
+    );
+  }
+
+  if (hasLabelValue) {
+    return (
+      <Badge
+        title={title}
+        variant={tone === "neutral" ? "secondary" : "outline"}
+        className={cn(
+          baseClassName,
+          "chip",
+          legacyTone,
+          legacySize,
+          "font-normal",
+          size === "xs" ? "h-5 gap-1 px-1.5 text-[11px]" : "h-6 gap-1.5 px-2 text-xs",
+          numeric && "tabular-nums",
+          toneClass[tone],
+          className
+        )}
+      >
+        {icon != null ? <span className={`${partPrefix}__icon`}>{icon}</span> : null}
+        {label != null ? (
+          <span className={`${partPrefix}__label text-muted-foreground`}>{label}</span>
+        ) : null}
+        {label != null && value != null ? " " : null}
+        {value != null ? (
+          <span className={cn(`${partPrefix}__value`, numeric && "tabular-nums")}>{value}</span>
+        ) : (
+          children
+        )}
+      </Badge>
+    );
+  }
 
   return (
-    <span
+    <Badge
       title={title}
-      className={clsx(
+      variant={tone === "neutral" ? "secondary" : "outline"}
+      className={cn(
         baseClassName,
-        baseClassName !== "chip" && "chip",
-        toneClassNames[tone],
-        sizeClassNames[size],
-        variant === "stacked" && "chip--stacked",
-        numeric && "chip--numeric",
+        "chip",
+        legacyTone,
+        legacySize,
+        "font-normal",
+        size === "xs" ? "h-5 px-1.5 text-[11px]" : "h-6 px-2 text-xs",
+        numeric && "tabular-nums",
+        toneClass[tone],
         className
       )}
     >
-      {icon != null ? (
-        <span className={`${partPrefix}__icon`} aria-hidden>
-          {icon}
-        </span>
-      ) : null}
-      {hasLabelValue ? (
-        <>
-          {label != null ? (
-            <span className={`${partPrefix}__label`}>{label}</span>
-          ) : null}
-          {label != null && value != null ? " " : null}
-          {value != null ? (
-            <span className={`${partPrefix}__value`}>{value}</span>
-          ) : null}
-        </>
-      ) : (
-        <span className="chip__body">{children}</span>
-      )}
-    </span>
+      {icon != null ? <span className={`${partPrefix}__icon mr-1`}>{icon}</span> : null}
+      {children}
+    </Badge>
   );
 }

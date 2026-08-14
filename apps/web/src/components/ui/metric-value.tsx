@@ -11,9 +11,7 @@ const chipToneForStatusTone: Record<StatusTone, ChipTone> = {
 };
 
 /**
- * Thin wrapper around the canonical {@link Chip} primitive (stacked variant).
- * The public API is unchanged; it keeps the legacy `metric-value` class hooks
- * (used by dashboard-kpi CSS) while sharing the `.chip` tone tokens.
+ * Thin wrapper around Chip (stacked). Public API unchanged.
  */
 export function MetricValue({
   label,

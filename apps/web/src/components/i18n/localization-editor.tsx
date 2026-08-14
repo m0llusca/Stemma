@@ -2,8 +2,21 @@
 
 import { RotateCcw, Save, Send, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type LocaleOption = {
   id: string;
@@ -44,6 +57,8 @@ type LocalizationEditorProps = {
   rollbackAction: ServerFormAction;
 };
 
+type StatusKind = "published" | "draft" | "unpublished";
+
 function draftStateKey(localeId: string, keyId: string) {
   return `${localeId}:${keyId}`;
 }
@@ -56,30 +71,44 @@ function initialDraftText(translationKey: TranslationKeyEntry, value: Translatio
   return value?.draftText ?? value?.publishedText ?? translationKey.defaultText;
 }
 
-function statusLabel(value: TranslationValue | null, draftText: string) {
+function statusKind(value: TranslationValue | null, draftText: string): StatusKind {
   if (value?.publishedText == null) {
-    return "Не опубликовано";
+    return "unpublished";
   }
 
   if ((value.draftText ?? "") !== value.publishedText || draftText !== value.publishedText) {
+    return "draft";
+  }
+
+  return "published";
+}
+
+function statusLabel(kind: StatusKind) {
+  if (kind === "published") {
+    return "Опубликовано";
+  }
+
+  if (kind === "draft") {
     return "Черновик";
   }
 
-  return "Опубликовано";
+  return "Не опубликовано";
 }
 
-function statusTone(value: TranslationValue | null, draftText: string): ChipTone {
-  const label = statusLabel(value, draftText);
-
-  if (label === "Опубликовано") {
-    return "success";
+function statusBadgeClass(kind: StatusKind) {
+  if (kind === "published") {
+    return "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300";
   }
 
-  if (label === "Черновик") {
-    return "warning";
+  if (kind === "draft") {
+    return "border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-300";
   }
 
-  return "neutral";
+  return undefined;
+}
+
+function localeLabel(locale: LocaleOption) {
+  return `${locale.name} (${locale.code})${locale.isDefault ? " · основной" : ""}`;
 }
 
 export function LocalizationEditor({
@@ -110,74 +139,105 @@ export function LocalizationEditor({
     );
   }, [normalizedFilter, translationKeys]);
 
-  return (
-    <div className="grid gap-4 p-4">
-      <div className="grid gap-3 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.4fr)]">
-        <form action={createLocaleAction} className="grid gap-3 rounded-lg border border-[var(--line-soft)] bg-[var(--surface-soft)] p-3">
-          <div className="flex items-center gap-2 text-sm font-extrabold text-[var(--foreground)]">
-            <SlidersHorizontal size={16} aria-hidden="true" />
-            Новый язык
-          </div>
-          <div className="grid gap-2 sm:grid-cols-[0.8fr_1.2fr_auto]">
-            <label className="grid gap-1 text-xs font-bold text-[var(--text-muted)]">
-              Код
-              <input name="code" required placeholder="en-US" className="form-control text-sm" />
-            </label>
-            <label className="grid gap-1 text-xs font-bold text-[var(--text-muted)]">
-              Название
-              <input name="name" required placeholder="English US" className="form-control text-sm" />
-            </label>
-            <button type="submit" className="action-button action-button--primary self-end">
-              Создать
-            </button>
-          </div>
-        </form>
+  const localeItems = useMemo(
+    () => Object.fromEntries(locales.map((locale) => [locale.id, localeLabel(locale)])),
+    [locales]
+  );
 
-        <div className="grid gap-3 rounded-lg border border-[var(--line-soft)] bg-[var(--surface-soft)] p-3 md:grid-cols-[minmax(180px,0.45fr)_minmax(220px,1fr)]">
-          <label className="grid gap-1 text-xs font-bold text-[var(--text-muted)]">
-            Язык
-            <select
-              className="form-control text-sm"
-              value={selectedLocaleId}
-              onChange={(event) => setSelectedLocaleId(event.target.value)}
-              disabled={locales.length === 0}
-            >
-              {locales.map((locale) => (
-                <option key={locale.id} value={locale.id}>
-                  {locale.name} ({locale.code}){locale.isDefault ? " · основной" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs font-bold text-[var(--text-muted)]">
-            Фильтр ключей
-            <input
-              type="search"
-              className="form-control text-sm"
-              value={keyFilter}
-              onChange={(event) => setKeyFilter(event.target.value)}
-              placeholder="dashboard.focus.title"
-            />
-          </label>
-        </div>
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.4fr)]">
+        <Card size="sm">
+          <CardHeader className="pb-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              Новый язык
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={createLocaleAction}>
+              <FieldGroup className="gap-3 sm:grid sm:grid-cols-[0.8fr_1.2fr_auto] sm:items-end">
+                <Field>
+                  <FieldLabel htmlFor="locale-code">Код</FieldLabel>
+                  <Input id="locale-code" name="code" required placeholder="en-US" />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="locale-name">Название</FieldLabel>
+                  <Input id="locale-name" name="name" required placeholder="English US" />
+                </Field>
+                <Button type="submit" className="sm:self-end">
+                  Создать
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card size="sm">
+          <CardContent className="grid gap-3 pt-0 md:grid-cols-[minmax(180px,0.45fr)_minmax(220px,1fr)]">
+            <Field>
+              <FieldLabel htmlFor="locale-select">Язык</FieldLabel>
+              <Select
+                value={selectedLocaleId || null}
+                onValueChange={(value) => {
+                  if (value != null) {
+                    setSelectedLocaleId(value);
+                  }
+                }}
+                disabled={locales.length === 0}
+              >
+                <SelectTrigger id="locale-select" className="w-full" aria-label="Язык">
+                  <SelectValue placeholder="Выберите язык">
+                    {(value: string | null) => (value ? localeItems[value] ?? value : "Выберите язык")}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {locales.map((locale) => (
+                    <SelectItem key={locale.id} value={locale.id}>
+                      {localeLabel(locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="key-filter">Фильтр ключей</FieldLabel>
+              <Input
+                id="key-filter"
+                type="search"
+                value={keyFilter}
+                onChange={(event) => setKeyFilter(event.target.value)}
+                placeholder="dashboard.focus.title"
+              />
+            </Field>
+          </CardContent>
+        </Card>
       </div>
 
       {selectedLocale ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>
-            Выбран язык: <strong className="text-[var(--foreground)]">{selectedLocale.name}</strong>
+            Выбран язык: <strong className="text-foreground">{selectedLocale.name}</strong>
           </span>
-          <Chip tone="neutral" size="sm" numeric>{filteredKeys.length} из {translationKeys.length} ключей</Chip>
+          <Badge variant="secondary" className="tabular-nums">
+            {filteredKeys.length} из {translationKeys.length} ключей
+          </Badge>
         </div>
       ) : (
-        <div className="soft-callout text-sm text-[var(--text-muted)]">Создайте первый язык, чтобы редактировать переводы.</div>
+        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          Создайте первый язык, чтобы редактировать переводы.
+        </div>
       )}
 
       {selectedLocale ? (
         <div className="overflow-x-auto">
-          <div className="min-w-[960px] overflow-hidden rounded-lg border border-[var(--line-soft)] bg-[var(--surface-raised)]" role="table" aria-label="Ключи локализации">
+          <div
+            className="min-w-[960px] overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+            role="table"
+            aria-label="Ключи локализации"
+          >
             <div
-              className="grid grid-cols-[minmax(220px,0.8fr)_minmax(260px,1fr)_minmax(320px,1.2fr)_minmax(260px,0.85fr)] gap-3 border-b border-[var(--line-soft)] bg-[var(--surface-soft)] px-3 py-2 text-[11px] font-extrabold uppercase text-[var(--text-muted)]"
+              className="grid grid-cols-[minmax(220px,0.8fr)_minmax(260px,1fr)_minmax(320px,1.2fr)_minmax(260px,0.85fr)] gap-3 border-b border-border bg-muted/50 px-3 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
               role="row"
             >
               <span role="columnheader">Ключ</span>
@@ -194,23 +254,33 @@ export function LocalizationEditor({
               const publishFormId = `publish-${selectedLocale.id}-${translationKey.id}`;
               const rollbackFormId = `rollback-${selectedLocale.id}-${translationKey.id}`;
               const canPublishOrRollback = Boolean(value?.id);
+              const kind = statusKind(value, draftText);
 
               return (
                 <div
                   key={`${selectedLocale.id}:${translationKey.id}`}
-                  className="grid grid-cols-[minmax(220px,0.8fr)_minmax(260px,1fr)_minmax(320px,1.2fr)_minmax(260px,0.85fr)] gap-3 border-b border-[var(--line-soft)] px-3 py-3 text-sm last:border-b-0"
+                  className="grid grid-cols-[minmax(220px,0.8fr)_minmax(260px,1fr)_minmax(320px,1.2fr)_minmax(260px,0.85fr)] gap-3 border-b border-border px-3 py-3 text-sm last:border-b-0"
                   role="row"
                 >
                   <div className="grid content-start gap-1" role="cell">
-                    <strong className="break-words font-mono text-xs text-[var(--foreground)]">{translationKey.fullKey}</strong>
-                    <span className="text-xs text-[var(--text-muted)]">{translationKey.ownerArea}</span>
-                    {translationKey.description ? <span className="text-xs text-[var(--text-muted)]">{translationKey.description}</span> : null}
+                    <strong className="break-words font-mono text-xs text-foreground">{translationKey.fullKey}</strong>
+                    <span className="text-xs text-muted-foreground">{translationKey.ownerArea}</span>
+                    {translationKey.description ? (
+                      <span className="text-xs text-muted-foreground">{translationKey.description}</span>
+                    ) : null}
                   </div>
 
-                  <div className="grid content-start gap-2 text-sm text-[var(--foreground)]" role="cell">
+                  <div className="grid content-start gap-2 text-sm text-foreground" role="cell">
                     <span>{translationKey.defaultText}</span>
-                    <Chip tone={statusTone(value, draftText)} size="xs">{statusLabel(value, draftText)}</Chip>
-                    {value?.publishedAt ? <span className="text-xs text-[var(--text-muted)]">Версия {value.version}</span> : null}
+                    <Badge
+                      variant={kind === "unpublished" ? "secondary" : "outline"}
+                      className={cn("w-fit", statusBadgeClass(kind))}
+                    >
+                      {statusLabel(kind)}
+                    </Badge>
+                    {value?.publishedAt ? (
+                      <span className="text-xs text-muted-foreground">Версия {value.version}</span>
+                    ) : null}
                   </div>
 
                   <div role="cell">
@@ -218,43 +288,38 @@ export function LocalizationEditor({
                       <input type="hidden" name="localeId" value={selectedLocale.id} />
                       <input type="hidden" name="keyId" value={translationKey.id} />
                     </form>
-                    <textarea
+                    <Textarea
                       form={draftFormId}
                       name="draftText"
                       value={draftText}
                       onChange={(event) => setDrafts((current) => ({ ...current, [stateKey]: event.target.value }))}
                       rows={3}
                       aria-label={`Черновик ${translationKey.fullKey}`}
-                      className="form-control min-h-[84px] resize-y text-sm"
+                      className="min-h-[84px] resize-y"
                     />
                   </div>
 
                   <div className="flex flex-wrap content-start items-start gap-2" role="cell">
-                    <button type="submit" form={draftFormId} className="action-button action-button--small">
-                      <Save size={14} aria-hidden="true" />
+                    <Button type="submit" form={draftFormId} variant="outline" size="sm">
+                      <Save data-icon="inline-start" aria-hidden="true" />
                       Сохранить черновик {translationKey.fullKey}
-                    </button>
+                    </Button>
 
                     <form id={publishFormId} action={publishAction}>
                       <input type="hidden" name="valueId" value={value?.id ?? ""} />
                     </form>
-                    <button
-                      type="submit"
-                      form={publishFormId}
-                      className="action-button action-button--primary action-button--small"
-                      disabled={!canPublishOrRollback}
-                    >
-                      <Send size={14} aria-hidden="true" />
+                    <Button type="submit" form={publishFormId} size="sm" disabled={!canPublishOrRollback}>
+                      <Send data-icon="inline-start" aria-hidden="true" />
                       Опубликовать {translationKey.fullKey}
-                    </button>
+                    </Button>
 
                     <form id={rollbackFormId} action={rollbackAction}>
                       <input type="hidden" name="valueId" value={value?.id ?? ""} />
                     </form>
-                    <button type="submit" form={rollbackFormId} className="action-button action-button--small" disabled={!canPublishOrRollback}>
-                      <RotateCcw size={14} aria-hidden="true" />
+                    <Button type="submit" form={rollbackFormId} variant="outline" size="sm" disabled={!canPublishOrRollback}>
+                      <RotateCcw data-icon="inline-start" aria-hidden="true" />
                       Откатить {translationKey.fullKey}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );

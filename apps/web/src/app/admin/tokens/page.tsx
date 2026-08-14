@@ -6,14 +6,31 @@ import { AdminDialog } from "@/components/admin/admin-dialog";
 import { CopyButton } from "@/components/copy-button";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatKpi } from "@/components/ui/stat-kpi";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { PageShell } from "@/components/ui/page-shell";
+import { StatKpi } from "@/components/ui/stat-kpi";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
@@ -21,6 +38,7 @@ import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { isDemoAuthEnabled, requireCurrentUserPermission } from "@/lib/current-user";
 import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -129,191 +147,231 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
       description="Рабочие ключи и локальный ключ для проверки интеграций. Технические поля собраны в компактные карточки."
     >
       <AdminFrame>
-      <section className="ops-metric-grid" aria-label="Сводка API-ключей">
-        <StatKpi label="Ключи" value={apiTokens.length} hint={`Активных: ${activeTokens}`} />
-        <StatKpi
-          label="Ошибки"
-          value={tokensWithErrors}
-          tone={tokensWithErrors > 0 ? "danger" : "neutral"}
-          hint="По последней активности"
-        />
-        <StatKpi
-          label={
-            <span className="flex items-center gap-1">
-              Права
-              <HelpTooltip
-                label="Что такое scope API-ключа?"
-                content="Scope ограничивает, какие API endpoint может вызывать ключ. Для production выдавайте минимально нужный набор scope."
-                placement="top-start"
-              />
-            </span>
-          }
-          value={allowedApiScopes.length}
-          hint="Доступные области API"
-        />
-      </section>
-
-      <AdminSectionTabs
-        ariaLabel="Разделы API-доступа"
-        items={tokenSections.map((section) => ({
-          href: tokensSectionHref(section.value),
-          label: section.label,
-          active: activeSection === section.value,
-          count: section.value === "tokens" ? apiTokens.length : undefined
-        }))}
-        actions={
-          <>
-            <AdminDialog
-              triggerLabel={
-                <>
-                  <KeyRound size={16} aria-hidden="true" />
-                  Новый ключ
-                </>
+        <div className="grid gap-6">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Сводка API-ключей">
+            <StatKpi label="Ключи" value={apiTokens.length} hint={`Активных: ${activeTokens}`} />
+            <StatKpi label="Ошибки" value={tokensWithErrors} hint="По последней активности" />
+            <StatKpi
+              label={
+                <span className="flex items-center gap-1">
+                  Права
+                  <HelpTooltip
+                    label="Что такое scope API-ключа?"
+                    content="Scope ограничивает, какие API endpoint может вызывать ключ. Для production выдавайте минимально нужный набор scope."
+                    placement="top-start"
+                  />
+                </span>
               }
-              title="Новый ключ"
-              description="Создание идет через backend-сервис, секрет показывается только один раз после выпуска."
-              defaultOpen={createDialogOpen}
-            >
-              <ApiTokenCreateForm scopes={allowedApiScopes} />
-            </AdminDialog>
-            <Link href="/admin/integrations" className="action-button">
-              <Plug size={16} aria-hidden="true" />
-              Интеграции
-            </Link>
-            <Link href="/admin/audit" className="action-button action-button--quiet">
-              <History size={16} aria-hidden="true" />
-              Журнал действий
-            </Link>
-          </>
-        }
-      />
+              value={allowedApiScopes.length}
+              hint="Доступные области API"
+            />
+          </section>
 
-      {activeSection === "tokens" ? (
-        <section className="ops-panel" aria-labelledby="api-tokens-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Рабочее пространство</p>
-              <h2 id="api-tokens-title" className="ops-panel__title">Ключи API</h2>
-              <p className="ops-panel__subtitle">Статус, права и последняя активность без широкой таблицы.</p>
-            </div>
-            <Chip tone="neutral" size="sm" numeric>{apiTokens.length}</Chip>
-          </div>
-          <div className="grid gap-2 p-4">
-            {apiTokenSetupHint ? (
-              <CoachCallout
-                title={apiTokenSetupHint.title}
-                body={apiTokenSetupHint.body}
-                href={apiTokenSetupHint.href}
-                actionLabel={apiTokenSetupHint.actionLabel}
-                variant="spotlight"
-                placement="top"
-                anchorLabel="Подсказка к API-ключам"
-                stepIndex={1}
-                dismissId="settings:apiTokens"
-              />
-            ) : null}
-            {apiTokens.length > 0 ? (
-              <div className="grid gap-2 md:grid-cols-2 items-start">
-              {apiTokens.map((apiToken) => {
-                const health = tokenHealth(apiToken);
-                const isExpired = Boolean(apiToken.expiresAt && apiToken.expiresAt <= now);
+          <AdminSectionTabs
+            ariaLabel="Разделы API-доступа"
+            items={tokenSections.map((section) => ({
+              href: tokensSectionHref(section.value),
+              label: section.label,
+              active: activeSection === section.value,
+              count: section.value === "tokens" ? apiTokens.length : undefined
+            }))}
+            actions={
+              <>
+                <AdminDialog
+                  triggerLabel={
+                    <>
+                      <KeyRound size={16} aria-hidden="true" />
+                      Новый ключ
+                    </>
+                  }
+                  triggerClassName={buttonVariants()}
+                  title="Новый ключ"
+                  description="Создание идет через backend-сервис, секрет показывается только один раз после выпуска."
+                  defaultOpen={createDialogOpen}
+                >
+                  <ApiTokenCreateForm scopes={allowedApiScopes} />
+                </AdminDialog>
+                <Button
+                  render={<Link href="/admin/integrations" />}
+                  nativeButton={false}
+                  variant="outline"
+                >
+                  <Plug aria-hidden="true" />
+                  Интеграции
+                </Button>
+                <Button
+                  render={<Link href="/admin/audit" />}
+                  nativeButton={false}
+                  variant="ghost"
+                >
+                  <History aria-hidden="true" />
+                  Журнал действий
+                </Button>
+              </>
+            }
+          />
 
-                return (
-                  <div key={apiToken.id} className="admin-tile admin-tile--compact">
-                    <span className="admin-tile__icon admin-tile__icon--plain">K</span>
-                    <div className="admin-tile__body">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="record-title record-title--tight">{apiToken.name}</span>
-                        <Chip tone={health.tone} size="xs">{health.label}</Chip>
-                      </span>
-                      <span className="record-meta font-mono compact-text">{apiToken.tokenPrefix}</span>
-                      <span className="record-meta compact-text">Права: {formatScopes(apiToken.scopes)}</span>
-                      <span className="record-meta tabular-nums">
-                        Использование: {formatDate(apiToken.lastUsedAt)} · успех: {formatDate(apiToken.lastSuccessAt)}
-                      </span>
-                      <span className="record-meta tabular-nums">Истекает: {formatDate(apiToken.expiresAt)}</span>
-                      {apiToken.lastError ? (
-                        <span className="record-meta compact-text tabular-nums text-[var(--danger)]">
-                          Ошибка: {formatDate(apiToken.lastErrorAt)} · {apiToken.lastError}
-                        </span>
-                      ) : null}
-                      <form action={revokeApiTokenById} className="mt-2">
-                        <input type="hidden" name="tokenId" value={apiToken.id} />
-                        <ConfirmSubmitButton
-                          className="action-button action-button--small"
-                          disabled={isExpired}
-                          aria-label={`Отозвать ключ ${apiToken.name}`}
-                          confirmMessage={`Отозвать ключ «${apiToken.name}»? Действие необратимо: интеграции с этим ключом перестанут работать.`}
-                        >
-                          Отозвать
-                        </ConfirmSubmitButton>
-                      </form>
+          {activeSection === "tokens" ? (
+            <Card>
+              <CardHeader className="border-b">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Рабочее пространство
+                    </p>
+                    <CardTitle id="api-tokens-title">Ключи API</CardTitle>
+                    <CardDescription>Статус, права и последняя активность.</CardDescription>
+                  </div>
+                  <StatusBadge tone="neutral">{apiTokens.length}</StatusBadge>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-4 pt-(--card-spacing)">
+                {apiTokenSetupHint ? (
+                  <CoachCallout
+                    title={apiTokenSetupHint.title}
+                    body={apiTokenSetupHint.body}
+                    href={apiTokenSetupHint.href}
+                    actionLabel={apiTokenSetupHint.actionLabel}
+                    variant="spotlight"
+                    placement="top"
+                    anchorLabel="Подсказка к API-ключам"
+                    stepIndex={1}
+                    dismissId="settings:apiTokens"
+                  />
+                ) : null}
+                {apiTokens.length > 0 ? (
+                  <Table aria-labelledby="api-tokens-title">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ключ</TableHead>
+                        <TableHead>Статус</TableHead>
+                        <TableHead>Права</TableHead>
+                        <TableHead>Использование</TableHead>
+                        <TableHead>Истекает</TableHead>
+                        <TableHead className="text-right">Действие</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {apiTokens.map((apiToken) => {
+                        const health = tokenHealth(apiToken);
+                        const isExpired = Boolean(apiToken.expiresAt && apiToken.expiresAt <= now);
+
+                        return (
+                          <TableRow key={apiToken.id}>
+                            <TableCell>
+                              <div className="grid gap-0.5">
+                                <span className="font-medium text-foreground">{apiToken.name}</span>
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  {apiToken.tokenPrefix}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Chip tone={health.tone}>{health.label}</Chip>
+                            </TableCell>
+                            <TableCell className="max-w-[14rem] whitespace-normal text-muted-foreground">
+                              {formatScopes(apiToken.scopes)}
+                            </TableCell>
+                            <TableCell className="tabular-nums text-muted-foreground">
+                              <div className="grid gap-0.5 text-xs">
+                                <span>Исп.: {formatDate(apiToken.lastUsedAt)}</span>
+                                <span>Успех: {formatDate(apiToken.lastSuccessAt)}</span>
+                                {apiToken.lastError ? (
+                                  <span className="text-destructive">
+                                    Ошибка: {formatDate(apiToken.lastErrorAt)} · {apiToken.lastError}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                            <TableCell className="tabular-nums text-muted-foreground">
+                              {formatDate(apiToken.expiresAt)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <form action={revokeApiTokenById}>
+                                <input type="hidden" name="tokenId" value={apiToken.id} />
+                                <ConfirmSubmitButton
+                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                  disabled={isExpired}
+                                  aria-label={`Отозвать ключ ${apiToken.name}`}
+                                  confirmMessage={`Отозвать ключ «${apiToken.name}»? Действие необратимо: интеграции с этим ключом перестанут работать.`}
+                                >
+                                  Отозвать
+                                </ConfirmSubmitButton>
+                              </form>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <EmptyState
+                    size="inline"
+                    icon={<KeyRound size={20} aria-hidden="true" />}
+                    title="Ключи еще не созданы"
+                    description="Создайте рабочий ключ, чтобы интеграции и кастомные источники могли обращаться к API."
+                    action={
+                      <Button
+                        render={<Link href={tokensSectionHref("create")} />}
+                        nativeButton={false}
+                        size="sm"
+                      >
+                        Новый ключ
+                      </Button>
+                    }
+                  />
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeSection === "local" ? (
+            <Card>
+              <CardHeader className="border-b">
+                <div className="grid gap-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Проверка
+                  </p>
+                  <CardTitle id="local-api-token-title">Локальная проверка</CardTitle>
+                  <CardDescription>
+                    Плейсхолдер {apiTokenPlaceholder} и реальные значения для тестовых запросов.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-(--card-spacing)">
+                {demoAuthEnabled ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-2 rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground">Ключ</span>
+                        <CopyButton value={demoApiToken} label="Скопировать ключ" />
+                      </div>
+                      <code className="break-all rounded-md border border-border bg-card px-2.5 py-2 font-mono text-xs text-foreground">
+                        {demoApiToken}
+                      </code>
+                    </div>
+                    <div className="grid gap-2 rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground">Заголовок Authorization</span>
+                        <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
+                      </div>
+                      <code className="break-all rounded-md border border-border bg-card px-2.5 py-2 font-mono text-xs text-foreground">
+                        {authorizationHeader}
+                      </code>
                     </div>
                   </div>
-                );
-              })}
-              </div>
-            ) : (
-              <EmptyState
-                size="inline"
-                icon={<KeyRound size={20} aria-hidden="true" />}
-                title="Ключи еще не созданы"
-                description="Создайте рабочий ключ, чтобы интеграции и кастомные источники могли обращаться к API."
-                action={
-                  <Link href={tokensSectionHref("create")} className="action-button action-button--small">
-                    Новый ключ
-                  </Link>
-                }
-              />
-            )}
-          </div>
-        </section>
-      ) : null}
-
-      {activeSection === "local" ? (
-        <section className="ops-panel" aria-labelledby="local-api-token-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Проверка</p>
-              <h2 id="local-api-token-title" className="ops-panel__title">Локальная проверка</h2>
-              <p className="ops-panel__subtitle">Плейсхолдер {apiTokenPlaceholder} и реальные значения для тестовых запросов.</p>
-            </div>
-          </div>
-          {demoAuthEnabled ? (
-            <div className="grid gap-2 p-4 md:grid-cols-2 items-start">
-              <div className="admin-tile admin-tile--compact">
-                <span className="admin-tile__icon admin-tile__icon--plain">K</span>
-                <div className="admin-tile__body">
-                  <span className="record-row">
-                    <span className="record-title">Ключ</span>
-                    <CopyButton value={demoApiToken} label="Скопировать ключ" />
-                  </span>
-                  <code className="inline-code-box compact-text">{demoApiToken}</code>
-                </div>
-              </div>
-              <div className="admin-tile admin-tile--compact">
-                <span className="admin-tile__icon admin-tile__icon--plain">A</span>
-                <div className="admin-tile__body">
-                  <span className="record-row">
-                    <span className="record-title">Заголовок Authorization</span>
-                    <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
-                  </span>
-                  <code className="inline-code-box compact-text">{authorizationHeader}</code>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4">
-              <EmptyState
-                size="inline"
-                icon={<KeyRound size={20} aria-hidden="true" />}
-                title="Демо-ключ недоступен"
-                description="Демо-ключ показывается только при включенном демо-режиме."
-              />
-            </div>
-          )}
-        </section>
-      ) : null}
+                ) : (
+                  <EmptyState
+                    size="inline"
+                    icon={<KeyRound size={20} aria-hidden="true" />}
+                    title="Демо-ключ недоступен"
+                    description="Демо-ключ показывается только при включенном демо-режиме."
+                  />
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
       </AdminFrame>
     </PageShell>
   );

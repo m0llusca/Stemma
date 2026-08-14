@@ -1,13 +1,28 @@
+import {
+  isBrandHexColor,
+  resolveWorkspaceBranding
+} from "@/lib/ui-branding";
+export {
+  defaultBrandAccentColor,
+  defaultBrandMark,
+  defaultBrandName,
+  defaultBrandPrimaryColor,
+  defaultBrandTagline,
+  isBrandHexColor,
+  isBrandLogoUrl,
+  maxBrandLogoUrlLength,
+  normalizeBrandLogoUrl,
+  normalizeBrandMark,
+  normalizeBrandText,
+  resolveBrandColor,
+  resolveWorkspaceBranding,
+  type WorkspaceBranding
+} from "@/lib/ui-branding";
+
 export const defaultUiTheme = "graphite";
 export const defaultUiDensity = "comfortable";
 export const defaultUiCorners = "medium";
 export const defaultUiContrast = "standard";
-export const defaultBrandName = "КК поддержки";
-export const defaultBrandTagline = "Ручная проверка";
-export const defaultBrandMark = "КК";
-export const defaultBrandPrimaryColor = "#3157d5";
-export const defaultBrandAccentColor = "#7c97ff";
-export const maxBrandLogoUrlLength = 360_000;
 
 export const uiPaletteTokenOptions = [
   { id: "accent", label: "Акцент", cssVariable: "--accent", group: "brand" },
@@ -33,6 +48,7 @@ export const uiThemeOptions = [
     id: "graphite",
     label: "Graphite",
     description: "Нейтральная рабочая тема с темной навигацией, ясными панелями и спокойным синим акцентом.",
+    mode: "light",
     accent: "#2f5fff",
     surface: "#eef3f8",
     panel: "#ffffff",
@@ -44,6 +60,7 @@ export const uiThemeOptions = [
     id: "azure",
     label: "Signal Blue",
     description: "Холодная синяя палитра для аналитики, очередей и экранов с большим количеством сигналов.",
+    mode: "light",
     accent: "#2563eb",
     surface: "#edf5ff",
     panel: "#fbfdff",
@@ -55,6 +72,7 @@ export const uiThemeOptions = [
     id: "emerald",
     label: "Mint Steel",
     description: "Спокойная зелено-синяя палитра для команд, которым нужен менее холодный рабочий интерфейс.",
+    mode: "light",
     accent: "#0f8f84",
     surface: "#eefbf8",
     panel: "#fbfffd",
@@ -66,6 +84,7 @@ export const uiThemeOptions = [
     id: "violet",
     label: "Iris",
     description: "Глубокая фиолетовая тема без неонового эффекта, хорошо работает для брендированных демо.",
+    mode: "light",
     accent: "#6d4aff",
     surface: "#f4f2ff",
     panel: "#fefcff",
@@ -77,6 +96,7 @@ export const uiThemeOptions = [
     id: "amber",
     label: "Copper",
     description: "Теплая медная палитра для демонстраций, обучения и админских сценариев.",
+    mode: "light",
     accent: "#b85f17",
     surface: "#fff7ed",
     panel: "#fffdf8",
@@ -88,6 +108,7 @@ export const uiThemeOptions = [
     id: "rose",
     label: "Cranberry",
     description: "Собранная красная палитра для команд, где важны риски, эскалации и контроль качества.",
+    mode: "light",
     accent: "#cf244d",
     surface: "#fff2f5",
     panel: "#fffafb",
@@ -99,6 +120,7 @@ export const uiThemeOptions = [
     id: "ops",
     label: "Night Ops",
     description: "Темная операционная тема для мониторов, очередей и дежурных рабочих пространств.",
+    mode: "dark",
     accent: "#5ea0ff",
     surface: "#0b0f17",
     panel: "#151a24",
@@ -164,6 +186,12 @@ export const uiContrastOptions = [
 ] as const;
 
 export type UiThemeId = (typeof uiThemeOptions)[number]["id"];
+export type ThemeDefinition = Readonly<{
+  id: UiThemeId;
+  label: string;
+  description: string;
+  mode: "light" | "dark";
+}>;
 export type UiDensityId = (typeof uiDensityOptions)[number]["id"];
 export type UiCornersId = (typeof uiCornersOptions)[number]["id"];
 export type UiContrastId = (typeof uiContrastOptions)[number]["id"];
@@ -175,9 +203,6 @@ const uiDensityIds = new Set<string>(uiDensityOptions.map((option) => option.id)
 const uiCornersIds = new Set<string>(uiCornersOptions.map((option) => option.id));
 const uiContrastIds = new Set<string>(uiContrastOptions.map((option) => option.id));
 const uiPaletteTokenIds = new Set<string>(uiPaletteTokenOptions.map((option) => option.id));
-const brandHexColorPattern = /^#[0-9A-Fa-f]{6}$/;
-const brandHttpsLogoPattern = /^https:\/\/[^\s"'<>]+$/i;
-const brandDataLogoPattern = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 export function isUiThemeId(value: string): value is UiThemeId {
   return uiThemeIds.has(value);
@@ -211,42 +236,8 @@ export function resolveUiContrast(value: string | null | undefined): UiContrastI
   return value && isUiContrastId(value) ? value : defaultUiContrast;
 }
 
-export function normalizeBrandText(value: string | null | undefined, maxLength: number) {
-  return (value ?? "").replace(/\s+/g, " ").trim().slice(0, maxLength);
-}
-
-export function isBrandHexColor(value: string | null | undefined): value is string {
-  return Boolean(value && brandHexColorPattern.test(value));
-}
-
 export function isUiPaletteToken(value: string): value is UiPaletteToken {
   return uiPaletteTokenIds.has(value);
-}
-
-export function resolveBrandColor(value: string | null | undefined, fallback: string) {
-  return isBrandHexColor(value) ? value : fallback;
-}
-
-export function isBrandLogoUrl(value: string | null | undefined) {
-  if (!value) {
-    return true;
-  }
-
-  if (value.length > maxBrandLogoUrlLength) {
-    return false;
-  }
-
-  return brandHttpsLogoPattern.test(value) || brandDataLogoPattern.test(value);
-}
-
-export function normalizeBrandLogoUrl(value: string | null | undefined) {
-  const normalized = (value ?? "").trim();
-  return normalized && isBrandLogoUrl(normalized) ? normalized : "";
-}
-
-export function normalizeBrandMark(value: string | null | undefined) {
-  const normalized = normalizeBrandText(value, 8).toLocaleUpperCase("ru-RU");
-  return Array.from(normalized).slice(0, 3).join("");
 }
 
 function stablePaletteJson(overrides: UiPaletteOverrides) {
@@ -368,30 +359,6 @@ export function uiPaletteOverridesToCssVariables(overrides: UiPaletteOverrides) 
   return cssVariables;
 }
 
-export function resolveWorkspaceBranding(input: {
-  brandName?: string | null;
-  brandTagline?: string | null;
-  brandLogoUrl?: string | null;
-  brandLogoAlt?: string | null;
-  brandMark?: string | null;
-  brandPrimaryColor?: string | null;
-  brandAccentColor?: string | null;
-  uiPaletteOverridesJson?: string | null;
-} = {}) {
-  const brandName = normalizeBrandText(input.brandName, 64) || defaultBrandName;
-  const brandTagline = normalizeBrandText(input.brandTagline, 96) || defaultBrandTagline;
-
-  return {
-    brandName,
-    brandTagline,
-    brandLogoUrl: normalizeBrandLogoUrl(input.brandLogoUrl),
-    brandLogoAlt: normalizeBrandText(input.brandLogoAlt, 96) || brandName,
-    brandMark: normalizeBrandMark(input.brandMark) || defaultBrandMark,
-    brandPrimaryColor: resolveBrandColor(input.brandPrimaryColor, defaultBrandPrimaryColor),
-    brandAccentColor: resolveBrandColor(input.brandAccentColor, defaultBrandAccentColor)
-  };
-}
-
 export function resolveUiAppearance(input: {
   uiTheme?: string | null;
   uiDensity?: string | null;
@@ -419,7 +386,6 @@ export function resolveUiAppearance(input: {
   };
 }
 
-export type WorkspaceBranding = ReturnType<typeof resolveWorkspaceBranding>;
 export type UiAppearance = ReturnType<typeof resolveUiAppearance>;
 
 export function getUiThemeOption(value: string | null | undefined) {

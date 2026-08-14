@@ -1,11 +1,18 @@
-import { apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const sessions = await prisma.authSession.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ lastSeenAt: "desc" }],

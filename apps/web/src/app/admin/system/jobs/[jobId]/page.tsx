@@ -3,10 +3,32 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { PageShell } from "@/components/ui/page-shell";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminEyebrow } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -45,13 +67,6 @@ function formatDate(value: Date | null | undefined) {
   return value ? value.toLocaleString("ru-RU") : "Нет данных";
 }
 
-function jobKpiTone(tone: "ok" | "warn" | "error" | "neutral"): "neutral" | "success" | "warning" | "danger" {
-  if (tone === "ok") return "success";
-  if (tone === "warn") return "warning";
-  if (tone === "error") return "danger";
-  return "neutral";
-}
-
 function parseJson(value: string) {
   try {
     return JSON.stringify(JSON.parse(value), null, 2);
@@ -74,7 +89,7 @@ function isEmptyJson(value: string) {
       return true;
     }
 
-    return typeof parsed === "object" && Object.keys(parsed).length === 0;
+    return typeof parsed === "object" && Object.keys(parsed as object).length === 0;
   } catch {
     return false;
   }
@@ -125,172 +140,176 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
       description={`Создано ${formatDate(job.createdAt)}.`}
       actions={
         <>
-          <Link href="/admin/system" className="action-button">
-            <ArrowLeft size={16} aria-hidden="true" />
+          <Button render={<Link href="/admin/system" />} nativeButton={false} variant="outline" size="sm">
+            <ArrowLeft data-icon="inline-start" aria-hidden="true" />
             К системе
-          </Link>
+          </Button>
           {job.status === "QUEUED" ? (
             <form action={cancelQueuedBackendJob}>
               <input type="hidden" name="jobId" value={job.id} />
-              <button type="submit" className="action-button">
-                <Ban size={16} aria-hidden="true" />
+              <Button type="submit" variant="outline" size="sm">
+                <Ban data-icon="inline-start" aria-hidden="true" />
                 Отменить
-              </button>
+              </Button>
             </form>
           ) : null}
           <form action={runQueuedBackendJobs}>
             <input type="hidden" name="limit" value="1" />
-            <button type="submit" className="action-button action-button--primary">
-              <Play size={16} aria-hidden="true" />
+            <Button type="submit" size="sm">
+              <Play data-icon="inline-start" aria-hidden="true" />
               Запустить очередь
-            </button>
+            </Button>
           </form>
         </>
       }
+      tabs={jobDetailsSections.map((section) => ({
+        href: jobDetailsSectionHref(section.value),
+        label: section.label,
+        active: activeSection === section.value,
+        count: section.value === "events" ? job.events.length : undefined
+      }))}
     >
       <AdminFrame>
-      <section className="ops-metric-grid" aria-label="Сводка фоновой задачи">
-        <StatKpi
-          label="Статус"
-          value={jobStatus.label}
-          tone={jobKpiTone(jobStatus.tone)}
-          hint={`Попытка ${job.attempts}/${job.maxAttempts}`}
-        />
-        <StatKpi label="Очередь" value={queueNameLabel(job.queueName)} hint={`Запуск: ${formatDate(job.runAfter)}`} />
-        <StatKpi label="События" value={job.events.length} hint="История runner" />
-      </section>
+        <div className="flex flex-col gap-6">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Сводка фоновой задачи">
+            <StatKpi label="Статус" value={jobStatus.label} hint={`Попытка ${job.attempts}/${job.maxAttempts}`} />
+            <StatKpi label="Очередь" value={queueNameLabel(job.queueName)} hint={`Запуск: ${formatDate(job.runAfter)}`} />
+            <StatKpi label="События" value={job.events.length} hint="История runner" />
+          </section>
 
-      <nav className="ops-tabs ops-tabs--section" aria-label="Разделы фоновой задачи">
-        {jobDetailsSections.map((section) => (
-          <Link
-            key={section.value}
-            href={jobDetailsSectionHref(section.value)}
-            className={`ops-tab ${activeSection === section.value ? "ops-tab--active" : ""}`}
-            aria-current={activeSection === section.value ? "page" : undefined}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </nav>
-
-      {activeSection === "summary" ? (
-        <section className="ops-panel" aria-labelledby="job-summary-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Задача</p>
-              <h2 id="job-summary-title" className="ops-panel__title">Сводка</h2>
-              <p className="ops-panel__subtitle">Ключевые параметры фоновой задачи без технического JSON.</p>
-            </div>
-          </div>
-          <div className="record-list px-5">
-            <article className="record-card">
-              <p className="soft-callout__label">ID задачи</p>
-              <p className="record-title compact-text font-mono">{job.id}</p>
-            </article>
-            <article className="record-card">
-              <p className="record-meta">Создал: {job.createdBy?.name ?? "Автоматика"}</p>
-              <p className="record-meta tabular-nums">Старт: {formatDate(job.startedAt)}</p>
-              <p className="record-meta tabular-nums">Финиш: {formatDate(job.finishedAt)}</p>
-            </article>
-            {job.errorMessage ? (
-              <article className="record-card border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]">
-                <p className="font-semibold text-[var(--danger)]">Ошибка</p>
-                <p className="mt-1 text-sm leading-5 text-[var(--danger)]">{job.errorMessage}</p>
-              </article>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {activeSection === "events" ? (
-        <section className="ops-panel" aria-labelledby="job-events-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Runner</p>
-              <h2 id="job-events-title" className="ops-panel__title">События</h2>
-              <p className="ops-panel__subtitle">История запуска, ошибок и результатов backend runner.</p>
-            </div>
-          </div>
-          <div className="record-list px-5">
-            {job.events.length === 0 ? (
-              <EmptyState
-                size="inline"
-                icon={<ListChecks size={20} aria-hidden="true" />}
-                title="Событий пока нет"
-                description="История runner появится после запуска задачи."
-              />
-            ) : (
-              job.events.map((event) => (
-                <article key={event.id} className="record-card">
-                  <div className="record-row">
-                    <p className="font-semibold text-[var(--foreground)]">{event.message}</p>
-                    <Chip tone="neutral" size="xs">{event.level}</Chip>
+          {activeSection === "summary" ? (
+            <Card aria-labelledby="job-summary-title">
+              <CardHeader className="border-b">
+                <CardTitle id="job-summary-title">Сводка</CardTitle>
+                <CardDescription>Ключевые параметры фоновой задачи без технического JSON.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4 pt-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1 rounded-lg border border-border p-3">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">ID задачи</span>
+                    <p className="break-all font-mono text-sm text-foreground">{job.id}</p>
                   </div>
-                  <p className="record-meta tabular-nums">{formatDate(event.createdAt)}</p>
-                  <details className="compact-details mt-2">
-                    <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-[var(--text-body)]">Метаданные</summary>
-                    <pre className="code-surface code-surface--inline max-h-[220px] overflow-auto border-t border-[var(--border)] p-3 text-xs leading-5">
-                      {parseJson(event.metadata)}
-                    </pre>
-                  </details>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-      ) : null}
+                  <div className="flex flex-col gap-1 rounded-lg border border-border p-3">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Метаданные</span>
+                    <p className="text-sm text-muted-foreground">Создал: {job.createdBy?.name ?? "Автоматика"}</p>
+                    <p className="text-sm tabular-nums text-muted-foreground">Старт: {formatDate(job.startedAt)}</p>
+                    <p className="text-sm tabular-nums text-muted-foreground">Финиш: {formatDate(job.finishedAt)}</p>
+                  </div>
+                </div>
+                {job.errorMessage ? (
+                  <Alert variant="destructive">
+                    <Ban aria-hidden="true" />
+                    <AlertTitle>Ошибка</AlertTitle>
+                    <AlertDescription>{job.errorMessage}</AlertDescription>
+                  </Alert>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
-      {activeSection === "payload" ? (
-        <section className="ops-panel" aria-labelledby="job-payload-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">JSON</p>
-              <h2 id="job-payload-title" className="ops-panel__title">Payload задачи</h2>
-              <p className="ops-panel__subtitle">Техническое тело задачи для отладки обработчика.</p>
-            </div>
-          </div>
-          {isEmptyJson(job.payloadJson) ? (
-            <div className="px-5 pb-5">
-              <EmptyState
-                size="inline"
-                icon={<Braces size={20} aria-hidden="true" />}
-                title="Полезная нагрузка отсутствует"
-                description="Задача создана без параметров — обработчику не передавались данные."
-              />
-            </div>
-          ) : (
-            <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
-              {parseJson(job.payloadJson)}
-            </pre>
-          )}
-        </section>
-      ) : null}
+          {activeSection === "events" ? (
+            <Card aria-labelledby="job-events-title">
+              <CardHeader className="border-b">
+                <CardTitle id="job-events-title">События</CardTitle>
+                <CardDescription>История запуска, ошибок и результатов backend runner.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {job.events.length === 0 ? (
+                  <EmptyState
+                    size="inline"
+                    icon={<ListChecks size={20} aria-hidden="true" />}
+                    title="Событий пока нет"
+                    description="История runner появится после запуска задачи."
+                  />
+                ) : (
+                  <Table aria-labelledby="job-events-title">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Сообщение</TableHead>
+                        <TableHead>Уровень</TableHead>
+                        <TableHead>Время</TableHead>
+                        <TableHead>Метаданные</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {job.events.map((event) => (
+                        <TableRow key={event.id}>
+                          <TableCell className="max-w-[320px] whitespace-normal font-medium text-foreground">
+                            {event.message}
+                          </TableCell>
+                          <TableCell>
+                            <Chip tone="neutral" size="xs">
+                              {event.level}
+                            </Chip>
+                          </TableCell>
+                          <TableCell className="tabular-nums text-muted-foreground">{formatDate(event.createdAt)}</TableCell>
+                          <TableCell className="max-w-[280px]">
+                            <Collapsible>
+                              <CollapsibleTrigger className="cursor-pointer text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                Метаданные
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <pre className="mt-2 max-h-[220px] overflow-auto rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs leading-5 text-foreground">
+                                  {parseJson(event.metadata)}
+                                </pre>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
 
-      {activeSection === "result" ? (
-        <section className="ops-panel" aria-labelledby="job-result-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">JSON</p>
-              <h2 id="job-result-title" className="ops-panel__title">Результат</h2>
-              <p className="ops-panel__subtitle">Ответ обработчика после выполнения задачи.</p>
-            </div>
-          </div>
-          {isEmptyJson(job.resultJson) ? (
-            <div className="px-5 pb-5">
-              <EmptyState
-                size="inline"
-                icon={<Braces size={20} aria-hidden="true" />}
-                title="Задача не вернула результат"
-                description="Ответ обработчика появится после успешного выполнения задачи."
-              />
-            </div>
-          ) : (
-            <pre className="code-surface max-h-[520px] overflow-auto p-5 text-xs leading-5">
-              {parseJson(job.resultJson)}
-            </pre>
-          )}
-        </section>
-      ) : null}
+          {activeSection === "payload" ? (
+            <Card aria-labelledby="job-payload-title">
+              <CardHeader className="border-b">
+                <CardTitle id="job-payload-title">Payload задачи</CardTitle>
+                <CardDescription>Техническое тело задачи для отладки обработчика.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {isEmptyJson(job.payloadJson) ? (
+                  <EmptyState
+                    size="inline"
+                    icon={<Braces size={20} aria-hidden="true" />}
+                    title="Полезная нагрузка отсутствует"
+                    description="Задача создана без параметров — обработчику не передавались данные."
+                  />
+                ) : (
+                  <pre className="max-h-[520px] overflow-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-xs leading-5 text-foreground">
+                    {parseJson(job.payloadJson)}
+                  </pre>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeSection === "result" ? (
+            <Card aria-labelledby="job-result-title">
+              <CardHeader className="border-b">
+                <CardTitle id="job-result-title">Результат</CardTitle>
+                <CardDescription>Ответ обработчика после выполнения задачи.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {isEmptyJson(job.resultJson) ? (
+                  <EmptyState
+                    size="inline"
+                    icon={<Braces size={20} aria-hidden="true" />}
+                    title="Задача не вернула результат"
+                    description="Ответ обработчика появится после успешного выполнения задачи."
+                  />
+                ) : (
+                  <pre className="max-h-[520px] overflow-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-xs leading-5 text-foreground">
+                    {parseJson(job.resultJson)}
+                  </pre>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
       </AdminFrame>
     </PageShell>
   );

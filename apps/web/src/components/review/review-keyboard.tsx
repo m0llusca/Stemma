@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
   initialReviewKeyboardState,
   reduceReviewKey,
   scoreKeyToOption,
   type ScoreOption
 } from "@/lib/review/keyboard";
-import styles from "./review-panel-workbench.module.css";
 
 /**
  * Keyboard-first grading layer for the workbench. Mounts once inside the review
@@ -89,6 +89,30 @@ export function ReviewKeyboard() {
       });
     }
 
+    function ensureCriterionOpen(card: HTMLElement) {
+      // Legacy details (if any remain in tests/fixtures).
+      if (card instanceof HTMLDetailsElement) {
+        if (!card.open) {
+          card.open = true;
+        }
+        return;
+      }
+
+      // Base UI Collapsible root: closed panels expose data-closed; open ones data-open.
+      const isClosed =
+        card.hasAttribute("data-closed") ||
+        card.getAttribute("data-open") === null ||
+        card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")?.getAttribute("aria-expanded") ===
+          "false";
+
+      if (!isClosed) {
+        return;
+      }
+
+      const trigger = card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
+      trigger?.click();
+    }
+
     function focusCard(index: number) {
       const all = cards();
       const card = all[index];
@@ -97,11 +121,7 @@ export function ReviewKeyboard() {
         return;
       }
 
-      // Open the disclosure so the just-focused card's controls are visible.
-      if (card instanceof HTMLDetailsElement && !card.open) {
-        card.open = true;
-      }
-
+      ensureCriterionOpen(card);
       card.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -112,14 +132,18 @@ export function ReviewKeyboard() {
         return;
       }
 
+      // Expand first so the operator sees the new score even though keepMounted
+      // already keeps radios in FormData when collapsed.
+      ensureCriterionOpen(card);
+
       const radio = radioMatcher(card, option);
 
       if (!radio || radio.checked) {
         return;
       }
 
-      // Click the existing radio so the form's controlled/uncontrolled state and
-      // the CSS :checked styling update exactly as a user click would.
+      // Click the existing radio so form state + segment styling update as a
+      // real pointer interaction would (Base UI RadioGroup hidden input).
       radio.click();
     }
 
@@ -177,9 +201,23 @@ export function ReviewKeyboard() {
   }
 
   return (
-    <p className={styles.keyboardLegend} role="status">
-      <kbd>J</kbd>/<kbd>K</kbd> — переход между критериями · <kbd>1</kbd> зачёт ·{" "}
-      <kbd>2</kbd> частично · <kbd>3</kbd> незачёт · <kbd>?</kbd> — скрыть подсказку
+    <p
+      className="flex flex-wrap items-center gap-1.5 border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground"
+      role="status"
+    >
+      <KbdGroup>
+        <Kbd>J</Kbd>
+        <Kbd>K</Kbd>
+      </KbdGroup>
+      <span>— переход между критериями ·</span>
+      <Kbd>1</Kbd>
+      <span>зачёт ·</span>
+      <Kbd>2</Kbd>
+      <span>частично ·</span>
+      <Kbd>3</Kbd>
+      <span>незачёт ·</span>
+      <Kbd>?</Kbd>
+      <span>— скрыть подсказку</span>
     </p>
   );
 }

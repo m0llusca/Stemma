@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   computeCoachingImpact,
-  loadAssignmentCoachingImpact
+  loadAssignmentCoachingImpact,
+  trainingEffectKpiHint
 } from "@/lib/coaching-impact";
 
 function scores(...values: number[]) {
@@ -91,6 +92,14 @@ describe("computeCoachingImpact", () => {
     expect(result.afterAvg).toBeNull();
     expect(result.delta).toBeNull();
     expect(result.trend).toBe("insufficient");
+  });
+});
+
+describe("trainingEffectKpiHint", () => {
+  it("does not frame a negative average effect as growth", () => {
+    expect(trainingEffectKpiHint({ averageDelta: -4, positiveCount: 2, measuredCount: 3 })).toBe(
+      "Снижение в среднем; рост у 2 из 3"
+    );
   });
 });
 

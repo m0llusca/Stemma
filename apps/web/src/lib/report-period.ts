@@ -3,20 +3,38 @@ export type ReportPeriod = {
   start: Date;
   end: Date;
   label: string;
+  adjustment?: {
+    kind: "max-span";
+    maximumDays: number;
+    requestedStart: string;
+    requestedEnd: string;
+    message: string;
+  };
 };
 
 const oneDayMs = 24 * 60 * 60 * 1000;
+export const MAX_CUSTOM_REPORT_PERIOD_DAYS = 366;
 
 function dateOnly(value: Date) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  const normalized = new Date(value.getTime());
+  normalized.setUTCHours(0, 0, 0, 0);
+  return normalized;
 }
 
 function endOfDay(value: Date) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 23, 59, 59, 999));
+  const normalized = new Date(value.getTime());
+  normalized.setUTCHours(23, 59, 59, 999);
+  return normalized;
 }
 
 function addMonths(value: Date, months: number) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, value.getUTCDate()));
+  const normalized = dateOnly(value);
+  normalized.setUTCMonth(normalized.getUTCMonth() + months);
+  return normalized;
+}
+
+function addDays(value: Date, days: number) {
+  return new Date(dateOnly(value).getTime() + days * oneDayMs);
 }
 
 function formatDateInput(value: Date) {
@@ -29,7 +47,9 @@ function parseDateInput(value: string | undefined) {
   }
 
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  return Number.isNaN(parsed.getTime()) || formatDateInput(parsed) !== value
+    ? undefined
+    : parsed;
 }
 
 function firstParam(value: string | string[] | undefined) {
@@ -70,11 +90,29 @@ export function resolveReportPeriod(params: Record<string, string | string[] | u
   const customEnd = parseDateInput(firstParam(params.end));
 
   if (preset === "custom" && customStart && customEnd && customStart <= customEnd) {
+    const maximumEnd = addDays(
+      customStart,
+      MAX_CUSTOM_REPORT_PERIOD_DAYS - 1
+    );
+    const rangeWasClamped = customEnd > maximumEnd;
+    const resolvedEnd = rangeWasClamped ? maximumEnd : customEnd;
+
     return {
       preset,
       start: customStart,
-      end: endOfDay(customEnd),
-      label: "Произвольный период"
+      end: endOfDay(resolvedEnd),
+      label: "Произвольный период",
+      ...(rangeWasClamped
+        ? {
+            adjustment: {
+              kind: "max-span" as const,
+              maximumDays: MAX_CUSTOM_REPORT_PERIOD_DAYS,
+              requestedStart: formatDateInput(customStart),
+              requestedEnd: formatDateInput(customEnd),
+              message: `Диапазон ограничен до ${MAX_CUSTOM_REPORT_PERIOD_DAYS} дней. В отчёте и ссылках применены даты ${formatDateInput(customStart)} — ${formatDateInput(resolvedEnd)}.`
+            }
+          }
+        : {})
     };
   }
 

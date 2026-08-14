@@ -82,6 +82,7 @@ export async function loadPreviousFinalizedReviews(workspaceId: string, period: 
     where: reviewWhere(workspaceId, period),
     select: {
       totalScore: true,
+      finalizedAt: true,
       conversation: {
         select: {
           externalSource: true,
@@ -122,7 +123,12 @@ export async function loadPeriodFindings(workspaceId: string, period: ReportPeri
       ownerType: true,
       category: true,
       rootCause: true,
-      riskLevel: true
+      riskLevel: true,
+      review: {
+        select: {
+          finalizedAt: true
+        }
+      }
     }
   });
 }

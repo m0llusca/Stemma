@@ -4,15 +4,21 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import { PageSkeleton } from "@/components/loading-states";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { russianPlural } from "@/lib/reports/report-format";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
 import { loadWorkspaceAiCredentials } from "@/lib/ai-quality/credentials";
 import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +33,22 @@ type AdminCard = {
 
 function canSee(role: RoleName, roles: RoleName[]) {
   return roles.includes(role);
+}
+
+function metricBadgeVariant(tone: AdminCard["tone"]): "default" | "secondary" | "destructive" | "outline" {
+  if (tone === "ok") return "secondary";
+  if (tone === "warn") return "destructive";
+  return "outline";
+}
+
+function toneIconClass(tone: AdminCard["tone"]) {
+  if (tone === "ok") {
+    return cn("border-success/30", statusSurfaceClass("positive"));
+  }
+  if (tone === "warn") {
+    return cn("border-warning/30", statusSurfaceClass("warning"));
+  }
+  return cn("border-border", statusSurfaceClass("neutral"));
 }
 
 export default function AdminHomePage() {
@@ -157,7 +179,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/sampling"],
       icon: ListChecks,
       roles: ["ADMIN", "TEAM_LEAD"],
-      metric: `${activeSamplingRules} активных`,
+      metric: russianPlural(activeSamplingRules, ["активное правило", "активных правила", "активных правил"]),
       tone: activeSamplingRules > 0 ? "ok" : "warn"
     },
     {
@@ -173,7 +195,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/integrations"],
       icon: Plug,
       roles: ["ADMIN"],
-      metric: `${integrations} источников`,
+      metric: russianPlural(integrations, ["источник", "источника", "источников"]),
       tone: integrations > 0 ? "ok" : "neutral"
     },
     {
@@ -189,7 +211,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/channels"],
       icon: Send,
       roles: ["ADMIN"],
-      metric: `${messagingActiveChannels} активных`,
+      metric: russianPlural(messagingActiveChannels, ["активный канал", "активных канала", "активных каналов"]),
       tone: messagingActiveChannels > 0 ? "ok" : "neutral"
     },
     {
@@ -197,7 +219,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/users"],
       icon: UsersRound,
       roles: ["ADMIN"],
-      metric: `${users} пользователей`,
+      metric: russianPlural(users, ["пользователь", "пользователя", "пользователей"]),
       tone: users > 0 ? "ok" : "warn"
     },
     {
@@ -205,7 +227,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/system"],
       icon: Activity,
       roles: ["ADMIN"],
-      metric: failedJobs > 0 ? `${failedJobs} ошибок` : "Без ошибок",
+      metric: failedJobs > 0 ? russianPlural(failedJobs, ["ошибка", "ошибки", "ошибок"]) : "Без ошибок",
       tone: failedJobs > 0 ? "warn" : "ok"
     },
     {
@@ -213,7 +235,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/tokens"],
       icon: KeyRound,
       roles: ["ADMIN"],
-      metric: `${apiTokens} ключей`,
+      metric: russianPlural(apiTokens, ["ключ", "ключа", "ключей"]),
       tone: apiTokens > 0 ? "ok" : "neutral"
     },
     {
@@ -237,7 +259,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/audit"],
       icon: History,
       roles: ["ADMIN", "TEAM_LEAD"],
-      metric: `${recentAuditLogs} событий`,
+      metric: russianPlural(recentAuditLogs, ["событие", "события", "событий"]),
       tone: "neutral"
     },
     {
@@ -245,7 +267,7 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/report-schedules"],
       icon: CalendarClock,
       roles: ["ADMIN", "TEAM_LEAD"],
-      metric: `${reportSchedules} активных`,
+      metric: russianPlural(reportSchedules, ["активное расписание", "активных расписания", "активных расписаний"]),
       tone: reportSchedules > 0 ? "ok" : "neutral"
     }
   ];
@@ -286,10 +308,16 @@ async function AdminHomePageContent() {
       actions={quickActions.slice(0, 3).map((action, index) => {
         const Icon = action.icon;
         return (
-          <Link key={action.href} href={action.href} className={`action-button ${index === 0 ? "action-button--primary" : ""}`}>
-            <Icon size={16} aria-hidden="true" />
+          <Button
+            key={action.href}
+            variant={index === 0 ? "default" : "outline"}
+            size="sm"
+            render={<Link href={action.href} />}
+            nativeButton={false}
+          >
+            <Icon data-icon="inline-start" aria-hidden="true" />
             {action.label}
-          </Link>
+          </Button>
         );
       })}
     >
@@ -301,43 +329,68 @@ async function AdminHomePageContent() {
           description={priorityBody}
           action={
             primarySetupCoachmark ? (
-              <Link href={primarySetupCoachmark.href} className="action-button action-button--small action-button--primary">
+              <Button
+                size="sm"
+                variant="default"
+                render={<Link href={primarySetupCoachmark.href} />}
+                nativeButton={false}
+              >
                 {primarySetupCoachmark.actionLabel}
-              </Link>
+              </Button>
             ) : undefined
           }
         />
 
         {visibleCards.length > 0 ? (
-          <section className="ops-panel admin-status-panel" aria-labelledby="admin-status-heading">
-            <div className="ops-panel__header">
-              <div>
-                <h2 id="admin-status-heading" className="ops-panel__title">Состояние разделов</h2>
-                <p className="ops-panel__subtitle">Текущее значение и статус по каждой области настроек.</p>
-              </div>
-            </div>
-            <ul className="admin-status-list">
-              {visibleCards.map((card) => {
-                const Icon = card.icon;
-                const tone = card.tone ?? "neutral";
+          <Card size="sm" aria-labelledby="admin-status-heading">
+            <CardHeader className="border-b border-border pb-(--card-spacing)">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Обзор</p>
+              <CardTitle id="admin-status-heading">Состояние разделов</CardTitle>
+              <CardDescription>Текущее значение и статус по каждой области настроек.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-(--card-spacing)">
+              <ul className="grid min-w-0 grid-cols-1 gap-1 md:grid-cols-2">
+                {visibleCards.map((card) => {
+                  const Icon = card.icon;
+                  const tone = card.tone ?? "neutral";
 
-                return (
-                  <li key={card.href}>
-                    <Link href={card.href} className="admin-status-row">
-                      <span className={`admin-status-row__icon admin-status-row__icon--${tone}`} aria-hidden="true">
-                        <Icon size={15} aria-hidden="true" />
-                      </span>
-                      <span className="admin-status-row__label record-title record-title--tight">{card.title}</span>
-                      {card.metric ? (
-                        <span className={`admin-status-row__metric tabular-nums admin-status-row__metric--${tone}`}>{card.metric}</span>
-                      ) : null}
-                      <ArrowRight className="admin-status-row__arrow" size={14} aria-hidden="true" />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+                  return (
+                    <li key={card.href} className="min-w-0">
+                      <Link
+                        href={card.href}
+                        className="group flex min-w-0 items-center gap-3 rounded-lg border border-transparent px-2.5 py-2 outline-none transition-colors hover:border-border hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        <span
+                          className={cn(
+                            "inline-flex size-8 shrink-0 items-center justify-center rounded-md border",
+                            toneIconClass(tone)
+                          )}
+                          aria-hidden="true"
+                        >
+                          <Icon className="size-3.5" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                          {card.title}
+                        </span>
+                        {card.metric ? (
+                          <Badge
+                            variant={metricBadgeVariant(tone)}
+                            className="max-w-[50%] shrink-0 truncate tabular-nums"
+                          >
+                            {card.metric}
+                          </Badge>
+                        ) : null}
+                        <ArrowRight
+                          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                          aria-hidden="true"
+                        />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
         ) : null}
       </AdminFrame>
     </PageShell>

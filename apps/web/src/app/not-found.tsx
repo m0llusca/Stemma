@@ -1,20 +1,30 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle
+} from "@/components/ui/empty";
 
 export default function NotFound() {
   return (
-    <section className="page-shell">
-      <div className="panel" style={{ display: "grid", gap: 16, justifyItems: "center", textAlign: "center", maxWidth: 520, margin: "48px auto", padding: 32 }}>
-        <p className="page-kicker">Ошибка 404</p>
-        <h1 className="page-title">Страница не найдена</h1>
-        <p className="page-subtitle" style={{ maxWidth: 420 }}>
-          Запрошенная страница не существует или была перемещена. Вернитесь на дашборд и продолжите работу оттуда.
-        </p>
-        <div className="admin-actions">
-          <Link href="/" className="action-button action-button--primary">
+    <section className="mx-auto flex min-h-[50vh] max-w-lg items-center justify-center p-6">
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Страница не найдена</EmptyTitle>
+          <EmptyDescription>
+            Запрошенная страница не существует или была перемещена. Вернитесь на дашборд и продолжите
+            работу оттуда.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button render={<Link href="/" />} nativeButton={false}>
             На дашборд
-          </Link>
-        </div>
-      </div>
+          </Button>
+        </EmptyContent>
+      </Empty>
     </section>
   );
 }

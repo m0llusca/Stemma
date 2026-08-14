@@ -23,7 +23,19 @@ describe("status tone helpers", () => {
     expect(toneForCount(-1, { zero: "neutral", nonZero: "warning" })).toBe("warning");
   });
 
-  it("returns the shared semantic class contract", () => {
-    expect(statusToneClass("info")).toBe("status-tone status-tone--info");
+  it("returns self-contained semantic text classes without legacy stylesheet dependencies", () => {
+    expect({
+      positive: statusToneClass("positive"),
+      warning: statusToneClass("warning"),
+      negative: statusToneClass("negative"),
+      neutral: statusToneClass("neutral"),
+      info: statusToneClass("info")
+    }).toEqual({
+      positive: "text-success",
+      warning: "text-warning",
+      negative: "text-destructive",
+      neutral: "text-muted-foreground",
+      info: "text-primary"
+    });
   });
 });

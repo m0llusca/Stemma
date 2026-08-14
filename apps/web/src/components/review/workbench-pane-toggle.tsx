@@ -2,13 +2,15 @@
 
 import { ClipboardCheck, MessagesSquare } from "lucide-react";
 import { useState } from "react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type WorkbenchPane = "dialog" | "score";
 
 /**
  * Narrow-screen pane switch for the review workbench.
  *
- * When the two panes collapse to a single column (≤1100px, CSS-driven), the long
+ * When the two panes collapse to a single column (below the lg breakpoint,
+ * CSS-driven), the long
  * transcript would otherwise stack ABOVE the scorecard, forcing reviewers to
  * scroll the whole conversation before grading. This segmented control flips a
  * `data-active-pane` attribute on the workbench root so the chosen pane is the
@@ -33,27 +35,40 @@ export function WorkbenchPaneToggle({ targetId }: { targetId: string }) {
   }
 
   return (
-    <div className="workbench-pane-toggle" role="group" aria-label="Переключение панели">
-      <button
-        type="button"
-        className="workbench-pane-toggle__btn"
-        data-active={pane === "dialog" ? "true" : undefined}
+    <ToggleGroup
+      value={[pane]}
+      onValueChange={(value) => {
+        const next = value[0] as WorkbenchPane | undefined;
+        if (next) {
+          select(next);
+        }
+      }}
+      orientation="horizontal"
+      loopFocus
+      variant="outline"
+      size="sm"
+      spacing={2}
+      className="workbench-pane-toggle hidden w-full min-w-0 max-lg:flex"
+      aria-label="Переключение панели"
+    >
+      <ToggleGroupItem
+        value="dialog"
+        className="flex-1"
         aria-pressed={pane === "dialog"}
-        onClick={() => select("dialog")}
+        data-active={pane === "dialog" ? "true" : undefined}
       >
-        <MessagesSquare size={15} aria-hidden="true" />
+        <MessagesSquare data-icon="inline-start" aria-hidden="true" />
         Диалог
-      </button>
-      <button
-        type="button"
-        className="workbench-pane-toggle__btn"
-        data-active={pane === "score" ? "true" : undefined}
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="score"
+        className="flex-1"
         aria-pressed={pane === "score"}
-        onClick={() => select("score")}
+        data-active={pane === "score" ? "true" : undefined}
       >
-        <ClipboardCheck size={15} aria-hidden="true" />
+        <ClipboardCheck data-icon="inline-start" aria-hidden="true" />
         Оценка
-      </button>
-    </div>
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 }

@@ -2,6 +2,15 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/required-mark";
 import { saveIntegrationConfigurationState, type IntegrationActionState } from "@/lib/integration-actions";
 
@@ -18,8 +27,6 @@ export type IntegrationSettingsFormIntegration = {
   dateRangeDays: number;
   configJson: string;
 };
-
-const labelClass = "grid gap-1 text-sm font-medium text-[var(--text-body)]";
 
 /**
  * readIntegrationSetup читает секрет из поля, имя которого зависит от mode:
@@ -99,9 +106,9 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? "Сохраняем..." : "Сохранить настройки"}
-    </button>
+    </Button>
   );
 }
 
@@ -112,7 +119,7 @@ export function IntegrationSettingsForm({ integration }: { integration: Integrat
   const wizardConfig = readWizardConfig(integration.configJson);
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} className="grid gap-4">
       <input type="hidden" name="source" value={integration.source} />
       <input type="hidden" name="mode" value={mode} />
       <input type="hidden" name="configJson" value={integration.configJson} />
@@ -123,84 +130,96 @@ export function IntegrationSettingsForm({ integration }: { integration: Integrat
       <input type="hidden" name="dryRun" value={String(wizardConfig.dryRun)} />
       <input type="hidden" name="deduplicate" value={String(wizardConfig.deduplicate)} />
 
-      <label className={labelClass}>
-        <span>
-          Название
-          <RequiredMark />
-        </span>
-        <input name="sourceLabel" required minLength={1} maxLength={120} defaultValue={integration.displayName} className="form-control" />
-      </label>
+      <FieldGroup className="gap-4">
+        <Field>
+          <FieldLabel htmlFor="settings-sourceLabel">
+            Название
+            <RequiredMark />
+          </FieldLabel>
+          <Input
+            id="settings-sourceLabel"
+            name="sourceLabel"
+            required
+            minLength={1}
+            maxLength={120}
+            defaultValue={integration.displayName}
+          />
+        </Field>
 
-      <label className={labelClass}>
-        <span>
-          Base URL
-          {mode !== "custom_api" ? <RequiredMark /> : null}
-        </span>
-        <input
-          name="baseUrl"
-          type="url"
-          required={mode !== "custom_api"}
-          defaultValue={integration.baseUrl ?? ""}
-          placeholder="https://example.zendesk.com"
-          className="form-control"
-        />
-      </label>
+        <Field>
+          <FieldLabel htmlFor="settings-baseUrl">
+            Base URL
+            {mode !== "custom_api" ? <RequiredMark /> : null}
+          </FieldLabel>
+          <Input
+            id="settings-baseUrl"
+            name="baseUrl"
+            type="url"
+            required={mode !== "custom_api"}
+            defaultValue={integration.baseUrl ?? ""}
+            placeholder="https://example.zendesk.com"
+          />
+        </Field>
 
-      <div className="form-group">
-        <p className="form-group__label">Лимиты импорта</p>
-        <div className="form-group__body form-group__body--grid">
-          <label className={labelClass}>
-            Лимит импорта
-            <input
-              name="maxTickets"
-              type="number"
-              min="1"
-              max="10000"
-              defaultValue={integration.importLimit}
-              className="form-control tabular-nums"
-            />
-          </label>
-          <label className={labelClass}>
-            Размер пачки
-            <input
-              name="batchSize"
-              type="number"
-              min="1"
-              max="1000"
-              defaultValue={integration.batchSize}
-              className="form-control tabular-nums"
-            />
-          </label>
-          <label className={labelClass}>
-            Глубина, дней
-            <input
-              name="dateRangeDays"
-              type="number"
-              min="1"
-              max="3650"
-              defaultValue={integration.dateRangeDays}
-              className="form-control tabular-nums"
-            />
-          </label>
-        </div>
-      </div>
+        <FieldGroup className="gap-3">
+          <FieldDescription className="text-sm font-medium text-foreground">Лимиты импорта</FieldDescription>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="settings-maxTickets">Лимит импорта</FieldLabel>
+              <Input
+                id="settings-maxTickets"
+                name="maxTickets"
+                type="number"
+                min={1}
+                max={10000}
+                defaultValue={integration.importLimit}
+                className="tabular-nums"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="settings-batchSize">Размер пачки</FieldLabel>
+              <Input
+                id="settings-batchSize"
+                name="batchSize"
+                type="number"
+                min={1}
+                max={1000}
+                defaultValue={integration.batchSize}
+                className="tabular-nums"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="settings-dateRangeDays">Глубина, дней</FieldLabel>
+              <Input
+                id="settings-dateRangeDays"
+                name="dateRangeDays"
+                type="number"
+                min={1}
+                max={3650}
+                defaultValue={integration.dateRangeDays}
+                className="tabular-nums"
+              />
+            </Field>
+          </div>
+        </FieldGroup>
 
-      {secretFieldName ? (
-        <label className={labelClass}>
-          Ключ/токен
-          <input name={secretFieldName} type="password" autoComplete="new-password" className="form-control" />
-          <span className="text-xs font-normal text-[var(--text-muted)]">
-            Оставьте пустым, чтобы не менять сохранённый ключ.
-          </span>
-        </label>
-      ) : null}
+        {secretFieldName ? (
+          <Field>
+            <FieldLabel htmlFor="settings-secret">Ключ/токен</FieldLabel>
+            <Input id="settings-secret" name={secretFieldName} type="password" autoComplete="new-password" />
+            <FieldDescription>Оставьте пустым, чтобы не менять сохранённый ключ.</FieldDescription>
+          </Field>
+        ) : null}
+      </FieldGroup>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
         <SubmitButton />
       </div>
 
       {state ? (
-        <p className={`text-sm font-medium ${state.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{state.message}</p>
+        <Alert variant={state.ok ? "default" : "destructive"}>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
       ) : null}
     </form>
   );

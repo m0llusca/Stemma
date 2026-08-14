@@ -174,6 +174,34 @@ describe("review action lifecycle guards", () => {
     );
   });
 
+  it("pluralizes the score word in the manager notification", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    mocks.prisma.scorecard.findFirst.mockResolvedValue({
+      id: "scorecard-1",
+      version: 3,
+      criteria: [
+        { id: "crit-a", label: "Точность", kind: "PASS_FAIL", weight: 21 },
+        { id: "crit-b", label: "Тон", kind: "PASS_FAIL", weight: 79 }
+      ]
+    });
+    const formData = baseFinalizeForm();
+    formData.set("criterion.crit-a.passed", "true");
+    formData.set("criterion.crit-b.passed", "false");
+
+    await finalizeReview(formData);
+
+    expect(mocks.enqueueBackendJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          context: expect.objectContaining({
+            body: "Оператор · 21 балл"
+          })
+        })
+      }),
+      mocks.tx
+    );
+  });
+
   it("enqueues the finalize messaging job inside the same transaction client", async () => {
     const { finalizeReview } = await import("@/lib/review-actions");
 

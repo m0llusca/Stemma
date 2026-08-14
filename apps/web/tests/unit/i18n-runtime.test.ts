@@ -49,7 +49,7 @@ describe("i18n runtime", () => {
 
     expect(dict.locale).toBe("en");
     expect(dict.t("dashboard.title")).toBe("Workspace dashboard override");
-    expect(dict.t("shell.nav.dashboard")).toBe("Dashboard");
+    expect(dict.t("shell.nav.dashboard")).toBe("Today");
     expect(dict.t("missing.key")).toBe("missing.key");
     expect(mocks.translationValueFindMany).toHaveBeenCalledWith({
       where: {
@@ -119,7 +119,7 @@ describe("i18n runtime", () => {
 
     expect(dict.locale).toBe("en-US");
     expect(dict.t("dashboard.title")).toBe("Quality dashboard");
-    expect(dict.t("shell.nav.dashboard")).toBe("Dashboard");
+    expect(dict.t("shell.nav.dashboard")).toBe("Today");
     expect(mocks.localeFindMany).toHaveBeenCalledWith({
       where: {
         workspaceId: "workspace-1",

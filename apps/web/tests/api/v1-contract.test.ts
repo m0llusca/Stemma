@@ -153,7 +153,8 @@ describe("public v1 API contract", () => {
       method: "POST",
       path: "/api/v1/conversations",
       responseStatus: null,
-      responseBodyJson: null
+      responseBodyJson: null,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z")
     });
 
     const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
@@ -179,7 +180,8 @@ describe("public v1 API contract", () => {
       method: "POST",
       path: "/api/v1/conversations",
       responseStatus: 201,
-      responseBodyJson: JSON.stringify({ id: "conv-db-existing" })
+      responseBodyJson: JSON.stringify({ id: "conv-db-existing" }),
+      expiresAt: new Date("2099-01-01T00:00:00.000Z")
     });
 
     const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
@@ -232,7 +234,8 @@ describe("public v1 API contract", () => {
       method: "POST",
       path: "/api/v1/conversations",
       responseStatus: 201,
-      responseBodyJson: JSON.stringify({ id: "conv-db-existing" })
+      responseBodyJson: JSON.stringify({ id: "conv-db-existing" }),
+      expiresAt: new Date("2099-01-01T00:00:00.000Z")
     });
 
     const response = await POST(v1JsonRequest("/api/v1/conversations", conversationPayload, { "idempotency-key": "idem-1" }));
@@ -258,7 +261,8 @@ describe("public v1 API contract", () => {
       method: "POST",
       path: "/api/v1/conversations",
       responseStatus: null,
-      responseBodyJson: null
+      responseBodyJson: null,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z")
     });
     mocks.prisma.idempotencyKey.create.mockRejectedValueOnce({
       code: "P2002",

@@ -2,7 +2,6 @@ import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
@@ -26,8 +25,15 @@ const createJobSchema = z.object({
   maxAttempts: z.number().int().min(1).max(10).optional()
 });
 
-export async function GET() {
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "backend_jobs:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const jobs = await prisma.backendJob.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ createdAt: "desc" }],

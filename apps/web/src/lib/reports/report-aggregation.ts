@@ -1,6 +1,6 @@
 import type { FindingOwnerType, RiskLevel } from "@prisma/client";
 import type { ReportPeriod } from "@/lib/report-period";
-import type { ChartDatum, StackedSegment } from "@/components/reports/report-charts";
+import type { ChartDatum, StackedSegment } from "@/lib/reports/report-chart-models";
 import { reportDeltaLabel, reportReviewHref, scoreDelta } from "@/lib/reports/report-format";
 import type { ReviewForReport } from "@/lib/reports/report-page-data";
 
@@ -48,7 +48,8 @@ const unassignedAgentLabel = "Без оператора";
 // riskCount when it is a critical error OR carries any HIGH/CRITICAL finding;
 // appealCount counts reviews with an open appeal. Rows are ordered by action
 // load (risk weighted 3, appeal weighted 2), then lowest average, then highest
-// volume, and capped to `limit`.
+// volume, then name (ru locale) so fully-tied rows stay deterministic, and
+// capped to `limit`.
 export function computeAgentLeaderboard(
   reviews: readonly AgentLeaderboardReview[],
   limit = 5
@@ -80,7 +81,13 @@ export function computeAgentLeaderboard(
       const leftActionLoad = left.riskCount * 3 + left.appealCount * 2;
       const rightActionLoad = right.riskCount * 3 + right.appealCount * 2;
 
-      return rightActionLoad - leftActionLoad || left.average - right.average || right.count - left.count;
+      return (
+        rightActionLoad - leftActionLoad ||
+        left.average - right.average ||
+        right.count - left.count ||
+        // Fully-tied rows must not depend on DB physical order (P9).
+        left.name.localeCompare(right.name, "ru")
+      );
     })
     .slice(0, limit);
 }
@@ -130,7 +137,12 @@ export function rankedScoreRows(rows: BreakdownRow[], previousRows: BreakdownRow
 
   return rows
     .filter((row) => row.averageScore != null)
-    .sort((left, right) => (left.averageScore ?? 0) - (right.averageScore ?? 0))
+    .sort(
+      (left, right) =>
+        (left.averageScore ?? 0) - (right.averageScore ?? 0) ||
+        // Total-order tiebreaker: equal averages must not depend on input order.
+        left.label.localeCompare(right.label, "ru")
+    )
     .slice(0, limit)
     .map((row) => {
       const delta = scoreDelta(row.averageScore, previousAverageByLabel.get(row.label));

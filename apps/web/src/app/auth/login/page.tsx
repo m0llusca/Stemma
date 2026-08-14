@@ -1,14 +1,34 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ShieldCheck, UserRoundCheck } from "lucide-react";
+import { CheckCircle2, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Separator } from "@/components/ui/separator";
 import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 import { signInWithDemoUser, signInWithLocalCredentials } from "@/lib/user-actions";
 
 export const dynamic = "force-dynamic";
@@ -125,134 +145,190 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const loggedOut = firstParam(params.loggedOut) === "1";
 
   return (
-    <section className="auth-shell">
-      <div className="auth-card">
-        <header className="auth-card__head">
-          <span className="auth-brand">
-            <span className="auth-brand__mark" aria-hidden="true">
-              <ShieldCheck size={18} />
+    <section
+      className={cn(
+        "auth-shell flex min-h-dvh items-center justify-center bg-background p-6 sm:p-10"
+      )}
+    >
+      <Card className="w-full max-w-[408px]">
+        <CardHeader className="gap-2">
+          <div className="mb-1 flex items-center gap-2.5">
+            <span
+              className="inline-flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+              aria-hidden="true"
+            >
+              <ShieldCheck className="size-4" />
             </span>
-            <span className="auth-brand__wordmark">Stemma</span>
-          </span>
-          <h1 className="auth-title">Вход в систему</h1>
-          <p className="auth-subtitle">Единая точка входа для проверяющих, руководителей и операторов поддержки.</p>
-        </header>
-
-        {authError ? (
-          <p className="auth-alert auth-alert--danger" role="alert">
-            {authError}
-          </p>
-        ) : null}
-        {loggedOut ? (
-          <p className="auth-alert auth-alert--success" role="status">
-            Сессия завершена.
-          </p>
-        ) : null}
-
-        <h2 className="auth-section-title">Вход по учетной записи</h2>
-        <form action={signInWithLocalCredentials} className="auth-form">
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <label className="auth-field">
-            <span className="auth-field__label">Логин</span>
-            <input name="login" autoComplete="username" required className="form-control" />
-          </label>
-          <label className="auth-field">
-            <span className="auth-field__label">Пароль</span>
-            <input name="password" type="password" autoComplete="current-password" required className="form-control" />
-          </label>
-          <button type="submit" className="action-button action-button--primary auth-submit">
-            Войти
-          </button>
-        </form>
-
-        {selectedProvider ? (
-          <div className="auth-section">
-            <h2 className="auth-section-title">
-              <ShieldCheck size={14} aria-hidden="true" />
-              SSO
-            </h2>
-            <div className="auth-sso">
-              <div className="auth-sso__head">
-                <div className="min-w-0">
-                  <h2 className="auth-sso__name">
-                    {selectedProvider.name}
-                    <Chip tone={selectedProviderIsActive ? "success" : "neutral"} size="xs">
-                      {providerStatusLabels[selectedProvider.status] ?? selectedProvider.status}
-                    </Chip>
-                  </h2>
-                  <p className="auth-sso__meta">
-                    {selectedProvider.workspace.name} · {selectedProvider.type}
-                  </p>
-                </div>
-                {selectedProviderIsActive ? (
-                  <Link
-                    href={ssoHref({
-                      provider: selectedProvider.slug,
-                      workspaceId: selectedProvider.workspaceId,
-                      returnTo
-                    })}
-                    className="action-button auth-sso__action"
-                  >
-                    Войти через SSO
-                  </Link>
-                ) : (
-                  <button type="button" className="action-button auth-sso__action" disabled>
-                    SSO недоступен
-                  </button>
-                )}
-              </div>
-
-              {providers.length > 1 ? (
-                <div className="auth-provider-list">
-                  {providers
-                    .filter((provider) => provider.id !== selectedProvider.id)
-                    .map((provider) => (
-                      <Link
-                        key={provider.id}
-                        href={providerSelectionHref({
-                          provider: provider.slug,
-                          workspaceId: provider.workspaceId,
-                          returnTo
-                        })}
-                        className="auth-provider"
-                      >
-                        <span className="auth-provider__name">{provider.name}</span>
-                        <span className="auth-provider__meta">
-                          {provider.workspace.name} · {providerStatusLabels[provider.status] ?? provider.status}
-                        </span>
-                      </Link>
-                    ))}
-                </div>
-              ) : null}
-            </div>
+            <span className="text-[15px] font-semibold tracking-tight text-foreground">Stemma</span>
           </div>
-        ) : null}
+          <CardTitle
+            role="heading"
+            aria-level={1}
+            className="text-[21px] font-semibold tracking-tight"
+          >
+            Вход в систему
+          </CardTitle>
+          <CardDescription className="text-pretty">
+            Единая точка входа для проверяющих, руководителей и операторов поддержки.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="flex flex-col gap-5">
+          {authError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{authError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {loggedOut ? (
+            <Alert>
+              <CheckCircle2 className="text-emerald-700 dark:text-emerald-300" />
+              <AlertDescription className="text-emerald-800 dark:text-emerald-300">
+                Сессия завершена.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Вход по учетной записи
+            </h2>
+            <form action={signInWithLocalCredentials}>
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <FieldGroup className="gap-3.5">
+                <Field>
+                  <FieldLabel htmlFor="login">Логин</FieldLabel>
+                  <Input
+                    id="login"
+                    name="login"
+                    autoComplete="username"
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="password">Пароль</FieldLabel>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                  />
+                </Field>
+                <Button type="submit" className="mt-1 w-full">
+                  Войти
+                </Button>
+              </FieldGroup>
+            </form>
+          </div>
+
+          {selectedProvider ? (
+            <>
+              <Separator />
+              <div className="flex flex-col gap-3">
+                <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  <ShieldCheck className="size-3.5" aria-hidden="true" />
+                  SSO
+                </h2>
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 px-3.5 py-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-medium text-foreground">
+                        <span className="text-sm break-words">{selectedProvider.name}</span>
+                        <Chip tone={selectedProviderIsActive ? "success" : "neutral"}>
+                          {providerStatusLabels[selectedProvider.status] ?? selectedProvider.status}
+                        </Chip>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground break-words">
+                        {selectedProvider.workspace.name} · {selectedProvider.type}
+                      </p>
+                    </div>
+                    {selectedProviderIsActive ? (
+                      <Button
+                        render={
+                          <Link
+                            href={ssoHref({
+                              provider: selectedProvider.slug,
+                              workspaceId: selectedProvider.workspaceId,
+                              returnTo
+                            })}
+                          />
+                        }
+                        nativeButton={false}
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                      >
+                        Войти через SSO
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="outline" size="sm" className="shrink-0" disabled>
+                        SSO недоступен
+                      </Button>
+                    )}
+                  </div>
+
+                  {providers.length > 1 ? (
+                    <div className="flex flex-col gap-2">
+                      {providers
+                        .filter((provider) => provider.id !== selectedProvider.id)
+                        .map((provider) => (
+                          <Link
+                            key={provider.id}
+                            href={providerSelectionHref({
+                              provider: provider.slug,
+                              workspaceId: provider.workspaceId,
+                              returnTo
+                            })}
+                            className="flex flex-col gap-0.5 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <span className="text-sm font-medium text-foreground break-words">
+                              {provider.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground break-words">
+                              {provider.workspace.name} ·{" "}
+                              {providerStatusLabels[provider.status] ?? provider.status}
+                            </span>
+                          </Link>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          ) : null}
+        </CardContent>
 
         {demoUsers.length > 0 ? (
-          <details className="auth-demo">
-            <summary className="auth-demo__summary">
-              <UserRoundCheck size={14} aria-hidden="true" />
-              Демо-вход
-            </summary>
-            <form action={signInWithDemoUser} className="auth-form auth-demo__form">
-              <input type="hidden" name="returnTo" value={returnTo} />
-              <label className="auth-field">
-                <span className="auth-field__label">Пользователь</span>
-                <select name="userId" className="form-control">
-                  {demoUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {demoUserOptionLabel(user)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit" className="action-button">
-                Войти в демо-режиме
-              </button>
-            </form>
-          </details>
+          <CardFooter className="flex-col items-stretch">
+            <Collapsible className="w-full">
+              <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <UserRoundCheck className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                Демо-вход
+              </CollapsibleTrigger>
+              <CollapsibleContent keepMounted>
+                <form action={signInWithDemoUser} className="mt-3.5">
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <FieldGroup className="gap-3.5">
+                    <Field>
+                      <FieldLabel htmlFor="demo-user">Пользователь</FieldLabel>
+                      <NativeSelect id="demo-user" name="userId" className="w-full">
+                        {demoUsers.map((user) => (
+                          <NativeSelectOption key={user.id} value={user.id}>
+                            {demoUserOptionLabel(user)}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </Field>
+                    <Button type="submit" variant="secondary" className="w-full">
+                      Войти в демо-режиме
+                    </Button>
+                  </FieldGroup>
+                </form>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardFooter>
         ) : null}
-      </div>
+      </Card>
     </section>
   );
 }

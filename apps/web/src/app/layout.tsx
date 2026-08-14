@@ -1,33 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
-// Order is load-bearing: Tailwind layers, then tokens/themes, then component styles.
 import "./globals.css";
-import "./styles/theme.css";
-// components.css was split into ordered per-domain partials. Import order is
-// load-bearing: it must match the original top-to-bottom source order.
-import "./styles/components/00-base.css";
-import "./styles/components/05-chip.css";
-import "./styles/components/06-data.css";
-import "./styles/components/07-shell.css";
-import "./styles/components/10-app-shell.css";
-import "./styles/components/20-integrations.css";
-import "./styles/components/30-dashboard.css";
-import "./styles/components/40-admin.css";
-import "./styles/components/50-calibration-workflow.css";
-import "./styles/components/60-queue.css";
-import "./styles/components/70-queue-detail.css";
-import "./styles/components/80-reviews.css";
-import "./styles/components/85-coaching-pins.css";
-import "./styles/components/90-appearance-theme.css";
-import "./styles/components/92-reports.css";
-import "./styles/components/94-enablement.css";
-import "./styles/components/96-misc-forms.css";
-import "./styles/components/98-primitives.css";
 import { AppNav } from "@/components/app-nav";
 import { ToastProvider } from "@/components/ui/toast";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
-import { resolveUiAppearance, uiPaletteOverridesToCssVariables } from "@/lib/ui-theme";
+import { resolveUiAppearance } from "@/lib/ui-theme";
+import { appearanceRootProps } from "@/lib/ui-theme-root";
+import { cn } from "@/lib/utils";
 
 const sans = Inter({
   subsets: ["latin", "cyrillic"],
@@ -47,10 +28,6 @@ export const metadata: Metadata = {
   description: "Контроль качества поддержки и подключение источников"
 };
 
-// Declares that the app manages its own light/dark theming. This emits
-// <meta name="color-scheme" content="light dark">, which tells Chrome's
-// "Auto Dark Mode for Web Contents" (force-dark) to leave the page alone
-// instead of washing out text on the light theme.
 export const viewport: Viewport = {
   colorScheme: "light dark"
 };
@@ -69,30 +46,38 @@ async function getLayoutAppearance() {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const appearance = await getLayoutAppearance();
-  const brandStyle = {
-    "--brand-primary": appearance.brandPrimaryColor,
-    "--brand-accent": appearance.brandAccentColor,
-    ...uiPaletteOverridesToCssVariables(appearance.uiPaletteOverrides)
-  } as CSSProperties;
+  const rootAppearance = appearanceRootProps(appearance);
 
   return (
-    <html lang="ru" className={`${sans.variable} ${mono.variable}`} data-scroll-behavior="smooth">
+    <html
+      lang="ru"
+      className={cn(sans.variable, mono.variable, rootAppearance.className)}
+      data-scroll-behavior="smooth"
+      data-theme={rootAppearance["data-theme"]}
+      data-density={rootAppearance["data-density"]}
+      data-corners={rootAppearance["data-corners"]}
+      data-contrast={rootAppearance["data-contrast"]}
+      style={rootAppearance.style}
+    >
       <body
-        style={brandStyle}
-        data-theme={appearance.uiTheme}
-        data-density={appearance.uiDensity}
-        data-corners={appearance.uiCorners}
-        data-contrast={appearance.uiContrast}
+        className="min-h-svh bg-background font-sans text-foreground antialiased"
       >
-        <a href="#main-content" className="skip-link">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-foreground focus:px-3 focus:py-2 focus:text-background"
+        >
           Перейти к содержимому
         </a>
-        <ToastProvider>
-          <div className="page">
-            <AppNav />
-            <main id="main-content">{children}</main>
-          </div>
-        </ToastProvider>
+        <TooltipProvider>
+          <ToastProvider>
+            <div className="flex min-h-svh flex-col">
+              <AppNav />
+              <main id="main-content" className="flex-1">
+                {children}
+              </main>
+            </div>
+          </ToastProvider>
+        </TooltipProvider>
       </body>
     </html>
   );

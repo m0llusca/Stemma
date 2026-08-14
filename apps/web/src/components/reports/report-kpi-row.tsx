@@ -1,41 +1,81 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { StatKpi, type StatKpiDelta, type StatKpiTone } from "@/components/ui/stat-kpi";
-import { TrendChart, type TrendPoint } from "@/components/reports/trend-chart";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MetricInsightItem, MetricInsightTone } from "@/components/reports/analytics-intelligence";
+import { reportPageLocalLinkProps } from "@/lib/reports/report-evidence-links";
+import { cn } from "@/lib/utils";
 
 /**
- * Analytics-cockpit KPI row. A 4-up strip of StatKpi tiles where the NUMBER is
- * the hero: a quiet eyebrow label, a big tabular value, a signed semantic delta
- * chip, a one-line caption, and — on the lead tile — a muted-volume + indigo
- * line TrendChart sparkline. Drill-everywhere: a tile with an href becomes a
- * full-tile link. Tokens only; holds in light + dark.
+ * Six-track overview KPI row. The lead score occupies two tracks and the four
+ * supporting facts occupy one each, preventing a desktop/tablet orphan.
  */
 
-const insightToneToKpiTone: Record<MetricInsightTone, StatKpiTone> = {
-  neutral: "neutral",
-  ok: "success",
-  warn: "warning",
-  danger: "danger"
+export type ReportKpiDelta = {
+  value: ReactNode;
+  direction?: "up" | "down" | "flat";
+  tone?: "success" | "danger" | "neutral" | "up" | "down";
+};
+
+const insightToneBadge: Record<MetricInsightTone, string> = {
+  neutral: "",
+  ok: "bg-success-soft text-success",
+  warn: "bg-warning-soft text-warning",
+  danger: "bg-destructive-soft text-destructive"
 };
 
 function KpiTile({
   href,
+  desktopTrackSpan,
+  tabletTrackSpan,
+  className,
   children
 }: {
   href?: string;
+  desktopTrackSpan: 1 | 2;
+  tabletTrackSpan: 1 | 2;
+  className?: string;
   children: ReactNode;
 }) {
   if (href) {
     return (
-      <Link href={href} className="report-kpi-tile report-kpi-tile--link">
+      <Link
+        href={href}
+        {...reportPageLocalLinkProps(href)}
+        role="listitem"
+        data-desktop-track-span={desktopTrackSpan}
+        data-tablet-track-span={tabletTrackSpan}
+        className={cn(
+          "block min-w-0 rounded-xl outline-none hover:ring-2 hover:ring-ring/30 focus-visible:ring-2 focus-visible:ring-ring",
+          className
+        )}
+      >
         {children}
         <span className="sr-only"> — открыть срез</span>
       </Link>
     );
   }
 
-  return <div className="report-kpi-tile">{children}</div>;
+  return (
+    <div
+      role="listitem"
+      data-desktop-track-span={desktopTrackSpan}
+      data-tablet-track-span={tabletTrackSpan}
+      className={cn("min-w-0", className)}
+    >
+      {children}
+    </div>
+  );
+}
+
+function deltaBadgeTone(delta: ReportKpiDelta): "up" | "down" | "neutral" {
+  if (delta.direction === "up" || delta.tone === "success" || delta.tone === "up") {
+    return "up";
+  }
+  if (delta.direction === "down" || delta.tone === "danger" || delta.tone === "down") {
+    return "down";
+  }
+  return "neutral";
 }
 
 export function ReportKpiRow({
@@ -45,53 +85,92 @@ export function ReportKpiRow({
   scoreDelta,
   scoreHint,
   scoreHref,
-  trendPoints,
-  trendVolume,
-  trendAriaLabel,
   items
 }: {
   scoreLabel: string;
   scoreValue: ReactNode;
   scoreUnit?: ReactNode;
-  scoreDelta?: StatKpiDelta;
+  scoreDelta?: ReportKpiDelta;
   scoreHint?: ReactNode;
   scoreHref?: string;
-  trendPoints: TrendPoint[];
-  trendVolume?: number[];
-  trendAriaLabel?: string;
   items: MetricInsightItem[];
 }) {
-  return (
-    <div className="report-kpi-row" aria-label="Ключевые показатели периода">
-      <KpiTile href={scoreHref}>
-        <StatKpi
-          label={scoreLabel}
-          value={scoreValue}
-          unit={scoreUnit}
-          delta={scoreDelta}
-          hint={scoreHint}
-          tone="accent"
-          trend={
-            trendPoints.length > 0 ? (
-              <TrendChart
-                points={trendPoints}
-                volume={trendVolume}
-                height={72}
-                ariaLabel={trendAriaLabel ?? "Тренд средней оценки"}
-              />
-            ) : undefined
-          }
-        />
-      </KpiTile>
-      {items.map((item) => {
-        const tone = insightToneToKpiTone[item.tone ?? "neutral"];
+  const scoreTone = scoreDelta ? deltaBadgeTone(scoreDelta) : "neutral";
 
-        return (
-          <KpiTile key={item.label} href={item.href}>
-            <StatKpi label={item.label} value={item.value} tone={tone} hint={item.detail} />
-          </KpiTile>
-        );
-      })}
+  return (
+    <div
+      role="list"
+      data-desktop-tracks="6"
+      className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 xl:grid-cols-6"
+      aria-label="Ключевые показатели периода"
+    >
+      <KpiTile
+        href={scoreHref}
+        desktopTrackSpan={2}
+        tabletTrackSpan={2}
+        className="min-[390px]:col-span-2 xl:col-span-2"
+      >
+        <Card className="h-full">
+          <CardHeader className="pb-2">
+            <CardDescription>{scoreLabel}</CardDescription>
+            <div className="flex flex-wrap items-end gap-2">
+              <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight">
+                {scoreValue}
+              </CardTitle>
+              {scoreUnit != null ? (
+                <span className="pb-0.5 text-sm text-muted-foreground">{scoreUnit}</span>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {scoreDelta ? (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "tabular-nums",
+                    scoreTone === "up" && "bg-success-soft text-success",
+                    scoreTone === "down" && "bg-destructive-soft text-destructive"
+                  )}
+                >
+                  {scoreTone === "up" ? "↑ " : scoreTone === "down" ? "↓ " : null}
+                  {scoreDelta.value}
+                </Badge>
+              ) : null}
+              {scoreHint}
+            </div>
+          </CardContent>
+        </Card>
+      </KpiTile>
+
+      {items.map((item) => (
+        <KpiTile
+          key={item.label}
+          href={item.href}
+          desktopTrackSpan={1}
+          tabletTrackSpan={1}
+        >
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <CardDescription>{item.label}</CardDescription>
+              <CardTitle className="text-2xl font-semibold tabular-nums">{item.value}</CardTitle>
+            </CardHeader>
+            {item.detail ? (
+              <CardContent className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                {item.tone && item.tone !== "neutral" ? (
+                  <Badge
+                    variant="secondary"
+                    className={cn("font-normal", insightToneBadge[item.tone])}
+                  >
+                    {item.tone === "ok" ? "норма" : item.tone === "warn" ? "внимание" : "риск"}
+                  </Badge>
+                ) : null}
+                <span>{item.detail}</span>
+              </CardContent>
+            ) : null}
+          </Card>
+        </KpiTile>
+      ))}
     </div>
   );
 }

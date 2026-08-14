@@ -2,7 +2,14 @@
 
 import { AlertTriangle, CheckCircle2, UploadCloud } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import { importOtrsFamilyTicketGet } from "@/lib/otrs-import-actions";
+import { russianPlural } from "@/lib/reports/report-format";
 import {
   extractOtrsFamilyTickets,
   isOtrsFamilyTicketLike,
@@ -81,77 +88,76 @@ export function OtrsImportTester() {
   return (
     <form action={importOtrsFamilyTicketGet} className="grid gap-4">
       <div className="grid gap-4">
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Источник
-          <select
+        <Field>
+          <FieldLabel htmlFor="otrs-import-source">Источник</FieldLabel>
+          <NativeSelect
+            id="otrs-import-source"
             name="source"
             value={source}
             onChange={(event) => updateSource(event.target.value as OtrsFamilySource)}
-            className="w-full min-w-0 rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
+            className="w-full"
           >
             {otrsFamilySourceOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <NativeSelectOption key={option.value} value={option.value}>
                 {option.label}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Base URL
-          <input
+          </NativeSelect>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="otrs-import-baseUrl">Base URL</FieldLabel>
+          <Input
+            id="otrs-import-baseUrl"
             name="baseUrl"
             value={baseUrl}
             onChange={(event) => setBaseUrl(event.target.value)}
-            className="w-full min-w-0 rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
           />
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Причина выборки
-          <input
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="otrs-import-samplingReason">Причина выборки</FieldLabel>
+          <Input
+            id="otrs-import-samplingReason"
             name="samplingReason"
             value={samplingReason}
             onChange={(event) => setSamplingReason(event.target.value)}
-            className="w-full min-w-0 rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
           />
-        </label>
+        </Field>
       </div>
 
-      <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-        TicketGet JSON
-        <textarea
+      <Field>
+        <FieldLabel htmlFor="otrs-import-payload">TicketGet JSON</FieldLabel>
+        <Textarea
+          id="otrs-import-payload"
           name="payload"
           value={payload}
           onChange={(event) => setPayload(event.target.value)}
           rows={14}
           spellCheck={false}
-          className="min-h-[280px] w-full min-w-0 resize-y rounded border border-[var(--border)] bg-[var(--panel)] px-3 py-2 font-mono text-xs leading-5"
+          className="min-h-[280px] resize-y font-mono text-xs leading-5"
         />
-      </label>
+      </Field>
 
-      <div className="grid gap-3 rounded-md border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-3">
+      <div className="grid gap-3 rounded-lg border bg-muted/40 p-3">
         {preview.ok ? (
-          <div className="flex min-w-0 items-start gap-3 text-sm text-[var(--text-body)]">
-            <CheckCircle2 size={18} className="text-[var(--accent-strong)]" aria-hidden="true" />
-            <span className="min-w-0 break-words">
-              {preview.count} тикет(ов), {preview.messageCount} сообщени(й), первый: {preview.firstExternalId} ·{" "}
-              {preview.firstSubject}
-            </span>
-          </div>
+          <Alert>
+            <CheckCircle2 />
+            <AlertDescription>
+              {russianPlural(preview.count, ["тикет", "тикета", "тикетов"])},{" "}
+              {russianPlural(preview.messageCount, ["сообщение", "сообщения", "сообщений"])}, первый:{" "}
+              {preview.firstExternalId} · {preview.firstSubject}
+            </AlertDescription>
+          </Alert>
         ) : (
-          <div className="flex min-w-0 items-start gap-3 text-sm text-[var(--warning)]">
-            <AlertTriangle size={18} aria-hidden="true" />
-            <span className="min-w-0 break-words">{preview.error}</span>
-          </div>
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertDescription>{preview.error}</AlertDescription>
+          </Alert>
         )}
 
-        <button
-          type="submit"
-          disabled={!preview.ok}
-          className="action-button action-button--primary"
-        >
-          <UploadCloud size={16} aria-hidden="true" />
+        <Button type="submit" disabled={!preview.ok}>
+          <UploadCloud data-icon="inline-start" aria-hidden="true" />
           Импортировать в очередь
-        </button>
+        </Button>
       </div>
     </form>
   );

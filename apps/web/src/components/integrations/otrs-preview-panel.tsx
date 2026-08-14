@@ -1,15 +1,40 @@
 "use client";
 
 import { Play, Search, UploadCloud } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Chip } from "@/components/ui/chip";
+import { ActionFlowGuard } from "@/components/action-flow-guard";
+import { actionFlowNavigation } from "@/lib/action-result-bridge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   createOtrsPreviewActionState,
   queueSelectedOtrsImportActionState,
   type IntegrationImportActionState,
   type OtrsPreviewActionState
 } from "@/lib/integration-actions";
+import { formatArticleCount, integrationRunItemStatusLabel } from "@/lib/integrations/labels";
+import { integrationRunStatusView } from "@/lib/operational-status";
+import { cn } from "@/lib/utils";
 
 const initialPreviewState: OtrsPreviewActionState = null;
 const initialImportState: IntegrationImportActionState = null;
@@ -44,10 +69,10 @@ function ManualPreviewButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
-      <Play size={16} aria-hidden="true" />
-      {pending ? "Создаем preview" : "Preview TicketID"}
-    </button>
+    <Button type="submit" disabled={pending}>
+      <Play data-icon="inline-start" aria-hidden="true" />
+      {pending ? "Создаем предпросмотр" : "Предпросмотр TicketID"}
+    </Button>
   );
 }
 
@@ -55,10 +80,10 @@ function SearchPreviewButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button" disabled={pending}>
-      <Search size={16} aria-hidden="true" />
-      {pending ? "Ищем" : "TicketSearch preview"}
-    </button>
+    <Button type="submit" variant="outline" disabled={pending}>
+      <Search data-icon="inline-start" aria-hidden="true" />
+      {pending ? "Ищем" : "Предпросмотр TicketSearch"}
+    </Button>
   );
 }
 
@@ -66,10 +91,10 @@ function ImportSelectedButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending || disabled}>
-      <UploadCloud size={16} aria-hidden="true" />
+    <Button type="submit" disabled={pending || disabled}>
+      <UploadCloud data-icon="inline-start" aria-hidden="true" />
       {pending ? "Ставим в очередь" : "Импортировать выбранные"}
-    </button>
+    </Button>
   );
 }
 
@@ -78,133 +103,190 @@ function formatDate(value: string | null | undefined) {
 }
 
 export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPreviewPanelProps) {
-  const [previewState, previewAction] = useActionState(createOtrsPreviewActionState, initialPreviewState);
-  const [importState, importAction] = useActionState(queueSelectedOtrsImportActionState, initialImportState);
+  const flashKey = `otrs-preview-result:${integrationId}`;
+  const [actionPreviewState, previewAction] = useActionState(createOtrsPreviewActionState, initialPreviewState);
+  const [actionImportState, importAction] = useActionState(queueSelectedOtrsImportActionState, initialImportState);
+  // Bridged results feed the alerts when the client router drops the action
+  // commit; a successful preview reloads the page so the new run's items
+  // render from the server, with the flash keeping the message across it.
+  const [bridgedPreviewState, setBridgedPreviewState] = useState<OtrsPreviewActionState>(null);
+  const [bridgedImportState, setBridgedImportState] = useState<IntegrationImportActionState>(null);
+  const previewState = bridgedPreviewState ?? actionPreviewState;
+  const importState = bridgedImportState ?? actionImportState;
   const previewedItems = latestPreviewRun?.items.filter((item) => item.status === "previewed") ?? [];
 
-  return (
-    <section className="panel overflow-clip">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">Preview / импорт</h2>
-        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
-          Создайте preview по ручным TicketID или TicketSearch, затем поставьте выбранные обращения в backend-очередь.
-        </p>
-      </div>
+  useEffect(() => {
+    const raw = sessionStorage.getItem(flashKey);
+    if (raw) {
+      sessionStorage.removeItem(flashKey);
+      try {
+        setBridgedPreviewState(JSON.parse(raw) as OtrsPreviewActionState);
+      } catch {
+        // A malformed flash entry is simply dropped.
+      }
+    }
+  }, [flashKey]);
 
-      <div className="grid gap-4 p-4">
+  const handlePreviewResult = (value: unknown) => {
+    const result = value as OtrsPreviewActionState;
+    if (!result) return;
+    if (result.ok) {
+      sessionStorage.setItem(flashKey, JSON.stringify(result));
+      actionFlowNavigation.reload();
+      return;
+    }
+    setBridgedPreviewState(result);
+  };
+
+  return (
+    <Card
+      className="overflow-clip"
+      role="region"
+      aria-labelledby="otrs-preview-title"
+    >
+      <CardHeader className="border-b">
+        <CardTitle id="otrs-preview-title">Предпросмотр / импорт</CardTitle>
+        <CardDescription>
+          Создайте предпросмотр по ручным TicketID или TicketSearch, затем поставьте выбранные обращения в backend-очередь.
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="grid gap-4 pt-(--card-spacing)">
         <div className="grid gap-4 xl:grid-cols-2">
-          <form action={previewAction} className="soft-callout grid gap-3">
+          <form action={previewAction} className="grid gap-3 rounded-lg border p-3">
+            <ActionFlowGuard onResult={handlePreviewResult} />
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="mode" value="manual_ticket_ids" />
-            <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-              Manual TicketID
-              <textarea
+            <Field>
+              <FieldLabel htmlFor="otrs-manualTicketIds">TicketID вручную</FieldLabel>
+              <Textarea
+                id="otrs-manualTicketIds"
                 name="manualTicketIds"
                 rows={4}
                 placeholder="42, 43, 44"
-                className="form-control min-h-[94px] resize-y text-sm"
+                className="min-h-[94px] resize-y"
               />
-            </label>
+            </Field>
             <ManualPreviewButton />
           </form>
 
-          <form action={previewAction} className="soft-callout grid gap-3">
+          <form action={previewAction} className="grid gap-3 rounded-lg border p-3">
+            <ActionFlowGuard onResult={handlePreviewResult} />
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="mode" value="ticket_search" />
-            <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-              TicketSearch filters JSON
-              <textarea
+            <Field>
+              <FieldLabel htmlFor="otrs-filtersJson">Фильтры TicketSearch (JSON)</FieldLabel>
+              <Textarea
+                id="otrs-filtersJson"
                 name="filtersJson"
                 rows={4}
                 defaultValue={JSON.stringify({ Queues: ["Support::Refunds"], StateType: "Open" }, null, 2)}
-                className="form-control min-h-[94px] resize-y font-mono text-xs"
+                className="min-h-[94px] resize-y font-mono text-xs"
                 spellCheck={false}
               />
-            </label>
+            </Field>
             <SearchPreviewButton />
           </form>
         </div>
 
         {previewState ? (
-          <div className={`soft-callout text-sm font-medium ${previewState.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-            {previewState.message}
-            {previewState.ok && typeof previewState.itemCount === "number" ? ` Строк: ${previewState.itemCount}.` : ""}
-          </div>
+          <Alert variant={previewState.ok ? "default" : "destructive"}>
+            <AlertDescription>
+              {previewState.message}
+              {previewState.ok && typeof previewState.itemCount === "number" ? ` Строк: ${previewState.itemCount}.` : ""}
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         {latestPreviewRun ? (
           <form action={importAction} className="grid gap-3">
+            <ActionFlowGuard
+              onResult={(value) => {
+                const result = value as IntegrationImportActionState;
+                if (result) setBridgedImportState(result);
+              }}
+            />
             <input type="hidden" name="integrationId" value={integrationId} />
             <input type="hidden" name="integrationRunId" value={latestPreviewRun.id} />
-            <div className="record-row">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="record-title record-title--tight">Последний preview-run</p>
-                <p className="record-meta">
-                  {latestPreviewRun.status} · {formatDate(latestPreviewRun.startedAt)} · limit {latestPreviewRun.requestedLimit}
+                <p className="text-sm font-medium">Последний запуск предпросмотра</p>
+                <p className="text-sm text-muted-foreground">
+                  {integrationRunStatusView(latestPreviewRun.status).label} · {formatDate(latestPreviewRun.startedAt)} · лимит {latestPreviewRun.requestedLimit}
                 </p>
               </div>
               <ImportSelectedButton disabled={previewedItems.length === 0} />
             </div>
 
-            <div className="scroll-area">
-              <table className="table-fixed-copy w-full min-w-[820px] border-collapse text-left text-sm">
-                <thead className="bg-[var(--accent-soft)] text-xs uppercase text-[var(--text-subtle)]">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Выбор</th>
-                    <th className="px-4 py-3 font-semibold">External ID</th>
-                    <th className="px-4 py-3 font-semibold">Ticket number</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Articles</th>
-                    <th className="px-4 py-3 font-semibold">Attachments</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {latestPreviewRun.items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          name="integrationRunItemIds"
-                          value={item.id}
-                          defaultChecked={item.status === "previewed"}
-                          disabled={item.status !== "previewed"}
-                          aria-label={`Выбрать ${item.externalId}`}
-                        />
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs">{item.externalId}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{item.ticketNumber ?? "Нет"}</td>
-                      <td className="px-4 py-3">
-                        <Chip tone={item.status === "previewed" ? "success" : "neutral"} size="xs">{item.status}</Chip>
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-body)]">
-                        {item.articleCount} · private {item.privateArticleCount}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-body)]">{item.attachmentCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table className="min-w-[820px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Выбор</TableHead>
+                  <TableHead>Внешний ID</TableHead>
+                  <TableHead>Номер тикета</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Статьи</TableHead>
+                  <TableHead>Вложения</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {latestPreviewRun.items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Checkbox
+                        name="integrationRunItemIds"
+                        value={item.id}
+                        defaultChecked={item.status === "previewed"}
+                        disabled={item.status !== "previewed"}
+                        aria-label={`Выбрать ${item.externalId}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{item.externalId}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.ticketNumber ?? "Нет"}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={item.status === "previewed" ? "secondary" : "outline"}
+                        className={cn(
+                          "font-normal",
+                          item.status === "previewed" &&
+                            "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                        )}
+                      >
+                        {integrationRunItemStatusLabel(item.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatArticleCount(item.articleCount)} · приватных {item.privateArticleCount}
+                    </TableCell>
+                    <TableCell>{item.attachmentCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
             {previewedItems.length === 0 ? (
-              <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
-                В последнем preview-run нет строк со статусом previewed для выборочного импорта.
-              </div>
+              <Alert>
+                <AlertDescription>
+                  В последнем запуске предпросмотра нет строк, доступных для выборочного импорта.
+                </AlertDescription>
+              </Alert>
             ) : null}
 
             {importState ? (
-              <div className={`soft-callout text-sm font-medium ${importState.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-                {importState.message}
-                {importState.jobId ? ` Job: ${importState.jobId.slice(0, 8)}.` : ""}
-              </div>
+              <Alert variant={importState.ok ? "default" : "destructive"}>
+                <AlertDescription>
+                  {importState.message}
+                  {importState.jobId ? ` Job: ${importState.jobId.slice(0, 8)}.` : ""}
+                </AlertDescription>
+              </Alert>
             ) : null}
           </form>
         ) : (
-          <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
-            Preview-run еще не создан. Сначала проверьте один или несколько TicketID.
-          </div>
+          <Alert>
+            <AlertDescription>Запуск предпросмотра еще не создан. Сначала проверьте один или несколько TicketID.</AlertDescription>
+          </Alert>
         )}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

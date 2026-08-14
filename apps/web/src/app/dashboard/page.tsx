@@ -4,24 +4,28 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
-import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
-import { TrendChart } from "@/components/reports/trend-chart";
+import { OperationKpiCard, type OperationKpiDelta } from "@/components/operations/operation-kpi-card";
+import { SparklineChart, type ChartDatum } from "@/components/reports/report-charts";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
-import type { StatKpiDelta } from "@/components/ui/stat-kpi";
+import { Separator } from "@/components/ui/separator";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
+import { formatReviewCount } from "@/lib/reports/report-format";
 import { reviewEventActionLabel } from "@/lib/review-events";
-import { formatQualityScore, qualityScoreDelta } from "@/lib/score-display";
+import { formatQualityScore, qualityScoreDelta, qualityScorePointWord } from "@/lib/score-display";
 import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
 import { statusToneClass, type StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
-function countDelta(value: number): StatKpiDelta {
+function countDelta(value: number): OperationKpiDelta {
   return {
     value: Math.abs(value),
     direction: value > 0 ? "up" : value < 0 ? "down" : "flat",
@@ -29,7 +33,7 @@ function countDelta(value: number): StatKpiDelta {
   };
 }
 
-function scoreDeltaTone(value: number): StatKpiDelta["tone"] {
+function scoreDeltaTone(value: number): NonNullable<OperationKpiDelta["tone"]> {
   if (value > 0) {
     return "success";
   }
@@ -320,37 +324,42 @@ async function DashboardPageContent() {
   const scoreSparkPoints = dailyCounts
     .filter((item) => item.average != null)
     .map((item) => item.average as number);
-  const trendPoints = dailyCounts.map((item) => ({
-    label: weekdayLabel(item.date),
-    value: item.average ?? 0
-  }));
-  const trendVolume = dailyCounts.map((item) => item.count);
-  const triageTitle = focusItems.length ? primaryFocus.label : "Критичных отклонений нет";
+  const trendPoints: ChartDatum[] = dailyCounts
+    .filter((item) => item.average != null)
+    .map((item) => ({
+      label: weekdayLabel(item.date),
+      value: item.average as number,
+      detail: formatReviewCount(item.count)
+    }));
+  const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : "Критичных отклонений нет";
   const triageDescription = focusItems.length
-    ? `${primaryFocus.value} ${primaryFocus.hint.toLocaleLowerCase("ru-RU")}`
+    ? primaryFocus.hint
     : "Держите ритм очереди — возьмите следующий разговор в проверку.";
+  const PrimaryFocusIcon = primaryFocus?.icon;
 
   return (
     <PageShell
-      className="dashboard-shell"
-      eyebrow="Рабочее пространство"
+      className="dashboard-shell min-w-0"
       title="Сегодня"
       description="Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
     >
       <TriageStrip
         tone={focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : "success"}
-        icon={focusItems.length ? <TriangleAlert size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
+        icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
         title={triageTitle}
         description={triageDescription}
         action={
-          <Link href={primaryFocusHref} className="action-button action-button--primary">
+          <Button render={<Link href={primaryFocusHref} />} nativeButton={false}>
             <span>{focusItems.length ? "Разобрать" : "Открыть очередь"}</span>
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
+            <ArrowRight data-icon="inline-end" size={16} aria-hidden="true" />
+          </Button>
         }
       />
 
-      <section className="dashboard-metric-grid" aria-label="Ключевые показатели">
+      <section
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        aria-label="Ключевые показатели"
+      >
         <OperationKpiCard
           href="/reviews?status=reviewed"
           icon={ClipboardCheck}
@@ -364,11 +373,19 @@ async function DashboardPageContent() {
           href={canReadReports ? "/reports" : "/reviews"}
           icon={Star}
           value={currentAverage == null ? "—" : Math.round(currentAverage)}
-          unit={currentAverage == null ? undefined : "баллов"}
+          unit={currentAverage == null ? undefined : qualityScorePointWord(currentAverage)}
           tone={scoreStatus.tone}
-          delta={scoreDelta == null ? undefined : { value: Math.abs(scoreDelta), direction: scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat", tone: scoreDeltaTone(scoreDelta) }}
+          delta={
+            scoreDelta == null
+              ? undefined
+              : {
+                  value: Math.abs(scoreDelta),
+                  direction: scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat",
+                  tone: scoreDeltaTone(scoreDelta)
+                }
+          }
           label="Средний балл"
-          hint={scoreDelta == null ? "Недостаточно сравнения" : "к прошлой неделе"}
+          hint={scoreDelta == null ? "Недостаточно данных для сравнения" : "к прошлой неделе"}
           trend={scoreSparkPoints.length >= 2 ? <ScoreSparkline points={scoreSparkPoints} /> : undefined}
         />
         <OperationKpiCard
@@ -389,14 +406,19 @@ async function DashboardPageContent() {
         />
       </section>
 
-      <section className="dashboard-main-grid" aria-label="Операционные детали">
-          <div className="dashboard-panel dashboard-panel--wide">
-            <div className="dashboard-panel__header">
-              <p className="dashboard-section-label">
-                <TrendingUp size={14} aria-hidden="true" />
-                Качество по неделям
-              </p>
-            </div>
+      <section
+        data-slot="dashboard-primary-grid"
+        className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
+        aria-label="Операционные детали"
+      >
+        <Card className="min-h-[260px]">
+          <CardHeader className="border-b pb-(--card-spacing)">
+            <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <TrendingUp size={14} aria-hidden="true" />
+              Качество за 7 дней
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-(--card-spacing)">
             {checkedThisWeek === 0 ? (
               <EmptyState
                 size="inline"
@@ -405,53 +427,63 @@ async function DashboardPageContent() {
                 description="Финализируйте первую проверку, чтобы увидеть динамику по дням."
               />
             ) : (
-              <div className="dashboard-trend">
-                <TrendChart
-                  points={trendPoints}
-                  volume={trendVolume}
-                  height={150}
-                  ariaLabel="Средний балл по дням недели на фоне объёма проверок"
-                />
-                <div className="dashboard-trend__legend" aria-hidden="true">
-                  <span className="dashboard-trend__legend-item dashboard-trend__legend-item--line">Средний балл</span>
-                  <span className="dashboard-trend__legend-item dashboard-trend__legend-item--bar">Объём проверок</span>
-                </div>
+              <div className="grid min-w-0 gap-3 content-start">
+                <SparklineChart points={trendPoints} target={90} />
               </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="grid gap-3 content-start min-w-0">
+        <div className="grid min-w-0 content-start gap-3">
           {secondaryFocusItems.length > 0 ? (
-            <div className="dashboard-panel">
-              <div className="dashboard-panel__header">
-                <p className="dashboard-section-label">Ещё в фокусе</p>
-              </div>
-              <div className="dashboard-focus-list">
+            <Card>
+              <CardHeader className="border-b pb-(--card-spacing)">
+                <CardTitle className="text-xs font-semibold text-muted-foreground">
+                  Ещё в фокусе
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2 pt-(--card-spacing)">
                 {secondaryFocusItems.map((item) => {
                   const Icon = item.icon;
 
                   return (
-                    <Link key={item.href} href={item.href} className="dashboard-focus-row">
-                      <span className="dashboard-focus-row__icon"><Icon size={16} aria-hidden="true" /></span>
-                      <span className="dashboard-focus-row__copy">
-                        <strong>{item.label}</strong>
-                        <small>{item.hint}</small>
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="dashboard-focus-row grid min-h-[62px] min-w-0 grid-cols-[32px_minmax(0,1fr)_minmax(52px,auto)] items-center gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/70"
+                    >
+                      <span className="dashboard-focus-row__icon inline-flex size-8 items-center justify-start text-muted-foreground">
+                        <Icon size={16} aria-hidden="true" />
                       </span>
-                      <span className={`dashboard-focus-row__metric ${statusToneClass(item.tone)}`}>
-                        <em>{item.value}</em>
-                        <ArrowRight size={14} aria-hidden="true" />
+                      <span className="dashboard-focus-row__copy grid min-w-0 gap-1 content-center">
+                        <strong className="truncate text-sm font-medium text-foreground">{item.label}</strong>
+                        <small className="truncate text-xs text-muted-foreground">{item.hint}</small>
+                      </span>
+                      <span
+                        className={cn(
+                          "dashboard-focus-row__metric inline-grid min-h-[42px] grid-cols-[auto_14px] items-center justify-end gap-2.5",
+                          statusToneClass(item.tone)
+                        )}
+                      >
+                        <em className="inline-flex min-w-5 items-center justify-center text-xl font-semibold not-italic tabular-nums leading-none">
+                          {item.value}
+                        </em>
+                        <ArrowRight size={14} aria-hidden="true" className="text-muted-foreground" />
                       </span>
                     </Link>
                   );
                 })}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ) : null}
-          <div className="dashboard-panel">
-            <div className="dashboard-panel__header">
-              <p className="dashboard-section-label">Ближайшее обучение</p>
-            </div>
-            <div className="dashboard-training-list">
+
+          <Card>
+            <CardHeader className="border-b pb-(--card-spacing)">
+              <CardTitle className="text-xs font-semibold text-muted-foreground">
+                Ближайшее обучение
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 pt-(--card-spacing)">
               {recentTrainings.length === 0 ? (
                 <EmptyState
                   size="inline"
@@ -461,90 +493,146 @@ async function DashboardPageContent() {
                 />
               ) : (
                 recentTrainings.map((assignment) => (
-                  <Link key={assignment.id} href="/coaching" className="dashboard-training-row">
-                    <strong>{assignment.title}</strong>
-                    <span>{assignment.assigneeName}</span>
-                    <small>{assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} · {assignment.review?.conversation.externalId ?? "ручная задача"}</small>
+                  <Link
+                    key={assignment.id}
+                    href="/coaching"
+                    className="grid min-w-0 gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
+                  >
+                    <strong className="truncate text-sm font-medium text-foreground">{assignment.title}</strong>
+                    <span className="text-xs text-muted-foreground">{assignment.assigneeName}</span>
+                    <small className="text-xs text-muted-foreground">
+                      {assignment.dueAt ? `до ${formatDate(assignment.dueAt)}` : "без срока"} ·{" "}
+                      {assignment.review?.conversation.externalId ?? "ручная задача"}
+                    </small>
                   </Link>
                 ))
               )}
-            </div>
-          </div>
-          </div>
+            </CardContent>
+          </Card>
+        </div>
 
-
-          <div className="grid gap-3 items-start xl:grid-cols-2 [grid-column:1/-1]">
-          <div className="dashboard-panel">
-            <div className="dashboard-panel__header">
-              <p className="dashboard-section-label">
+        <div
+          data-slot="dashboard-secondary-grid"
+          className="col-span-full grid items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
+        >
+          <Card>
+            <CardHeader className="border-b pb-(--card-spacing)">
+              <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <TrendingUp size={14} aria-hidden="true" />
                 Области для роста
-              </p>
-              {canReadReports ? <Link href="/reports?view=details" className="quiet-link">Подробнее</Link> : null}
-            </div>
-            <p className="dashboard-panel__note">Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней.</p>
-            <div className="dashboard-agent-list">
-              {agentRows.length === 0 ? (
-                <EmptyState
-                  size="inline"
-                  icon={<TrendingUp size={20} aria-hidden="true" />}
-                  title="Нет данных для разбора"
-                  description="Пока нет финализированных проверок за 30 дней."
-                />
-              ) : (
-                agentRows.map((agent) => (
-                  <Link key={agent.name} href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`} className="dashboard-agent-row">
-                    <span className="dashboard-agent-row__avatar">{agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}</span>
-                    <strong>{agent.name}</strong>
-                    <small className="dashboard-agent-row__meta">
-                      {agent.count} проверок
-                      {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
-                    </small>
-                    {agent.riskCount > 0 ? (
-                      <Chip tone="danger" size="xs" numeric className="dashboard-agent-row__flag">
-                        {agent.riskCount} риск
-                      </Chip>
-                    ) : null}
-                    <em>{Math.round(agent.average)}</em>
-                    <i style={{ width: `${Math.max(8, Math.round(agent.average))}%` }} />
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="dashboard-panel">
-            <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении." defaultOpen>
-              <div className="evidence-drawer__toolbar">
-                <Link href={canReadAudit ? "/admin/audit" : "/reviews"} className="quiet-link">{canReadAudit ? "Аудит" : "Очередь"}</Link>
-              </div>
-              <div className="dashboard-activity-list">
-                {recentEvents.length === 0 ? (
+              </CardTitle>
+              {canReadReports ? (
+                <CardAction>
+                  <Button variant="link" size="sm" render={<Link href="/reports?view=details" />} nativeButton={false}>
+                    Подробнее
+                  </Button>
+                </CardAction>
+              ) : null}
+            </CardHeader>
+            <CardContent className="grid gap-3 pt-(--card-spacing)">
+              <CardDescription>
+                Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней.
+              </CardDescription>
+              <div className="grid min-w-0 gap-2">
+                {agentRows.length === 0 ? (
                   <EmptyState
                     size="inline"
-                    icon={<History size={20} aria-hidden="true" />}
-                    title="Событий пока нет"
-                    description="Действия по проверкам и обучению появятся здесь."
+                    icon={<TrendingUp size={20} aria-hidden="true" />}
+                    title="Нет данных для разбора"
+                    description="Пока нет финализированных проверок за 30 дней."
                   />
                 ) : (
-                  recentEvents.slice(0, 5).map((event) => (
-                    <Link key={event.id} href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"} className="dashboard-activity-row">
-                      <span className="dashboard-activity-row__avatar">{event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}</span>
-                      <span className="dashboard-activity-row__body">
-                        <strong>{event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}</strong>
-                        <small>
-                          {event.review?.conversation.externalId ?? event.review?.conversation.subject ?? "Проверка"}{event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
+                  agentRows.map((agent) => (
+                    <Link
+                      key={agent.name}
+                      href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`}
+                      className="relative grid min-w-0 gap-2 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
+                    >
+                      <div className="grid min-w-0 grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-0.5">
+                        <span className="dashboard-agent-row__avatar inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-[11px] font-semibold text-muted-foreground">
+                          {agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}
+                        </span>
+                        <strong className="truncate text-sm font-medium text-foreground">{agent.name}</strong>
+                        {agent.riskCount > 0 ? (
+                          <Chip tone="danger" className="dashboard-agent-row__flag self-center tabular-nums">
+                            {agent.riskCount} риск
+                          </Chip>
+                        ) : (
+                          <span />
+                        )}
+                        <em className="self-center text-lg font-semibold not-italic tabular-nums text-foreground">
+                          {Math.round(agent.average)}
+                        </em>
+                        <small className="dashboard-agent-row__meta col-start-2 min-w-0 truncate text-xs text-muted-foreground">
+                          {formatReviewCount(agent.count)}
+                          {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
                         </small>
-                      </span>
-                      <time>{formatRelative(event.createdAt, now)}</time>
+                      </div>
+                      <i
+                        className="block h-0.5 rounded-full bg-border"
+                        style={{ width: `${Math.max(8, Math.round(agent.average))}%` }}
+                        aria-hidden="true"
+                      />
                     </Link>
                   ))
                 )}
               </div>
-            </EvidenceDrawer>
-          </div>
-          </div>
-        </section>
-      </PageShell>
+            </CardContent>
+          </Card>
+
+          <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении.">
+            <div className="mb-2 flex items-center justify-end">
+              <Button
+                variant="link"
+                size="sm"
+                render={<Link href={canReadAudit ? "/admin/audit" : "/reviews"} />}
+                nativeButton={false}
+              >
+                {canReadAudit ? "Аудит" : "Очередь"}
+              </Button>
+            </div>
+            <Separator className="mb-2" />
+            <div className="grid min-w-0 gap-0">
+              {recentEvents.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<History size={20} aria-hidden="true" />}
+                  title="Событий пока нет"
+                  description="Действия по проверкам и обучению появятся здесь."
+                />
+              ) : (
+                recentEvents.slice(0, 5).map((event, index) => (
+                  <div key={event.id}>
+                    {index > 0 ? <Separator /> : null}
+                    <Link
+                      href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"}
+                      className="dashboard-activity-row grid min-w-0 grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2.5 py-2 transition-colors hover:bg-muted/40"
+                    >
+                      <span className="dashboard-activity-row__avatar inline-flex size-8 items-center justify-center rounded-md border border-border bg-muted/50 text-[11px] font-semibold text-muted-foreground">
+                        {event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}
+                      </span>
+                      <span className="dashboard-activity-row__body grid min-w-0 gap-0.5">
+                        <strong className="truncate text-sm font-medium text-foreground">
+                          {event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}
+                        </strong>
+                        <small className="truncate text-xs text-muted-foreground">
+                          {event.review?.conversation.externalId ??
+                            event.review?.conversation.subject ??
+                            "Проверка"}
+                          {event.review ? ` · ${formatQualityScore(event.review.totalScore)}` : ""}
+                        </small>
+                      </span>
+                      <time dateTime={event.createdAt.toISOString()} className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                        {formatRelative(event.createdAt, now)}
+                      </time>
+                    </Link>
+                  </div>
+                ))
+              )}
+            </div>
+          </EvidenceDrawer>
+        </div>
+      </section>
+    </PageShell>
   );
 }

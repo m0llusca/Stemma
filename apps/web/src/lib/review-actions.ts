@@ -22,6 +22,7 @@ import {
   assertQaWorkflowTransition
 } from "@/lib/review-workflow-policy";
 import { calculateReviewScore } from "@/lib/score";
+import { qualityScorePointWord } from "@/lib/score-display";
 
 const ownerTypes = ["AGENT", "PROCESS", "PRODUCT", "POLICY", "AI_SYSTEM"] as const;
 const riskLevels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
@@ -654,7 +655,7 @@ async function finalizeReviewCore(formData: FormData) {
       recipientType: "manager",
       context: {
         title: "Проверка завершена",
-        body: `${conversation.assigneeName ?? "Оператор"} · ${reviewTotalScore} баллов`,
+        body: `${conversation.assigneeName ?? "Оператор"} · ${reviewTotalScore} ${qualityScorePointWord(reviewTotalScore)}`,
         href: `/reviews/${conversationId}`
       }
     };

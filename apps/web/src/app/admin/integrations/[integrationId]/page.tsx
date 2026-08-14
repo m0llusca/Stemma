@@ -6,20 +6,38 @@ import { IntegrationSettingsForm } from "@/components/integrations/integration-s
 import { NativeHelpdeskImportTester } from "@/components/integrations/native-helpdesk-import-tester";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
-import { OperationalBrief, OperationalStepRail, type OperationalStep } from "@/components/operations/operational-brief";
+import type { OperationalStep } from "@/components/operations/operational-brief";
 import { OtrsConnectionForm } from "@/components/integrations/otrs-connection-form";
 import { OtrsDiagnosticsPanel } from "@/components/integrations/otrs-diagnostics-panel";
 import { OtrsImportTester } from "@/components/integrations/otrs-import-tester";
 import { OtrsPreviewPanel } from "@/components/integrations/otrs-preview-panel";
 import { OtrsRunHistory } from "@/components/integrations/otrs-run-history";
 import { OtrsWebserviceChecklist } from "@/components/integrations/otrs-webservice-checklist";
-import { CertificationEvidenceList } from "@/components/integrations/integration-ui";
-import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { PageShell } from "@/components/ui/page-shell";
+import {
+  CertificationEvidenceList,
+  IntegrationFact
+} from "@/components/integrations/integration-ui";
 import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { adminEyebrow } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -29,6 +47,7 @@ import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunOperationalStepState, integrationRunStatusView } from "@/lib/operational-status";
 import type { StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -134,12 +153,25 @@ function certificationGateLabel(value: string) {
   return labels[value] ?? value;
 }
 
+function integrationTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    otrs_family: "Семейство OTRS",
+    native_helpdesk: "Служба поддержки",
+    custom_api: "Свой API",
+    webhook_bridge: "Мост вебхуков",
+    enterprise: "Корпоративная система",
+    data_source: "Хранилище данных"
+  };
+
+  return labels[value] ?? value;
+}
+
 function secretSlotLabel(value: string) {
   const labels: Record<string, string> = {
-    auth_password: "auth_password",
-    ca_bundle: "ca_bundle",
-    oauth_client_credentials: "oauth_client_credentials",
-    webhook_secret: "webhook_secret"
+    auth_password: "Пароль / токен доступа",
+    ca_bundle: "Пакет CA-сертификатов",
+    oauth_client_credentials: "OAuth: client credentials",
+    webhook_secret: "Секрет вебхука"
   };
 
   return labels[value] ?? value;
@@ -195,6 +227,17 @@ function integrationRunTone(status: string): StatusTone {
 
 function diagnosticSucceeded(status: string | undefined) {
   return Boolean(status && ["ok", "passed", "success", "succeeded"].includes(status));
+}
+
+function readinessStepStatusView(state: OperationalStep["state"]) {
+  const views: Record<OperationalStep["state"], { label: string; tone: StatusTone }> = {
+    ready: { label: "Готово", tone: "positive" },
+    active: { label: "Активно", tone: "info" },
+    waiting: { label: "Ожидание", tone: "neutral" },
+    blocked: { label: "Блок", tone: "negative" }
+  };
+
+  return views[state];
 }
 
 async function loadIntegration(workspaceId: string, integrationId: string) {
@@ -312,7 +355,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
     {
       label: "Профиль",
       state: hasBaseUrl ? "ready" : "active",
-      detail: hasBaseUrl ? "Base URL сохранен." : "Укажите Base URL источника."
+      detail: hasBaseUrl ? "Адрес источника сохранён." : "Укажите адрес источника."
     },
     {
       label: "Доступы",
@@ -328,9 +371,9 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
       detail: latestDiagnostic ? `${latestDiagnostic.status} · ${formatDate(latestDiagnostic.startedAt)}` : "Запускается после доступа."
     },
     {
-      label: "Preview",
+      label: "Предпросмотр",
       state: integration.runs.some((run) => run.dryRun && integrationRunStatusView(run.status).tone === "ok") ? "ready" : hasRequiredSecrets ? "active" : "waiting",
-      detail: integration.runs.find((run) => run.dryRun) ? `Последний пробный запуск: ${formatDate(integration.runs.find((run) => run.dryRun)?.startedAt)}` : "Пока нет preview."
+      detail: integration.runs.find((run) => run.dryRun) ? `Последний пробный запуск: ${formatDate(integration.runs.find((run) => run.dryRun)?.startedAt)}` : "Пока нет предпросмотра."
     },
     {
       label: "Импорт",
@@ -346,67 +389,109 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
   ];
 
   return (
-    <section className="soft-callout">
-      <div className="grid gap-4">
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="record-title">Готовность адаптера</h3>
-            <p className="record-meta">
-              {capability.displayName} · {capability.authModes.map(authModeLabel).join(", ")}
-            </p>
-          </div>
-          <StatusBadge compact
-            label="Готовность"
-            value={capability.certification.summary.label}
-            tone={certificationTone(capability.certification.summary.status)}
-          />
+    <section
+      className="grid min-w-0 gap-4 border-t border-border pt-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0"
+      aria-labelledby="adapter-readiness-title"
+    >
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 break-words">
+          <h3 id="adapter-readiness-title" className="text-sm font-medium">
+            Готовность адаптера
+          </h3>
+          <p className="break-words text-sm text-muted-foreground">
+            {capability.displayName} · {capability.authModes.map(authModeLabel).join(", ")}
+          </p>
         </div>
+        <StatusBadge compact
+          label="Готовность"
+          value={capability.certification.summary.label}
+          tone={certificationTone(capability.certification.summary.status)}
+        />
+      </div>
 
-        <div className="grid gap-4 items-start xl:grid-cols-2">
-          <OperationalBrief
-            className="operational-brief--inline"
-            eyebrow="Командный контур"
-            title={hasBaseUrl && hasRequiredSecrets ? "Источник готов к проверкам" : "Источник ожидает настройки"}
-            description={
-              hasBaseUrl && hasRequiredSecrets
+      <div className="grid min-w-0 items-start gap-3 xl:grid-cols-2">
+        <section
+          className="grid min-w-0 content-start overflow-clip rounded-lg border border-border"
+          aria-labelledby="adapter-command-title"
+        >
+          <div className="min-w-0 border-b border-border bg-muted/40 p-3">
+            <h4
+              id="adapter-command-title"
+              className="break-words text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Командный контур
+            </h4>
+            <p className="mt-1 break-words text-sm font-medium">
+              {hasBaseUrl && hasRequiredSecrets ? "Источник готов к проверкам" : "Источник ожидает настройки"}
+            </p>
+            <p className="mt-1 break-words text-sm text-muted-foreground">
+              {hasBaseUrl && hasRequiredSecrets
                 ? "Можно переходить к диагностике, предпросмотру и свидетельствам боевого режима без раскрытия секретов."
-                : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."
-            }
-            items={[
-              {
-                label: "Последний запуск",
-                value: latestRunStatus?.label ?? "нет",
-                detail: latestRun ? `${latestRun.dryRun ? "Пробный запуск" : "Импорт"} · ${formatDate(latestRun.startedAt)}` : "Импорт не запускался.",
-                tone: latestRun ? integrationRunTone(latestRun.status) : "neutral"
-              }
-            ]}
-          />
-
-          <OperationalStepRail steps={readinessSteps} ariaLabel="Маршрут готовности источника" />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {gates.map((gate) => (
-            <div key={gate.label} className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">G</span>
-              <span className="admin-tile__body">
-                <span className="record-title record-title--tight">{gate.label}</span>
-                <span className="record-meta">{certificationGateLabel(gate.value)}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="soft-callout">
-            <p className="soft-callout__label">Операции</p>
-            <p className="mt-1 text-sm leading-5 text-[var(--text-body)]">
-              {capability.operations.map(operationLabel).join(", ")}
+                : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."}
             </p>
           </div>
-          <div className="soft-callout">
-            <p className="soft-callout__label">Секреты</p>
-            <div className="mt-1 grid gap-1 text-sm leading-5 text-[var(--text-body)]">
+          <div className="min-w-0 px-3">
+            <IntegrationFact label="Последний запуск">
+              <span className="grid min-w-0 gap-1">
+                <StatusBadge
+                  compact
+                  label="Последний запуск"
+                  value={latestRunStatus?.label ?? "нет"}
+                  tone={latestRun ? integrationRunTone(latestRun.status) : "neutral"}
+                />
+                <span className="break-words text-xs text-muted-foreground">
+                  {latestRun
+                    ? `${latestRun.dryRun ? "Пробный запуск" : "Импорт"} · ${formatDate(latestRun.startedAt)}`
+                    : "Импорт не запускался."}
+                </span>
+              </span>
+            </IntegrationFact>
+          </div>
+        </section>
+
+        <section
+          className="min-w-0 overflow-clip rounded-lg border border-border"
+          aria-label="Маршрут готовности источника"
+        >
+          <div className="grid min-w-0 sm:grid-cols-2" role="list">
+            {readinessSteps.map((step) => {
+              const status = readinessStepStatusView(step.state);
+
+              return (
+                <div
+                  key={step.label}
+                  className="grid min-w-0 content-start gap-1.5 border-border p-3 not-last:border-b sm:not-last:border-b-0 sm:not-last:border-r"
+                  role="listitem"
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
+                    <StatusBadge compact label="Состояние" value={status.label} tone={status.tone} />
+                  </div>
+                  <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      <div className="grid min-w-0 rounded-lg border border-border px-3 md:grid-cols-2 md:gap-x-4">
+        {gates.map((gate) => (
+          <IntegrationFact key={gate.label} label={gate.label}>
+            {certificationGateLabel(gate.value)}
+          </IntegrationFact>
+        ))}
+      </div>
+
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        <div className="min-w-0 rounded-lg border border-border px-3">
+          <IntegrationFact label="Операции">
+            {capability.operations.map(operationLabel).join(", ")}
+          </IntegrationFact>
+        </div>
+        <div className="min-w-0 rounded-lg border border-border px-3">
+          <IntegrationFact label="Секреты">
+            <div className="grid min-w-0 gap-1">
               {capability.requiredSecrets.length > 0 ? (
                 capability.requiredSecrets.map((secret) => {
                   const credential = integration.credentials.find((item) => item.kind === secret);
@@ -422,57 +507,66 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
                   );
                 })
               ) : (
-                <p>Секреты не требуются.</p>
+                <span>Секреты не требуются.</span>
               )}
             </div>
-          </div>
+          </IntegrationFact>
         </div>
+      </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="soft-callout">
-            <p className="soft-callout__label">Документация</p>
-            <div className="mt-1 flex min-w-0 flex-wrap gap-2">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        <div className="min-w-0 rounded-lg border border-border px-3">
+          <IntegrationFact label="Документация">
+            <span className="flex min-w-0 flex-wrap gap-2">
               {capability.certification.docs.length > 0 ? (
                 capability.certification.docs.map((doc) => (
-                  <a key={`${doc.label}:${doc.href}`} href={doc.href} target="_blank" rel="noreferrer" className="quiet-link text-sm">
+                  <a
+                    key={`${doc.label}:${doc.href}`}
+                    href={doc.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
                     {doc.label}
                   </a>
                 ))
               ) : (
-                <span className="record-meta">Документы не указаны.</span>
+                <span>Документы не указаны.</span>
               )}
-            </div>
-          </div>
-          <div className="soft-callout">
-            <p className="soft-callout__label">Диагностика</p>
-            <p className="mt-1 text-sm leading-5 text-[var(--text-body)]">
+            </span>
+          </IntegrationFact>
+        </div>
+        <div className="min-w-0 rounded-lg border border-border px-3">
+          <IntegrationFact label="Диагностика">
+            <span>
               {readinessActionLabel(hasBaseUrl, hasRequiredSecrets)}.
               {hasRunnableDiagnostics
-                ? " Можно запускать безопасную диагностику из доступного cockpit-действия."
+                ? " Можно запускать безопасную диагностику из панели операций."
                 : canRunDiagnostics
-                  ? " Условия выполнены, но runnable action для этого адаптера пока не подключен."
-                : " Действие появится после Base URL и обязательных секретов."}
-            </p>
-          </div>
+                  ? " Условия выполнены, но действие диагностики для этого адаптера пока не подключено."
+                  : " Действие появится после адреса источника и обязательных секретов."}
+            </span>
+          </IntegrationFact>
         </div>
+      </div>
 
-        {capability.certification.limitations.length > 0 ? (
-          <div className="soft-callout">
-            <p className="soft-callout__label">Ограничения</p>
-            <ul className="mt-1 grid gap-1 pl-4 text-sm leading-5 text-[var(--text-muted)]">
+      {capability.certification.limitations.length > 0 ? (
+        <div className="min-w-0 rounded-lg border border-border px-3">
+          <IntegrationFact label="Ограничения">
+            <ul className="grid min-w-0 gap-1 pl-4 text-muted-foreground">
               {capability.certification.limitations.map((limitation) => (
                 <li key={limitation} className="list-disc break-words">
                   {limitation}
                 </li>
               ))}
             </ul>
-          </div>
-        ) : null}
+          </IntegrationFact>
+        </div>
+      ) : null}
 
-        <EvidenceDrawer title="Свидетельства">
-          <CertificationEvidenceList evidence={integration.certificationEvidence} />
-        </EvidenceDrawer>
-      </div>
+      <EvidenceDrawer title="Свидетельства">
+        <CertificationEvidenceList evidence={integration.certificationEvidence} />
+      </EvidenceDrawer>
     </section>
   );
 }
@@ -590,49 +684,71 @@ function NonOtrsIntegrationSummary({
   const canRunDiagnostics = capability.supportsDiagnostics && hasBaseUrl && hasRequiredSecrets;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <section className="soft-callout">
-        <div className="grid gap-2">
-          <div>
-            <h3 className="record-title">Сводка источника</h3>
-            <p className="record-meta">Для non-OTRS источников cockpit показывает безопасную операционную сводку.</p>
-          </div>
-          <div className="admin-tile admin-tile--compact">
-            <span className="admin-tile__icon admin-tile__icon--plain">S</span>
-            <span className="admin-tile__body">
-              <span className="record-title record-title--tight">{externalSourceLabel(integration.source)}</span>
-              <span className="record-meta">{integration.type} · {integrationStatusLabel(integration.status)}</span>
-              <span className="record-meta compact-text">{integration.baseUrl ?? "Base URL не указан"}</span>
-              <span className="record-meta compact-text">
-                {canRunDiagnostics
-                  ? "Условия для диагностики выполнены; runnable action для этого адаптера пока не подключен."
-                  : "Диагностика ожидает Base URL и обязательные секреты."}
-              </span>
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <section
+        className="grid min-w-0 content-start overflow-clip rounded-xl border border-border"
+        aria-labelledby="non-otrs-summary-title"
+      >
+        <div className="min-w-0 border-b border-border px-5 py-4">
+          <h3 id="non-otrs-summary-title" className="break-words font-medium">
+            Сводка источника
+          </h3>
+          <p className="mt-1 break-words text-sm text-muted-foreground">
+            Для источников вне семейства OTRS показываем безопасную операционную сводку без технических payload.
+          </p>
+        </div>
+        <div className="grid min-w-0 px-4 py-2">
+          <IntegrationFact label="Источник">
+            <span className="flex min-w-0 flex-wrap items-center gap-2">
+              <span>{externalSourceLabel(integration.source)}</span>
+              <Badge variant="outline" className="font-normal">
+                {integrationStatusLabel(integration.status)}
+              </Badge>
             </span>
-          </div>
+          </IntegrationFact>
+          <IntegrationFact label="Тип">{integrationTypeLabel(integration.type)}</IntegrationFact>
+          <IntegrationFact label="Адрес источника" technical={Boolean(integration.baseUrl)}>
+            {integration.baseUrl ?? "Адрес источника не указан"}
+          </IntegrationFact>
+          <IntegrationFact label="Диагностика">
+            {canRunDiagnostics
+              ? "Условия для диагностики выполнены; действие диагностики для этого адаптера пока не подключено."
+              : "Диагностика ожидает адрес источника и обязательные секреты."}
+          </IntegrationFact>
         </div>
       </section>
 
-      <section className="soft-callout">
-        <div className="grid gap-2">
-          <div>
-            <h3 className="record-title">Фоновые задачи</h3>
-            <p className="record-meta">Без отображения raw payload.</p>
-          </div>
+      <Card className="min-w-0 overflow-clip">
+        <CardHeader className="min-w-0 border-b">
+          <CardTitle className="break-words">Фоновые задачи</CardTitle>
+          <CardDescription className="break-words">Без отображения сырых payload.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid min-w-0 gap-2 pt-(--card-spacing)">
           {jobs.length > 0 ? (
             jobs.slice(0, 5).map((job) => {
               const status = backendJobStatusView(job.status);
 
               return (
-                <Link key={job.id} href={`/admin/system/jobs/${job.id}`} className="admin-tile admin-tile--compact">
-                  <span className="admin-tile__icon admin-tile__icon--plain">J</span>
-                  <span className="admin-tile__body">
-                    <span className="record-title record-title--tight">Job {job.id.slice(0, 8)}</span>
-                    <span className="flex flex-wrap items-center gap-2">
-                      <StatusBadge compact label="Статус" value={status.label} tone={statusViewTone(status.tone)} />
-                      <span className="record-meta tabular-nums">попытка {job.attempts}/{job.maxAttempts}</span>
+                <Link
+                  key={job.id}
+                  href={`/admin/system/jobs/${job.id}`}
+                  className="min-w-0 rounded-lg border p-3 transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="inline-flex min-w-0 flex-wrap items-baseline gap-1 text-sm font-medium">
+                      <span className="min-w-0 break-words">Задача</span>
+                      <span
+                        className="min-w-0 [overflow-wrap:anywhere]"
+                        data-technical="true"
+                      >
+                        {job.id.slice(0, 8)}
+                      </span>
                     </span>
-                  </span>
+                    <StatusBadge compact label="Статус" value={status.label} tone={statusViewTone(status.tone)} />
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      попытка {job.attempts}/{job.maxAttempts}
+                    </span>
+                  </div>
                 </Link>
               );
             })
@@ -643,8 +759,8 @@ function NonOtrsIntegrationSummary({
               description="Фоновые задачи импорта появятся здесь после первого запуска."
             />
           )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -721,7 +837,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
     <PageShell
       eyebrow={adminEyebrow}
       title={integration.displayName}
-      description={`${externalSourceLabel(integration.source)} · ${integration.type} · ${integrationStatusLabel(integration.status)} · последний запуск ${formatDate(latestRun?.startedAt)}`}
+      description={`${externalSourceLabel(integration.source)} · ${integrationTypeLabel(integration.type)} · ${integrationStatusLabel(integration.status)} · последний запуск ${formatDate(latestRun?.startedAt)}`}
     >
       <AdminFrame>
       <AdminSectionTabs
@@ -735,10 +851,15 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
           <>
             {integration.type !== "otrs_family" ? (
               /* У OTRS своя форма подключения ниже на странице (корректный
-                 TLS-merge) — generic-диалог для него не показываем. */
+                 TLS-merge) — generic-диалог для него не показываем.
+                 Явно задаём text-foreground: AdminDialog рендерит Button
+                 default (text-primary-foreground), иначе подпись «Изменить»
+                 становится белой на белом. */
               <AdminDialog
                 triggerLabel="Изменить"
-                triggerClassName="action-button"
+                triggerClassName={cn(
+                  "inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium text-foreground hover:bg-muted hover:text-foreground"
+                )}
                 title={`Источник: ${integration.displayName}`}
                 description="Обновите название, адрес и лимиты импорта. Секрет меняется только при вводе нового значения."
               >
@@ -756,51 +877,70 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
                 />
               </AdminDialog>
             ) : null}
-            <Link href="/admin/integrations/new" className="action-button">
-              <Plus size={16} aria-hidden="true" />
+            <Button render={<Link href="/admin/integrations/new" />} nativeButton={false} variant="outline">
+              <Plus data-icon="inline-start" aria-hidden="true" />
               Новый источник
-            </Link>
-            <Link href="/reviews" className="action-button action-button--quiet">
-              <ListChecks size={16} aria-hidden="true" />
+            </Button>
+            <Button render={<Link href="/reviews" />} nativeButton={false} variant="ghost">
+              <ListChecks data-icon="inline-start" aria-hidden="true" />
               Очередь проверок
-            </Link>
+            </Button>
           </>
         }
       />
 
       {activeSection === "summary" ? (
-        <section className="ops-panel" aria-labelledby="integration-summary-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Источник</p>
-              <h2 id="integration-summary-title" className="ops-panel__title">Сводка источника</h2>
-              <p className="ops-panel__subtitle">Статус, последний запуск и состояние импорта без раскрытия технических payload.</p>
-            </div>
-          </div>
-          <div className="grid gap-4 items-start p-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-            <div className="admin-tile admin-tile--compact">
-              <span className="admin-tile__icon admin-tile__icon--plain">{integration.displayName.slice(0, 1).toUpperCase()}</span>
-              <span className="admin-tile__body">
-                <span className="record-title record-title--tight">{integrationStatusLabel(integration.status)}</span>
-                <span className="record-meta">Пробный запуск: {formatDate(integration.lastDryRunAt)} · импорт: {formatDate(integration.lastImportAt)}</span>
-                {integration.lastError ? <span className="record-meta text-[var(--danger)]">{integration.lastError}</span> : null}
-              </span>
+        <Card
+          className="min-w-0 overflow-clip"
+          role="region"
+          aria-labelledby="integration-summary-title"
+        >
+          <CardHeader className="min-w-0 border-b">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Источник</p>
+            <CardTitle id="integration-summary-title" className="break-words">
+              Сводка источника
+            </CardTitle>
+            <CardDescription className="break-words">
+              Статус, последний запуск и состояние импорта без раскрытия технических payload.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid min-w-0 items-start gap-4 pt-(--card-spacing) xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+            <div className="grid min-w-0 rounded-lg border border-border px-3">
+              <IntegrationFact label="Состояние">
+                {integrationStatusLabel(integration.status)}
+              </IntegrationFact>
+              <IntegrationFact label="Последние запуски">
+                Пробный запуск: {formatDate(integration.lastDryRunAt)} · импорт:{" "}
+                {formatDate(integration.lastImportAt)}
+              </IntegrationFact>
+              {integration.lastError ? (
+                <Alert variant="destructive" className="mb-3 min-w-0">
+                  <AlertTitle>Последняя ошибка</AlertTitle>
+                  <AlertDescription className="break-words">{integration.lastError}</AlertDescription>
+                </Alert>
+              ) : null}
             </div>
             <AdapterReadinessPanel integration={integration} />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       ) : null}
 
       {activeSection === "operations" ? (
-        <section className="ops-panel" aria-labelledby="integration-operations-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Операции</p>
-              <h2 id="integration-operations-title" className="ops-panel__title">Настройка и проверки</h2>
-              <p className="ops-panel__subtitle">Диагностика, предпросмотр, импорт и история запусков.</p>
-            </div>
-          </div>
-          <div className="p-4">
+        <Card
+          className="min-w-0 overflow-clip"
+          role="region"
+          aria-labelledby="integration-operations-title"
+        >
+          <CardHeader className="min-w-0 border-b">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Операции</p>
+            <CardTitle id="integration-operations-title" className="break-words">
+              Настройка и проверки
+            </CardTitle>
+            <CardDescription className="break-words">
+              Диагностика, предпросмотр, импорт и история запусков.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="min-w-0 pt-(--card-spacing)">
             {integration.type === "otrs_family" ? (
               <OtrsDetailCockpit
                 integration={integration}
@@ -810,8 +950,8 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
             ) : (
               <NonOtrsIntegrationSummary integration={integration} jobs={relatedJobs} />
             )}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       ) : null}
       </AdminFrame>
     </PageShell>
@@ -845,7 +985,9 @@ function OtrsDetailCockpit({
     {
       label: "Настройка",
       state: canRunDiagnostics ? "ready" : "active",
-      detail: canRunDiagnostics ? "Base URL и auth_password сохранены." : "Сохраните Base URL и auth_password."
+      detail: canRunDiagnostics
+        ? "Адрес источника и пароль доступа сохранены."
+        : "Сохраните адрес источника и пароль доступа."
     },
     {
       label: "Диагностика",
@@ -868,8 +1010,31 @@ function OtrsDetailCockpit({
   ];
 
   return (
-    <div className="grid gap-6">
-      <OperationalStepRail steps={otrsOperationSteps} ariaLabel="Маршрут OTRS операций" />
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6">
+      <section
+        className="min-w-0 overflow-clip rounded-lg border border-border"
+        aria-label="Маршрут OTRS операций"
+      >
+        <div className="grid min-w-0 sm:grid-cols-2 xl:grid-cols-4" role="list">
+          {otrsOperationSteps.map((step) => {
+            const status = readinessStepStatusView(step.state);
+
+            return (
+              <div
+                key={step.label}
+                className="grid min-w-0 content-start gap-1.5 border-border p-3 not-last:border-b sm:not-last:border-b-0 sm:not-last:border-r"
+                role="listitem"
+              >
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
+                  <StatusBadge compact label="Состояние" value={status.label} tone={status.tone} />
+                </div>
+                <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       <OtrsWebserviceChecklist baseUrl={integration.baseUrl} config={config} />
       <OtrsConnectionForm
         integration={{
@@ -886,21 +1051,28 @@ function OtrsDetailCockpit({
         credentials={credentialSummaries}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         {canRunDiagnostics ? (
           <OtrsDiagnosticsPanel integrationId={integration.id} latestDiagnostic={toDiagnosticRun(integration.diagnosticRuns[0])} />
         ) : (
-          <section className="panel overflow-clip">
-            <div className="border-b border-[var(--border)] px-5 py-4">
-              <h2 className="text-lg font-semibold">Диагностика</h2>
-              <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
-                Действие запуска появится после сохранения Base URL и секрета auth_password.
+          <section
+            className="grid min-w-0 content-start overflow-clip rounded-lg border border-border"
+            aria-labelledby="disabled-otrs-diagnostics-title"
+          >
+            <div className="min-w-0 border-b border-border px-5 py-4">
+              <h2 id="disabled-otrs-diagnostics-title" className="break-words text-base font-medium">
+                Диагностика
+              </h2>
+              <p className="mt-1 break-words text-sm text-muted-foreground">
+                Действие запуска появится после сохранения адреса источника и пароля доступа.
               </p>
             </div>
-            <div className="p-4">
-              <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
-                Ожидает доступы. Raw секреты не отображаются; сохраните пароль или API-секрет в настройке подключения.
-              </div>
+            <div className="min-w-0 p-4">
+              <Alert className="min-w-0">
+                <AlertDescription className="break-words">
+                  Ожидает доступы. Raw секреты не отображаются; сохраните пароль или API-секрет в настройке подключения.
+                </AlertDescription>
+              </Alert>
             </div>
           </section>
         )}
@@ -909,37 +1081,38 @@ function OtrsDetailCockpit({
 
       <OtrsRunHistory runs={toRunHistoryRuns(integration.runs, integration.workspaceId)} jobsByRunId={jobByRunId} />
 
-      <details className="compact-details overflow-clip">
-        <summary className="disclosure-summary cursor-pointer list-none border-b border-[var(--border)] px-5 py-4">
+      <Collapsible className="overflow-clip rounded-xl border">
+        <CollapsibleTrigger className="w-full cursor-pointer border-b px-5 py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div>
-            <h2 className="text-lg font-semibold">Ручная проверка payload</h2>
-            <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
-              Legacy/manual JSON path: вставка TicketGet payload без connector preview. Server action оставлен без изменений.
+            <h2 className="text-base font-medium">Ручная проверка payload</h2>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              Ручной путь через JSON: вставка payload TicketGet без предпросмотра коннектора. Серверное действие
+              оставлено без изменений.
             </p>
           </div>
-        </summary>
-        <div className="grid gap-5 p-4">
-          <section className="integration-payload-section">
-            <div className="integration-payload-section__header">
-              <h3 className="text-base font-semibold text-[var(--foreground)]">OTRS-family TicketGet payload</h3>
-              <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
+        </CollapsibleTrigger>
+        <CollapsibleContent keepMounted className="grid gap-5 p-4">
+          <Card size="sm" className="overflow-clip">
+            <CardHeader className="border-b">
+              <CardTitle>OTRS-family TicketGet payload</CardTitle>
+              <CardDescription>
                 Используйте только для ручной проверки JSON, когда connector-путь недоступен.
-              </p>
-            </div>
-            <div className="integration-payload-section__body">
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-(--card-spacing)">
               <OtrsImportTester />
-            </div>
-          </section>
-          <details className="compact-details overflow-clip">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
-              Native helpdesk legacy payload
-            </summary>
-            <div className="border-t border-[var(--border)] p-4">
+            </CardContent>
+          </Card>
+          <Collapsible className="overflow-clip rounded-lg border">
+            <CollapsibleTrigger className="w-full cursor-pointer px-4 py-3 text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              Устаревший payload службы поддержки
+            </CollapsibleTrigger>
+            <CollapsibleContent keepMounted className="border-t p-4">
               <NativeHelpdeskImportTester />
-            </div>
-          </details>
-        </div>
-      </details>
+            </CollapsibleContent>
+          </Collapsible>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

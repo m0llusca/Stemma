@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from "react";
+import { useFormStatus } from "react-dom";
 
-type ValidatedSubmitButtonProps = Omit<ComponentPropsWithoutRef<"button">, "type"> & {
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
+
+type ValidatedSubmitButtonProps = Omit<ComponentPropsWithoutRef<typeof Button>, "type"> & {
   minCheckedNames?: string[];
   requireAnyValueNames?: string[];
 };
@@ -16,54 +21,59 @@ function isValueControl(control: unknown): control is HTMLInputElement | HTMLSel
 }
 
 function hasAnyNamedValue(form: HTMLFormElement, names: string[]) {
-  return names.length === 0 || names.some((name) => {
-    const control = form.elements.namedItem(name);
+  return (
+    names.length === 0 ||
+    names.some((name) => {
+      const control = form.elements.namedItem(name);
 
-    if (!control) {
-      return false;
-    }
-
-    if (control instanceof RadioNodeList) {
-      return Array.from(control).some((item) => {
-        if (!isValueControl(item)) {
-          return false;
-        }
-
-        if (item instanceof HTMLInputElement && (item.type === "checkbox" || item.type === "radio")) {
-          return item.checked;
-        }
-
-        return item.value.trim().length > 0;
-      });
-    }
-
-    if (isValueControl(control)) {
-      if (control instanceof HTMLInputElement && (control.type === "checkbox" || control.type === "radio")) {
-        return control.checked;
+      if (!control) {
+        return false;
       }
 
-      return control.value.trim().length > 0;
-    }
+      if (control instanceof RadioNodeList) {
+        return Array.from(control).some((item) => {
+          if (!isValueControl(item)) {
+            return false;
+          }
 
-    return false;
-  });
+          if (item instanceof HTMLInputElement && (item.type === "checkbox" || item.type === "radio")) {
+            return item.checked;
+          }
+
+          return item.value.trim().length > 0;
+        });
+      }
+
+      if (isValueControl(control)) {
+        if (control instanceof HTMLInputElement && (control.type === "checkbox" || control.type === "radio")) {
+          return control.checked;
+        }
+
+        return control.value.trim().length > 0;
+      }
+
+      return false;
+    })
+  );
 }
 
 export function ValidatedSubmitButton({
   children,
-  className = "action-button action-button--primary",
+  className,
   minCheckedNames = [],
   requireAnyValueNames = [],
   disabled,
   ...buttonProps
 }: ValidatedSubmitButtonProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const hostRef = useRef<HTMLSpanElement>(null);
   const [canSubmit, setCanSubmit] = useState(false);
+  const { pending } = useFormStatus();
   const minCheckedKey = minCheckedNames.join("\u0000");
   const anyValueKey = requireAnyValueNames.join("\u0000");
 
   useEffect(() => {
-    const form = buttonRef.current?.form;
+    const host = hostRef.current;
+    const form = host?.closest("form") ?? host?.querySelector("button")?.form ?? null;
 
     if (!form) {
       return;
@@ -87,8 +97,16 @@ export function ValidatedSubmitButton({
   }, [minCheckedKey, anyValueKey]);
 
   return (
-    <button ref={buttonRef} type="submit" className={className} disabled={disabled || !canSubmit} {...buttonProps}>
-      {children}
-    </button>
+    <span ref={hostRef} className="contents">
+      <Button
+        type="submit"
+        {...buttonProps}
+        className={cn(className)}
+        disabled={disabled || pending || !canSubmit}
+      >
+        {pending ? <Spinner data-icon="inline-start" className="size-3.5" /> : null}
+        {children}
+      </Button>
+    </span>
   );
 }

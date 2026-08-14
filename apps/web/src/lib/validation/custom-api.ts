@@ -2,7 +2,10 @@ import { z } from "zod";
 
 export const customConversationLimits = {
   maxMessagesPerConversation: 300,
-  maxConversationsPerImportRequest: 100
+  maxConversationsPerImportRequest: 100,
+  maxExternalIdLength: 255,
+  maxSubjectLength: 500,
+  maxMessageBodyLength: 100_000
 } as const;
 
 export const customChannelSchema = z.enum(["chat", "email", "ticket", "messenger"]);
@@ -23,20 +26,20 @@ const optionalUrlSchema = z.preprocess(
 );
 
 export const customMessageSchema = z.object({
-  externalId: z.string().trim().min(1),
+  externalId: z.string().trim().min(1).max(customConversationLimits.maxExternalIdLength),
   participantType: customParticipantTypeSchema,
   authorName: z.string().trim().min(1),
-  body: z.string().trim().min(1),
+  body: z.string().trim().min(1).max(customConversationLimits.maxMessageBodyLength),
   sentAt: z.string().datetime({ offset: true }),
   isPrivate: z.boolean().optional().default(false)
 });
 
 export const customConversationSchema = z.object({
   externalSource: z.string().trim().min(1),
-  externalId: z.string().trim().min(1),
+  externalId: z.string().trim().min(1).max(customConversationLimits.maxExternalIdLength),
   externalUrl: optionalUrlSchema,
   channel: customChannelSchema,
-  subject: z.string().trim().min(1),
+  subject: z.string().trim().min(1).max(customConversationLimits.maxSubjectLength),
   status: z.string().trim().min(1),
   tags: z.array(z.string().trim().min(1)).optional().default([]),
   customerName: z.string().trim().min(1),

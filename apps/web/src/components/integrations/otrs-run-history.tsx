@@ -1,12 +1,41 @@
 import Link from "next/link";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
+import {
+  formatArticleCount,
+  formatAttachmentCount,
+  integrationModeLabel,
+  integrationRunItemStatusLabel
+} from "@/lib/integrations/labels";
+import { russianPlural } from "@/lib/reports/report-format";
+import { cn } from "@/lib/utils";
 
-function runChipTone(tone: "ok" | "warn" | "error" | "neutral"): ChipTone {
-  if (tone === "ok") return "success";
-  if (tone === "warn") return "warning";
-  if (tone === "error") return "danger";
-  return "neutral";
+function runBadgeClass(tone: "ok" | "warn" | "error" | "neutral") {
+  if (tone === "ok") {
+    return "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300";
+  }
+  if (tone === "warn") {
+    return "border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-300";
+  }
+  if (tone === "error") {
+    return "border-transparent bg-destructive/15 text-destructive";
+  }
+  return "";
 }
 
 type BackendJobSummary = {
@@ -61,15 +90,19 @@ function formatDate(value: Date | null | undefined) {
 
 export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
   return (
-    <section className="panel overflow-clip">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">История запусков</h2>
-        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">Preview, выбранные импорты и связанные backend jobs.</p>
-      </div>
+    <Card className="overflow-clip">
+      <CardHeader className="border-b">
+        <h2 className="font-heading text-base leading-snug font-medium">
+          История запусков
+        </h2>
+        <CardDescription>Предпросмотр, выборочные импорты и связанные backend-задачи.</CardDescription>
+      </CardHeader>
 
-      <div className="record-list px-5">
+      <CardContent className="grid gap-4 pt-(--card-spacing)">
         {runs.length === 0 ? (
-          <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">Запусков для этого источника пока нет.</div>
+          <Alert>
+            <AlertDescription>Запусков для этого источника пока нет.</AlertDescription>
+          </Alert>
         ) : (
           runs.map((run) => {
             const runStatus = integrationRunStatusView(run.status);
@@ -77,90 +110,110 @@ export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {
             const jobStatus = job ? backendJobStatusView(job.status) : null;
 
             return (
-              <article key={run.id} className="record-card">
-                <div className="record-row">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="record-title record-title--tight">{run.dryRun ? "Preview / dry-run" : "Импорт"}</span>
-                      <Chip tone={runChipTone(runStatus.tone)} size="xs">{runStatus.label}</Chip>
+              <Card key={run.id} size="sm" className="overflow-clip">
+                <CardContent className="grid gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{run.dryRun ? "Предпросмотр / пробный запуск" : "Импорт"}</span>
+                        <Badge
+                          variant={runStatus.tone === "ok" ? "secondary" : "outline"}
+                          className={cn("font-normal", runBadgeClass(runStatus.tone))}
+                        >
+                          {runStatus.label}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {integrationModeLabel(run.mode)} · {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
+                      </p>
                     </div>
-                    <p className="record-meta">
-                      {run.mode} · {formatDate(run.startedAt)} · {run.actor?.name ?? "Автоматика"}
-                    </p>
+                    {job && jobStatus ? (
+                      <Link
+                        href={`/admin/system/jobs/${job.id}`}
+                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        Job {job.id.slice(0, 8)} · {jobStatus.label}
+                      </Link>
+                    ) : null}
                   </div>
-                  {job && jobStatus ? (
-                    <Link href={`/admin/system/jobs/${job.id}`} className="quiet-link text-sm">
-                      Job {job.id.slice(0, 8)} · {jobStatus.label}
-                    </Link>
+
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Объем</p>
+                      <p className="text-sm tabular-nums text-muted-foreground">
+                        {run.importedCount}/{run.requestedLimit} · ошибок {run.errorCount}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Финиш</p>
+                      <p className="text-sm tabular-nums text-muted-foreground">{formatDate(run.finishedAt)}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Строки</p>
+                      <p className="text-sm tabular-nums text-muted-foreground">{russianPlural(run.items.length, ["строка", "строки", "строк"])}</p>
+                    </div>
+                  </div>
+
+                  {run.errorMessage ? (
+                    <Alert variant="destructive">
+                      <AlertDescription>{run.errorMessage}</AlertDescription>
+                    </Alert>
                   ) : null}
-                </div>
 
-                <div className="mt-3 grid gap-2 md:grid-cols-3">
-                  <div className="soft-callout">
-                    <p className="soft-callout__label">Объем</p>
-                    <p className="record-meta tabular-nums">
-                      {run.importedCount}/{run.requestedLimit} · ошибок {run.errorCount}
-                    </p>
-                  </div>
-                  <div className="soft-callout">
-                    <p className="soft-callout__label">Финиш</p>
-                    <p className="record-meta tabular-nums">{formatDate(run.finishedAt)}</p>
-                  </div>
-                  <div className="soft-callout">
-                    <p className="soft-callout__label">Items</p>
-                    <p className="record-meta tabular-nums">{run.items.length} строк</p>
-                  </div>
-                </div>
-
-                {run.errorMessage ? (
-                  <div className="soft-callout soft-callout--warn mt-3 text-sm leading-5 text-[var(--warning)]">{run.errorMessage}</div>
-                ) : null}
-
-                {run.items.length > 0 ? (
-                  <div className="scroll-area mt-3">
-                    <table className="table-fixed-copy w-full min-w-[760px] border-collapse text-left text-sm">
-                      <thead className="bg-[var(--accent-soft)] text-xs uppercase text-[var(--text-subtle)]">
-                        <tr>
-                          <th className="px-3 py-2 font-semibold">External ID</th>
-                          <th className="px-3 py-2 font-semibold">Ticket</th>
-                          <th className="px-3 py-2 font-semibold">Status</th>
-                          <th className="px-3 py-2 font-semibold">Articles</th>
-                          <th className="px-3 py-2 font-semibold">Review queue</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--border)]">
+                  {run.items.length > 0 ? (
+                    <Table className="min-w-[760px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Внешний ID</TableHead>
+                          <TableHead>Тикет</TableHead>
+                          <TableHead>Статус</TableHead>
+                          <TableHead>Статьи</TableHead>
+                          <TableHead>Очередь проверок</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {run.items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-3 py-2 font-mono text-xs">{item.externalId}</td>
-                            <td className="px-3 py-2 font-mono text-xs">{item.ticketNumber ?? "Нет"}</td>
-                            <td className="px-3 py-2">
-                              <Chip tone={item.status === "imported" ? "success" : "neutral"} size="xs">
-                                {item.status}
-                              </Chip>
-                            </td>
-                            <td className="px-3 py-2 text-[var(--text-body)]">
-                              {item.articleCount} · private {item.privateArticleCount} · files {item.attachmentCount}
-                            </td>
-                            <td className="px-3 py-2">
+                          <TableRow key={item.id}>
+                            <TableCell className="font-mono text-xs">{item.externalId}</TableCell>
+                            <TableCell className="font-mono text-xs">{item.ticketNumber ?? "Нет"}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={item.status === "imported" ? "secondary" : "outline"}
+                                className={cn(
+                                  "font-normal",
+                                  item.status === "imported" &&
+                                    "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                                )}
+                              >
+                                {integrationRunItemStatusLabel(item.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-normal">
+                              {formatArticleCount(item.articleCount)} · приватных {item.privateArticleCount} · {formatAttachmentCount(item.attachmentCount)}
+                            </TableCell>
+                            <TableCell className="whitespace-normal">
                               {item.conversationId ? (
-                                <Link href={`/reviews/${item.conversationId}`} className="quiet-link">
+                                <Link
+                                  href={`/reviews/${item.conversationId}`}
+                                  className="font-medium text-primary underline-offset-4 hover:underline"
+                                >
                                   {item.conversation?.subject ?? "Открыть /reviews"}
                                 </Link>
                               ) : (
-                                <span className="record-meta">Не импортировано</span>
+                                <span className="text-muted-foreground">Не импортировано</span>
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : null}
-              </article>
+                      </TableBody>
+                    </Table>
+                  ) : null}
+                </CardContent>
+              </Card>
             );
           })
         )}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

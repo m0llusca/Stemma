@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { Activity } from "lucide-react";
+import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
 
@@ -32,5 +34,43 @@ describe("operations UI pattern", () => {
     );
 
     expect(screen.getByRole("link", { name: "Открыть фокус" }).getAttribute("href")).toBe("/dashboard?focus=training");
+  });
+
+  it("styles KPI deltas with shared semantic status tokens", () => {
+    render(
+      <>
+        <OperationKpiCard
+          href="/reports"
+          icon={Activity}
+          value={79}
+          delta={{ value: "+3", direction: "up", tone: "success" }}
+          tone="positive"
+          label="Улучшение"
+          hint="к прошлой неделе"
+        />
+        <OperationKpiCard
+          href="/reviews"
+          icon={Activity}
+          value={4}
+          delta={{ value: "4", direction: "flat", tone: "warning" }}
+          tone="warning"
+          label="Требует внимания"
+          hint="без старта"
+        />
+      </>
+    );
+
+    const successBadge = screen
+      .getByRole("link", { name: /Улучшение/ })
+      .querySelector('[data-slot="badge"]');
+    const warningBadge = screen
+      .getByRole("link", { name: /Требует внимания/ })
+      .querySelector('[data-slot="badge"]');
+
+    expect(successBadge?.className).toContain("bg-success-soft");
+    expect(successBadge?.className).toContain("text-success");
+    expect(warningBadge?.className).toContain("bg-warning-soft");
+    expect(warningBadge?.className).toContain("text-warning");
+    expect(`${successBadge?.className} ${warningBadge?.className}`).not.toMatch(/emerald|amber/);
   });
 });

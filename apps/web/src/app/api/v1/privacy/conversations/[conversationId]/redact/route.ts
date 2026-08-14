@@ -2,7 +2,7 @@ import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
-import { redactText, redactedText } from "@/lib/privacy";
+import { redactText, redactedPayloadJson, redactedText } from "@/lib/privacy";
 import { recordReviewEvent } from "@/lib/review-events";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +58,16 @@ export async function POST(request: Request, context: { params: Promise<{ conver
       }
     });
 
+    const ingestEvents = await tx.webhookIngestEvent.updateMany({
+      where: { conversationId: conversation.id, workspaceId: user.workspaceId },
+      data: { payloadJson: redactedPayloadJson }
+    });
+
+    const runItems = await tx.integrationRunItem.updateMany({
+      where: { conversationId: conversation.id, workspaceId: user.workspaceId },
+      data: { normalizedPreviewJson: redactedPayloadJson }
+    });
+
     await auditLog(
       {
         workspaceId: user.workspaceId,
@@ -67,7 +77,9 @@ export async function POST(request: Request, context: { params: Promise<{ conver
         targetId: conversation.id,
         metadata: {
           reason,
-          redactedMessages: messages.count
+          redactedMessages: messages.count,
+          redactedIngestEvents: ingestEvents.count,
+          redactedRunItems: runItems.count
         }
       },
       tx
@@ -80,7 +92,9 @@ export async function POST(request: Request, context: { params: Promise<{ conver
       action: "privacy.conversation_redacted",
       metadata: {
         reason,
-        redactedMessages: messages.count
+        redactedMessages: messages.count,
+        redactedIngestEvents: ingestEvents.count,
+        redactedRunItems: runItems.count
       }
     });
 

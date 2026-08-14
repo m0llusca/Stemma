@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { QueueAdvancedFilters } from "@/components/review/queue-advanced-filters";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
+import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Separator } from "@/components/ui/separator";
 import {
   channelLabels,
   csatBucketLabels,
@@ -103,27 +108,28 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
   return (
     <AutoSubmitFilterForm action="/reviews" className="queue-filterbar">
       <div className="queue-filterbar__primary">
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Поиск
-          <input
+        <Field className="min-w-0">
+          <FieldLabel htmlFor="queue-filter-q">Поиск</FieldLabel>
+          <Input
+            key={filters.q ?? ""}
+            id="queue-filter-q"
             name="q"
             defaultValue={filters.q ?? ""}
             aria-label="Поиск в очереди проверок"
             placeholder="Клиент, тема, тег или внешний ID"
-            className="form-control"
           />
-        </label>
+        </Field>
 
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Статус проверки
-          <select name="status" defaultValue={filters.status} className="form-control">
+        <Field className="min-w-0">
+          <FieldLabel htmlFor="queue-filter-status">Статус проверки</FieldLabel>
+          <NativeSelect id="queue-filter-status" name="status" defaultValue={filters.status} className="w-full">
             {reviewQueueStatuses.map((status) => (
-              <option key={status} value={status}>
+              <NativeSelectOption key={status} value={status}>
                 {reviewQueueStatusLabels[status]}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Field>
 
         <QueueAdvancedFilters
           activeCount={activeAdvancedFilterCount}
@@ -131,163 +137,196 @@ export function QueueFilters({ filters, sources, assignees, qaAssignees, support
           defaultOpen={hasAdvancedFilters}
           actions={
             <div className="queue-filterbar__actions">
-              <Link href="/reviews" className="action-button">
+              <Button render={<Link href="/reviews" />} nativeButton={false} variant="outline">
                 Сбросить
-              </Link>
+              </Button>
             </div>
           }
         >
           <div className="queue-filterbar__advanced-grid">
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Состояние
-              <select name="qaStatus" defaultValue={filters.qaStatus ?? "all"} className="form-control">
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-qaStatus">Состояние</FieldLabel>
+              <NativeSelect
+                id="queue-filter-qaStatus"
+                name="qaStatus"
+                defaultValue={filters.qaStatus ?? "all"}
+                className="w-full"
+              >
                 {qaQueueStatuses.map((status) => (
-                  <option key={status} value={status}>
+                  <NativeSelectOption key={status} value={status}>
                     {status === "all" ? "Все" : qaStatusLabels[status]}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Канал
-              <select name="channel" defaultValue={filters.channel ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-channel">Канал</FieldLabel>
+              <NativeSelect id="queue-filter-channel" name="channel" defaultValue={filters.channel ?? ""} className="w-full">
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {Object.entries(channelLabels).map(([channel, label]) => (
-                  <option key={channel} value={channel}>
+                  <NativeSelectOption key={channel} value={channel}>
                     {label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Источник
-              <select name="source" defaultValue={filters.source ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-source">Источник</FieldLabel>
+              <NativeSelect id="queue-filter-source" name="source" defaultValue={filters.source ?? ""} className="w-full">
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {sources.map((source) => (
-                  <option key={source} value={source}>
+                  <NativeSelectOption key={source} value={source}>
                     {source}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Оператор
-              <select name="assignee" defaultValue={filters.assignee ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-assignee">Оператор</FieldLabel>
+              <NativeSelect id="queue-filter-assignee" name="assignee" defaultValue={filters.assignee ?? ""} className="w-full">
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {assignees.map((assignee) => (
-                  <option key={assignee} value={assignee}>
+                  <NativeSelectOption key={assignee} value={assignee}>
                     {assignee}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Проверяющий
-              <select name="qaAssignee" defaultValue={filters.qaAssignee ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-qaAssignee">Проверяющий</FieldLabel>
+              <NativeSelect
+                id="queue-filter-qaAssignee"
+                name="qaAssignee"
+                defaultValue={filters.qaAssignee ?? ""}
+                className="w-full"
+              >
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {qaAssignees.map((qaAssignee) => (
-                  <option key={qaAssignee} value={qaAssignee}>
+                  <NativeSelectOption key={qaAssignee} value={qaAssignee}>
                     {qaAssignee}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Выборка
-              <select name="samplingType" defaultValue={filters.samplingType ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-samplingType">Выборка</FieldLabel>
+              <NativeSelect
+                id="queue-filter-samplingType"
+                name="samplingType"
+                defaultValue={filters.samplingType ?? ""}
+                className="w-full"
+              >
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {queueSamplingTypes.map((samplingType) => (
-                  <option key={samplingType} value={samplingType}>
+                  <NativeSelectOption key={samplingType} value={samplingType}>
                     {samplingTypeLabels[samplingType]}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              CSAT
-              <select name="csatBucket" defaultValue={filters.csatBucket ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-csatBucket">CSAT</FieldLabel>
+              <NativeSelect
+                id="queue-filter-csatBucket"
+                name="csatBucket"
+                defaultValue={filters.csatBucket ?? ""}
+                className="w-full"
+              >
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {queueCsatBuckets.map((csatBucket) => (
-                  <option key={csatBucket} value={csatBucket}>
+                  <NativeSelectOption key={csatBucket} value={csatBucket}>
                     {csatBucketLabels[csatBucket]}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Линия
-              <select name="supportLine" defaultValue={filters.supportLine ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-supportLine">Линия</FieldLabel>
+              <NativeSelect
+                id="queue-filter-supportLine"
+                name="supportLine"
+                defaultValue={filters.supportLine ?? ""}
+                className="w-full"
+              >
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {supportLines.map((supportLine) => (
-                  <option key={supportLine} value={supportLine}>
+                  <NativeSelectOption key={supportLine} value={supportLine}>
                     {supportLine}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Команда
-              <select name="teamName" defaultValue={filters.teamName ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-teamName">Команда</FieldLabel>
+              <NativeSelect id="queue-filter-teamName" name="teamName" defaultValue={filters.teamName ?? ""} className="w-full">
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {teamNames.map((teamName) => (
-                  <option key={teamName} value={teamName}>
+                  <NativeSelectOption key={teamName} value={teamName}>
                     {teamName}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Процесс
-              <select name="process" defaultValue={filters.process ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-process">Процесс</FieldLabel>
+              <NativeSelect id="queue-filter-process" name="process" defaultValue={filters.process ?? ""} className="w-full">
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {queueProcessFilters.map((process) => (
-                  <option key={process} value={process}>
+                  <NativeSelectOption key={process} value={process}>
                     {processLabels[process]}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Срок
-              <select name="due" defaultValue={filters.due ?? ""} className="form-control">
-                <option value="">Все</option>
-                <option value="overdue">Просрочено</option>
-              </select>
-            </label>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-due">Срок</FieldLabel>
+              <NativeSelect id="queue-filter-due" name="due" defaultValue={filters.due ?? ""} className="w-full">
+                <NativeSelectOption value="">Все</NativeSelectOption>
+                <NativeSelectOption value="overdue">Просрочено</NativeSelectOption>
+              </NativeSelect>
+            </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Риск
-              <select name="riskLevel" defaultValue={filters.riskLevel ?? ""} className="form-control">
-                <option value="">Все</option>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="queue-filter-riskLevel">Риск</FieldLabel>
+              <NativeSelect
+                id="queue-filter-riskLevel"
+                name="riskLevel"
+                defaultValue={filters.riskLevel ?? ""}
+                className="w-full"
+              >
+                <NativeSelectOption value="">Все</NativeSelectOption>
                 {riskLevels.map((riskLevel) => (
-                  <option key={riskLevel} value={riskLevel}>
+                  <NativeSelectOption key={riskLevel} value={riskLevel}>
                     {riskFilterLabels[riskLevel]}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
           </div>
         </QueueAdvancedFilters>
       </div>
 
       {activeFilters.length > 0 ? (
-        <div className="queue-filterbar__active">
-          {activeFilters.map((filter) => (
-            <Chip key={`${filter.label}:${filter.value}`} tone="accent" size="xs">
-              {filter.label}: {filter.value}
-            </Chip>
-          ))}
-        </div>
+        <>
+          <Separator />
+          <div className="queue-filterbar__active flex flex-wrap items-center gap-1.5">
+            {activeFilters.map((filter) => (
+              <Chip key={`${filter.label}:${filter.value}`} tone="accent">
+                {filter.label}: {filter.value}
+              </Chip>
+            ))}
+          </div>
+        </>
       ) : null}
     </AutoSubmitFilterForm>
   );

@@ -103,7 +103,8 @@ export async function requireApiToken(
       id: true,
       workspaceId: true,
       scopes: true,
-      expiresAt: true
+      expiresAt: true,
+      lastUsedAt: true
     }
   });
 
@@ -121,10 +122,14 @@ export async function requireApiToken(
     };
   }
 
-  await prisma.apiToken.update({
-    where: { id: apiToken.id },
-    data: { lastUsedAt: new Date() }
-  });
+  // Throttle lastUsedAt writes: on a hot token this update would otherwise run
+  // on every request. A 60s resolution is plenty for "last used" display.
+  if (!apiToken.lastUsedAt || Date.now() - apiToken.lastUsedAt.getTime() > 60_000) {
+    await prisma.apiToken.update({
+      where: { id: apiToken.id },
+      data: { lastUsedAt: new Date() }
+    });
+  }
 
   return {
     ok: true,

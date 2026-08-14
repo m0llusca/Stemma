@@ -67,7 +67,7 @@ describe("readiness API", () => {
 
   it("includes the Phase D readiness report with workspace diagnostics", async () => {
     const { GET } = await import("@/app/api/v1/readiness/route");
-    const response = await GET();
+    const response = await GET(new Request("https://qc.example.com/api/v1/readiness"));
     const body = await response.json();
 
     expect(response.status).toBe(200);

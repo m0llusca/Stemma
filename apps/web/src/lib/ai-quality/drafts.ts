@@ -49,11 +49,11 @@ export async function createAiQualityDraft(input: CreateAiQualityDraftInput) {
 export async function decideAiQualityDraft(input: DecideAiQualityDraftInput) {
   const actorId = input.actorId.trim();
   if (!actorId) {
-    throw new Error("AI draft decisions require a human actor.");
+    throw new Error("Решение по AI-черновику требует участия человека.");
   }
 
   if (input.decision === "changed" && !Object.hasOwn(input, "changedValue")) {
-    throw new Error("Changed AI draft decisions require a changed value.");
+    throw new Error("Для изменения AI-черновика нужно передать новое значение.");
   }
 
   return prisma.aiQualityDraft.update({

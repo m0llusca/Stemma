@@ -3,21 +3,40 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { ReportScheduleForm } from "@/components/admin/report-schedule-form";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { deleteReportSchedule, setReportScheduleActive } from "@/lib/report-schedule-actions";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import {
   REPORT_SCHEDULE_CADENCES,
   REPORT_SCHEDULE_FORMATS,
   REPORT_SCHEDULE_PERIOD_PRESETS
 } from "@/lib/report-schedule";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -74,107 +93,130 @@ async function ReportSchedulesPageContent({ searchParams }: ReportSchedulesPageP
       description="Автоматическая регулярная выгрузка отчетов по качеству: формат, период данных и периодичность. Готовые отчеты появляются в снимках вместе с ручными выгрузками."
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="report-schedules-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Расписания</p>
-              <h2 id="report-schedules-title" className="ops-panel__title">
-                Регулярные выгрузки
-              </h2>
-              <p className="ops-panel__subtitle">
-                Активно: {activeCount} · всего: {schedules.length}
-              </p>
-            </div>
-            <div className="admin-actions">
-              <AdminDialog
-                triggerLabel={
-                  <>
-                    <CalendarClock size={16} aria-hidden="true" />
-                    Новое расписание
-                  </>
-                }
-                title="Новое расписание"
-                description="Выберите период данных, периодичность и формат регулярной выгрузки."
-                defaultOpen={createDialogOpen}
-              >
-                <ReportScheduleForm
-                  periodPresetOptions={REPORT_SCHEDULE_PERIOD_PRESETS.map((value) => ({
-                    value,
-                    label: periodPresetLabels[value] ?? value
-                  }))}
-                  cadenceOptions={REPORT_SCHEDULE_CADENCES.map((value) => ({
-                    value,
-                    label: cadenceLabels[value] ?? value
-                  }))}
-                  formatOptions={REPORT_SCHEDULE_FORMATS.map((value) => ({
-                    value,
-                    label: formatLabels[value] ?? value
-                  }))}
-                />
-              </AdminDialog>
-              <Link href="/reports" className="action-button">
-                Отчеты
-              </Link>
-            </div>
-          </div>
-          <div className="p-4">
-            {schedules.length > 0 ? (
-              <div className="admin-data-table admin-data-table--schedules" aria-label="Расписания отчетов">
-                <div className="admin-data-table__head">
-                  <span>Расписание</span>
-                  <span>Периодичность</span>
-                  <span>Формат</span>
-                  <span>Следующий запуск</span>
-                </div>
-                {schedules.map((schedule) => (
-                  <div key={schedule.id} className="admin-data-table__row">
-                    <span className="admin-data-table__primary admin-data-table__primary--stacked">
-                      <strong>{schedule.name}</strong>
-                      <span className="admin-data-table__inline-actions">
-                        <Chip tone={schedule.isActive ? "success" : "neutral"} size="xs">
-                          {schedule.isActive ? "Активно" : "Выключено"}
-                        </Chip>
-                        <small className="admin-data-table__muted">
-                          {periodPresetLabels[schedule.periodPreset] ?? schedule.periodPreset}
-                        </small>
-                      </span>
-                    </span>
-                    <span>{cadenceLabels[schedule.cadence] ?? schedule.cadence}</span>
-                    <span>{formatLabels[schedule.exportFormat] ?? schedule.exportFormat.toUpperCase()}</span>
-                    <span className="admin-data-table__stack">
-                      <strong className="tabular-nums">{formatDateTime(schedule.nextRunAt)}</strong>
-                      <span className="admin-data-table__inline-actions">
-                        <form action={setReportScheduleActive}>
-                          <input type="hidden" name="scheduleId" value={schedule.id} />
-                          <input type="hidden" name="isActive" value={schedule.isActive ? "false" : "true"} />
-                          <button type="submit" className="quiet-link text-sm">
-                            {schedule.isActive ? "Выключить" : "Включить"}
-                          </button>
-                        </form>
-                        <form action={deleteReportSchedule}>
-                          <input type="hidden" name="scheduleId" value={schedule.id} />
-                          <ConfirmSubmitButton
-                            className="quiet-link quiet-link--danger text-sm"
-                            confirmMessage={`Удалить расписание «${schedule.name}»? Регулярная выгрузка остановится, расписание будет удалено безвозвратно. Уже созданные отчеты останутся в снимках.`}
-                          >
-                            Удалить
-                          </ConfirmSubmitButton>
-                        </form>
-                      </span>
-                    </span>
-                  </div>
-                ))}
+        <Card aria-labelledby="report-schedules-title">
+          <CardHeader className="border-b">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Расписания</p>
+            <CardTitle id="report-schedules-title">
+              Регулярные выгрузки
+            </CardTitle>
+            <CardDescription className="tabular-nums">
+              Активно: {activeCount} · всего: {schedules.length}
+            </CardDescription>
+            <CardAction>
+              <div className="flex flex-wrap items-center gap-2">
+                <AdminDialog
+                  triggerLabel={
+                    <>
+                      <CalendarClock size={16} aria-hidden="true" />
+                      Новое расписание
+                    </>
+                  }
+                  triggerClassName={buttonVariants()}
+                  title="Новое расписание"
+                  description="Выберите период данных, периодичность и формат регулярной выгрузки."
+                  defaultOpen={createDialogOpen}
+                >
+                  <ReportScheduleForm
+                    periodPresetOptions={REPORT_SCHEDULE_PERIOD_PRESETS.map((value) => ({
+                      value,
+                      label: periodPresetLabels[value] ?? value
+                    }))}
+                    cadenceOptions={REPORT_SCHEDULE_CADENCES.map((value) => ({
+                      value,
+                      label: cadenceLabels[value] ?? value
+                    }))}
+                    formatOptions={REPORT_SCHEDULE_FORMATS.map((value) => ({
+                      value,
+                      label: formatLabels[value] ?? value
+                    }))}
+                  />
+                </AdminDialog>
+                <Button variant="outline" render={<Link href="/reports" />} nativeButton={false}>
+                  Отчеты
+                </Button>
               </div>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="p-0">
+            {schedules.length > 0 ? (
+              <Table aria-label="Расписания отчетов">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Расписание</TableHead>
+                    <TableHead>Периодичность</TableHead>
+                    <TableHead>Формат</TableHead>
+                    <TableHead>Следующий запуск</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules.map((schedule) => (
+                    <TableRow key={schedule.id} className="align-top">
+                      <TableCell>
+                        <div className="flex flex-col gap-1.5">
+                          <span className="font-medium text-foreground">{schedule.name}</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={schedule.isActive ? "outline" : "secondary"}
+                              className={
+                                schedule.isActive
+                                  ? cn("border-transparent", statusSurfaceClass("positive"))
+                                  : undefined
+                              }
+                            >
+                              {schedule.isActive ? "Активно" : "Выключено"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {periodPresetLabels[schedule.periodPreset] ?? schedule.periodPreset}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{cadenceLabels[schedule.cadence] ?? schedule.cadence}</TableCell>
+                      <TableCell>
+                        {formatLabels[schedule.exportFormat] ?? schedule.exportFormat.toUpperCase()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1.5">
+                          <strong className="font-medium tabular-nums">{formatDateTime(schedule.nextRunAt)}</strong>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <form action={setReportScheduleActive}>
+                              <input type="hidden" name="scheduleId" value={schedule.id} />
+                              <input type="hidden" name="isActive" value={schedule.isActive ? "false" : "true"} />
+                              <Button type="submit" variant="link" size="xs" className="h-auto px-0">
+                                {schedule.isActive ? "Выключить" : "Включить"}
+                              </Button>
+                            </form>
+                            <form action={deleteReportSchedule}>
+                              <input type="hidden" name="scheduleId" value={schedule.id} />
+                              <ConfirmSubmitButton
+                                className={cn(
+                                  buttonVariants({ variant: "link", size: "xs" }),
+                                  "h-auto px-0 text-destructive"
+                                )}
+                                confirmMessage={`Удалить расписание «${schedule.name}»? Регулярная выгрузка остановится, расписание будет удалено безвозвратно. Уже созданные отчеты останутся в снимках.`}
+                              >
+                                Удалить
+                              </ConfirmSubmitButton>
+                            </form>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
-              <EmptyState
-                size="inline"
-                icon={<CalendarClock size={20} aria-hidden="true" />}
-                title="Расписаний пока нет"
-                description="Создайте расписание, чтобы отчеты по качеству формировались автоматически без ручной выгрузки."
-              />
+              <div className="p-4">
+                <EmptyState
+                  size="inline"
+                  icon={<CalendarClock size={20} aria-hidden="true" />}
+                  title="Расписаний пока нет"
+                  description="Создайте расписание, чтобы отчеты по качеству формировались автоматически без ручной выгрузки."
+                />
+              </div>
             )}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </AdminFrame>
     </PageShell>
   );

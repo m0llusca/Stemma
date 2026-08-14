@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
 import { PageSkeleton } from "@/components/loading-states";
-import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageShell } from "@/components/ui/page-shell";
 import { adminEyebrow } from "@/lib/admin-sections";
 import { listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
@@ -58,27 +60,26 @@ async function NewIntegrationPageContent() {
       title="Новый источник"
       description="Выберите тип, укажите адрес и доступы — Stemma проверит права и подготовит импорт."
       actions={
-        <Link href="/admin/tokens" className="action-button action-button--quiet">
-          <KeyRound size={16} aria-hidden="true" />
+        <Button variant="outline" size="sm" render={<Link href="/admin/tokens" />} nativeButton={false}>
+          <KeyRound data-icon="inline-start" aria-hidden="true" />
           API-доступ
-        </Link>
+        </Button>
       }
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="new-integration-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Источник</p>
-              <h2 id="new-integration-title" className="ops-panel__title">Мастер подключения источника</h2>
-              <p className="ops-panel__subtitle">
-                Сейчас мастер принимает URL и учётные данные; OAuth/маркетплейс-установка появятся там, где это указано в контракте.
-              </p>
-            </div>
-          </div>
-          <div className="p-4">
+        <Card>
+          <CardHeader className="border-b">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Источник</p>
+            <CardTitle id="new-integration-title">Мастер подключения источника</CardTitle>
+            <CardDescription>
+              Сейчас мастер принимает URL и учётные данные; OAuth/маркетплейс-установка появятся там, где это
+              указано в контракте.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
             <ConnectSourceForm sources={sources} />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </AdminFrame>
     </PageShell>
   );

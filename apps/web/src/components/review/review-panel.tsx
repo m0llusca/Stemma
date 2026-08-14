@@ -16,11 +16,26 @@ import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
 import { ReviewKeyboard } from "@/components/review/review-keyboard";
 import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+  FieldLegend,
+  FieldSet
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import type { CriterionPrediction } from "@/lib/ai-quality/scoring/types";
 import { ownerTypeLabels, riskLevelLabels } from "@/lib/labels";
 import { formatQualityScore } from "@/lib/score-display";
-import styles from "./review-panel-workbench.module.css";
+import { cn } from "@/lib/utils";
 
 type ReviewPanelProps = {
   conversationId: string;
@@ -77,18 +92,58 @@ const criticalErrorTemplates = [
   "Грубое нарушение стиля"
 ];
 
-const fieldClassName = "form-control text-sm";
-const textareaClassName = `${fieldClassName} min-h-[88px] resize-y`;
-type StatusTone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
+/** Visually hidden radio control; segment styling lives on the wrapping label. */
+// Visually hide the radio chrome; the surrounding label is the full hit target
+// (legacy .segment input clip pattern). Base UI still emits FormData radios.
+const segmentRadioClass = cn(
+  "sr-only absolute size-px overflow-hidden border-0 p-0 opacity-0 shadow-none",
+  "after:hidden focus-visible:ring-0 data-checked:border-transparent data-checked:bg-transparent"
+);
 
-const workbenchStatusToneClass: Record<StatusTone, string> = {
-  neutral: styles.statusNeutral,
-  success: styles.statusSuccess,
-  warning: styles.statusWarning,
-  danger: styles.statusDanger,
-  info: styles.statusInfo,
-  accent: styles.statusAccent
-};
+// Selected cell uses :has([data-checked]) so it tracks Base UI RadioGroupItem
+// (not native :checked), matching workbench accent/danger segment fills.
+const segmentSelectedClass = cn(
+  "has-[[data-slot=radio-group-item][data-checked]]:bg-primary",
+  "has-[[data-slot=radio-group-item][data-checked]]:text-primary-foreground",
+  "has-[[data-slot=radio-group-item][data-checked]]:[&_[data-segment-points]]:text-primary-foreground/80"
+);
+
+const segmentLabelBaseClass = cn(
+  "relative flex min-h-9 min-w-0 cursor-pointer items-center justify-between gap-2.5 border-border bg-card px-2.5 py-1.5 text-foreground transition-colors duration-150",
+  "hover:bg-muted",
+  segmentSelectedClass,
+  "has-[[data-slot=radio-group-item]:focus-visible]:outline",
+  "has-[[data-slot=radio-group-item]:focus-visible]:outline-2",
+  "has-[[data-slot=radio-group-item]:focus-visible]:-outline-offset-2",
+  "has-[[data-slot=radio-group-item]:focus-visible]:outline-primary/35"
+);
+
+// SCALE_1_3: stacked full-width rows so long RU labels never clip.
+const segmentLabelScaleClass = cn(segmentLabelBaseClass, "border-t first:border-t-0");
+
+// Binary: side-by-side on sm+, stacked on narrow viewports.
+const segmentLabelBinaryClass = cn(
+  segmentLabelBaseClass,
+  "flex-col items-center justify-center gap-0.5 border-t text-center first:border-t-0",
+  "sm:border-t-0 sm:border-l sm:first:border-l-0"
+);
+
+const segmentLabelDangerClass = cn(
+  segmentLabelBinaryClass,
+  "has-[[data-slot=radio-group-item][data-checked]]:bg-destructive",
+  "has-[[data-slot=radio-group-item][data-checked]]:text-primary-foreground"
+);
+
+const nestedDisclosureClass =
+  "group overflow-clip rounded-lg border border-border bg-card";
+
+const nestedDisclosureTriggerClass = cn(
+  "flex w-full cursor-pointer items-center justify-between gap-3 bg-transparent px-4 py-3 text-left",
+  "outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+);
+
+const nestedDisclosureBodyClass =
+  "grid gap-4 border-t border-border bg-muted/40 p-4 data-closed:hidden";
 
 function isCriterionIssue(criterion: ScorecardCriterion, score?: CriterionScore) {
   if (score?.isNotApplicable) {
@@ -102,7 +157,7 @@ function isCriterionIssue(criterion: ScorecardCriterion, score?: CriterionScore)
   return score?.passed === false;
 }
 
-function criterionStatus(criterion: ScorecardCriterion, score?: CriterionScore): { label: string; tone: StatusTone } {
+function criterionStatus(criterion: ScorecardCriterion, score?: CriterionScore): { label: string; tone: ChipTone } {
   if (score?.isNotApplicable) {
     return { label: "Не применимо", tone: "neutral" };
   }
@@ -138,7 +193,7 @@ function getCriterionDensityMeta(score?: CriterionScore) {
 
 /**
  * Whether the human draft verdict matches the real AI prediction for this
- * criterion. Used to flip the violet chip to the quiet "ИИ согласен" state and
+ * criterion. Used to flip the AI chip to the quiet "ИИ согласен" state and
  * to decide the indigo override border. Returns `false` when either side is
  * unscored/non-applicable so a real disagreement is never hidden.
  */
@@ -184,13 +239,13 @@ function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionSco
 
 function StepHeader({ number, title, detail }: { number: number; title: string; detail: string }) {
   return (
-    <div className={`step-header ${styles.stepHeader}`}>
-      <span className={`step-header__number ${styles.stepNumber}`}>
+    <div className="step-header flex min-w-0 items-start gap-2.5">
+      <span className="step-header__number flex size-[26px] shrink-0 items-center justify-center rounded-md border border-border bg-card text-xs font-extrabold tabular-nums text-muted-foreground">
         {number}
       </span>
       <div className="min-w-0">
-        <h3 className={styles.stepTitle}>{title}</h3>
-        <p className={styles.stepDetail}>{detail}</p>
+        <h3 className="text-xs font-extrabold uppercase leading-tight text-muted-foreground">{title}</h3>
+        <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{detail}</p>
       </div>
     </div>
   );
@@ -212,32 +267,57 @@ function StepDisclosure({
   defaultOpen?: boolean;
 }) {
   return (
-    <details
-      className={`work-section ${styles.stepDisclosure} ${className ?? ""}`}
-      {...(defaultOpen ? { open: true } : {})}
+    <Collapsible
+      defaultOpen={defaultOpen}
+      className={cn("work-section group flex flex-col gap-3", className)}
     >
-      <summary className={styles.stepSummary}>
+      <CollapsibleTrigger className="flex w-full min-w-0 cursor-pointer items-start justify-between gap-2.5 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50">
         <StepHeader number={number} title={title} detail={detail} />
-        <span className={styles.stepDisclosureChevron} aria-hidden="true">
-          <ChevronDown className="h-4 w-4" />
+        <span
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary transition-transform duration-150 group-data-open:rotate-180"
+          aria-hidden="true"
+        >
+          <ChevronDown className="size-4" />
         </span>
-      </summary>
-      <div className={styles.stepBody}>{children}</div>
-    </details>
+      </CollapsibleTrigger>
+      <CollapsibleContent keepMounted className="min-w-0 data-closed:hidden">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
-function WorkbenchStatus({
-  children,
-  tone = "neutral"
+function NestedDisclosure({
+  title,
+  detail,
+  defaultOpen,
+  id,
+  children
 }: {
+  title: string;
+  detail: string;
+  defaultOpen: boolean;
+  id?: string;
   children: ReactNode;
-  tone?: StatusTone;
 }) {
   return (
-    <span className={`${styles.statusBadge} ${workbenchStatusToneClass[tone]}`}>
-      <span>{children}</span>
-    </span>
+    <Collapsible id={id} defaultOpen={defaultOpen} className={nestedDisclosureClass}>
+      <CollapsibleTrigger className={nestedDisclosureTriggerClass}>
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+        </div>
+        <span
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-data-open:rotate-180"
+          aria-hidden="true"
+        >
+          <ChevronDown className="size-4" />
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent keepMounted className={nestedDisclosureBodyClass}>
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -315,24 +395,24 @@ export function ReviewPanel({
   }
 
   return (
-    <ReviewFormShell className={`review-panel-form panel overflow-clip ${styles.workbench}`}>
+    <ReviewFormShell className="review-panel-form panel overflow-clip bg-card">
       <EvidencePickerListener />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="scorecardId" value={scorecard.id} />
       <input type="hidden" name="reviewSource" value={reviewSource} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
-      <div className={styles.panelHeader}>
+      <div className="border-b border-border bg-card px-4 py-3.5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className={styles.panelTitle}>{title}</h2>
-            <p className={styles.panelSubtitle}>
+            <h2 className="text-[17px] font-bold leading-tight text-foreground">{title}</h2>
+            <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
               {scorecard.name} v{scorecard.version}
             </p>
           </div>
-          <span className={styles.criteriaCount} aria-label="Прогресс заполнения">
+          <Badge variant="secondary" className="tabular-nums" aria-label="Прогресс заполнения">
             {answeredCount} / {scoredCount}
-          </span>
+          </Badge>
         </div>
       </div>
 
@@ -340,34 +420,38 @@ export function ReviewPanel({
           progress sit beside it. Filled by the saved draft total until re-saved.
           A section-weight bar below shows how the 100 points split across process
           groups (single indigo hue, hairline segments). */}
-      <section className={`review-score-surface ${styles.scoreSurface}`}>
-        <div className={styles.scoreMath}>
-          <div className={styles.scoreMathHero}>
-            <span className={styles.scoreMathLabel}>Итоговый балл</span>
-            <div className={styles.scoreMathValueRow}>
-              <span className={styles.scoreMathValue}>
+      <section className="review-score-surface grid gap-3 bg-muted px-4 py-3.5">
+        <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-[18px] gap-y-3">
+          <div className="grid min-w-0 gap-0.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+              Итоговый балл
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[34px] font-semibold leading-none tabular-nums tracking-tight text-foreground">
                 {draftReview?.totalScore != null ? formatQualityScore(draftReview.totalScore) : "—"}
               </span>
-              <span className={styles.scoreMathOutOf}>/ 100</span>
+              <span className="text-[15px] font-semibold tabular-nums leading-none text-muted-foreground">/ 100</span>
             </div>
-            <span className={styles.scoreMathHint}>
+            <span className="text-xs leading-snug text-muted-foreground">
               {draftReview?.totalScore != null ? "Из последнего сохранения" : "Появится после сохранения"}
             </span>
           </div>
-          <dl className={styles.scoreMathStats}>
-            <div className={styles.scoreMathStat}>
-              <dt>Сумма весов</dt>
-              <dd>{totalWeight}%</dd>
+          <dl className="m-0 flex gap-[18px]">
+            <div className="grid gap-0.5">
+              <dt className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">Сумма весов</dt>
+              <dd className="m-0 text-[15px] font-semibold tabular-nums leading-tight text-foreground">{totalWeight}%</dd>
             </div>
-            <div className={styles.scoreMathStat}>
-              <dt>Заполнено</dt>
-              <dd>{answeredCount} / {scoredCount}</dd>
+            <div className="grid gap-0.5">
+              <dt className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">Заполнено</dt>
+              <dd className="m-0 text-[15px] font-semibold tabular-nums leading-tight text-foreground">
+                {answeredCount} / {scoredCount}
+              </dd>
             </div>
           </dl>
         </div>
 
         {totalWeight > 0 ? (
-          <div className={styles.weightBar} role="img" aria-label="Распределение веса по группам критериев">
+          <div className="flex h-2 w-full gap-0.5 overflow-clip rounded-full bg-card" role="img" aria-label="Распределение веса по группам критериев">
             {criteriaByBlock.map((group, index) => {
               const groupWeight = group.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
               const share = (groupWeight / totalWeight) * 100;
@@ -375,8 +459,11 @@ export function ReviewPanel({
               return (
                 <span
                   key={group.block}
-                  className={styles.weightBarSegment}
-                  data-index={index % 3}
+                  className={cn(
+                    "h-full min-w-[3px] rounded-sm bg-primary",
+                    index % 3 === 1 && "bg-primary/70",
+                    index % 3 === 2 && "bg-primary/50"
+                  )}
                   style={{ width: `${share}%` }}
                   title={`${group.block} · ${groupWeight}%`}
                 />
@@ -385,31 +472,44 @@ export function ReviewPanel({
           </div>
         ) : null}
 
-        <div className={styles.criticalRow} data-active={draftReview?.criticalError ? "true" : undefined}>
-          <span className={styles.criticalRowLabel}>Критическая ошибка</span>
-          <span className={styles.criticalRowValue}>
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2.5 rounded-md border border-border bg-card px-2.5 py-2",
+            draftReview?.criticalError && "border-destructive/40 bg-destructive/10"
+          )}
+          data-active={draftReview?.criticalError ? "true" : undefined}
+        >
+          <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+            Критическая ошибка
+          </span>
+          <span
+            className={cn(
+              "text-right text-[13px] font-bold leading-tight text-foreground",
+              draftReview?.criticalError && "text-destructive"
+            )}
+          >
             {draftReview?.criticalError ? draftReview.criticalCategory ?? "Выявлена" : "Не выявлена"}
           </span>
         </div>
 
-        <div className="signal-row">
-          <Chip tone={draftReview?.needsReanswer ? "warning" : "neutral"} size="sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip tone={draftReview?.needsReanswer ? "warning" : "neutral"}>
             {draftReview?.needsReanswer ? "Нужен переответ" : "Переответ не нужен"}
           </Chip>
-          <Chip tone={draftFinding?.category ? "accent" : "neutral"} size="sm">
+          <Chip tone={draftFinding?.category ? "accent" : "neutral"}>
             {draftFinding?.category ?? "Категория не выбрана"}
           </Chip>
         </div>
       </section>
 
-      <div className={`review-panel-scroll ${styles.panelScroll}`}>
+      <div className="review-panel-scroll bg-muted">
         <StepDisclosure
           number={1}
           title="Оценка по критериям"
           detail="Заполните только то, что отличается от нормы."
-          className={`work-section--muted ${styles.criteriaSection}`}
+          className="work-section--muted p-3.5"
         >
-          <div className={styles.processStack}>
+          <div className="grid gap-3">
             {criteriaByBlock.map((group) => {
               const groupWeight = group.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
               const issueCount = group.criteria.filter((criterion) => isCriterionIssue(criterion, draftScores.get(criterion.id))).length;
@@ -418,38 +518,40 @@ export function ReviewPanel({
               const skippedCount = group.criteria.filter((criterion) => draftScores.get(criterion.id)?.isNotApplicable).length;
 
               return (
-                <section key={group.block} className={styles.processGroup}>
-                  <header className={styles.processGroupHeader}>
-                    <div className={styles.processGroupTitleBlock}>
-                      <span className={styles.groupEyebrow}>Группа процесса</span>
-                      <h4 className={styles.processGroupTitle}>{group.block}</h4>
+                <section key={group.block} className="overflow-clip rounded-lg border border-border bg-card">
+                  <header className="flex min-w-0 flex-col items-start justify-between gap-2.5 border-b border-border bg-muted/70 px-3 py-2.5 sm:flex-row sm:items-center">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-extrabold uppercase leading-none text-muted-foreground">
+                        Группа процесса
+                      </span>
+                      <h4 className="mt-0.5 truncate text-sm font-bold leading-tight text-foreground">{group.block}</h4>
                     </div>
-                    <div className={styles.groupSignals}>
-                      <WorkbenchStatus tone={issueCount > 0 ? "warning" : "success"}>
+                    <div className="flex min-w-0 flex-wrap items-center justify-start gap-1.5 sm:justify-end">
+                      <Chip tone={issueCount > 0 ? "warning" : "success"}>
                         {issueCount > 0 ? `${issueCount} замеч.` : "без замечаний"}
-                      </WorkbenchStatus>
+                      </Chip>
                       {evidenceCount > 0 ? (
-                        <WorkbenchStatus tone="info">
+                        <Chip tone="info">
                           {evidenceCount} доказ.
-                        </WorkbenchStatus>
+                        </Chip>
                       ) : null}
                       {commentCount > 0 ? (
-                        <WorkbenchStatus tone="accent">
+                        <Chip tone="accent">
                           {commentCount} комм.
-                        </WorkbenchStatus>
+                        </Chip>
                       ) : null}
                       {skippedCount > 0 ? (
-                        <WorkbenchStatus tone="neutral">
+                        <Chip tone="neutral">
                           {skippedCount} Н/П
-                        </WorkbenchStatus>
+                        </Chip>
                       ) : null}
-                      <span className={styles.groupWeight} title="Суммарный вес группы в итоговом балле">
+                      <Badge variant="outline" className="tabular-nums" title="Суммарный вес группы в итоговом балле">
                         Вес {groupWeight}%
-                      </span>
+                      </Badge>
                     </div>
                   </header>
 
-                  <div className={styles.criteriaList}>
+                  <div className="grid gap-0 bg-card">
                     {group.criteria.map((criterion) => {
                       const draftScore = draftScores.get(criterion.id);
                       const passedValue = draftScore?.passed ?? true;
@@ -469,24 +571,42 @@ export function ReviewPanel({
                         hasIssue || (Boolean(prediction) && !aiAgrees && !draftScore?.isNotApplicable);
 
                       return (
-                        <details
+                        <Collapsible
                           key={criterion.id}
-                          className={`criterion-card disclosure-panel ${styles.criterionCard}`}
+                          defaultOpen={shouldOpenCriterion(criterion, draftScore)}
+                          className={cn(
+                            "criterion-card disclosure-panel group overflow-clip border-0 border-t border-border bg-card first:border-t-0",
+                            "data-[state=ok]:bg-card",
+                            "data-[state=muted]:bg-muted",
+                            "data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warning)_7%,transparent),transparent_38%),var(--card)]",
+                            "data-open:bg-muted/40",
+                            "data-open:data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
+                            "data-[ai-flag=true]:relative data-[ai-flag=true]:z-[1] data-[ai-flag=true]:my-1.5 data-[ai-flag=true]:rounded-lg data-[ai-flag=true]:border-[1.5px] data-[ai-flag=true]:border-primary/30",
+                            "data-[ai-flag=true]:data-[state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
+                            "data-kbd-focused:relative data-kbd-focused:z-[2] data-kbd-focused:rounded-lg data-kbd-focused:outline data-kbd-focused:outline-2 data-kbd-focused:-outline-offset-2 data-kbd-focused:outline-primary"
+                          )}
                           data-criterion-card=""
                           data-criterion-id={criterion.id}
                           data-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
                           data-ai-flag={aiFlagged ? "true" : undefined}
-                          open={shouldOpenCriterion(criterion, draftScore)}
                         >
-                          <summary className={`disclosure-summary ${styles.criterionSummary}`}>
-                            <span className={styles.criterionOrder}>{criterion.order}</span>
-                            <div className={styles.criterionMain}>
-                              <div className={styles.criterionTopline}>
-                                <h4 className={styles.criterionTitle}>{criterion.label}</h4>
-                                <span className={styles.criterionToplineSignals}>
+                          <CollapsibleTrigger
+                            className={cn(
+                              "disclosure-summary grid w-full min-h-[52px] cursor-pointer grid-cols-[28px_minmax(0,1fr)_28px] items-center gap-2.5 bg-transparent px-2.5 py-2 text-left",
+                              "outline-none hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50"
+                            )}
+                          >
+                            <span className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-muted/80 text-xs font-extrabold tabular-nums text-muted-foreground">
+                              {criterion.order}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 flex-col items-start justify-between gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                                <h4 className="min-w-0 text-[13px] font-bold leading-snug text-foreground">{criterion.label}</h4>
+                                <span className="flex flex-wrap items-center gap-1.5">
                                   {prediction ? (
-                                    <span
-                                      className={`${styles.aiChip} ${aiAgrees ? styles.aiChipAgree : ""}`}
+                                    <Chip
+                                      tone="ai"
+                                      className={cn(aiAgrees && "opacity-80")}
                                       title={
                                         prediction.rationale
                                           ? `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)} — ${prediction.rationale}`
@@ -494,16 +614,16 @@ export function ReviewPanel({
                                       }
                                     >
                                       {aiAgrees ? "ИИ согласен" : criterionPredictionChipLabel(prediction)}
-                                    </span>
+                                    </Chip>
                                   ) : null}
-                                  <WorkbenchStatus tone={status.tone}>
+                                  <Chip tone={status.tone}>
                                     {status.label}
-                                  </WorkbenchStatus>
+                                  </Chip>
                                 </span>
                               </div>
-                              <div className={styles.criterionMeta}>
-                                <span className={styles.criterionWeight}>Вес {criterion.weight}%</span>
-                                <span className={styles.criterionContribution}>
+                              <div className="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-[11px] font-medium leading-tight text-muted-foreground">
+                                <span className="font-semibold tabular-nums">Вес {criterion.weight}%</span>
+                                <span className="font-semibold tabular-nums text-foreground/80">
                                   Вклад {draftScore?.isNotApplicable ? "Н/П" : formatPercent(contribution)}
                                 </span>
                                 <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
@@ -511,7 +631,7 @@ export function ReviewPanel({
                                   <EvidenceJumpLink
                                     messageId={evidenceMessage.id}
                                     timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
-                                    className={styles.criterionEvidence}
+                                    className="font-semibold tabular-nums text-primary"
                                   />
                                 ) : null}
                                 {densityMeta.map((item) => (
@@ -519,84 +639,98 @@ export function ReviewPanel({
                                 ))}
                               </div>
                             </div>
-                            <span className={`disclosure-chevron ${styles.chevron}`} aria-hidden="true">
-                              <ChevronDown className="h-4 w-4" />
+                            <span
+                              className="disclosure-chevron inline-flex size-7 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-data-open:rotate-180"
+                              aria-hidden="true"
+                            >
+                              <ChevronDown className="size-4" />
                             </span>
-                          </summary>
+                          </CollapsibleTrigger>
 
-                          <div className={styles.criterionBody}>
-                            <div className={styles.controlPanel}>
+                          <CollapsibleContent
+                            keepMounted
+                            className="grid gap-2.5 border-t border-border bg-muted/50 p-2.5 data-closed:hidden"
+                          >
+                            <div className="grid grid-cols-1 items-end gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
                               {criterion.kind === "SCALE_1_3" ? (
-                                <fieldset className={styles.resultFieldset}>
-                                  <legend className={styles.fieldLabel}>Оценка</legend>
-                                  <div className={`${styles.segmentGrid} ${styles.segmentGridScale}`}>
-                                    <label className={styles.segment}>
-                                      <input
-                                        type="radio"
-                                        name={`criterion.${criterion.id}.score`}
-                                        value="3"
-                                        defaultChecked={(draftScore?.value ?? 3) === 3}
-                                      />
-                                      <span className={styles.segmentLabel}>3 · стандарт</span>
-                                      <span className={styles.segmentPoints}>{criterion.weight}%</span>
+                                <FieldSet className="min-w-0 gap-1.5">
+                                  <FieldLegend
+                                    id={`review-criterion-${criterion.id}-score-legend`}
+                                    variant="label"
+                                    className="mb-0 text-xs font-extrabold text-muted-foreground"
+                                  >
+                                    Оценка
+                                  </FieldLegend>
+                                  <RadioGroup
+                                    aria-labelledby={`review-criterion-${criterion.id}-score-legend`}
+                                    name={`criterion.${criterion.id}.score`}
+                                    defaultValue={String(draftScore?.value ?? 3)}
+                                    className="grid w-full grid-flow-row gap-0 overflow-clip rounded-md border border-border bg-card"
+                                  >
+                                    <label className={segmentLabelScaleClass}>
+                                      <RadioGroupItem value="3" className={segmentRadioClass} />
+                                      <span className="min-w-0 text-xs font-semibold leading-tight [overflow-wrap:anywhere]">
+                                        3 · стандарт
+                                      </span>
+                                      <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
+                                        {criterion.weight}%
+                                      </span>
                                     </label>
-                                    <label className={styles.segment}>
-                                      <input
-                                        type="radio"
-                                        name={`criterion.${criterion.id}.score`}
-                                        value="2"
-                                        defaultChecked={(draftScore?.value ?? 3) === 2}
-                                      />
-                                      <span className={styles.segmentLabel}>2 · доработка</span>
-                                      <span className={styles.segmentPoints}>
+                                    <label className={segmentLabelScaleClass}>
+                                      <RadioGroupItem value="2" className={segmentRadioClass} />
+                                      <span className="min-w-0 text-xs font-semibold leading-tight [overflow-wrap:anywhere]">
+                                        2 · доработка
+                                      </span>
+                                      <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
                                         {(criterion.weight * 2 / 3).toFixed(criterion.weight % 3 === 0 ? 0 : 1)}%
                                       </span>
                                     </label>
-                                    <label className={styles.segment}>
-                                      <input
-                                        type="radio"
-                                        name={`criterion.${criterion.id}.score`}
-                                        value="1"
-                                        defaultChecked={(draftScore?.value ?? 3) === 1}
-                                      />
-                                      <span className={styles.segmentLabel}>1 · не соответствует</span>
-                                      <span className={styles.segmentPoints}>
+                                    <label className={segmentLabelScaleClass}>
+                                      <RadioGroupItem value="1" className={segmentRadioClass} />
+                                      <span className="min-w-0 text-xs font-semibold leading-tight [overflow-wrap:anywhere]">
+                                        1 · не соответствует
+                                      </span>
+                                      <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
                                         {(criterion.weight / 3).toFixed(criterion.weight % 3 === 0 ? 0 : 1)}%
                                       </span>
                                     </label>
-                                  </div>
-                                </fieldset>
+                                  </RadioGroup>
+                                </FieldSet>
                               ) : (
-                                <fieldset className={styles.resultFieldset}>
-                                  <legend className={styles.fieldLabel}>Результат</legend>
-                                  <div className={styles.segmentGrid}>
-                                    <label className={styles.segment}>
-                                      <input
-                                        type="radio"
-                                        name={`criterion.${criterion.id}.passed`}
-                                        value="true"
-                                        defaultChecked={passedValue}
-                                      />
-                                      <span className={styles.segmentLabel}>Зачет</span>
-                                      <span className={styles.segmentPoints}>+{criterion.weight}%</span>
+                                <FieldSet className="min-w-0 gap-1.5">
+                                  <FieldLegend
+                                    id={`review-criterion-${criterion.id}-result-legend`}
+                                    variant="label"
+                                    className="mb-0 text-xs font-extrabold text-muted-foreground"
+                                  >
+                                    Результат
+                                  </FieldLegend>
+                                  <RadioGroup
+                                    aria-labelledby={`review-criterion-${criterion.id}-result-legend`}
+                                    name={`criterion.${criterion.id}.passed`}
+                                    defaultValue={passedValue ? "true" : "false"}
+                                    className="grid w-full grid-cols-1 gap-0 overflow-clip rounded-md border border-border bg-card sm:grid-cols-2"
+                                  >
+                                    <label className={segmentLabelBinaryClass}>
+                                      <RadioGroupItem value="true" className={segmentRadioClass} />
+                                      <span className="min-w-0 text-xs font-semibold leading-tight">Зачет</span>
+                                      <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
+                                        +{criterion.weight}%
+                                      </span>
                                     </label>
-                                    <label className={`${styles.segment} ${styles.segmentDanger}`}>
-                                      <input
-                                        type="radio"
-                                        name={`criterion.${criterion.id}.passed`}
-                                        value="false"
-                                        defaultChecked={!passedValue}
-                                      />
-                                      <span className={styles.segmentLabel}>Незачет</span>
-                                      <span className={styles.segmentPoints}>0%</span>
+                                    <label className={segmentLabelDangerClass}>
+                                      <RadioGroupItem value="false" className={segmentRadioClass} />
+                                      <span className="min-w-0 text-xs font-semibold leading-tight">Незачет</span>
+                                      <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
+                                        0%
+                                      </span>
                                     </label>
-                                  </div>
-                                </fieldset>
+                                  </RadioGroup>
+                                </FieldSet>
                               )}
 
-                              <label className={styles.notApplicableToggle}>
-                                <input
-                                  type="checkbox"
+                              <label className="flex min-h-9 min-w-0 cursor-pointer items-center gap-2 self-stretch whitespace-normal rounded-md border border-dashed border-border bg-card px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-border hover:bg-muted focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring/50 sm:self-end sm:whitespace-nowrap">
+                                <Checkbox
                                   name={`criterion.${criterion.id}.notApplicable`}
                                   defaultChecked={draftScore?.isNotApplicable ?? false}
                                 />
@@ -604,43 +738,52 @@ export function ReviewPanel({
                               </label>
                             </div>
 
-                            <div className={styles.evidenceGrid}>
-                              <label className={`${styles.fieldGroup} ${styles.evidenceField}`}>
-                                <span className={styles.fieldLabel}>Сообщение-доказательство</span>
-                                <select
+                            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(150px,0.9fr)_minmax(190px,1.1fr)]">
+                              <Field className="rounded-md border border-border bg-card/80 p-2.5">
+                                <FieldLabel htmlFor={`review-criterion-${criterion.id}-evidence-message`}>
+                                  Сообщение-доказательство
+                                </FieldLabel>
+                                <NativeSelect
+                                  id={`review-criterion-${criterion.id}-evidence-message`}
                                   name={`criterion.${criterion.id}.evidenceMessageId`}
                                   defaultValue={draftScore?.evidenceMessageId ?? ""}
-                                  className={fieldClassName}
+                                  className="w-full"
                                 >
-                                  <option value="">Без привязки к сообщению</option>
+                                  <NativeSelectOption value="">Без привязки к сообщению</NativeSelectOption>
                                   {messages.map((message) => (
-                                    <option key={message.id} value={message.id}>
+                                    <NativeSelectOption key={message.id} value={message.id}>
                                       {message.authorName}: {message.body.slice(0, 70)}
-                                    </option>
+                                    </NativeSelectOption>
                                   ))}
-                                </select>
-                                <span className={styles.fieldHint}>Реплика, на которую опирается оценка</span>
-                              </label>
+                                </NativeSelect>
+                                <FieldDescription>Реплика, на которую опирается оценка</FieldDescription>
+                              </Field>
 
-                              <label className={`${styles.fieldGroup} ${styles.commentField}`}>
-                                <span className={styles.fieldLabel}>Комментарий</span>
-                                <textarea
+                              <Field className="rounded-md border border-border bg-card/80 p-2.5">
+                                <FieldLabel htmlFor={`review-criterion-${criterion.id}-comment`}>
+                                  Комментарий
+                                </FieldLabel>
+                                <Textarea
+                                  id={`review-criterion-${criterion.id}-comment`}
                                   name={`criterion.${criterion.id}.comment`}
                                   rows={2}
                                   defaultValue={draftScore?.comment ?? ""}
-                                  className={textareaClassName}
+                                  className="min-h-[72px] resize-y text-sm"
                                 />
-                                <span className={styles.fieldHint}>Коротко: факт, риск, ожидаемая формулировка</span>
-                              </label>
+                                <FieldDescription>Коротко: факт, риск, ожидаемая формулировка</FieldDescription>
+                              </Field>
                             </div>
 
                             {hasIssue ? (
-                              <a href="#coaching-analysis" className={styles.coachingLink}>
+                              <a
+                                href="#coaching-analysis"
+                                className="justify-self-start text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                              >
                                 Добавить в разбор с оператором
                               </a>
                             ) : null}
-                          </div>
-                        </details>
+                          </CollapsibleContent>
+                        </Collapsible>
                       );
                     })}
                   </div>
@@ -650,255 +793,241 @@ export function ReviewPanel({
           </div>
         </StepDisclosure>
 
-      <StepDisclosure
-        number={2}
-        title="Итог проверки"
-        detail="Короткий вывод и классификация, без лишней детализации."
-      >
-        <div className="grid gap-4">
-          <SummaryTemplatePicker templates={summaryTemplates} defaultValue={draftReview?.summary ?? ""} />
+        <StepDisclosure
+          number={2}
+          title="Итог проверки"
+          detail="Короткий вывод и классификация, без лишней детализации."
+        >
+          <div className="grid gap-4">
+            <SummaryTemplatePicker templates={summaryTemplates} defaultValue={draftReview?.summary ?? ""} />
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Категория
-              <input
-                name="category"
-                list="category-templates"
-                required
-                defaultValue={draftFinding?.category ?? ""}
-                className={fieldClassName}
-              />
-            </label>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field>
+                <FieldLabel htmlFor="review-category">Категория</FieldLabel>
+                <Input
+                  id="review-category"
+                  name="category"
+                  list="category-templates"
+                  required
+                  defaultValue={draftFinding?.category ?? ""}
+                />
+              </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Ответственность
-              <select
-                name="ownerType"
-                required
-                defaultValue={draftFinding?.ownerType ?? "AGENT"}
-                className={fieldClassName}
-              >
-                <option value="AGENT">{ownerTypeLabels.AGENT}</option>
-                <option value="PROCESS">{ownerTypeLabels.PROCESS}</option>
-                <option value="PRODUCT">{ownerTypeLabels.PRODUCT}</option>
-                <option value="POLICY">{ownerTypeLabels.POLICY}</option>
-                <option value="AI_SYSTEM">{ownerTypeLabels.AI_SYSTEM}</option>
-              </select>
-            </label>
+              <Field>
+                <FieldLabel htmlFor="review-owner-type">Ответственность</FieldLabel>
+                <NativeSelect
+                  id="review-owner-type"
+                  name="ownerType"
+                  required
+                  defaultValue={draftFinding?.ownerType ?? "AGENT"}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="AGENT">{ownerTypeLabels.AGENT}</NativeSelectOption>
+                  <NativeSelectOption value="PROCESS">{ownerTypeLabels.PROCESS}</NativeSelectOption>
+                  <NativeSelectOption value="PRODUCT">{ownerTypeLabels.PRODUCT}</NativeSelectOption>
+                  <NativeSelectOption value="POLICY">{ownerTypeLabels.POLICY}</NativeSelectOption>
+                  <NativeSelectOption value="AI_SYSTEM">{ownerTypeLabels.AI_SYSTEM}</NativeSelectOption>
+                </NativeSelect>
+              </Field>
 
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Риск
-              <select
-                name="riskLevel"
-                required
-                defaultValue={draftFinding?.riskLevel ?? "LOW"}
-                className={fieldClassName}
-              >
-                <option value="LOW">{riskLevelLabels.LOW}</option>
-                <option value="MEDIUM">{riskLevelLabels.MEDIUM}</option>
-                <option value="HIGH">{riskLevelLabels.HIGH}</option>
-                <option value="CRITICAL">{riskLevelLabels.CRITICAL}</option>
-              </select>
-            </label>
+              <Field>
+                <FieldLabel htmlFor="review-risk-level">Риск</FieldLabel>
+                <NativeSelect
+                  id="review-risk-level"
+                  name="riskLevel"
+                  required
+                  defaultValue={draftFinding?.riskLevel ?? "LOW"}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="LOW">{riskLevelLabels.LOW}</NativeSelectOption>
+                  <NativeSelectOption value="MEDIUM">{riskLevelLabels.MEDIUM}</NativeSelectOption>
+                  <NativeSelectOption value="HIGH">{riskLevelLabels.HIGH}</NativeSelectOption>
+                  <NativeSelectOption value="CRITICAL">{riskLevelLabels.CRITICAL}</NativeSelectOption>
+                </NativeSelect>
+              </Field>
+            </div>
+
+            <datalist id="category-templates">
+              {categoryTemplates.map((template) => (
+                <option key={template} value={template} />
+              ))}
+            </datalist>
           </div>
+        </StepDisclosure>
 
-          <datalist id="category-templates">
-            {categoryTemplates.map((template) => (
-              <option key={template} value={template} />
-            ))}
-          </datalist>
-        </div>
-      </StepDisclosure>
-
-      <StepDisclosure
-        number={3}
-        title="Дополнительно"
-        detail="Критические ошибки, переответ, обратная связь и разбор."
-        defaultOpen={hasOptionalDetails}
-      >
-        <div className="grid gap-3">
-          <details className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasCriticalDetails}>
-            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[var(--foreground)]">Критическая ошибка и переответ</h4>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Открывайте только для обнуления оценки или переответа клиенту.</p>
-              </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]" aria-hidden="true">
-                <ChevronDown className="h-4 w-4" />
-              </span>
-            </summary>
-
-            <div className="grid gap-4 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
-              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[var(--text-body)]">
-                <input name="criticalError" type="checkbox" defaultChecked={draftReview?.criticalError ?? false} />
+        <StepDisclosure
+          number={3}
+          title="Дополнительно"
+          detail="Критические ошибки, переответ, обратная связь и разбор."
+          defaultOpen={hasOptionalDetails}
+        >
+          <div className="grid gap-3">
+            <NestedDisclosure
+              title="Критическая ошибка и переответ"
+              detail="Открывайте только для обнуления оценки или переответа клиенту."
+              defaultOpen={hasCriticalDetails}
+            >
+              <label className="flex min-h-7 cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+                <Checkbox name="criticalError" defaultChecked={draftReview?.criticalError ?? false} />
                 Критическая ошибка: обнулить итоговую оценку
               </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Тип критической ошибки
-                <input
+              <Field>
+                <FieldLabel htmlFor="review-critical-category">Тип критической ошибки</FieldLabel>
+                <Input
+                  id="review-critical-category"
                   name="criticalCategory"
                   list="critical-error-templates"
                   defaultValue={draftReview?.criticalCategory ?? ""}
-                  className={fieldClassName}
                 />
-              </label>
+              </Field>
               <datalist id="critical-error-templates">
                 {criticalErrorTemplates.map((template) => (
                   <option key={template} value={template} />
                 ))}
               </datalist>
-              <label className="flex min-h-7 items-center gap-2 text-sm font-semibold text-[var(--text-body)]">
-                <input name="needsReanswer" type="checkbox" defaultChecked={draftReview?.needsReanswer ?? false} />
+              <label className="flex min-h-7 cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+                <Checkbox name="needsReanswer" defaultChecked={draftReview?.needsReanswer ?? false} />
                 Нужен переответ клиенту
               </label>
+            </NestedDisclosure>
 
-            </div>
-          </details>
-
-          <details className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasFeedbackDetails}>
-            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[var(--foreground)]">Обратная связь</h4>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Комментарий оператору, сильные стороны и ссылки на материалы.</p>
-              </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]" aria-hidden="true">
-                <ChevronDown className="h-4 w-4" />
-              </span>
-            </summary>
-
-            <div className="grid gap-4 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Комментарий для обратной связи
-                <textarea
+            <NestedDisclosure
+              title="Обратная связь"
+              detail="Комментарий оператору, сильные стороны и ссылки на материалы."
+              defaultOpen={hasFeedbackDetails}
+            >
+              <Field>
+                <FieldLabel htmlFor="review-feedback-comment">Комментарий для обратной связи</FieldLabel>
+                <Textarea
+                  id="review-feedback-comment"
                   name="feedbackComment"
                   rows={4}
                   defaultValue={draftReview?.feedbackComment ?? ""}
                   placeholder="Ошибки, критерии, ссылки на инструкции, корректный вариант решения."
-                  className={textareaClassName}
+                  className="min-h-[88px] resize-y text-sm"
                 />
-              </label>
+              </Field>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Положительные моменты
-                  <textarea
+                <Field>
+                  <FieldLabel htmlFor="review-positive-notes">Положительные моменты</FieldLabel>
+                  <Textarea
+                    id="review-positive-notes"
                     name="positiveNotes"
                     rows={2}
                     defaultValue={draftReview?.positiveNotes ?? ""}
-                    className={textareaClassName}
+                    className="min-h-[72px] resize-y text-sm"
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Ссылки на инструкции и материалы
-                  <textarea
+                <Field>
+                  <FieldLabel htmlFor="review-instruction-links">
+                    Ссылки на инструкции и материалы
+                  </FieldLabel>
+                  <Textarea
+                    id="review-instruction-links"
                     name="instructionLinks"
                     rows={2}
                     defaultValue={draftReview?.instructionLinks ?? ""}
-                    className={textareaClassName}
+                    className="min-h-[72px] resize-y text-sm"
                   />
-                </label>
+                </Field>
               </div>
-            </div>
-          </details>
+            </NestedDisclosure>
 
-          <details id="coaching-analysis" className="disclosure-panel overflow-clip rounded-md border border-[var(--border)]" open={hasAnalysisDetails}>
-            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-[var(--foreground)]">Разбор и калибровка</h4>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Причина ошибки, доказательство, действие для разбора и заметки.</p>
-              </div>
-              <span className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]" aria-hidden="true">
-                <ChevronDown className="h-4 w-4" />
-              </span>
-            </summary>
-
-            <div className="grid gap-4 border-t border-[var(--border)] bg-[var(--panel-muted)] p-4">
+            <NestedDisclosure
+              id="coaching-analysis"
+              title="Разбор и калибровка"
+              detail="Причина ошибки, доказательство, действие для разбора и заметки."
+              defaultOpen={hasAnalysisDetails}
+            >
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Корневая причина
-                  <textarea
+                <Field>
+                  <FieldLabel htmlFor="review-root-cause">Корневая причина</FieldLabel>
+                  <Textarea
+                    id="review-root-cause"
                     name="rootCause"
                     rows={3}
                     defaultValue={draftFinding?.rootCause ?? ""}
-                    className={textareaClassName}
+                    className="min-h-[88px] resize-y text-sm"
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Краткое доказательство
-                  <textarea
+                <Field>
+                  <FieldLabel htmlFor="review-evidence-summary">Краткое доказательство</FieldLabel>
+                  <Textarea
+                    id="review-evidence-summary"
                     name="evidenceSummary"
                     rows={3}
                     defaultValue={draftFinding?.evidenceSummary ?? ""}
-                    className={textareaClassName}
+                    className="min-h-[88px] resize-y text-sm"
                   />
-                </label>
+                </Field>
               </div>
 
               <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Действие для разбора
-                  <input
+                <Field>
+                  <FieldLabel htmlFor="review-coaching-action">Действие для разбора</FieldLabel>
+                  <Input
+                    id="review-coaching-action"
                     name="coachingAction"
                     list="coaching-templates"
                     defaultValue={draftFinding?.coachingAction?.action ?? ""}
-                    className={fieldClassName}
                   />
-                </label>
+                </Field>
                 <datalist id="coaching-templates">
                   {coachingTemplates.map((template) => (
                     <option key={template} value={template} />
                   ))}
                 </datalist>
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Ответственный за разбор
-                  <input
+                <Field>
+                  <FieldLabel htmlFor="review-coaching-assignee">Ответственный за разбор</FieldLabel>
+                  <Input
+                    id="review-coaching-assignee"
                     name="coachingAssignee"
                     defaultValue={draftFinding?.coachingAction?.assignee ?? ""}
-                    className={fieldClassName}
                   />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Срок
-                  <input
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="review-coaching-due-at">Срок</FieldLabel>
+                  <Input
+                    id="review-coaching-due-at"
                     name="coachingDueAt"
                     type="date"
                     defaultValue={draftFinding?.coachingAction?.dueAt?.toISOString().slice(0, 10) ?? ""}
-                    className={fieldClassName}
                   />
-                </label>
+                </Field>
               </div>
 
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Заметки для калибровки
-                <textarea
+              <Field>
+                <FieldLabel htmlFor="review-calibration-notes">Заметки для калибровки</FieldLabel>
+                <Textarea
+                  id="review-calibration-notes"
                   name="calibrationNotes"
                   rows={2}
                   defaultValue={draftReview?.calibrationNotes ?? ""}
-                  className={textareaClassName}
+                  className="min-h-[72px] resize-y text-sm"
                 />
-              </label>
-            </div>
-          </details>
-        </div>
-      </StepDisclosure>
+              </Field>
+            </NestedDisclosure>
+          </div>
+        </StepDisclosure>
       </div>
 
       <ReviewKeyboard />
 
-      <div className={styles.panelFooter}>
-        <span className={styles.keyboardHint} aria-hidden="true">
-          <kbd>J</kbd>
-          <kbd>K</kbd>
-          <span className={styles.keyboardHintDot}>·</span>
-          <kbd>1</kbd>
-          <kbd>2</kbd>
-          <kbd>3</kbd>
-          <span className={styles.keyboardHintDot}>·</span>
-          <kbd>?</kbd>
-        </span>
-        <a href="#coaching-analysis" className={styles.addToCoaching}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted px-4 py-2">
+        <KbdGroup className="text-muted-foreground" aria-hidden="true">
+          <Kbd>J</Kbd>
+          <Kbd>K</Kbd>
+          <span className="text-xs">·</span>
+          <Kbd>1</Kbd>
+          <Kbd>2</Kbd>
+          <Kbd>3</Kbd>
+          <span className="text-xs">·</span>
+          <Kbd>?</Kbd>
+        </KbdGroup>
+        <a href="#coaching-analysis" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
           Добавить в обучение
         </a>
       </div>

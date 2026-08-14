@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_CUSTOM_REPORT_PERIOD_DAYS,
   reportDateInputValue,
   reportPeriodDateLabel,
   reportPeriodUsesCustomDates,
   resolvePreviousReportPeriod,
   resolveReportPeriod
 } from "@/lib/report-period";
+import { reportHref } from "@/lib/reports/report-format";
 
 describe("report period helpers", () => {
   it("defaults to the current 22-21 quality period", () => {
@@ -64,5 +66,30 @@ describe("report period helpers", () => {
     expect(reportPeriodUsesCustomDates(custom)).toBe(true);
     expect(reportDateInputValue(custom.start)).toBe("2026-05-22");
     expect(reportDateInputValue(custom.end)).toBe("2026-06-21");
+  });
+
+  it("clamps an adversarial custom range to the canonical server maximum and reports the adjustment", () => {
+    const period = resolveReportPeriod(
+      {
+        period: "custom",
+        start: "0001-01-01",
+        end: "9999-12-31"
+      },
+      new Date("2026-07-28T12:00:00.000Z")
+    );
+
+    expect(MAX_CUSTOM_REPORT_PERIOD_DAYS).toBe(366);
+    expect(reportDateInputValue(period.start)).toBe("0001-01-01");
+    expect(reportDateInputValue(period.end)).toBe("0002-01-01");
+    expect(period.adjustment).toMatchObject({
+      kind: "max-span",
+      maximumDays: 366,
+      requestedStart: "0001-01-01",
+      requestedEnd: "9999-12-31"
+    });
+    expect(period.adjustment?.message).toMatch(/366/);
+    expect(reportHref(period)).toBe(
+      "/reports?period=custom&start=0001-01-01&end=0002-01-01"
+    );
   });
 });

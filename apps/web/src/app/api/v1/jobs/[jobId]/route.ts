@@ -1,5 +1,5 @@
-import { apiError, apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,15 @@ function parseJson(value: string) {
   }
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ jobId: string }> }) {
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+export async function GET(request: Request, context: { params: Promise<{ jobId: string }> }) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "backend_jobs:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { jobId } = await context.params;
   const job = await prisma.backendJob.findFirst({
     where: {

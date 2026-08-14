@@ -5,10 +5,23 @@ import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { SamplingRuleForm } from "@/components/admin/sampling-rule-form";
 import { AdminDialog } from "@/components/admin/admin-dialog";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -120,113 +133,140 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
       description="Управляют тем, какие обращения попадают в ручную проверку: случайная выборка, негативный CSAT, новые сотрудники и ручные сигналы."
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="sampling-rules-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Правила</p>
-              <h2 id="sampling-rules-title" className="ops-panel__title">Правила выборки</h2>
-              <p className="ops-panel__subtitle">
-                Активно: {activeRules} · всего: {rules.length}
-              </p>
+        <Card aria-labelledby="sampling-rules-title">
+          <CardHeader className="border-b">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Правила</p>
+                <CardTitle id="sampling-rules-title">Правила выборки</CardTitle>
+                <CardDescription>
+                  Активно: {activeRules} · всего: {rules.length}
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <AdminDialog
+                  triggerLabel="Новое правило"
+                  triggerClassName={buttonVariants()}
+                  title="Новое правило выборки"
+                  description="Настройте условия и долю обращений для ручной проверки."
+                  defaultOpen={createDialogOpen}
+                >
+                  {samplingSetupHint ? (
+                    <div className="mb-4 rounded-xl border border-border">
+                      <CoachCallout
+                        title="Сэмплируйте по тому, что важно"
+                        body="CSAT, канал, линия, тег и приоритет — это единый конструктор условий, а не разрозненные поля."
+                        variant="spotlight"
+                        placement="top"
+                        anchorLabel="Подсказка к созданию правила"
+                        stepIndex={2}
+                        dismissId="settings:sampling"
+                      />
+                    </div>
+                  ) : null}
+                  <SamplingRuleForm
+                    action={createSamplingRule}
+                    channelOptions={channelOptions}
+                    csatOptions={csatOptions}
+                    ruleTypeOptions={ruleTypeOptions}
+                  />
+                </AdminDialog>
+                <Link href="/reviews" className={buttonVariants({ variant: "outline" })}>
+                  Очередь проверок
+                </Link>
+              </div>
             </div>
-            <div className="admin-actions">
-              <AdminDialog
-                triggerLabel="Новое правило"
-                title="Новое правило выборки"
-                description="Настройте условия и долю обращений для ручной проверки."
-                defaultOpen={createDialogOpen}
-              >
-                {samplingSetupHint ? (
-                  <div className="admin-setup-inline mb-4 rounded-[var(--radius-card)] border border-[var(--line-soft)]">
-                    <CoachCallout
-                      title="Сэмплируйте по тому, что важно"
-                      body="CSAT, канал, линия, тег и приоритет — это единый конструктор условий, а не разрозненные поля."
-                      variant="spotlight"
-                      placement="top"
-                      anchorLabel="Подсказка к созданию правила"
-                      stepIndex={2}
-                      dismissId="settings:sampling"
-                    />
-                  </div>
-                ) : null}
-                <SamplingRuleForm
-                  action={createSamplingRule}
-                  channelOptions={channelOptions}
-                  csatOptions={csatOptions}
-                  ruleTypeOptions={ruleTypeOptions}
-                />
-              </AdminDialog>
-              <Link href="/reviews" className="action-button">
-                Очередь проверок
-              </Link>
-            </div>
-          </div>
-          <div className={samplingSetupHint ? "setup-guide-layout p-4" : "p-4"}>
-            <div className={samplingSetupHint ? "setup-guide-layout__main" : ""}>
+          </CardHeader>
+          <CardContent className={cn("pt-4", samplingSetupHint ? "setup-guide-layout" : undefined)}>
+            <div className={samplingSetupHint ? "setup-guide-layout__main" : undefined}>
               {rules.length > 0 ? (
-                <div className="admin-data-table admin-data-table--sampling" aria-label="Правила выборки">
-                  <div className="admin-data-table__head">
-                    <span>Правило</span>
-                    <span>Тип</span>
-                    <span>Условия</span>
-                    <span className="admin-data-table__num">Выборка</span>
-                  </div>
-                  {rules.map((rule) => {
-                    const conditions = parseConditions(rule.conditionsJson);
+                <Table aria-label="Правила выборки">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Правило</TableHead>
+                      <TableHead>Тип</TableHead>
+                      <TableHead>Условия</TableHead>
+                      <TableHead className="text-right">Выборка</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rules.map((rule) => {
+                      const conditions = parseConditions(rule.conditionsJson);
 
-                    return (
-                      <div key={rule.id} className="admin-data-table__row">
-                        <span className="admin-data-table__primary admin-data-table__primary--stacked">
-                          <strong>{rule.name}</strong>
-                          <span className="admin-data-table__inline-actions">
-                            <Chip tone={rule.isActive ? "success" : "neutral"} size="xs">
-                              {rule.isActive ? "Активно" : "Выключено"}
-                            </Chip>
-                            <form action={updateSamplingRuleStatus}>
-                              <input type="hidden" name="id" value={rule.id} />
-                              <input name="isActive" type="checkbox" defaultChecked={!rule.isActive} className="hidden" />
-                              <button type="submit" className="quiet-link text-sm">
-                                {rule.isActive ? "Выключить" : "Включить"}
-                              </button>
-                            </form>
-                            {/* Тумблер рядом — quiet-link, поэтому и «Изменить» в том же стиле. */}
-                            <AdminDialog
-                              triggerLabel="Изменить"
-                              triggerClassName="quiet-link text-sm"
-                              title={`Правило: ${rule.name}`}
-                              description="Обновите условия и долю обращений для ручной проверки."
-                            >
-                              <SamplingRuleForm
-                                action={updateSamplingRule}
-                                rule={{
-                                  id: rule.id,
-                                  name: rule.name,
-                                  type: rule.type,
-                                  channel: conditionFieldValue(conditions.channel),
-                                  csatBucket: conditionFieldValue(conditions.csatBucket),
-                                  supportLine: conditionFieldValue(conditions.supportLine),
-                                  tag: conditionFieldValue(conditions.tag),
-                                  targetPercent: rule.targetPercent,
-                                  priority: rule.priority,
-                                  isActive: rule.isActive
-                                }}
-                                channelOptions={channelOptions}
-                                csatOptions={csatOptions}
-                                ruleTypeOptions={ruleTypeOptions}
-                              />
-                            </AdminDialog>
-                          </span>
-                        </span>
-                        <span>{samplingRuleTypeLabels[rule.type] ?? rule.type}</span>
-                        <span className="admin-data-table__muted">{formatConditions(conditions)}</span>
-                        <span className="admin-data-table__stack admin-data-table__num">
-                          <strong className="tabular-nums">{rule.targetPercent}%</strong>
-                          <small className="tabular-nums">приор. {rule.priority}</small>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                      return (
+                        <TableRow key={rule.id}>
+                          <TableCell className="whitespace-normal">
+                            <div className="flex min-w-0 flex-col gap-1.5">
+                              <strong className="font-medium text-foreground">{rule.name}</strong>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant={rule.isActive ? "outline" : "secondary"}
+                                  className={
+                                    rule.isActive
+                                      ? cn("border-transparent", statusSurfaceClass("positive"))
+                                      : undefined
+                                  }
+                                >
+                                  {rule.isActive ? "Активно" : "Выключено"}
+                                </Badge>
+                                <form action={updateSamplingRuleStatus}>
+                                  <input type="hidden" name="id" value={rule.id} />
+                                  <Checkbox
+                                    name="isActive"
+                                    value="on"
+                                    defaultChecked={!rule.isActive}
+                                    className="sr-only"
+                                    tabIndex={-1}
+                                    aria-hidden="true"
+                                  />
+                                  <Button type="submit" variant="link" size="sm" className="h-auto px-0">
+                                    {rule.isActive ? "Выключить" : "Включить"}
+                                  </Button>
+                                </form>
+                                {/* Тумблер рядом — link-кнопка, поэтому и «Изменить» в том же стиле. */}
+                                <AdminDialog
+                                  triggerLabel="Изменить"
+                                  triggerClassName={buttonVariants({ variant: "link", size: "sm", className: "h-auto px-0" })}
+                                  title={`Правило: ${rule.name}`}
+                                  description="Обновите условия и долю обращений для ручной проверки."
+                                >
+                                  <SamplingRuleForm
+                                    action={updateSamplingRule}
+                                    rule={{
+                                      id: rule.id,
+                                      name: rule.name,
+                                      type: rule.type,
+                                      channel: conditionFieldValue(conditions.channel),
+                                      csatBucket: conditionFieldValue(conditions.csatBucket),
+                                      supportLine: conditionFieldValue(conditions.supportLine),
+                                      tag: conditionFieldValue(conditions.tag),
+                                      targetPercent: rule.targetPercent,
+                                      priority: rule.priority,
+                                      isActive: rule.isActive
+                                    }}
+                                    channelOptions={channelOptions}
+                                    csatOptions={csatOptions}
+                                    ruleTypeOptions={ruleTypeOptions}
+                                  />
+                                </AdminDialog>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{samplingRuleTypeLabels[rule.type] ?? rule.type}</TableCell>
+                          <TableCell className="max-w-[18rem] whitespace-normal text-muted-foreground">
+                            {formatConditions(conditions)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-col items-end gap-0.5">
+                              <strong className="tabular-nums">{rule.targetPercent}%</strong>
+                              <span className="text-xs tabular-nums text-muted-foreground">приор. {rule.priority}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               ) : (
                 <EmptyState
                   size="inline"
@@ -234,7 +274,7 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                   title="Правил пока нет"
                   description="Добавьте правило, чтобы обращения автоматически попадали в очередь проверки."
                   action={
-                    <Link href={createRuleHref} className="action-button action-button--small">
+                    <Link href={createRuleHref} className={buttonVariants({ size: "sm" })}>
                       Новое правило
                     </Link>
                   }
@@ -254,8 +294,8 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
                 dismissId="settings:sampling"
               />
             ) : null}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </AdminFrame>
     </PageShell>
   );

@@ -3,9 +3,23 @@
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { CopyButton } from "@/components/copy-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/required-mark";
 import { createApiTokenFromForm, type CreateApiTokenState } from "@/lib/api-token-actions";
 import type { ApiScope } from "@/lib/api-auth";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 const initialState: CreateApiTokenState = {
   status: "idle"
@@ -27,9 +41,9 @@ function CreateTokenSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? "Создаем..." : "Создать ключ"}
-    </button>
+    </Button>
   );
 }
 
@@ -45,34 +59,52 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
 
   return (
     <div className="grid gap-4">
-      <form ref={formRef} action={formAction} className="grid gap-3">
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          <span>
-            Название
-            <RequiredMark />
-          </span>
-          <input name="name" required minLength={2} maxLength={120} placeholder="Например, Helpdesk import" className="form-control" />
-        </label>
+      <form ref={formRef} action={formAction} className="grid gap-4">
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldLabel htmlFor="api-token-name">
+              Название
+              <RequiredMark />
+            </FieldLabel>
+            <Input
+              id="api-token-name"
+              name="name"
+              required
+              minLength={2}
+              maxLength={120}
+              placeholder="Например, импорт обращений"
+            />
+          </Field>
 
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Истекает
-          <input name="expiresAt" type="date" className="form-control" />
-        </label>
+          <Field>
+            <FieldLabel htmlFor="api-token-expires">Истекает</FieldLabel>
+            <Input id="api-token-expires" name="expiresAt" type="date" />
+          </Field>
 
-        <fieldset className="grid gap-2">
-          <legend className="text-sm font-semibold text-[var(--text-body)]">Права</legend>
-          <div className="grid gap-2 md:grid-cols-2">
-            {scopes.map((scope) => (
-              <label key={scope} className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--text-body)]">
-                <input type="checkbox" name="scopes" value={scope} defaultChecked={scope === "all"} className="mt-1" />
-                <span>
-                  <span className="block font-semibold">{apiScopeLabels[scope]}</span>
-                  <span className="block font-mono text-xs text-[var(--text-muted)]">{scope}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+          <FieldSet>
+            <FieldLegend variant="label">Права</FieldLegend>
+            <FieldDescription>Минимально необходимый набор прав для продуктивной среды.</FieldDescription>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {scopes.map((scope) => (
+                <FieldLabel
+                  key={scope}
+                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-card px-3 py-2 has-data-checked:border-primary/40 has-data-checked:bg-primary/5"
+                >
+                  <Checkbox
+                    name="scopes"
+                    value={scope}
+                    defaultChecked={scope === "all"}
+                    className="mt-1"
+                  />
+                  <span className="grid gap-0.5">
+                    <span className="text-sm font-medium leading-snug">{apiScopeLabels[scope]}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{scope}</span>
+                  </span>
+                </FieldLabel>
+              ))}
+            </div>
+          </FieldSet>
+        </FieldGroup>
 
         <div className="flex justify-end">
           <CreateTokenSubmitButton />
@@ -80,22 +112,29 @@ export function ApiTokenCreateForm({ scopes }: { scopes: ApiScope[] }) {
       </form>
 
       {state.status === "success" && state.plainToken ? (
-        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--success)]">
-          <div className="mb-3 font-semibold">{state.message}</div>
-          <div className="grid gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">{state.tokenName}</span>
-              <CopyButton value={state.plainToken} label="Скопировать новый ключ" />
+        <Alert className={cn("border-success/30", statusSurfaceClass("positive"))}>
+          <AlertTitle>{state.message}</AlertTitle>
+          <AlertDescription>
+            <div className="mt-2 grid gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-foreground">{state.tokenName}</span>
+                <CopyButton value={state.plainToken} label="Скопировать новый ключ" />
+              </div>
+              <code
+                data-testid="created-api-token-secret"
+                className="block break-all rounded-md border border-border bg-muted/50 px-2.5 py-2 font-mono text-xs text-foreground"
+              >
+                {state.plainToken}
+              </code>
             </div>
-            <code data-testid="created-api-token-secret" className="inline-code-box compact-text">
-              {state.plainToken}
-            </code>
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {state.status === "error" ? (
-        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-4 text-sm font-medium text-[var(--danger)]">{state.message}</div>
+        <Alert variant="destructive">
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
       ) : null}
     </div>
   );

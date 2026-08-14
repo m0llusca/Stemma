@@ -3,27 +3,33 @@ import { expect, test } from "@playwright/test";
 test("shows Phase B adapter readiness without live certification overclaiming", async ({ page }) => {
   await page.goto("/admin/integrations/new");
 
-  await page.getByRole("radio", { name: /Zendesk/ }).click();
-  await expect(page.locator(".connect-source-current")).toContainText("Zendesk");
-  await expect(page.locator(".connect-source-current")).toContainText("Тикеты Zendesk Support");
-  await expect(page.locator(".connect-source-current")).not.toContainText("Живая сертификация пройдена");
+  const zendesk = page.getByRole("radio", { name: /Zendesk/ });
+  await zendesk.click();
+  await expect(zendesk).toBeChecked();
+  await expect(zendesk).toContainText("Тикеты Zendesk Support");
+  await expect(page.getByRole("main")).not.toContainText("Живая сертификация пройдена");
 
-  await page.getByRole("radio", { name: /Salesforce/ }).click();
-  await expect(page.locator(".connect-source-current")).toContainText("Salesforce");
-  await expect(page.locator(".connect-source-current")).toContainText("Кейсы Service Cloud");
-  await expect(page.getByRole("radio", { name: /Salesforce/ })).toContainText("ограниченно");
-  await expect(page.locator(".connect-source-current")).not.toContainText("Живая сертификация пройдена");
+  const salesforce = page.getByRole("radio", { name: /Salesforce/ });
+  await salesforce.click();
+  await expect(salesforce).toBeChecked();
+  await expect(salesforce).toContainText("Кейсы Service Cloud");
+  await expect(salesforce).toContainText("ограниченно");
+  await expect(page.getByRole("main")).not.toContainText("Живая сертификация пройдена");
 });
 
 test("keeps enterprise adapters on explicit client-credentials setup", async ({ page }) => {
   await page.goto("/admin/integrations/new");
 
-  await page.getByRole("radio", { name: /Salesforce/ }).click();
+  const salesforce = page.getByRole("radio", { name: /Salesforce/ });
+  await salesforce.click();
 
-  await expect(page.getByRole("heading", { name: "Подключение источника" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Подключение источника", level: 2 })
+  ).toBeVisible();
+  await expect(salesforce).toBeChecked();
   await expect(page.getByLabel("Client ID")).toBeVisible();
   await expect(page.getByLabel("Client Secret")).toBeVisible();
-  await expect(page.getByText("ограниченная поддержка — требуется живая сертификация")).toBeVisible();
+  await expect(salesforce).toContainText("Ограниченная поддержка: требуется живая сертификация");
   await expect(page.getByRole("button", { name: "Подключить" })).toBeEnabled();
 });
 

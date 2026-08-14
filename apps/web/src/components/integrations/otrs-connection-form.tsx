@@ -3,15 +3,36 @@
 import { Save } from "lucide-react";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { ActionFlowGuard } from "@/components/action-flow-guard";
 import { type OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { otrsFamilyProfiles } from "@/lib/integrations/otrs-family/profiles";
 import { saveOtrsIntegrationConfigurationState, type IntegrationActionState } from "@/lib/integration-actions";
 import { detectOtrsRoutesAction, type DetectOtrsRoutesState } from "@/lib/otrs-import-actions";
 
 const initialState: IntegrationActionState = null;
-const labelClass = "grid gap-1.5 text-sm font-medium text-[var(--text-body)]";
-const fieldClass = "form-control h-10 w-full text-sm";
-const textareaClass = "form-control min-h-[110px] w-full resize-y text-sm";
 
 const OTRS_TIME_ZONES = [
   "UTC",
@@ -51,10 +72,10 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
-      <Save size={16} aria-hidden="true" />
+    <Button type="submit" disabled={pending}>
+      <Save data-icon="inline-start" aria-hidden="true" />
       {pending ? "Сохраняем" : "Сохранить OTRS"}
-    </button>
+    </Button>
   );
 }
 
@@ -88,7 +109,11 @@ function routeConfigJson(
 }
 
 export function OtrsConnectionForm({ integration, config, userLogin, credentials }: OtrsConnectionFormProps) {
-  const [state, formAction] = useActionState(saveOtrsIntegrationConfigurationState, initialState);
+  const [actionState, formAction] = useActionState(saveOtrsIntegrationConfigurationState, initialState);
+  // The bridged result feeds the alert when the client router drops the
+  // action commit (Next 16.2.x); the healthy path is untouched.
+  const [bridgedState, setBridgedState] = useState<IntegrationActionState>(null);
+  const state = bridgedState ?? actionState;
   const [detectState, detectAction, detecting] = useActionState<DetectOtrsRoutesState, FormData>(
     detectOtrsRoutesAction,
     null
@@ -103,6 +128,7 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
   const [ticketSearchAuth, setTicketSearchAuth] = useState<"credentials" | "session">(config.auth.ticketSearch);
   const [ticketGetAuth, setTicketGetAuth] = useState<"credentials" | "session">(config.auth.ticketGet);
   const [sessionCreatePath, setSessionCreatePath] = useState(config.auth.sessionCreatePath);
+  const [userLoginValue, setUserLoginValue] = useState(userLogin || "agent_login");
 
   useEffect(() => {
     if (detectState?.ok) {
@@ -120,11 +146,13 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
       }
     }
   }, [detectState]);
+  useEffect(() => {
+    setUserLoginValue(userLogin || "agent_login");
+  }, [userLogin]);
   const products = Object.values(otrsFamilyProfiles);
   const credentialByKind = useMemo(() => new Map(credentials.map((credential) => [credential.kind, credential])), [credentials]);
   const passwordSlot = credentialByKind.get("auth_password");
   const caSlot = credentialByKind.get("ca_bundle");
-  const defaultUserLogin = userLogin || "agent_login";
   const routes = {
     ticketSearchPath,
     ticketGetPath,
@@ -140,261 +168,352 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
   };
 
   return (
-    <section className="panel overflow-clip">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">Настройка подключения</h2>
-        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
+    <Card
+      className="overflow-clip"
+      role="region"
+      aria-labelledby="otrs-connection-title"
+    >
+      <CardHeader className="border-b">
+        <CardTitle id="otrs-connection-title">Настройка подключения</CardTitle>
+        <CardDescription>
           Секреты вводятся только для обновления. Сохраненные пароль и CA PEM не отображаются обратно в UI.
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
 
-      <form action={detectAction} className="grid gap-2 border-b border-[var(--border)] px-4 py-4">
-        <input type="hidden" name="baseUrl" value={integration.baseUrl ?? ""} />
-        <input type="hidden" name="webServiceName" value={webServiceName} />
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" className="action-button" disabled={detecting}>
-            {detecting ? "Определяем..." : "Определить маршруты автоматически"}
-          </button>
-          <span className="text-xs text-[var(--text-muted)]">
-            Пробует стандартные маршруты GenericInterface и заполняет route overrides.
-          </span>
-        </div>
-        {detectState?.ok === false ? (
-          <p className="text-sm font-medium text-[var(--danger)]">{detectState.message}</p>
-        ) : null}
-        {detectState?.ok && detectState.result.undetected.length > 0 ? (
-          <p className="text-sm text-[var(--warning)]">
-            Не определены: {detectState.result.undetected.join(", ")} — введите вручную.
-          </p>
-        ) : null}
-      </form>
-
-      <form action={formAction} className="grid gap-5 p-4">
-        <input type="hidden" name="source" value={integration.source} />
-        <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth, timeZone)} />
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Название
-            <input name="displayName" defaultValue={integration.displayName} required className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Product profile
-            <select name="product" defaultValue={config.product} className={fieldClass}>
-              {products.map((product) => (
-                <option key={product.product} value={product.product}>
-                  {product.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Base URL
-            <input name="baseUrl" defaultValue={integration.baseUrl ?? ""} required className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            WebService name
-            <input
-              name="webServiceName"
-              value={webServiceName}
-              onChange={(event) => setWebServiceName(event.target.value)}
-              required
-              className={fieldClass}
-            />
-          </label>
-          <label className={labelClass}>
-            Таймзона OTRS-сервера
-            <select
-              name="timeZone"
-              value={timeZone}
-              onChange={(event) => setTimeZone(event.target.value)}
-              className={fieldClass}
-            >
-              {OTRS_TIME_ZONES.map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Base path
-            <input name="basePath" defaultValue={config.basePath} required className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            UserLogin
-            <input name="userLogin" defaultValue={defaultUserLogin} required className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Пароль или API-секрет
-            <input name="password" type="password" autoComplete="new-password" className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Search limit
-            <input name="searchLimit" type="number" min="1" max="100" defaultValue={config.limits.searchLimit} className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Manual TicketID limit
-            <input
-              name="manualTicketIdLimit"
-              type="number"
-              min="1"
-              max="50"
-              defaultValue={config.limits.manualTicketIdLimit}
-              className={fieldClass}
-            />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Import limit
-            <input name="importLimit" type="number" min="1" max="100" defaultValue={integration.importLimit} className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Размер батча
-            <input name="batchSize" type="number" min="1" max="50" defaultValue={integration.batchSize} className={fieldClass} />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Период, дней
-            <input name="dateRangeDays" type="number" min="1" max="365" defaultValue={integration.dateRangeDays} className={fieldClass} />
-          </label>
-        </div>
-
-        <div className="soft-callout grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]">
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            SessionCreate path
-            <input
-              value={sessionCreatePath}
-              onChange={(event) => setSessionCreatePath(event.target.value)}
-              placeholder="/Session"
-              className={`${fieldClass} font-mono text-xs`}
-            />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            TicketSearch auth
-            <select
-              value={ticketSearchAuth}
-              onChange={(event) => setTicketSearchAuth(event.target.value as "credentials" | "session")}
-              className={fieldClass}
-            >
-              <option value="credentials">UserLogin + Password</option>
-              <option value="session">SessionCreate + SessionID</option>
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            TicketGet auth
-            <select
-              value={ticketGetAuth}
-              onChange={(event) => setTicketGetAuth(event.target.value as "credentials" | "session")}
-              className={fieldClass}
-            >
-              <option value="credentials">UserLogin + Password</option>
-              <option value="session">SessionCreate + SessionID</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            CA bundle PEM
-            <textarea name="caBundle" rows={5} spellCheck={false} className={textareaClass} />
-          </label>
-          <div className="grid content-start gap-2">
-            <div className="soft-callout">
-              <p className="soft-callout__label">Password slot</p>
-              <p className="record-title record-title--tight">{passwordSlot ? "Сохранен" : "Не сохранен"}</p>
-              <p className="record-meta">Ротация: {formatDate(passwordSlot?.lastRotatedAt ?? null)}</p>
-            </div>
-            <div className="soft-callout">
-              <p className="soft-callout__label">CA bundle slot</p>
-              <p className="record-title record-title--tight">{caSlot ? "Сохранен" : "Не сохранен"}</p>
-              <p className="record-meta compact-text">
-                Fingerprint: {caSlot?.fingerprint ? caSlot.fingerprint.slice(0, 16) : "нет"}
-              </p>
-            </div>
+      <CardContent className="grid gap-5 pt-(--card-spacing)">
+        <form action={detectAction} className="grid gap-2 border-b pb-4">
+          <input type="hidden" name="baseUrl" value={integration.baseUrl ?? ""} />
+          <input type="hidden" name="webServiceName" value={webServiceName} />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" variant="outline" disabled={detecting}>
+              {detecting ? "Определяем..." : "Определить маршруты автоматически"}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Пробует стандартные маршруты GenericInterface и заполняет переопределения маршрутов.
+            </span>
           </div>
-        </div>
-
-        <details className="compact-details disclosure-panel overflow-clip">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
-            Advanced route overrides
-          </summary>
-          <div className="grid gap-4 border-t border-[var(--border)] p-4">
-            <label className="soft-callout grid-cols-[auto_minmax(0,1fr)] items-start text-sm text-[var(--text-body)]">
-              <input
-                type="checkbox"
-                checked={routeOverridesEnabled}
-                onChange={(event) => setRouteOverridesEnabled(event.target.checked)}
-                className="mt-1"
-              />
-              <span>
-                Включить route overrides. Используйте только если GenericInterface WebService создан с нестандартными маршрутами.
-              </span>
-            </label>
-            <div className="grid gap-3 xl:grid-cols-2">
-              <fieldset className="soft-callout grid gap-3">
-                <legend className="soft-callout__label">TicketSearch route</legend>
-                <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Method
-                    <select
-                      value={ticketSearchMethod}
-                      onChange={(event) => setTicketSearchMethod(event.target.value as "GET" | "POST")}
-                      disabled={!routeOverridesEnabled}
-                      className={fieldClass}
-                    >
-                      <option value="POST">POST</option>
-                      <option value="GET">GET</option>
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Path
-                    <input
-                      value={ticketSearchPath}
-                      onChange={(event) => setTicketSearchPath(event.target.value)}
-                      disabled={!routeOverridesEnabled}
-                      placeholder="/Ticket/Search"
-                      className={`${fieldClass} font-mono text-xs`}
-                    />
-                  </label>
-                </div>
-              </fieldset>
-              <fieldset className="soft-callout grid gap-3">
-                <legend className="soft-callout__label">TicketGet route</legend>
-                <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Method
-                    <select
-                      value={ticketGetMethod}
-                      onChange={(event) => setTicketGetMethod(event.target.value as "GET" | "POST")}
-                      disabled={!routeOverridesEnabled}
-                      className={fieldClass}
-                    >
-                      <option value="GET">GET</option>
-                      <option value="POST">POST</option>
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Path
-                    <input
-                      value={ticketGetPath}
-                      onChange={(event) => setTicketGetPath(event.target.value)}
-                      disabled={!routeOverridesEnabled}
-                      placeholder="/Ticket/{TicketID}"
-                      className={`${fieldClass} font-mono text-xs`}
-                    />
-                  </label>
-                </div>
-              </fieldset>
-            </div>
-          </div>
-        </details>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton />
-          {state ? (
-            <p className={`text-sm font-medium ${state.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{state.message}</p>
+          {detectState?.ok === false ? (
+            <Alert variant="destructive">
+              <AlertDescription>{detectState.message}</AlertDescription>
+            </Alert>
           ) : null}
-        </div>
-      </form>
-    </section>
+          {detectState?.ok && detectState.result.undetected.length > 0 ? (
+            <Alert>
+              <AlertDescription>
+                Не определены: {detectState.result.undetected.join(", ")} — введите вручную.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </form>
+
+        <form action={formAction} className="grid gap-5">
+          <ActionFlowGuard
+            onResult={(value) => {
+              const result = value as IntegrationActionState;
+              if (result) setBridgedState(result);
+            }}
+          />
+          <input type="hidden" name="source" value={integration.source} />
+          <input type="hidden" name="configJson" value={routeConfigJson(config, routes, routeOverridesEnabled, auth, timeZone)} />
+
+          <Tabs defaultValue="connection" className="gap-4">
+            <TabsList variant="line" className="w-full justify-start">
+              <TabsTrigger value="connection">Подключение</TabsTrigger>
+              <TabsTrigger value="auth">Авторизация</TabsTrigger>
+              <TabsTrigger value="limits">Лимиты</TabsTrigger>
+              <TabsTrigger value="advanced">Дополнительно</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="connection" keepMounted className="grid gap-4">
+              <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="otrs-displayName">Название</FieldLabel>
+                  <Input id="otrs-displayName" name="displayName" defaultValue={integration.displayName} required />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-product">Профиль продукта</FieldLabel>
+                  <NativeSelect id="otrs-product" name="product" defaultValue={config.product} className="w-full">
+                    {products.map((product) => (
+                      <NativeSelectOption key={product.product} value={product.product}>
+                        {product.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-baseUrl">Base URL</FieldLabel>
+                  <Input id="otrs-baseUrl" name="baseUrl" defaultValue={integration.baseUrl ?? ""} required />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-webServiceName">Имя WebService</FieldLabel>
+                  <Input
+                    id="otrs-webServiceName"
+                    name="webServiceName"
+                    value={webServiceName}
+                    onChange={(event) => setWebServiceName(event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-timeZone">Таймзона OTRS-сервера</FieldLabel>
+                  <NativeSelect
+                    id="otrs-timeZone"
+                    name="timeZone"
+                    value={timeZone}
+                    onChange={(event) => setTimeZone(event.target.value)}
+                    className="w-full"
+                  >
+                    {OTRS_TIME_ZONES.map((zone) => (
+                      <NativeSelectOption key={zone} value={zone}>
+                        {zone}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-basePath">Base path</FieldLabel>
+                  <Input id="otrs-basePath" name="basePath" defaultValue={config.basePath} required />
+                </Field>
+              </FieldGroup>
+            </TabsContent>
+
+            <TabsContent value="auth" keepMounted className="grid gap-4">
+              <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="otrs-userLogin">UserLogin</FieldLabel>
+                  <Input
+                    id="otrs-userLogin"
+                    name="userLogin"
+                    value={userLoginValue}
+                    onChange={(event) => setUserLoginValue(event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-password">Пароль или API-секрет</FieldLabel>
+                  <Input id="otrs-password" name="password" type="password" autoComplete="new-password" />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-sessionCreatePath">SessionCreate path</FieldLabel>
+                  <Input
+                    id="otrs-sessionCreatePath"
+                    value={sessionCreatePath}
+                    onChange={(event) => setSessionCreatePath(event.target.value)}
+                    placeholder="/Session"
+                    className="font-mono text-xs"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-ticketSearchAuth">Авторизация TicketSearch</FieldLabel>
+                  <NativeSelect
+                    id="otrs-ticketSearchAuth"
+                    value={ticketSearchAuth}
+                    onChange={(event) => setTicketSearchAuth(event.target.value as "credentials" | "session")}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="credentials">UserLogin + Password</NativeSelectOption>
+                    <NativeSelectOption value="session">SessionCreate + SessionID</NativeSelectOption>
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-ticketGetAuth">Авторизация TicketGet</FieldLabel>
+                  <NativeSelect
+                    id="otrs-ticketGetAuth"
+                    value={ticketGetAuth}
+                    onChange={(event) => setTicketGetAuth(event.target.value as "credentials" | "session")}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="credentials">UserLogin + Password</NativeSelectOption>
+                    <NativeSelectOption value="session">SessionCreate + SessionID</NativeSelectOption>
+                  </NativeSelect>
+                </Field>
+              </FieldGroup>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <Field>
+                  <FieldLabel htmlFor="otrs-caBundle">CA bundle PEM</FieldLabel>
+                  <Textarea id="otrs-caBundle" name="caBundle" rows={5} spellCheck={false} className="min-h-[110px] resize-y" />
+                </Field>
+                <div className="grid content-start gap-2">
+                  <Card size="sm">
+                    <CardContent className="grid gap-1">
+                      <p className="text-xs font-medium text-muted-foreground">Слот пароля</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={passwordSlot ? "secondary" : "outline"}>
+                          {passwordSlot ? "Сохранен" : "Не сохранен"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Ротация: {formatDate(passwordSlot?.lastRotatedAt ?? null)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card size="sm">
+                    <CardContent className="grid gap-1">
+                      <p className="text-xs font-medium text-muted-foreground">Слот CA bundle</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={caSlot ? "secondary" : "outline"}>{caSlot ? "Сохранен" : "Не сохранен"}</Badge>
+                      </div>
+                      <p className="break-all text-xs text-muted-foreground">
+                        Fingerprint: {caSlot?.fingerprint ? caSlot.fingerprint.slice(0, 16) : "нет"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="limits" keepMounted className="grid gap-4">
+              <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="otrs-searchLimit">Лимит поиска</FieldLabel>
+                  <Input
+                    id="otrs-searchLimit"
+                    name="searchLimit"
+                    type="number"
+                    min={1}
+                    max={100}
+                    defaultValue={config.limits.searchLimit}
+                    className="tabular-nums"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-manualTicketIdLimit">Лимит ручных TicketID</FieldLabel>
+                  <Input
+                    id="otrs-manualTicketIdLimit"
+                    name="manualTicketIdLimit"
+                    type="number"
+                    min={1}
+                    max={50}
+                    defaultValue={config.limits.manualTicketIdLimit}
+                    className="tabular-nums"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-importLimit">Лимит импорта</FieldLabel>
+                  <Input
+                    id="otrs-importLimit"
+                    name="importLimit"
+                    type="number"
+                    min={1}
+                    max={100}
+                    defaultValue={integration.importLimit}
+                    className="tabular-nums"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-batchSize">Размер батча</FieldLabel>
+                  <Input
+                    id="otrs-batchSize"
+                    name="batchSize"
+                    type="number"
+                    min={1}
+                    max={50}
+                    defaultValue={integration.batchSize}
+                    className="tabular-nums"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="otrs-dateRangeDays">Период, дней</FieldLabel>
+                  <Input
+                    id="otrs-dateRangeDays"
+                    name="dateRangeDays"
+                    type="number"
+                    min={1}
+                    max={365}
+                    defaultValue={integration.dateRangeDays}
+                    className="tabular-nums"
+                  />
+                </Field>
+              </FieldGroup>
+            </TabsContent>
+
+            <TabsContent value="advanced" keepMounted className="grid gap-4">
+              <Field orientation="horizontal" className="items-start rounded-lg border p-3">
+                <Switch
+                  id="otrs-routeOverrides"
+                  checked={routeOverridesEnabled}
+                  onCheckedChange={setRouteOverridesEnabled}
+                />
+                <FieldLabel htmlFor="otrs-routeOverrides" className="font-normal">
+                  <span className="font-medium">Включить переопределения маршрутов</span>
+                  <FieldDescription>
+                    Используйте только если GenericInterface WebService создан с нестандартными маршрутами.
+                  </FieldDescription>
+                </FieldLabel>
+              </Field>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <FieldSet className="gap-3 rounded-lg border p-3">
+                  <FieldLegend variant="label">Маршрут TicketSearch</FieldLegend>
+                  <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                    <Field>
+                      <FieldLabel htmlFor="otrs-ticketSearchMethod">Метод</FieldLabel>
+                      <NativeSelect
+                        id="otrs-ticketSearchMethod"
+                        value={ticketSearchMethod}
+                        onChange={(event) => setTicketSearchMethod(event.target.value as "GET" | "POST")}
+                        disabled={!routeOverridesEnabled}
+                        className="w-full"
+                      >
+                        <NativeSelectOption value="POST">POST</NativeSelectOption>
+                        <NativeSelectOption value="GET">GET</NativeSelectOption>
+                      </NativeSelect>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="otrs-ticketSearchPath">Путь</FieldLabel>
+                      <Input
+                        id="otrs-ticketSearchPath"
+                        value={ticketSearchPath}
+                        onChange={(event) => setTicketSearchPath(event.target.value)}
+                        disabled={!routeOverridesEnabled}
+                        placeholder="/Ticket/Search"
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                  </div>
+                </FieldSet>
+                <FieldSet className="gap-3 rounded-lg border p-3">
+                  <FieldLegend variant="label">Маршрут TicketGet</FieldLegend>
+                  <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                    <Field>
+                      <FieldLabel htmlFor="otrs-ticketGetMethod">Метод</FieldLabel>
+                      <NativeSelect
+                        id="otrs-ticketGetMethod"
+                        value={ticketGetMethod}
+                        onChange={(event) => setTicketGetMethod(event.target.value as "GET" | "POST")}
+                        disabled={!routeOverridesEnabled}
+                        className="w-full"
+                      >
+                        <NativeSelectOption value="GET">GET</NativeSelectOption>
+                        <NativeSelectOption value="POST">POST</NativeSelectOption>
+                      </NativeSelect>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="otrs-ticketGetPath">Путь</FieldLabel>
+                      <Input
+                        id="otrs-ticketGetPath"
+                        value={ticketGetPath}
+                        onChange={(event) => setTicketGetPath(event.target.value)}
+                        disabled={!routeOverridesEnabled}
+                        placeholder="/Ticket/{TicketID}"
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                  </div>
+                </FieldSet>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <SubmitButton />
+            {state ? (
+              <Alert variant={state.ok ? "default" : "destructive"} className="w-fit py-1.5">
+                <AlertDescription>{state.message}</AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

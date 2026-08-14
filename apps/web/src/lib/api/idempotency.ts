@@ -56,7 +56,13 @@ export async function reserveIdempotencyKey(input: {
   });
 
   if (existing) {
-    return reservationFromRecord(existing, input);
+    if (existing.expiresAt.getTime() <= Date.now()) {
+      // Expired reservations no longer count as replays/conflicts: drop the
+      // stale row and fall through to a fresh reservation.
+      await prisma.idempotencyKey.deleteMany({ where: { id: existing.id } });
+    } else {
+      return reservationFromRecord(existing, input);
+    }
   }
 
   let record: IdempotencyKey;

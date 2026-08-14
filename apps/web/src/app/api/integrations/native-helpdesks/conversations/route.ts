@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import {
   assertConversationImportBatchLimit,
@@ -15,13 +16,25 @@ import {
 import { customConversationSchema, customSamplingTypeSchema } from "@/lib/validation/custom-api";
 
 export const dynamic = "force-dynamic";
+export const maxRequestBodyBytes = 1024 * 1024;
 
 const nativeHelpdeskSourceValues = nativeHelpdeskSources.map((source) => source.value);
 
 class BadRequestError extends Error {}
 
-function errorResponse(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
+function errorResponse(message: string, status: number, headers?: HeadersInit) {
+  return NextResponse.json({ error: message }, { status, headers });
+}
+
+function contentLengthBytes(headers: Headers) {
+  const value = headers.get("content-length");
+
+  if (!value) {
+    return null;
+  }
+
+  const bytes = Number(value);
+  return Number.isInteger(bytes) && bytes >= 0 ? bytes : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -97,6 +110,24 @@ export async function POST(request: NextRequest) {
     return auth.response;
   }
 
+  const rateLimit = await enforceApiRateLimit({
+    workspaceId: auth.workspaceId,
+    apiTokenId: auth.apiTokenId,
+    routeKey: "POST /api/integrations/native-helpdesks/conversations"
+  });
+
+  if (!rateLimit.ok) {
+    await recordApiTokenError(auth.apiTokenId, "Rate limit exceeded.");
+    return errorResponse("Rate limit exceeded.", 429, rateLimitHeaders(rateLimit));
+  }
+
+  const contentLength = contentLengthBytes(request.headers);
+
+  if (contentLength !== null && contentLength > maxRequestBodyBytes) {
+    await recordApiTokenError(auth.apiTokenId, "Request payload too large.");
+    return errorResponse(`Request payload exceeds ${maxRequestBodyBytes} bytes.`, 413);
+  }
+
   try {
     const body = await request.json();
     const { conversations } = parseNativeHelpdeskImportBody(body);
@@ -104,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     await recordApiTokenSuccess(auth.apiTokenId);
 
-    return NextResponse.json({ count: imported.length, imported }, { status: 201 });
+    return NextResponse.json({ count: imported.length, imported }, { status: 201, headers: rateLimitHeaders(rateLimit) });
   } catch (error) {
     if (error instanceof ConversationImportLimitError) {
       await recordApiTokenError(auth.apiTokenId, error.message);

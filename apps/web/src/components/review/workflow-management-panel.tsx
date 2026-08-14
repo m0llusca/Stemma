@@ -1,5 +1,12 @@
 import type { Conversation, RoleName, User } from "@prisma/client";
 import { ChevronDown } from "lucide-react";
+import { ActionFlowGuard } from "@/components/action-flow-guard";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { qaStatusLabels, roleLabels } from "@/lib/labels";
 import { updateConversationWorkflow } from "@/lib/review-workflow-actions";
 
@@ -25,82 +32,96 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
     conversation.qaAssigneeId !== null && !assignees.some((assignee) => assignee.id === conversation.qaAssigneeId);
 
   return (
-    <details className="review-secondary panel disclosure-panel overflow-clip">
-      <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+    <Collapsible className="group overflow-clip rounded-xl bg-card ring-1 ring-foreground/10">
+      <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Управление проверкой</h2>
-          <p className="mt-1 truncate text-sm text-[var(--text-muted)]">
+          <h2 className="text-base font-semibold text-foreground">Управление проверкой</h2>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
             {qaStatusLabels[conversation.qaStatus]} · {conversation.qaAssigneeName ?? "Проверяющий не назначен"} ·{" "}
             {conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "без срока"}
           </p>
         </div>
         <span
-          className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
+          className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
           aria-hidden="true"
         >
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="size-4" />
         </span>
-      </summary>
+      </CollapsibleTrigger>
 
-      <form
-        action={updateConversationWorkflow}
-        className="grid gap-3 border-t border-[var(--border)] p-4 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto]"
-      >
-        <input type="hidden" name="conversationId" value={conversation.id} />
+      <CollapsibleContent>
+        <Card className="rounded-none border-0 ring-0">
+          <CardHeader className="border-t border-border py-0 sr-only">
+            <CardTitle>Параметры проверки</CardTitle>
+            <CardDescription>Состояние, исполнитель и срок</CardDescription>
+          </CardHeader>
+          <CardContent className="border-t border-border pt-4">
+            <form
+              action={updateConversationWorkflow}
+              className="grid gap-3 md:grid-cols-[minmax(170px,200px)_minmax(180px,1fr)_minmax(150px,180px)_auto] md:items-end"
+            >
+              {/* Forces a full-document commit of the action's redirect when
+                  the client router drops it (Next 16.2.x). */}
+              <ActionFlowGuard />
+              <input type="hidden" name="conversationId" value={conversation.id} />
 
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Состояние проверки
-          <select
-            name="qaStatus"
-            defaultValue={conversation.qaStatus}
-            className="form-control"
-          >
-            {qaStatuses.map((status) => (
-              <option key={status} value={status}>
-                {qaStatusLabels[status]}
-              </option>
-            ))}
-          </select>
-        </label>
+              <Field>
+                <FieldLabel htmlFor="workflow-qa-status">Состояние проверки</FieldLabel>
+                <NativeSelect
+                  id="workflow-qa-status"
+                  name="qaStatus"
+                  defaultValue={conversation.qaStatus}
+                  className="w-full"
+                >
+                  {qaStatuses.map((status) => (
+                    <NativeSelectOption key={status} value={status}>
+                      {qaStatusLabels[status]}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
 
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Проверяющий
-          <select
-            name="qaAssigneeId"
-            defaultValue={conversation.qaAssigneeId ?? ""}
-            className="form-control"
-          >
-            <option value="">Не назначен</option>
-            {hasUnknownAssignee ? (
-              <option value={conversation.qaAssigneeId ?? ""}>{conversation.qaAssigneeName ?? "Текущий исполнитель"}</option>
-            ) : null}
-            {assignees.map((assignee) => (
-              <option key={assignee.id} value={assignee.id}>
-                {assignee.name} · {roleLabels[assignee.role]}
-              </option>
-            ))}
-          </select>
-        </label>
+              <Field>
+                <FieldLabel htmlFor="workflow-qa-assignee">Проверяющий</FieldLabel>
+                <NativeSelect
+                  id="workflow-qa-assignee"
+                  name="qaAssigneeId"
+                  defaultValue={conversation.qaAssigneeId ?? ""}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Не назначен</NativeSelectOption>
+                  {hasUnknownAssignee ? (
+                    <NativeSelectOption value={conversation.qaAssigneeId ?? ""}>
+                      {conversation.qaAssigneeName ?? "Текущий исполнитель"}
+                    </NativeSelectOption>
+                  ) : null}
+                  {assignees.map((assignee) => (
+                    <NativeSelectOption key={assignee.id} value={assignee.id}>
+                      {assignee.name} · {roleLabels[assignee.role]}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
 
-        <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-          Срок
-          <input
-            name="reviewDueAt"
-            type="date"
-            defaultValue={toDateInputValue(conversation.reviewDueAt)}
-            className="form-control"
-          />
-        </label>
+              <Field>
+                <FieldLabel htmlFor="workflow-review-due-at">Срок</FieldLabel>
+                <Input
+                  id="workflow-review-due-at"
+                  name="reviewDueAt"
+                  type="date"
+                  defaultValue={toDateInputValue(conversation.reviewDueAt)}
+                />
+              </Field>
 
-        <div className="flex items-end">
-          <button
-            type="submit"
-            className="action-button action-button--primary w-full md:w-auto"
-          >
-            Обновить
-          </button>
-        </div>
-      </form>
-    </details>
+              <div className="flex items-end">
+                <Button type="submit" className="w-full md:w-auto">
+                  Обновить
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

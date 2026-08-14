@@ -1,5 +1,5 @@
-import { apiJson } from "@/lib/api/response";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { apiJson, requestIdFromHeaders } from "@/lib/api/response";
+import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
 import { getPhaseDReadinessReport } from "@/lib/certification/readiness-report";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
@@ -20,8 +20,15 @@ function parseJsonObject(value: string | null | undefined) {
   }
 }
 
-export async function GET() {
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+export async function GET(request: Request) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "backend_jobs:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const [queuedJobs, failedJobs, activeProviders, activeIntegrations, phaseD, latestRuns] = await Promise.all([
     prisma.backendJob.count({ where: { workspaceId: user.workspaceId, status: "QUEUED" } }),
     prisma.backendJob.count({ where: { workspaceId: user.workspaceId, status: "FAILED" } }),

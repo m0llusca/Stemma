@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
-import { prisma } from "@/lib/db";
-import { signInE2EUser } from "./helpers/auth";
+import { findSeededDemoAdmin, signInE2EUser } from "./helpers/auth";
 
 const routes = [
   "/admin",
@@ -32,11 +31,7 @@ test.beforeAll(() => {
 test.beforeEach(async ({ context }) => {
   execFileSync("npm", ["run", "db:seed"], { cwd: process.cwd(), stdio: "inherit" });
 
-  const admin = await prisma.user.findFirstOrThrow({
-    where: { role: "ADMIN" },
-    orderBy: { createdAt: "asc" },
-    select: { id: true }
-  });
+  const admin = await findSeededDemoAdmin();
   await signInE2EUser(context, admin, "playwright-admin-layout");
 });
 

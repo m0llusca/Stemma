@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -152,6 +152,44 @@ describe("review detail page", () => {
     expect(screen.queryByText("ИИ-предложения")).toBeNull();
     expect(reviewPanel.textContent).toBe("Комментарий оператора");
     expect(reviewPanel.dataset.aiPredictions).toBe("0");
+  });
+
+  it("lets MasterDetail own geometry while narrow pane switching preserves both server-rendered panes", async () => {
+    const { ReviewDetailPageContent } = await import("@/app/reviews/[conversationId]/page");
+    const page = await ReviewDetailPageContent({
+      params: Promise.resolve({ conversationId: "conversation-1" }),
+      searchParams: Promise.resolve({ reviewSource: "SELF_REVIEW" })
+    });
+
+    render(page);
+
+    const workspace = document.getElementById("review-workspace");
+    const masterDetail = workspace?.querySelector(".master-detail");
+    const listPane = masterDetail?.querySelector(".master-detail__list");
+    const detailPane = masterDetail?.querySelector(".master-detail__detail");
+    const dialogContent = listPane?.querySelector('[data-slot="review-dialog-pane"]');
+    const scoreContent = detailPane?.querySelector('[data-slot="review-score-pane"]');
+    const toggle = screen.getByRole("group", { name: "Переключение панели" });
+    const dialogButton = within(toggle).getByRole("button", { name: "Диалог" });
+    const scoreButton = within(toggle).getByRole("button", { name: "Оценка" });
+
+    expect(workspace).not.toBeNull();
+    expect(masterDetail).not.toBeNull();
+    expect(masterDetail?.classList.contains("review-workbench__panes")).toBe(false);
+    expect(dialogContent?.contains(screen.getByTestId("timeline"))).toBe(true);
+    expect(scoreContent?.contains(screen.getByTestId("review-panel"))).toBe(true);
+    expect(workspace?.getAttribute("data-active-pane")).toBe("dialog");
+    expect(dialogButton.getAttribute("aria-pressed")).toBe("true");
+    expect(scoreButton.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(scoreButton);
+
+    expect(workspace?.getAttribute("data-active-pane")).toBe("score");
+    expect(dialogButton.getAttribute("aria-pressed")).toBe("false");
+    expect(scoreButton.getAttribute("aria-pressed")).toBe("true");
+    expect(dialogContent?.contains(screen.getByTestId("timeline"))).toBe(true);
+    expect(scoreContent?.contains(screen.getByTestId("review-panel"))).toBe(true);
+    expect(screen.getByRole("heading", { name: "Диалог оператора" })).not.toBeNull();
   });
 
   it("shows pending-first AI suggestions with full counts for QA roles", async () => {

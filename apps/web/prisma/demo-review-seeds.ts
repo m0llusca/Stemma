@@ -1,6 +1,43 @@
-import type { ConversationChannel, FindingOwnerType, RiskLevel } from "@prisma/client";
+import type {
+  ConversationChannel,
+  FindingOwnerType,
+  RiskLevel
+} from "@prisma/client";
+import {
+  daysFrom,
+  type DemoCalendar
+} from "./demo-calendar";
+import { buildReportCatalogSlug } from "../src/lib/reports/report-filter-slug";
+import { serializeReportAnalysisState } from "../src/lib/reports/report-analysis-state";
+
+export type DemoCriterionSeed = {
+  id: string;
+  key: string;
+  label: string;
+  blockKey: string;
+  block: string;
+  weight: number;
+  order: number;
+};
+
+export type DemoCriterionValueSeed = {
+  id: string;
+  criterionId: string;
+  criterionKey: string;
+  value: number;
+  evidenceMessageId: string;
+};
 
 export type ReviewedConversationSeed = {
+  window: "previous" | "current";
+  slot: number;
+  conversationId: string;
+  reviewId: string;
+  findingId: string;
+  coachingActionId: string | null;
+  coachingDueAt: Date | null;
+  operatorId: string;
+  teamSlug: string;
   externalSource: string;
   externalId: string;
   externalUrl?: string;
@@ -18,11 +55,14 @@ export type ReviewedConversationSeed = {
   supportLine: string;
   teamName: string;
   riskHint?: string | null;
+  sentiment: null;
   openedAt: Date;
   closedAt: Date;
   customerMessage: string;
   customerFollowUp?: string;
   agentMessage: string;
+  customerMessageId: string;
+  agentMessageId: string;
   totalScore: number;
   summary: string;
   category: string;
@@ -34,8 +74,10 @@ export type ReviewedConversationSeed = {
   needsReanswer?: boolean;
   reanswerStatus?: string;
   feedbackStatus?: string;
+  feedbackAckAt?: Date | null;
   appealStatus?: string;
   positiveNotes?: string;
+  criterionValues: DemoCriterionValueSeed[];
 };
 
 export type DemoReviewSeedContext = {
@@ -48,36 +90,210 @@ export type DemoReviewSeedContext = {
   supportElenaName: string;
 };
 
-type DemoReviewSlot = {
-  externalId: string;
-  finalizedAt: string;
-  totalScore: number;
-  source?: string;
-  channel?: ConversationChannel;
-  samplingType?: string;
-  feedbackStatus?: string;
-  appealStatus?: string;
-  reanswerStatus?: string;
-  needsReanswer?: boolean;
-  criticalError?: boolean;
+export type DemoAiCriterionSeed = {
+  criterionId: string;
+  criterionKey: string;
+  value: number;
+  confidence: number;
+  rationale: string;
+  evidenceRef: string;
 };
 
-type DemoScenario = {
-  subject: string;
-  tags: string;
-  category: string;
-  ownerType?: FindingOwnerType;
-  customerMessage: string;
-  customerFollowUp?: string;
-  strongAgentMessage: string;
-  weakAgentMessage: string;
-  strongSummary: string;
-  weakSummary: string;
-  positiveNotes: string;
-  riskHint?: string;
+export type DemoAiDraftSeed = {
+  id: string;
+  reviewId: string;
+  conversationId: string;
+  evidenceMessageId: string;
+  createdAt: Date;
+  modelVersion: string;
+  promptVersion: string;
+  confidence: number;
+  criteria: DemoAiCriterionSeed[];
+};
+
+export type DemoQuotaSeed = {
+  id: string;
+  operatorId: string;
+  assigneeName: string;
+  supportLine: string;
+  plannedCount: number;
+};
+
+export type DemoEvidenceFactor =
+  | "freshdesk-processes"
+  | "zendesk-improvement"
+  | "declining-team"
+  | "ai-drift"
+  | "high-plus";
+
+export type DemoAnalyticalScenario = {
+  reviews: ReviewedConversationSeed[];
+  criteria: DemoCriterionSeed[];
+  aiDrafts: DemoAiDraftSeed[];
+  quotas: DemoQuotaSeed[];
+  evidence: Record<DemoEvidenceFactor, string[]>;
+  savedViews: DemoSavedReportViewSeed[];
+  aiStory: {
+    confidenceDrops: number;
+    fallbackSpikes: number;
+    weekly: Array<{ confidence: number; fallbackShare: number }>;
+  };
+};
+
+export type DemoSavedReportViewSeed = {
+  id: string;
+  name: string;
+  href: string;
+  scope: "shared";
+  order: number;
 };
 
 const dayMs = 24 * 60 * 60 * 1000;
+
+export const demoWindowSlotCount = 42;
+
+export const demoReanswerSlots: readonly number[] = [3, 14, 18, 32];
+
+export const demoReanswerReviewIds = demoReanswerSlots.map(
+  (slot) => `demo-review-c${String(slot).padStart(2, "0")}`
+);
+
+export const demoCriteria: readonly DemoCriterionSeed[] = [
+  ["accuracy", "Точность ответа", "resolution", "Решение обращения", 10],
+  ["completeness", "Полнота решения", "resolution", "Решение обращения", 8],
+  ["context", "Контекст обращения", "resolution", "Решение обращения", 7],
+  ["next_step", "Следующий шаг", "resolution", "Решение обращения", 7],
+  ["routing", "Маршрутизация", "processes", "Процессы", 7],
+  ["ticket_work", "Работа в обращении", "processes", "Процессы", 6],
+  ["cross_team", "Работа со смежными отделами", "processes", "Процессы", 6],
+  ["sla_ownership", "Владелец и срок", "processes", "Процессы", 6],
+  ["style", "Стиль и ясность", "communication", "Коммуникация", 7],
+  ["empathy", "Эмпатия", "communication", "Коммуникация", 6],
+  ["grammar", "Грамотность", "communication", "Коммуникация", 5],
+  ["personalization", "Персонализация", "communication", "Коммуникация", 5],
+  ["policy", "Соблюдение политики", "risk-management", "Работа с риском", 6],
+  ["data_safety", "Защита данных", "risk-management", "Работа с риском", 5],
+  ["verification", "Проверка условий", "risk-management", "Работа с риском", 5],
+  ["escalation", "Эскалация риска", "risk-management", "Работа с риском", 4]
+].map(([key, label, blockKey, block, weight], index) => ({
+  id: `demo-criterion-${key}`,
+  key: String(key),
+  label: String(label),
+  blockKey: String(blockKey),
+  block: String(block),
+  weight: Number(weight),
+  order: index + 1
+}));
+
+const sourcePlan = [
+  { source: "freshdesk", count: 8 },
+  { source: "zendesk", count: 8 },
+  { source: "otrs_family", count: 7 },
+  { source: "intercom", count: 6 },
+  { source: "hubspot", count: 5 },
+  { source: "demo_import", count: 5 },
+  { source: "custom_api", count: 3 }
+] as const;
+
+const sourceScores = {
+  previous: {
+    freshdesk: [92, 90, 91, 89, 93, 90, 91, 88],
+    zendesk: [74, 76, 75, 77, 73, 78, 76, 75],
+    otrs_family: [94, 88, 82, 76, 70, 64, 48],
+    intercom: [91, 85, 79, 73, 67, 54],
+    hubspot: [89, 83, 77, 71, 65],
+    demo_import: [95, 86, 74, 62, 45],
+    custom_api: [88, 80, 72]
+  },
+  current: {
+    freshdesk: [78, 80, 79, 77, 81, 78, 79, 76],
+    zendesk: [82, 84, 83, 85, 81, 86, 84, 83],
+    otrs_family: [93, 87, 81, 75, 69, 63, 46],
+    intercom: [90, 84, 78, 72, 66, 52],
+    hubspot: [90, 84, 78, 72, 66],
+    demo_import: [94, 85, 73, 61, 44],
+    custom_api: [87, 79, 71]
+  }
+} as const;
+
+const operators = [
+  ["demo-operator-01", "Иван Петров", "process-escalations", "Процессные эскалации", "2ЛП"],
+  ["demo-operator-02", "Ольга Иванова", "process-escalations", "Процессные эскалации", "1ЛП"],
+  ["demo-operator-03", "Денис Соколов", "process-escalations", "Процессные эскалации", "1ЛП"],
+  ["demo-operator-04", "Елена Морозова", "process-escalations", "Процессные эскалации", "2ЛП"],
+  ["demo-operator-05", "Александр Ким", "fgis-services", "ФГИС и государственные сервисы", "1ЛП"],
+  ["demo-operator-06", "Надежда Орлова", "fgis-services", "ФГИС и государственные сервисы", "1ЛП"],
+  ["demo-operator-07", "Михаил Громов", "fgis-services", "ФГИС и государственные сервисы", "2ЛП"],
+  ["demo-operator-08", "Софья Беляева", "fgis-services", "ФГИС и государственные сервисы", "2ЛП"],
+  ["demo-operator-09", "Роман Тихонов", "account-commerce", "Личный кабинет и коммерческие услуги", "1ЛП"],
+  ["demo-operator-10", "Алина Бородина", "account-commerce", "Личный кабинет и коммерческие услуги", "1ЛП"],
+  ["demo-operator-11", "Екатерина Александровна Вышеславцева", "account-commerce", "Личный кабинет и коммерческие услуги", "2ЛП"],
+  ["demo-operator-12", "Тимофей Нестеров", "account-commerce", "Личный кабинет и коммерческие услуги", "2ЛП"]
+].map(([id, name, teamSlug, teamName, supportLine]) => ({
+  id,
+  name,
+  teamSlug,
+  teamName,
+  supportLine
+}));
+
+const categories = [
+  "Полнота решения",
+  "Следующий шаг",
+  "Неверная маршрутизация",
+  "Работа в обращении",
+  "Стиль и ясность",
+  "Эмпатия",
+  "Персонализация",
+  "Проверка условий",
+  "Политика данных",
+  "Эскалация риска"
+];
+
+const subjects = [
+  "Не обновился статус заявления после отправки документов",
+  "Код подтверждения не приходит после смены номера",
+  "Промокод не применился к продлению подписки",
+  "Запись на услугу перенесена без уведомления",
+  "Закрывающие документы не появились в кабинете",
+  "Обращение передают между линиями без владельца",
+  "Стоимость тарифа изменилась после автопродления",
+  "Ответ в мессенджере пришёл после истечения SLA",
+  "Ссылка в инструкции ведёт на архивную страницу",
+  "В договоре не учтены согласованные изменения",
+  "Шаблон ответа не учитывает тип заявления",
+  "Запрос на удаление персональных данных без статуса",
+  "Платёж прошёл, но услуга осталась заблокированной",
+  "Повторный запрос документов после успешной проверки",
+  "Заявление вернули без объяснения причины",
+  "Компенсация рассчитана по устаревшим условиям",
+  "Эскалация закрыта до ответа профильного отдела",
+  "Оператор не указал срок следующего обновления",
+  "Личный кабинет показывает противоречивые статусы",
+  "Уведомление об отказе пришло без дальнейших шагов",
+  "Дубликат обращения попал в разные очереди",
+  "Файл подтверждения не прикрепился к заявлению",
+  "История переписки пропала после объединения тикетов",
+  "Ответ не содержит обязательного основания решения",
+  "Маршрут обращения изменился после повторного открытия",
+  "Клиенту предложили недоступный канал подтверждения",
+  "Срок обработки указан без учёта рабочего календаря",
+  "Согласование зависло между коммерческим и техническим блоком",
+  "Оператор закрыл обращение до подтверждения клиента",
+  "Инструкция не соответствует текущей версии интерфейса",
+  "Чувствительные данные процитированы в открытом комментарии",
+  "Переответ не устранил исходную ошибку маршрутизации",
+  "Запрос попал в ручную очередь без объяснения причины",
+  "В ответе отсутствует ссылка на публичный регламент",
+  "Клиент повторно сообщил уже проверенные сведения",
+  "Сервисный запрос ошибочно отмечен как коммерческий",
+  "Системная подсказка расходится с решением специалиста",
+  "Апелляция открыта без конкретного оспариваемого критерия",
+  "Обращение закрыто с неподтверждённым результатом проверки",
+  "Длинное имя оператора ломает строку ответственного",
+  "Недостаточная выборка по редкому источнику custom API",
+  "Повторное обращение по неверной маршрутизации заявления между смежными подразделениями"
+];
 
 const customerNames = [
   "Наталья Белова",
@@ -87,241 +303,14 @@ const customerNames = [
   "Роман Ильин",
   "Егор Селезнев",
   "Илья Макаров",
-  "Вера Громова",
-  "Кирилл Астахов",
-  "Оксана Миронова",
-  "Лев Панин",
-  "Светлана Мельникова",
-  "Алина Романова",
-  "Петр Жуков",
-  "Юлия Нестерова",
-  "Галина Фролова",
-  "Михаил Серов",
-  "Денис Яковлев",
-  "Екатерина Лапина",
-  "Семен Власов"
+  "Вера Громова"
 ];
 
-const scenarios: DemoScenario[] = [
-  {
-    subject: "Уточнение статуса заявления",
-    tags: "статус,заявление,фгис",
-    category: "Полнота решения",
-    customerMessage: "Не вижу статус заявления в личном кабинете и не понимаю, что делать дальше.",
-    strongAgentMessage: "Статус находится в разделе «Заявления». Сейчас он на проверке, обновление появится до конца рабочего дня.",
-    weakAgentMessage: "Проверьте статус в личном кабинете позже.",
-    strongSummary: "Оператор дал точный путь, статус и следующий шаг с понятным сроком.",
-    weakSummary: "Ответ слишком общий: нет точного раздела, срока и действия при просрочке.",
-    positiveNotes: "Хорошо закрыто ожидание клиента по следующему шагу."
-  },
-  {
-    subject: "Сбой авторизации после смены пароля",
-    tags: "авторизация,код,технический-сбой",
-    category: "Ожидания клиента",
-    customerMessage: "После смены пароля не приходит код, а оплатить счет нужно сегодня.",
-    customerFollowUp: "Если код не придет, нужен запасной способ входа.",
-    strongAgentMessage: "Я проверил отправку кода: повторная отправка доступна через 10 минут, запасной вход через email включен.",
-    weakAgentMessage: "Попробуйте запросить код позже.",
-    strongSummary: "Даны срок, причина ожидания и запасной канал входа.",
-    weakSummary: "Не объяснен срок доставки кода и не предложен запасной сценарий.",
-    positiveNotes: "Оператор не оставил клиента без способа продолжить работу."
-  },
-  {
-    subject: "Промокод не применился к заказу",
-    tags: "промокод,оплата,компенсация",
-    category: "Проверка условий",
-    ownerType: "POLICY",
-    customerMessage: "Промокод активен, но сумма заказа не изменилась.",
-    strongAgentMessage: "Промокод действует только на новые услуги. По вашему заказу я добавил корректную скидку вручную.",
-    weakAgentMessage: "Промокод может не работать из-за условий акции.",
-    strongSummary: "Оператор сверил условия акции и дал конкретное решение по заказу.",
-    weakSummary: "Не проверены условия акции и не дан результат по конкретному заказу.",
-    positiveNotes: "Хорошая привязка политики акции к обращению клиента."
-  },
-  {
-    subject: "Перенос записи на услугу",
-    tags: "запись,перенос,new_hire",
-    category: "Работа в обращении",
-    customerMessage: "Нужно перенести запись на следующую неделю и получить подтверждение.",
-    strongAgentMessage: "Запись перенесена на вторник 10:30, уведомление отправлено на email и в личный кабинет.",
-    weakAgentMessage: "Я перенес запись, проверьте личный кабинет.",
-    strongSummary: "Подтверждены дата, канал уведомления и итог переноса.",
-    weakSummary: "Не подтверждены все каналы уведомления и точное время записи.",
-    positiveNotes: "Корректное закрытие операционного запроса без лишней переписки."
-  },
-  {
-    subject: "Закрывающие документы не пришли",
-    tags: "документы,бухгалтерия,срок",
-    category: "Полнота решения",
-    customerMessage: "Закрывающие документы не пришли, бухгалтерия ждет сегодня.",
-    customerFollowUp: "Без документов платеж не проведут.",
-    strongAgentMessage: "Документы сформированы и уйдут до 16:00. Я добавил контрольную задачу и пришлю подтверждение.",
-    weakAgentMessage: "Документы обычно приходят в течение нескольких дней.",
-    strongSummary: "Проверен фактический статус документов и зафиксирован контрольный срок.",
-    weakSummary: "Не проверен фактический статус отправки и нет конкретного срока.",
-    positiveNotes: "Клиент получил проверяемое обещание вместо общего шаблона."
-  },
-  {
-    subject: "Неверная маршрутизация технической ошибки",
-    tags: "маршрутизация,sla,critical",
-    category: "Неверная маршрутизация",
-    ownerType: "PROCESS",
-    customerMessage: "Ошибка не исправлена, меня переводят между отделами.",
-    strongAgentMessage: "Я назначил владельца второй линии, причина передачи описана, обновление будет до 18:00.",
-    weakAgentMessage: "Ваш вопрос передан в другой отдел.",
-    strongSummary: "Маршрутизация прозрачна: владелец, причина и срок обновления указаны.",
-    weakSummary: "Клиент не получил владельца, причину передачи и срок следующего обновления.",
-    positiveNotes: "Тон корректный, но процесс требует контроля владельца.",
-    riskHint: "Потеря SLA из-за передачи без владельца"
-  },
-  {
-    subject: "Уточнение тарифа после продления",
-    tags: "тариф,продление,условия",
-    category: "Корректность шаблона",
-    ownerType: "POLICY",
-    customerMessage: "Почему тариф стал дороже после продления?",
-    strongAgentMessage: "Цена изменилась из-за окончания промо-периода. Вот ссылка на условия и расчет по вашему тарифу.",
-    weakAgentMessage: "Стоимость зависит от условий тарифа.",
-    strongSummary: "Объяснена причина изменения цены и приложено основание.",
-    weakSummary: "Ответ понятный по тону, но нет ссылки на актуальные условия.",
-    positiveNotes: "Хорошая связка между политикой тарифа и конкретным расчетом."
-  },
-  {
-    subject: "Долгое ожидание ответа в мессенджере",
-    tags: "скорость,ожидание,dsat",
-    category: "Стиль и ясность",
-    customerMessage: "Я жду ответа уже несколько часов.",
-    strongAgentMessage: "Извините за ожидание. Проверка заняла больше времени из-за сверки платежа, сейчас статус обновлен.",
-    weakAgentMessage: "Ваш вопрос решен, проверьте статус.",
-    strongSummary: "Оператор признал задержку, объяснил причину и закрыл следующий шаг.",
-    weakSummary: "Не признана задержка и не объяснена причина ожидания.",
-    positiveNotes: "Тон спокойный и не перекладывает ответственность на клиента."
-  },
-  {
-    subject: "Некорректная ссылка в инструкции",
-    tags: "инструкция,ссылка,шаблон",
-    category: "Корректность шаблона",
-    customerMessage: "Ссылка из ответа ведет на старую инструкцию.",
-    strongAgentMessage: "Спасибо, ссылка обновлена. Вот актуальная инструкция и короткий путь к нужному разделу.",
-    weakAgentMessage: "Используйте другую инструкцию из базы знаний.",
-    strongSummary: "Ссылка исправлена, клиент получил актуальную инструкцию и путь.",
-    weakSummary: "Первичный ответ был без проверки актуальности инструкции.",
-    positiveNotes: "Быстрое исправление без оборонительной формулировки."
-  },
-  {
-    subject: "Сложный запрос по договору",
-    tags: "договор,сложный-запрос,best-practice",
-    category: "Сложный кейс",
-    customerMessage: "Нужно согласовать несколько изменений в договоре одним письмом.",
-    customerFollowUp: "Важно не потерять ни одну правку.",
-    strongAgentMessage: "Я собрал все правки в один список, отметил владельцев и срок финального согласования.",
-    weakAgentMessage: "Передал ваши правки ответственным коллегам.",
-    strongSummary: "Сложный кейс закрыт структурно: факты, владельцы и сроки собраны в одном ответе.",
-    weakSummary: "Не собран единый итог по правкам, клиенту придется уточнять повторно.",
-    positiveNotes: "Можно использовать как эталон для обучения команды."
-  },
-  {
-    subject: "Шаблонный ответ без персонализации",
-    tags: "шаблон,персонализация,manual",
-    category: "Персонализация",
-    customerMessage: "В ответе не указано, какие документы нужны именно для моей ситуации.",
-    strongAgentMessage: "Для вашего типа заявления нужны паспорт, договор и подтверждение оплаты. Я отметил это в заявке.",
-    weakAgentMessage: "Список документов указан в общей инструкции.",
-    strongSummary: "Шаблон адаптирован под сценарий клиента и содержит конкретный список документов.",
-    weakSummary: "Шаблон не адаптирован под тип заявления клиента.",
-    positiveNotes: "Персонализация снижает риск повторного обращения."
-  },
-  {
-    subject: "Запрос на удаление персональных данных",
-    tags: "персональные-данные,политика,lead_signal",
-    category: "Политика данных",
-    ownerType: "POLICY",
-    customerMessage: "Хочу удалить старые персональные данные из профиля.",
-    strongAgentMessage: "Я проверил право на запрос, описал процедуру удаления и срок обработки до 5 рабочих дней.",
-    weakAgentMessage: "Удаление данных выполняется по регламенту.",
-    strongSummary: "Чувствительный запрос обработан корректно: право, процедура и срок описаны.",
-    weakSummary: "Не хватает процедуры, срока и подтверждения права клиента на запрос.",
-    positiveNotes: "Аккуратная работа с чувствительным запросом."
-  }
-];
-
-const earlyAprilSlots: DemoReviewSlot[] = [
-  { externalId: "OTRS-2301", finalizedAt: "2026-04-02T10:20:00.000Z", totalScore: 93 },
-  { externalId: "ZD-6801", finalizedAt: "2026-04-04T12:15:00.000Z", totalScore: 81, samplingType: "DSAT" },
-  { externalId: "INT-4801", finalizedAt: "2026-04-06T15:40:00.000Z", totalScore: 72, feedbackStatus: "feedback_sent" },
-  { externalId: "FD-3001", finalizedAt: "2026-04-08T09:35:00.000Z", totalScore: 88, samplingType: "NEW_HIRE" },
-  { externalId: "HS-4001", finalizedAt: "2026-04-10T13:25:00.000Z", totalScore: 64, samplingType: "DSAT" },
-  { externalId: "conv-1801", finalizedAt: "2026-04-12T16:10:00.000Z", totalScore: 96 },
-  { externalId: "OTRS-2302", finalizedAt: "2026-04-15T11:45:00.000Z", totalScore: 48, criticalError: true },
-  { externalId: "ZD-6802", finalizedAt: "2026-04-17T14:00:00.000Z", totalScore: 84 },
-  { externalId: "API-6001", finalizedAt: "2026-04-19T10:30:00.000Z", totalScore: 78, source: "custom_api" },
-  { externalId: "FD-3002", finalizedAt: "2026-04-21T12:50:00.000Z", totalScore: 90 }
-];
-
-const previousPeriodSlots: DemoReviewSlot[] = [
-  { externalId: "ZD-6901", finalizedAt: "2026-04-22T10:00:00.000Z", totalScore: 90, feedbackStatus: "acknowledged" },
-  { externalId: "OTRS-2501", finalizedAt: "2026-04-23T11:20:00.000Z", totalScore: 83 },
-  { externalId: "INT-5001", finalizedAt: "2026-04-24T15:10:00.000Z", totalScore: 77 },
-  { externalId: "FD-3101", finalizedAt: "2026-04-25T12:35:00.000Z", totalScore: 71, needsReanswer: true, reanswerStatus: "completed", feedbackStatus: "corrected", appealStatus: "corrected" },
-  { externalId: "HS-4201", finalizedAt: "2026-04-26T13:45:00.000Z", totalScore: 65, needsReanswer: true, reanswerStatus: "required", feedbackStatus: "acknowledged", appealStatus: "confirmed" },
-  { externalId: "conv-2001", finalizedAt: "2026-04-27T16:20:00.000Z", totalScore: 58, feedbackStatus: "feedback_sent" },
-  { externalId: "ZD-6902", finalizedAt: "2026-04-28T12:00:00.000Z", totalScore: 44, needsReanswer: true, reanswerStatus: "requested", feedbackStatus: "appeal", appealStatus: "open" },
-  { externalId: "OTRS-2502", finalizedAt: "2026-04-29T11:30:00.000Z", totalScore: 87, feedbackStatus: "acknowledged" },
-  { externalId: "INT-5002", finalizedAt: "2026-04-30T10:15:00.000Z", totalScore: 92 },
-  { externalId: "FD-3102", finalizedAt: "2026-05-01T14:40:00.000Z", totalScore: 79, samplingType: "LOW_SCORE" },
-  { externalId: "HS-4202", finalizedAt: "2026-05-02T09:25:00.000Z", totalScore: 55, samplingType: "DSAT", needsReanswer: true, reanswerStatus: "required" },
-  { externalId: "conv-2002", finalizedAt: "2026-05-03T12:05:00.000Z", totalScore: 98, feedbackStatus: "acknowledged" },
-  { externalId: "OTRS-2503", finalizedAt: "2026-05-04T13:50:00.000Z", totalScore: 86 },
-  { externalId: "ZD-6903", finalizedAt: "2026-05-05T09:45:00.000Z", totalScore: 73, feedbackStatus: "appeal", appealStatus: "calibration" },
-  { externalId: "API-6002", finalizedAt: "2026-05-06T16:30:00.000Z", totalScore: 82, source: "custom_api", samplingType: "MANUAL" },
-  { externalId: "FD-3103", finalizedAt: "2026-05-07T11:05:00.000Z", totalScore: 67, needsReanswer: true, reanswerStatus: "requested" },
-  { externalId: "INT-5003", finalizedAt: "2026-05-08T10:10:00.000Z", totalScore: 91 },
-  { externalId: "HS-4203", finalizedAt: "2026-05-09T15:55:00.000Z", totalScore: 76, samplingType: "LEAD_SIGNAL" },
-  { externalId: "conv-2003", finalizedAt: "2026-05-10T14:35:00.000Z", totalScore: 69, feedbackStatus: "feedback_sent" },
-  { externalId: "OTRS-2504", finalizedAt: "2026-05-11T09:50:00.000Z", totalScore: 94, feedbackStatus: "acknowledged" },
-  { externalId: "ZD-6904", finalizedAt: "2026-05-12T13:15:00.000Z", totalScore: 61, samplingType: "DSAT", needsReanswer: true, reanswerStatus: "required" },
-  { externalId: "INT-5004", finalizedAt: "2026-05-13T11:25:00.000Z", totalScore: 89 },
-  { externalId: "FD-3104", finalizedAt: "2026-05-14T10:45:00.000Z", totalScore: 74, feedbackStatus: "appeal", appealStatus: "open" },
-  { externalId: "HS-4204", finalizedAt: "2026-05-15T16:05:00.000Z", totalScore: 85, samplingType: "MANUAL" },
-  { externalId: "API-6003", finalizedAt: "2026-05-16T12:20:00.000Z", totalScore: 52, source: "custom_api", needsReanswer: true, reanswerStatus: "requested" },
-  { externalId: "conv-2004", finalizedAt: "2026-05-18T14:05:00.000Z", totalScore: 80 },
-  { externalId: "OTRS-2505", finalizedAt: "2026-05-20T11:40:00.000Z", totalScore: 95, feedbackStatus: "acknowledged" },
-  { externalId: "ZD-6905", finalizedAt: "2026-05-21T15:20:00.000Z", totalScore: 70, samplingType: "LOW_SCORE" }
-];
-
-const currentPeriodSlots: DemoReviewSlot[] = [
-  { externalId: "OTRS-2601", finalizedAt: "2026-05-22T11:00:00.000Z", totalScore: 96, feedbackStatus: "acknowledged" },
-  { externalId: "ZD-7001", finalizedAt: "2026-05-22T13:20:00.000Z", totalScore: 82, feedbackStatus: "feedback_sent" },
-  { externalId: "INT-5101", finalizedAt: "2026-05-22T14:10:00.000Z", totalScore: 74, feedbackStatus: "appeal", appealStatus: "open", needsReanswer: true, reanswerStatus: "requested" },
-  { externalId: "FD-3201", finalizedAt: "2026-05-23T08:45:00.000Z", totalScore: 89, samplingType: "NEW_HIRE", feedbackStatus: "acknowledged" },
-  { externalId: "HS-4301", finalizedAt: "2026-05-23T10:15:00.000Z", totalScore: 68, needsReanswer: true, reanswerStatus: "required" },
-  { externalId: "conv-2101", finalizedAt: "2026-05-23T15:00:00.000Z", totalScore: 93, feedbackStatus: "acknowledged" },
-  { externalId: "OTRS-2602", finalizedAt: "2026-05-24T09:30:00.000Z", totalScore: 58, criticalError: true, feedbackStatus: "appeal", appealStatus: "calibration", needsReanswer: true, reanswerStatus: "requested" },
-  { externalId: "ZD-7002", finalizedAt: "2026-05-24T11:45:00.000Z", totalScore: 85, samplingType: "MANUAL", feedbackStatus: "new" },
-  { externalId: "INT-5102", finalizedAt: "2026-05-24T16:10:00.000Z", totalScore: 57, feedbackStatus: "corrected", appealStatus: "corrected", needsReanswer: true, reanswerStatus: "completed" },
-  { externalId: "FD-3202", finalizedAt: "2026-05-25T08:20:00.000Z", totalScore: 78 },
-  { externalId: "HS-4302", finalizedAt: "2026-05-25T10:35:00.000Z", totalScore: 99, feedbackStatus: "acknowledged" },
-  { externalId: "conv-2102", finalizedAt: "2026-05-25T14:30:00.000Z", totalScore: 62, needsReanswer: true, reanswerStatus: "required" },
-  { externalId: "ZD-7003", finalizedAt: "2026-05-26T09:20:00.000Z", totalScore: 91, samplingType: "LEAD_SIGNAL" },
-  { externalId: "OTRS-2603", finalizedAt: "2026-05-26T12:05:00.000Z", totalScore: 49, feedbackStatus: "appeal", appealStatus: "open", needsReanswer: true, reanswerStatus: "requested" },
-  { externalId: "API-6101", finalizedAt: "2026-05-22T16:40:00.000Z", totalScore: 87, source: "custom_api", samplingType: "RANDOM" },
-  { externalId: "FD-3203", finalizedAt: "2026-05-23T12:25:00.000Z", totalScore: 66, samplingType: "DSAT", needsReanswer: true, reanswerStatus: "required" },
-  { externalId: "HS-4303", finalizedAt: "2026-05-24T13:35:00.000Z", totalScore: 92 },
-  { externalId: "INT-5103", finalizedAt: "2026-05-25T09:15:00.000Z", totalScore: 75, feedbackStatus: "appeal", appealStatus: "confirmed" },
-  { externalId: "ZD-7004", finalizedAt: "2026-05-25T16:55:00.000Z", totalScore: 84 },
-  { externalId: "OTRS-2604", finalizedAt: "2026-05-26T08:40:00.000Z", totalScore: 71, samplingType: "LOW_SCORE" },
-  { externalId: "conv-2103", finalizedAt: "2026-05-26T10:50:00.000Z", totalScore: 97, feedbackStatus: "acknowledged" },
-  { externalId: "API-6102", finalizedAt: "2026-05-26T15:30:00.000Z", totalScore: 60, source: "custom_api", samplingType: "MANUAL", needsReanswer: true, reanswerStatus: "requested" }
-];
-
-function sourceFromExternalId(externalId: string) {
-  if (externalId.startsWith("OTRS-")) return "otrs_family";
-  if (externalId.startsWith("ZD-")) return "zendesk";
-  if (externalId.startsWith("INT-")) return "intercom";
-  if (externalId.startsWith("FD-")) return "freshdesk";
-  if (externalId.startsWith("HS-")) return "hubspot";
-  if (externalId.startsWith("API-")) return "custom_api";
-  return "demo_import";
+function riskForScore(totalScore: number): RiskLevel {
+  if (totalScore < 55) return "CRITICAL";
+  if (totalScore < 75) return "HIGH";
+  if (totalScore < 85) return "MEDIUM";
+  return "LOW";
 }
 
 function channelForSource(source: string): ConversationChannel {
@@ -331,118 +320,446 @@ function channelForSource(source: string): ConversationChannel {
   return "CHAT";
 }
 
-function riskForScore(totalScore: number): RiskLevel {
-  if (totalScore < 55) return "CRITICAL";
-  if (totalScore < 75) return "HIGH";
-  if (totalScore < 85) return "MEDIUM";
-  return "LOW";
+// Восстановленный сценарий OTRS-2602: конвертирует слот c18 (otrs_family, уже
+// апелляционный), поэтому все границы манифеста и раскладка апелляций не меняются.
+const otrs2602Fixture: {
+  externalId: string;
+  channel: ConversationChannel;
+  subject: string;
+  tags: string;
+  customerName: string;
+  teamName: string;
+  riskHint: string;
+  customerMessage: string;
+  agentMessage: string;
+  totalScore: number;
+  summary: string;
+  category: string;
+  riskLevel: RiskLevel;
+  criticalCategory: string;
+  appealStatus: string;
+} = {
+  externalId: "OTRS-2602",
+  channel: "EMAIL",
+  subject: "Неверный отдел для технической ошибки",
+  tags: "маршрутизация,critical,переответ",
+  customerName: "Илья Макаров",
+  teamName: "ФГИС и государственные сервисы",
+  riskHint: "Потеря SLA из-за неверной маршрутизации",
+  customerMessage: "Ошибка не исправлена, меня переводят между отделами.",
+  agentMessage: "Оператор передал обращение в неверную очередь без объяснения причины.",
+  totalScore: 58,
+  summary: "Критическая маршрутизация: клиент не получил владельца и срок исправления.",
+  category: "Неверная маршрутизация",
+  riskLevel: "CRITICAL",
+  criticalCategory: "Неверная маршрутизация с потерей SLA",
+  appealStatus: "calibration"
+};
+
+function sourceAtSlot(slot: number) {
+  let cursor = 0;
+  for (const entry of sourcePlan) {
+    cursor += entry.count;
+    if (slot <= cursor) return entry.source;
+  }
+  throw new Error(`Missing demo source for slot ${slot}`);
 }
 
-function csatForScore(totalScore: number) {
-  if (totalScore >= 88) return { csatScore: 5, csatBucket: "POSITIVE" };
-  if (totalScore >= 75) return { csatScore: 4, csatBucket: "POSITIVE" };
-  if (totalScore >= 65) return { csatScore: 2, csatBucket: "NEGATIVE" };
-  if (totalScore >= 55) return { csatScore: 1, csatBucket: "NEGATIVE" };
-  return { csatScore: 1, csatBucket: "NEGATIVE" };
+function scoreAtSlot(window: "previous" | "current", slot: number) {
+  const source = sourceAtSlot(slot);
+  const before = sourcePlan
+    .slice(0, sourcePlan.findIndex((entry) => entry.source === source))
+    .reduce((total, entry) => total + entry.count, 0);
+  return sourceScores[window][source][slot - before - 1];
 }
 
-function feedbackFor(slot: DemoReviewSlot, index: number, riskLevel: RiskLevel) {
-  if (slot.feedbackStatus) {
-    return slot.feedbackStatus;
-  }
-
-  if (riskLevel === "CRITICAL" || (riskLevel === "HIGH" && index % 4 === 0)) {
-    return "appeal";
-  }
-
-  return ["acknowledged", "feedback_sent", "new", "corrected"][index % 4];
+function operatorAtSlot(window: "previous" | "current", slot: number) {
+  if (window === "previous") return operators[(slot - 1) % operators.length];
+  if (slot <= 12) return operators[0];
+  if (slot <= 23) return operators[1];
+  if (slot <= 25) return operators[2];
+  if (slot <= 27) return operators[3];
+  if (slot <= 29) return operators[4];
+  if (slot <= 31) return operators[5];
+  if (slot <= 33) return operators[6];
+  if (slot <= 35) return operators[7];
+  if (slot <= 37) return operators[8];
+  if (slot <= 39) return operators[9];
+  if (slot === 40) return operators[10];
+  return operators[11];
 }
 
-function appealFor(slot: DemoReviewSlot, feedbackStatus: string, index: number) {
-  if (slot.appealStatus) {
-    return slot.appealStatus;
-  }
-
-  if (feedbackStatus === "appeal") {
-    return ["open", "calibration", "open"][index % 3];
-  }
-
-  if (feedbackStatus === "corrected") {
-    return "corrected";
-  }
-
-  return "none";
+function scoreValue(totalScore: number) {
+  if (totalScore >= 85) return 3;
+  if (totalScore >= 65) return 2;
+  return 1;
 }
 
-function buildSeed(slot: DemoReviewSlot, index: number, context: DemoReviewSeedContext): ReviewedConversationSeed {
-  const source = slot.source ?? sourceFromExternalId(slot.externalId);
-  const finalizedAt = new Date(slot.finalizedAt);
-  const openedAt = new Date(finalizedAt.getTime() - (120 + (index % 6) * 18) * 60 * 1000);
-  const closedAt = new Date(finalizedAt.getTime() - (55 + (index % 4) * 8) * 60 * 1000);
-  const scenario = scenarios[index % scenarios.length];
-  const operators = [
-    { name: context.supportOlgaName, supportLine: "1ЛП", teamName: "ФГИС" },
-    { name: context.supportDenisName, supportLine: "1ЛП", teamName: "Коммерческие сервисы" },
-    { name: context.supportElenaName, supportLine: "2ЛП", teamName: "Личный кабинет" },
-    { name: context.supportAgentName, supportLine: "2ЛП", teamName: "ФГИС" }
-  ];
-  const reviewers = [context.analystId, context.seniorAnalystId, context.teamLeadId];
-  const operator = operators[index % operators.length];
-  const riskLevel = riskForScore(slot.totalScore);
-  const feedbackStatus = feedbackFor(slot, index, riskLevel);
-  const appealStatus = appealFor(slot, feedbackStatus, index);
-  const needsReanswer = slot.needsReanswer ?? ((riskLevel === "HIGH" || riskLevel === "CRITICAL") && index % 2 === 0);
-  const reanswerStatus = needsReanswer ? slot.reanswerStatus ?? (index % 3 === 0 ? "requested" : "required") : "not_needed";
-  const strong = slot.totalScore >= 85;
-  const { csatScore, csatBucket } = slot.samplingType === "MANUAL" ? { csatScore: null, csatBucket: "NO_SCORE" } : csatForScore(slot.totalScore);
+function criterionValues(
+  window: "previous" | "current",
+  slot: number,
+  totalScore: number,
+  agentMessageId: string
+) {
+  const source = sourceAtSlot(slot);
+  const processPattern =
+    source === "freshdesk"
+      ? window === "previous"
+        ? [3, 3, 3, 2]
+        : [2, 2, 2, 1]
+      : null;
+
+  return demoCriteria.map((criterion, index) => {
+    const processIndex = demoCriteria
+      .filter((entry) => entry.blockKey === "processes")
+      .findIndex((entry) => entry.id === criterion.id);
+    const value =
+      processPattern && processIndex >= 0
+        ? processPattern[processIndex]
+        : Math.max(1, Math.min(3, scoreValue(totalScore) + ((slot + index) % 7 === 0 ? -1 : 0)));
+
+    return {
+      id: `demo-score-${window === "previous" ? "p" : "c"}${String(slot).padStart(2, "0")}-${criterion.key}`,
+      criterionId: criterion.id,
+      criterionKey: criterion.key,
+      value,
+      evidenceMessageId: agentMessageId
+    };
+  });
+}
+
+function buildReview(
+  context: DemoReviewSeedContext,
+  calendar: DemoCalendar,
+  window: "previous" | "current",
+  slot: number
+): ReviewedConversationSeed {
+  const code = `${window === "previous" ? "p" : "c"}${String(slot).padStart(2, "0")}`;
+  const dateOffsets = [0, 4, 11, 18, 25, 30, 34];
+  const timeIndex = (slot - 1) % 6;
+  const dayIndex = Math.floor((slot - 1) / 6);
+  const windowOffset = window === "previous" ? -69 : -34;
+  let dateOffset = dateOffsets[dayIndex];
+  const plannedLastCurrentSlot = daysFrom(calendar, windowOffset + 34, {
+    hour: 11,
+    minute: 35
+  });
+  if (
+    window === "current" &&
+    dayIndex === dateOffsets.length - 1 &&
+    plannedLastCurrentSlot > calendar.now
+  ) {
+    dateOffset = 33;
+  }
+  const finalizedAt = daysFrom(calendar, windowOffset + dateOffset, {
+    hour: 9,
+    minute: 5 + timeIndex * 30
+  });
+  const totalScore = scoreAtSlot(window, slot);
+  const fixture = window === "current" && slot === 18 ? otrs2602Fixture : null;
+  const effectiveTotalScore = fixture?.totalScore ?? totalScore;
+  const riskLevel = fixture?.riskLevel ?? riskForScore(effectiveTotalScore);
+  const operator = operatorAtSlot(window, slot);
+  const source = sourceAtSlot(slot);
+  const reviewerIds = [context.analystId, context.seniorAnalystId, context.teamLeadId];
+  const currentAppeals = new Set([3, 6, 14, 18, 32, 38]);
+  const previousAppeals = new Set([3, 14]);
+  const appeal = window === "current" ? currentAppeals.has(slot) : previousAppeals.has(slot);
+  const reanswer = window === "current" && demoReanswerSlots.includes(slot);
+  const acknowledged = window === "current" && [1, 9, 17, 24].includes(slot);
+  const pending = window === "current" && [2, 5, 10, 20].includes(slot);
+  const samplingTypes = ["RANDOM", "DSAT", "NEW_HIRE", "LOW_SCORE", "MANUAL", "LEAD_SIGNAL"];
+  const conversationId = `demo-conversation-${code}`;
+  const reviewId = `demo-review-${code}`;
+  const agentMessageId = `demo-message-${code}-agent`;
+  const subject = fixture?.subject ?? subjects[slot - 1];
+  const highPlus = riskLevel === "HIGH" || riskLevel === "CRITICAL";
 
   return {
+    window,
+    slot,
+    conversationId,
+    reviewId,
+    findingId: `demo-finding-${code}`,
+    coachingActionId: highPlus ? `demo-coaching-${code}` : null,
+    coachingDueAt: highPlus
+      ? new Date(finalizedAt.getTime() + 3 * dayMs)
+      : null,
+    operatorId: operator.id,
+    teamSlug: operator.teamSlug,
     externalSource: source,
-    externalId: slot.externalId,
-    channel: slot.channel ?? channelForSource(source),
-    subject: scenario.subject,
-    tags: `${scenario.tags},${slot.samplingType ?? "RANDOM"},${source}`,
-    customerName: customerNames[index % customerNames.length],
+    externalId: fixture?.externalId ?? `demo-ticket-${code}`,
+    channel: fixture?.channel ?? channelForSource(source),
+    subject,
+    tags: fixture?.tags ?? `demo,${source},${riskLevel.toLowerCase()}`,
+    customerName: fixture?.customerName ?? customerNames[(slot - 1) % customerNames.length],
     assigneeName: operator.name,
-    reviewerId: reviewers[index % reviewers.length],
+    reviewerId: reviewerIds[(slot - 1) % reviewerIds.length],
     reviewDueAt: new Date(finalizedAt.getTime() + 2 * dayMs),
-    samplingReason: samplingReason(slot.samplingType, riskLevel),
-    samplingType: slot.samplingType ?? (riskLevel === "LOW" ? "RANDOM" : riskLevel === "MEDIUM" ? "LOW_SCORE" : "DSAT"),
-    csatScore,
-    csatBucket,
+    samplingReason: riskLevel === "LOW" ? "Плановая случайная выборка" : "Сценарная выборка по риску",
+    samplingType: samplingTypes[(slot - 1) % samplingTypes.length],
+    csatScore: riskLevel === "LOW" ? 5 : riskLevel === "MEDIUM" ? 4 : 2,
+    csatBucket: riskLevel === "LOW" || riskLevel === "MEDIUM" ? "POSITIVE" : "NEGATIVE",
     supportLine: operator.supportLine,
-    teamName: operator.teamName,
-    riskHint: scenario.riskHint ?? (riskLevel === "LOW" ? null : "Демо-сигнал для разбора качества"),
-    openedAt,
-    closedAt,
-    customerMessage: scenario.customerMessage,
-    customerFollowUp: scenario.customerFollowUp,
-    agentMessage: strong ? scenario.strongAgentMessage : scenario.weakAgentMessage,
-    totalScore: slot.totalScore,
-    summary: strong ? scenario.strongSummary : scenario.weakSummary,
-    category: scenario.category,
+    teamName: fixture?.teamName ?? operator.teamName,
+    riskHint: fixture?.riskHint ?? (riskLevel === "LOW" ? null : "Демо-сигнал для разбора качества"),
+    sentiment: null,
+    openedAt: new Date(finalizedAt.getTime() - 120 * 60 * 1000),
+    closedAt: new Date(finalizedAt.getTime() - 30 * 60 * 1000),
+    customerMessage:
+      fixture?.customerMessage ??
+      `Нужна помощь: ${subject.toLocaleLowerCase("ru-RU")}. Подскажите статус и следующий шаг.`,
+    agentMessage:
+      fixture?.agentMessage ??
+      (riskLevel === "LOW"
+        ? "Оператор проверил контекст, назвал владельца и обозначил точный срок следующего шага."
+        : "Оператор дал неполный ответ: не закрепил владельца и точный срок следующего шага."),
+    customerMessageId: `demo-message-${code}-customer`,
+    agentMessageId,
+    totalScore: effectiveTotalScore,
+    summary:
+      fixture?.summary ??
+      (riskLevel === "LOW"
+        ? "Ответ закрывает вопрос клиента и фиксирует проверяемый следующий шаг."
+        : "Требуется разбор полноты решения, маршрутизации и владения следующим шагом."),
+    category: fixture?.category ?? categories[(slot - 1) % categories.length],
     riskLevel,
-    ownerType: scenario.ownerType,
+    ownerType: source === "freshdesk" || source === "otrs_family" ? "PROCESS" : "AGENT",
     finalizedAt,
-    criticalError: slot.criticalError ?? false,
-    criticalCategory: slot.criticalError ? scenario.category : undefined,
-    needsReanswer,
-    reanswerStatus,
-    feedbackStatus,
-    appealStatus,
-    positiveNotes: scenario.positiveNotes
+    criticalError: riskLevel === "CRITICAL",
+    criticalCategory:
+      fixture?.criticalCategory ??
+      (riskLevel === "CRITICAL" ? "Критический риск процесса" : undefined),
+    needsReanswer: reanswer,
+    reanswerStatus: reanswer ? "requested" : "not_needed",
+    feedbackStatus: acknowledged
+      ? "acknowledged"
+      : pending
+        ? "feedback_sent"
+        : appeal
+          ? "appeal"
+          : slot % 5 === 0
+            ? "corrected"
+            : "new",
+    feedbackAckAt: acknowledged ? new Date(finalizedAt.getTime() + 15 * 60 * 1000) : null,
+    appealStatus: fixture?.appealStatus ?? (appeal ? "open" : "none"),
+    positiveNotes: "Зафиксирован конкретный фрагмент ответа для обучения.",
+    criterionValues: criterionValues(window, slot, effectiveTotalScore, agentMessageId)
   };
 }
 
-function samplingReason(samplingType: string | undefined, riskLevel: RiskLevel) {
-  if (samplingType === "MANUAL") return "Ручное добавление после разбора руководителя";
-  if (samplingType === "NEW_HIRE") return "Контроль нового сотрудника";
-  if (samplingType === "LEAD_SIGNAL") return "Сигнал руководителя по рисковому сценарию";
-  if (samplingType === "DSAT" || riskLevel === "HIGH" || riskLevel === "CRITICAL") return "Негативный CSAT или низкая оценка";
-  if (samplingType === "LOW_SCORE") return "Низкая оценка по одному из критериев";
-  return "Плановая случайная выборка";
+const evidence = {
+  "freshdesk-processes": ["c01", "c02", "c03", "c04", "c05"],
+  "zendesk-improvement": ["c09", "c10", "c11", "c12", "c13"],
+  "declining-team": ["c03", "c06", "c14", "c18", "c24"],
+  "ai-drift": ["c25", "c28", "c31", "c37", "c38"],
+  "high-plus": ["c03", "c06", "c18", "c21", "c32"]
+} satisfies Record<DemoEvidenceFactor, string[]>;
+
+const aiPlan = [
+  ["c25", -21, "yandexgpt-qc-v2", 0.88],
+  ["c26", -20, "yandexgpt-qc-v2", 0.86],
+  ["c27", -19, "yandexgpt-qc-v2", 0.87],
+  ["c28", -14, "yandexgpt-qc-v2", 0.86],
+  ["c29", -13, "yandexgpt-qc-v2", 0.85],
+  ["c30", -12, "yandexgpt-qc-v2", 0.87],
+  ["c31", -7, "yandexgpt-qc-v2", 0.64],
+  ["c32", -6, "deterministic-v1", 0.62],
+  ["c33", -5, "deterministic-v1", 0.63],
+  ["c37", -1, "yandexgpt-qc-v2", 0.66],
+  ["c38", 0, "deterministic-v1", 0.65],
+  ["c39", 0, "deterministic-v1", 0.64]
+] as const;
+
+export const demoEvidenceReviewIds = [...new Set(Object.values(evidence).flat())]
+  .sort()
+  .map((code) => `demo-review-${code}`);
+
+export const demoAnalyticalExpectations = {
+  reviewCount: demoWindowSlotCount * 2,
+  windowReviewCount: demoWindowSlotCount,
+  criterionCount: demoCriteria.length,
+  criterionBlockCount: new Set(demoCriteria.map((criterion) => criterion.blockKey)).size,
+  criterionScoreCount: demoWindowSlotCount * 2 * demoCriteria.length,
+  aiDraftCount: aiPlan.length,
+  savedReportViewCount: 4,
+  operatorCount: operators.length,
+  teamCount: new Set(operators.map((operator) => operator.teamSlug)).size,
+  sourceCount: sourcePlan.length,
+  evidenceReviewCount: demoEvidenceReviewIds.length
+} as const;
+
+function buildAiDrafts(
+  reviews: readonly ReviewedConversationSeed[],
+  calendar: DemoCalendar
+): DemoAiDraftSeed[] {
+  const byCode = new Map(
+    reviews.map((review) => [
+      `c${String(review.slot).padStart(2, "0")}`,
+      review
+    ])
+  );
+
+  return aiPlan.map(([code, dayOffset, modelVersion, confidence], index) => {
+    const review = byCode.get(code);
+    if (!review) throw new Error(`Missing review for AI draft ${code}`);
+    let createdAt = daysFrom(calendar, dayOffset, {
+      hour: index === 10 ? 10 : index === 11 ? 11 : 10,
+      minute: index === 10 ? 45 : index === 11 ? 15 : 0
+    });
+    if (createdAt > calendar.now) {
+      createdAt = new Date(createdAt.getTime() - dayMs);
+    }
+
+    return {
+      id: `demo-ai-score-${String(index + 1).padStart(2, "0")}`,
+      reviewId: review.reviewId,
+      conversationId: review.conversationId,
+      evidenceMessageId: review.agentMessageId,
+      createdAt,
+      modelVersion,
+      promptVersion: "quality-score-v1",
+      confidence,
+      criteria: review.criterionValues.map((criterion, criterionIndex) => ({
+        criterionId: criterion.criterionId,
+        criterionKey: criterion.criterionKey,
+        value:
+          criterionIndex % 3 === index % 3
+            ? Math.max(1, criterion.value - 1)
+            : criterion.value,
+        confidence: Math.max(0.5, confidence - criterionIndex * 0.005),
+        rationale:
+          criterionIndex % 3 === index % 3
+            ? "Модель отмечает возможное расхождение и сохраняет ссылку на доказательство."
+            : "Модель подтверждает оценку по конкретному фрагменту ответа.",
+        evidenceRef: review.agentMessageId
+      }))
+    };
+  });
 }
 
-export function buildTwoMonthReviewedConversationSeeds(context: DemoReviewSeedContext): ReviewedConversationSeed[] {
-  return [...earlyAprilSlots, ...previousPeriodSlots, ...currentPeriodSlots].map((slot, index) => buildSeed(slot, index, context));
+function moscowDateInput(value: Date) {
+  return new Date(value.getTime() + 3 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function buildDemoSavedReportViews(calendar: DemoCalendar): DemoSavedReportViewSeed[] {
+  const common = {
+    period: "custom",
+    start: moscowDateInput(calendar.rollingThirtyFiveDaysStart),
+    end: moscowDateInput(calendar.now),
+    compare: "previous" as const,
+    grain: "week" as const,
+    chartView: "graph" as const,
+    series: ["score", "volume", "previous", "target"] as Array<
+      "score" | "volume" | "previous" | "target"
+    >
+  };
+  const create = (
+    id: string,
+    name: string,
+    order: number,
+    state: Parameters<typeof serializeReportAnalysisState>[0]
+  ): DemoSavedReportViewSeed => ({
+    id,
+    name,
+    href: serializeReportAnalysisState(state),
+    scope: "shared",
+    order
+  });
+
+  return [
+    create("demo-saved-report-high-plus", "HIGH+ риск", 1, {
+      ...common,
+      view: "process",
+      risk: "high_plus",
+      section: "risk"
+    }),
+    create(
+      "demo-saved-report-freshdesk-processes",
+      "Freshdesk / Процессы",
+      2,
+      {
+        ...common,
+        view: "performance",
+        source: "freshdesk",
+        block: buildReportCatalogSlug("Процессы"),
+        section: "drivers"
+      }
+    ),
+    create(
+      "demo-saved-report-declining-team",
+      "Команда с просадкой",
+      3,
+      {
+        ...common,
+        view: "performance",
+        team: buildReportCatalogSlug("Процессные эскалации"),
+        section: "drivers"
+      }
+    ),
+    create("demo-saved-report-ai-drift", "AI drift", 4, {
+      ...common,
+      view: "performance",
+      section: "ai-drift"
+    })
+  ];
+}
+
+export function buildDemoAnalyticalScenario(
+  context: DemoReviewSeedContext,
+  calendar: DemoCalendar
+): DemoAnalyticalScenario {
+  const reviews = (["previous", "current"] as const).flatMap((window) =>
+    Array.from({ length: demoWindowSlotCount }, (_, index) =>
+      buildReview(context, calendar, window, index + 1)
+    )
+  );
+
+  return {
+    reviews,
+    criteria: [...demoCriteria],
+    aiDrafts: buildAiDrafts(reviews, calendar),
+    quotas: [
+      {
+        id: "demo-quota-operator-01-current",
+        operatorId: "demo-operator-01",
+        assigneeName: operators[0].name,
+        supportLine: operators[0].supportLine,
+        plannedCount: 10
+      },
+      {
+        id: "demo-quota-operator-02-current",
+        operatorId: "demo-operator-02",
+        assigneeName: operators[1].name,
+        supportLine: operators[1].supportLine,
+        plannedCount: 14
+      }
+    ],
+    evidence: Object.fromEntries(
+      Object.entries(evidence).map(([factor, codes]) => [
+        factor,
+        codes.map((code) => `demo-review-${code}`)
+      ])
+    ) as Record<DemoEvidenceFactor, string[]>,
+    savedViews: buildDemoSavedReportViews(calendar),
+    aiStory: {
+      confidenceDrops: 1,
+      fallbackSpikes: 1,
+      weekly: [
+        { confidence: 0.87, fallbackShare: 0 },
+        { confidence: 0.86, fallbackShare: 0 },
+        { confidence: 0.63, fallbackShare: 0.667 },
+        { confidence: 0.65, fallbackShare: 0.667 }
+      ]
+    }
+  };
+}
+
+export function buildTwoMonthReviewedConversationSeeds(
+  context: DemoReviewSeedContext,
+  calendar: DemoCalendar
+): ReviewedConversationSeed[] {
+  return buildDemoAnalyticalScenario(context, calendar).reviews;
 }

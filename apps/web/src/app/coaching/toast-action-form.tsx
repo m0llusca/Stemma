@@ -48,7 +48,7 @@ export function ToastActionForm({
     <form action={formAction} className={className} aria-label={ariaLabel}>
       {children}
       {state && !state.ok ? (
-        <p role="alert" className="text-xs font-medium text-[var(--danger)]">
+        <p role="alert" className="mt-2 text-xs font-medium text-destructive">
           {state.message}
         </p>
       ) : null}

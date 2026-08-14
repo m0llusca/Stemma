@@ -1,4 +1,7 @@
+import type { ReactNode } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type PageSkeletonVariant = "admin" | "dashboard" | "detail" | "reports" | "workspace";
 
@@ -7,203 +10,247 @@ type PageSkeletonProps = {
   variant?: PageSkeletonVariant;
 };
 
-function SkeletonTextBlock({ titleWidth = 260, subtitleWidth = "min(460px, 90%)" }: { titleWidth?: number; subtitleWidth?: string }) {
+function Shell({
+  label,
+  children,
+  className
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="min-w-0" style={{ display: "grid", gap: 10 }}>
-      <Skeleton style={{ width: 160, height: 14 }} />
-      <Skeleton style={{ width: titleWidth, height: 30 }} />
-      <Skeleton style={{ width: subtitleWidth, height: 16 }} />
+    <div
+      className={cn(
+        "mx-auto flex w-full max-w-[var(--content-max-width,1420px)] flex-col gap-6 p-4 md:p-6",
+        className
+      )}
+      aria-busy="true"
+      aria-label={label}
+    >
+      {children}
     </div>
   );
 }
 
-/**
- * Mirrors the PageShell header: an eyebrow + title + description stack on the
- * left and a right-aligned primary-action placeholder. Used by the
- * dashboard/reports/admin skeletons so the loading state matches the loaded
- * screen's contextual header.
- */
-function PageShellHeaderSkeleton({
-  titleWidth = 220,
-  subtitleWidth = "min(520px, 90%)",
-  actionWidth = 150
+function HeaderSkeleton({
+  titleWidth = "w-56",
+  subtitleWidth = "w-full max-w-md",
+  actionWidth = "w-36"
 }: {
-  titleWidth?: number;
+  titleWidth?: string;
   subtitleWidth?: string;
-  actionWidth?: number;
+  actionWidth?: string;
 }) {
   return (
-    <header className="page-shell__header">
-      <SkeletonTextBlock titleWidth={titleWidth} subtitleWidth={subtitleWidth} />
-      <div className="page-shell__actions">
-        <Skeleton style={{ width: actionWidth, height: 38 }} />
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-2">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className={cn("h-8", titleWidth)} />
+        <Skeleton className={cn("h-4", subtitleWidth)} />
       </div>
+      <Skeleton className={cn("h-9 shrink-0", actionWidth)} />
     </header>
   );
 }
 
-function MetricSkeletons({ count = 4, className = "learning-metrics" }: { count?: number; className?: string }) {
+function MetricSkeletons({ count = 4 }: { count?: number }) {
   return (
-    <div className={className} aria-hidden="true">
+    <div className="flex flex-wrap gap-3" aria-hidden="true">
       {Array.from({ length: count }).map((_, index) => (
-        <Skeleton key={index} style={{ width: 96, height: 56 }} />
+        <Skeleton key={index} className="h-14 w-24" />
       ))}
     </div>
   );
 }
 
-function PanelRows({ rows = 5, height = 56 }: { rows?: number; height?: number }) {
+function SkeletonRows({ rows = 5, className = "h-14" }: { rows?: number; className?: string }) {
   return (
-    <div className="panel" style={{ display: "grid", gap: 10, padding: 16 }}>
-      <SkeletonRows rows={rows} height={height} />
-    </div>
-  );
-}
-
-function SkeletonRows({ rows = 5, height = 56 }: { rows?: number; height?: number }) {
-  return (
-    <>
+    <div className="flex flex-col gap-2.5" aria-hidden="true">
       {Array.from({ length: rows }).map((_, index) => (
-        <Skeleton key={index} style={{ width: "100%", height }} />
+        <Skeleton key={index} className={cn("w-full", className)} />
       ))}
-    </>
+    </div>
   );
 }
 
-export function PageSkeleton({ label = "Загрузка страницы", variant = "workspace" }: PageSkeletonProps) {
+function PanelCard({
+  children,
+  className,
+  headerWidth = "w-40"
+}: {
+  children: ReactNode;
+  className?: string;
+  headerWidth?: string;
+}) {
+  return (
+    <Card className={className} aria-hidden="true">
+      <CardHeader className="pb-0">
+        <Skeleton className={cn("h-4", headerWidth)} />
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+export function PageSkeleton({ label = "Loading page", variant = "workspace" }: PageSkeletonProps) {
   if (variant === "dashboard") {
     return (
-      <div className="page-shell dashboard-shell" aria-busy="true" aria-label={label}>
-        <PageShellHeaderSkeleton titleWidth={180} actionWidth={168} />
+      <Shell label={label}>
+        <HeaderSkeleton titleWidth="w-44" actionWidth="w-40" />
 
-        <div className="page-shell__content">
-          <Skeleton style={{ width: "100%", height: 72 }} />
+        <Skeleton className="h-16 w-full" />
 
-          <section className="dashboard-metric-grid" aria-hidden="true">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} style={{ width: "100%", height: 112 }} />
-            ))}
-          </section>
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index}>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
 
-          <section className="dashboard-main-grid" aria-hidden="true">
-            <div className="dashboard-panel" style={{ display: "grid", gap: 12, padding: 16 }}>
-              <Skeleton style={{ width: 140, height: 18 }} />
-              <SkeletonRows rows={3} height={56} />
-            </div>
-            <div className="dashboard-panel dashboard-panel--wide" style={{ display: "grid", gap: 12, padding: 16 }}>
-              <Skeleton style={{ width: 200, height: 18 }} />
-              <Skeleton style={{ width: "100%", height: 160 }} />
-            </div>
-          </section>
-        </div>
-      </div>
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]" aria-hidden="true">
+          <PanelCard headerWidth="w-36">
+            <SkeletonRows rows={3} className="h-14" />
+          </PanelCard>
+          <PanelCard headerWidth="w-48">
+            <Skeleton className="h-40 w-full" />
+          </PanelCard>
+        </section>
+      </Shell>
     );
   }
 
   if (variant === "reports") {
     return (
-      <div className="page-shell" aria-busy="true" aria-label={label}>
-        <PageShellHeaderSkeleton titleWidth={240} actionWidth={120} />
+      <Shell label={label}>
+        <HeaderSkeleton titleWidth="w-60" actionWidth="w-28" />
 
-        <nav className="page-shell__tabs" aria-hidden="true">
+        <nav className="flex flex-wrap gap-2" aria-hidden="true">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} style={{ width: 104, height: 34 }} />
+            <Skeleton key={index} className="h-9 w-24" />
           ))}
         </nav>
 
-        <div className="page-shell__content">
-          <div className="report-period-controls" aria-hidden="true">
-            <div className="report-period-controls__form">
-              <Skeleton style={{ width: "100%", height: 38 }} />
-              <Skeleton style={{ width: "100%", height: 38 }} />
-              <Skeleton style={{ width: "100%", height: 38 }} />
-            </div>
-            <Skeleton style={{ width: 150, height: 38 }} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end" aria-hidden="true">
+          <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
           </div>
-
-          <Skeleton style={{ width: "100%", height: 64 }} />
-
-          <div className="report-kpi-row" aria-hidden="true">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="report-kpi-tile" style={{ display: "grid", gap: 8, padding: "12px 14px" }}>
-                <Skeleton style={{ width: 96, height: 11 }} />
-                <Skeleton style={{ width: 64, height: 26 }} />
-              </div>
-            ))}
-          </div>
-
-          <div className="panel" style={{ display: "grid", gap: 12, padding: 16 }}>
-            <Skeleton style={{ width: 200, height: 18 }} />
-            <Skeleton style={{ width: "100%", height: 220 }} />
-          </div>
-
-          <div className="panel" style={{ display: "grid", gap: 10, padding: 16 }}>
-            <Skeleton style={{ width: 180, height: 18 }} />
-            <SkeletonRows rows={5} height={52} />
-          </div>
+          <Skeleton className="h-9 w-36 shrink-0" />
         </div>
-      </div>
+
+        <Skeleton className="h-16 w-full" />
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index} size="sm">
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-7 w-16" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <PanelCard headerWidth="w-48">
+          <Skeleton className="h-52 w-full" />
+        </PanelCard>
+
+        <PanelCard headerWidth="w-44">
+          <SkeletonRows rows={5} className="h-12" />
+        </PanelCard>
+      </Shell>
     );
   }
 
   if (variant === "admin") {
     return (
-      <div className="page-shell" aria-busy="true" aria-label={label}>
-        <PageShellHeaderSkeleton titleWidth={200} actionWidth={196} />
+      <Shell label={label}>
+        <HeaderSkeleton titleWidth="w-52" actionWidth="w-48" />
 
-        <div className="page-shell__content">
-          <div className="admin-frame" aria-hidden="true">
-            <aside className="admin-frame__rail" style={{ display: "grid", gap: 18, padding: 14 }}>
-              <Skeleton style={{ width: "100%", height: 34 }} />
+        <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]" aria-hidden="true">
+          <Card className="h-fit">
+            <CardContent className="flex flex-col gap-4">
+              <Skeleton className="h-9 w-full" />
               {Array.from({ length: 3 }).map((_, group) => (
-                <div key={group} style={{ display: "grid", gap: 8 }}>
-                  <Skeleton style={{ width: 96, height: 12 }} />
+                <div key={group} className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-20" />
                   {Array.from({ length: 3 }).map((_, item) => (
-                    <Skeleton key={item} style={{ width: "100%", height: 30 }} />
+                    <Skeleton key={item} className="h-8 w-full" />
                   ))}
                 </div>
               ))}
-            </aside>
-            <div className="admin-frame__content" style={{ display: "grid", gap: 14 }}>
-              <Skeleton style={{ width: "100%", height: 72 }} />
-              <div className="ops-panel admin-status-panel" style={{ display: "grid", gap: 12, padding: 16 }}>
-                <Skeleton style={{ width: 180, height: 18 }} />
-                <SkeletonRows rows={9} height={44} />
-              </div>
-            </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex min-w-0 flex-col gap-4">
+            <Skeleton className="h-16 w-full" />
+            <PanelCard headerWidth="w-44">
+              <SkeletonRows rows={9} className="h-11" />
+            </PanelCard>
           </div>
         </div>
-      </div>
+      </Shell>
     );
   }
 
   if (variant === "detail") {
     return (
-      <section className="page-shell workspace-shell" aria-busy="true" aria-label={label}>
-        <div className="command-center command-center--split">
-          <SkeletonTextBlock titleWidth={320} />
+      <Shell label={label}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-8 w-80 max-w-full" />
+            <Skeleton className="h-4 w-full max-w-md" />
+          </div>
           <MetricSkeletons count={3} />
         </div>
+
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <PanelRows rows={7} height={68} />
-          <PanelRows rows={5} height={72} />
+          <PanelCard headerWidth="w-40">
+            <SkeletonRows rows={7} className="h-16" />
+          </PanelCard>
+          <PanelCard headerWidth="w-36">
+            <SkeletonRows rows={5} className="h-16" />
+          </PanelCard>
         </div>
-      </section>
+      </Shell>
     );
   }
 
+  // workspace — reviews queue, coaching, calibration, self-review
   return (
-    <section className="page-shell workspace-shell" aria-busy="true" aria-label={label}>
-      <div className="command-center command-center--split command-center--metrics">
-        <SkeletonTextBlock titleWidth={280} />
-        <MetricSkeletons className="learning-metrics review-queue-metrics" />
+    <Shell label={label}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-8 w-72 max-w-full" />
+          <Skeleton className="h-4 w-full max-w-sm" />
+        </div>
+        <MetricSkeletons count={4} />
       </div>
-      <div className="panel" style={{ display: "flex", gap: 12, flexWrap: "wrap", padding: 16 }}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} style={{ flex: "1 1 160px", height: 40, minWidth: 140 }} />
-        ))}
-      </div>
-      <PanelRows rows={8} />
-    </section>
+
+      <Card aria-hidden="true">
+        <CardContent className="flex flex-wrap gap-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-10 min-w-[140px] flex-1" />
+          ))}
+        </CardContent>
+      </Card>
+
+      <PanelCard headerWidth="w-36">
+        <SkeletonRows rows={8} className="h-14" />
+      </PanelCard>
+    </Shell>
   );
 }

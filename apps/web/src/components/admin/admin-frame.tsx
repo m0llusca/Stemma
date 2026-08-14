@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import clsx from "clsx";
 import { AdminSubnav } from "@/components/admin/admin-subnav";
 import { getCurrentUser } from "@/lib/current-user";
+import { cn } from "@/lib/utils";
 
 /**
  * Contained 2-column admin frame (redesign v2, plan B3).
@@ -10,8 +10,7 @@ import { getCurrentUser } from "@/lib/current-user";
  * content column. Used inside every admin screen's PageShell `children` so the
  * admin area gets its own local navigation without touching global chrome.
  * Collapses to a single column on narrow viewports (CSS-driven). Token-driven
- * (no raw hex) — holds in light and dark (Night Ops). Styling lives in
- * `src/app/styles/components/40-admin.css` under `.admin-frame*`.
+ * via Tailwind semantic classes — holds in light and dark (Night Ops).
  */
 export async function AdminFrame({
   children,
@@ -26,11 +25,16 @@ export async function AdminFrame({
   const { role } = await getCurrentUser();
 
   return (
-    <div className={clsx("admin-frame", className)}>
-      <aside className="admin-frame__rail">
+    <div
+      className={cn(
+        "grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[204px_minmax(0,1fr)] lg:gap-7",
+        className
+      )}
+    >
+      <aside className="min-w-0 self-start lg:sticky lg:top-[calc(var(--app-topbar-height,3.5rem)+1.125rem)]">
         <AdminSubnav role={role} />
       </aside>
-      <div className="admin-frame__content">{children}</div>
+      <div className="flex min-w-0 flex-col gap-4">{children}</div>
     </div>
   );
 }

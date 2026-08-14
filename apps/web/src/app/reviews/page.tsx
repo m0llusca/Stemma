@@ -6,11 +6,20 @@ import { QueueEmptyBanner } from "@/components/review/queue-empty-banner";
 import { QueueFilters } from "@/components/review/queue-filters";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
+import { QueueWorkspace } from "@/components/review/queue-workspace";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
-import { PageShell } from "@/components/ui/page-shell";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious
+} from "@/components/ui/pagination";
+import { Separator } from "@/components/ui/separator";
 import { StatKpi } from "@/components/ui/stat-kpi";
-import { StickyCommandBarShell } from "@/components/reports/sticky-command-bar-shell";
 import {
   channelLabels,
   csatBucketLabels,
@@ -137,7 +146,9 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           description: "Сверить текст до отправки"
         }
       : null
-  ].filter((item): item is { href: string; label: string; value: number; description: string } => Boolean(item)).slice(0, 3);
+  ]
+    .filter((item): item is { href: string; label: string; value: number; description: string } => Boolean(item))
+    .slice(0, 3);
   const queuePreview = data.conversations[0];
   const queuePreviewFinalized = queuePreview?.reviews.find(
     (review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN"
@@ -170,7 +181,10 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           label: "Риск",
           value: queuePreview.riskHint ?? (queuePreviewFinalized?.criticalError ? "Критический" : "Нет сигнала"),
           detail: queuePreviewFinalized?.needsReanswer ? "Есть переответ клиенту" : "Сигнал из выборки и итогов QA",
-          tone: queuePreview.riskHint || queuePreviewFinalized?.criticalError || queuePreviewFinalized?.needsReanswer ? "warning" : "neutral"
+          tone:
+            queuePreview.riskHint || queuePreviewFinalized?.criticalError || queuePreviewFinalized?.needsReanswer
+              ? "warning"
+              : "neutral"
         },
         {
           label: "Контекст",
@@ -186,95 +200,188 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
         }
       ]
     : [];
+  const queuePreviewCard =
+    queuePreview && queuePreviewState ? (
+      <Card className="h-full gap-0 overflow-clip py-0">
+        <CardHeader className="gap-1.5 border-b border-border">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Следующий кейс</span>
+          <CardTitle className="text-base leading-snug">{queuePreview.subject}</CardTitle>
+          <CardDescription>
+            {queuePreview.customerName} · {queuePreview.assigneeName ?? "оператор не назначен"} ·{" "}
+            {qaStatusLabels[queuePreview.qaStatus]}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="flex flex-col gap-4 py-4">
+          <StatKpi
+            label="Оценка"
+            value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
+            hint={reviewStateLabels[queuePreviewState]}
+          />
+
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Почему первый</span>
+            <strong className="text-sm font-semibold text-foreground">{queuePreview.priorityReason}</strong>
+            <small className="text-xs text-muted-foreground">
+              Очередь учитывает SLA, риск, переответ и назначение проверяющего.
+            </small>
+          </div>
+
+          <dl className="grid gap-2">
+            {queuePreviewSignals.map((signal) => (
+              <div
+                key={signal.label}
+                className="grid grid-cols-[72px_minmax(0,1fr)] gap-x-2 gap-y-0.5 border-b border-border pb-2 last:border-b-0 last:pb-0"
+              >
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {signal.label}
+                </dt>
+                <dd className="min-w-0">
+                  {signal.tone === "neutral" ? (
+                    <span className="text-sm font-medium text-foreground">{signal.value}</span>
+                  ) : (
+                    <Chip tone={signal.tone === "danger" ? "danger" : "warning"}>{signal.value}</Chip>
+                  )}
+                </dd>
+                <dd className="col-start-2 text-xs text-muted-foreground">
+                  {signal.detail}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <Separator />
+
+          <Button
+            render={<Link href={queuePreviewHref(queuePreview, data.currentHref)} />}
+            nativeButton={false}
+            className="w-full"
+          >
+            Открыть приоритетный кейс
+            <ArrowRight size={15} aria-hidden="true" data-icon="inline-end" />
+          </Button>
+        </CardContent>
+      </Card>
+    ) : undefined;
 
   return (
-    <PageShell
-      className="reviews-queue-shell"
-      eyebrow="Контроль качества"
-      title="Очередь проверок"
+    <QueueWorkspace
       description={`Найдено ${filteredCount} из ${total}. Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия.`}
       actions={
         <form action={takeNextReview}>
-          <button type="submit" className="action-button action-button--primary">
-            <ArrowRight size={16} aria-hidden="true" />
+          <Button type="submit">
+            <ArrowRight size={16} aria-hidden="true" data-icon="inline-start" />
             Взять следующий
-          </button>
+          </Button>
         </form>
       }
     >
       <ReviewSavedToast marker={savedMarker} />
       {queueEmpty ? <QueueEmptyBanner /> : null}
-      <section className="reviews-queue-kpis" aria-label="Сводка очереди проверок">
-        <StatKpi
-          label="Ожидают"
-          value={queued}
-          icon={<Inbox size={16} aria-hidden="true" />}
-        />
-        <StatKpi
-          label="В работе"
-          value={inWork}
-          icon={<Clock3 size={16} aria-hidden="true" />}
-        />
+
+      <QueueWorkspace.Kpis aria-label="Сводка очереди проверок">
+        <StatKpi label="Ожидают" value={queued} icon={<Inbox size={16} aria-hidden="true" />} />
+        <StatKpi label="В работе" value={inWork} icon={<Clock3 size={16} aria-hidden="true" />} />
         <StatKpi
           label="Просрочено"
           value={overdue}
           tone={overdue > 0 ? "danger" : "neutral"}
           icon={<TriangleAlert size={16} aria-hidden="true" />}
         />
-        <StatKpi
-          label="Завершено"
-          value={reviewed}
-          icon={<CheckCircle2 size={16} aria-hidden="true" />}
-        />
+        <StatKpi label="Завершено" value={reviewed} icon={<CheckCircle2 size={16} aria-hidden="true" />} />
+      </QueueWorkspace.Kpis>
+
+      <section aria-label="Где смотреть в очереди сейчас">
+        <Card size="sm" className="overflow-clip py-0">
+          <div className="grid min-w-0 md:grid-cols-[minmax(200px,0.7fr)_minmax(0,2fr)]">
+            <div className="flex flex-col justify-center gap-1 border-b border-border bg-muted/40 p-4 md:border-r md:border-b-0">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Фокус очереди</span>
+              <strong className="text-sm font-semibold text-foreground">
+                {reviewFocusItems.length > 0 ? "Есть действия на сейчас" : "Критичных действий нет"}
+              </strong>
+              <small className="text-xs text-muted-foreground">
+                {reviewFocusItems.length > 0
+                  ? "Открывайте с самого жесткого SLA или риска."
+                  : "Можно разбирать очередь по обычному приоритету."}
+              </small>
+            </div>
+            <div className="grid min-w-0 sm:grid-flow-col sm:auto-cols-fr">
+              {reviewFocusItems.length > 0 ? (
+                reviewFocusItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex flex-col gap-0.5 border-b border-border p-3.5 transition-colors last:border-b-0 hover:bg-muted/40 sm:border-b-0 sm:border-r sm:last:border-r-0"
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {item.label}
+                    </span>
+                    <strong className="text-xl font-semibold tabular-nums text-foreground">
+                      {item.value}
+                    </strong>
+                    <small className="text-xs text-muted-foreground">{item.description}</small>
+                    <ArrowRight size={15} aria-hidden="true" className="mt-1 text-muted-foreground" />
+                  </Link>
+                ))
+              ) : (
+                <Link
+                  href="/reviews?status=unreviewed"
+                  className="flex flex-col gap-0.5 p-3.5 transition-colors hover:bg-muted/40"
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Незавершенные
+                  </span>
+                  <strong className="text-xl font-semibold tabular-nums text-foreground">
+                    {queued + inWork}
+                  </strong>
+                  <small className="text-xs text-muted-foreground">
+                    Открыть незавершенные обращения
+                  </small>
+                  <ArrowRight size={15} aria-hidden="true" className="mt-1 text-muted-foreground" />
+                </Link>
+              )}
+            </div>
+          </div>
+        </Card>
       </section>
 
-      <section className="queue-focus panel" aria-label="Где смотреть в очереди сейчас">
-        <div className="queue-focus__head">
-          <span className="page-kicker">Фокус очереди</span>
-          <strong>{reviewFocusItems.length > 0 ? "Есть действия на сейчас" : "Критичных действий нет"}</strong>
-          <small>{reviewFocusItems.length > 0 ? "Открывайте с самого жесткого SLA или риска." : "Можно разбирать очередь по обычному приоритету."}</small>
-        </div>
-        <div className="queue-focus__items">
-          {reviewFocusItems.length > 0 ? (
-            reviewFocusItems.map((item) => (
-              <Link key={item.href} href={item.href} className="queue-focus-item">
-                <span className="queue-focus-item__label">{item.label}</span>
-                <strong className="queue-focus-item__value">{item.value}</strong>
-                <small className="queue-focus-item__hint">{item.description}</small>
-                <ArrowRight size={15} aria-hidden="true" className="queue-focus-item__arrow" />
-              </Link>
-            ))
-          ) : (
-            <Link href="/reviews?status=unreviewed" className="queue-focus-item">
-              <span className="queue-focus-item__label">Незавершенные</span>
-              <strong className="queue-focus-item__value">{queued + inWork}</strong>
-              <small className="queue-focus-item__hint">Открыть незавершенные обращения</small>
-              <ArrowRight size={15} aria-hidden="true" className="queue-focus-item__arrow" />
-            </Link>
-          )}
-        </div>
-      </section>
-
-      <StickyCommandBarShell className="queue-controls-bar" ariaLabel="Фильтры и виды очереди">
-        <div className="queue-sticky-metrics" aria-label="Сводка очереди">
-          <span className="sticky-metric">
-            <Inbox size={14} aria-hidden="true" />
-            <strong>{queued}</strong>ожидают
-          </span>
-          <span className="sticky-metric">
-            <Clock3 size={14} aria-hidden="true" />
-            <strong>{inWork}</strong>в работе
-          </span>
-          <span className="sticky-metric sticky-metric--danger">
-            <TriangleAlert size={14} aria-hidden="true" />
-            <strong>{overdue}</strong>просрочено
-          </span>
-          <span className="sticky-metric sticky-metric--success">
-            <CheckCircle2 size={14} aria-hidden="true" />
-            <strong>{reviewed}</strong>завершено
-          </span>
-        </div>
-        <QueueSavedViews currentAssigneeName={data.currentAssigneeName} currentHref={data.currentHref} savedViews={data.savedViews} />
+      <QueueWorkspace.CommandBar
+        aria-label="Фильтры и виды очереди"
+        expandedOnly={
+          <QueueSavedViews
+            currentAssigneeName={data.currentAssigneeName}
+            currentHref={data.currentHref}
+            savedViews={data.savedViews}
+          />
+        }
+        stuckOnly={
+          <div
+            className="flex min-w-0 flex-wrap items-center gap-3 border-t border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground"
+            aria-label="Сводка очереди"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Inbox size={14} aria-hidden="true" />
+              <strong className="font-semibold tabular-nums text-foreground">{queued}</strong>
+              ожидают
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock3 size={14} aria-hidden="true" />
+              <strong className="font-semibold tabular-nums text-foreground">{inWork}</strong>
+              в работе
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <TriangleAlert size={14} aria-hidden="true" />
+              <strong className="font-semibold tabular-nums text-destructive">{overdue}</strong>
+              просрочено
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 size={14} aria-hidden="true" />
+              <strong className="font-semibold tabular-nums text-foreground">{reviewed}</strong>
+              завершено
+            </span>
+          </div>
+        }
+      >
         <QueueFilters
           filters={data.filters}
           sources={data.filterOptions.sources}
@@ -283,83 +390,48 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           supportLines={data.filterOptions.supportLines}
           teamNames={data.filterOptions.teamNames}
         />
-      </StickyCommandBarShell>
+      </QueueWorkspace.CommandBar>
 
-      <div className="queue-cockpit-layout">
-        <div className="queue-cockpit-layout__list">
+      <QueueWorkspace.Main
+        aria-label="Рабочая область очереди"
+        preview={queuePreviewCard}
+        previewLabel="Предпросмотр следующего обращения"
+      >
+        <div className="flex min-w-0 flex-col gap-3">
           <QueueTable conversations={queuePage.items} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
           {queuePage.pageCount > 1 ? (
-            <nav className="flex flex-wrap items-center justify-between gap-3 mt-3" aria-label="Страницы очереди">
-              <span className="page-kicker" aria-live="polite">
+            <Pagination className="mx-0 w-full flex-wrap justify-between gap-3" aria-label="Страницы очереди">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground" aria-live="polite">
                 Стр. {queuePage.page} из {queuePage.pageCount} · показано {queuePage.items.length} из {queuePage.total}
               </span>
-              <div className="flex items-center gap-2">
+              <PaginationContent className="gap-2">
                 {queuePage.page > 1 ? (
-                  <Link href={queuePageHref(rawParams, queuePage.page - 1)} className="action-button" rel="prev">
-                    Назад
-                  </Link>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href={queuePageHref(rawParams, queuePage.page - 1)}
+                      text="Назад"
+                      rel="prev"
+                      aria-label="Перейти на предыдущую страницу очереди"
+                      className="[&>span]:block"
+                    />
+                  </PaginationItem>
                 ) : null}
                 {queuePage.hasMore ? (
-                  <Link href={queuePageHref(rawParams, queuePage.page + 1)} className="action-button action-button--primary" rel="next">
-                    Показать ещё
-                    <ArrowRight size={15} aria-hidden="true" />
-                  </Link>
+                  <PaginationItem>
+                    <PaginationNext
+                      href={queuePageHref(rawParams, queuePage.page + 1)}
+                      text="Показать ещё"
+                      rel="next"
+                      aria-label="Перейти на следующую страницу очереди"
+                      className="[&>span]:block"
+                    />
+                  </PaginationItem>
                 ) : null}
-              </div>
-            </nav>
+              </PaginationContent>
+            </Pagination>
           ) : null}
         </div>
-        {queuePreview && queuePreviewState ? (
-          <aside className="queue-preview-panel panel" aria-label="Предпросмотр следующего обращения">
-            <div className="queue-preview-panel__header">
-              <span className="page-kicker">Следующий кейс</span>
-              <h2>{queuePreview.subject}</h2>
-              <p>
-                {queuePreview.customerName} · {queuePreview.assigneeName ?? "оператор не назначен"} ·{" "}
-                {qaStatusLabels[queuePreview.qaStatus]}
-              </p>
-            </div>
-
-            <StatKpi
-              className="queue-preview-panel__score"
-              label="Оценка"
-              value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
-              hint={reviewStateLabels[queuePreviewState]}
-            />
-
-            <div className="queue-preview-panel__reason">
-              <span className="queue-preview-panel__reason-label">Почему первый</span>
-              <strong className="queue-preview-panel__reason-value">{queuePreview.priorityReason}</strong>
-              <small className="queue-preview-panel__reason-hint">
-                Очередь учитывает SLA, риск, переответ и назначение проверяющего.
-              </small>
-            </div>
-
-            <dl className="queue-preview-panel__signals">
-              {queuePreviewSignals.map((signal) => (
-                <div key={signal.label} className="queue-preview-signal">
-                  <dt className="queue-preview-signal__label">{signal.label}</dt>
-                  <dd className="queue-preview-signal__value">
-                    {signal.tone === "neutral" ? (
-                      <span className="queue-preview-signal__text">{signal.value}</span>
-                    ) : (
-                      <Chip tone={signal.tone === "danger" ? "danger" : "warning"} size="sm">
-                        {signal.value}
-                      </Chip>
-                    )}
-                  </dd>
-                  <dd className="queue-preview-signal__detail">{signal.detail}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <Link href={queuePreviewHref(queuePreview, data.currentHref)} className="action-button action-button--primary">
-              Открыть приоритетный кейс
-              <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-          </aside>
-        ) : null}
-      </div>
-    </PageShell>
+      </QueueWorkspace.Main>
+    </QueueWorkspace>
   );
 }

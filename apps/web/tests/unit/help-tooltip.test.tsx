@@ -1,26 +1,53 @@
 import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+function renderHelp(ui: ReactElement) {
+  return render(<TooltipProvider delay={0}>{ui}</TooltipProvider>);
+}
+
+async function openViaFocus(label: string) {
+  const trigger = screen.getByRole("button", { name: label });
+  await act(async () => {
+    trigger.focus();
+  });
+  fireEvent.focus(trigger);
+  await waitFor(() => {
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+  });
+  return trigger;
+}
 
 describe("HelpTooltip", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("links the trigger to tooltip content", () => {
-    render(<HelpTooltip label="Что значит статус?" content="Статус показывает readiness gate." />);
+  it("renders an accessible help trigger", () => {
+    renderHelp(<HelpTooltip label="Что значит статус?" content="Статус показывает readiness gate." />);
 
     const trigger = screen.getByRole("button", { name: "Что значит статус?" });
-    const tooltip = screen.getByRole("tooltip");
-
-    expect(screen.getByText("Статус показывает readiness gate.")).toBeInTheDocument();
-    expect(trigger).toHaveClass("help-tooltip__trigger");
-    expect(trigger).toHaveAttribute("aria-describedby", tooltip.id);
+    expect(trigger).toHaveAttribute("data-slot", "tooltip-trigger");
+    expect(trigger).toHaveAttribute("data-base-ui-tooltip-trigger");
+    expect(trigger.querySelector("svg")).toBeTruthy();
   });
 
-  it("creates unique tooltip ids for multiple instances", () => {
-    render(
+  it("opens on focus and shows tooltip content", async () => {
+    renderHelp(<HelpTooltip label="Что значит статус?" content="Статус показывает readiness gate." />);
+
+    await openViaFocus("Что значит статус?");
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Статус показывает readiness gate.");
+    expect(screen.getByRole("button", { name: "Что значит статус?" })).toHaveAttribute(
+      "data-popup-open"
+    );
+  });
+
+  it("creates independent triggers for multiple instances", () => {
+    renderHelp(
       <>
         <HelpTooltip label="Первый статус" content="Первый tooltip." />
         <HelpTooltip label="Второй статус" content="Второй tooltip." />
@@ -29,149 +56,84 @@ describe("HelpTooltip", () => {
 
     const firstTrigger = screen.getByRole("button", { name: "Первый статус" });
     const secondTrigger = screen.getByRole("button", { name: "Второй статус" });
-    const firstId = firstTrigger.getAttribute("aria-describedby");
-    const secondId = secondTrigger.getAttribute("aria-describedby");
 
-    expect(firstId).toBeTruthy();
-    expect(secondId).toBeTruthy();
-    expect(firstId).not.toBe(secondId);
+    expect(firstTrigger.id).toBeTruthy();
+    expect(secondTrigger.id).toBeTruthy();
+    expect(firstTrigger.id).not.toBe(secondTrigger.id);
   });
 
-  it("applies custom className to the wrapper", () => {
-    const { container } = render(<HelpTooltip label="Подсказка" content="Текст." className="admin-help" />);
+  it("applies custom className to the trigger button", () => {
+    renderHelp(<HelpTooltip label="Подсказка" content="Текст." className="admin-help" />);
 
-    expect(container.querySelector(".help-tooltip")).toHaveClass("admin-help");
+    expect(screen.getByRole("button", { name: "Подсказка" })).toHaveClass("admin-help");
   });
 
-  it("opens on trigger focus", () => {
-    const { container } = render(<HelpTooltip label="Фокус" content="Текст." />);
+  it("closes on Escape while keeping focus on the trigger", async () => {
+    renderHelp(<HelpTooltip label="Закрыть" content="Текст." />);
 
-    const trigger = screen.getByRole("button", { name: "Фокус" });
-    const wrapper = container.querySelector(".help-tooltip");
-
-    expect(wrapper).toHaveAttribute("data-open", "false");
-
-    fireEvent.focus(trigger);
-
-    expect(wrapper).toHaveAttribute("data-open", "true");
-  });
-
-  it("closes on Escape while keeping focus on the trigger", () => {
-    const { container } = render(<HelpTooltip label="Закрыть" content="Текст." />);
-
-    const trigger = screen.getByRole("button", { name: "Закрыть" });
-    const wrapper = container.querySelector(".help-tooltip");
-
-    act(() => {
-      trigger.focus();
-    });
-    expect(wrapper).toHaveAttribute("data-open", "true");
+    const trigger = await openViaFocus("Закрыть");
 
     fireEvent.keyDown(trigger, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
 
-    expect(wrapper).toHaveAttribute("data-open", "false");
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("closes on document Escape when focus is elsewhere", () => {
-    const { container } = render(
-      <>
-        <button type="button">Другой элемент</button>
-        <HelpTooltip label="Документ" content="Текст." />
-      </>
-    );
+  it("opens on pointer enter", async () => {
+    renderHelp(<HelpTooltip label="Наведение" content="Текст." />);
 
-    const otherButton = screen.getByRole("button", { name: "Другой элемент" });
-    const wrapper = container.querySelector(".help-tooltip");
+    const trigger = screen.getByRole("button", { name: "Наведение" });
 
-    act(() => {
-      otherButton.focus();
+    fireEvent.pointerEnter(trigger);
+    fireEvent.mouseEnter(trigger);
+    fireEvent.pointerMove(trigger);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Текст.");
     });
-    fireEvent.pointerEnter(wrapper!);
-    expect(wrapper).toHaveAttribute("data-open", "true");
-
-    fireEvent.keyDown(document, { key: "Escape" });
-
-    expect(wrapper).toHaveAttribute("data-open", "false");
-    expect(document.activeElement).toBe(otherButton);
   });
 
-  it("opens on pointer enter and delays close on pointer leave", () => {
-    vi.useFakeTimers();
-    const { container } = render(<HelpTooltip label="Наведение" content="Текст." />);
+  it("sets an inspectable placement attribute and aligns content", async () => {
+    renderHelp(<HelpTooltip label="Положение" content="Текст." placement="top-start" />);
 
-    const wrapper = container.querySelector(".help-tooltip");
+    const trigger = screen.getByRole("button", { name: "Положение" });
+    expect(trigger).toHaveAttribute("data-placement", "top-start");
 
-    expect(wrapper).toHaveAttribute("data-open", "false");
+    await openViaFocus("Положение");
 
-    fireEvent.pointerEnter(wrapper!);
-    expect(wrapper).toHaveAttribute("data-open", "true");
-
-    fireEvent.pointerLeave(wrapper!);
-    expect(wrapper).toHaveAttribute("data-open", "true");
-
-    act(() => {
-      vi.advanceTimersByTime(119);
-    });
-    expect(wrapper).toHaveAttribute("data-open", "true");
-
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(wrapper).toHaveAttribute("data-open", "false");
-  });
-
-  it("stays open when the pointer reaches tooltip content before delayed close", () => {
-    vi.useFakeTimers();
-    const { container } = render(<HelpTooltip label="Переход" content="Текст." />);
-
-    const wrapper = container.querySelector(".help-tooltip");
     const tooltip = screen.getByRole("tooltip");
-
-    fireEvent.pointerEnter(wrapper!);
-    expect(wrapper).toHaveAttribute("data-open", "true");
-
-    fireEvent.pointerLeave(wrapper!);
-    act(() => {
-      vi.advanceTimersByTime(60);
-    });
-    fireEvent.pointerEnter(tooltip);
-    act(() => {
-      vi.advanceTimersByTime(120);
-    });
-
-    expect(wrapper).toHaveAttribute("data-open", "true");
+    expect(tooltip).toHaveAttribute("data-side", "top");
+    expect(tooltip).toHaveAttribute("data-align", "start");
   });
 
-  it("sets an inspectable placement attribute", () => {
-    const { container } = render(
-      <HelpTooltip label="Положение" content="Текст." placement="top-start" />
-    );
-
-    expect(container.querySelector(".help-tooltip")).toHaveAttribute("data-placement", "top-start");
-  });
-
-  it("renders the tooltip layer outside clipped ancestors", () => {
-    const { container } = render(
+  it("renders the tooltip layer outside clipped ancestors via base-ui portal", async () => {
+    const { container } = renderHelp(
       <div className="clipped-parent" style={{ overflow: "hidden" }}>
         <HelpTooltip label="За пределами панели" content="Текст не должен обрезаться родителем." />
       </div>
     );
 
-    const tooltip = screen.getByRole("tooltip");
+    await openViaFocus("За пределами панели");
 
-    expect(container.querySelector(".clipped-parent .help-tooltip__content")).not.toBeInTheDocument();
-    expect(tooltip.parentElement).toBe(document.body);
+    const tooltip = screen.getByRole("tooltip");
+    expect(within(container.querySelector(".clipped-parent")!).queryByRole("tooltip")).toBeNull();
+    expect(tooltip.closest("[data-base-ui-portal]")).toBeTruthy();
+    expect(container.querySelector(".clipped-parent")?.contains(tooltip)).toBe(false);
   });
 
-  it("renders block markup inside tooltip content", () => {
-    render(<HelpTooltip label="Разметка" content={<p>Блочный контент.</p>} />);
+  it("renders block markup inside tooltip content", async () => {
+    renderHelp(<HelpTooltip label="Разметка" content={<p>Блочный контент.</p>} />);
+
+    await openViaFocus("Разметка");
 
     const tooltip = screen.getByRole("tooltip");
     const paragraph = screen.getByText("Блочный контент.");
 
     expect(tooltip.tagName).toBe("DIV");
     expect(paragraph.tagName).toBe("P");
-    expect(paragraph.parentElement).toBe(tooltip);
+    expect(tooltip.contains(paragraph)).toBe(true);
   });
 });

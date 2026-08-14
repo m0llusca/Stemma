@@ -276,7 +276,7 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   });
 
   if (!run) {
-    throw new Error("Integration preview run was not found in the requested workspace.");
+    throw new Error("Preview-запуск интеграции не найден в запрошенном рабочем пространстве.");
   }
   const integration = await db.integration.findFirst({
     where: {

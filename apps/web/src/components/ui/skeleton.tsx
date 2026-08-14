@@ -1,22 +1,14 @@
-import type { CSSProperties, HTMLAttributes } from "react";
+import { cn } from "@/lib/utils"
 
-const skeletonBackground = "color-mix(in srgb, var(--muted) 18%, var(--panel))";
-
-export function Skeleton({
-  className = "",
-  style,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      aria-hidden="true"
-      className={`motion-safe:animate-pulse ${className}`.trim()}
-      style={{
-        backgroundColor: skeletonBackground,
-        borderRadius: "var(--radius-card)",
-        ...style
-      } as CSSProperties}
+      data-slot="skeleton"
+      data-qc-motion="static-loop"
+      className={cn("rounded-[var(--radius-small)] bg-muted", className)}
       {...props}
     />
-  );
+  )
 }
+
+export { Skeleton }

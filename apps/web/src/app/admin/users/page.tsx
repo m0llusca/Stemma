@@ -2,6 +2,7 @@ import type { RoleName } from "@prisma/client";
 import { KeyRound, ShieldCheck, UserCog, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { CreateUserDialog } from "@/app/admin/users/create-user-dialog";
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { createLocalUser, updateUserAccess } from "@/lib/admin-user-actions";
@@ -10,15 +11,35 @@ import { getPermissions, type Permission } from "@/lib/auth/permissions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/required-mark";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { PageShell } from "@/components/ui/page-shell";
-import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +50,11 @@ type AdminUsersPageProps = {
 type UsersSection = "directory" | "create" | "roles";
 
 const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+
+const roleSelectItems = Object.fromEntries(roles.map((role) => [role, roleLabels[role]])) as Record<
+  RoleName,
+  string
+>;
 
 const userSections: Array<{ value: UsersSection; label: string }> = [
   { value: "directory", label: "Пользователи" },
@@ -62,7 +88,14 @@ const permissionGroups: Array<{ title: string; description: string; permissions:
   {
     title: "Проверки и процессы",
     description: "Работа с очередью, черновиками, финализацией и статусами обращений.",
-    permissions: ["reviews:read", "reviews:write", "reviews:finalize", "workflow:manage", "feedback:acknowledge", "self_review:write"]
+    permissions: [
+      "reviews:read",
+      "reviews:write",
+      "reviews:finalize",
+      "workflow:manage",
+      "feedback:acknowledge",
+      "self_review:write"
+    ]
   },
   {
     title: "Методология QA",
@@ -77,7 +110,15 @@ const permissionGroups: Array<{ title: string; description: string; permissions:
   {
     title: "Администрирование",
     description: "Интеграции, пользователи, SSO, API-доступ и системные задачи.",
-    permissions: ["integrations:manage", "users:manage", "auth_providers:manage", "api_tokens:manage", "backend_jobs:manage", "appearance:manage", "privacy:manage"]
+    permissions: [
+      "integrations:manage",
+      "users:manage",
+      "auth_providers:manage",
+      "api_tokens:manage",
+      "backend_jobs:manage",
+      "appearance:manage",
+      "privacy:manage"
+    ]
   }
 ];
 
@@ -116,20 +157,36 @@ function loginLabel(value: string | null | undefined) {
   return value || "SSO";
 }
 
-function roleTone(role: RoleName): ChipTone {
-  if (role === "ADMIN") return "warning";
-  return "neutral";
+function roleBadgeClass(role: RoleName) {
+  if (role === "ADMIN") {
+    return cn("border-transparent", statusSurfaceClass("warning"));
+  }
+
+  return undefined;
 }
 
-function RoleSelect({ defaultValue }: { defaultValue: RoleName }) {
+function RoleSelect({
+  defaultValue,
+  form,
+  className
+}: {
+  defaultValue: RoleName;
+  form?: string;
+  className?: string;
+}) {
   return (
-    <select name="role" defaultValue={defaultValue} className="form-control">
-      {roles.map((role) => (
-        <option key={role} value={role}>
-          {roleLabels[role]}
-        </option>
-      ))}
-    </select>
+    <Select name="role" defaultValue={defaultValue} form={form} items={roleSelectItems}>
+      <SelectTrigger className={cn("w-full min-w-40", className)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {roles.map((role) => (
+          <SelectItem key={role} value={role}>
+            {roleLabels[role]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -138,7 +195,12 @@ function permissionSummary(role: RoleName, permissions: Permission[]) {
 
   return {
     enabled,
-    label: enabled.length === permissions.length ? "Все" : enabled.length > 0 ? `${enabled.length}/${permissions.length}` : "Нет"
+    label:
+      enabled.length === permissions.length
+        ? "Все"
+        : enabled.length > 0
+          ? `${enabled.length}/${permissions.length}`
+          : "Нет"
   };
 }
 
@@ -202,6 +264,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
   const createDialogOpen = activeSection === "create";
   const visibleSection: UsersSection = createDialogOpen ? "directory" : activeSection;
   const usersSetupHint = users.length > 1 ? null : getSettingCoachmark("users");
+  const rolesInUse = roles.filter((role) => roleUserCounts[role] > 0).length;
 
   return (
     <PageShell
@@ -210,245 +273,318 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
       description="Управление учетными записями, ролями, командами, линиями поддержки и доступом без длинных скрытых блоков."
     >
       <AdminFrame>
-      <section className="ops-metric-grid" aria-label="Сводка пользователей">
-        <StatKpi
-          label="Пользователи"
-          value={users.length}
-          hint={`Администраторов: ${adminUsers}`}
-        />
-        <StatKpi
-          label="Локальный вход"
-          value={localUsers}
-          hint={`SSO-связи: ${ssoLinkedUsers}`}
-        />
-        <StatKpi
-          label="Активные сессии"
-          value={activeSessions}
-          hint="Последние входы видны по пользователям"
-        />
-        <StatKpi
-          label="Ролевой контроль"
-          value={roles.filter((role) => roleUserCounts[role] > 0).length}
-          unit={`/ ${roles.length}`}
-          hint="Ролей используется из общего числа"
-        />
-      </section>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Сводка пользователей">
+          <StatKpi label="Пользователи" value={users.length} hint={`Администраторов: ${adminUsers}`} />
+          <StatKpi label="Локальный вход" value={localUsers} hint={`SSO-связи: ${ssoLinkedUsers}`} />
+          <StatKpi label="Активные сессии" value={activeSessions} hint="Последние входы видны по пользователям" />
+          <StatKpi
+            label="Ролевой контроль"
+            value={`${rolesInUse} / ${roles.length}`}
+            hint="Ролей используется из общего числа"
+          />
+        </section>
 
-      <AdminSectionTabs
-        ariaLabel="Разделы управления пользователями"
-        items={userSections.map((section) => ({
-          href: usersSectionHref(section.value),
-          label: section.label,
-          active: visibleSection === section.value,
-          count: section.value === "directory" ? users.length : undefined
-        }))}
-        actions={
-          <>
-            <AdminDialog
-              triggerLabel={
+        <AdminSectionTabs
+          ariaLabel="Разделы управления пользователями"
+          items={userSections.map((section) => ({
+            href: usersSectionHref(section.value),
+            label: section.label,
+            active: visibleSection === section.value,
+            count: section.value === "directory" ? users.length : undefined
+          }))}
+          actions={
+            <>
+              <CreateUserDialog
+                triggerLabel={
+                  <>
+                    <UserCog className="size-4" aria-hidden="true" />
+                    Создать пользователя
+                  </>
+                }
+                title="Новый пользователь"
+                description="Локальный логин создается вместе с учетной записью; внешний профиль привяжется после первого входа."
+                defaultOpen={createDialogOpen}
+              >
+                <form action={createLocalUser} className="grid gap-4">
+                  <FieldGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <Field>
+                      <FieldLabel htmlFor="create-user-name">
+                        Имя
+                        <RequiredMark />
+                      </FieldLabel>
+                      <Input id="create-user-name" name="name" required />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="create-user-email">
+                        Email
+                        <RequiredMark />
+                      </FieldLabel>
+                      <Input
+                        id="create-user-email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="create-user-login">Логин</FieldLabel>
+                      <Input id="create-user-login" name="login" autoComplete="username" />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="create-user-password">
+                        Временный пароль
+                        <RequiredMark />
+                      </FieldLabel>
+                      <Input
+                        id="create-user-password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Роль</FieldLabel>
+                      <RoleSelect defaultValue="QA_ANALYST" />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="create-user-team">Команда</FieldLabel>
+                      <Input id="create-user-team" name="teamName" />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="create-user-line">Линия поддержки</FieldLabel>
+                      <Input id="create-user-line" name="supportLine" />
+                    </Field>
+                  </FieldGroup>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button type="submit">
+                      <KeyRound data-icon="inline-start" aria-hidden="true" />
+                      Создать
+                    </Button>
+                  </div>
+                </form>
+              </CreateUserDialog>
+              <Button
+                variant="outline"
+                render={<Link href="/admin/access" />}
+                nativeButton={false}
+              >
+                <ShieldCheck data-icon="inline-start" aria-hidden="true" />
+                SSO и сессии
+              </Button>
+            </>
+          }
+        />
+
+        {visibleSection === "directory" ? (
+          <Card aria-labelledby="users-directory-title">
+            <CardHeader className="border-b border-border pb-(--card-spacing)">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Учетные записи
+              </p>
+              <CardTitle id="users-directory-title">Пользователи</CardTitle>
+              <CardDescription>
+                Каждая строка сохраняется отдельно и сразу пишет событие аудита.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+              {usersSetupHint ? (
+                <CoachCallout
+                  title={usersSetupHint.title}
+                  body={usersSetupHint.body}
+                  href={usersSetupHint.href}
+                  actionLabel={usersSetupHint.actionLabel}
+                  variant="spotlight"
+                  placement="top"
+                  anchorLabel="Подсказка к пользователям"
+                  stepIndex={1}
+                  dismissId="settings:users"
+                />
+              ) : null}
+              {users.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<UsersRound className="size-5" aria-hidden="true" />}
+                  title="Пользователей пока нет"
+                  description="Создайте первую учетную запись, чтобы выдать доступ к рабочему пространству."
+                  action={
+                    <Button size="sm" render={<Link href={usersSectionHref("create")} />} nativeButton={false}>
+                      Новый пользователь
+                    </Button>
+                  }
+                />
+              ) : (
                 <>
-                  <UserCog size={16} aria-hidden="true" />
-                  Создать пользователя
+                  {users.map((managedUser) => (
+                    <form
+                      key={`form-${managedUser.id}`}
+                      id={`user-access-${managedUser.id}`}
+                      action={updateUserAccess}
+                      className="hidden"
+                      aria-hidden="true"
+                    >
+                      <input type="hidden" name="userId" value={managedUser.id} />
+                    </form>
+                  ))}
+                  <Table aria-label="Пользователи">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Пользователь</TableHead>
+                        <TableHead>Роль</TableHead>
+                        <TableHead>Команда и линия</TableHead>
+                        <TableHead>Вход и активность</TableHead>
+                        <TableHead className="text-right">Действие</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((managedUser) => {
+                        const activeUserSessions = activeSessionsByUser.get(managedUser.id) ?? 0;
+                        const formId = `user-access-${managedUser.id}`;
+
+                        return (
+                          <TableRow key={managedUser.id}>
+                            <TableCell className="min-w-48 whitespace-normal align-top">
+                              <div className="flex flex-col gap-1">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium text-foreground">{managedUser.name}</span>
+                                  {managedUser.id === currentUser.id ? (
+                                    <Badge variant="default">Вы</Badge>
+                                  ) : null}
+                                </span>
+                                <span className="text-xs text-muted-foreground">{managedUser.email}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-44 whitespace-normal align-top">
+                              <div className="flex flex-col gap-2">
+                                <RoleSelect defaultValue={managedUser.role} form={formId} />
+                                <Badge
+                                  variant={managedUser.role === "ADMIN" ? "outline" : "secondary"}
+                                  className={cn("w-fit", roleBadgeClass(managedUser.role))}
+                                >
+                                  {roleLabels[managedUser.role]}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-52 whitespace-normal align-top">
+                              <FieldGroup className="gap-2">
+                                <Field>
+                                  <FieldLabel
+                                    htmlFor={`team-${managedUser.id}`}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    Команда
+                                  </FieldLabel>
+                                  <Input
+                                    id={`team-${managedUser.id}`}
+                                    name="teamName"
+                                    form={formId}
+                                    defaultValue={managedUser.teamName ?? ""}
+                                    placeholder="Команда"
+                                  />
+                                </Field>
+                                <Field>
+                                  <FieldLabel
+                                    htmlFor={`line-${managedUser.id}`}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    Линия поддержки
+                                  </FieldLabel>
+                                  <Input
+                                    id={`line-${managedUser.id}`}
+                                    name="supportLine"
+                                    form={formId}
+                                    defaultValue={managedUser.supportLine ?? ""}
+                                    placeholder="Линия"
+                                  />
+                                </Field>
+                              </FieldGroup>
+                            </TableCell>
+                            <TableCell className="min-w-56 whitespace-normal align-top">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-foreground">
+                                  {loginLabel(managedUser.localCredential?.login)}
+                                </span>
+                                <span className="text-xs tabular-nums text-muted-foreground">
+                                  Последний локальный вход:{" "}
+                                  {formatDate(managedUser.localCredential?.lastLoginAt)}
+                                </span>
+                                <span className="text-xs tabular-nums text-muted-foreground">
+                                  Активных сессий: {activeUserSessions} · проверок:{" "}
+                                  {managedUser._count.reviews} · внешних профилей:{" "}
+                                  {managedUser._count.externalIdentities}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap align-top text-right">
+                              <Button type="submit" form={formId} size="sm">
+                                Сохранить
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </>
-              }
-              title="Новый пользователь"
-              description="Локальный логин создается вместе с учетной записью; внешний профиль привяжется после первого входа."
-              defaultOpen={createDialogOpen}
-            >
-              <form action={createLocalUser} className="grid gap-4">
-                <div className="ops-form-grid ops-form-grid--three">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Имя
-                      <RequiredMark />
-                    </span>
-                    <input name="name" required className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Email
-                      <RequiredMark />
-                    </span>
-                    <input name="email" type="email" autoComplete="email" required className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Логин
-                    <input name="login" autoComplete="username" className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Временный пароль
-                      <RequiredMark />
-                    </span>
-                    <input name="password" type="password" autoComplete="new-password" minLength={8} required className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Роль
-                    <RoleSelect defaultValue="QA_ANALYST" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Команда
-                    <input name="teamName" className="form-control" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    Линия поддержки
-                    <input name="supportLine" className="form-control" />
-                  </label>
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button type="submit" className="action-button action-button--primary">
-                    <KeyRound size={16} aria-hidden="true" />
-                    Создать
-                  </button>
-                </div>
-              </form>
-            </AdminDialog>
-            <Link href="/admin/access" className="action-button">
-              <ShieldCheck size={16} aria-hidden="true" />
-              SSO и сессии
-            </Link>
-          </>
-        }
-      />
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
-      {visibleSection === "directory" ? (
-        <section className="ops-panel" aria-labelledby="users-directory-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Учетные записи</p>
-              <h2 id="users-directory-title" className="ops-panel__title">Пользователи</h2>
-              <p className="ops-panel__subtitle">Каждая строка сохраняется отдельно и сразу пишет событие аудита.</p>
-            </div>
-          </div>
-          {usersSetupHint ? (
-            <div className="admin-setup-inline">
-              <CoachCallout
-                title={usersSetupHint.title}
-                body={usersSetupHint.body}
-                href={usersSetupHint.href}
-                actionLabel={usersSetupHint.actionLabel}
-                variant="spotlight"
-                placement="top"
-                anchorLabel="Подсказка к пользователям"
-                stepIndex={1}
-                dismissId="settings:users"
-              />
-            </div>
-          ) : null}
-          {users.length === 0 ? (
-            <EmptyState
-              size="inline"
-              icon={<UsersRound size={20} aria-hidden="true" />}
-              title="Пользователей пока нет"
-              description="Создайте первую учетную запись, чтобы выдать доступ к рабочему пространству."
-              action={
-                <Link href={usersSectionHref("create")} className="action-button action-button--small">
-                  Новый пользователь
-                </Link>
-              }
-            />
-          ) : (
-          <div className="ops-table-shell">
-            <div className="ops-table ops-table--users" aria-label="Пользователи">
-              <div className="ops-table__row ops-table__row--head">
-                <span>Пользователь</span>
-                <span>Роль</span>
-                <span>Команда и линия</span>
-                <span>Вход и активность</span>
-                <span>Действие</span>
-              </div>
-              {users.map((managedUser) => {
-                const activeUserSessions = activeSessionsByUser.get(managedUser.id) ?? 0;
+        {visibleSection === "roles" ? (
+          <Card aria-labelledby="role-matrix-title">
+            <CardHeader className="border-b border-border pb-(--card-spacing)">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Матрица ролей
+              </p>
+              <CardTitle id="role-matrix-title">Права по ролям</CardTitle>
+              <CardDescription>
+                Права не назначаются вручную: роль определяет весь набор доступов.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+              {permissionGroups.map((group) => (
+                <Card key={group.title} size="sm" className="bg-muted/20">
+                  <CardHeader>
+                    <CardTitle className="text-sm">{group.title}</CardTitle>
+                    <CardDescription>{group.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {roles.map((role) => {
+                      const summary = permissionSummary(role, group.permissions);
 
-                return (
-                  <form key={managedUser.id} action={updateUserAccess} className="ops-table__row ops-table__row--form">
-                    <input type="hidden" name="userId" value={managedUser.id} />
-                    <div className="ops-table__cell">
-                      <span className="ops-table__label">Пользователь</span>
-                      <span className="flex flex-wrap items-center gap-2">
-                        <strong className="record-title">{managedUser.name}</strong>
-                        {managedUser.id === currentUser.id ? <Chip tone="accent" size="xs">Вы</Chip> : null}
-                      </span>
-                      <span className="record-meta compact-text">{managedUser.email}</span>
-                    </div>
-                    <label className="ops-table__cell text-sm font-medium text-[var(--text-body)]">
-                      <span className="ops-table__label">Роль</span>
-                      <RoleSelect defaultValue={managedUser.role} />
-                      <Chip tone={roleTone(managedUser.role)} size="xs">{roleLabels[managedUser.role]}</Chip>
-                    </label>
-                    <div className="ops-table__cell ops-table__cell--stacked">
-                      <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                        Команда
-                        <input name="teamName" defaultValue={managedUser.teamName ?? ""} className="form-control" placeholder="Команда" />
-                      </label>
-                      <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                        Линия поддержки
-                        <input name="supportLine" defaultValue={managedUser.supportLine ?? ""} className="form-control" placeholder="Линия" />
-                      </label>
-                    </div>
-                    <div className="ops-table__cell">
-                      <span className="ops-table__label">Вход и активность</span>
-                      <span className="record-title record-title--tight">{loginLabel(managedUser.localCredential?.login)}</span>
-                      <span className="record-meta tabular-nums">Последний локальный вход: {formatDate(managedUser.localCredential?.lastLoginAt)}</span>
-                      <span className="record-meta tabular-nums">
-                        Активных сессий: {activeUserSessions} · проверок: {managedUser._count.reviews} · внешних профилей:{" "}
-                        {managedUser._count.externalIdentities}
-                      </span>
-                    </div>
-                    <div className="ops-table__cell ops-table__cell--actions">
-                      <span className="ops-table__label">Действие</span>
-                      <button type="submit" className="action-button action-button--small whitespace-nowrap">
-                        Сохранить
-                      </button>
-                    </div>
-                  </form>
-                );
-              })}
-            </div>
-          </div>
-          )}
-        </section>
-      ) : null}
-
-      {visibleSection === "roles" ? (
-        <section className="ops-panel" aria-labelledby="role-matrix-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Матрица ролей</p>
-              <h2 id="role-matrix-title" className="ops-panel__title">Права по ролям</h2>
-              <p className="ops-panel__subtitle">Права не назначаются вручную: роль определяет весь набор доступов.</p>
-            </div>
-          </div>
-          <div className="role-matrix-list">
-            {permissionGroups.map((group) => (
-              <article key={group.title} className="role-matrix-card">
-                <div className="role-matrix-card__intro">
-                  <h3 className="record-title">{group.title}</h3>
-                  <p className="record-meta">{group.description}</p>
-                </div>
-                <div className="role-matrix-card__roles">
-                  {roles.map((role) => {
-                    const summary = permissionSummary(role, group.permissions);
-
-                    return (
-                      <div key={role} className="role-matrix-card__role">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="record-title record-title--tight">{roleLabels[role]}</span>
-                          <Chip tone={summary.enabled.length > 0 ? "accent" : "neutral"} size="xs" numeric>{summary.label}</Chip>
+                      return (
+                        <div
+                          key={role}
+                          className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-foreground">
+                              {roleLabels[role]}
+                            </span>
+                            <Badge variant={summary.enabled.length > 0 ? "default" : "secondary"}>
+                              {summary.label}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {summary.enabled.length > 0
+                              ? summary.enabled.map((permission) => permissionLabels[permission]).join(", ")
+                              : "Нет доступа"}
+                          </p>
+                          <p className="text-xs tabular-nums text-muted-foreground">
+                            Пользователей: {roleUserCounts[role]}
+                          </p>
                         </div>
-                        <p className="record-meta compact-text">
-                          {summary.enabled.length > 0 ? summary.enabled.map((permission) => permissionLabels[permission]).join(", ") : "Нет доступа"}
-                        </p>
-                        <p className="record-meta tabular-nums">Пользователей: {roleUserCounts[role]}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
       </AdminFrame>
     </PageShell>
   );

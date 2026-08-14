@@ -1,10 +1,31 @@
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/toast";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import type { FeedbackActionState } from "@/lib/feedback-actions";
+
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  });
+});
+
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: vi.fn() })
+}));
 
 function renderForm(action: (state: FeedbackActionState, formData: FormData) => Promise<FeedbackActionState>) {
   return render(
@@ -33,7 +54,7 @@ describe("ToastActionForm", () => {
     await waitFor(() => {
       expect(screen.getByText("Оценка принята.")).toBeInTheDocument();
     });
-    expect(document.querySelector('.toast[data-tone="success"]')).not.toBeNull();
+    expect(document.querySelector('[data-sonner-toast][data-type="success"]')).not.toBeNull();
   });
 
   it("renders an inline error and raises no toast on failure", async () => {
@@ -51,6 +72,6 @@ describe("ToastActionForm", () => {
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Нет прав на работу с обратной связью.");
     });
-    expect(document.querySelector('.toast[data-tone="success"]')).toBeNull();
+    expect(document.querySelector('[data-sonner-toast][data-type="success"]')).toBeNull();
   });
 });

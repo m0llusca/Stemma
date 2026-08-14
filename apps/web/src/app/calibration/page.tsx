@@ -1,18 +1,48 @@
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CheckCircle2, ClipboardCheck, Crosshair, Gauge, PlusCircle, TriangleAlert, UsersRound, X } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardCheck,
+  Crosshair,
+  Gauge,
+  PlusCircle,
+  TriangleAlert,
+  UsersRound,
+  X
+} from "lucide-react";
 import { Suspense, type CSSProperties } from "react";
 import { PageSkeleton } from "@/components/loading-states";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { StatusBadge, type StatusBadgeTone } from "@/components/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { computeCalibrationItemAgreement, type CalibrationCriterionKind } from "@/lib/calibration/agreement";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { russianPlural } from "@/lib/reports/report-format";
 import { formatQualityScore } from "@/lib/score-display";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -37,13 +67,13 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-function statusTone(status: string): ChipTone {
+function statusTone(status: string): StatusBadgeTone {
   if (status === "completed") {
     return "success";
   }
 
   if (status === "active") {
-    return "accent";
+    return "info";
   }
 
   return "neutral";
@@ -83,6 +113,18 @@ function calibrationHref(params: { sessionId?: string; newSession?: boolean }) {
 
   const query = searchParams.toString();
   return query ? `/calibration?${query}` : "/calibration";
+}
+
+function matrixCellStyle(delta: number): CSSProperties {
+  const magnitude = Math.min(Math.abs(delta), 40);
+  const intensity = magnitude / 40;
+  const outOfBand = Math.abs(delta) > ALIGNMENT_BAND;
+  const token = outOfBand ? "var(--destructive)" : "var(--primary)";
+  const mix = Math.round((outOfBand ? 18 : 8) + intensity * (outOfBand ? 40 : 22));
+
+  return {
+    backgroundColor: `color-mix(in oklch, ${token} ${mix}%, transparent)`
+  };
 }
 
 export default function CalibrationPage({ searchParams }: CalibrationPageProps) {
@@ -276,6 +318,8 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
     };
   });
   const selectedSessionIsOpen = selectedSession?.status === "active" || selectedSession?.status === "draft";
+  const disagreementLabel = russianPlural(selectedDisagreementCount, ["расхождение требует", "расхождения требуют", "расхождений требуют"]);
+  const waitingScoresLabel = russianPlural(selectedWaitingCount, ["оценка ещё ждёт", "оценки ещё ждут", "оценок ещё ждут"]);
   const calibrationNextAction = !selectedSession
     ? "Создайте первую сессию из финализированных проверок."
     : selectedItemCount === 0
@@ -283,9 +327,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       : selectedParticipantCount === 0
         ? "Добавьте проверяющих в сессию."
         : selectedWaitingCount > 0
-          ? `Дождитесь или напомните ${selectedWaitingCount} оценок перед разбором.`
+          ? `Не хватает ${russianPlural(selectedWaitingCount, ["оценки", "оценок", "оценок"])} — дождитесь участников или напомните им перед разбором.`
           : selectedDisagreementCount > 0
-            ? `Разберите ${selectedDisagreementCount} расхождений и зафиксируйте общее правило.`
+            ? `Разберите ${russianPlural(selectedDisagreementCount, ["расхождение", "расхождения", "расхождений"])} и зафиксируйте общее правило.`
             : selectedAlignmentPercent != null && selectedAlignmentPercent < 85
               ? "Проверьте смещение участников относительно эталона."
               : selectedSessionIsOpen
@@ -322,14 +366,20 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
             : "success";
   const calibrationTriageAction =
     selectedSession && selectedSessionIsOpen && selectedFirstOpenItem ? (
-      <Link
-        href={`/reviews/${selectedFirstOpenItem.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
-        className="action-button action-button--primary"
+      <Button
+        size="sm"
+        render={
+          <Link
+            href={`/reviews/${selectedFirstOpenItem.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+          />
+        }
+        nativeButton={false}
       >
         Разобрать
-        <ArrowRight size={16} aria-hidden="true" />
-      </Link>
+        <ArrowRight data-icon="inline-end" size={16} aria-hidden="true" />
+      </Button>
     ) : undefined;
+  const hasMatrix = selectedItemStates.length > 0 && (selectedSession?.participants.length ?? 0) > 0;
 
   return (
     <PageShell
@@ -337,289 +387,345 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       title="Калибровка"
       description="Проверяющие оценивают одни и те же обращения. Руководитель видит расхождения и фиксирует единое правило."
       actions={
-        <Link href={openNewSession ? closeNewSessionHref : newSessionHref} className={`action-button ${openNewSession ? "" : "action-button--primary"}`}>
-          {openNewSession ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+        <Button
+          variant={openNewSession ? "outline" : "default"}
+          render={<Link href={openNewSession ? closeNewSessionHref : newSessionHref} />}
+          nativeButton={false}
+        >
+          {openNewSession ? <X data-icon="inline-start" size={18} aria-hidden="true" /> : <PlusCircle data-icon="inline-start" size={18} aria-hidden="true" />}
           {openNewSession ? "Скрыть форму" : "Новая сессия"}
-        </Link>
+        </Button>
       }
     >
-      <div className="grid gap-[14px] items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <TriageStrip
-        tone={calibrationTriageTone}
-        icon={selectedDisagreementCount > 0 ? <TriangleAlert size={18} aria-hidden="true" /> : <Crosshair size={18} aria-hidden="true" />}
-        title={
-          selectedSession
-            ? selectedDisagreementCount > 0
-              ? `${selectedDisagreementCount} ${selectedDisagreementCount === 1 ? "расхождение требует" : "расхождений требуют"} разбора`
-              : selectedWaitingCount > 0
-                ? `${selectedWaitingCount} ${selectedWaitingCount === 1 ? "оценка ещё ждёт" : "оценок ещё ждут"}`
-                : "Сессия готова к разбору"
-            : "Нет активной калибровки"
-        }
-        description={calibrationNextAction}
-        action={calibrationTriageAction}
-      />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <TriageStrip
+          tone={calibrationTriageTone}
+          icon={selectedDisagreementCount > 0 ? <TriangleAlert size={18} aria-hidden="true" /> : <Crosshair size={18} aria-hidden="true" />}
+          title={
+            selectedSession
+              ? selectedDisagreementCount > 0
+                ? `${disagreementLabel} разбора`
+                : selectedWaitingCount > 0
+                  ? waitingScoresLabel
+                  : "Сессия готова к разбору"
+              : "Нет активной калибровки"
+          }
+          description={calibrationNextAction}
+          action={calibrationTriageAction}
+        />
 
-      <div className="enablement-kpi-grid" aria-label="Ключевые показатели калибровки">
-        <StatKpi
-          label="Согласованность"
-          value={selectedAlignmentPercent != null ? selectedAlignmentPercent : "—"}
-          unit={selectedAlignmentPercent != null ? "%" : undefined}
-          tone={selectedAlignmentPercent != null && selectedAlignmentPercent < 85 ? "warning" : "neutral"}
-          icon={<Crosshair size={16} aria-hidden="true" />}
-          hint={selectedAlignmentPercent != null ? "Цель — 85–90% в пределах ±10" : "Появится после оценок участников"}
-        />
-        <StatKpi
-          label="Готовность"
-          value={selectedProgress}
-          unit="%"
-          icon={<Gauge size={16} aria-hidden="true" />}
-          hint={selectedWaitingCount > 0 ? `${selectedWaitingCount} оценок ещё ждут` : "Все оценки собраны"}
-        />
-        <StatKpi
-          label="Расхождения"
-          value={selectedDisagreementCount}
-          tone={selectedDisagreementCount > 0 ? "warning" : "neutral"}
-          icon={<TriangleAlert size={16} aria-hidden="true" />}
-          hint={selectedDisagreementCount > 0 ? `Разброс выше ±${ALIGNMENT_BAND} баллов` : "Оценки в пределах нормы"}
-        />
-        <StatKpi
-          label="Активных сессий"
-          value={activeSessionCount}
-          icon={<ClipboardCheck size={16} aria-hidden="true" />}
-          hint={`${sessions.length} всего в рабочей области`}
-        />
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2" aria-label="Ключевые показатели калибровки">
+          <StatKpi
+            label="Согласованность"
+            value={selectedAlignmentPercent != null ? `${selectedAlignmentPercent}%` : "—"}
+            hint={selectedAlignmentPercent != null ? "Цель — 85–90% в пределах ±10" : "Появится после оценок участников"}
+          />
+          <StatKpi
+            label="Готовность"
+            value={`${selectedProgress}%`}
+            hint={selectedWaitingCount > 0 ? waitingScoresLabel : "Все оценки собраны"}
+          />
+          <StatKpi
+            label="Расхождения"
+            value={selectedDisagreementCount}
+            hint={selectedDisagreementCount > 0 ? `Разброс выше ±${ALIGNMENT_BAND} баллов` : "Оценки в пределах нормы"}
+          />
+          <StatKpi
+            label="Активных сессий"
+            value={activeSessionCount}
+            hint={`${sessions.length} всего в рабочей области`}
+          />
+        </div>
       </div>
 
       {openNewSession ? (
-        <section className="calibration-create-panel workflow-create-panel calibration-create-inline" aria-label="Новая калибровка">
-          <div className="learning-section-header calibration-create-form__header">
-            <div className="min-w-0">
-              <h2>Новая калибровка</h2>
-              <p>Выберите проверяющих и обращения. После создания участники получат один и тот же набор для оценки.</p>
-            </div>
-            <Link href={closeNewSessionHref} className="action-button">
-              Скрыть
-            </Link>
-          </div>
-          <form action={createCalibrationSession} className="calibration-create-form">
-            <div className="calibration-create-shell">
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Название
-                <input name="name" required defaultValue="Калибровка недели" className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Срок
-                <input name="dueAt" type="date" className="form-control" />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                Заметки
-                <textarea name="notes" rows={2} className="form-control" />
-              </label>
-            </div>
+        <Card aria-label="Новая калибровка">
+          <CardHeader className="border-b">
+            <CardTitle>Новая калибровка</CardTitle>
+            <CardDescription>Выберите проверяющих и обращения. После создания участники получат один и тот же набор для оценки.</CardDescription>
+            <CardAction>
+              <Button variant="outline" size="sm" render={<Link href={closeNewSessionHref} />} nativeButton={false}>
+                Скрыть
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <form action={createCalibrationSession} className="flex flex-col gap-5">
+              <FieldGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="calibration-name">Название</FieldLabel>
+                  <Input id="calibration-name" name="name" required defaultValue="Калибровка недели" />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="calibration-due">Срок</FieldLabel>
+                  <Input id="calibration-due" name="dueAt" type="date" />
+                </Field>
+                <Field className="sm:col-span-2 lg:col-span-1">
+                  <FieldLabel htmlFor="calibration-notes">Заметки</FieldLabel>
+                  <Textarea id="calibration-notes" name="notes" rows={2} />
+                </Field>
+              </FieldGroup>
 
-            <div className="calibration-create-columns">
-              <fieldset className="form-stack">
-                <legend className="text-sm font-semibold text-[var(--foreground)]">Участники</legend>
-                <div className="calibration-picker-grid">
-                  {qaUsers.map((qaUser) => (
-                    <label key={qaUser.id} className="compact-check-card">
-                      <input name="participantId" type="checkbox" value={qaUser.id} defaultChecked={qaUser.id === user.id} />
-                      <span>{qaUser.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <div className="grid gap-4 md:grid-cols-2">
+                <FieldSet>
+                  <FieldLegend>Участники</FieldLegend>
+                  <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+                    {qaUsers.map((qaUser) => (
+                      <FieldLabel
+                        key={qaUser.id}
+                        className="cursor-pointer items-start rounded-lg border border-border bg-background px-3 py-2.5 font-normal has-data-checked:border-primary/40 has-data-checked:bg-primary/5"
+                      >
+                        <Checkbox
+                          name="participantId"
+                          value={qaUser.id}
+                          defaultChecked={qaUser.id === user.id}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm leading-snug">{qaUser.name}</span>
+                      </FieldLabel>
+                    ))}
+                  </div>
+                </FieldSet>
 
-              <fieldset className="form-stack">
-                <legend className="text-sm font-semibold text-[var(--foreground)]">Обращения</legend>
-                <div className="calibration-picker-grid calibration-picker-grid--scroll">
-                  {conversations.map((conversation) => (
-                    <label key={conversation.id} className="compact-check-card compact-check-card--tall">
-                      <input name="conversationId" type="checkbox" value={conversation.id} />
-                      <span>
-                        <strong>{conversation.externalId}</strong>
-                        {conversation.subject}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
+                <FieldSet>
+                  <FieldLegend>Обращения</FieldLegend>
+                  <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+                    {conversations.map((conversation) => (
+                      <FieldLabel
+                        key={conversation.id}
+                        className="cursor-pointer items-start rounded-lg border border-border bg-background px-3 py-2.5 font-normal has-data-checked:border-primary/40 has-data-checked:bg-primary/5"
+                      >
+                        <Checkbox
+                          name="conversationId"
+                          value={conversation.id}
+                          className="mt-0.5"
+                        />
+                        <span className="flex min-w-0 flex-col gap-0.5 text-sm leading-snug">
+                          <strong className="font-medium">{conversation.externalId}</strong>
+                          <span className="text-muted-foreground">{conversation.subject}</span>
+                        </span>
+                      </FieldLabel>
+                    ))}
+                  </div>
+                </FieldSet>
+              </div>
 
-            <ValidatedSubmitButton minCheckedNames={["participantId", "conversationId"]}>
-              Создать сессию
-            </ValidatedSubmitButton>
-          </form>
-        </section>
+              <ValidatedSubmitButton className={buttonVariants()} minCheckedNames={["participantId", "conversationId"]}>
+                Создать сессию
+              </ValidatedSubmitButton>
+            </form>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <section className="calibration-session-strip panel" aria-label="Сессии калибровки">
-        <div className="learning-section-header calibration-session-strip__header">
-          <div className="min-w-0">
-            <h2>Сессии</h2>
-            <p>Выберите сессию, затем разберите ожидания и расхождения.</p>
-          </div>
-          <Chip tone="neutral" numeric>{sessions.length}</Chip>
-        </div>
-        <div className="calibration-session-row">
-          {sessionSummaries.map((summary) => {
-            const isSelected = selectedSession?.id === summary.session.id;
+      <Card aria-label="Сессии калибровки">
+        <CardHeader className="border-b">
+          <CardTitle>Сессии</CardTitle>
+          <CardDescription>Выберите сессию, затем разберите ожидания и расхождения.</CardDescription>
+          <CardAction>
+            <Badge variant="secondary">{sessions.length}</Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {sessionSummaries.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {sessionSummaries.map((summary) => {
+                const isSelected = selectedSession?.id === summary.session.id;
 
-            return (
-              <Link
-                key={summary.session.id}
-                href={calibrationHref({ sessionId: summary.session.id })}
-                className={`calibration-session-chip ${isSelected ? "calibration-session-chip--selected" : ""}`}
-                aria-current={isSelected ? "page" : undefined}
-              >
-                <Chip tone={statusTone(summary.session.status)} size="xs">{statusLabel(summary.session.status)}</Chip>
-                <strong>{summary.session.name}</strong>
-                <small className="calibration-session-chip__stats">
-                  <span>{summary.progress}% готово</span>
-                  <span>{summary.waitingCount} ждут</span>
-                  <span>{summary.disagreementCount} расх.</span>
-                </small>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="calibration-workspace" aria-label="Рабочая область калибровки">
-        <div className="calibration-board panel">
-          {selectedSession ? (
-            <>
-              <div className="calibration-board__header">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2>{selectedSession.name}</h2>
-                    <Chip tone={statusTone(selectedSession.status)} size="sm">{statusLabel(selectedSession.status)}</Chip>
-                  </div>
-                  <p>
-                    {selectedSession.notes || "Сравните оценки по одним обращениям и зафиксируйте, где правило трактуется по-разному."}
-                  </p>
-                </div>
-                <div className="calibration-board__actions">
-                  {selectedSession.status === "active" || selectedSession.status === "draft" ? (
-                    <form action={updateCalibrationSessionStatus}>
-                      <input type="hidden" name="id" value={selectedSession.id} />
-                      <input type="hidden" name="status" value="completed" />
-                      <button type="submit" className="action-button action-button--primary">
-                        <CheckCircle2 size={16} aria-hidden="true" />
-                        Завершить
-                      </button>
-                    </form>
-                  ) : selectedSession.status === "completed" || selectedSession.status === "archived" ? (
-                    <form action={updateCalibrationSessionStatus}>
-                      <input type="hidden" name="id" value={selectedSession.id} />
-                      <input type="hidden" name="status" value="active" />
-                      <button type="submit" className="action-button">
-                        Вернуть в работу
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="calibration-session-meta" aria-label="Параметры сессии калибровки">
-                {calibrationDecisionMeta.map((meta) => {
-                  const Icon = meta.icon;
-
-                  return (
-                    <span key={meta.label} className="calibration-session-meta__item">
-                      <Icon size={15} aria-hidden="true" />
-                      <small>{meta.label}</small>
-                      <strong>{meta.value}</strong>
+                return (
+                  <Link
+                    key={summary.session.id}
+                    href={calibrationHref({ sessionId: summary.session.id })}
+                    aria-current={isSelected ? "page" : undefined}
+                    className={cn(
+                      "flex min-w-[11.5rem] max-w-[16rem] shrink-0 flex-col gap-2 rounded-xl border px-3 py-3 transition-colors",
+                      isSelected
+                        ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                        : "border-border bg-card hover:bg-muted/40"
+                    )}
+                  >
+                    <StatusBadge tone={statusTone(summary.session.status)}>{statusLabel(summary.session.status)}</StatusBadge>
+                    <strong className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{summary.session.name}</strong>
+                    <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                      <span>{summary.progress}% готово</span>
+                      <span>{summary.waitingCount} ждут</span>
+                      <span>{summary.disagreementCount} расх.</span>
                     </span>
-                  );
-                })}
-              </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Пока нет сессий. Создайте первую калибровку.</p>
+          )}
+        </CardContent>
+      </Card>
 
-              {selectedItemStates.length > 0 && selectedSession.participants.length > 0 ? (
-                <div className="calibration-matrix" aria-label="Согласованность по участникам и обращениям">
-                  <div className="learning-section-header calibration-matrix__header">
-                    <div className="min-w-0">
-                      <h2>Матрица согласованности</h2>
-                      <p>Отклонение каждого участника от эталона по каждому обращению. Чем темнее, тем дальше от ±{ALIGNMENT_BAND}. Нижняя строка — среднее смещение участника.</p>
+      {selectedSession ? (
+        <Card aria-label="Рабочая область калибровки">
+          <CardHeader className="border-b">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <CardTitle>{selectedSession.name}</CardTitle>
+              <StatusBadge tone={statusTone(selectedSession.status)}>{statusLabel(selectedSession.status)}</StatusBadge>
+            </div>
+            <CardDescription>
+              {selectedSession.notes || "Сравните оценки по одним обращениям и зафиксируйте, где правило трактуется по-разному."}
+            </CardDescription>
+            <CardAction className="flex flex-wrap items-center gap-2">
+              {selectedSession.status === "active" || selectedSession.status === "draft" ? (
+                <form action={updateCalibrationSessionStatus}>
+                  <input type="hidden" name="id" value={selectedSession.id} />
+                  <input type="hidden" name="status" value="completed" />
+                  <Button type="submit" size="sm">
+                    <CheckCircle2 data-icon="inline-start" size={16} aria-hidden="true" />
+                    Завершить
+                  </Button>
+                </form>
+              ) : selectedSession.status === "completed" || selectedSession.status === "archived" ? (
+                <form action={updateCalibrationSessionStatus}>
+                  <input type="hidden" name="id" value={selectedSession.id} />
+                  <input type="hidden" name="status" value="active" />
+                  <Button type="submit" variant="outline" size="sm">
+                    Вернуть в работу
+                  </Button>
+                </form>
+              ) : null}
+            </CardAction>
+          </CardHeader>
+
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex flex-wrap gap-3" aria-label="Параметры сессии калибровки">
+              {calibrationDecisionMeta.map((meta) => {
+                const Icon = meta.icon;
+
+                return (
+                  <div
+                    key={meta.label}
+                    className="flex min-w-[7.5rem] items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
+                  >
+                    <Icon size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="text-xs text-muted-foreground">{meta.label}</span>
+                      <span className="text-sm font-medium tabular-nums text-foreground">{meta.value}</span>
                     </div>
                   </div>
-                  <div className="calibration-matrix__scroll">
-                    <table className="calibration-matrix__table">
-                      <thead>
-                        <tr>
-                          <th scope="col" className="calibration-matrix__corner">Обращение</th>
+                );
+              })}
+            </div>
+
+            <Tabs defaultValue={hasMatrix ? "matrix" : "consensus"} className="gap-4">
+              <TabsList>
+                <TabsTrigger value="matrix">Матрица</TabsTrigger>
+                <TabsTrigger value="consensus">
+                  Консенсус
+                  <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5 text-xs">
+                    {selectedItemStates.length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="matrix" className="flex flex-col gap-3">
+                {hasMatrix ? (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-sm font-medium text-foreground">Матрица согласованности</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Отклонение каждого участника от эталона по каждому обращению. Чем темнее, тем дальше от ±{ALIGNMENT_BAND}. Нижняя
+                        строка — среднее смещение участника.
+                      </p>
+                    </div>
+                    <Table aria-label="Согласованность по участникам и обращениям">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[10rem]">Обращение</TableHead>
                           {selectedSession.participants.map((participant) => (
-                            <th key={participant.id} scope="col" className="calibration-matrix__participant">
-                              <span className="calibration-avatar" aria-hidden="true">{initialsOf(participant.user.name)}</span>
-                              <span className="calibration-matrix__participant-name">{participant.user.name}</span>
-                            </th>
+                            <TableHead key={participant.id} className="min-w-[5.5rem] text-center">
+                              <div className="flex flex-col items-center gap-1.5">
+                                <span
+                                  className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground"
+                                  aria-hidden="true"
+                                >
+                                  {initialsOf(participant.user.name)}
+                                </span>
+                                <span className="max-w-[6rem] truncate text-xs font-medium normal-case">{participant.user.name}</span>
+                              </div>
+                            </TableHead>
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {selectedItemStates.map((state) => (
-                          <tr key={state.item.id}>
-                            <th scope="row" className="calibration-matrix__row-label">
-                              <span>{state.item.conversation.subject}</span>
-                              <small>{state.alignmentPercent != null ? `${state.alignmentPercent}% в норме` : "нет эталона"}</small>
-                            </th>
+                          <TableRow key={state.item.id}>
+                            <TableCell className="whitespace-normal">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium text-foreground">{state.item.conversation.subject}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {state.alignmentPercent != null ? `${state.alignmentPercent}% в норме` : "нет эталона"}
+                                </span>
+                              </div>
+                            </TableCell>
                             {selectedSession.participants.map((participant) => {
                               const delta = state.reviewerDeltas.get(participant.userId);
 
                               if (delta == null) {
                                 return (
-                                  <td key={participant.id} className="calibration-matrix__cell calibration-matrix__cell--empty">
+                                  <TableCell key={participant.id} className="text-center text-muted-foreground">
                                     <span aria-hidden="true">·</span>
                                     <span className="sr-only">нет оценки</span>
-                                  </td>
+                                  </TableCell>
                                 );
                               }
 
-                              const magnitude = Math.min(Math.abs(delta), 40);
-                              const intensity = (magnitude / 40).toFixed(2);
                               const outOfBand = Math.abs(delta) > ALIGNMENT_BAND;
 
                               return (
-                                <td
+                                <TableCell
                                   key={participant.id}
-                                  className={`calibration-matrix__cell ${outOfBand ? "calibration-matrix__cell--out" : ""}`}
-                                  style={{ "--cell-intensity": intensity } as CSSProperties}
+                                  className={cn(
+                                    "text-center tabular-nums font-medium",
+                                    outOfBand ? "text-destructive" : "text-foreground"
+                                  )}
+                                  style={matrixCellStyle(delta)}
                                   title={`${participant.user.name}: ${signedDelta(delta)} от эталона`}
                                 >
                                   {signedDelta(delta)}
-                                </td>
+                                </TableCell>
                               );
                             })}
-                          </tr>
+                          </TableRow>
                         ))}
-                      </tbody>
+                      </TableBody>
                       {participantBiasRows.length > 0 ? (
-                        <tfoot>
-                          <tr className="calibration-matrix__summary-row">
-                            <th scope="row" className="calibration-matrix__row-label calibration-matrix__summary-label">
-                              <span>Среднее смещение</span>
-                              <small>отклонение от эталона</small>
-                            </th>
+                        <TableFooter>
+                          <TableRow>
+                            <TableCell className="whitespace-normal">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium">Среднее смещение</span>
+                                <span className="text-xs font-normal text-muted-foreground">отклонение от эталона</span>
+                              </div>
+                            </TableCell>
                             {selectedSession.participants.map((participant) => {
                               const averageDelta = participantBiasById.get(participant.id);
 
                               if (averageDelta == null) {
                                 return (
-                                  <td key={participant.id} className="calibration-matrix__cell calibration-matrix__cell--empty">
+                                  <TableCell key={participant.id} className="text-center text-muted-foreground">
                                     <span aria-hidden="true">·</span>
                                     <span className="sr-only">нет оценки</span>
-                                  </td>
+                                  </TableCell>
                                 );
                               }
 
                               const outOfBand = Math.abs(averageDelta) > ALIGNMENT_BAND;
 
                               return (
-                                <td
+                                <TableCell
                                   key={participant.id}
-                                  className={`calibration-matrix__cell calibration-matrix__summary-cell ${outOfBand ? "calibration-matrix__cell--out" : ""}`}
+                                  className={cn(
+                                    "text-center tabular-nums font-semibold",
+                                    outOfBand ? "text-destructive" : "text-foreground"
+                                  )}
+                                  style={matrixCellStyle(averageDelta)}
                                   title={
                                     averageDelta === 0
                                       ? `${participant.user.name}: в пределах эталона`
@@ -629,192 +735,292 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                                   }
                                 >
                                   {signedDelta(averageDelta)}
-                                </td>
+                                </TableCell>
                               );
                             })}
-                          </tr>
-                        </tfoot>
+                          </TableRow>
+                        </TableFooter>
                       ) : null}
-                    </table>
-                  </div>
+                    </Table>
+                  </>
+                ) : (
+                  <EmptyState
+                    size="inline"
+                    icon={<Crosshair size={20} aria-hidden="true" />}
+                    title="Матрица пока пуста"
+                    description="Добавьте участников и обращения в сессию, чтобы увидеть отклонения от эталона."
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="consensus" className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-sm font-medium text-foreground">Консенсус по обращениям</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Доля оценок в пределах ±{ALIGNMENT_BAND} баллов от эталона. Откройте обращение, чтобы зафиксировать общее правило.
+                  </p>
                 </div>
-              ) : null}
 
-              <div className="calibration-consensus-list" aria-label="Согласованность по обращениям">
-                <div className="learning-section-header">
-                  <div className="min-w-0">
-                    <h2>Консенсус по обращениям</h2>
-                    <p>Доля оценок в пределах ±{ALIGNMENT_BAND} баллов от эталона. Откройте обращение, чтобы зафиксировать общее правило.</p>
-                  </div>
-                  <Chip tone="neutral" numeric>{selectedItemStates.length}</Chip>
-                </div>
-                {selectedItemStates.map(({ item, baselineReview, baselineScore, reviews, reviewerDeltas, alignedCount, gradedCount, alignmentPercent, spread, missingParticipants, criterionAgreement }) => {
-                  const completedCount = reviews.length;
-                  const expectedCount = selectedSession.participants.length;
-                  const attention = spread != null && spread > ALIGNMENT_BAND;
-                  const waiting = missingParticipants.length > 0;
-                  const offBandCount = Math.max(gradedCount - alignedCount, 0);
-                  const alignedPct = gradedCount > 0 ? (alignedCount / gradedCount) * 100 : 0;
-                  const offBandPct = gradedCount > 0 ? (offBandCount / gradedCount) * 100 : 0;
-                  // Per-criterion consensus rows, most-misaligned first. Rows without a
-                  // rate (fewer than two answers) sink to the bottom.
-                  const criterionRows = criterionAgreement.criteria
-                    .map((entry) => ({ ...entry, meta: criterionMetaById.get(entry.criterionId) }))
-                    .filter((entry) => entry.meta != null && entry.participantCount > 0)
-                    .sort((a, b) => {
-                      const rateA = a.agreementRate ?? Number.POSITIVE_INFINITY;
-                      const rateB = b.agreementRate ?? Number.POSITIVE_INFINITY;
-                      return rateA - rateB;
-                    });
+                {selectedItemStates.length > 0 ? (
+                  <div className="flex flex-col gap-3" aria-label="Согласованность по обращениям">
+                    {selectedItemStates.map(
+                      ({
+                        item,
+                        baselineReview,
+                        baselineScore,
+                        reviews,
+                        reviewerDeltas,
+                        alignedCount,
+                        gradedCount,
+                        alignmentPercent,
+                        spread,
+                        criterionAgreement
+                      }) => {
+                        const completedCount = reviews.length;
+                        const expectedCount = selectedSession.participants.length;
+                        const attention = spread != null && spread > ALIGNMENT_BAND;
+                        const offBandCount = Math.max(gradedCount - alignedCount, 0);
+                        const alignedPct = gradedCount > 0 ? (alignedCount / gradedCount) * 100 : 0;
+                        const offBandPct = gradedCount > 0 ? (offBandCount / gradedCount) * 100 : 0;
+                        // Per-criterion consensus rows, most-misaligned first. Rows without a
+                        // rate (fewer than two answers) sink to the bottom.
+                        const criterionRows = criterionAgreement.criteria
+                          .map((entry) => ({ ...entry, meta: criterionMetaById.get(entry.criterionId) }))
+                          .filter((entry) => entry.meta != null && entry.participantCount > 0)
+                          .sort((a, b) => {
+                            const rateA = a.agreementRate ?? Number.POSITIVE_INFINITY;
+                            const rateB = b.agreementRate ?? Number.POSITIVE_INFINITY;
+                            return rateA - rateB;
+                          });
 
-                  return (
-                    <article
-                      key={item.id}
-                      className={`calibration-consensus-card ${attention ? "calibration-consensus-card--attention" : ""}`}
-                    >
-                      <div className="calibration-consensus-card__main">
-                        <div className="calibration-consensus-card__head">
-                          <Link href={`/reviews/${item.conversationId}`} className="record-title calibration-consensus-card__title">
-                            {item.conversation.subject}
-                          </Link>
-                          {attention ? (
-                            <Chip tone="warning" size="xs" numeric label="Разброс" value={spread != null ? formatQualityScore(spread) : "—"} />
-                          ) : null}
-                        </div>
-
-                        <div className="calibration-consensus">
-                          <div className="calibration-consensus__bar-row">
-                            <span className="calibration-consensus__headline">
-                              <strong>Согласованность</strong>
-                              <span className="calibration-consensus__percent">{alignmentPercent != null ? `${alignmentPercent}%` : "нет эталона"}</span>
-                            </span>
-                            {baselineScore != null ? (
-                              <span className="calibration-consensus__baseline">
-                                Эталон {baselineScore} · {baselineReview?.reviewer.name}
-                              </span>
-                            ) : (
-                              <span className="calibration-consensus__baseline calibration-consensus__baseline--missing">нет финальной проверки</span>
-                            )}
-                          </div>
-                          {gradedCount > 0 ? (
-                            <div
-                              className="calibration-consensus__bar"
-                              role="img"
-                              aria-label={`${alignedCount} из ${gradedCount} в пределах ±${ALIGNMENT_BAND}`}
-                            >
-                              <span className="calibration-consensus__bar-aligned" style={{ width: `${alignedPct}%` }} />
-                              <span className="calibration-consensus__bar-off" style={{ width: `${offBandPct}%` }} />
-                            </div>
-                          ) : (
-                            <div className="calibration-consensus__bar calibration-consensus__bar--empty" aria-hidden="true" />
-                          )}
-                          <div className="calibration-consensus__legend">
-                            <span>{alignedCount} в норме</span>
-                            {offBandCount > 0 ? <span className="calibration-consensus__legend-off">{offBandCount} вне ±{ALIGNMENT_BAND}</span> : null}
-                            <span>Готово {completedCount}/{expectedCount}</span>
-                            {item.conversation._count.coachingPins > 0 ? <span>Заметки {item.conversation._count.coachingPins}</span> : null}
-                          </div>
-                        </div>
-
-                        <div className="calibration-graders" aria-label="Оценки участников">
-                          {selectedSession.participants.map((participant) => {
-                            const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
-                            const delta = reviewerDeltas.get(participant.userId);
-                            const outOfBand = delta != null && Math.abs(delta) > ALIGNMENT_BAND;
-
-                            return (
-                              <span
-                                key={participant.id}
-                                className={`calibration-grader ${review ? "" : "calibration-grader--waiting"} ${outOfBand ? "calibration-grader--out" : ""}`}
-                                title={
-                                  review
-                                    ? `${participant.user.name}: ${formatQualityScore(review.totalScore)}${delta != null ? ` (${signedDelta(delta)})` : ""}`
-                                    : `${participant.user.name}: ждёт оценки`
-                                }
-                              >
-                                <span className="calibration-avatar" aria-hidden="true">{initialsOf(participant.user.name)}</span>
-                                <span className="calibration-grader__score">
-                                  {review ? Math.round(review.totalScore) : "—"}
-                                  {delta != null ? <small>{signedDelta(delta)}</small> : null}
-                                </span>
-                              </span>
-                            );
-                          })}
-                        </div>
-
-                        {criterionRows.length > 0 ? (
-                          <div className="calibration-criteria" aria-label="Согласованность по критериям">
-                            <div className="calibration-criteria__head">
-                              <strong>По критериям</strong>
-                              <span className="calibration-criteria__hint">Доля совпавших ответов участников. Сначала самые спорные.</span>
-                            </div>
-                            <ul className="calibration-criteria__list">
-                              {criterionRows.map((row) => {
-                                const misaligned = row.agreementRate != null && row.agreementRate < 0.75;
-
-                                return (
-                                  <li
-                                    key={row.criterionId}
-                                    className={`calibration-criteria__row ${misaligned ? "calibration-criteria__row--attention" : ""}`}
-                                  >
-                                    <span className="calibration-criteria__label">
-                                      <span className="calibration-criteria__block">{row.meta?.block}</span>
-                                      <span className="calibration-criteria__name">{row.meta?.label}</span>
-                                    </span>
-                                    <span className="calibration-criteria__metrics">
-                                      <span className="calibration-criteria__rate">
-                                        {row.agreementRate != null ? `${Math.round(row.agreementRate * 100)}%` : "—"}
-                                      </span>
-                                      {row.scaleSpread != null && row.scaleSpread > 0 ? (
-                                        <span className="calibration-criteria__spread" title="Разброс баллов по шкале">
-                                          разброс {row.scaleSpread}
-                                        </span>
-                                      ) : null}
-                                      {row.matchesBaseline === false ? (
-                                        <Chip tone="warning" size="xs">≠ эталон</Chip>
-                                      ) : row.matchesBaseline === true ? (
-                                        <Chip tone="success" size="xs">= эталон</Chip>
-                                      ) : null}
-                                    </span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="calibration-consensus-card__aside">
-                        {selectedSession.status === "active" || selectedSession.status === "draft" ? (
-                          <Link
-                            href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
-                            className="action-button"
+                        return (
+                          <Card
+                            key={item.id}
+                            size="sm"
+                            className={cn(attention && "ring-1 ring-amber-500/30")}
                           >
-                            Оценить
-                          </Link>
-                        ) : (
-                          <Chip tone="neutral" size="xs">{selectedSession.status === "archived" ? "Архив" : "Завершена"}</Chip>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              icon={<ClipboardCheck size={24} aria-hidden="true" />}
-              title="Нет калибровок"
-              description="Создайте первую сессию из проверенных обращений и выберите участников."
-              action={
-                <Link href={newSessionHref} className="action-button action-button--primary">
-                  <PlusCircle size={16} aria-hidden="true" />
-                  Новая сессия
-                </Link>
-              }
-            />
-          )}
-        </div>
-      </section>
+                            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                              <div className="flex min-w-0 flex-1 flex-col gap-4">
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <Link
+                                    href={`/reviews/${item.conversationId}`}
+                                    className="text-sm font-medium text-foreground hover:underline"
+                                  >
+                                    {item.conversation.subject}
+                                  </Link>
+                                  {attention ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-300"
+                                    >
+                                      Разброс {spread != null ? formatQualityScore(spread) : "—"}
+                                    </Badge>
+                                  ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                    <span className="flex items-baseline gap-2 text-sm">
+                                      <strong className="font-medium">Согласованность</strong>
+                                      <span className="tabular-nums text-muted-foreground">
+                                        {alignmentPercent != null ? `${alignmentPercent}%` : "нет эталона"}
+                                      </span>
+                                    </span>
+                                    {baselineScore != null ? (
+                                      <span className="text-xs text-muted-foreground">
+                                        Эталон {baselineScore} · {baselineReview?.reviewer.name}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">нет финальной проверки</span>
+                                    )}
+                                  </div>
+                                  {gradedCount > 0 ? (
+                                    <div
+                                      className="flex h-2 overflow-hidden rounded-full bg-muted"
+                                      role="img"
+                                      aria-label={`${alignedCount} из ${gradedCount} в пределах ±${ALIGNMENT_BAND}`}
+                                    >
+                                      <span className="h-full bg-emerald-500/70" style={{ width: `${alignedPct}%` }} />
+                                      <span className="h-full bg-amber-500/70" style={{ width: `${offBandPct}%` }} />
+                                    </div>
+                                  ) : (
+                                    <div className="h-2 rounded-full bg-muted" aria-hidden="true" />
+                                  )}
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                    <span>{alignedCount} в норме</span>
+                                    {offBandCount > 0 ? (
+                                      <span className="text-amber-800 dark:text-amber-300">
+                                        {offBandCount} вне ±{ALIGNMENT_BAND}
+                                      </span>
+                                    ) : null}
+                                    <span>
+                                      Готово {completedCount}/{expectedCount}
+                                    </span>
+                                    {item.conversation._count.coachingPins > 0 ? (
+                                      <span>Заметки {item.conversation._count.coachingPins}</span>
+                                    ) : null}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2" aria-label="Оценки участников">
+                                  {selectedSession.participants.map((participant) => {
+                                    const review = reviews.find((candidate) => candidate.reviewerId === participant.userId);
+                                    const delta = reviewerDeltas.get(participant.userId);
+                                    const outOfBand = delta != null && Math.abs(delta) > ALIGNMENT_BAND;
+
+                                    return (
+                                      <span
+                                        key={participant.id}
+                                        className={cn(
+                                          "inline-flex items-center gap-2 rounded-lg border px-2 py-1.5",
+                                          !review && "border-dashed border-border opacity-70",
+                                          review && outOfBand && "border-destructive/30 bg-destructive/5",
+                                          review && !outOfBand && "border-border bg-muted/30"
+                                        )}
+                                        title={
+                                          review
+                                            ? `${participant.user.name}: ${formatQualityScore(review.totalScore)}${delta != null ? ` (${signedDelta(delta)})` : ""}`
+                                            : `${participant.user.name}: ждёт оценки`
+                                        }
+                                      >
+                                        <span
+                                          className="inline-flex size-6 items-center justify-center rounded-full bg-muted text-[0.65rem] font-medium text-muted-foreground"
+                                          aria-hidden="true"
+                                        >
+                                          {initialsOf(participant.user.name)}
+                                        </span>
+                                        <span className="flex flex-col leading-none">
+                                          <span className="text-sm font-medium tabular-nums text-foreground">
+                                            {review ? Math.round(review.totalScore) : "—"}
+                                          </span>
+                                          {delta != null ? (
+                                            <span
+                                              className={cn(
+                                                "text-[0.65rem] tabular-nums",
+                                                outOfBand ? "text-destructive" : "text-muted-foreground"
+                                              )}
+                                            >
+                                              {signedDelta(delta)}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+
+                                {criterionRows.length > 0 ? (
+                                  <div className="flex flex-col gap-2" aria-label="Согласованность по критериям">
+                                    <div className="flex flex-col gap-0.5">
+                                      <strong className="text-sm font-medium">По критериям</strong>
+                                      <span className="text-xs text-muted-foreground">
+                                        Доля совпавших ответов участников. Сначала самые спорные.
+                                      </span>
+                                    </div>
+                                    <ul className="flex flex-col gap-1.5">
+                                      {criterionRows.map((row) => {
+                                        const misaligned = row.agreementRate != null && row.agreementRate < 0.75;
+
+                                        return (
+                                          <li
+                                            key={row.criterionId}
+                                            className={cn(
+                                              "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2",
+                                              misaligned
+                                                ? "border-amber-500/30 bg-amber-500/5"
+                                                : "border-border bg-background"
+                                            )}
+                                          >
+                                            <span className="flex min-w-0 flex-col gap-0.5">
+                                              <span className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+                                                {row.meta?.block}
+                                              </span>
+                                              <span className="text-sm text-foreground">{row.meta?.label}</span>
+                                            </span>
+                                            <span className="flex flex-wrap items-center gap-2">
+                                              <span className="text-sm font-medium tabular-nums">
+                                                {row.agreementRate != null ? `${Math.round(row.agreementRate * 100)}%` : "—"}
+                                              </span>
+                                              {row.scaleSpread != null && row.scaleSpread > 0 ? (
+                                                <span className="text-xs text-muted-foreground" title="Разброс баллов по шкале">
+                                                  разброс {row.scaleSpread}
+                                                </span>
+                                              ) : null}
+                                              {row.matchesBaseline === false ? (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-300"
+                                                >
+                                                  ≠ эталон
+                                                </Badge>
+                                              ) : row.matchesBaseline === true ? (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                                                >
+                                                  = эталон
+                                                </Badge>
+                                              ) : null}
+                                            </span>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              <div className="shrink-0 sm:pt-0.5">
+                                {selectedSession.status === "active" || selectedSession.status === "draft" ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    render={
+                                      <Link
+                                        href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                                      />
+                                    }
+                                    nativeButton={false}
+                                  >
+                                    Оценить
+                                  </Button>
+                                ) : (
+                                  <Badge variant="secondary">
+                                    {selectedSession.status === "archived" ? "Архив" : "Завершена"}
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+                    )}
+                  </div>
+                ) : (
+                  <EmptyState
+                    size="inline"
+                    icon={<ClipboardCheck size={20} aria-hidden="true" />}
+                    title="Нет обращений в сессии"
+                    description="Добавьте финализированные проверки, чтобы участники оценивали один набор."
+                  />
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
+        <EmptyState
+          icon={<ClipboardCheck size={24} aria-hidden="true" />}
+          title="Нет калибровок"
+          description="Создайте первую сессию из проверенных обращений и выберите участников."
+          action={
+            <Button render={<Link href={newSessionHref} />} nativeButton={false}>
+              <PlusCircle data-icon="inline-start" size={16} aria-hidden="true" />
+              Новая сессия
+            </Button>
+          }
+        />
+      )}
     </PageShell>
   );
 }

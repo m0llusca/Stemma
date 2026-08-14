@@ -1,10 +1,17 @@
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
+import { useFormStatus } from "react-dom";
 
-type ConfirmSubmitButtonProps = Omit<ComponentPropsWithoutRef<"button">, "type"> & {
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
+
+type ConfirmSubmitButtonProps = Omit<ComponentPropsWithoutRef<typeof Button>, "type"> & {
   /** Текст подтверждения с описанием последствий необратимого действия. */
   confirmMessage: string;
+  /** По умолчанию type="submit"; для внеформенных действий передайте type="button". */
+  type?: "submit" | "button" | "reset";
 };
 
 /**
@@ -12,11 +19,24 @@ type ConfirmSubmitButtonProps = Omit<ComponentPropsWithoutRef<"button">, "type">
  * удаление критерия): требует явного подтверждения перед отправкой формы.
  * Единый паттерн защиты от случайного клика по необратимой операции.
  */
-export function ConfirmSubmitButton({ confirmMessage, children, onClick, ...buttonProps }: ConfirmSubmitButtonProps) {
+export function ConfirmSubmitButton({
+  confirmMessage,
+  children,
+  onClick,
+  type = "submit",
+  className,
+  disabled,
+  ...buttonProps
+}: ConfirmSubmitButtonProps) {
+  const { pending } = useFormStatus();
+
   return (
-    <button
-      type="submit"
+    <Button
+      type={type}
+      variant="destructive"
       {...buttonProps}
+      disabled={disabled || pending}
+      className={cn(className)}
       onClick={(event) => {
         if (!window.confirm(confirmMessage)) {
           event.preventDefault();
@@ -26,7 +46,8 @@ export function ConfirmSubmitButton({ confirmMessage, children, onClick, ...butt
         onClick?.(event);
       }}
     >
+      {pending ? <Spinner data-icon="inline-start" className="size-3.5" /> : null}
       {children}
-    </button>
+    </Button>
   );
 }

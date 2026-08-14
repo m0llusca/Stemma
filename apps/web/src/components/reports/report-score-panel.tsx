@@ -1,125 +1,134 @@
-import Link from "next/link";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
-import { SparklineChart, type ChartDatum } from "@/components/reports/report-charts";
-import type { ReportPeriod } from "@/lib/report-period";
-import { formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
+"use client";
+
+import { usePathname, useSearchParams } from "next/navigation";
+import { ChartFrame } from "@/components/charts/chart-frame";
 import {
-  formatAverageScore,
-  reportReviewHref,
-  targetDistanceLabel,
-  trendPointDeltaLabel,
-  trendTone,
-  type TrendTone
-} from "@/lib/reports/report-format";
+  QualityTrendChart,
+  type QualityTrendSeries
+} from "@/components/charts/quality-trend-chart.client";
+import {
+  chartViewFromHref,
+  eventTimeReportHref,
+  type ChartView
+} from "@/components/charts/chart-view-links";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
+import type { ChartModel } from "@/lib/charts/contracts";
 
-function TrendSignals({ points, target = 90 }: { points: ChartDatum[]; target?: number }) {
-  if (points.length === 0) {
-    return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок за выбранный период.</p>;
-  }
+// Minimum finalized reviews before the score trend is considered
+// representative; ChartFrame warns "Недостаточно выборки" below this floor.
+export const SCORE_PANEL_MINIMUM_SAMPLE_SIZE = 5;
 
-  const pointsWithDeltas = points.map((point, index) => ({
-    ...point,
-    delta: index === 0 ? null : qualityScoreDelta(point.value, points[index - 1].value)
-  }));
-  const last = pointsWithDeltas[pointsWithDeltas.length - 1];
-  const lowest = pointsWithDeltas.reduce((candidate, point) => (point.value < candidate.value ? point : candidate), pointsWithDeltas[0]);
-  const strongestMove = pointsWithDeltas
-    .slice(1)
-    .sort((left, right) => Math.abs(right.delta ?? 0) - Math.abs(left.delta ?? 0))[0];
-  const targetDelta = qualityScoreDelta(last.value, target) ?? 0;
-  const targetDistance = targetDelta >= 0 ? "в норме" : `-${Math.abs(targetDelta)} баллов`;
-  const rows = [
-    {
-      label: "Последняя точка",
-      value: formatAverageScore(last.value),
-      detail: [last.label, last.detail, trendPointDeltaLabel(last.delta)].filter(Boolean).join(", "),
-      tone: trendTone(last.delta)
-    },
-    {
-      label: "Минимум периода",
-      value: formatAverageScore(lowest.value),
-      detail: [lowest.label, lowest.detail, targetDistanceLabel(lowest.value, target)].filter(Boolean).join(", "),
-      tone: "down" as TrendTone
-    },
-    {
-      label: "Цель 90 баллов",
-      value: targetDistance,
-      detail: last.value >= target ? "Последняя точка держится в рабочем коридоре." : `Ниже цели на ${Math.abs(targetDelta)} баллов, нужен разбор причин просадки.`,
-      tone: last.value >= target ? "up" as TrendTone : "down" as TrendTone
-    }
-  ];
+function visibleTrendModel(
+  model: ChartModel<QualityTrendSeries>,
+  visibleSeries: readonly QualityTrendSeries[]
+): ChartModel<QualityTrendSeries> {
+  const visible = new Set(visibleSeries);
 
-  if (strongestMove) {
-    rows.splice(2, 0, {
-      label: "Самое сильное движение",
-      value: formatQualityScoreDelta(strongestMove.delta),
-      detail: [strongestMove.label, trendPointDeltaLabel(strongestMove.delta), formatAverageScore(strongestMove.value)].join(", "),
-      tone: trendTone(strongestMove.delta)
-    });
-  }
-
-  return (
-    <div className="trend-signal-list">
-      {rows.map((row) => (
-        <article key={row.label} className={`trend-signal trend-signal--${row.tone}`}>
-          <div>
-            <span>{row.label}</span>
-            <strong>{row.value}</strong>
-          </div>
-          <p>{row.detail}</p>
-        </article>
-      ))}
-    </div>
-  );
+  return {
+    ...model,
+    series: model.series.filter((series) => visible.has(series.key)),
+    points: model.points.map((point) => ({
+      ...point,
+      values: Object.fromEntries(
+        model.series
+          .filter((series) => visible.has(series.key))
+          .map((series) => [series.key, point.values[series.key]])
+      ) as Record<QualityTrendSeries, number | null>
+    }))
+  };
 }
 
-/**
- * Period trend for the average score. The headline number + delta already live
- * in the KPI row's lead tile, so this panel owns only the *trajectory*: a goal
- * line chart plus trend signals (last point, period low, strongest move, target
- * gap). No restated scorecard — that was the duplicate the KPI tile covers.
- */
+// The address bar owns the trend panel's presentation state. Series toggles
+// and the Graph/Table switch commit through the native History API (the App
+// Router can drop navigation commits on a fresh page load on Next 16.2.x), so
+// the panel derives its live view and series from the current search params
+// and only falls back to the server-rendered props when the URL carries no
+// usable value.
+function liveTrendSeries(
+  seriesParam: string | null,
+  orderedKeys: readonly QualityTrendSeries[],
+  fallback: readonly QualityTrendSeries[]
+): readonly QualityTrendSeries[] {
+  if (!seriesParam) {
+    return fallback;
+  }
+
+  const requested = seriesParam.split(",");
+  if (new Set(requested).size !== requested.length) {
+    return fallback;
+  }
+
+  const filtered = orderedKeys.filter((key) => requested.includes(key));
+  return filtered.length > 0 && filtered.length === requested.length
+    ? filtered
+    : fallback;
+}
+
 export function PrimaryScorePanel({
   finalizedCount,
   previousCount,
-  trendRows,
-  period
+  model,
+  visibleSeries,
+  view,
+  currentHref,
+  periodLabel
 }: {
   finalizedCount: number;
   previousCount: number;
-  trendRows: ChartDatum[];
-  period: ReportPeriod;
+  model: ChartModel<QualityTrendSeries>;
+  visibleSeries: readonly QualityTrendSeries[];
+  view: ChartView;
+  currentHref: string;
+  periodLabel: string;
 }) {
-  const stable = finalizedCount >= 5 && previousCount >= 5;
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  const hookHref = `${pathname}${search ? `?${search}` : ""}`;
+  const liveHref = eventTimeReportHref(hookHref, currentHref);
+  const liveView = chartViewFromHref(liveHref) ?? view;
+  const liveSeries = liveTrendSeries(
+    searchParams.get("series"),
+    model.series.map((series) => series.key),
+    visibleSeries
+  );
+  const visibleModel = visibleTrendModel(model, liveSeries);
 
   return (
-    <section className="panel primary-score-panel">
-      <div className="primary-score-panel__head">
-        <div className="min-w-0">
-          <p className="page-kicker">Тренд</p>
-          <div className="flex items-center gap-2">
-            <h2 className="primary-score-panel__title">Средняя оценка за период</h2>
-            <HelpTooltip
-              label="Как считать оценку в баллах?"
-              content="Итоговая оценка хранится как нормализованное значение от 0 до 100 и показывается как баллы."
-              placement="top-start"
-            />
-          </div>
-        </div>
-        <Link href={reportReviewHref(period)} className="chart-panel__action">
-          Открыть проверки
-        </Link>
-      </div>
-      <div className="primary-score-panel__chart">
-        <SparklineChart
-          points={trendRows}
-          target={90}
-          annotation={stable ? "Пунктир показывает целевой коридор 90 баллов." : "Для устойчивого тренда нужно не меньше 5 проверок в каждом периоде."}
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex items-center gap-1 px-1">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Средняя оценка за период
+        </span>
+        <HelpTooltip
+          label="Как считать оценку в баллах?"
+          content="Итоговая оценка хранится как нормализованное значение от 0 до 100 и показывается как баллы."
+          placement="top-start"
         />
       </div>
-      <div className="primary-score-panel__signals" aria-label="Сигналы тренда средней оценки">
-        <TrendSignals points={trendRows} />
-      </div>
-    </section>
+      <ChartFrame
+        model={visibleModel}
+        view={liveView}
+        currentHref={liveHref}
+        periodLabel={periodLabel}
+        sample={{
+          size: finalizedCount,
+          denominator: finalizedCount + previousCount,
+          minimum: SCORE_PANEL_MINIMUM_SAMPLE_SIZE
+        }}
+        state={
+          finalizedCount === 0
+            ? { kind: "empty" }
+            : { kind: "ready" }
+        }
+        graph={
+          <QualityTrendChart
+            model={model}
+            visibleSeries={liveSeries}
+            currentHref={liveHref}
+          />
+        }
+      />
+    </div>
   );
 }

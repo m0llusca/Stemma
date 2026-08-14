@@ -10,11 +10,26 @@ import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationalPageFrame } from "@/components/operations/operational-page-frame";
 import { PriorityActionPanel } from "@/components/operations/priority-action-panel";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
@@ -26,7 +41,9 @@ import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/int
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
-import { toneForCount, type StatusTone } from "@/lib/ui/status-tone";
+import { russianPlural } from "@/lib/reports/report-format";
+import { statusSurfaceClass, toneForCount, type StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +58,36 @@ const integrationSections: Array<{ value: IntegrationSection; label: string }> =
   { value: "activity", label: "Журнал" },
   { value: "catalog", label: "Каталог" }
 ];
+
+const badgeToneClass: Record<StatusTone, string> = {
+  positive: cn("border-transparent", statusSurfaceClass("positive")),
+  warning: cn("border-transparent", statusSurfaceClass("warning")),
+  negative: "border-transparent bg-destructive/15 text-destructive",
+  info: "border-transparent bg-primary/15 text-primary",
+  neutral: ""
+};
+
+function ToneBadge({
+  children,
+  tone,
+  title,
+  className
+}: {
+  children: ReactNode;
+  tone: StatusTone;
+  title?: string;
+  className?: string;
+}) {
+  return (
+    <Badge
+      variant={tone === "neutral" ? "secondary" : "outline"}
+      title={title}
+      className={cn("font-normal", badgeToneClass[tone], className)}
+    >
+      {children}
+    </Badge>
+  );
+}
 
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
@@ -175,15 +222,6 @@ function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone 
   return "neutral";
 }
 
-/** Value-only chips in the sources table share the StatusBadge tone contract. */
-const chipToneByStatusTone: Record<StatusTone, ChipTone> = {
-  positive: "success",
-  warning: "warning",
-  negative: "danger",
-  info: "info",
-  neutral: "neutral"
-};
-
 function capabilityReadinessLabel(value: string) {
   const labels: Record<string, string> = {
     production_slice: "Готово к эксплуатации",
@@ -200,7 +238,8 @@ function capabilityTypeLabel(value: string) {
     native_helpdesk: "Служба поддержки",
     custom_api: "Свой API",
     webhook_bridge: "Мост вебхуков",
-    enterprise: "Корпоративная система"
+    enterprise: "Корпоративная система",
+    data_source: "Хранилище данных"
   };
 
   return labels[value] ?? value;
@@ -231,40 +270,6 @@ function authModeLabel(value: string) {
     session_create: "Создание сессии",
     tls_ca_bundle: "Пакет корневых сертификатов",
     user_password: "Пользователь и пароль"
-  };
-
-  return labels[value] ?? value;
-}
-
-function operationLabel(value: string) {
-  const labels: Record<string, string> = {
-    activities_get: "активности",
-    case_get: "кейсы",
-    comments_get: "комментарии",
-    conversation_import: "импорт диалогов",
-    conversations_get: "диалоги",
-    diagnostics: "диагностика",
-    fixture_import: "тестовые данные",
-    preview: "предпросмотр",
-    review_export: "экспорт проверок",
-    selected_import: "выборочный импорт",
-    ticket_get: "получение тикета",
-    ticket_search: "поиск тикетов",
-    webhook_ingest: "вебхуки"
-  };
-
-  return labels[value] ?? value;
-}
-
-function certificationGateLabel(value: string) {
-  const labels: Record<string, string> = {
-    configuration_required: "нужна настройка",
-    contract_certified: "контракт проверен",
-    docs_checked: "документация проверена",
-    live_certified: "живая сертификация пройдена",
-    not_production_ready: "не готово",
-    stub_certified: "stub проверен",
-    waiting_for_access: "ожидает доступы"
   };
 
   return labels[value] ?? value;
@@ -343,25 +348,36 @@ function SourceIdentity({
 }) {
   const visibleMeta = sameReadableText(meta, name) ? null : meta;
   const title = href ? (
-    <Link href={href} className="integration-source__title hover:underline">
+    <Link href={href} className="font-semibold text-foreground hover:underline">
       {name}
     </Link>
   ) : (
-    <span className="integration-source__title">{name}</span>
+    <span className="font-semibold text-foreground">{name}</span>
   );
 
   return (
-    <span className={`integration-source ${compact ? "integration-source--compact" : ""}`}>
-      <SourceLogoMark source={source} label={name} className="integration-source__mark" />
-      <span className="integration-source__body">
-        <span className="integration-source__title-row">
-          {title}
+    <span className={cn("grid min-w-0 items-center gap-2.5", compact ? "grid-cols-[30px_minmax(0,1fr)] gap-2" : "grid-cols-[36px_minmax(0,1fr)]")}>
+      <SourceLogoMark
+        source={source}
+        label={name}
+        className={cn(compact ? "size-[30px] [&_svg]:size-4 [&_img]:size-[19px]" : "size-9 [&_svg]:size-[18px] [&_img]:size-[22px]")}
+      />
+      <span className="grid min-w-0 gap-0.5">
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className={cn(compact ? "text-[13px]" : "text-sm")}>{title}</span>
           {status}
         </span>
-        {visibleMeta ? <span className="integration-source__meta">{visibleMeta}</span> : null}
+        {visibleMeta ? <span className="text-xs text-muted-foreground">{visibleMeta}</span> : null}
       </span>
     </span>
   );
+}
+
+function readinessStageToneClass(tone: string) {
+  if (tone === "ok") return cn("border-success/25", statusSurfaceClass("positive"));
+  if (tone === "warn") return cn("border-warning/25", statusSurfaceClass("warning"));
+  if (tone === "error") return "border-destructive/25 bg-destructive/5";
+  return "border-border bg-muted/30";
 }
 
 export default function AdminIntegrationsPage({ searchParams }: AdminIntegrationsPageProps) {
@@ -561,14 +577,17 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         configuredSources === 0
           ? "Источники еще не настроены."
           : credentialedSources === configuredSources
-          ? "Адреса и секреты заполнены для настроенных источников."
-          : `${credentialedSources} источников с полным набором секретов.`,
+            ? "Адреса и секреты заполнены для настроенных источников."
+            : `${russianPlural(credentialedSources, ["источник", "источника", "источников"])} с полным набором секретов.`,
       tone: configuredSources > 0 && configuredSources === credentialedSources ? "ok" : "warn"
     },
     {
       label: "Диагностика",
       value: `${successfulDiagnostics}/${diagnosticRuns.length}`,
-      detail: failedDiagnostics > 0 ? `${failedDiagnostics} диагностик требуют внимания.` : "Ошибок в последнем срезе нет.",
+      detail:
+        failedDiagnostics > 0
+          ? `${russianPlural(failedDiagnostics, ["диагностика требует", "диагностики требуют", "диагностик требуют"])} внимания.`
+          : "Ошибок в последнем срезе нет.",
       tone: failedDiagnostics > 0 ? "error" : diagnosticRuns.length > 0 ? "ok" : "neutral"
     },
     {
@@ -580,13 +599,13 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
     {
       label: "Импорт",
       value: lastImportRun ? String(lastImportRun.importedCount) : "Нет",
-      detail: lastImportRun ? `Последний импорт · запусков: ${importRuns.length}` : "Реальный импорт еще не запускался.",
+      detail: lastImportRun ? `Последний импорт · ${russianPlural(importRuns.length, ["запуск", "запуска", "запусков"])}` : "Реальный импорт еще не запускался.",
       tone: lastImportRun ? "ok" : activeSources.length > 0 ? "warn" : "neutral"
     },
     {
       label: "Мониторинг",
       value: `${monitoredSources}/${activeSources.length}`,
-      detail: activeJobs > 0 ? `${activeJobs} задач в очереди или исполнении.` : "Фоновых задач сейчас нет.",
+      detail: activeJobs > 0 ? `${russianPlural(activeJobs, ["задача", "задачи", "задач"])} в очереди или исполнении.` : "Фоновых задач сейчас нет.",
       tone: activeJobs > 0 ? "warn" : activeSources.length > 0 ? "ok" : "neutral"
     }
   ];
@@ -634,471 +653,591 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
         <OperationalPageFrame
           title="Интеграции"
           action={
-        <PriorityActionPanel
-          title={integrationAction.title}
-          description={integrationAction.description}
-          actionLabel={integrationAction.label}
-          href={integrationAction.href}
-          tone={integrationAction.tone}
-        />
-      }
-      details={
-        <>
-
-      <section className="ops-panel" aria-labelledby="readiness-pipeline-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Готовность источников</p>
-            <h2 id="readiness-pipeline-title" className="ops-panel__title">Путь от доступа до мониторинга</h2>
-            <p className="ops-panel__subtitle">Каждый этап показывает, где источник еще не готов к надежному импорту обращений.</p>
-          </div>
-        </div>
-        <div className="integration-readiness-pipeline__stages">
-          {readinessStages.map((stage) => (
-            <div key={stage.label} className={`integration-readiness-stage integration-readiness-stage--${stage.tone}`}>
-              <span>{stage.label}</span>
-              <strong>{stage.value}</strong>
-              <small>{stage.detail}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <AdminSectionTabs
-        ariaLabel="Разделы интеграций"
-        items={integrationSections.map((section) => ({
-          href: integrationSectionHref(section.value),
-          label: section.label,
-          active: activeSection === section.value
-        }))}
-        actions={
-          <>
-            <Link href="/admin/integrations/new" className="action-button action-button--primary">
-              <PlugZap size={16} aria-hidden="true" />
-              Новый источник
-            </Link>
-            <IntegrationQueueRunForm />
-            <Link href="/admin/tokens" className="action-button">
-              API-доступ
-            </Link>
-            <Link href="/reviews" className="action-button action-button--quiet">
-              Очередь проверок
-            </Link>
-          </>
-        }
-      />
-
-      {activeSection === "sources" ? (
-        <section className="ops-panel" aria-labelledby="sources-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Источники</p>
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 id="sources-title" className="ops-panel__title">Подключенные источники</h2>
-              <CertificationHelpTooltip />
-            </div>
-            <p className="ops-panel__subtitle">Состояние подключений, сертификация, доступы и последний импорт по каждому источнику.</p>
-          </div>
-        </div>
-        {integrationSetupHint ? (
-          <div className="admin-setup-inline">
-            <CoachCallout
-              title={integrationSetupHint.title}
-              body={integrationSetupHint.body}
-              href={integrationSetupHint.href}
-              actionLabel={integrationSetupHint.actionLabel}
-              variant="spotlight"
-              placement="top"
-              anchorLabel="Подсказка к источникам"
-              stepIndex={1}
-              dismissId="settings:integrations"
+            <PriorityActionPanel
+              title={integrationAction.title}
+              description={integrationAction.description}
+              actionLabel={integrationAction.label}
+              href={integrationAction.href}
+              tone={integrationAction.tone}
             />
-          </div>
-        ) : null}
-        {integrations.length > 0 ? (
-          <div className="ops-table-shell">
-            <div className="ops-table ops-table--integrations">
-              <div className="ops-table__row ops-table__row--head">
-                <span>Источник</span>
-                <span>Состояние</span>
-                <span>Импорт</span>
-                <span>Активность</span>
-                <span>Действия</span>
-              </div>
-              {integrations.map((integration) => {
-                const latestRun = integration.runs[0];
-                const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
-                const latestJob = integrationJobByIntegrationId.get(integration.id);
-                const latestJobStatus = latestJob ? backendJobStatusView(latestJob.status) : null;
-                const latestDiagnostic = integration.diagnosticRuns[0];
-                const latestDiagnosticStatus = latestDiagnostic ? integrationRunStatusView(latestDiagnostic.status) : null;
-                const capability = getIntegrationCapability(integration.source, integration.type);
-                const syncState = parseIntegrationSyncState(integration.syncStateJson);
-                const hasBaseUrl = Boolean(integration.baseUrl?.trim());
-                const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
-                const canQueueImport = canQueueIntegrationImport(capability);
-                const latestActivityStatus = latestRunStatus ?? latestJobStatus ?? latestDiagnosticStatus;
-
-                return (
-                  <article key={integration.id} className="ops-table__row admin-tile admin-tile--table">
-	                    <div className="ops-table__cell">
-	                      <span className="ops-table__label">Источник</span>
-	                      <SourceIdentity
-	                        source={integration.source}
-	                        name={integration.displayName}
-	                        href={`/admin/integrations/${integration.id}`}
-	                        meta={capabilityTypeLabel(integration.type)}
-	                        status={
-	                          <StatusBadge compact
-	                            label="Статус"
-	                            value={integrationStatusLabel(integration.status)}
-	                            tone={integrationTone(integration.status)}
-	                          />
-	                        }
-	                      />
-	                    </div>
-	                    <div className="ops-table__cell">
-                      <span className="ops-table__label">Состояние</span>
-                      <Chip
-                        size="xs"
-                        tone={chipToneByStatusTone[certificationTone(capability.certification.summary.status)]}
-                      >
-                        {compactCertificationLabel(capability.certification.summary.label)}
-                      </Chip>
-                      <span className="record-meta compact-text">
-                        {compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })} · {capabilityReadinessLabel(capability.readiness)}
-                      </span>
-                    </div>
-                    <div className="ops-table__cell">
-                      <span className="ops-table__label">Импорт</span>
-                      <span className="record-meta tabular-nums">Импорт: {formatCompactDateOrDash(integration.lastImportAt)}</span>
-                      <span className="record-meta tabular-nums">Проверка: {formatCompactDateOrDash(integration.lastDryRunAt)}</span>
-                    </div>
-                    <div className="ops-table__cell">
-                      <span className="ops-table__label">Активность</span>
-                      {latestActivityStatus ? (
-                        <Chip size="xs" tone={chipToneByStatusTone[operationalTone(latestActivityStatus.tone)]}>
-                          {latestActivityStatus.label}
-                        </Chip>
-                      ) : (
-                        <span className="record-meta ops-cell-quiet">Запусков не было</span>
-                      )}
-                      <span className="record-meta tabular-nums compact-text">
-                        {syncState.progress.checkedCount} проверено · {syncState.progress.importedCount} импортировано ·{" "}
-                        <span className={syncState.progress.errorCount > 0 ? "ops-count-error" : undefined}>
-                          {syncState.progress.errorCount} ошибок
-                        </span>
-                      </span>
-                    </div>
-                    <div className="ops-table__cell ops-table__cell--actions">
-                      <span className="ops-table__label">Действия</span>
-                      <div className="integration-action-stack">
-                        <Link href={`/admin/integrations/${integration.id}`} className="action-button action-button--small">
-                          Открыть
-                        </Link>
-                        {/* «Импорт» рядом — quiet-link, поэтому и «Изменить» в том же стиле. */}
-                        {integration.type === "otrs_family" ? (
-                          /* Generic-сохранение пересобирает configJson без TLS-блока
-                             (caBundle) — OTRS редактируется только на деталке, где
-                             специализированная форма делает корректный merge. */
-                          <Link href={`/admin/integrations/${integration.id}`} className="quiet-link text-sm">
-                            Изменить
-                          </Link>
-                        ) : (
-                          <AdminDialog
-                            triggerLabel="Изменить"
-                            triggerClassName="quiet-link text-sm"
-                            title={`Источник: ${integration.displayName}`}
-                            description="Обновите название, адрес и лимиты импорта. Секрет меняется только при вводе нового значения."
-                          >
-                            <IntegrationSettingsForm
-                              integration={{
-                                source: integration.source,
-                                displayName: integration.displayName,
-                                type: integration.type,
-                                baseUrl: integration.baseUrl,
-                                importLimit: integration.importLimit,
-                                batchSize: integration.batchSize,
-                                dateRangeDays: integration.dateRangeDays,
-                                configJson: integration.configJson
-                              }}
-                            />
-                          </AdminDialog>
+          }
+          details={
+            <>
+              <Card aria-labelledby="readiness-pipeline-title">
+                <CardHeader className="gap-1.5">
+                  <CardDescription>Готовность источников</CardDescription>
+                  <CardTitle id="readiness-pipeline-title">Путь от доступа до мониторинга</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Каждый этап показывает, где источник еще не готов к надежному импорту обращений.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    {readinessStages.map((stage) => (
+                      <div
+                        key={stage.label}
+                        className={cn(
+                          "grid min-w-0 gap-1 rounded-lg border p-3",
+                          readinessStageToneClass(stage.tone)
                         )}
-                        {canQueueImport ? (
-                          <IntegrationImportQueueForm integrationId={integration.id} label="Импорт" />
-                        ) : null}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <EmptyState
-            size="inline"
-            icon={<PlugZap size={20} aria-hidden="true" />}
-            title="Источники пока не настроены"
-            description="Подключите helpdesk или API-источник, чтобы обращения попадали в очередь проверок."
-            action={
-              <Link href="/admin/integrations/new" className="action-button action-button--small">
-                Новый источник
-              </Link>
-            }
-          />
-        )}
-        </section>
-      ) : null}
-
-      {activeSection === "activity" ? (
-        <section className="ops-panel" aria-labelledby="activity-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Журнал</p>
-            <h2 id="activity-title" className="ops-panel__title">Журнал интеграций</h2>
-            <p className="ops-panel__subtitle">Запуски, диагностика и фоновые задачи в одном месте.</p>
-          </div>
-          <StatusBadge
-            label="Всего"
-            value={recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length}
-            tone={toneForCount(recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length, {
-              zero: "neutral",
-              nonZero: "info"
-            })}
-          />
-        </div>
-        <div className="integration-activity-grid">
-          <section className="integration-activity-panel" aria-labelledby="activity-runs-title">
-            <div className="integration-activity-panel__header">
-              <h3 id="activity-runs-title">Проверка и импорт</h3>
-              <StatusBadge label="Всего" value={recentRuns.length} tone={toneForCount(recentRuns.length, { zero: "neutral", nonZero: "info" })} />
-            </div>
-            <div className="integration-activity-list">
-              {recentRuns.length > 0 ? (
-                recentRuns.slice(0, 5).map((run) => {
-                  const runStatus = integrationRunStatusView(run.status);
-                  const job = integrationJobByRunId.get(run.id);
-                  const jobStatus = job ? backendJobStatusView(job.status) : null;
-                  const runSourceName =
-                    run.integration && run.integration.workspaceId === user.workspaceId
-                      ? run.integration.displayName
-                      : externalSourceLabel(run.source);
-
-                  return (
-                    <article key={run.id} className="integration-activity-row">
-                      <SourceIdentity
-                        source={run.source}
-                        name={runSourceName}
-                        href={run.integration && run.integration.workspaceId === user.workspaceId ? `/admin/integrations/${run.integration.id}` : undefined}
-                        meta={run.dryRun ? "Проверка без импорта" : "Импорт"}
-                        compact
-                      />
-                      <div className="integration-activity-row__body">
-                        <div className="integration-chip-list">
-                          <StatusBadge compact label="Запуск" value={runStatus.label} tone={operationalTone(runStatus.tone)} />
-                          {job && jobStatus ? (
-                            <StatusBadge compact label="Задача" value={jobStatus.label} tone={operationalTone(jobStatus.tone)} />
-                          ) : null}
-                        </div>
-                        <span className="record-meta tabular-nums">
-                          {formatCompactDate(run.startedAt)} · проверено {displayedCheckedCount(run)} · импортировано {run.importedCount}
+                      >
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          {stage.label}
                         </span>
+                        <strong className="text-lg font-semibold tabular-nums text-foreground">{stage.value}</strong>
+                        <small className="text-xs leading-4 text-muted-foreground">{stage.detail}</small>
                       </div>
-                    </article>
-                  );
-                })
-              ) : (
-                <EmptyState
-                  size="inline"
-                  icon={<DownloadCloud size={20} aria-hidden="true" />}
-                  title="Импортов ещё не было"
-                  description="Запуски появятся после первой проверки или импорта источника."
-                />
-              )}
-            </div>
-          </section>
-
-          <section className="integration-activity-panel" aria-labelledby="activity-diagnostics-title">
-            <div className="integration-activity-panel__header">
-              <h3 id="activity-diagnostics-title">Диагностика</h3>
-              <StatusBadge
-                label="Всего"
-                value={diagnosticRuns.length}
-                tone={toneForCount(diagnosticRuns.length, { zero: "neutral", nonZero: "info" })}
-              />
-            </div>
-            <div className="integration-activity-list">
-              {diagnosticRuns.length > 0 ? (
-                diagnosticRuns.map((run) => {
-                  const status = integrationRunStatusView(run.status);
-
-                  return (
-                    <Link key={run.id} href={`/admin/integrations/${run.integrationId}`} className="integration-activity-row">
-                      <SourceIdentity
-                        source={run.integrationSource}
-                        name={run.integrationName}
-                        meta={integrationModeLabel(run.mode)}
-                        compact
-                      />
-                      <div className="integration-activity-row__body">
-                        <StatusBadge compact label="Статус" value={status.label} tone={operationalTone(status.tone)} />
-                        <span className="record-meta compact-text tabular-nums">{formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}</span>
-                      </div>
-                    </Link>
-                  );
-                })
-              ) : (
-                <EmptyState
-                  size="inline"
-                  icon={<Activity size={20} aria-hidden="true" />}
-                  title="Диагностика не запускалась"
-                  description="Результаты появятся после первой проверки доступов на странице источника."
-                />
-              )}
-            </div>
-          </section>
-
-          <section className="integration-activity-panel" aria-labelledby="activity-jobs-title">
-            <div className="integration-activity-panel__header">
-              <h3 id="activity-jobs-title">Фоновые задачи</h3>
-              <StatusBadge
-                label="Всего"
-                value={recentIntegrationJobs.length}
-                tone={toneForCount(recentIntegrationJobs.length, { zero: "neutral", nonZero: "info" })}
-              />
-            </div>
-            <div className="integration-activity-list">
-              {recentIntegrationJobs.length > 0 ? (
-                recentIntegrationJobs.map((job) => {
-                  const status = backendJobStatusView(job.status);
-                  const payload = parsePayloadJson(job.payloadJson);
-                  const runId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
-                  const integrationId = typeof payload.integrationId === "string" ? payload.integrationId : null;
-                  const linkedIntegration = integrationId ? integrationsById.get(integrationId) : null;
-                  const source = linkedIntegration?.source ?? (typeof payload.source === "string" ? payload.source : "integration");
-                  const sourceName = linkedIntegration?.displayName ?? externalSourceLabel(source);
-
-                  return (
-                    <Link key={job.id} href={`/admin/system/jobs/${job.id}`} className="integration-activity-row">
-                      <SourceIdentity source={source} name={sourceName} meta={`Задача ${job.id.slice(0, 8)}`} compact />
-                      <div className="integration-activity-row__body">
-                        <StatusBadge compact label="Статус" value={status.label} tone={operationalTone(status.tone)} />
-                        <span className="record-meta tabular-nums">
-                          {formatCompactDate(job.runAfter)} · попытка {job.attempts}/{job.maxAttempts}
-                          {runId ? ` · запуск ${runId.slice(0, 8)}` : ""}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })
-              ) : (
-                <EmptyState
-                  size="inline"
-                  icon={<Clock3 size={20} aria-hidden="true" />}
-                  title="Фоновых задач нет"
-                  description="Задачи появятся после постановки импорта в очередь обработчика."
-                />
-              )}
-            </div>
-          </section>
-        </div>
-        </section>
-      ) : null}
-
-      {activeSection === "catalog" ? (
-        <section className="ops-panel" aria-labelledby="catalog-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Каталог</p>
-            <h2 id="catalog-title" className="ops-panel__title">Каталог источников</h2>
-            <p className="ops-panel__subtitle">Реестр возможностей для следующих коннекторов и моста событий.</p>
-            <div className="admin-actions mt-3">
-              <Link href="/admin/integrations/new" className="action-button action-button--small">
-                Открыть мастер
-                <ArrowUpRight size={14} aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-        </div>
-        <div className="ops-table-shell">
-          <div className="ops-table ops-table--catalog">
-            <div className="ops-table__row ops-table__row--head">
-              <span>Источник</span>
-              <span>Готовность</span>
-              <span>Авторизация</span>
-              <span>Возможности</span>
-            </div>
-            {roadmapCapabilities.map((capability) => (
-              <div key={capability.source} className="ops-table__row">
-                <div className="ops-table__cell">
-                  <span className="ops-table__label">Источник</span>
-                  <SourceIdentity
-                    source={capability.source}
-                    name={capabilityName(capability.source, capability.displayName)}
-                    meta={capabilityTypeLabel(capability.type)}
-                    compact
-                  />
-                </div>
-                <div className="ops-table__cell">
-                  <span className="ops-table__label">Готовность</span>
-                  <div className="integration-chip-list">
-                    <StatusBadge compact
-                      label="Готовность"
-                      value={capability.certification.summary.label}
-                      tone={certificationTone(capability.certification.summary.status)}
-                    />
-                    <StatusBadge compact
-                      label="Этап"
-                      value={capabilityReadinessLabel(capability.readiness)}
-                      tone={readinessTone(capability.readiness)}
-                    />
+                    ))}
                   </div>
+                </CardContent>
+              </Card>
+
+              <AdminSectionTabs
+                ariaLabel="Разделы интеграций"
+                items={integrationSections.map((section) => ({
+                  href: integrationSectionHref(section.value),
+                  label: section.label,
+                  active: activeSection === section.value
+                }))}
+                actions={
+                  <>
+                    <Button render={<Link href="/admin/integrations/new" />} nativeButton={false}>
+                      <PlugZap data-icon="inline-start" aria-hidden="true" />
+                      Новый источник
+                    </Button>
+                    <IntegrationQueueRunForm />
+                    <Button render={<Link href="/admin/tokens" />} nativeButton={false} variant="outline">
+                      API-доступ
+                    </Button>
+                    <Button render={<Link href="/reviews" />} nativeButton={false} variant="ghost">
+                      Очередь проверок
+                    </Button>
+                  </>
+                }
+              />
+
+              {activeSection === "sources" ? (
+                <Card aria-labelledby="sources-title">
+                  <CardHeader className="gap-1.5">
+                    <CardDescription>Источники</CardDescription>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <CardTitle id="sources-title">Подключенные источники</CardTitle>
+                      <CertificationHelpTooltip />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Состояние подключений, сертификация, доступы и последний импорт по каждому источнику.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    {integrationSetupHint ? (
+                      <CoachCallout
+                        title={integrationSetupHint.title}
+                        body={integrationSetupHint.body}
+                        href={integrationSetupHint.href}
+                        actionLabel={integrationSetupHint.actionLabel}
+                        variant="spotlight"
+                        placement="top"
+                        anchorLabel="Подсказка к источникам"
+                        stepIndex={1}
+                        dismissId="settings:integrations"
+                      />
+                    ) : null}
+                    {integrations.length > 0 ? (
+                      <Table className="min-w-[960px]">
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="min-w-[230px]">Источник</TableHead>
+                            <TableHead className="min-w-[160px]">Состояние</TableHead>
+                            <TableHead className="min-w-[150px]">Импорт</TableHead>
+                            <TableHead className="min-w-[200px]">Активность</TableHead>
+                            <TableHead className="w-[132px] text-right">Действия</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {integrations.map((integration) => {
+                            const latestRun = integration.runs[0];
+                            const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
+                            const latestJob = integrationJobByIntegrationId.get(integration.id);
+                            const latestJobStatus = latestJob ? backendJobStatusView(latestJob.status) : null;
+                            const latestDiagnostic = integration.diagnosticRuns[0];
+                            const latestDiagnosticStatus = latestDiagnostic
+                              ? integrationRunStatusView(latestDiagnostic.status)
+                              : null;
+                            const capability = getIntegrationCapability(integration.source, integration.type);
+                            const syncState = parseIntegrationSyncState(integration.syncStateJson);
+                            const hasBaseUrl = Boolean(integration.baseUrl?.trim());
+                            const hasRequiredSecrets = hasRequiredCredentialSlots(
+                              integration.credentials,
+                              capability.requiredSecrets
+                            );
+                            const canQueueImport = canQueueIntegrationImport(capability);
+                            const latestActivityStatus = latestRunStatus ?? latestJobStatus ?? latestDiagnosticStatus;
+
+                            return (
+                              <TableRow key={integration.id} className="align-top">
+                                <TableCell className="whitespace-normal">
+                                  <SourceIdentity
+                                    source={integration.source}
+                                    name={integration.displayName}
+                                    href={`/admin/integrations/${integration.id}`}
+                                    meta={capabilityTypeLabel(integration.type)}
+                                    status={
+                                      <ToneBadge
+                                        tone={integrationTone(integration.status)}
+                                        title={`Статус: ${integrationStatusLabel(integration.status)}`}
+                                      >
+                                        {integrationStatusLabel(integration.status)}
+                                      </ToneBadge>
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className="whitespace-normal">
+                                  <div className="grid gap-1.5">
+                                    <ToneBadge
+                                      tone={certificationTone(capability.certification.summary.status)}
+                                      className="justify-self-start"
+                                    >
+                                      {compactCertificationLabel(capability.certification.summary.label)}
+                                    </ToneBadge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })} ·{" "}
+                                      {capabilityReadinessLabel(capability.readiness)}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="whitespace-normal">
+                                  <div className="grid gap-1 text-xs tabular-nums text-muted-foreground">
+                                    <span>Импорт: {formatCompactDateOrDash(integration.lastImportAt)}</span>
+                                    <span>Проверка: {formatCompactDateOrDash(integration.lastDryRunAt)}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="whitespace-normal">
+                                  <div className="grid gap-1.5">
+                                    {latestActivityStatus ? (
+                                      <ToneBadge
+                                        tone={operationalTone(latestActivityStatus.tone)}
+                                        className="justify-self-start"
+                                      >
+                                        {latestActivityStatus.label}
+                                      </ToneBadge>
+                                    ) : (
+                                      <span className="inline-flex min-h-5 items-center text-xs text-muted-foreground">
+                                        Запусков не было
+                                      </span>
+                                    )}
+                                    <span className="text-xs tabular-nums text-muted-foreground">
+                                      {syncState.progress.checkedCount} проверено · {syncState.progress.importedCount}{" "}
+                                      импортировано ·{" "}
+                                      <span
+                                        className={
+                                          syncState.progress.errorCount > 0
+                                            ? "font-semibold text-destructive"
+                                            : undefined
+                                        }
+                                      >
+                                        {syncState.progress.errorCount} ошибок
+                                      </span>
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="whitespace-normal text-right">
+                                  <div className="grid justify-items-end gap-1.5">
+                                    <Button
+                                      render={<Link href={`/admin/integrations/${integration.id}`} />}
+                                      nativeButton={false}
+                                      size="sm"
+                                      variant="outline"
+                                    >
+                                      Открыть
+                                    </Button>
+                                    {integration.type === "otrs_family" ? (
+                                      /* Generic-сохранение пересобирает configJson без TLS-блока
+                                         (caBundle) — OTRS редактируется только на деталке, где
+                                         специализированная форма делает корректный merge. */
+                                      <Button
+                                        render={<Link href={`/admin/integrations/${integration.id}`} />}
+                                        nativeButton={false}
+                                        size="xs"
+                                        variant="link"
+                                        className="h-auto px-0"
+                                      >
+                                        Изменить
+                                      </Button>
+                                    ) : (
+                                      <AdminDialog
+                                        triggerLabel="Изменить"
+                                        triggerClassName="inline-flex h-auto items-center border-transparent bg-transparent px-0 text-xs font-medium text-primary underline-offset-4 shadow-none hover:bg-transparent hover:text-primary hover:underline"
+                                        title={`Источник: ${integration.displayName}`}
+                                        description="Обновите название, адрес и лимиты импорта. Секрет меняется только при вводе нового значения."
+                                      >
+                                        <IntegrationSettingsForm
+                                          integration={{
+                                            source: integration.source,
+                                            displayName: integration.displayName,
+                                            type: integration.type,
+                                            baseUrl: integration.baseUrl,
+                                            importLimit: integration.importLimit,
+                                            batchSize: integration.batchSize,
+                                            dateRangeDays: integration.dateRangeDays,
+                                            configJson: integration.configJson
+                                          }}
+                                        />
+                                      </AdminDialog>
+                                    )}
+                                    {canQueueImport ? (
+                                      <IntegrationImportQueueForm integrationId={integration.id} label="Импорт" />
+                                    ) : null}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <EmptyState
+                        size="inline"
+                        icon={<PlugZap size={20} aria-hidden="true" />}
+                        title="Источники пока не настроены"
+                        description="Подключите helpdesk или API-источник, чтобы обращения попадали в очередь проверок."
+                        action={
+                          <Button render={<Link href="/admin/integrations/new" />} nativeButton={false} size="sm">
+                            Новый источник
+                          </Button>
+                        }
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {activeSection === "activity" ? (
+                <Card aria-labelledby="activity-title">
+                  <CardHeader className="gap-1.5 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="grid gap-1.5">
+                      <CardDescription>Журнал</CardDescription>
+                      <CardTitle id="activity-title">Журнал интеграций</CardTitle>
+                      <p className="text-sm text-muted-foreground">Запуски, диагностика и фоновые задачи в одном месте.</p>
+                    </div>
+                    <ToneBadge
+                      tone={toneForCount(recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length, {
+                        zero: "neutral",
+                        nonZero: "info"
+                      })}
+                      title="Всего"
+                    >
+                      Всего {recentRuns.length + diagnosticRuns.length + recentIntegrationJobs.length}
+                    </ToneBadge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 xl:grid-cols-3">
+                      <Card size="sm" className="min-w-0" aria-labelledby="activity-runs-title">
+                        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+                          <CardTitle id="activity-runs-title" className="text-sm">
+                            Проверка и импорт
+                          </CardTitle>
+                          <ToneBadge
+                            tone={toneForCount(recentRuns.length, { zero: "neutral", nonZero: "info" })}
+                            title="Всего"
+                          >
+                            {recentRuns.length}
+                          </ToneBadge>
+                        </CardHeader>
+                        <CardContent className="grid gap-2">
+                          {recentRuns.length > 0 ? (
+                            recentRuns.slice(0, 5).map((run) => {
+                              const runStatus = integrationRunStatusView(run.status);
+                              const job = integrationJobByRunId.get(run.id);
+                              const jobStatus = job ? backendJobStatusView(job.status) : null;
+                              const runSourceName =
+                                run.integration && run.integration.workspaceId === user.workspaceId
+                                  ? run.integration.displayName
+                                  : externalSourceLabel(run.source);
+
+                              return (
+                                <article
+                                  key={run.id}
+                                  className="grid min-w-0 gap-2 rounded-lg border border-border p-3"
+                                >
+                                  <SourceIdentity
+                                    source={run.source}
+                                    name={runSourceName}
+                                    href={
+                                      run.integration && run.integration.workspaceId === user.workspaceId
+                                        ? `/admin/integrations/${run.integration.id}`
+                                        : undefined
+                                    }
+                                    meta={run.dryRun ? "Проверка без импорта" : "Импорт"}
+                                    compact
+                                  />
+                                  <div className="grid gap-1.5">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                      <ToneBadge
+                                        tone={operationalTone(runStatus.tone)}
+                                        title={`Запуск: ${runStatus.label}`}
+                                      >
+                                        {runStatus.label}
+                                      </ToneBadge>
+                                      {job && jobStatus ? (
+                                        <ToneBadge
+                                          tone={operationalTone(jobStatus.tone)}
+                                          title={`Задача: ${jobStatus.label}`}
+                                        >
+                                          {jobStatus.label}
+                                        </ToneBadge>
+                                      ) : null}
+                                    </div>
+                                    <span className="text-xs tabular-nums text-muted-foreground">
+                                      {formatCompactDate(run.startedAt)} · проверено {displayedCheckedCount(run)} ·
+                                      импортировано {run.importedCount}
+                                    </span>
+                                  </div>
+                                </article>
+                              );
+                            })
+                          ) : (
+                            <EmptyState
+                              size="inline"
+                              icon={<DownloadCloud size={20} aria-hidden="true" />}
+                              title="Импортов ещё не было"
+                              description="Запуски появятся после первой проверки или импорта источника."
+                            />
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card size="sm" className="min-w-0" aria-labelledby="activity-diagnostics-title">
+                        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+                          <CardTitle id="activity-diagnostics-title" className="text-sm">
+                            Диагностика
+                          </CardTitle>
+                          <ToneBadge
+                            tone={toneForCount(diagnosticRuns.length, { zero: "neutral", nonZero: "info" })}
+                            title="Всего"
+                          >
+                            {diagnosticRuns.length}
+                          </ToneBadge>
+                        </CardHeader>
+                        <CardContent className="grid gap-2">
+                          {diagnosticRuns.length > 0 ? (
+                            diagnosticRuns.map((run) => {
+                              const status = integrationRunStatusView(run.status);
+
+                              return (
+                                <Link
+                                  key={run.id}
+                                  href={`/admin/integrations/${run.integrationId}`}
+                                  className="grid min-w-0 gap-2 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40"
+                                >
+                                  <SourceIdentity
+                                    source={run.integrationSource}
+                                    name={run.integrationName}
+                                    meta={integrationModeLabel(run.mode)}
+                                    compact
+                                  />
+                                  <div className="grid gap-1.5">
+                                    <ToneBadge
+                                      tone={operationalTone(status.tone)}
+                                      title={`Статус: ${status.label}`}
+                                      className="justify-self-start"
+                                    >
+                                      {status.label}
+                                    </ToneBadge>
+                                    <span className="text-xs tabular-nums text-muted-foreground">
+                                      {formatCompactDate(run.startedAt)} · {run.redactedEndpoint ?? "адрес не сохранен"}
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            })
+                          ) : (
+                            <EmptyState
+                              size="inline"
+                              icon={<Activity size={20} aria-hidden="true" />}
+                              title="Диагностика не запускалась"
+                              description="Результаты появятся после первой проверки доступов на странице источника."
+                            />
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card size="sm" className="min-w-0" aria-labelledby="activity-jobs-title">
+                        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+                          <CardTitle id="activity-jobs-title" className="text-sm">
+                            Фоновые задачи
+                          </CardTitle>
+                          <ToneBadge
+                            tone={toneForCount(recentIntegrationJobs.length, { zero: "neutral", nonZero: "info" })}
+                            title="Всего"
+                          >
+                            {recentIntegrationJobs.length}
+                          </ToneBadge>
+                        </CardHeader>
+                        <CardContent className="grid gap-2">
+                          {recentIntegrationJobs.length > 0 ? (
+                            recentIntegrationJobs.map((job) => {
+                              const status = backendJobStatusView(job.status);
+                              const payload = parsePayloadJson(job.payloadJson);
+                              const runId = typeof payload.integrationRunId === "string" ? payload.integrationRunId : null;
+                              const integrationId =
+                                typeof payload.integrationId === "string" ? payload.integrationId : null;
+                              const linkedIntegration = integrationId ? integrationsById.get(integrationId) : null;
+                              const source =
+                                linkedIntegration?.source ??
+                                (typeof payload.source === "string" ? payload.source : "integration");
+                              const sourceName = linkedIntegration?.displayName ?? externalSourceLabel(source);
+
+                              return (
+                                <Link
+                                  key={job.id}
+                                  href={`/admin/system/jobs/${job.id}`}
+                                  className="grid min-w-0 gap-2 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40"
+                                >
+                                  <SourceIdentity
+                                    source={source}
+                                    name={sourceName}
+                                    meta={`Задача ${job.id.slice(0, 8)}`}
+                                    compact
+                                  />
+                                  <div className="grid gap-1.5">
+                                    <ToneBadge
+                                      tone={operationalTone(status.tone)}
+                                      title={`Статус: ${status.label}`}
+                                      className="justify-self-start"
+                                    >
+                                      {status.label}
+                                    </ToneBadge>
+                                    <span className="text-xs tabular-nums text-muted-foreground">
+                                      {formatCompactDate(job.runAfter)} · попытка {job.attempts}/{job.maxAttempts}
+                                      {runId ? ` · запуск ${runId.slice(0, 8)}` : ""}
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            })
+                          ) : (
+                            <EmptyState
+                              size="inline"
+                              icon={<Clock3 size={20} aria-hidden="true" />}
+                              title="Фоновых задач нет"
+                              description="Задачи появятся после постановки импорта в очередь обработчика."
+                            />
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {activeSection === "catalog" ? (
+                <Card aria-labelledby="catalog-title">
+                  <CardHeader className="gap-1.5">
+                    <CardDescription>Каталог</CardDescription>
+                    <CardTitle id="catalog-title">Каталог источников</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Реестр возможностей для следующих коннекторов и моста событий.
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <Button render={<Link href="/admin/integrations/new" />} nativeButton={false} size="sm">
+                        Открыть мастер
+                        <ArrowUpRight data-icon="inline-end" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-0 pb-0">
+                    <Table className="min-w-[720px]">
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead>Источник</TableHead>
+                          <TableHead>Готовность</TableHead>
+                          <TableHead>Авторизация</TableHead>
+                          <TableHead>Возможности</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {roadmapCapabilities.map((capability) => (
+                          <TableRow key={capability.source} className="align-top">
+                            <TableCell className="whitespace-normal">
+                              <SourceIdentity
+                                source={capability.source}
+                                name={capabilityName(capability.source, capability.displayName)}
+                                meta={capabilityTypeLabel(capability.type)}
+                                compact
+                              />
+                            </TableCell>
+                            <TableCell className="whitespace-normal">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                <ToneBadge
+                                  tone={certificationTone(capability.certification.summary.status)}
+                                  title={`Готовность: ${capability.certification.summary.label}`}
+                                >
+                                  {capability.certification.summary.label}
+                                </ToneBadge>
+                                <ToneBadge
+                                  tone={readinessTone(capability.readiness)}
+                                  title={`Этап: ${capabilityReadinessLabel(capability.readiness)}`}
+                                >
+                                  {capabilityReadinessLabel(capability.readiness)}
+                                </ToneBadge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                              {capability.authModes.map(authModeLabel).join(", ")}
+                            </TableCell>
+                            <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                              курсор {capability.supportsCursor ? "есть" : "нет"} · диагностика{" "}
+                              {capability.supportsDiagnostics ? "есть" : "нет"} · вебхуки{" "}
+                              {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks
+                                ? "есть"
+                                : "нет"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </>
+          }
+          evidence={
+            <EvidenceDrawer title="Свидетельства готовности">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1 rounded-lg border border-border p-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Источники</span>
+                  <strong className="text-lg tabular-nums">
+                    {activeSources.length}/{integrations.length}
+                  </strong>
+                  <small className="text-xs text-muted-foreground">
+                    Активные и готовые подключения в текущем workspace.
+                  </small>
                 </div>
-                <span className="ops-table__cell">
-                  <span className="ops-table__label">Авторизация</span>
-                  <span className="record-meta compact-text">{capability.authModes.map(authModeLabel).join(", ")}</span>
-                </span>
-                <span className="ops-table__cell">
-                  <span className="ops-table__label">Возможности</span>
-                  <span className="record-meta compact-text">
-                    курсор {capability.supportsCursor ? "есть" : "нет"} · диагностика {capability.supportsDiagnostics ? "есть" : "нет"} · вебхуки{" "}
-                    {capability.supportsInboundWebhooks || capability.supportsOutboundWebhooks ? "есть" : "нет"}
-                  </span>
-                </span>
+                <div className="grid gap-1 rounded-lg border border-border p-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Диагностика</span>
+                  <strong className="text-lg tabular-nums">{failedDiagnostics}</strong>
+                  <small className="text-xs text-muted-foreground">
+                    {failedDiagnostics > 0
+                      ? "Есть ошибки, которые блокируют доверие к импорту."
+                      : "Ошибок диагностики в последнем срезе нет."}
+                  </small>
+                </div>
+                <div className="grid gap-1 rounded-lg border border-border p-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Обработчик</span>
+                  <strong className="text-lg tabular-nums">{activeJobs}</strong>
+                  <small className="text-xs text-muted-foreground">
+                    Фоновые задачи импорта в очереди или исполнении.
+                  </small>
+                </div>
+                <div className="grid gap-1 rounded-lg border border-border p-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Каталог</span>
+                  <strong className="text-lg tabular-nums">{roadmapCapabilities.length}</strong>
+                  <small className="text-xs text-muted-foreground">
+                    Следующие доступные профили коннекторов без преждевременной отметки боевой готовности.
+                  </small>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-        </section>
-      ) : null}
-        </>
-      }
-      evidence={
-        <EvidenceDrawer title="Свидетельства готовности">
-          <div className="operational-evidence-grid">
-            <div className="operational-evidence-item">
-              <span>Источники</span>
-              <strong>{activeSources.length}/{integrations.length}</strong>
-              <small>Активные и готовые подключения в текущем workspace.</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Диагностика</span>
-              <strong>{failedDiagnostics}</strong>
-              <small>{failedDiagnostics > 0 ? "Есть ошибки, которые блокируют доверие к импорту." : "Ошибок диагностики в последнем срезе нет."}</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Обработчик</span>
-              <strong>{activeJobs}</strong>
-              <small>Фоновые задачи импорта в очереди или исполнении.</small>
-            </div>
-            <div className="operational-evidence-item">
-              <span>Каталог</span>
-              <strong>{roadmapCapabilities.length}</strong>
-              <small>Следующие доступные профили коннекторов без преждевременной отметки боевой готовности.</small>
-            </div>
-          </div>
-        </EvidenceDrawer>
+            </EvidenceDrawer>
           }
         />
       </AdminFrame>

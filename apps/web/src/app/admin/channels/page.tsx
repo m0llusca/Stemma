@@ -2,20 +2,40 @@ import { AlertTriangle, MessageCircle, Plus, Send, Slack, UsersRound, type Lucid
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatStrip } from "@/components/ui/stat-strip";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, type StatusBadgeTone } from "@/components/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { MessagingChannelForm } from "@/components/admin/messaging-channel-form";
+import {
+  MessagingChannelForm,
+  MessagingChannelStatusToggle
+} from "@/components/admin/messaging-channel-form";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { setMessagingChannelStatus } from "@/lib/messaging-actions";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { maskSecret } from "@/lib/secrets";
-import type { StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -57,16 +77,16 @@ function messagingDeliveryStatusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-function messagingDeliveryTone(status: string): StatusTone {
-  if (status === "delivered") return "positive";
-  if (status === "failed") return "negative";
+function messagingDeliveryTone(status: string): StatusBadgeTone {
+  if (status === "delivered") return "success";
+  if (status === "failed") return "danger";
   if (status === "queued") return "warning";
   return "neutral";
 }
 
-function messagingChannelTone(status: string): StatusTone {
-  if (status === "active") return "positive";
-  if (status === "error") return "negative";
+function messagingChannelTone(status: string): StatusBadgeTone {
+  if (status === "active") return "success";
+  if (status === "error") return "danger";
   if (status === "disabled") return "warning";
   return "neutral";
 }
@@ -191,187 +211,273 @@ async function AdminChannelsPageContent() {
       description="Исходящие уведомления в Slack, Microsoft Teams, Telegram и WhatsApp: готовность каналов, защитные проверки и очередь доставок."
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="channels-title">
-          <div className="ops-panel__header">
-            <h2 id="channels-title" className="ops-panel__title">Каналы</h2>
-            <div className="admin-actions">
-              <StatusBadge label="Активны" value={activeActionChannels} tone={activeActionChannels > 0 ? "positive" : "neutral"} />
-              <AdminDialog
-                triggerLabel={
-                  <>
-                    <Plus size={16} aria-hidden="true" />
-                    Добавить канал
-                  </>
-                }
-                title="Добавить канал"
-                description="Подключите Slack, Teams, Telegram или WhatsApp — уведомления начнут уходить после активации."
-              >
-                {unconfiguredDefinitions.length === 0 ? (
-                  <EmptyState
-                    size="inline"
-                    icon={<Send size={20} aria-hidden="true" />}
-                    title="Все каналы подключены"
-                    description="Все доступные каналы уже настроены — управляйте ими в списке."
-                  />
-                ) : (
-                  <div className="grid gap-4">
-                    {unconfiguredDefinitions.map((definition, index) => {
-                      const ChannelIcon = messagingChannelIcons[definition.kind] ?? Send;
+        <div className="grid gap-6">
+          <Card>
+            <CardHeader className="border-b">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="grid gap-1">
+                  <CardTitle id="channels-title">Каналы</CardTitle>
+                  <CardDescription>
+                    Активных: {activeActionChannels} · настроено: {messagingChannels.length}
+                  </CardDescription>
+                </div>
+                <CardAction>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge tone={activeActionChannels > 0 ? "success" : "neutral"}>
+                      Активны {activeActionChannels}
+                    </StatusBadge>
+                    <AdminDialog
+                      triggerLabel={
+                        <>
+                          <Plus size={16} aria-hidden="true" />
+                          Добавить канал
+                        </>
+                      }
+                      triggerClassName={buttonVariants()}
+                      title="Добавить канал"
+                      description="Подключите Slack, Teams, Telegram или WhatsApp — уведомления начнут уходить после активации."
+                    >
+                      {unconfiguredDefinitions.length === 0 ? (
+                        <EmptyState
+                          size="inline"
+                          icon={<Send size={20} aria-hidden="true" />}
+                          title="Все каналы подключены"
+                          description="Все доступные каналы уже настроены — управляйте ими в списке."
+                        />
+                      ) : (
+                        <div className="grid gap-4">
+                          {unconfiguredDefinitions.map((definition, index) => {
+                            const ChannelIcon = messagingChannelIcons[definition.kind] ?? Send;
 
-                      return (
-                        <div key={definition.kind} className={index > 0 ? "border-t border-[var(--border)] pt-4" : undefined}>
-                          <div className="setting-row__copy">
-                            <span className="setting-row__label">
-                              <ChannelIcon size={16} aria-hidden="true" />
-                              {definition.displayName}
-                            </span>
-                            <p className="setting-row__hint">
-                              {definition.capabilities.map(messagingCapabilityLabel).join(", ")} · {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
-                            </p>
-                          </div>
-                          <div className="mt-3">
-                            <MessagingChannelForm
-                              kind={definition.kind}
-                              displayName={definition.displayName}
-                              status="draft"
-                              maskedWebhook={null}
-                              hasSecret={false}
-                            />
-                          </div>
+                            return (
+                              <div
+                                key={definition.kind}
+                                className={cn("grid gap-3", index > 0 && "border-t border-border pt-4")}
+                              >
+                                <div className="grid gap-1">
+                                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                    <ChannelIcon size={16} aria-hidden="true" />
+                                    {definition.displayName}
+                                  </span>
+                                  <p className="text-sm text-muted-foreground">
+                                    {definition.capabilities.map(messagingCapabilityLabel).join(", ")} ·{" "}
+                                    {definition.ingestRequiresConsent
+                                      ? "прием сообщений выключен до согласия и правил хранения"
+                                      : "только исходящие уведомления"}
+                                  </p>
+                                </div>
+                                <MessagingChannelForm
+                                  kind={definition.kind}
+                                  displayName={definition.displayName}
+                                  status="draft"
+                                  maskedWebhook={null}
+                                  hasSecret={false}
+                                />
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      )}
+                    </AdminDialog>
                   </div>
-                )}
-              </AdminDialog>
-            </div>
-          </div>
-          <div className="px-5 pt-1">
-            <StatStrip
-              ariaLabel="Сводка каналов и доставок"
-              items={[
-                { label: "Настроено", value: messagingChannels.length, tone: messagingChannels.length > 0 ? "accent" : "neutral" },
-                { label: "В очереди", value: queuedDeliveries, tone: queuedDeliveries > 0 ? "warning" : "neutral" },
-                { label: "Ошибки", value: failedDeliveries, tone: failedDeliveries > 0 ? "danger" : "neutral" },
-                { label: "Доставлено", value: deliveredDeliveries, tone: deliveredDeliveries > 0 ? "success" : "neutral", hint: "за все время" }
-              ]}
-            />
-          </div>
-          {failedDeliveries > 0 ? (
-            <div className="system-attention system-attention--negative">
-              <AlertTriangle size={17} aria-hidden="true" />
-              <div>
-                <p className="system-attention__title">Доставка уведомлений деградировала</p>
-                <p className="system-attention__text">Проверьте последний error у канала и scope токена перед повторной отправкой.</p>
+                </CardAction>
               </div>
-            </div>
-          ) : null}
-          <div className="p-5 pt-2">
-            {configuredDefinitions.length === 0 ? (
-              <EmptyState
-                size="inline"
-                icon={<Send size={20} aria-hidden="true" />}
-                title="Каналы не подключены"
-                description="Нажмите «Добавить канал» в шапке панели, чтобы подключить Slack, Teams, Telegram или WhatsApp."
-              />
-            ) : (
-              <div className="setting-rows">
-                {configuredDefinitions.map((definition) => {
-                  const channel = configuredChannelByKind.get(definition.kind);
-                  if (!channel) {
-                    return null;
+            </CardHeader>
+            <CardContent className="grid gap-4 pt-(--card-spacing)">
+              <StatStrip
+                items={[
+                  {
+                    label: "Настроено",
+                    value: messagingChannels.length,
+                    tone: messagingChannels.length > 0 ? "info" : "neutral"
+                  },
+                  {
+                    label: "В очереди",
+                    value: queuedDeliveries,
+                    tone: queuedDeliveries > 0 ? "warning" : "neutral"
+                  },
+                  {
+                    label: "Ошибки",
+                    value: failedDeliveries,
+                    tone: failedDeliveries > 0 ? "danger" : "neutral"
+                  },
+                  {
+                    label: "Доставлено",
+                    value: deliveredDeliveries,
+                    tone: deliveredDeliveries > 0 ? "success" : "neutral",
+                    hint: "за все время"
                   }
+                ]}
+              />
 
-                  const ChannelIcon = messagingChannelIcons[definition.kind] ?? Send;
-                  const capabilities = parseCapabilities(channel.capabilities);
-                  const webhookUrl = parseWebhookUrl(channel.configJson);
-                  const maskedWebhook = maskSecret(webhookUrl);
-                  const hasSecret = Boolean(channel.secretRef);
-                  const channelStatus = channel.status;
-                  const isActive = channelStatus === "active";
-                  const channelName = channel.displayName ?? definition.displayName;
+              {failedDeliveries > 0 ? (
+                <Alert variant="destructive">
+                  <AlertTriangle />
+                  <AlertTitle>Доставка уведомлений деградировала</AlertTitle>
+                  <AlertDescription>
+                    Проверьте последний error у канала и scope токена перед повторной отправкой.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
-                  return (
-                    <div key={definition.kind} className="setting-row">
-                      <div className="setting-row__copy">
-                        <span className="setting-row__label">
-                          <ChannelIcon size={16} aria-hidden="true" />
-                          {channelName}
-                          <StatusBadge compact
-                            label="Статус"
-                            value={messagingChannelStatusLabel(channelStatus)}
-                            tone={messagingChannelTone(channelStatus)}
-                          />
-                        </span>
-                        <p className="setting-row__hint">
-                          {capabilities.map(messagingCapabilityLabel).join(", ")} · {definition.ingestRequiresConsent ? "прием сообщений выключен до согласия и правил хранения" : "только исходящие уведомления"}
-                        </p>
-                      </div>
-                      <div className="setting-row__control">
-                        <form action={setMessagingChannelStatus}>
-                          <input type="hidden" name="kind" value={definition.kind} />
-                          <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
-                          <button type="submit" className="action-button action-button--small">
-                            {isActive ? "В черновик" : "Активировать"}
-                          </button>
-                        </form>
-                        <AdminDialog
-                          triggerLabel="Настроить"
-                          triggerClassName="action-button action-button--small"
-                          title={`Канал: ${channelName}`}
-                        >
-                          <MessagingChannelForm
-                            kind={definition.kind}
-                            displayName={channelName}
-                            status={channelStatus}
-                            maskedWebhook={maskedWebhook}
-                            hasSecret={hasSecret}
-                          />
-                          <p className="record-meta tabular-nums mt-2">
-                            Доставок: {channel?._count.deliveries ?? 0} · последняя: {formatDate(channel?.lastDeliveredAt)}
-                          </p>
-                          {channel?.lastError ? <p className="mt-2 text-sm font-medium text-[var(--danger)]">{channel.lastError}</p> : null}
-                          <p className="mt-2">
-                            <a href={definition.docsHref} target="_blank" rel="noreferrer" className="quiet-link text-sm">
-                              Документация канала
-                            </a>
-                          </p>
-                        </AdminDialog>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <section className="mt-6" aria-labelledby="delivery-log-title">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 id="delivery-log-title" className="font-semibold text-[var(--foreground)]">Журнал доставок</h3>
-                <span className="text-sm font-semibold tabular-nums text-[var(--accent-strong)]">{latestDeliveries.length} последних</span>
-              </div>
-              {latestDeliveries.length === 0 ? (
-                <EmptyState size="inline" icon={<Send size={20} aria-hidden="true" />} title="Доставок пока нет" description="Сообщения появятся здесь после первой отправки по каналам уведомлений." />
+              {configuredDefinitions.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<Send size={20} aria-hidden="true" />}
+                  title="Каналы не подключены"
+                  description="Нажмите «Добавить канал» в шапке панели, чтобы подключить Slack, Teams, Telegram или WhatsApp."
+                />
               ) : (
-                <div className="setting-rows">
-                  {latestDeliveries.map((delivery) => (
-                    <div key={delivery.id} className="setting-row">
-                      <div className="setting-row__copy">
-                        <span className="setting-row__label">{delivery.channel?.displayName ?? delivery.kind}</span>
-                        <p className="setting-row__hint tabular-nums">
-                          {formatDate(delivery.createdAt)} · {messagingEventTypeLabel(delivery.eventType)} · {messagingRecipientLabel(delivery.recipientType)}
-                        </p>
+                <div className="grid gap-2">
+                  {configuredDefinitions.map((definition) => {
+                    const channel = configuredChannelByKind.get(definition.kind);
+                    if (!channel) {
+                      return null;
+                    }
+
+                    const ChannelIcon = messagingChannelIcons[definition.kind] ?? Send;
+                    const capabilities = parseCapabilities(channel.capabilities);
+                    const webhookUrl = parseWebhookUrl(channel.configJson);
+                    const maskedWebhook = maskSecret(webhookUrl);
+                    const hasSecret = Boolean(channel.secretRef);
+                    const channelStatus = channel.status;
+                    const isActive = channelStatus === "active";
+                    const channelName = channel.displayName ?? definition.displayName;
+
+                    return (
+                      <div
+                        key={definition.kind}
+                        className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="grid min-w-0 gap-1">
+                          <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+                            <ChannelIcon size={16} aria-hidden="true" />
+                            {channelName}
+                            <StatusBadge tone={messagingChannelTone(channelStatus)}>
+                              {messagingChannelStatusLabel(channelStatus)}
+                            </StatusBadge>
+                          </span>
+                          <p className="text-sm text-muted-foreground">
+                            {capabilities.map(messagingCapabilityLabel).join(", ")} ·{" "}
+                            {definition.ingestRequiresConsent
+                              ? "прием сообщений выключен до согласия и правил хранения"
+                              : "только исходящие уведомления"}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <MessagingChannelStatusToggle kind={definition.kind} isActive={isActive} />
+                          <AdminDialog
+                            triggerLabel="Настроить"
+                            triggerClassName={buttonVariants({ variant: "outline", size: "sm" })}
+                            title={`Канал: ${channelName}`}
+                          >
+                            <div className="grid gap-3">
+                              <MessagingChannelForm
+                                kind={definition.kind}
+                                displayName={channelName}
+                                status={channelStatus}
+                                maskedWebhook={maskedWebhook}
+                                hasSecret={hasSecret}
+                              />
+                              <p className="text-sm tabular-nums text-muted-foreground">
+                                Доставок: {channel?._count.deliveries ?? 0} · последняя:{" "}
+                                {formatDate(channel?.lastDeliveredAt)}
+                              </p>
+                              {channel?.lastError ? (
+                                <p className="text-sm font-medium text-destructive">{channel.lastError}</p>
+                              ) : null}
+                              <p>
+                                <a
+                                  href={definition.docsHref}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sm text-primary underline-offset-4 hover:underline"
+                                >
+                                  Документация канала
+                                </a>
+                              </p>
+                            </div>
+                          </AdminDialog>
+                        </div>
                       </div>
-                      <div className="setting-row__control">
-                        <StatusBadge compact label="Статус" value={messagingDeliveryStatusLabel(delivery.status)} tone={messagingDeliveryTone(delivery.status)} />
-                        {delivery.href ? <Link href={delivery.href} className="quiet-link text-sm">Открыть действие</Link> : null}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
-            </section>
-          </div>
-        </section>
+            </CardContent>
+          </Card>
+
+          <Card aria-labelledby="delivery-log-title">
+            <CardHeader className="border-b">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle id="delivery-log-title">Журнал доставок</CardTitle>
+                <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                  {latestDeliveries.length} последних
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-(--card-spacing)">
+              {latestDeliveries.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<Send size={20} aria-hidden="true" />}
+                  title="Доставок пока нет"
+                  description="Сообщения появятся здесь после первой отправки по каналам уведомлений."
+                />
+              ) : (
+                <Table aria-labelledby="delivery-log-title">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Канал</TableHead>
+                      <TableHead>Событие</TableHead>
+                      <TableHead>Получатель</TableHead>
+                      <TableHead>Когда</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead className="text-right">Действие</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {latestDeliveries.map((delivery) => (
+                      <TableRow key={delivery.id}>
+                        <TableCell className="font-medium">
+                          {delivery.channel?.displayName ?? delivery.kind}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {messagingEventTypeLabel(delivery.eventType)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {messagingRecipientLabel(delivery.recipientType)}
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {formatDate(delivery.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge tone={messagingDeliveryTone(delivery.status)}>
+                            {messagingDeliveryStatusLabel(delivery.status)}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {delivery.href ? (
+                            <Button
+                              render={<Link href={delivery.href} />}
+                              nativeButton={false}
+                              variant="link"
+                              size="sm"
+                            >
+                              Открыть
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </AdminFrame>
     </PageShell>
   );

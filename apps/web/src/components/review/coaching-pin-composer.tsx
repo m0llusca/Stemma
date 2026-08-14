@@ -2,15 +2,18 @@
 
 import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/textarea";
 import { createCoachingPin } from "@/lib/coaching-pin-actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary action-button--small" disabled={pending}>
+    <Button type="submit" size="sm" disabled={pending}>
       {pending ? "Сохранение…" : "Сохранить заметку"}
-    </button>
+    </Button>
   );
 }
 
@@ -20,16 +23,22 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
 
   if (!open) {
     return (
-      <button type="button" className="action-button action-button--small coaching-pin-add" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        size="xs"
+        variant="outline"
+        className="coaching-pin-add"
+        onClick={() => setOpen(true)}
+      >
         + Заметка к сообщению
-      </button>
+      </Button>
     );
   }
 
   return (
     <form
       ref={formRef}
-      className="coaching-pin-composer"
+      className="coaching-pin-composer flex flex-col gap-2"
       action={async (formData) => {
         await createCoachingPin(formData);
         formRef.current?.reset();
@@ -38,20 +47,26 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
     >
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="messageId" value={messageId} />
-      <textarea
-        name="body"
-        className="form-control text-sm coaching-pin-composer__input"
-        rows={2}
-        maxLength={2000}
-        required
-        autoFocus
-        placeholder="Что обсудить по этому сообщению на калибровке?"
-      />
-      <div className="coaching-pin-composer__actions">
+      <Field>
+        <FieldLabel className="sr-only" htmlFor={`coaching-pin-body-${messageId}`}>
+          Заметка к сообщению
+        </FieldLabel>
+        <Textarea
+          id={`coaching-pin-body-${messageId}`}
+          name="body"
+          className="coaching-pin-composer__input min-h-16 text-sm"
+          rows={2}
+          maxLength={2000}
+          required
+          autoFocus
+          placeholder="Что обсудить по этому сообщению на калибровке?"
+        />
+      </Field>
+      <div className="coaching-pin-composer__actions flex flex-wrap items-center gap-2">
         <SubmitButton />
-        <button type="button" className="action-button action-button--small" onClick={() => setOpen(false)}>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
           Отмена
-        </button>
+        </Button>
       </div>
     </form>
   );

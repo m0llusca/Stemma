@@ -1,7 +1,10 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type CopyButtonProps = {
   value: string;
@@ -14,9 +17,23 @@ export function CopyButton({
   value,
   label = "Скопировать",
   copiedLabel = "Скопировано",
-  className = ""
+  className
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
+  const resetTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
+    };
+  }, []);
 
   async function copyValue() {
     if (navigator.clipboard?.writeText) {
@@ -33,18 +50,33 @@ export function CopyButton({
       document.body.removeChild(textarea);
     }
 
+    if (!mountedRef.current) {
+      return;
+    }
+
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
+
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    resetTimerRef.current = window.setTimeout(() => {
+      resetTimerRef.current = null;
+      setCopied(false);
+    }, 1400);
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
+      data-qc-motion="feedback"
+      data-state={copied ? "success" : "idle"}
       onClick={copyValue}
-      className={`action-button action-button--small ${className}`}
+      className={cn("gap-1.5", className)}
     >
-      {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+      {copied ? <Check data-icon="inline-start" aria-hidden="true" /> : <Copy data-icon="inline-start" aria-hidden="true" />}
       {copied ? copiedLabel : label}
-    </button>
+    </Button>
   );
 }

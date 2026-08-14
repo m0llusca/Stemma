@@ -45,6 +45,30 @@ export type CoachingImpact = {
   sampleAdequate: boolean;
 };
 
+export function trainingEffectKpiHint({
+  averageDelta,
+  positiveCount,
+  measuredCount
+}: {
+  averageDelta: number | null;
+  positiveCount: number;
+  measuredCount: number;
+}) {
+  if (measuredCount <= 0 || averageDelta == null) {
+    return "Нужны оценки до и после";
+  }
+
+  if (averageDelta > 0) {
+    return `${positiveCount} из ${measuredCount} разборов дали рост`;
+  }
+
+  if (averageDelta < 0) {
+    return `Снижение в среднем; рост у ${positiveCount} из ${measuredCount}`;
+  }
+
+  return `Без изменения в среднем; рост у ${positiveCount} из ${measuredCount}`;
+}
+
 function roundToOneDecimal(value: number): number {
   // `Number()` strips the trailing zero that toFixed would otherwise add and
   // avoids the -0 result that can fall out of rounding negative deltas.

@@ -4,7 +4,7 @@
  */
 export function RequiredMark() {
   return (
-    <span className="field-required" title="Обязательное поле">
+    <span className="ml-0.5 font-bold text-destructive" title="Обязательное поле">
       <span aria-hidden="true">*</span>
       <span className="sr-only">обязательное поле</span>
     </span>

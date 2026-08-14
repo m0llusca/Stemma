@@ -2,8 +2,41 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Check } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, ChevronDown, Info } from "lucide-react";
+import { ActionFlowGuard } from "@/components/action-flow-guard";
 import { SourceLogoMark, sourceLogoMeta } from "@/components/integrations/source-logo-mark";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
 import { nextActionForConnectSteps } from "@/lib/integrations/connect/next-action";
 import type { IntegrationInstallState } from "@/lib/integrations/install-contracts/types";
@@ -29,9 +62,6 @@ export type ConnectSourceItem = {
   limitations?: string[];
 };
 
-const labelClass = "grid gap-1.5 text-sm font-medium text-[var(--text-body)]";
-const fieldClass = "form-control h-10 w-full text-sm";
-
 const STEP_LABELS: Record<string, string> = {
   validate_url: "Адрес проверен",
   reachability: "Сервер отвечает",
@@ -52,10 +82,10 @@ const STATUS_ICONS: Record<ConnectStepStatus, string> = {
 };
 
 const STATUS_COLORS: Record<ConnectStepStatus, string> = {
-  ok: "text-[var(--success)]",
-  warning: "text-[var(--warning)]",
-  failed: "text-[var(--danger)]",
-  skipped: "text-[var(--text-muted)]"
+  ok: "text-emerald-600 dark:text-emerald-400",
+  warning: "text-amber-600 dark:text-amber-400",
+  failed: "text-destructive",
+  skipped: "text-muted-foreground"
 };
 
 const SOURCE_GROUPS: Array<{ type: string; title: string }> = [
@@ -138,13 +168,13 @@ function testImportLabel(item: ConnectSourceItem) {
   }
 
   if (!item.testImport.supported) {
-    return "Пробный импорт недоступен: сначала contract/live certification.";
+    return "Пробный импорт недоступен: сначала нужна проверка контракта и живая сертификация.";
   }
 
   const modeLabel = {
     fixture: "fixture",
-    probe: "probe",
-    live: "live"
+    probe: "пробный запрос",
+    live: "живой"
   }[item.testImport.mode];
 
   return `Пробный импорт: ${modeLabel}${item.testImport.notes[0] ? ` · ${item.testImport.notes[0]}` : ""}`;
@@ -166,9 +196,53 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? "Подключаем..." : "Подключить"}
-    </button>
+    </Button>
+  );
+}
+
+function GuidanceCard({
+  kicker,
+  title,
+  description,
+  items,
+  limitations
+}: {
+  kicker: string;
+  title: string;
+  description: string;
+  items: Array<{ label: string; value: string; hint: string }>;
+  limitations?: string[];
+}) {
+  return (
+    <Card size="sm" className="bg-muted/40 ring-foreground/5">
+      <CardHeader className="gap-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{kicker}</p>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-3">
+          {items.map((item) => (
+            <div key={item.label} className="grid gap-1 border-t border-border pt-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {item.label}
+              </span>
+              <strong className="text-sm font-semibold text-foreground">{item.value}</strong>
+              <small className="text-xs leading-snug text-muted-foreground">{item.hint}</small>
+            </div>
+          ))}
+        </div>
+        {limitations && limitations.length > 0 ? (
+          <ul className="grid list-disc gap-1 pl-4 text-xs text-muted-foreground">
+            {limitations.map((limitation) => (
+              <li key={limitation}>{displayLimitation(limitation)}</li>
+            ))}
+          </ul>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -179,10 +253,15 @@ export function ConnectSourceForm({
   sources: ConnectSourceItem[];
   initialState?: ConnectJournalState;
 }) {
-  const [state, formAction] = useActionState(connectSourceAction, initialState ?? null);
+  const [actionState, formAction] = useActionState(connectSourceAction, initialState ?? null);
+  // The bridged journal feeds the result UI when the client router drops the
+  // action commit (Next 16.2.x); the healthy path is untouched.
+  const [bridgedState, setBridgedState] = useState<ConnectJournalState>(null);
+  const state = bridgedState ?? actionState;
   const [selectedSource, setSelectedSource] = useState<string | null>(
     sources.length === 1 ? sources[0].source : null
   );
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const selected = useMemo(
     () => sources.find((item) => item.source === selectedSource) ?? null,
@@ -204,234 +283,328 @@ export function ConnectSourceForm({
     (step) => step.status === "failed" && MANUAL_FIXABLE_STEPS.has(step.step)
   );
   const connected = hasSteps(state) && state.connected;
+  const detailsOpen = advancedOpen || fallbackOpen;
 
   return (
-    <section className="panel overflow-clip">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">Подключение источника</h2>
-        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
+    <Card className="overflow-clip">
+      <CardHeader className="border-b">
+        <h2 className="font-heading text-lg leading-snug font-medium">
+          Подключение источника
+        </h2>
+        <CardDescription>
           Укажите адрес и доступы. Stemma проверит права, сохранит источник и подготовит пробный импорт.
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
 
-      <div className="connect-source-guidance connect-source-guidance--route mx-5 mt-4" aria-label="Маршрут подключения источника">
-        <div className="connect-source-guidance__lead">
-          <p className="page-kicker">Маршрут подключения</p>
-          <h3>Выбор → доступы → безопасная проверка</h3>
-          <p>Сначала выберите источник, затем проверьте обязательные доступы и только после этого запускайте preview/import.</p>
-        </div>
-        <div className="connect-source-guidance__items">
-          <div>
-            <span>1. Источник</span>
-            <strong>Выбрать профиль</strong>
-            <small>Карточки показывают install state и ограничения.</small>
-          </div>
-          <div>
-            <span>2. Доступы</span>
-            <strong>URL и секреты</strong>
-            <small>Raw секреты не отображаются после сохранения.</small>
-          </div>
-          <div>
-            <span>3. Проверка</span>
-            <strong>Диагностика и пробный запуск</strong>
-            <small>Live-сертификация требует доказательства перед рабочим режимом.</small>
-          </div>
-        </div>
-      </div>
+      <CardContent className="grid gap-4 pt-4">
+        <GuidanceCard
+          kicker="Маршрут подключения"
+          title="Выбор → доступы → безопасная проверка"
+          description="Сначала выберите источник, затем проверьте обязательные доступы и только после этого запускайте предпросмотр или импорт."
+          items={[
+            {
+              label: "1. Источник",
+              value: "Выбрать профиль",
+              hint: "Карточки показывают статус установки и ограничения."
+            },
+            {
+              label: "2. Доступы",
+              value: "URL и секреты",
+              hint: "Секреты в открытом виде не показываются после сохранения."
+            },
+            {
+              label: "3. Проверка",
+              value: "Диагностика и пробный запуск",
+              hint: "Живая сертификация требует доказательств перед рабочим режимом."
+            }
+          ]}
+        />
 
-      {sources.length > 0 ? (
-        <div className="connect-source-groups border-b border-[var(--border)] px-4 py-4">
-          {groups.map((group) => (
-            <div key={group.type} className="connect-source-group">
-              <p className="connect-source-group__title">{group.title}</p>
-              <div className="connect-source-grid" role="radiogroup" aria-label={group.title}>
-                {group.items.map((item) => {
-                  const isActive = item.source === selectedSource;
-                  const meta = sourceMeta(item);
-                  const stateLabel = installStateLabel(item);
-                  const firstLimitation = shouldDiscloseInstallState(item) ? displayLimitation(item.limitations?.[0]) : undefined;
-
-                  return (
-                    <button
-                      key={item.source}
-                      type="button"
-                      role="radio"
-                      aria-checked={isActive}
-                      onClick={() => setSelectedSource(item.source)}
-                      className={`connect-source-card ${isActive ? "connect-source-card--selected" : ""}`}
-                    >
-                      <SourceLogoMark meta={meta} />
-                      <span className="connect-source-card__body">
-                        <span className="connect-source-card__name">
+        {sources.length > 0 ? (
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="connect-source-select">Источник</FieldLabel>
+              <Select
+                value={selectedSource}
+                onValueChange={(value) => {
+                  if (value != null) {
+                    setSelectedSource(value);
+                  }
+                }}
+              >
+                <SelectTrigger id="connect-source-select" className="w-full min-w-0" size="default">
+                  <SelectValue placeholder="Выберите тип источника" />
+                </SelectTrigger>
+                <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[var(--anchor-width)]">
+                  {groups.map((group) => (
+                    <SelectGroup key={group.type}>
+                      <SelectLabel>{group.title}</SelectLabel>
+                      {group.items.map((item) => (
+                        <SelectItem key={item.source} value={item.source}>
                           {item.label}
-                          {stateLabel && shouldDiscloseInstallState(item) ? (
-                            <span className="connect-source-card__flag">{stateLabel}</span>
-                          ) : null}
-                        </span>
-                        <span className="connect-source-card__hint">{meta.hint}</span>
-                        {firstLimitation ? (
-                          <span className="connect-source-card__hint" title={firstLimitation}>
-                            {firstLimitation}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>Или выберите карточку ниже — список синхронизирован с селектом.</FieldDescription>
+            </Field>
+
+            <div className="grid gap-4">
+              {groups.map((group) => (
+                <div key={group.type} className="grid gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.title}
+                  </p>
+                  <div
+                    className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,250px),1fr))] gap-2"
+                    role="radiogroup"
+                    aria-label={group.title}
+                  >
+                    {group.items.map((item) => {
+                      const isActive = item.source === selectedSource;
+                      const meta = sourceMeta(item);
+                      const stateLabel = installStateLabel(item);
+                      const firstLimitation = shouldDiscloseInstallState(item)
+                        ? displayLimitation(item.limitations?.[0])
+                        : undefined;
+
+                      return (
+                        <Button
+                          key={item.source}
+                          type="button"
+                          variant="outline"
+                          role="radio"
+                          aria-checked={isActive}
+                          onClick={() => setSelectedSource(item.source)}
+                          className={cn(
+                            "h-auto min-w-0 justify-start gap-2.5 px-3 py-2.5 text-left whitespace-normal",
+                            isActive && "border-primary bg-primary/5 ring-1 ring-primary/30"
+                          )}
+                        >
+                          <SourceLogoMark meta={meta} />
+                          <span className="grid min-w-0 flex-1 gap-0.5">
+                            <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-semibold text-foreground">
+                              {item.label}
+                              {stateLabel && shouldDiscloseInstallState(item) ? (
+                                <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                                  {stateLabel}
+                                </Badge>
+                              ) : null}
+                            </span>
+                            <span className="truncate text-xs font-normal text-muted-foreground" title={meta.hint}>
+                              {meta.hint}
+                            </span>
+                            {firstLimitation ? (
+                              <span className="truncate text-xs font-normal text-muted-foreground" title={firstLimitation}>
+                                {firstLimitation}
+                              </span>
+                            ) : null}
                           </span>
-                        ) : null}
+                          <span
+                            className={cn(
+                              "inline-flex size-5 shrink-0 items-center justify-center rounded-full transition-colors",
+                              isActive ? "bg-primary text-primary-foreground" : "text-transparent"
+                            )}
+                            aria-hidden="true"
+                          >
+                            <Check size={14} />
+                          </span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FieldGroup>
+        ) : null}
+
+        {selected ? (
+          <form action={formAction} className="grid gap-4">
+            <ActionFlowGuard
+              onResult={(value) => {
+                const result = value as ConnectJournalState;
+                if (result) setBridgedState(result);
+              }}
+            />
+            <input type="hidden" name="source" value={selected.source} />
+
+            <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2" aria-live="polite">
+              <SourceLogoMark meta={sourceMeta(selected)} />
+              <span className="grid min-w-0 gap-0.5">
+                <strong className="text-sm font-semibold text-foreground">{selected.label}</strong>
+                <span className="text-xs text-muted-foreground">{sourceMeta(selected).hint}</span>
+                {shouldDiscloseInstallState(selected) ? (
+                  <span className="text-xs text-muted-foreground">
+                    {installStateLabel(selected)}
+                    {formatAuthModes(selected.authModes) ? ` · ${formatAuthModes(selected.authModes)}` : ""}
+                  </span>
+                ) : null}
+                {shouldDiscloseInstallState(selected) && selected.limitations?.[0] ? (
+                  <span className="text-xs text-muted-foreground">{displayLimitation(selected.limitations[0])}</span>
+                ) : null}
+              </span>
+            </div>
+
+            <GuidanceCard
+              kicker="Что подготовить"
+              title={selected.label}
+              description={
+                selected.supportsWebhooks
+                  ? "Есть контур действий и вебхуков; рабочую готовность подтвердят доказательства."
+                  : "Основной контур: доступы, проверки здоровья и безопасный пробный импорт."
+              }
+              items={[
+                {
+                  label: "Доступ",
+                  value: formatAuthModes(selected.authModes) ?? "уточнить вручную",
+                  hint:
+                    selected.requiredScopes && selected.requiredScopes.length > 0
+                      ? `Права: ${shortList(selected.requiredScopes, "не требуются")}`
+                      : "Отдельные права не требуются или задаются в токене."
+                },
+                {
+                  label: "Проверки",
+                  value: shortList(selected.healthChecks, "проверка здоровья после авторизации"),
+                  hint: selected.supportsWebhooks
+                    ? "Проверка вебхука входит в маршрут."
+                    : "Вебхук не заявлен в контракте."
+                },
+                {
+                  label: "Импорт",
+                  value: selected.testImport?.supported ? "Можно запустить" : "Ограничен",
+                  hint: testImportLabel(selected)
+                }
+              ]}
+              limitations={selected.limitations?.slice(0, 3)}
+            />
+
+            <FieldGroup className="gap-4">
+              {selected.urlPolicy === "fixed" ? (
+                <input type="hidden" name="baseUrl" value={selected.fixedBaseUrl ?? ""} />
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor="connect-base-url">Адрес источника</FieldLabel>
+                  <Input
+                    id="connect-base-url"
+                    name="baseUrl"
+                    type="url"
+                    required={selected.urlPolicy === "required"}
+                    placeholder="https://example.zendesk.com"
+                  />
+                </Field>
+              )}
+
+              {selected.fields.map((field) => (
+                <Field key={field.key}>
+                  <FieldLabel htmlFor={`connect-field-${field.key}`}>{field.label}</FieldLabel>
+                  <Input
+                    id={`connect-field-${field.key}`}
+                    name={field.key}
+                    type={field.secret ? "password" : "text"}
+                    placeholder={field.placeholder}
+                    pattern={field.format}
+                    autoComplete={field.secret ? "new-password" : "off"}
+                  />
+                  {field.hint ? <FieldDescription>{field.hint}</FieldDescription> : null}
+                </Field>
+              ))}
+
+              <Field>
+                <FieldLabel htmlFor="connect-test-ticket">№ тикета (необязательно)</FieldLabel>
+                <Input id="connect-test-ticket" name="testTicketId" type="text" />
+              </Field>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <SubmitButton />
+              </div>
+            </FieldGroup>
+          </form>
+        ) : sources.length > 0 ? (
+          <p className="text-sm text-muted-foreground">Выберите тип источника, чтобы продолжить.</p>
+        ) : null}
+
+        {hasError(state) ? (
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertTitle>Не удалось подключить</AlertTitle>
+            <AlertDescription>{state.error}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {steps.length > 0 ? (
+          <div className="grid gap-3 border-t border-border pt-4">
+            <p className="text-sm font-semibold text-foreground">Ход подключения</p>
+            <ul className="grid gap-2">
+              {steps.map((step) => (
+                <li key={step.step} className="flex items-start gap-2 text-sm">
+                  <span className={cn("mt-0.5 font-semibold", STATUS_COLORS[step.status])} aria-hidden="true">
+                    {STATUS_ICONS[step.status]}
+                  </span>
+                  <span className="grid gap-0.5">
+                    <span className="font-medium text-foreground">{STEP_LABELS[step.step] ?? step.step}</span>
+                    {step.detail ? <span className="text-muted-foreground">{step.detail}</span> : null}
+                    {step.hint ? (
+                      <span className={cn("text-xs", step.status === "failed" ? "text-destructive" : "text-muted-foreground")}>
+                        {step.hint}
                       </span>
-                      <span className={`connect-source-card__check ${isActive ? "connect-source-card__check--on" : ""}`} aria-hidden="true">
-                        <Check size={14} />
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {selected ? (
-        <form action={formAction} className="grid gap-4 px-4 py-4">
-          <input type="hidden" name="source" value={selected.source} />
-
-          <div className="connect-source-current" aria-live="polite">
-            <SourceLogoMark meta={sourceMeta(selected)} />
-            <span className="connect-source-current__body">
-              <strong>{selected.label}</strong>
-              <span>{sourceMeta(selected).hint}</span>
-              {shouldDiscloseInstallState(selected) ? (
-                <span>
-                  {installStateLabel(selected)}
-                  {formatAuthModes(selected.authModes) ? ` · ${formatAuthModes(selected.authModes)}` : ""}
-                </span>
-              ) : null}
-              {shouldDiscloseInstallState(selected) && selected.limitations?.[0] ? (
-                <span>{displayLimitation(selected.limitations[0])}</span>
-              ) : null}
-            </span>
-          </div>
-
-          <div className="connect-source-guidance" aria-label="Что подготовить для подключения">
-            <div className="connect-source-guidance__lead">
-              <p className="page-kicker">Что подготовить</p>
-              <h3>{selected.label}</h3>
-              <p>{selected.supportsWebhooks ? "Есть контур действий и вебхуков; рабочую готовность подтвердят доказательства." : "Основной контур: доступы, проверки здоровья и безопасный пробный импорт."}</p>
-            </div>
-            <div className="connect-source-guidance__items">
-              <div>
-                <span>Доступ</span>
-                <strong>{formatAuthModes(selected.authModes) ?? "уточнить вручную"}</strong>
-                <small>{selected.requiredScopes && selected.requiredScopes.length > 0 ? `Права: ${shortList(selected.requiredScopes, "не требуются")}` : "Отдельные права не требуются или задаются в токене."}</small>
-              </div>
-              <div>
-                <span>Проверки</span>
-                <strong>{shortList(selected.healthChecks, "health check после авторизации")}</strong>
-                <small>{selected.supportsWebhooks ? "Webhook probe входит в маршрут." : "Webhook не заявлен в контракте."}</small>
-              </div>
-              <div>
-                <span>Импорт</span>
-                <strong>{selected.testImport?.supported ? "Можно запустить" : "Ограничен"}</strong>
-                <small>{testImportLabel(selected)}</small>
-              </div>
-            </div>
-            {selected.limitations && selected.limitations.length > 0 ? (
-              <ul className="connect-source-guidance__limitations">
-                {selected.limitations.slice(0, 3).map((limitation) => (
-                  <li key={limitation}>{displayLimitation(limitation)}</li>
-                ))}
-              </ul>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {connected ? (
+              <Alert>
+                <CheckCircle2 className="text-emerald-600 dark:text-emerald-400" />
+                <AlertTitle className="text-emerald-700 dark:text-emerald-400">Источник подключён</AlertTitle>
+              </Alert>
+            ) : null}
+            {nextAction ? (
+              <Alert
+                variant={nextAction.severity === "negative" ? "destructive" : "default"}
+                className={cn(
+                  nextAction.severity === "warning" &&
+                    "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                )}
+              >
+                {nextAction.severity === "negative" ? <AlertCircle /> : <Info />}
+                <AlertTitle>{nextAction.label}</AlertTitle>
+                <AlertDescription>{nextAction.description}</AlertDescription>
+              </Alert>
             ) : null}
           </div>
+        ) : null}
 
-          {selected.urlPolicy === "fixed" ? (
-            <input type="hidden" name="baseUrl" value={selected.fixedBaseUrl ?? ""} />
-          ) : (
-            <label className={labelClass}>
-              Адрес источника
-              <input
-                name="baseUrl"
-                type="url"
-                required={selected.urlPolicy === "required"}
-                placeholder="https://example.zendesk.com"
-                className={fieldClass}
-              />
-            </label>
-          )}
-
-          {selected.fields.map((field) => (
-            <label key={field.key} className={labelClass}>
-              {field.label}
-              <input
-                name={field.key}
-                type={field.secret ? "password" : "text"}
-                placeholder={field.placeholder}
-                pattern={field.format}
-                autoComplete={field.secret ? "new-password" : "off"}
-                className={fieldClass}
-              />
-              {field.hint ? <span className="text-xs font-normal text-[var(--text-muted)]">{field.hint}</span> : null}
-            </label>
-          ))}
-
-          <label className={labelClass}>
-            № тикета (необязательно)
-            <input name="testTicketId" type="text" className={fieldClass} />
-          </label>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <SubmitButton />
-          </div>
-        </form>
-      ) : sources.length > 0 ? (
-        <p className="px-4 py-4 text-sm text-[var(--text-muted)]">Выберите тип источника, чтобы продолжить.</p>
-      ) : null}
-
-      {hasError(state) ? (
-        <p className="px-4 pb-4 text-sm font-medium text-[var(--danger)]">{state.error}</p>
-      ) : null}
-
-      {steps.length > 0 ? (
-        <div className="grid gap-2 border-t border-[var(--border)] px-4 py-4">
-          <p className="text-sm font-semibold text-[var(--text-body)]">Ход подключения</p>
-          <ul className="grid gap-2">
-            {steps.map((step) => (
-              <li key={step.step} className="flex items-start gap-2 text-sm">
-                <span className={`mt-0.5 font-semibold ${STATUS_COLORS[step.status]}`} aria-hidden="true">
-                  {STATUS_ICONS[step.status]}
-                </span>
-                <span className="grid gap-0.5">
-                  <span className="font-medium text-[var(--text-body)]">{STEP_LABELS[step.step] ?? step.step}</span>
-                  {step.detail ? <span className="text-[var(--text-subtle)]">{step.detail}</span> : null}
-                  {step.hint ? (
-                    <span className={`text-xs ${step.status === "failed" ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}>
-                      {step.hint}
-                    </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {connected ? (
-            <p className="text-sm font-semibold text-[var(--success)]">Источник подключён</p>
-          ) : null}
-          {nextAction ? (
-            <div className={`connect-next-action connect-next-action--${nextAction.severity}`}>
-              <strong>{nextAction.label}</strong>
-              <span>{nextAction.description}</span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      <details open={fallbackOpen} className="compact-details disclosure-panel overflow-clip border-t border-[var(--border)]">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
-          Расширенные настройки
-        </summary>
-        <div className="grid gap-2 border-t border-[var(--border)] p-4 text-sm text-[var(--text-subtle)]">
-          {fallbackOpen ? (
-            <p className="font-medium text-[var(--warning)]">Заполните параметры вручную и повторите.</p>
-          ) : (
-            <p>Ручная настройка параметров подключения для нестандартных конфигураций.</p>
-          )}
-        </div>
-      </details>
-    </section>
+        <Collapsible
+          open={detailsOpen}
+          onOpenChange={setAdvancedOpen}
+          className="overflow-clip rounded-lg border border-border"
+        >
+          <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Расширенные настройки
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                detailsOpen && "rotate-180"
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="grid gap-2 border-t border-border p-4 text-sm text-muted-foreground">
+            {fallbackOpen ? (
+              <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                <Info />
+                <AlertDescription className="text-amber-800 dark:text-amber-300">
+                  Заполните параметры вручную и повторите.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <p>Ручная настройка параметров подключения для нестандартных конфигураций.</p>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      </CardContent>
+    </Card>
   );
 }

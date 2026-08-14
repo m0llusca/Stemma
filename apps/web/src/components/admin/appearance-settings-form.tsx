@@ -2,26 +2,43 @@
 
 import type { CSSProperties, ChangeEvent } from "react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, ChevronDown, Gauge, ImageUp, Layers3, Palette, RotateCcw, Rows3, Type, Undo2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  Gauge,
+  ImageUp,
+  Layers3,
+  Palette,
+  RotateCcw,
+  Rows3,
+  Type,
+  Undo2,
+  X
+} from "lucide-react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { getSettingCoachmark, hasAppearancePaletteOverrides } from "@/lib/admin-setup-guidance";
 import { resolveUndoTarget } from "@/lib/appearance-undo";
+import { syncUiAppearanceToDocument } from "@/lib/ui-theme-dom";
 import { updateWorkspaceAppearance } from "@/lib/ui-theme-actions";
 import {
   maxBrandLogoUrlLength,
   type UiAppearance,
-  type UiContrastId,
-  type UiCornersId,
-  type UiDensityId,
+  type UiThemeId,
   type UiPaletteOverrides,
   type UiPaletteToken,
-  type UiThemeId,
   type WorkspaceBranding,
   serializeUiPaletteOverrides,
   uiContrastOptions,
   uiCornersOptions,
   uiDensityOptions,
-  uiPaletteOverridesToCssVariables,
   uiPaletteTokenOptions,
   uiThemeOptions
 } from "@/lib/ui-theme";
@@ -93,20 +110,6 @@ const defaultStatusPalette = {
   danger: "#b91c1c",
   buttonPrimaryText: "#ffffff"
 } as const;
-
-const previewPaletteVariableNames = [
-  ...uiPaletteTokenOptions.map((token) => token.cssVariable),
-  "--accent-soft",
-  "--accent-muted",
-  "--accent-border",
-  "--control-selected-bg",
-  "--control-selected-border",
-  "--sidebar-glow",
-  "--sidebar-active-icon",
-  "--success-soft",
-  "--warning-soft",
-  "--danger-soft"
-] as const;
 
 function themePreviewStyle(theme: (typeof uiThemeOptions)[number]) {
   return {
@@ -210,14 +213,28 @@ function saveStatusLabel(state: SaveState) {
   return "Все изменения сохранены";
 }
 
+function saveStatusVariant(state: SaveState): "secondary" | "outline" | "destructive" {
+  if (state === "error") {
+    return "destructive";
+  }
+
+  if (state === "saving") {
+    return "outline";
+  }
+
+  return "secondary";
+}
+
 export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettingsFormProps) {
+  const router = useRouter();
   const [appearance, setAppearance] = useState<AppearanceState>(initialAppearance);
-  const [openSections, setOpenSections] = useState({ branding: false, theme: false, palette: false, ui: false });
   const [logoError, setLogoError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [, startTransition] = useTransition();
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const latestAppearanceRef = useRef<AppearanceState>(initialAppearance);
   const lastPersistedRef = useRef<AppearanceState>(initialAppearance);
+  const serverConfirmedRef = useRef<AppearanceState>(initialAppearance);
   // Предыдущее сохраненное состояние: цель отката, когда текущие правки уже
   // зафиксированы автосейвом (см. resolveUndoTarget в lib/appearance-undo.ts).
   const previousPersistedRef = useRef<AppearanceState | null>(null);
@@ -225,10 +242,9 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   const isSavingRef = useRef(false);
   const hasQueuedSaveRef = useRef(false);
   const hasMountedRef = useRef(false);
-
-  const toggleSection = (key: keyof typeof openSections) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  const isMountedRef = useRef(false);
+  const latestRevisionRef = useRef(0);
+  const skipNextPersistRef = useRef(false);
 
   const persistLatest = () => {
     if (isSavingRef.current) {
@@ -237,9 +253,12 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
     }
 
     const snapshot = latestAppearanceRef.current;
+    const revision = latestRevisionRef.current;
 
-    if (appearancesEqual(snapshot, lastPersistedRef.current)) {
-      setSaveState("saved");
+    if (appearancesEqual(snapshot, serverConfirmedRef.current)) {
+      if (isMountedRef.current) {
+        setSaveState("saved");
+      }
       return;
     }
 
@@ -250,17 +269,47 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
     startTransition(() => {
       void updateWorkspaceAppearance(appearanceToFormData(snapshot))
         .then(() => {
-          previousPersistedRef.current = lastPersistedRef.current;
-          lastPersistedRef.current = snapshot;
-          setSaveState("saved");
+          serverConfirmedRef.current = snapshot;
+
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          const isSemanticWinner = appearancesEqual(
+            snapshot,
+            latestAppearanceRef.current
+          );
+
+          if (revision === latestRevisionRef.current || isSemanticWinner) {
+            previousPersistedRef.current = lastPersistedRef.current;
+            lastPersistedRef.current = snapshot;
+            setSaveState("saved");
+            router.refresh();
+          }
         })
         .catch(() => {
+          if (!isMountedRef.current || revision !== latestRevisionRef.current) {
+            return;
+          }
+
+          const rollbackAppearance = serverConfirmedRef.current;
+          previousPersistedRef.current = lastPersistedRef.current;
+          lastPersistedRef.current = rollbackAppearance;
+          latestAppearanceRef.current = rollbackAppearance;
+          skipNextPersistRef.current = true;
+          syncUiAppearanceToDocument(document.documentElement, rollbackAppearance);
+          window.dispatchEvent(
+            new CustomEvent("qc-branding-preview", {
+              detail: appearanceToBranding(rollbackAppearance)
+            })
+          );
+          setAppearance(rollbackAppearance);
           setSaveState("error");
         })
         .finally(() => {
           isSavingRef.current = false;
 
-          if (hasQueuedSaveRef.current) {
+          if (isMountedRef.current && hasQueuedSaveRef.current) {
             hasQueuedSaveRef.current = false;
             persistLatest();
           }
@@ -278,20 +327,29 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+
+      const confirmedAppearance = serverConfirmedRef.current;
+      syncUiAppearanceToDocument(document.documentElement, confirmedAppearance);
+      window.dispatchEvent(
+        new CustomEvent("qc-branding-preview", {
+          detail: appearanceToBranding(confirmedAppearance)
+        })
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     latestAppearanceRef.current = appearance;
 
-    document.body.dataset.theme = appearance.uiTheme;
-    document.body.dataset.density = appearance.uiDensity;
-    document.body.dataset.corners = appearance.uiCorners;
-    document.body.dataset.contrast = appearance.uiContrast;
-    document.body.style.setProperty("--brand-primary", appearance.brandPrimaryColor);
-    document.body.style.setProperty("--brand-accent", appearance.brandAccentColor);
-    for (const variableName of previewPaletteVariableNames) {
-      document.body.style.removeProperty(variableName);
-    }
-    for (const [variableName, value] of Object.entries(uiPaletteOverridesToCssVariables(appearance.uiPaletteOverrides))) {
-      document.body.style.setProperty(variableName, value);
-    }
+    syncUiAppearanceToDocument(document.documentElement, appearance);
     window.dispatchEvent(new CustomEvent("qc-branding-preview", { detail: appearanceToBranding(appearance) }));
 
     if (!hasMountedRef.current) {
@@ -299,6 +357,12 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
       return;
     }
 
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
+
+    latestRevisionRef.current += 1;
     schedulePersist();
 
     return () => {
@@ -355,9 +419,9 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
       updateAppearance(field, event.target.value as AppearanceState[Field]);
     };
 
-  const handleThemeChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleThemeChange = (themeId: UiThemeId) => {
     patchAppearance({
-      uiTheme: event.target.value as UiThemeId,
+      uiTheme: themeId,
       uiPaletteOverrides: {},
       uiPaletteOverridesJson: "{}"
     });
@@ -419,425 +483,608 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   const paletteHint = hasAppearancePaletteOverrides(appearance.uiPaletteOverridesJson) ? null : getSettingCoachmark("componentPalette");
 
   return (
-    <div className="appearance-form">
-      <section id="appearance-branding" className="appearance-section">
-        <button
-          type="button"
-          className="appearance-section__header appearance-section__header--toggle"
-          onClick={() => toggleSection("branding")}
-          aria-expanded={openSections.branding}
-        >
-          <div className="min-w-0">
-            <h3>Брендинг</h3>
-            <p>Название, знак, логотип и фирменные акценты для навигации, превью и рабочих состояний интерфейса.</p>
+    <div className="flex flex-col gap-4">
+      <Tabs defaultValue="branding" className="gap-4">
+        <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-1">
+          <TabsTrigger value="branding" className="gap-1.5">
+            <Type aria-hidden="true" />
+            Брендинг
+          </TabsTrigger>
+          <TabsTrigger value="theme" className="gap-1.5">
+            <Palette aria-hidden="true" />
+            Тема
+          </TabsTrigger>
+          <TabsTrigger value="palette" className="gap-1.5">
+            <Palette aria-hidden="true" />
+            Палитра
+          </TabsTrigger>
+          <TabsTrigger value="ui" className="gap-1.5">
+            <Layers3 aria-hidden="true" />
+            Интерфейс
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="branding" className="flex flex-col gap-4" id="appearance-branding">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-medium text-foreground">Брендинг</h3>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              Название, знак, логотип и фирменные акценты для навигации, превью и рабочих состояний интерфейса.
+            </p>
           </div>
-          <span className="appearance-section__header-icons">
-            <Type size={18} aria-hidden="true" />
-            <ChevronDown size={16} className={`appearance-section__chevron${openSections.branding ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
-          </span>
-        </button>
 
-        {openSections.branding && <div className={brandLogoHint ? "appearance-section__body-with-coach" : ""}>
-          <div className="brand-settings-grid">
-            <div className="brand-preview-card" style={brandPreviewStyle(appearance)} aria-label="Предпросмотр бренда">
-              <div className="brand-preview-card__sidebar">
-                <span className={`brand-preview-card__logo ${appearance.brandLogoUrl ? "brand-preview-card__logo--image" : ""}`}>
-                  {appearance.brandLogoUrl ? <img src={appearance.brandLogoUrl} alt="" /> : appearance.brandMark}
-                </span>
-                <span className="brand-preview-card__copy">
-                  <strong>{appearance.brandName}</strong>
-                  <span>{appearance.brandTagline}</span>
-                </span>
-                <span className="brand-preview-card__nav brand-preview-card__nav--active">Проверки</span>
-                <span className="brand-preview-card__nav">Аналитика</span>
-              </div>
-              <div className="brand-preview-card__surface">
-                <span className="brand-preview-card__kicker">Рабочее пространство</span>
-                <strong>{appearance.brandName}</strong>
-                <span className="brand-preview-card__line brand-preview-card__line--wide" />
-                <span className="brand-preview-card__line" />
-                <button type="button">Основное действие</button>
-              </div>
-            </div>
-
-            <div className="brand-settings-panel">
-              <div className="brand-field-grid">
-                <label className="appearance-field">
-                  <span>Название</span>
-                  <input
-                    className="form-control"
-                    type="text"
-                    value={appearance.brandName}
-                    maxLength={64}
-                    placeholder="КК поддержки"
-                    onChange={handleChange("brandName")}
-                  />
-                </label>
-                <label className="appearance-field">
-                  <span>Подпись</span>
-                  <input
-                    className="form-control"
-                    type="text"
-                    value={appearance.brandTagline}
-                    maxLength={96}
-                    placeholder="Ручная проверка"
-                    onChange={handleChange("brandTagline")}
-                  />
-                </label>
-                <label className="appearance-field appearance-field--short">
-                  <span>Знак</span>
-                  <input className="form-control" type="text" value={appearance.brandMark} maxLength={3} onChange={handleChange("brandMark")} />
-                </label>
-                <label className="appearance-field">
-                  <span>Alt логотипа</span>
-                  <input
-                    className="form-control"
-                    type="text"
-                    value={appearance.brandLogoAlt}
-                    maxLength={96}
-                    placeholder={appearance.brandName}
-                    onChange={handleChange("brandLogoAlt")}
-                  />
-                </label>
-              </div>
-
-              <div className="brand-logo-control">
-                <span className={`brand-logo-control__preview ${appearance.brandLogoUrl ? "brand-logo-control__preview--image" : ""}`}>
-                  {appearance.brandLogoUrl ? <img src={appearance.brandLogoUrl} alt="" /> : appearance.brandMark}
-                </span>
-                <div className="brand-logo-control__body">
-                  <div className="brand-logo-control__actions">
-                    <label className="action-button appearance-logo-upload">
-                      <ImageUp size={16} aria-hidden="true" />
-                      Загрузить
-                      <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} />
-                    </label>
+          <div className={cn("grid gap-4", brandLogoHint ? "xl:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]" : null)}>
+            <div className="grid gap-4 lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.3fr)]">
+              <div
+                className="grid min-h-[284px] min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10"
+                style={{
+                  ...brandPreviewStyle(appearance),
+                  gridTemplateColumns: "minmax(124px,0.42fr) minmax(0,1fr)"
+                }}
+                aria-label="Предпросмотр бренда"
+              >
+                <div
+                  className="flex flex-col gap-2.5 p-4 text-slate-200"
+                  style={{
+                    background: `linear-gradient(180deg, color-mix(in srgb, var(--preview-sidebar-accent) 28%, transparent), transparent 48%), var(--preview-sidebar)`
+                  }}
+                >
+                  <span
+                    className={cn(
+                      "inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg text-base font-black text-white",
+                      appearance.brandLogoUrl ? "bg-white/10" : null
+                    )}
+                    style={
+                      appearance.brandLogoUrl
+                        ? undefined
+                        : {
+                            background:
+                              "radial-gradient(circle at 26% 12%, color-mix(in srgb, var(--preview-brand-accent) 58%, #ffffff) 0%, transparent 38%), linear-gradient(135deg, color-mix(in srgb, var(--preview-brand-primary) 78%, #020617), color-mix(in srgb, var(--preview-brand-accent) 58%, #0f172a))"
+                          }
+                    }
+                  >
                     {appearance.brandLogoUrl ? (
-                      <button type="button" className="action-button appearance-logo-remove" onClick={() => patchAppearance({ brandLogoUrl: "" })}>
-                        <X size={15} aria-hidden="true" />
-                        Убрать
-                      </button>
-                    ) : null}
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={appearance.brandLogoUrl} alt="" className="size-full object-contain p-1" />
+                    ) : (
+                      appearance.brandMark
+                    )}
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <strong className="truncate text-sm font-semibold text-white">{appearance.brandName}</strong>
+                    <span className="truncate text-xs text-slate-400">{appearance.brandTagline}</span>
                   </div>
-                  <label className="appearance-field">
-                    <span>URL логотипа</span>
-                    <input
-                      className="form-control"
-                      type="url"
-                      value={logoUrlValue}
-                      placeholder={logoIsUploaded ? "Загруженный файл сохранен" : "https://cdn.example.com/logo.png"}
-                      onChange={handleChange("brandLogoUrl")}
-                    />
-                  </label>
-                  <p className={`brand-logo-control__hint ${logoError ? "brand-logo-control__hint--error" : ""}`}>
-                    {logoError || "PNG, JPG или WebP до 240 КБ; HTTPS-ссылку можно оставить вместо файла."}
-                  </p>
+                  <span
+                    className="rounded-md border border-white/10 px-2 py-1.5 text-xs font-semibold text-white"
+                    style={{
+                      background: "color-mix(in srgb, var(--preview-sidebar-accent) 20%, rgba(255, 255, 255, 0.08))"
+                    }}
+                  >
+                    Проверки
+                  </span>
+                  <span className="rounded-md px-2 py-1.5 text-xs font-semibold text-slate-300">Аналитика</span>
+                </div>
+                <div
+                  className="flex flex-col gap-3 p-4"
+                  style={{
+                    background: `linear-gradient(135deg, color-mix(in srgb, var(--preview-brand-primary) 8%, transparent), transparent 56%), var(--panel, hsl(var(--card)))`
+                  }}
+                >
+                  <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    Рабочее пространство
+                  </span>
+                  <strong className="text-xl font-semibold text-foreground">{appearance.brandName}</strong>
+                  <span
+                    className="block h-2.5 w-[86%] rounded-full"
+                    style={{ background: "color-mix(in srgb, var(--preview-brand-primary) 16%, var(--border))" }}
+                  />
+                  <span
+                    className="block h-2.5 w-[64%] rounded-full"
+                    style={{ background: "color-mix(in srgb, var(--preview-brand-primary) 16%, var(--border))" }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-fit border-0 text-white hover:opacity-90"
+                    style={{ background: "var(--preview-button)" }}
+                  >
+                    Основное действие
+                  </Button>
                 </div>
               </div>
 
-              <div className="brand-color-grid" aria-label="Цвета бренда">
-                <label className="brand-color-field">
-                  <span>Основной</span>
-                  <input type="color" value={appearance.brandPrimaryColor} onChange={handleChange("brandPrimaryColor")} />
-                  <input className="form-control" type="text" value={appearance.brandPrimaryColor} onChange={handleChange("brandPrimaryColor")} />
-                </label>
-                <label className="brand-color-field">
-                  <span>Акцент</span>
-                  <input type="color" value={appearance.brandAccentColor} onChange={handleChange("brandAccentColor")} />
-                  <input className="form-control" type="text" value={appearance.brandAccentColor} onChange={handleChange("brandAccentColor")} />
-                </label>
-              </div>
+              <Card size="sm" className="bg-muted/40">
+                <CardContent className="flex flex-col gap-4 pt-0">
+                  <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="brand-name">Название</FieldLabel>
+                      <Input
+                        id="brand-name"
+                        type="text"
+                        value={appearance.brandName}
+                        maxLength={64}
+                        placeholder="КК поддержки"
+                        onChange={handleChange("brandName")}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="brand-tagline">Подпись</FieldLabel>
+                      <Input
+                        id="brand-tagline"
+                        type="text"
+                        value={appearance.brandTagline}
+                        maxLength={96}
+                        placeholder="Ручная проверка"
+                        onChange={handleChange("brandTagline")}
+                      />
+                    </Field>
+                    <Field className="max-w-[140px]">
+                      <FieldLabel htmlFor="brand-mark">Знак</FieldLabel>
+                      <Input
+                        id="brand-mark"
+                        type="text"
+                        value={appearance.brandMark}
+                        maxLength={3}
+                        onChange={handleChange("brandMark")}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="brand-logo-alt">Alt логотипа</FieldLabel>
+                      <Input
+                        id="brand-logo-alt"
+                        type="text"
+                        value={appearance.brandLogoAlt}
+                        maxLength={96}
+                        placeholder={appearance.brandName}
+                        onChange={handleChange("brandLogoAlt")}
+                      />
+                    </Field>
+                  </FieldGroup>
 
-              <div className="brand-preset-row" aria-label="Быстрые палитры">
-                {brandColorPresets.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    className="brand-preset-button"
-                    style={{ "--preset-primary": preset.primary, "--preset-accent": preset.accent } as CSSProperties}
-                    onClick={() => {
-                      const nextOverrides = {
-                        ...appearance.uiPaletteOverrides,
-                        accent: preset.primary,
-                        accentStrong: preset.button,
-                        buttonPrimaryBg: preset.button,
-                        buttonPrimaryHover: preset.primary,
-                        sidebarBg: preset.sidebar,
-                        sidebarAccent: preset.accent
-                      };
+                  <div className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-[68px_minmax(0,1fr)]">
+                    <span
+                      className={cn(
+                        "inline-flex size-[58px] items-center justify-center overflow-hidden rounded-lg text-base font-black text-white",
+                        appearance.brandLogoUrl ? "bg-muted text-foreground" : null
+                      )}
+                      style={
+                        appearance.brandLogoUrl
+                          ? undefined
+                          : {
+                              background:
+                                "radial-gradient(circle at 26% 12%, color-mix(in srgb, var(--preview-brand-accent, var(--brand-accent)) 58%, #ffffff) 0%, transparent 38%), linear-gradient(135deg, color-mix(in srgb, var(--preview-brand-primary, var(--brand-primary)) 78%, #020617), color-mix(in srgb, var(--preview-brand-accent, var(--brand-accent)) 58%, #0f172a))"
+                            }
+                      }
+                    >
+                      {appearance.brandLogoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={appearance.brandLogoUrl} alt="" className="size-full object-contain p-1" />
+                      ) : (
+                        appearance.brandMark
+                      )}
+                    </span>
+                    <div className="flex min-w-0 flex-col gap-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          ref={logoInputRef}
+                          className="sr-only"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleLogoUpload}
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
+                          <ImageUp data-icon="inline-start" aria-hidden="true" />
+                          Загрузить
+                        </Button>
+                        {appearance.brandLogoUrl ? (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => patchAppearance({ brandLogoUrl: "" })}>
+                            <X data-icon="inline-start" aria-hidden="true" />
+                            Убрать
+                          </Button>
+                        ) : null}
+                      </div>
+                      <Field>
+                        <FieldLabel htmlFor="brand-logo-url">URL логотипа</FieldLabel>
+                        <Input
+                          id="brand-logo-url"
+                          type="url"
+                          value={logoUrlValue}
+                          placeholder={logoIsUploaded ? "Загруженный файл сохранен" : "https://cdn.example.com/logo.png"}
+                          onChange={handleChange("brandLogoUrl")}
+                        />
+                      </Field>
+                      <p className={cn("text-xs leading-snug text-muted-foreground", logoError ? "font-medium text-destructive" : null)}>
+                        {logoError || "PNG, JPG или WebP до 240 КБ; HTTPS-ссылку можно оставить вместо файла."}
+                      </p>
+                    </div>
+                  </div>
 
-                      patchAppearance({
-                        brandPrimaryColor: preset.primary,
-                        brandAccentColor: preset.accent,
-                        uiPaletteOverrides: nextOverrides,
-                        uiPaletteOverridesJson: serializeUiPaletteOverrides(nextOverrides)
-                      });
-                    }}
+                  <div className="grid gap-3 sm:grid-cols-2" aria-label="Цвета бренда">
+                    <Field>
+                      <FieldLabel htmlFor="brand-primary">Основной</FieldLabel>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="brand-primary-color"
+                          type="color"
+                          value={appearance.brandPrimaryColor}
+                          onChange={handleChange("brandPrimaryColor")}
+                          className="size-9 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-1"
+                          aria-label="Основной цвет"
+                        />
+                        <Input
+                          id="brand-primary"
+                          type="text"
+                          value={appearance.brandPrimaryColor}
+                          onChange={handleChange("brandPrimaryColor")}
+                        />
+                      </div>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="brand-accent">Акцент</FieldLabel>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="brand-accent-color"
+                          type="color"
+                          value={appearance.brandAccentColor}
+                          onChange={handleChange("brandAccentColor")}
+                          className="size-9 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-1"
+                          aria-label="Акцентный цвет"
+                        />
+                        <Input
+                          id="brand-accent"
+                          type="text"
+                          value={appearance.brandAccentColor}
+                          onChange={handleChange("brandAccentColor")}
+                        />
+                      </div>
+                    </Field>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2" aria-label="Быстрые палитры">
+                    {brandColorPresets.map((preset) => (
+                      <Button
+                        key={preset.name}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => {
+                          const nextOverrides = {
+                            ...appearance.uiPaletteOverrides,
+                            accent: preset.primary,
+                            accentStrong: preset.button,
+                            buttonPrimaryBg: preset.button,
+                            buttonPrimaryHover: preset.primary,
+                            sidebarBg: preset.sidebar,
+                            sidebarAccent: preset.accent
+                          };
+
+                          patchAppearance({
+                            brandPrimaryColor: preset.primary,
+                            brandAccentColor: preset.accent,
+                            uiPaletteOverrides: nextOverrides,
+                            uiPaletteOverridesJson: serializeUiPaletteOverrides(nextOverrides)
+                          });
+                        }}
+                      >
+                        <span
+                          className="size-3.5 rounded-full ring-1 ring-foreground/15"
+                          style={{
+                            background: `linear-gradient(135deg, ${preset.primary}, ${preset.accent})`
+                          }}
+                          aria-hidden="true"
+                        />
+                        {preset.name}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        patchAppearance({ brandLogoUrl: "", brandPrimaryColor: "#3157d5", brandAccentColor: "#7c97ff" });
+                        resetPaletteOverrides();
+                      }}
+                    >
+                      <RotateCcw data-icon="inline-start" aria-hidden="true" />
+                      Сброс
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {brandLogoHint ? (
+              <CoachCallout
+                title={brandLogoHint.title}
+                body={brandLogoHint.body}
+                href="#appearance-branding"
+                actionLabel={brandLogoHint.actionLabel}
+                variant="spotlight"
+                placement="left"
+                anchorLabel="Подсказка к брендингу"
+                stepIndex={1}
+                dismissId="settings:brandLogo"
+              />
+            ) : null}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="theme" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-medium text-foreground">Цветовая тема</h3>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              Тема меняет фон приложения, сайдбар, шапки панелей, primary-кнопки, выбранные состояния, hover и акцентные
+              панели. Палитры светлые; тёмное оформление — тема Night Ops.
+            </p>
+          </div>
+
+          <RadioGroup
+            value={appearance.uiTheme}
+            onValueChange={(value) => handleThemeChange(value as UiThemeId)}
+            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+            aria-label="Цветовая тема"
+          >
+            {uiThemeOptions.map((theme) => {
+              const isSelected = theme.id === appearance.uiTheme;
+
+              return (
+                <FieldLabel
+                  key={theme.id}
+                  className={cn(
+                    "flex w-full cursor-pointer flex-col gap-3 rounded-xl border bg-card p-3 text-left font-normal transition-colors outline-none has-focus-visible:border-ring has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                    isSelected ? "border-primary ring-2 ring-primary/20" : "border-border hover:bg-muted/40"
+                  )}
+                  style={themePreviewStyle(theme)}
+                >
+                  <RadioGroupItem value={theme.id} className="sr-only" />
+                  <span
+                    className="grid h-20 overflow-hidden rounded-lg ring-1 ring-foreground/10"
+                    style={{ gridTemplateColumns: "0.32fr 1fr" }}
+                    aria-hidden="true"
                   >
-                    <span aria-hidden="true" />
-                    {preset.name}
-                  </button>
+                    <span style={{ background: "var(--theme-sidebar)" }} />
+                    <span className="flex flex-col gap-1.5 p-2" style={{ background: "var(--theme-surface)" }}>
+                      <span className="h-2 rounded-sm" style={{ background: "var(--theme-panel-header)" }} />
+                      <span className="h-2 w-4/5 rounded-sm" style={{ background: "var(--theme-panel)" }} />
+                      <span
+                        className="mt-auto h-4 w-12 rounded-sm"
+                        style={{ background: "var(--theme-primary)" }}
+                      />
+                    </span>
+                  </span>
+                  <span className="flex flex-col gap-1">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Palette className="size-4 text-muted-foreground" aria-hidden="true" />
+                      {theme.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{theme.description}</span>
+                  </span>
+                </FieldLabel>
+              );
+            })}
+          </RadioGroup>
+        </TabsContent>
+
+        <TabsContent value="palette" className="flex flex-col gap-4" id="appearance-palette">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-medium text-foreground">Палитра компонентов</h3>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              Ручные цвета переопределяют выбранную тему для кнопок, сайдбара, рабочих поверхностей и статусов. Смена темы
+              сбрасывает эти переопределения.
+            </p>
+          </div>
+
+          <div className={cn("grid gap-4", paletteHint ? "xl:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]" : null)}>
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-3 lg:grid-cols-2">
+                {paletteGroups.map((group) => (
+                  <Card key={group.id} size="sm">
+                    <CardHeader className="pb-0">
+                      <CardTitle id={`palette-token-${group.id}`}>{group.title}</CardTitle>
+                      <CardDescription>{group.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-2 pt-2">
+                      {group.tokens.map((token) => {
+                        const isCustom = Boolean(appearance.uiPaletteOverrides[token]);
+                        const value = paletteValue(appearance, token);
+
+                        return (
+                          <div
+                            key={token}
+                            className={cn(
+                              "flex items-center justify-between gap-3 rounded-lg border border-border px-2.5 py-2",
+                              isCustom ? "border-primary/30 bg-primary/5" : "bg-muted/30"
+                            )}
+                          >
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium text-foreground">{paletteTokenLabel(token)}</span>
+                                {isCustom ? (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={() => resetPaletteOverride(token)}
+                                    aria-label={`Сбросить ${paletteTokenLabel(token)}`}
+                                  >
+                                    <RotateCcw aria-hidden="true" />
+                                  </Button>
+                                ) : null}
+                              </div>
+                              <code className="text-xs text-muted-foreground uppercase">{value}</code>
+                            </div>
+                            <input
+                              type="color"
+                              value={value}
+                              onChange={(event) => updatePaletteOverride(token, event.target.value)}
+                              className="size-9 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-1"
+                              aria-label={paletteTokenLabel(token)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
                 ))}
-                <button
-                  type="button"
-                  className="brand-preset-button brand-preset-button--reset"
-                  onClick={() => {
-                    patchAppearance({ brandLogoUrl: "", brandPrimaryColor: "#3157d5", brandAccentColor: "#7c97ff" });
-                    resetPaletteOverrides();
-                  }}
-                >
-                  <RotateCcw size={14} aria-hidden="true" />
-                  Сброс
-                </button>
               </div>
+              <Button type="button" variant="outline" size="sm" className="w-fit" onClick={resetPaletteOverrides}>
+                <RotateCcw data-icon="inline-start" aria-hidden="true" />
+                Сбросить ручную палитру
+              </Button>
             </div>
-          </div>
-          {brandLogoHint ? (
-            <CoachCallout
-              title={brandLogoHint.title}
-              body={brandLogoHint.body}
-              href="#appearance-branding"
-              actionLabel={brandLogoHint.actionLabel}
-              variant="spotlight"
-              placement="left"
-              anchorLabel="Подсказка к брендингу"
-              stepIndex={1}
-              dismissId="settings:brandLogo"
-            />
-          ) : null}
-        </div>}
-      </section>
 
-      <section className="appearance-section">
-        <button
-          type="button"
-          className="appearance-section__header appearance-section__header--toggle"
-          onClick={() => toggleSection("theme")}
-          aria-expanded={openSections.theme}
-        >
-          <div className="min-w-0">
-            <h3>Цветовая тема</h3>
-            <p>Тема меняет фон приложения, сайдбар, шапки панелей, primary-кнопки, выбранные состояния, hover и акцентные панели. Палитры светлые; тёмное оформление — тема Night Ops.</p>
+            {paletteHint ? (
+              <CoachCallout
+                title={paletteHint.title}
+                body={paletteHint.body}
+                href="#appearance-palette"
+                actionLabel={paletteHint.actionLabel}
+                variant="spotlight"
+                placement="left"
+                anchorLabel="Подсказка к палитре компонентов"
+                stepIndex={2}
+                dismissId="settings:componentPalette"
+              />
+            ) : null}
           </div>
-          <span className="appearance-section__header-icons">
-            <Palette size={18} aria-hidden="true" />
-            <ChevronDown size={16} className={`appearance-section__chevron${openSections.theme ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
-          </span>
-        </button>
-        {openSections.theme && <div className="theme-option-grid" role="radiogroup" aria-label="Цветовая тема">
-          {uiThemeOptions.map((theme) => {
-            const isSelected = theme.id === appearance.uiTheme;
+        </TabsContent>
 
-            return (
-              <label
-                key={theme.id}
-                className={`theme-option-card ${isSelected ? "theme-option-card--selected" : ""}`}
-                style={themePreviewStyle(theme)}
+        <TabsContent value="ui" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-medium text-foreground">Интерфейс</h3>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              Эти параметры помогают выбрать между более плотной рабочей средой и мягким презентационным видом.
+            </p>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <FieldSet className="gap-2 rounded-xl border border-border p-3">
+              <FieldLegend className="flex items-center gap-1.5 px-1 text-sm font-medium">
+                <Rows3 className="size-4" aria-hidden="true" />
+                Плотность
+              </FieldLegend>
+              <RadioGroup
+                value={appearance.uiDensity}
+                onValueChange={(value) => patchAppearance({ uiDensity: value as AppearanceState["uiDensity"] })}
+                className="flex flex-col gap-2"
+                aria-label="Плотность"
               >
-                <input name="uiTheme" type="radio" value={theme.id} checked={isSelected} onChange={handleThemeChange} />
-                <span className="theme-option-card__preview" aria-hidden="true">
-                  <span className="theme-option-card__sidebar" />
-                  <span className="theme-option-card__surface">
-                    <span className="theme-option-card__panel-header" />
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                </span>
-                <span className="theme-option-card__body">
-                  <span className="theme-option-card__title">
-                    <Palette size={16} aria-hidden="true" />
-                    {theme.label}
-                  </span>
-                  <span className="theme-option-card__description">{theme.description}</span>
-                </span>
-              </label>
-            );
-          })}
-        </div>}
-      </section>
+                {uiDensityOptions.map((option) => {
+                  const isSelected = option.id === appearance.uiDensity;
 
-      <section id="appearance-palette" className="appearance-section">
-        <button
-          type="button"
-          className="appearance-section__header appearance-section__header--toggle"
-          onClick={() => toggleSection("palette")}
-          aria-expanded={openSections.palette}
-        >
-          <div className="min-w-0">
-            <h3>Палитра компонентов</h3>
-            <p>Ручные цвета переопределяют выбранную тему для кнопок, сайдбара, рабочих поверхностей и статусов. Смена темы сбрасывает эти переопределения.</p>
+                  return (
+                    <FieldLabel
+                      key={option.id}
+                      className={cn(
+                        "flex w-full cursor-pointer flex-col gap-1 rounded-lg border px-3 py-2 font-normal transition-colors",
+                        isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <RadioGroupItem value={option.id} />
+                        <span className="text-sm font-medium text-foreground">{option.label}</span>
+                      </span>
+                      <FieldDescription className="text-xs pl-6">{option.description}</FieldDescription>
+                    </FieldLabel>
+                  );
+                })}
+              </RadioGroup>
+            </FieldSet>
+
+            <FieldSet className="gap-2 rounded-xl border border-border p-3">
+              <FieldLegend className="flex items-center gap-1.5 px-1 text-sm font-medium">
+                <Gauge className="size-4" aria-hidden="true" />
+                Радиусы
+              </FieldLegend>
+              <RadioGroup
+                value={appearance.uiCorners}
+                onValueChange={(value) => patchAppearance({ uiCorners: value as AppearanceState["uiCorners"] })}
+                className="flex flex-col gap-2"
+                aria-label="Радиусы"
+              >
+                {uiCornersOptions.map((option) => {
+                  const isSelected = option.id === appearance.uiCorners;
+
+                  return (
+                    <FieldLabel
+                      key={option.id}
+                      className={cn(
+                        "flex w-full cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 font-normal transition-colors",
+                        isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                      )}
+                      style={cornersPreviewStyle(option.previewRadius)}
+                    >
+                      <RadioGroupItem value={option.id} className="mt-1" />
+                      <span
+                        className="mt-0.5 size-8 shrink-0 border-2 border-primary/40 bg-primary/10"
+                        style={{ borderRadius: "var(--corner-preview-radius)" }}
+                        aria-hidden="true"
+                      />
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="text-sm font-medium text-foreground">{option.label}</span>
+                        <FieldDescription className="text-xs">{option.description}</FieldDescription>
+                      </span>
+                    </FieldLabel>
+                  );
+                })}
+              </RadioGroup>
+            </FieldSet>
+
+            <FieldSet className="gap-2 rounded-xl border border-border p-3">
+              <FieldLegend className="flex items-center gap-1.5 px-1 text-sm font-medium">
+                <CheckCircle2 className="size-4" aria-hidden="true" />
+                Контраст
+              </FieldLegend>
+              <RadioGroup
+                value={appearance.uiContrast}
+                onValueChange={(value) => patchAppearance({ uiContrast: value as AppearanceState["uiContrast"] })}
+                className="flex flex-col gap-2"
+                aria-label="Контраст"
+              >
+                {uiContrastOptions.map((option) => {
+                  const isSelected = option.id === appearance.uiContrast;
+
+                  return (
+                    <FieldLabel
+                      key={option.id}
+                      className={cn(
+                        "flex w-full cursor-pointer flex-col gap-1 rounded-lg border px-3 py-2 font-normal transition-colors",
+                        isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <RadioGroupItem value={option.id} />
+                        <span className="text-sm font-medium text-foreground">{option.label}</span>
+                      </span>
+                      <FieldDescription className="text-xs pl-6">{option.description}</FieldDescription>
+                    </FieldLabel>
+                  );
+                })}
+              </RadioGroup>
+            </FieldSet>
           </div>
-          <span className="appearance-section__header-icons">
-            <Palette size={18} aria-hidden="true" />
-            <ChevronDown size={16} className={`appearance-section__chevron${openSections.palette ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
-          </span>
-        </button>
-        {openSections.palette && <div className={paletteHint ? "appearance-section__body-with-coach" : ""}>
-          <div className="appearance-section__body-main">
-            <div className="palette-token-board">
-              {paletteGroups.map((group) => (
-                <section key={group.id} className="palette-token-group" aria-labelledby={`palette-token-${group.id}`}>
-                  <div className="palette-token-group__header">
-                    <h4 id={`palette-token-${group.id}`}>{group.title}</h4>
-                    <p>{group.description}</p>
-                  </div>
-                  <div className="palette-token-list">
-                    {group.tokens.map((token) => {
-                      const isCustom = Boolean(appearance.uiPaletteOverrides[token]);
+        </TabsContent>
+      </Tabs>
 
-                      return (
-                        <label key={token} className={`palette-token-field ${isCustom ? "palette-token-field--custom" : ""}`}>
-                          <span className="palette-token-field__label">
-                            <span>{paletteTokenLabel(token)}</span>
-                            {isCustom ? (
-                              <button type="button" onClick={() => resetPaletteOverride(token)} aria-label={`Сбросить ${paletteTokenLabel(token)}`}>
-                                <RotateCcw size={13} aria-hidden="true" />
-                              </button>
-                            ) : null}
-                          </span>
-                          <span className="palette-token-field__control">
-                            <input type="color" value={paletteValue(appearance, token)} onChange={(event) => updatePaletteOverride(token, event.target.value)} />
-                            <code>{paletteValue(appearance, token).toUpperCase()}</code>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <button type="button" className="action-button action-button--small appearance-reset-palette" onClick={resetPaletteOverrides}>
-              <RotateCcw size={14} aria-hidden="true" />
-              Сбросить ручную палитру
-            </button>
-          </div>
-          {paletteHint ? (
-            <CoachCallout
-              title={paletteHint.title}
-              body={paletteHint.body}
-              href="#appearance-palette"
-              actionLabel={paletteHint.actionLabel}
-              variant="spotlight"
-              placement="left"
-              anchorLabel="Подсказка к палитре компонентов"
-              stepIndex={2}
-              dismissId="settings:componentPalette"
-            />
-          ) : null}
-        </div>}
-      </section>
-
-      <section className="appearance-section">
-        <button
-          type="button"
-          className="appearance-section__header appearance-section__header--toggle"
-          onClick={() => toggleSection("ui")}
-          aria-expanded={openSections.ui}
-        >
-          <div className="min-w-0">
-            <h3>Интерфейс</h3>
-            <p>Эти параметры помогают выбрать между более плотной рабочей средой и мягким презентационным видом.</p>
-          </div>
-          <span className="appearance-section__header-icons">
-            <Layers3 size={18} aria-hidden="true" />
-            <ChevronDown size={16} className={`appearance-section__chevron${openSections.ui ? "" : " appearance-section__chevron--collapsed"}`} aria-hidden="true" />
-          </span>
-        </button>
-
-        {openSections.ui && <div className="appearance-option-grid">
-          <fieldset className="appearance-choice-group">
-            <legend>
-              <Rows3 size={15} aria-hidden="true" />
-              Плотность
-            </legend>
-            {uiDensityOptions.map((option) => {
-              const isSelected = option.id === appearance.uiDensity;
-
-              return (
-                <label key={option.id} className={`appearance-choice-card ${isSelected ? "appearance-choice-card--selected" : ""}`}>
-                  <input name="uiDensity" type="radio" value={option.id} checked={isSelected} onChange={handleChange("uiDensity")} />
-                  <span className={`appearance-choice-card__density appearance-choice-card__density--${option.id}`} aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                  <span className="appearance-choice-card__body">
-                    <span className="appearance-choice-card__title">{option.label}</span>
-                    <span className="appearance-choice-card__description">{option.description}</span>
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
-
-          <fieldset className="appearance-choice-group">
-            <legend>
-              <Gauge size={15} aria-hidden="true" />
-              Радиусы
-            </legend>
-            {uiCornersOptions.map((option) => {
-              const isSelected = option.id === appearance.uiCorners;
-
-              return (
-                <label
-                  key={option.id}
-                  className={`appearance-choice-card ${isSelected ? "appearance-choice-card--selected" : ""}`}
-                  style={cornersPreviewStyle(option.previewRadius)}
-                >
-                  <input name="uiCorners" type="radio" value={option.id} checked={isSelected} onChange={handleChange("uiCorners")} />
-                  <span className="appearance-choice-card__corner-preview" aria-hidden="true" />
-                  <span className="appearance-choice-card__body">
-                    <span className="appearance-choice-card__title">{option.label}</span>
-                    <span className="appearance-choice-card__description">{option.description}</span>
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
-
-          <fieldset className="appearance-choice-group">
-            <legend>
-              <CheckCircle2 size={15} aria-hidden="true" />
-              Контраст
-            </legend>
-            {uiContrastOptions.map((option) => {
-              const isSelected = option.id === appearance.uiContrast;
-
-              return (
-                <label key={option.id} className={`appearance-choice-card ${isSelected ? "appearance-choice-card--selected" : ""}`}>
-                  <input name="uiContrast" type="radio" value={option.id} checked={isSelected} onChange={handleChange("uiContrast")} />
-                  <span className={`appearance-choice-card__contrast appearance-choice-card__contrast--${option.id}`} aria-hidden="true" />
-                  <span className="appearance-choice-card__body">
-                    <span className="appearance-choice-card__title">{option.label}</span>
-                    <span className="appearance-choice-card__description">{option.description}</span>
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
-        </div>}
-      </section>
-
-      <div className="appearance-form__footer">
-        <button
-          type="button"
-          className="action-button action-button--small"
-          disabled={!undoTarget}
-          onClick={handleUndo}
-        >
-          <Undo2 size={14} aria-hidden="true" />
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <Button type="button" variant="outline" size="sm" disabled={!undoTarget} onClick={handleUndo}>
+          <Undo2 data-icon="inline-start" aria-hidden="true" />
           Отменить последнее изменение
-        </button>
+        </Button>
         {/* Постоянно отрендеренный статус автосейва: меняется только текст,
             aria-live="polite" озвучивает смену состояния. */}
-        <span
-          className={`appearance-save-status appearance-save-status--${saveState}`}
+        <Badge
+          variant={saveStatusVariant(saveState)}
+          className={cn(
+            saveState === "saved" || saveState === "idle"
+              ? "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+              : null
+          )}
           role="status"
           aria-live="polite"
         >
           {saveStatusLabel(saveState)}
-        </span>
+        </Badge>
       </div>
     </div>
   );

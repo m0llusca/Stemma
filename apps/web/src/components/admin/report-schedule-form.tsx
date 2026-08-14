@@ -3,7 +3,12 @@
 import type { FocusEvent, FormEvent } from "react";
 import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { RequiredMark } from "@/components/ui/required-mark";
+import { Textarea } from "@/components/ui/textarea";
 import { createReportSchedule, type ReportScheduleActionState } from "@/lib/report-schedule-actions";
 import { reportScheduleFilterKeys, validateReportScheduleFiltersJson } from "@/lib/report-schedule-filters";
 
@@ -19,9 +24,9 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? "Сохраняем..." : "Создать расписание"}
-    </button>
+    </Button>
   );
 }
 
@@ -73,90 +78,105 @@ export function ReportScheduleForm({
   };
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="report-schedule-form">
-      <label className="report-schedule-form__field">
-        <span className="report-schedule-form__label">
-          Название
-          <RequiredMark />
-        </span>
-        <input
-          name="name"
-          type="text"
-          required
-          maxLength={120}
-          placeholder="Например: Еженедельный отчет по линии L1"
-          className="form-control"
-          autoComplete="off"
-        />
-      </label>
+    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <FieldGroup className="gap-4">
+        <Field>
+          <FieldLabel htmlFor="report-schedule-name">
+            Название
+            <RequiredMark />
+          </FieldLabel>
+          <Input
+            id="report-schedule-name"
+            name="name"
+            type="text"
+            required
+            maxLength={120}
+            placeholder="Например: Еженедельный отчет по линии L1"
+            autoComplete="off"
+          />
+        </Field>
 
-      <div className="report-schedule-form__grid">
-        <label className="report-schedule-form__field">
-          <span className="report-schedule-form__label">Период данных</span>
-          <select name="periodPreset" defaultValue={periodPresetOptions[0]?.value} className="form-control">
-            {periodPresetOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field>
+            <FieldLabel htmlFor="report-schedule-period">Период данных</FieldLabel>
+            <NativeSelect
+              id="report-schedule-period"
+              name="periodPreset"
+              defaultValue={periodPresetOptions[0]?.value}
+              className="w-full"
+            >
+              {periodPresetOptions.map((option) => (
+                <NativeSelectOption key={option.value} value={option.value}>
+                  {option.label}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
 
-        <label className="report-schedule-form__field">
-          <span className="report-schedule-form__label">Периодичность</span>
-          <select name="cadence" defaultValue={cadenceOptions[0]?.value} className="form-control">
-            {cadenceOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Field>
+            <FieldLabel htmlFor="report-schedule-cadence">Периодичность</FieldLabel>
+            <NativeSelect
+              id="report-schedule-cadence"
+              name="cadence"
+              defaultValue={cadenceOptions[0]?.value}
+              className="w-full"
+            >
+              {cadenceOptions.map((option) => (
+                <NativeSelectOption key={option.value} value={option.value}>
+                  {option.label}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
 
-        <label className="report-schedule-form__field">
-          <span className="report-schedule-form__label">Формат</span>
-          <select name="exportFormat" defaultValue={formatOptions[0]?.value} className="form-control">
-            {formatOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+          <Field>
+            <FieldLabel htmlFor="report-schedule-format">Формат</FieldLabel>
+            <NativeSelect
+              id="report-schedule-format"
+              name="exportFormat"
+              defaultValue={formatOptions[0]?.value}
+              className="w-full"
+            >
+              {formatOptions.map((option) => (
+                <NativeSelectOption key={option.value} value={option.value}>
+                  {option.label}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+        </div>
 
-      <label className="report-schedule-form__field">
-        <span className="report-schedule-form__label">Фильтры (JSON)</span>
-        <textarea
-          ref={filtersRef}
-          name="filtersJson"
-          rows={3}
-          placeholder='{"supportLine":"L1"}'
-          className="form-control report-schedule-form__textarea"
-          autoComplete="off"
-          onBlur={handleFiltersBlur}
-          aria-invalid={filtersError ? true : undefined}
-        />
-        <span className="report-schedule-form__hint">
-          Те же фильтры, что и при выгрузке отчета. Оставьте пустым, чтобы включить все обращения. Поддерживаемые ключи:{" "}
-          {reportScheduleFilterKeys.join(", ")}.
-        </span>
-        {filtersError ? (
-          <span className="report-schedule-form__status report-schedule-form__status--error" role="alert">
-            {filtersError}
-          </span>
-        ) : null}
-        {filtersWarning ? <span className="report-schedule-form__status">{filtersWarning}</span> : null}
-      </label>
+        <Field data-invalid={filtersError ? true : undefined}>
+          <FieldLabel htmlFor="report-schedule-filters">Фильтры (JSON)</FieldLabel>
+          <Textarea
+            ref={filtersRef}
+            id="report-schedule-filters"
+            name="filtersJson"
+            rows={3}
+            placeholder='{"supportLine":"L1"}'
+            autoComplete="off"
+            onBlur={handleFiltersBlur}
+            aria-invalid={filtersError ? true : undefined}
+          />
+          <FieldDescription>
+            Те же фильтры, что и при выгрузке отчета. Оставьте пустым, чтобы включить все обращения.
+            Поддерживаемые ключи: {reportScheduleFilterKeys.join(", ")}.
+          </FieldDescription>
+          {filtersError ? <FieldError>{filtersError}</FieldError> : null}
+          {filtersWarning ? (
+            <FieldDescription className="text-amber-800 dark:text-amber-300">{filtersWarning}</FieldDescription>
+          ) : null}
+        </Field>
+      </FieldGroup>
 
-      <div className="report-schedule-form__actions">
+      <div className="flex flex-wrap items-center gap-3">
         <SubmitButton />
         {state.status === "success" ? (
-          <span className="report-schedule-form__status report-schedule-form__status--ok">{state.message}</span>
+          <span className="text-sm text-emerald-800 dark:text-emerald-300" role="status">
+            {state.message}
+          </span>
         ) : null}
-        {state.status === "error" ? (
-          <span className="report-schedule-form__status report-schedule-form__status--error">{state.message}</span>
-        ) : null}
+        {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
       </div>
     </form>
   );

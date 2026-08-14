@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 import type { ChartDatum } from "@/components/reports/report-charts";
+import { reportPageLocalLinkProps } from "@/lib/reports/report-evidence-links";
 
 type SparklinePoint = ChartDatum & {
   x: number;
@@ -52,6 +53,7 @@ export function InteractiveSparklineChart({
   annotation
 }: InteractiveSparklineChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const tooltipIdPrefix = useId();
   // Measure the real plot width so the chart geometry is built 1:1 in CSS pixels.
   // A fixed viewBox would letterbox on wide columns (the dots drift away from the
   // hover strips), so the points are placed against the actual rendered width.
@@ -115,39 +117,53 @@ export function InteractiveSparklineChart({
   }, [points, target, plotWidth]);
 
   if (!chart) {
-    return <p className="text-sm text-[var(--text-muted)]">Нет завершенных проверок за выбранный период.</p>;
+    return <p className="text-sm text-muted-foreground">Нет завершенных проверок за выбранный период.</p>;
   }
 
   const firstPoint = chart.points[0];
   const lastPoint = chart.points[chart.points.length - 1];
-  // Each hover control is a vertical strip as wide as the gap between points, so
-  // every point stays reachable no matter how narrow the chart column gets.
-  const controlWidthPercent = chart.points.length > 1 ? 100 / (chart.points.length - 1) : 100;
+  // Each control owns the region between the neighboring midpoints. The first
+  // and last points use half-width regions, so hit targets tile without overlap.
+  const pointGapPercent = chart.points.length > 1 ? 100 / (chart.points.length - 1) : 100;
   const targetLabel = target == null ? null : `Цель ${target}`;
   const targetBandY = chart.targetY == null ? null : Math.max(0, Math.min(chart.height, chart.targetY));
 
   return (
-    <div className="interactive-sparkline">
-      <div className="interactive-sparkline__summary">
+    <div data-slot="interactive-sparkline-chart" className="grid gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p>Начало периода</p>
-          <strong>{formatQualityScore(firstPoint.value)}</strong>
-          <span>{firstPoint.label}</span>
+          <p className="text-xs font-medium text-muted-foreground">Начало периода</p>
+          <strong className="mt-0.5 block text-lg font-semibold tabular-nums text-foreground">
+            {formatQualityScore(firstPoint.value)}
+          </strong>
+          <span className="text-xs text-muted-foreground">{firstPoint.label}</span>
         </div>
-        <div>
-          <p>Последняя точка</p>
-          <strong>{formatQualityScore(lastPoint.value)}</strong>
-          <span>{lastPoint.label}</span>
+        <div className="text-right">
+          <p className="text-xs font-medium text-muted-foreground">Последняя точка</p>
+          <strong className="mt-0.5 block text-lg font-semibold tabular-nums text-foreground">
+            {formatQualityScore(lastPoint.value)}
+          </strong>
+          <span className="text-xs text-muted-foreground">{lastPoint.label}</span>
         </div>
       </div>
 
-      <div className="interactive-sparkline__plot" ref={plotRef}>
+      <div
+        className="relative min-h-[180px] overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-9"
+        ref={plotRef}
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg, transparent 0 27px, var(--border) 28px)"
+        }}
+      >
         <svg
           viewBox={`0 0 ${chart.width} ${chart.height}`}
-          className="interactive-sparkline__svg"
+          width="100%"
+          height={chart.height}
+          className="block overflow-visible"
           preserveAspectRatio="none"
           role="img"
           aria-label="Тренд средней оценки"
+          focusable="false"
         >
           {targetBandY != null ? (
             <rect
@@ -155,10 +171,22 @@ export function InteractiveSparklineChart({
               y="0"
               width={chart.width}
               height={targetBandY}
-              className="interactive-sparkline__target-band"
+              aria-hidden="true"
+              data-slot="sparkline-target-band"
+              fill="color-mix(in srgb, var(--chart-2) 8%, transparent)"
             />
           ) : null}
-          <line x1="0" y1={chart.height} x2={chart.width} y2={chart.height} className="interactive-sparkline__axis" />
+          <line
+            x1="0"
+            y1={chart.height}
+            x2={chart.width}
+            y2={chart.height}
+            aria-hidden="true"
+            data-slot="sparkline-axis"
+            stroke="var(--border)"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
           {chart.targetY != null ? (
             <>
               <line
@@ -166,66 +194,141 @@ export function InteractiveSparklineChart({
                 y1={chart.targetY}
                 x2={chart.width}
                 y2={chart.targetY}
-                className="interactive-sparkline__target-line"
+                aria-hidden="true"
+                data-slot="sparkline-target"
+                stroke="color-mix(in srgb, var(--chart-2) 56%, var(--border))"
+                strokeDasharray="6 6"
+                strokeWidth="1.2"
+                vectorEffect="non-scaling-stroke"
               />
-              <text x={chart.width - 2} y={Math.max(10, chart.targetY - 6)} className="interactive-sparkline__target-label">
+              <text
+                x={chart.width - 2}
+                y={Math.max(10, chart.targetY - 6)}
+                aria-hidden="true"
+                data-slot="sparkline-target-label"
+                fill="var(--chart-2)"
+                fontSize="11"
+                fontWeight="700"
+                textAnchor="end"
+              >
                 {targetLabel}
               </text>
             </>
           ) : null}
-          <path d={chart.path} className="interactive-sparkline__area-line" />
+          <path
+            d={chart.path}
+            data-slot="sparkline-line"
+            fill="none"
+            stroke="var(--primary)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3"
+            vectorEffect="non-scaling-stroke"
+          />
           {chart.points.map((point, index) => {
             const isActive = index === activeIndex;
             const isLatest = index === chart.points.length - 1;
-            const markerClass = [
-              "interactive-sparkline__point-marker",
-              isActive ? "interactive-sparkline__point-marker--active" : "",
-              isLatest ? "interactive-sparkline__point-marker--latest" : ""
-            ].filter(Boolean).join(" ");
 
             return (
-              <g
-                key={`${point.label}:${index}`}
-                className="interactive-sparkline__point"
-              >
+              <g key={`${point.label}:${index}`}>
                 <title>{point.tooltip}</title>
                 <circle
-                  className="interactive-sparkline__hit-target"
                   cx={point.x}
                   cy={point.y}
-                  r="14"
-                />
-                <circle
-                  className={markerClass}
-                  cx={point.x}
-                  cy={point.y}
-                  r={isActive || isLatest ? "5.5" : "4"}
+                  r={isActive ? "7" : isLatest ? "5.5" : "4"}
+                  data-slot="sparkline-point"
+                  fill={isActive || isLatest ? "var(--primary)" : "var(--card)"}
+                  stroke={isActive || isLatest ? "var(--card)" : "var(--primary)"}
+                  strokeWidth={isActive || isLatest ? "3" : "2"}
+                  vectorEffect="non-scaling-stroke"
                 />
               </g>
             );
           })}
         </svg>
-        <div className="interactive-sparkline__hit-layer">
+        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[132px]">
           {chart.points.map((point, index) => {
             const showPoint = () => setActiveIndex(index);
             const hidePoint = () => setActiveIndex(null);
-            const pointControlClass = [
-              "interactive-sparkline__point-control",
-              point.xPercent < 32 ? "interactive-sparkline__point-control--left" : "",
-              point.xPercent > 68 ? "interactive-sparkline__point-control--right" : "",
-              point.yPercent < 44 ? "interactive-sparkline__point-control--top" : ""
-            ].filter(Boolean).join(" ");
+            const isActive = index === activeIndex;
+            const tooltipId = `${tooltipIdPrefix}-point-${index}`;
+            const controlLeftPercent = Math.max(0, point.xPercent - pointGapPercent / 2);
+            const controlRightPercent = Math.min(100, point.xPercent + pointGapPercent / 2);
+            const pointControlClass =
+              "group absolute inset-y-0 pointer-events-auto border-0 bg-transparent p-0 text-left outline-none";
+            const focusRingStyle =
+              index === 0
+                ? {
+                    left: "0%",
+                    transform: "translate(-50%, -50%)"
+                  }
+                : index === chart.points.length - 1
+                  ? {
+                      right: "0%",
+                      transform: "translate(50%, -50%)"
+                    }
+                  : {
+                      left: "50%",
+                      transform: "translate(-50%, -50%)"
+                    };
+            const tooltipBelowPoint = point.yPercent < 44;
+            const tooltipStyle =
+              point.xPercent < 32
+                ? {
+                    left: "0%",
+                    transform: tooltipBelowPoint
+                      ? "translateY(12px)"
+                      : "translateY(calc(-100% - 12px))"
+                  }
+                : point.xPercent > 68
+                  ? {
+                      right: "0%",
+                      transform: tooltipBelowPoint
+                        ? "translateY(12px)"
+                        : "translateY(calc(-100% - 12px))"
+                    }
+                  : {
+                      left: "50%",
+                      transform: tooltipBelowPoint
+                        ? "translate(-50%, 12px)"
+                        : "translate(-50%, calc(-100% - 12px))"
+                    };
             const content = (
-              <span className="interactive-sparkline__point-tooltip" aria-hidden="true" style={{ top: `${point.yPercent}%` }}>
-                <strong>{point.label}</strong>
-                <span>{formatQualityScore(point.value)}</span>
-                <small>{[point.detail, pointDeltaLabel(point.delta)].filter(Boolean).join(", ")}</small>
-              </span>
+              <>
+                <span
+                  aria-hidden="true"
+                  data-slot="sparkline-focus-ring"
+                  className="pointer-events-none absolute size-6 rounded-full opacity-0 ring-2 ring-ring ring-offset-2 ring-offset-card transition-opacity group-focus-visible:opacity-100"
+                  style={{ top: `${point.yPercent}%`, ...focusRingStyle }}
+                />
+                {isActive ? (
+                  <span
+                    id={tooltipId}
+                    role="tooltip"
+                    className="pointer-events-none absolute z-10 grid w-[min(210px,calc(100vw-48px))] gap-0.5 rounded-lg border border-primary/40 bg-popover px-2.5 py-2 text-left shadow-md"
+                    style={{ top: `${point.yPercent}%`, ...tooltipStyle }}
+                  >
+                    <strong className="text-xs font-semibold leading-tight text-popover-foreground">
+                      {point.label}
+                    </strong>
+                    <span className="text-sm font-semibold tabular-nums text-primary">
+                      {formatQualityScore(point.value)}
+                    </span>
+                    <small className="text-xs leading-snug text-muted-foreground">
+                      {[point.detail, pointDeltaLabel(point.delta)].filter(Boolean).join(", ")}
+                    </small>
+                  </span>
+                ) : null}
+              </>
             );
             const controlProps = {
               "aria-label": point.href ? `${point.tooltip}. Открыть проверки` : point.tooltip,
+              "aria-describedby": isActive ? tooltipId : undefined,
               className: pointControlClass,
-              style: { left: `${point.xPercent}%`, width: `${controlWidthPercent}%` },
+              style: {
+                left: `${controlLeftPercent}%`,
+                width: `${controlRightPercent - controlLeftPercent}%`
+              },
               onFocus: showPoint,
               onBlur: hidePoint,
               onMouseEnter: showPoint,
@@ -235,25 +338,38 @@ export function InteractiveSparklineChart({
             };
 
             return point.href ? (
-              <Link key={`${point.label}:${index}:hit`} href={point.href} {...controlProps}>
+              <Link
+                key={`${point.label}:${index}:hit`}
+                href={point.href}
+                {...reportPageLocalLinkProps(point.href)}
+                {...controlProps}
+              >
                 {content}
               </Link>
             ) : (
-              <span key={`${point.label}:${index}:hit`} tabIndex={0} {...controlProps}>
+              <button key={`${point.label}:${index}:hit`} type="button" {...controlProps}>
                 {content}
-              </span>
+              </button>
             );
           })}
         </div>
       </div>
 
-      <div className="interactive-sparkline__scale" aria-label="Диапазон графика">
+      <div
+        aria-hidden="true"
+        data-slot="sparkline-scale"
+        className="flex flex-wrap justify-between gap-2 text-[11px] font-medium tabular-nums text-muted-foreground"
+      >
         <span>Мин {formatQualityScore(chart.min)}</span>
         {targetLabel ? <span>{targetLabel}</span> : null}
         <span>Макс {formatQualityScore(chart.max)}</span>
       </div>
 
-      {annotation ? <p className="chart-annotation">{annotation}</p> : null}
+      {annotation ? (
+        <p className="rounded-md border border-border bg-muted/50 px-2.5 py-2 text-xs leading-snug text-muted-foreground">
+          {annotation}
+        </p>
+      ) : null}
     </div>
   );
 }

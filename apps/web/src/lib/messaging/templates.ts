@@ -1,4 +1,5 @@
 import type { MessageTemplate, OperationalMessagingEvent } from "@/lib/messaging/types";
+import { russianPlural } from "@/lib/reports/report-format";
 
 export function messageForOperationalEvent(event: OperationalMessagingEvent): MessageTemplate {
   if (event.type === "source_certification_lost") {
@@ -22,7 +23,7 @@ export function messageForOperationalEvent(event: OperationalMessagingEvent): Me
   if (event.type === "queue_without_start") {
     return {
       title: "Очередь без старта",
-      body: `${event.count} проверок ждут старта. Назначьте или откройте следующую проверку.`,
+      body: `${russianPlural(event.count, ["проверка", "проверки", "проверок"])} ждут старта. Назначьте или откройте следующую проверку.`,
       actionLabel: "Открыть очередь",
       href: event.href
     };

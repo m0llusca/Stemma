@@ -3,8 +3,21 @@
 import { useState } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { saveAiProviderCredential, type SaveAiProviderCredentialState } from "@/lib/ai-provider-credentials-actions";
+import { statusToneClass } from "@/lib/ui/status-tone";
 
 const initialState: SaveAiProviderCredentialState = {
   status: "idle"
@@ -23,6 +36,9 @@ export type AiProviderModelField = {
   placeholder?: string;
 };
 
+const DEFAULT_MODEL = "__default__";
+const CUSTOM_MODEL = "__custom__";
+
 function SaveKeySubmitButton({ confirmMessage }: { confirmMessage: string | null }) {
   const { pending } = useFormStatus();
   const label = pending ? "Сохраняем..." : "Сохранить";
@@ -31,56 +47,66 @@ function SaveKeySubmitButton({ confirmMessage }: { confirmMessage: string | null
   // требуют подтверждения; обычное сохранение отправляется сразу.
   if (confirmMessage) {
     return (
-      <ConfirmSubmitButton className="action-button action-button--primary" disabled={pending} confirmMessage={confirmMessage}>
+      <ConfirmSubmitButton className={buttonVariants()} disabled={pending} confirmMessage={confirmMessage}>
         {label}
       </ConfirmSubmitButton>
     );
   }
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {label}
-    </button>
+    </Button>
   );
 }
 
-function ModelField({ field }: { field: AiProviderModelField }) {
+function ModelField({ field, provider }: { field: AiProviderModelField; provider: string }) {
   const isInitiallyCustom = Boolean(field.value) && !field.options.includes(field.value);
-  const [choice, setChoice] = useState(isInitiallyCustom ? "__custom__" : field.value);
+  const [choice, setChoice] = useState(isInitiallyCustom ? CUSTOM_MODEL : field.value || DEFAULT_MODEL);
   const [custom, setCustom] = useState(isInitiallyCustom ? field.value : "");
 
+  const modelValue = choice === CUSTOM_MODEL ? custom : choice === DEFAULT_MODEL ? "" : choice;
+  const modelSelectId = `ai-model-${provider}`;
+
   return (
-    <label className="messaging-channel-form__field">
-      <span className="messaging-channel-form__label">Модель</span>
-      <select className="form-control" value={choice} onChange={(event) => setChoice(event.target.value)}>
-        <option value="">По умолчанию (провайдера)</option>
-        {field.options.map((model) => (
-          <option key={model} value={model}>
-            {model}
-          </option>
-        ))}
-        <option value="__custom__">Другая модель…</option>
-      </select>
-      {choice === "__custom__" ? (
-        <input
-          name="model"
-          type="text"
-          value={custom}
-          onChange={(event) => setCustom(event.target.value)}
-          placeholder={field.placeholder ?? "Идентификатор модели"}
-          className="form-control mt-2"
-          autoComplete="off"
-          aria-label="Идентификатор модели"
-        />
-      ) : (
-        <input type="hidden" name="model" value={choice} />
-      )}
-      <span className="messaging-channel-form__hint">
-        {choice === "__custom__"
-          ? "Введите точный идентификатор модели провайдера."
-          : "Пусто — используется модель провайдера по умолчанию."}
-      </span>
-    </label>
+    <FieldGroup className="gap-2">
+      <Field>
+        <FieldLabel htmlFor={modelSelectId}>Модель</FieldLabel>
+        <Select value={choice} onValueChange={(value) => setChoice(value ?? DEFAULT_MODEL)}>
+          <SelectTrigger id={modelSelectId} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={DEFAULT_MODEL}>По умолчанию (провайдера)</SelectItem>
+            {field.options.map((model) => (
+              <SelectItem key={model} value={model}>
+                {model}
+              </SelectItem>
+            ))}
+            <SelectItem value={CUSTOM_MODEL}>Другая модель…</SelectItem>
+          </SelectContent>
+        </Select>
+        {choice === CUSTOM_MODEL ? (
+          <Input
+            name="model"
+            type="text"
+            value={custom}
+            onChange={(event) => setCustom(event.target.value)}
+            placeholder={field.placeholder ?? "Идентификатор модели"}
+            autoComplete="off"
+            aria-label="Идентификатор модели"
+            className="mt-2"
+          />
+        ) : (
+          <input type="hidden" name="model" value={modelValue} />
+        )}
+        <FieldDescription>
+          {choice === CUSTOM_MODEL
+            ? "Введите точный идентификатор модели провайдера."
+            : "Пусто — используется модель провайдера по умолчанию."}
+        </FieldDescription>
+      </Field>
+    </FieldGroup>
   );
 }
 
@@ -121,59 +147,61 @@ export function AiProviderKeyForm({
       : "Хранится в зашифрованном виде в БД и подставляется при обращении к провайдеру.";
 
   return (
-    <form action={formAction} className="messaging-channel-form">
+    <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="provider" value={provider} />
 
-      <label className="messaging-channel-form__field">
-        <span className="messaging-channel-form__label">API-ключ</span>
-        <input
-          name="apiKey"
-          type="password"
-          defaultValue=""
-          placeholder={keyPlaceholder}
-          className="form-control"
-          autoComplete="off"
-          onChange={(event) => setHasNewKey(event.target.value.trim().length > 0)}
-        />
-        <span className="messaging-channel-form__hint">{keyHint}</span>
-      </label>
-
-      {extraFields.map((field) => (
-        <label key={field.name} className="messaging-channel-form__field">
-          <span className="messaging-channel-form__label">{field.label}</span>
-          <input
-            name={field.name}
-            type="text"
-            defaultValue={field.defaultValue}
-            placeholder={field.placeholder}
-            className="form-control"
+      <FieldGroup className="gap-4">
+        <Field>
+          <FieldLabel htmlFor={`ai-key-${provider}`}>API-ключ</FieldLabel>
+          <Input
+            id={`ai-key-${provider}`}
+            name="apiKey"
+            type="password"
+            defaultValue=""
+            placeholder={keyPlaceholder}
             autoComplete="off"
+            onChange={(event) => setHasNewKey(event.target.value.trim().length > 0)}
           />
-        </label>
-      ))}
+          <FieldDescription>{keyHint}</FieldDescription>
+        </Field>
 
-      {modelField ? <ModelField field={modelField} /> : null}
+        {extraFields.map((field) => (
+          <Field key={field.name}>
+            <FieldLabel htmlFor={`ai-extra-${provider}-${field.name}`}>{field.label}</FieldLabel>
+            <Input
+              id={`ai-extra-${provider}-${field.name}`}
+              name={field.name}
+              type="text"
+              defaultValue={field.defaultValue}
+              placeholder={field.placeholder}
+              autoComplete="off"
+            />
+          </Field>
+        ))}
 
-      {maskedDbKey ? (
-        <label className="messaging-channel-form__toggle">
-          <input
-            type="checkbox"
-            name="clear"
-            value="1"
-            checked={clearRequested}
-            onChange={(event) => setClearRequested(event.target.checked)}
-          />
-          <span>Удалить сохранённый ключ из БД</span>
-        </label>
-      ) : null}
+        {modelField ? <ModelField field={modelField} provider={provider} /> : null}
 
-      <div className="messaging-channel-form__actions">
+        {maskedDbKey ? (
+          <Field orientation="horizontal" className="items-center gap-2">
+            <Switch
+              id={`ai-clear-${provider}`}
+              name="clear"
+              value="1"
+              checked={clearRequested}
+              onCheckedChange={setClearRequested}
+            />
+            <FieldLabel htmlFor={`ai-clear-${provider}`} className="font-normal">Удалить сохранённый ключ из БД</FieldLabel>
+          </Field>
+        ) : null}
+      </FieldGroup>
+
+      <div className="flex flex-wrap items-center gap-3">
         <SaveKeySubmitButton confirmMessage={confirmMessage} />
         {state.status === "success" ? (
-          <span className="messaging-channel-form__status messaging-channel-form__status--ok">{state.message}</span>
+          <span className={cn("text-sm", statusToneClass("positive"))}>{state.message}</span>
         ) : null}
         {state.status === "error" ? (
-          <span className="messaging-channel-form__status messaging-channel-form__status--error">{state.message}</span>
+          <span className={cn("text-sm text-destructive")}>{state.message}</span>
         ) : null}
       </div>
     </form>

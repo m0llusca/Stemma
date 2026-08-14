@@ -37,4 +37,21 @@ describe("messaging action channels", () => {
       href: "https://app.example.com/admin/integrations/int-1"
     });
   });
+
+  it("pluralizes the queued review count for queue_without_start", async () => {
+    const { messageForOperationalEvent } = await import("@/lib/messaging/templates");
+
+    expect(
+      messageForOperationalEvent({
+        type: "queue_without_start",
+        count: 2,
+        href: "https://app.example.com/reviews"
+      })
+    ).toEqual({
+      title: "Очередь без старта",
+      body: "2 проверки ждут старта. Назначьте или откройте следующую проверку.",
+      actionLabel: "Открыть очередь",
+      href: "https://app.example.com/reviews"
+    });
+  });
 });

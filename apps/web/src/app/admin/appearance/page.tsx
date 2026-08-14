@@ -4,11 +4,14 @@ import { AppearanceSettingsForm } from "@/components/admin/appearance-settings-f
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { resolveUiAppearance } from "@/lib/ui-theme";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -49,20 +52,26 @@ async function AdminAppearancePageContent() {
       description="Настройки применяются ко всему рабочему пространству: навигация, кнопки, панели, выбранные состояния и плотность используют один набор токенов. Палитры всегда светлые; тёмное оформление даёт отдельная тема Night Ops."
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="appearance-settings-title">
-          <div className="ops-panel__header">
-            <div className="min-w-0">
-              <p className="ops-panel__eyebrow">Рабочее пространство</p>
-              <h2 id="appearance-settings-title" className="ops-panel__title">{workspace?.name ?? "Рабочее пространство"}</h2>
-              <p className="ops-panel__subtitle">Палитра управляет навигацией, кнопками, поверхностями, границами и статусами без ручной правки CSS.</p>
+        <Card aria-labelledby="appearance-settings-title">
+          <CardHeader className="border-b">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Рабочее пространство</p>
+                <CardTitle id="appearance-settings-title">{workspace?.name ?? "Рабочее пространство"}</CardTitle>
+                <CardDescription>
+                  Палитра управляет навигацией, кнопками, поверхностями, границами и статусами без ручной правки CSS.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className={cn("shrink-0 border-transparent", statusSurfaceClass("positive"))}>
+                <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
+                Готово
+              </Badge>
             </div>
-            <Chip tone="success" size="sm" icon={<CheckCircle2 size={13} aria-hidden="true" />}>
-              Готово
-            </Chip>
-          </div>
-
-          <AppearanceSettingsForm initialAppearance={appearance} />
-        </section>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <AppearanceSettingsForm initialAppearance={appearance} />
+          </CardContent>
+        </Card>
       </AdminFrame>
     </PageShell>
   );

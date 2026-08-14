@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
   revalidatePath: vi.fn()
+  ,
+  loadReportFilterCatalog: vi.fn()
 }));
 
 vi.mock("next/cache", () => ({
@@ -30,6 +32,16 @@ vi.mock("@/lib/current-user", () => ({
 vi.mock("@/lib/db", () => ({
   prisma: mocks.prisma
 }));
+
+vi.mock("@/lib/reports/report-filter-catalog", () => ({
+  loadReportFilterCatalog: mocks.loadReportFilterCatalog
+}));
+
+const reportCatalog = {
+  teams: [{ slug: "declining-team-0123456789", value: "2ЛП — снижение" }],
+  sources: ["freshdesk"],
+  blocks: [{ slug: "processes-aabbccddee", value: "Процессы" }]
+};
 
 function asAnalyst() {
   // QA_ANALYST has reports:read AND reports:manage in the real permission map.
@@ -58,17 +70,30 @@ describe("saved report view actions", () => {
     mocks.prisma.savedReportView.create.mockResolvedValue({ id: "view-1" });
     mocks.prisma.savedReportView.deleteMany.mockResolvedValue({ count: 1 });
     mocks.prisma.savedReportView.findMany.mockResolvedValue([]);
+    mocks.loadReportFilterCatalog.mockResolvedValue(reportCatalog);
   });
 
   it("gates create behind the reports:read permission", async () => {
     const { createSavedReportView } = await import("@/lib/saved-report-view-actions");
     const formData = new FormData();
     formData.set("name", "Мой отчёт");
-    formData.set("href", "/reports?period=30d");
+    formData.set(
+      "href",
+      "/reports?view=overview&period=vk-current&trend=week&risk=high_plus&evidenceType=kpi&evidenceKey=ev1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    );
 
-    await expect(createSavedReportView(formData)).rejects.toThrow("NEXT_REDIRECT:/reports?period=30d");
+    await expect(createSavedReportView(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reports?view=overview&period=vk-current&compare=previous&grain=week&risk=high_plus&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget"
+    );
 
     expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reports:read");
+    expect(mocks.loadReportFilterCatalog).toHaveBeenCalledWith("workspace-1");
+    expect(mocks.prisma.savedReportView.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        href:
+          "/reports?view=overview&period=vk-current&compare=previous&grain=week&risk=high_plus&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget"
+      })
+    });
   });
 
   it("normalizes saved view hrefs to internal /reports URLs before redirecting", async () => {
@@ -77,17 +102,22 @@ describe("saved report view actions", () => {
     formData.set("name", "Опасный редирект");
     formData.set("href", "https://evil.example/phish");
 
-    await expect(createSavedReportView(formData)).rejects.toThrow("NEXT_REDIRECT:/reports");
+    await expect(createSavedReportView(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reports?view=overview&period=vk-current&compare=previous&grain=day&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget"
+    );
 
     expect(mocks.prisma.savedReportView.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        href: "/reports",
+        href:
+          "/reports?view=overview&period=vk-current&compare=previous&grain=day&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget",
         scope: "private",
         userId: "user-1",
         workspaceId: "workspace-1"
       })
     });
-    expect(mocks.redirect).toHaveBeenCalledWith("/reports");
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/reports?view=overview&period=vk-current&compare=previous&grain=day&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget"
+    );
   });
 
   it("rejects an empty name without writing", async () => {
@@ -104,16 +134,22 @@ describe("saved report view actions", () => {
     const { createSavedReportView } = await import("@/lib/saved-report-view-actions");
     const formData = new FormData();
     formData.set("name", "Командный отчёт");
-    formData.set("href", "/reports?team=core");
+    formData.set(
+      "href",
+      "/reports?view=overview&period=vk-current&grain=day&team=declining-team-0123456789"
+    );
     formData.set("scope", "shared");
 
-    await expect(createSavedReportView(formData)).rejects.toThrow("NEXT_REDIRECT:/reports?team=core");
+    await expect(createSavedReportView(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reports?view=overview&period=vk-current&compare=previous&grain=day&team=declining-team-0123456789&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget"
+    );
 
     expect(mocks.prisma.savedReportView.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         scope: "shared",
         userId: null,
-        href: "/reports?team=core"
+        href:
+          "/reports?view=overview&period=vk-current&compare=previous&grain=day&team=declining-team-0123456789&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget"
       })
     });
   });
@@ -186,8 +222,15 @@ describe("listSavedReportViews", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.savedReportView.findMany.mockResolvedValue([
-      { id: "v1", name: "Личный", href: "/reports?period=7d", scope: "private" }
+      {
+        id: "v1",
+        name: "Личный",
+        href:
+          "/reports?view=performance&period=vk-current&trend=month&source=freshdesk&block=processes-aabbccddee&section=ai-drift&evidenceType=trend&evidenceKey=ev1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        scope: "private"
+      }
     ]);
+    mocks.loadReportFilterCatalog.mockResolvedValue(reportCatalog);
   });
 
   it("returns the user's private views plus shared views in stable order", async () => {
@@ -195,6 +238,7 @@ describe("listSavedReportViews", () => {
 
     const views = await listSavedReportViews("workspace-1", "user-1");
 
+    expect(mocks.loadReportFilterCatalog).toHaveBeenCalledWith("workspace-1");
     expect(mocks.prisma.savedReportView.findMany).toHaveBeenCalledWith({
       where: {
         workspaceId: "workspace-1",
@@ -203,6 +247,14 @@ describe("listSavedReportViews", () => {
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, href: true, scope: true }
     });
-    expect(views).toEqual([{ id: "v1", name: "Личный", href: "/reports?period=7d", scope: "private" }]);
+    expect(views).toEqual([
+      {
+        id: "v1",
+        name: "Личный",
+        href:
+          "/reports?view=performance&period=vk-current&compare=previous&grain=week&source=freshdesk&block=processes-aabbccddee&section=ai-drift&chartView=graph&series=score%2Cvolume%2Cprevious%2Ctarget",
+        scope: "private"
+      }
+    ]);
   });
 });

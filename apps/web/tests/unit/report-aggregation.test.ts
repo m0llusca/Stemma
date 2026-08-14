@@ -158,6 +158,17 @@ describe("rankedScoreRows", () => {
     expect(ranked[1].delta).toBeNull();
     expect(ranked[1].meta).toBe("нет базы сравнения");
   });
+
+  it("breaks equal average scores deterministically by label (ru locale)", () => {
+    // Same defect class as P9: a ranking without a total-order tiebreaker.
+    const rows: BreakdownRow[] = [
+      { label: "Бета", count: 3, averageScore: 70 },
+      { label: "Альфа", count: 1, averageScore: 70 }
+    ];
+
+    expect(rankedScoreRows(rows, []).map((row) => row.label)).toEqual(["Альфа", "Бета"]);
+    expect(rankedScoreRows([...rows].reverse(), []).map((row) => row.label)).toEqual(["Альфа", "Бета"]);
+  });
 });
 
 describe("criterionEarnedPercent", () => {
@@ -313,6 +324,23 @@ describe("computeAgentLeaderboard", () => {
 
   it("caps the leaderboard to the requested limit", () => {
     expect(computeAgentLeaderboard(reviews, 2).map((row) => row.name)).toEqual(["Борис", "Без оператора"]);
+  });
+
+  it("breaks full ties deterministically by agent name (ru locale), regardless of input order", () => {
+    // P9: operators with identical action load, average AND count previously
+    // kept DB physical order, which flips across reseeds (Елена Морозова /
+    // Тимофей Нестеров: load 3, average 75, count 2).
+    const tied = (name: string): AgentLeaderboardReview[] => [
+      leaderboardReview({ assigneeName: name, totalScore: 80, findings: [{ riskLevel: "HIGH" }] }),
+      leaderboardReview({ assigneeName: name, totalScore: 70 })
+    ];
+    const expected = ["Елена Морозова", "Тимофей Нестеров"];
+
+    const forward = computeAgentLeaderboard([...tied("Тимофей Нестеров"), ...tied("Елена Морозова")]);
+    const reversed = computeAgentLeaderboard([...tied("Елена Морозова"), ...tied("Тимофей Нестеров")]);
+
+    expect(forward.map((row) => row.name)).toEqual(expected);
+    expect(reversed.map((row) => row.name)).toEqual(expected);
   });
 
   it("matches the legacy inline reduction exactly", () => {

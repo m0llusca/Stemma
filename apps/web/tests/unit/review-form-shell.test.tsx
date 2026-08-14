@@ -1,18 +1,39 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { ToastProvider } from "@/components/ui/toast";
 import { submitReviewState } from "@/lib/review-panel-actions";
+
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  });
+});
+
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: vi.fn() })
+}));
 
 vi.mock("@/lib/review-panel-actions", () => ({
   submitReviewState: vi.fn()
 }));
 
 // ReviewFormShell now surfaces grading success via useToast, so renders need a
-// ToastProvider in scope (the live region is mounted globally in app layout).
+// ToastProvider in scope (sonner Toaster is mounted globally in app layout).
 function renderWithToast(ui: ReactNode) {
   return render(<ToastProvider>{ui}</ToastProvider>);
 }

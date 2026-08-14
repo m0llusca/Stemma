@@ -35,6 +35,7 @@ describe("loadPreviousFinalizedReviews narrow select", () => {
     expect(call.include).toBeUndefined();
     expect(call.select).toEqual({
       totalScore: true,
+      finalizedAt: true,
       conversation: {
         select: {
           externalSource: true,

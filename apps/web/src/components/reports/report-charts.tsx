@@ -1,10 +1,28 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BarChart3, Inbox } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InteractiveSparklineChart } from "@/components/reports/interactive-sparkline-chart";
+import { ChartFrame } from "@/components/charts/chart-frame";
+import { ScoreDistributionChart } from "@/components/charts/score-distribution-chart.client";
+import type { ChartView } from "@/components/charts/chart-view-links";
+import type {
+  ReportChartBundle,
+  ScoreDistributionSeries
+} from "@/lib/reports/report-chart-models";
+import { reportPageLocalLinkProps } from "@/lib/reports/report-evidence-links";
 import { formatQualityScoreDelta } from "@/lib/score-display";
+import { cn } from "@/lib/utils";
 
 export type ChartDatum = {
   label: string;
@@ -46,10 +64,10 @@ function formatPercent(value: number) {
  * reads as one ordered scale in every theme — no raw color on the data.
  */
 const riskStackToneBySeverity: Record<StackedSegment["severity"], string> = {
-  t1: "risk-stack__seg--t1",
-  t2: "risk-stack__seg--t2",
-  t3: "risk-stack__seg--t3",
-  t4: "risk-stack__seg--t4"
+  t1: "bg-foreground/15",
+  t2: "bg-foreground/30",
+  t3: "bg-foreground/55",
+  t4: "bg-foreground"
 };
 
 function deltaTone(delta: number) {
@@ -61,17 +79,17 @@ function PercentProgressBar({ value, label }: { value: number; label: string }) 
   const roundedPercent = Math.round(percent);
 
   return (
-    <div className="quota-meter">
-      <span>{formatPercent(percent)}</span>
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatPercent(percent)}</span>
       <div
         aria-label={`${label}: ${formatPercent(percent)}`}
         aria-valuemax={100}
         aria-valuemin={0}
         aria-valuenow={roundedPercent}
-        className="quota-meter__track"
+        className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
         role="progressbar"
       >
-        <div className="quota-meter__fill" style={{ width: `${percent}%` }} />
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
@@ -91,20 +109,24 @@ export function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="panel chart-panel overflow-clip">
-      <div className="chart-panel__header">
-        <div className="min-w-0">
-          <h2 className="chart-panel__title">{title}</h2>
-          {description ? <p className="chart-panel__desc">{description}</p> : null}
-        </div>
+    <Card size="sm" className="h-full gap-0 overflow-clip py-0">
+      <CardHeader className="border-b py-4">
+        <CardTitle>{title}</CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
         {actionHref ? (
-          <Link href={actionHref} className="chart-panel__action">
-            {actionLabel}
-          </Link>
+          <CardAction>
+            <Link
+              href={actionHref}
+              {...reportPageLocalLinkProps(actionHref)}
+              className={buttonVariants({ variant: "outline", size: "xs" })}
+            >
+              {actionLabel}
+            </Link>
+          </CardAction>
         ) : null}
-      </div>
-      <div className="chart-panel__body">{children}</div>
-    </section>
+      </CardHeader>
+      <CardContent className="py-4">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -138,22 +160,22 @@ export function HorizontalBarChart({
   const computedMax = maxValue ?? Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <div className="hbar-chart">
+    <div className="grid gap-3.5">
       {rows.map((row) => {
         const percent = clampPercent((row.value / computedMax) * 100);
 
         return (
-          <div key={row.label} className="hbar-chart__row">
-            <div className="hbar-chart__head">
-              <p className="hbar-chart__label">{row.label}</p>
-              <p className="hbar-chart__value tabular-nums">
+          <div key={row.label} className="grid gap-1.5">
+            <div className="flex min-w-0 items-baseline justify-between gap-3">
+              <p className="min-w-0 truncate text-sm font-medium text-foreground">{row.label}</p>
+              <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
                 {valueFormatter ? valueFormatter(row.value) : `${Math.round(row.value)}${valueSuffix}`}
               </p>
             </div>
-            <div className="hbar-chart__track">
-              <div className="hbar-chart__fill" style={{ width: `${percent}%` }} />
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
             </div>
-            {row.detail ? <p className="hbar-chart__detail">{row.detail}</p> : null}
+            {row.detail ? <p className="text-xs text-muted-foreground">{row.detail}</p> : null}
           </div>
         );
       })}
@@ -161,34 +183,36 @@ export function HorizontalBarChart({
   );
 }
 
-export function ScoreDistribution({ rows }: { rows: ChartDatum[] }) {
-  const total = rows.reduce((sum, row) => sum + row.value, 0);
-
-  if (total === 0) {
-    return (
-      <EmptyState
-        icon={<BarChart3 size={22} aria-hidden="true" />}
-        title="Нет завершенных проверок"
-        description="Распределение оценок появится после первых финализированных проверок."
-        size="inline"
-      />
-    );
-  }
-
-  const maxValue = Math.max(...rows.map((row) => row.value), 1);
-
+export function ScoreDistributionPanel({
+  bundle,
+  view,
+  currentHref,
+  periodLabel
+}: {
+  bundle: ReportChartBundle<ScoreDistributionSeries>;
+  view: ChartView;
+  currentHref: string;
+  periodLabel: string;
+}) {
   return (
-    <div className="score-histogram" aria-label="Распределение оценок">
-      {rows.map((row) => (
-        <div key={row.label} className="score-histogram__item">
-          <div className="score-histogram__bar-wrap">
-            <div className="score-histogram__bar" style={{ height: row.value > 0 ? `${Math.max(10, (row.value / maxValue) * 100)}%` : "0%" }} />
-          </div>
-          <span className="score-histogram__label">{row.label}</span>
-          <span className="score-histogram__value tabular-nums">{row.value}</span>
-        </div>
-      ))}
-    </div>
+    <ChartFrame
+      model={bundle.model}
+      view={view}
+      currentHref={currentHref}
+      periodLabel={periodLabel}
+      sample={bundle.sample}
+      comparison={
+        bundle.comparison.status === "stale"
+          ? bundle.comparison
+          : { status: "current" }
+      }
+      state={bundle.isEmpty ? { kind: "empty" } : { kind: "ready" }}
+      graph={
+        view === "graph" && !bundle.isEmpty ? (
+          <ScoreDistributionChart model={bundle.model} />
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -208,18 +232,22 @@ export function RankedList({
   }
 
   return (
-    <div className="ranked-list">
+    <div className="grid gap-0">
       {rows.map((row, index) => (
         <article
           key={`${row.label}:${index}`}
-          className={`ranked-list__row ranked-list__row--${row.delta == null ? "neutral" : row.delta < 0 ? "down" : row.delta > 0 ? "up" : "flat"}`}
+          className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0"
         >
-          <div className="ranked-list__rank tabular-nums">{index + 1}</div>
-          <div className="ranked-list__body">
-            <div className="ranked-list__title-row">
-              <h3>{row.label}</h3>
-              <div className="ranked-list__score">
-                <strong className="tabular-nums">{valueFormatter ? valueFormatter(row.value) : row.value}</strong>
+          <div className="inline-flex size-7 items-center justify-center rounded-md bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
+            {index + 1}
+          </div>
+          <div className="grid min-w-0 gap-1">
+            <div className="flex min-w-0 items-baseline justify-between gap-3">
+              <h3 className="truncate text-sm font-semibold text-foreground">{row.label}</h3>
+              <div className="inline-flex shrink-0 items-center gap-1.5">
+                <strong className="text-sm font-semibold tabular-nums text-foreground">
+                  {valueFormatter ? valueFormatter(row.value) : row.value}
+                </strong>
                 {row.delta != null ? (
                   <Chip tone={deltaTone(row.delta)} size="xs" numeric>
                     {formatQualityScoreDelta(row.delta)}
@@ -228,16 +256,18 @@ export function RankedList({
               </div>
             </div>
             {row.detail || row.meta ? (
-              <p>
-                {[row.detail, row.meta].filter(Boolean).join(", ")}
-              </p>
+              <p className="text-xs text-muted-foreground">{[row.detail, row.meta].filter(Boolean).join(", ")}</p>
             ) : null}
-            <div className="ranked-list__quality-line" aria-hidden="true">
-              <span style={{ width: `${clampPercent(row.value)}%` }} />
+            <div className="h-0.5 overflow-clip rounded-full bg-border/60" aria-hidden="true">
+              <span className="block h-full rounded-full bg-primary" style={{ width: `${clampPercent(row.value)}%` }} />
             </div>
           </div>
           {row.href ? (
-            <Link href={row.href} className="ranked-list__action">
+            <Link
+              href={row.href}
+              {...reportPageLocalLinkProps(row.href)}
+              className={buttonVariants({ variant: "outline", size: "xs" })}
+            >
               {actionLabel}
             </Link>
           ) : null}
@@ -261,36 +291,44 @@ export function StackedBar({ segments }: { segments: StackedSegment[] }) {
   }
 
   return (
-    <div className="risk-stack">
-      <div className="risk-stack__bar">
+    <div className="grid gap-3.5">
+      <div className="flex h-2.5 overflow-clip rounded-full bg-muted ring-1 ring-border">
         {segments.map((segment) => (
           <div
             key={segment.label}
             title={`${segment.label}: ${segment.value}`}
-            className={`risk-stack__seg ${riskStackToneBySeverity[segment.severity]}`}
+            className={cn("h-full min-w-0", riskStackToneBySeverity[segment.severity])}
             style={{ width: `${(segment.value / total) * 100}%` }}
           />
         ))}
       </div>
-      <div className="risk-stack__legend">
+      <div className="grid grid-cols-2 gap-2">
         {segments.map((segment) => {
           const toneClass = riskStackToneBySeverity[segment.severity];
           const content = (
             <>
-              <span>
-                <span className={`risk-stack__dot risk-stack__seg ${toneClass}`} />
-                <span>{segment.label}</span>
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <span className={cn("size-2.5 shrink-0 rounded-sm", toneClass)} />
+                <span className="truncate text-sm">{segment.label}</span>
               </span>
-              <strong className="tabular-nums">{segment.value}</strong>
+              <strong className="shrink-0 text-sm tabular-nums">{segment.value}</strong>
             </>
           );
 
           return segment.href ? (
-            <Link key={segment.label} href={segment.href} className="risk-stack__legend-item risk-stack__legend-item--link">
+            <Link
+              key={segment.label}
+              href={segment.href}
+              {...reportPageLocalLinkProps(segment.href)}
+              className="flex min-w-0 items-center justify-between gap-2.5 rounded-md border border-border bg-muted/50 px-2.5 py-2 text-inherit no-underline transition-colors hover:border-primary/40 hover:bg-muted"
+            >
               {content}
             </Link>
           ) : (
-            <div key={segment.label} className="risk-stack__legend-item">
+            <div
+              key={segment.label}
+              className="flex min-w-0 items-center justify-between gap-2.5 rounded-md border border-border bg-muted/50 px-2.5 py-2"
+            >
               {content}
             </div>
           );
@@ -322,25 +360,40 @@ export function QuotaProgressBars({
   }
 
   return (
-    <div className="quota-list">
+    <div className="grid gap-3">
       {rows.map((row, index) => {
         const percent = row.planned > 0 ? clampPercent((row.actual / row.planned) * 100) : 0;
         const remaining = Math.max(0, row.planned - row.actual);
+        const behind = remaining > 0;
 
         const content = (
           <>
-            <div>
-              <p>{row.label}</p>
-              <span>{remaining > 0 ? `Осталось ${remaining}` : "Норма закрыта"}</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">{row.label}</p>
+              <span className="text-xs text-muted-foreground">
+                {remaining > 0 ? `Осталось ${remaining}` : "Норма закрыта"}
+              </span>
             </div>
             <PercentProgressBar value={percent} label={row.label} />
-            <strong className="tabular-nums">{row.actual} из {row.planned}</strong>
+            <strong className="shrink-0 text-sm tabular-nums text-foreground">
+              {row.actual} из {row.planned}
+            </strong>
           </>
         );
-        const className = `quota-list__row ${remaining > 0 ? "quota-list__row--behind" : "quota-list__row--done"} ${row.href ? "quota-list__row--link" : ""}`;
+
+        const className = cn(
+          "grid min-w-0 items-center gap-3 rounded-lg border border-border px-3 py-2.5 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)_auto]",
+          behind ? "bg-card" : "bg-muted/40",
+          row.href && "transition-colors hover:border-primary/40 hover:bg-muted/50"
+        );
 
         return row.href ? (
-          <Link key={`${row.label}:${index}`} href={row.href} className={className}>
+          <Link
+            key={`${row.label}:${index}`}
+            href={row.href}
+            {...reportPageLocalLinkProps(row.href)}
+            className={className}
+          >
             {content}
           </Link>
         ) : (

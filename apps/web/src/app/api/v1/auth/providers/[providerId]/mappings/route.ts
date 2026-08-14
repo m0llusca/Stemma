@@ -3,7 +3,6 @@ import { auditLog } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { refreshIdentityPoliciesForExternalGroup } from "@/lib/auth/providers";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +15,15 @@ const mappingSchema = z.object({
   isActive: z.boolean().optional()
 });
 
-export async function GET(_request: Request, context: { params: Promise<{ providerId: string }> }) {
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+export async function GET(request: Request, context: { params: Promise<{ providerId: string }> }) {
+  const requestId = requestIdFromHeaders(request.headers);
+  const session = await requireSessionApi(request, "auth_providers:manage", { requestId });
+
+  if (!session.ok) {
+    return session.response;
+  }
+
+  const user = session.user;
   const { providerId } = await context.params;
   const provider = await prisma.identityProvider.findFirst({
     where: {

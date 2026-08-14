@@ -2,7 +2,7 @@ import { clampQualityScore } from "@/lib/score-display";
 
 /**
  * Tiny inline-SVG sparkline of a quality-score series (oldest -> newest).
- * No dependencies; colors come from design tokens so it themes automatically.
+ * Chart geometry unchanged; colors use currentColor / muted primary tokens.
  */
 export function ScoreSparkline({
   points,
@@ -32,7 +32,7 @@ export function ScoreSparkline({
 
   return (
     <svg
-      className="score-sparkline"
+      className="block h-10 w-full max-w-[260px] text-primary"
       viewBox={`0 0 ${width} ${height}`}
       width={width}
       height={height}
@@ -40,9 +40,9 @@ export function ScoreSparkline({
       aria-label={`Динамика балла: ${values.length} последних проверок`}
       preserveAspectRatio="none"
     >
-      <path className="score-sparkline__area" d={area} />
-      <path className="score-sparkline__line" d={line} fill="none" />
-      <circle className="score-sparkline__dot" cx={last.x} cy={last.y} r={2.6} />
+      <path className="fill-primary/15 stroke-none" d={area} />
+      <path className="fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]" d={line} />
+      <circle className="fill-current" cx={last.x} cy={last.y} r={2.6} />
     </svg>
   );
 }

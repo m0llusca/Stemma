@@ -1,11 +1,15 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConnectSourceForm } from "@/components/integrations/connect-source-form";
 
 vi.mock("@/lib/connect-actions", () => ({ connectSourceAction: vi.fn(async () => null) }));
 
 describe("ConnectSourceForm", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("renders a source tile and a connect button", () => {
     render(
       <ConnectSourceForm
@@ -76,5 +80,54 @@ describe("ConnectSourceForm", () => {
     );
 
     expect(screen.getByText(/вход выполнен/)).toBeInTheDocument();
+  });
+
+  it("keeps Base UI controls controlled consistently while switching sources", () => {
+    const consoleMessages: string[] = [];
+    const captureConsoleMessage = (...args: unknown[]) => {
+      consoleMessages.push(args.map(String).join(" "));
+    };
+    vi.spyOn(console, "warn").mockImplementation(captureConsoleMessage);
+    vi.spyOn(console, "error").mockImplementation(captureConsoleMessage);
+
+    render(
+      <ConnectSourceForm
+        sources={[
+          {
+            source: "zendesk",
+            label: "Zendesk",
+            type: "native_helpdesk",
+            urlPolicy: "required",
+            fields: [
+              { key: "email", label: "Email", secret: false },
+              { key: "apiToken", label: "Токен", secret: true }
+            ]
+          },
+          {
+            source: "otrs",
+            label: "OTRS Community Edition 6",
+            type: "otrs_family",
+            urlPolicy: "required",
+            fields: [
+              { key: "userLogin", label: "Логин агента", secret: false },
+              { key: "password", label: "Пароль", secret: true }
+            ]
+          }
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: /Zendesk/i }));
+    expect(screen.getByRole("radio", { name: /Zendesk/i })).toBeChecked();
+    expect(document.querySelector<HTMLInputElement>('input[name="source"]')).toHaveValue("zendesk");
+
+    fireEvent.click(screen.getByRole("radio", { name: /OTRS Community Edition 6/i }));
+    expect(screen.getByRole("radio", { name: /OTRS Community Edition 6/i })).toBeChecked();
+    expect(document.querySelector<HTMLInputElement>('input[name="source"]')).toHaveValue("otrs");
+    expect(document.querySelector<HTMLInputElement>('input[name="baseUrl"]')).toBeInTheDocument();
+
+    expect(
+      consoleMessages.filter((message) => /uncontrolled|controlled|FieldControl/i.test(message))
+    ).toEqual([]);
   });
 });

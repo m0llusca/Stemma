@@ -3,8 +3,12 @@
 import { KeyRound, RotateCw, ShieldOff } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { Chip } from "@/components/ui/chip";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 type ScimTokenManagerProps = {
   titleId: string;
@@ -92,91 +96,117 @@ export function ScimTokenManager({
 
   return (
     <div className="grid gap-4">
-      <div className="ops-panel__header -m-5 mb-0">
-        <div>
-          <p className="ops-panel__eyebrow">Provisioning</p>
-          <h2 id={titleId} className="ops-panel__title">SCIM 2.0 bearer token</h2>
-          <p className="ops-panel__subtitle">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Синхронизация каталога
+          </p>
+          <h2 id={titleId} className="text-base font-medium leading-snug text-foreground">
+            Bearer-токен SCIM 2.0
+          </h2>
+          <p className="text-sm text-muted-foreground">
             Выпуск, ротация и отзыв токена входящего provisioning для выбранного провайдера.
           </p>
         </div>
-        <Chip tone={hasToken ? "success" : "warning"} size="sm">
+        <StatusBadge tone={hasToken ? "success" : "warning"}>
           {hasToken ? "Выпущен" : "Не выпущен"}
-        </Chip>
+        </StatusBadge>
       </div>
 
-      <div className="ops-status-strip" aria-label={`SCIM-токен ${providerName}`}>
-        <div className="ops-status-item">
-          <span className="ops-status-item__label">Статус</span>
-          <span className="ops-status-item__value">{hasToken ? "Токен выпущен" : "Токен не выпущен"}</span>
-          <span className="record-meta compact-text">
-            {tokenPrefix ? <span className="font-mono">{tokenPrefix}</span> : "Bearer-токен появится только один раз после выпуска или ротации."}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1 rounded-lg border border-border bg-muted/30 p-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Статус
+          </span>
+          <span className="text-sm font-medium text-foreground">
+            {hasToken ? "Токен выпущен" : "Токен не выпущен"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {tokenPrefix ? (
+              <span className="font-mono">{tokenPrefix}</span>
+            ) : (
+              "Bearer-токен появится только один раз после выпуска или ротации."
+            )}
           </span>
         </div>
-        <div className="ops-status-item">
-          <span className="ops-status-item__label">SCIM base URL</span>
-          <span className="ops-status-item__value font-mono text-sm compact-text">{scimBaseUrl}</span>
-          <span className="record-meta">ServiceProviderConfig, Users и Groups находятся под этим путем.</span>
+        <div className="grid gap-1 rounded-lg border border-border bg-muted/30 p-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            SCIM base URL
+          </span>
+          <span className="break-all font-mono text-sm text-foreground">{scimBaseUrl}</span>
+          <span className="text-xs text-muted-foreground">
+            ServiceProviderConfig, Users и Groups находятся под этим путем.
+          </span>
         </div>
       </div>
 
-      <div className="admin-actions">
-        <button
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
           type="button"
-          className="action-button action-button--primary"
           disabled={hasToken || pendingAction !== null}
           onClick={() => void mutateToken("issue")}
         >
-          <KeyRound size={16} aria-hidden="true" />
+          <KeyRound data-icon="inline-start" aria-hidden="true" />
           {pendingAction === "issue" ? "Выпускаем..." : "Выпустить"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="action-button"
+          variant="outline"
           disabled={!hasToken || pendingAction !== null}
           onClick={() => void mutateToken("rotate")}
         >
-          <RotateCw size={16} aria-hidden="true" />
+          <RotateCw data-icon="inline-start" aria-hidden="true" />
           {pendingAction === "rotate" ? "Ротируем..." : "Ротировать"}
-        </button>
+        </Button>
         <ConfirmSubmitButton
-          className="action-button action-button--quiet"
+          className={cn(buttonVariants({ variant: "ghost", size: "default" }))}
           disabled={!hasToken || pendingAction !== null}
           confirmMessage={`Отозвать SCIM-токен для «${providerName}»? Входящий provisioning и синхронизация каталога остановятся, пока не будет выпущен новый токен.`}
           onClick={() => void mutateToken("revoke")}
         >
-          <ShieldOff size={16} aria-hidden="true" />
+          <ShieldOff data-icon="inline-start" aria-hidden="true" />
           {pendingAction === "revoke" ? "Отзываем..." : "Отозвать"}
         </ConfirmSubmitButton>
       </div>
 
       {plainToken ? (
-        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--success)]">
-          <div className="mb-3 font-semibold">Скопируйте SCIM bearer token сейчас. Повторно он не отображается.</div>
-          <div className="grid gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">{providerName}</span>
-              <CopyButton value={plainToken} label="Скопировать токен" />
-            </div>
-            <code data-testid="created-scim-token-secret" className="inline-code-box compact-text">
-              {plainToken}
-            </code>
-            {authorizationHeader ? (
+        <Alert className={cn("border-success/30", statusSurfaceClass("positive"))}>
+          <AlertTitle>Скопируйте bearer-токен SCIM сейчас. Повторно он не отображается.</AlertTitle>
+          <AlertDescription>
+            <div className="mt-2 grid gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <code className="inline-code-box compact-text">{authorizationHeader}</code>
-                <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
+                <span className="font-medium text-foreground">{providerName}</span>
+                <CopyButton value={plainToken} label="Скопировать токен" />
               </div>
-            ) : null}
-          </div>
-        </div>
+              <code
+                data-testid="created-scim-token-secret"
+                className="block break-all rounded-md border border-border bg-muted/50 px-2.5 py-2 font-mono text-xs text-foreground"
+              >
+                {plainToken}
+              </code>
+              {authorizationHeader ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <code className="block break-all rounded-md border border-border bg-muted/50 px-2.5 py-2 font-mono text-xs text-foreground">
+                    {authorizationHeader}
+                  </code>
+                  <CopyButton value={authorizationHeader} label="Скопировать заголовок" />
+                </div>
+              ) : null}
+            </div>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {message ? (
-        <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm font-medium text-[var(--success)]">{message}</div>
+        <Alert className={cn("border-success/30", statusSurfaceClass("positive"))}>
+          <AlertDescription className="font-medium">{message}</AlertDescription>
+        </Alert>
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3 text-sm font-medium text-[var(--danger)]">{error}</div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
     </div>
   );

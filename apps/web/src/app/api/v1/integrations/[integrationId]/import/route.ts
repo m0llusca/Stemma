@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const importSchema = z.object({
   integrationRunId: z.string().trim().min(1),
-  integrationRunItemIds: z.array(z.string().trim().min(1)).min(1)
+  integrationRunItemIds: z.array(z.string().trim().min(1)).min(1).max(500)
 });
 
 export async function POST(request: Request, context: { params: Promise<{ integrationId: string }> }) {

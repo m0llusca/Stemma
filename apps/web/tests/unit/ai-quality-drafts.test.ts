@@ -48,7 +48,7 @@ describe("AI Quality Ops drafts", () => {
         actorId: "",
         reason: "Looks right"
       })
-    ).rejects.toThrow("AI draft decisions require a human actor.");
+    ).rejects.toThrow("Решение по AI-черновику требует участия человека.");
   });
 
   it("persists changed AI suggestions as a human decision", async () => {

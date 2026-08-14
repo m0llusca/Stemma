@@ -1,9 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useRef, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { ActionFlowGuard } from "@/components/action-flow-guard";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { cn } from "@/lib/utils";
 import { submitReviewState, type ReviewPanelActionState } from "@/lib/review-panel-actions";
 
 const initialState: ReviewPanelActionState = null;
@@ -12,9 +16,9 @@ function SaveDraftButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" name="intent" value="save" formNoValidate className="action-button" disabled={pending}>
+    <Button type="submit" name="intent" value="save" formNoValidate variant="outline" disabled={pending}>
       {pending ? "Сохраняем..." : "Сохранить черновик"}
-    </button>
+    </Button>
   );
 }
 
@@ -22,7 +26,12 @@ function FinalizeButton() {
   const { pending } = useFormStatus();
 
   return (
-    <ValidatedSubmitButton name="intent" value="finalize" disabled={pending}>
+    <ValidatedSubmitButton
+      name="intent"
+      value="finalize"
+      disabled={pending}
+      className={cn(buttonVariants({ variant: "default" }))}
+    >
       {pending ? "Завершаем..." : "Завершить проверку"}
     </ValidatedSubmitButton>
   );
@@ -32,16 +41,26 @@ function FinalizeAndNextButton() {
   const { pending } = useFormStatus();
 
   return (
-    <ValidatedSubmitButton name="intent" value="finalize_next" className="action-button" disabled={pending}>
+    <ValidatedSubmitButton
+      name="intent"
+      value="finalize_next"
+      disabled={pending}
+      className={cn(buttonVariants({ variant: "secondary" }))}
+    >
       {pending ? "Завершаем..." : "Завершить и взять следующий"}
     </ValidatedSubmitButton>
   );
 }
 
 export function ReviewFormShell({ className, children }: { className?: string; children: ReactNode }) {
-  const [state, formAction] = useActionState(submitReviewState, initialState);
+  const [actionState, formAction] = useActionState(submitReviewState, initialState);
+  // The bridged result covers the inline error state when the client router
+  // drops the action commit (Next 16.2.x); the redirect fallback is handled
+  // by the guard either way.
+  const [bridgedState, setBridgedState] = useState<ReviewPanelActionState>(null);
+  const state = bridgedState ?? actionState;
   const toast = useToast();
-  const messageRef = useRef<HTMLParagraphElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!state) {
@@ -62,15 +81,23 @@ export function ReviewFormShell({ className, children }: { className?: string; c
 
   return (
     <form action={formAction} className={className}>
+      <ActionFlowGuard
+        onResult={(value) => {
+          const result = value as ReviewPanelActionState;
+          if (result) setBridgedState(result);
+        }}
+      />
       {children}
-      <div className="review-actions-bar">
+      <div className="review-actions-bar flex flex-wrap items-center gap-2 border-t border-border bg-muted/40 px-4 py-3">
         <SaveDraftButton />
         <FinalizeButton />
         <FinalizeAndNextButton />
         {errorState ? (
-          <p ref={messageRef} tabIndex={-1} className="basis-full text-xs font-medium text-[var(--danger)]">
-            {errorState.message}
-          </p>
+          <div ref={messageRef} tabIndex={-1} className="basis-full outline-none">
+            <Alert variant="destructive">
+              <AlertDescription>{errorState.message}</AlertDescription>
+            </Alert>
+          </div>
         ) : null}
       </div>
     </form>

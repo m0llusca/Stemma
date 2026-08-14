@@ -1,8 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/required-mark";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
 
 type Option = { value: string; label: string };
 
@@ -33,6 +46,19 @@ type SamplingRuleFormProps = {
   rule?: SamplingRuleInitial;
 };
 
+const ANY_VALUE = "__any__";
+
+function toSelectValue(value: string) {
+  return value || ANY_VALUE;
+}
+
+function fromSelectValue(value: string | null) {
+  if (!value || value === ANY_VALUE) {
+    return "";
+  }
+  return value;
+}
+
 export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleTypeOptions, rule }: SamplingRuleFormProps) {
   const [name, setName] = useState(rule?.name ?? "");
   const [type, setType] = useState(rule?.type ?? ruleTypeOptions[0]?.value ?? "random");
@@ -58,146 +84,195 @@ export function SamplingRuleForm({ action, channelOptions, csatOptions, ruleType
   const perHundred = Math.round((clampedPercent / 100) * 100);
 
   return (
-    <div className="sampling-create">
-      <form action={action} className="sampling-create__form">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_min(280px,100%)]">
+      <form action={action} className="flex flex-col gap-4">
         {rule ? <input type="hidden" name="ruleId" value={rule.id} /> : null}
-        <div className="form-group">
-          <p className="form-group__label">Сегмент</p>
-          <div className="form-group__body">
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              <span>
+        <input type="hidden" name="type" value={type} />
+        <input type="hidden" name="channel" value={channel} />
+        <input type="hidden" name="csatBucket" value={csatBucket} />
+        {/* Зеркалим checkbox-контракт "on" для server action. */}
+        {isActive ? <input type="hidden" name="isActive" value="on" /> : null}
+
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label">Сегмент</FieldLegend>
+          <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-name">
                 Название
                 <RequiredMark />
-              </span>
-              <input name="name" value={name} onChange={(event) => setName(event.target.value)} required className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Тип
-              <select name="type" value={type} onChange={(event) => setType(event.target.value)} className="form-control">
-                {ruleTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
+              </FieldLabel>
+              <Input
+                id="sampling-rule-name"
+                name="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-type">Тип</FieldLabel>
+              <Select value={type} onValueChange={(value) => setType(value ?? ruleTypeOptions[0]?.value ?? "random")}>
+                <SelectTrigger id="sampling-rule-type" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ruleTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </FieldGroup>
+        </FieldSet>
 
-        <div className="form-group">
-          <p className="form-group__label">Условия</p>
-          <div className="form-group__body form-group__body--grid">
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Канал
-              <select name="channel" value={channel} onChange={(event) => setChannel(event.target.value)} className="form-control">
-                <option value="">Любой</option>
-                {channelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              CSAT
-              <select name="csatBucket" value={csatBucket} onChange={(event) => setCsatBucket(event.target.value)} className="form-control">
-                <option value="">Любой</option>
-                {csatOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Линия
-              <input name="supportLine" value={supportLine} onChange={(event) => setSupportLine(event.target.value)} placeholder="1ЛП" className="form-control" />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Тег
-              <input name="tag" value={tag} onChange={(event) => setTag(event.target.value)} placeholder="new_hire" className="form-control" />
-            </label>
-          </div>
-        </div>
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label">Условия</FieldLegend>
+          <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-channel">Канал</FieldLabel>
+              <Select value={toSelectValue(channel)} onValueChange={(value) => setChannel(fromSelectValue(value))}>
+                <SelectTrigger id="sampling-rule-channel" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY_VALUE}>Любой</SelectItem>
+                  {channelOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-csat">CSAT</FieldLabel>
+              <Select value={toSelectValue(csatBucket)} onValueChange={(value) => setCsatBucket(fromSelectValue(value))}>
+                <SelectTrigger id="sampling-rule-csat" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY_VALUE}>Любой</SelectItem>
+                  {csatOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-line">Линия</FieldLabel>
+              <Input
+                id="sampling-rule-line"
+                name="supportLine"
+                value={supportLine}
+                onChange={(event) => setSupportLine(event.target.value)}
+                placeholder="1ЛП"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-tag">Тег</FieldLabel>
+              <Input
+                id="sampling-rule-tag"
+                name="tag"
+                value={tag}
+                onChange={(event) => setTag(event.target.value)}
+                placeholder="new_hire"
+              />
+            </Field>
+          </FieldGroup>
+        </FieldSet>
 
-        <div className="form-group">
-          <p className="form-group__label">Доля</p>
-          <div className="form-group__body form-group__body--grid">
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Доля, %
-              <input
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label">Доля</FieldLegend>
+          <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-percent">Доля, %</FieldLabel>
+              <Input
+                id="sampling-rule-percent"
                 name="targetPercent"
                 type="number"
-                min="1"
-                max="100"
+                min={1}
+                max={100}
                 value={targetPercent}
                 onChange={(event) => setTargetPercent(Number(event.target.value))}
-                className="form-control tabular-nums"
+                className="tabular-nums"
               />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Приоритет
-              <input
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="sampling-rule-priority">Приоритет</FieldLabel>
+              <Input
+                id="sampling-rule-priority"
                 name="priority"
                 type="number"
                 value={priority}
                 onChange={(event) => setPriority(Number(event.target.value))}
-                className="form-control tabular-nums"
+                className="tabular-nums"
               />
-            </label>
-          </div>
-          <label className="mt-2 flex items-center gap-2 text-sm font-medium text-[var(--text-body)]">
-            <input name="isActive" type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
-            Включить сразу
-          </label>
-        </div>
+            </Field>
+          </FieldGroup>
+          <Field orientation="horizontal" className="w-auto items-center gap-2">
+            <Switch checked={isActive} onCheckedChange={setIsActive} aria-label="Включить сразу" />
+            <FieldLabel className="font-normal">Включить сразу</FieldLabel>
+          </Field>
+        </FieldSet>
 
         <div className="flex justify-end">
           {/* Единый паттерн сабмита (#17): кнопка всегда активна, полевые правила
               закрывает нативный required при отправке. */}
-          <button type="submit" className="action-button action-button--primary">
-            {rule ? "Сохранить правило" : "Создать правило"}
-          </button>
+          <Button type="submit">{rule ? "Сохранить правило" : "Создать правило"}</Button>
         </div>
       </form>
 
-      <aside className="sampling-plan" aria-live="polite" aria-label="Сводка плана выборки">
-        <div className="sampling-plan__head">
-          <p className="ops-panel__eyebrow">План выборки</p>
-          <Chip tone={isActive ? "success" : "neutral"} size="xs">
-            {isActive ? "Активно" : "Выключено"}
-          </Chip>
-        </div>
-        <p className="sampling-plan__name">{name.trim() || "Без названия"}</p>
-
-        <div className="sampling-plan__metric">
-          <span className="sampling-plan__metric-label">Доля обращений</span>
-          <span className="sampling-plan__metric-value tabular-nums">{clampedPercent}%</span>
-          <span className="sampling-plan__metric-hint tabular-nums">≈ {perHundred} из 100 обращений</span>
-        </div>
-
-        <dl className="sampling-plan__rows">
-          <div className="sampling-plan__row">
-            <dt>Тип</dt>
-            <dd>{typeLabel}</dd>
+      <Card size="sm" aria-live="polite" aria-label="Сводка плана выборки">
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between gap-2">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide">План выборки</CardDescription>
+            <Badge
+              variant={isActive ? "outline" : "secondary"}
+              className={isActive ? `border-transparent ${statusSurfaceClass("positive")}` : undefined}
+            >
+              {isActive ? "Активно" : "Выключено"}
+            </Badge>
           </div>
-          <div className="sampling-plan__row">
-            <dt>Приоритет</dt>
-            <dd className="tabular-nums">{Number.isFinite(priority) ? priority : 0}</dd>
+          <CardTitle className="text-base">{name.trim() || "Без названия"}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Доля обращений</span>
+            <span className="text-2xl font-semibold tabular-nums tracking-tight">{clampedPercent}%</span>
+            <span className="text-xs tabular-nums text-muted-foreground">≈ {perHundred} из 100 обращений</span>
           </div>
-        </dl>
 
-        <p className="form-group__label">Условия отбора</p>
-        {conditions.length > 0 ? (
-          <div className="sampling-plan__conditions">
-            {conditions.map((condition) => (
-              <Chip key={condition.label} tone="neutral" size="xs" label={condition.label} value={condition.value} />
-            ))}
+          <dl className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-muted-foreground">Тип</dt>
+              <dd>{typeLabel}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-muted-foreground">Приоритет</dt>
+              <dd className="tabular-nums">{Number.isFinite(priority) ? priority : 0}</dd>
+            </div>
+          </dl>
+
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Условия отбора</p>
+            {conditions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {conditions.map((condition) => (
+                  <Badge key={condition.label} variant="secondary">
+                    {condition.label}: {condition.value}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <FieldDescription>Без условий — правило применится ко всем обращениям выбранного типа.</FieldDescription>
+            )}
           </div>
-        ) : (
-          <p className="record-meta">Без условий — правило применится ко всем обращениям выбранного типа.</p>
-        )}
-      </aside>
+        </CardContent>
+      </Card>
     </div>
   );
 }

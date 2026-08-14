@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 export type CertificationEvidenceListItem = {
   id: string;
@@ -9,6 +12,38 @@ export type CertificationEvidenceListItem = {
   recordedAt: Date | string;
   actor?: { name: string | null; email: string | null } | null;
 };
+
+export function IntegrationFact({
+  label,
+  children,
+  technical = false,
+  className
+}: {
+  label: string;
+  children: ReactNode;
+  technical?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid min-w-0 grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 border-b border-border py-2 last:border-b-0",
+        className
+      )}
+    >
+      <span className="min-w-0 break-words text-xs font-medium text-muted-foreground">{label}</span>
+      <div
+        className={cn(
+          "min-w-0 text-sm text-foreground",
+          technical ? "[overflow-wrap:anywhere]" : "break-words"
+        )}
+        data-technical={technical ? "true" : undefined}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function evidenceDate(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : value;
@@ -35,20 +70,28 @@ export function CertificationEvidenceList({
   emptyText?: string;
 }) {
   if (evidence.length === 0) {
-    return <p className="record-meta">{emptyText}</p>;
+    return <p className="text-sm text-muted-foreground">{emptyText}</p>;
   }
 
   return (
     <div className="grid min-w-0 gap-2">
       {evidence.map((item) => (
-        <div key={item.id} className="admin-tile admin-tile--compact">
-          <span className="admin-tile__icon admin-tile__icon--plain">E</span>
-          <span className="admin-tile__body">
-            <span className="record-title record-title--tight">{evidenceResultLabel(item.result)}</span>
-            <span className="record-meta compact-text">
+        <div
+          key={item.id}
+          className="flex min-w-0 items-start gap-3 rounded-lg border border-border bg-card p-3"
+        >
+          <span
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-muted-foreground"
+            aria-hidden="true"
+          >
+            E
+          </span>
+          <span className="grid min-w-0 gap-0.5">
+            <span className="text-sm font-semibold text-foreground">{evidenceResultLabel(item.result)}</span>
+            <span className="text-xs text-muted-foreground">
               {evidenceDate(item.recordedAt)} · run {item.runId.slice(0, 8)}
             </span>
-            <span className="record-meta compact-text">
+            <span className="text-xs text-muted-foreground">
               {item.envGate} · {item.actor?.name ?? item.actor?.email ?? "актор не указан"}
             </span>
           </span>
@@ -68,10 +111,14 @@ export function SectionHeader({
   description?: string;
 }) {
   return (
-    <div className="min-w-0">
-      {eyebrow ? <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">{eyebrow}</p> : null}
-      <h3 className={`${eyebrow ? "mt-1 " : ""}text-sm font-semibold text-[var(--foreground)]`}>{title}</h3>
-      {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-[var(--text-muted)] compact-text">{description}</p> : null}
+    <div className="grid min-w-0 gap-1">
+      {eyebrow ? (
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{eyebrow}</p>
+      ) : null}
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {description ? (
+        <p className="max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p>
+      ) : null}
     </div>
   );
 }
@@ -90,14 +137,15 @@ export function Surface({
   bodyClassName?: string;
 }) {
   return (
-    <div className={`panel min-w-0 overflow-clip ${className}`}>
+    <Card className={cn("min-w-0 overflow-clip py-0", className)}>
       {title ? (
-        <div className="border-b border-[var(--border)] px-5 py-4">
-          <SectionHeader title={title} description={description} />
-        </div>
+        <CardHeader className="border-b border-border py-4">
+          <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+          {description ? <CardDescription>{description}</CardDescription> : null}
+        </CardHeader>
       ) : null}
-      <div className={bodyClassName}>{children}</div>
-    </div>
+      <CardContent className={cn(bodyClassName)}>{children}</CardContent>
+    </Card>
   );
 }
 
@@ -116,9 +164,7 @@ export function DataTable({
 }) {
   return (
     <Surface title={title} description={description} bodyClassName="p-0" className={className}>
-      <div className="scroll-area scroll-area--responsive-table">
-        <table className={`table-fixed-copy w-full ${minWidth} border-collapse text-left text-sm`}>{children}</table>
-      </div>
+      <Table className={cn("text-left", minWidth)}>{children}</Table>
     </Surface>
   );
 }
@@ -129,7 +175,12 @@ export function CodeBlock({ children, maxHeight = "max-h-[320px]" }: { children:
       <div className="flex justify-end">
         <CopyButton value={children} />
       </div>
-      <pre className={`code-surface ${maxHeight} overflow-auto rounded-md p-4 text-xs leading-5`}>
+      <pre
+        className={cn(
+          "overflow-auto rounded-md border border-border bg-muted/40 p-4 text-xs leading-5",
+          maxHeight
+        )}
+      >
         <code>{children}</code>
       </pre>
     </div>

@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
       findUnique: vi.fn(),
       update: vi.fn()
     },
+    apiRateLimit: {
+      upsert: vi.fn()
+    },
     conversation: {
       findFirst: vi.fn(),
       upsert: vi.fn()
@@ -78,6 +81,7 @@ describe("custom conversation API", () => {
       expiresAt: null
     });
     mocks.prisma.apiToken.update.mockResolvedValue({});
+    mocks.prisma.apiRateLimit.upsert.mockResolvedValue({ requestCount: 1 });
     mocks.prisma.samplingRule.findMany.mockResolvedValue([]);
     mocks.prisma.message.deleteMany.mockResolvedValue({ count: 0 });
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));

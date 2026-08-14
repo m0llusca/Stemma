@@ -8,17 +8,15 @@ import {
   Bell,
   ChevronDown,
   ClipboardCheck,
-  Command,
   GraduationCap,
   Menu,
   MessageSquareText,
   Scale,
   Search,
   SlidersHorizontal,
-  TrendingUp,
-  X
+  TrendingUp
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   activeAreaForPath,
   topNavAreas,
@@ -27,9 +25,36 @@ import {
   type ShellNavAreaIcon,
   type ShellNavigation
 } from "@/lib/shell/navigation";
-import { getTabbableElements, nextTabStop } from "@/lib/ui/focus-trap";
-import { resolveWorkspaceBranding, type WorkspaceBranding } from "@/lib/ui-theme";
+import {
+  resolveWorkspaceBranding,
+  type WorkspaceBranding
+} from "@/lib/ui-branding";
 import { switchCurrentUser } from "@/lib/user-actions";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut
+} from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Separator } from "@/components/ui/separator";
 
 type WorkPulseItem = {
   href: string;
@@ -82,6 +107,16 @@ function commandMatches(command: ShellCommandItem, query: string) {
   );
 }
 
+function pulseBadgeVariant(tone?: WorkPulseItem["tone"]) {
+  if (tone === "risk") {
+    return "destructive" as const;
+  }
+  if (tone === "warning") {
+    return "secondary" as const;
+  }
+  return "outline" as const;
+}
+
 export function AppNavShell({
   navigation,
   pulseItems,
@@ -96,36 +131,20 @@ export function AppNavShell({
   const [commandOpen, setCommandOpen] = useState(false);
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const lastTriggerRef = useRef<HTMLElement | null>(null);
-  const areaMenuRef = useRef<HTMLDivElement>(null);
-  const areaMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const activeAreaId = useMemo(() => activeAreaForPath(pathname), [pathname]);
+  const activeArea = areas.find((area) => area.id === activeAreaId);
   const visibleCommands = useMemo(
     () => navigation.commandItems.filter((command) => commandMatches(command, query)).slice(0, 9),
     [navigation.commandItems, query]
   );
-  const demoUserName = demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ?? user.name;
+  const demoUserName =
+    demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ??
+    user.name;
+  const ActiveAreaIcon = activeArea ? areaIcons[activeArea.icon] : null;
 
-  const openCommand = useCallback((event?: { currentTarget: HTMLElement }) => {
-    if (event) {
-      lastTriggerRef.current = event.currentTarget;
-    } else if (typeof document !== "undefined") {
-      lastTriggerRef.current = document.activeElement as HTMLElement | null;
-    }
-
+  const openCommand = useCallback(() => {
     setCommandOpen(true);
-  }, []);
-
-  const closeCommand = useCallback(() => {
-    setCommandOpen(false);
-  }, []);
-
-  const closeAreaMenu = useCallback(() => {
-    setAreaMenuOpen(false);
   }, []);
 
   useEffect(() => {
@@ -153,227 +172,115 @@ export function AppNavShell({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openCommand]);
 
-  // Reset the keyboard highlight whenever the result set changes.
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query, commandOpen]);
-
-  // While the palette is open: lock body scroll, mark the rest of the page
-  // inert/aria-hidden, focus the search input, and restore focus + page state
-  // on close. The palette dialog is rendered inside this header, so we hide the
-  // sibling page content rather than the header itself.
-  useEffect(() => {
-    if (!commandOpen || typeof document === "undefined") {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const inertTargets = Array.from(document.querySelectorAll<HTMLElement>("body > .page > *")).filter(
-      (node) => !node.contains(panelRef.current)
-    );
-    for (const node of inertTargets) {
-      node.setAttribute("aria-hidden", "true");
-      node.setAttribute("inert", "");
-    }
-
-    // Escape closes from anywhere, not only when focus is inside the panel.
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeCommand();
-      }
-    };
-    window.addEventListener("keydown", handleEscape);
-
-    searchInputRef.current?.focus();
-
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = previousOverflow;
-      for (const node of inertTargets) {
-        node.removeAttribute("aria-hidden");
-        node.removeAttribute("inert");
-      }
-
-      const trigger = lastTriggerRef.current;
-      if (trigger && typeof trigger.focus === "function") {
-        trigger.focus();
-      }
-    };
-  }, [commandOpen, closeCommand]);
-
-  const handlePaletteKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeCommand();
-        return;
-      }
-
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setActiveIndex((index) => (visibleCommands.length === 0 ? 0 : (index + 1) % visibleCommands.length));
-        return;
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setActiveIndex((index) =>
-          visibleCommands.length === 0 ? 0 : (index - 1 + visibleCommands.length) % visibleCommands.length
-        );
-        return;
-      }
-
-      if (event.key === "Enter") {
-        const command = visibleCommands[activeIndex];
-        if (command) {
-          event.preventDefault();
-          closeCommand();
-          router.push(command.href);
-        }
-        return;
-      }
-
-      if (event.key === "Tab") {
-        const panel = panelRef.current;
-        if (!panel) {
-          return;
-        }
-
-        const tabbable = getTabbableElements(panel);
-        const target = nextTabStop(tabbable, document.activeElement, event.shiftKey);
-        if (target) {
-          event.preventDefault();
-          target.focus();
-        }
-      }
-    },
-    [activeIndex, closeCommand, router, visibleCommands]
-  );
-
-  // Mobile area-disclosure menu: close on route change so a navigation always
-  // dismisses the panel even when the click target is intercepted upstream.
+  // Mobile area menu: close on route change so a navigation always dismisses the panel.
   useEffect(() => {
     setAreaMenuOpen(false);
   }, [pathname]);
 
-  // While the area menu is open: Escape closes it, an outside pointer dismisses
-  // it, and focus is moved into the panel then restored to the trigger on close.
+  // Reset search text when the palette closes so the next open starts clean.
   useEffect(() => {
-    if (!areaMenuOpen || typeof document === "undefined") {
-      return;
+    if (!commandOpen) {
+      setQuery("");
     }
+  }, [commandOpen]);
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeAreaMenu();
-      }
-    };
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (
-        target &&
-        !areaMenuRef.current?.contains(target) &&
-        !areaMenuTriggerRef.current?.contains(target)
-      ) {
-        closeAreaMenu();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handlePointerDown);
-
-    const firstItem = areaMenuRef.current?.querySelector<HTMLElement>("[role='menuitem']");
-    firstItem?.focus();
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handlePointerDown);
-      if (areaMenuTriggerRef.current && typeof areaMenuTriggerRef.current.focus === "function") {
-        areaMenuTriggerRef.current.focus();
-      }
-    };
-  }, [areaMenuOpen, closeAreaMenu]);
-
-  const handleAreaMenuKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const menu = areaMenuRef.current;
-      if (!menu) {
-        return;
-      }
-
-      const items = getTabbableElements(menu);
-      if (items.length === 0) {
-        return;
-      }
-
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const target = nextTabStop(items, document.activeElement, event.key === "ArrowUp");
-        target?.focus();
-        return;
-      }
-
-      if (event.key === "Home") {
-        event.preventDefault();
-        items[0]?.focus();
-        return;
-      }
-
-      if (event.key === "End") {
-        event.preventDefault();
-        items[items.length - 1]?.focus();
-        return;
-      }
-
-      if (event.key === "Tab") {
-        const target = nextTabStop(items, document.activeElement, event.shiftKey);
-        if (target) {
-          event.preventDefault();
-          target.focus();
-        }
-      }
+  const runCommand = useCallback(
+    (href: string) => {
+      setCommandOpen(false);
+      router.push(href);
     },
-    []
+    [router]
   );
 
   return (
-    <header className="app-nav" aria-label="Глобальная навигация">
-      <div className="app-nav__inner">
-        <Link href="/dashboard" className="app-nav__brand" aria-label={activeBranding.brandLogoAlt}>
-          <span className={`app-nav__logo ${activeBranding.brandLogoUrl ? "app-nav__logo--image" : ""}`}>
+    <header
+      className="sticky top-0 z-20 border-b border-border bg-background"
+      aria-label="Глобальная навигация"
+      data-slot="app-nav"
+    >
+      <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-4 md:px-6">
+        <Link
+          href="/dashboard"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          aria-label={activeBranding.brandLogoAlt}
+        >
+          <span
+            className={cn(
+              "flex size-8 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted text-sm font-bold text-foreground",
+              activeBranding.brandLogoUrl && "bg-background"
+            )}
+          >
             {activeBranding.brandLogoUrl ? (
-              <img src={activeBranding.brandLogoUrl} alt={activeBranding.brandLogoAlt} />
+              // eslint-disable-next-line @next/next/no-img-element -- workspace-branded remote/static logo URL
+              <img
+                src={activeBranding.brandLogoUrl}
+                alt={activeBranding.brandLogoAlt}
+                className="size-full object-contain p-1"
+              />
             ) : (
               activeBranding.brandMark
             )}
           </span>
         </Link>
 
-        {areas.length > 0 ? (
-          <div className="app-nav__menu">
-            <button
-              ref={areaMenuTriggerRef}
-              type="button"
-              className="app-nav__menu-trigger"
-              aria-haspopup="menu"
-              aria-expanded={areaMenuOpen}
-              aria-label="Разделы"
-              onClick={() => setAreaMenuOpen((open) => !open)}
-            >
-              <Menu size={18} aria-hidden="true" />
-            </button>
-            {areaMenuOpen ? (
-              <div
-                ref={areaMenuRef}
-                className="app-nav__menu-popover"
-                role="menu"
+        <div className="@container/nav min-w-0 flex-1">
+          {areas.length > 0 ? (
+            <>
+              <DropdownMenu open={areaMenuOpen} onOpenChange={setAreaMenuOpen}>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="min-h-11 min-w-11 md:w-auto md:px-3 @2xl/nav:hidden"
+                      aria-label="Разделы"
+                    />
+                  }
+                >
+                  <Menu className={cn(activeArea && "md:hidden")} />
+                  {activeArea && ActiveAreaIcon ? (
+                    <>
+                      <ActiveAreaIcon className="hidden md:block" data-icon="inline-start" />
+                      <span className="hidden md:inline">{activeArea.label}</span>
+                    </>
+                  ) : (
+                    <span className="hidden md:inline">Разделы</span>
+                  )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-56"
+                  aria-label="Основные разделы"
+                >
+                  <DropdownMenuGroup>
+                    {areas.map((area) => {
+                      const Icon = areaIcons[area.icon];
+                      const isActive = area.id === activeAreaId;
+
+                      return (
+                        <DropdownMenuItem
+                          key={area.id}
+                          render={<Link href={area.href} />}
+                          nativeButton={false}
+                          title={area.description}
+                          aria-current={isActive ? "page" : undefined}
+                          className={cn(isActive && "bg-accent text-accent-foreground")}
+                          onClick={() => setAreaMenuOpen(false)}
+                        >
+                          <Icon />
+                          <span>{area.label}</span>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <nav
+                className="hidden min-w-0 items-center gap-0.5 @2xl/nav:flex"
                 aria-label="Основные разделы"
-                onKeyDown={handleAreaMenuKeyDown}
               >
                 {areas.map((area) => {
                   const Icon = areaIcons[area.icon];
@@ -383,190 +290,279 @@ export function AppNavShell({
                     <Link
                       key={area.id}
                       href={area.href}
-                      role="menuitem"
+                      data-slot="button"
                       title={area.description}
                       aria-current={isActive ? "page" : undefined}
-                      className={`app-nav__menu-item ${isActive ? "app-nav__menu-item--active" : ""}`}
-                      onClick={closeAreaMenu}
+                      className={cn(
+                        buttonVariants({
+                          variant: isActive ? "secondary" : "ghost",
+                          size: "sm"
+                        }),
+                        "shrink-0"
+                      )}
                     >
-                      <Icon size={16} aria-hidden="true" />
+                      <Icon data-icon="inline-start" />
                       <span>{area.label}</span>
                     </Link>
                   );
                 })}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+              </nav>
+            </>
+          ) : null}
+        </div>
 
-        {areas.length > 0 ? (
-          <nav className="app-nav__areas" aria-label="Основные разделы">
-            {areas.map((area) => {
-              const Icon = areaIcons[area.icon];
-              const isActive = area.id === activeAreaId;
-
-              return (
-                <Link
-                  key={area.id}
-                  href={area.href}
-                  title={area.description}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`app-nav__area ${isActive ? "app-nav__area--active" : ""}`}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  <span>{area.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        ) : null}
-
-        <button
+        <Button
           type="button"
-          className="app-command-trigger app-nav__command"
+          variant="outline"
+          size="sm"
+          className="min-w-0 gap-2 text-muted-foreground md:w-9 md:flex-none md:px-0 xl:w-48 xl:px-3 xl:justify-start"
+          aria-label="Поиск или команда"
           aria-haspopup="dialog"
           aria-expanded={commandOpen}
           onClick={openCommand}
         >
-          <Search size={15} aria-hidden="true" />
-          <span>Поиск или команда</span>
-          <kbd>⌘K</kbd>
-        </button>
+          <Search data-icon="inline-start" />
+          <span className="hidden truncate xl:inline">Поиск или команда</span>
+          <Kbd className="ml-auto hidden xl:inline-flex">⌘K</Kbd>
+        </Button>
 
-        <div className="app-nav__work-tray" aria-label="Рабочий пульс">
-          <div className="work-pulse">
+        <Separator orientation="vertical" className="hidden h-6 sm:block" />
+
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2" aria-label="Рабочий пульс">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-11 sm:hidden"
+                  aria-label="Рабочий пульс"
+                />
+              }
+            >
+              <Activity />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-60"
+              // Base UI names the popup after the icon-only trigger (aria-labelledby →
+              // trigger id, empty text), which would erase this menu's accessible name;
+              // pin the name to the visible label instead.
+              aria-labelledby="work-pulse-menu-label"
+            >
+              <DropdownMenuGroup>
+                <DropdownMenuLabel id="work-pulse-menu-label">Рабочий пульс</DropdownMenuLabel>
+                {pulseItems.map((item) => (
+                  <DropdownMenuItem
+                    key={item.label}
+                    render={
+                      <Link
+                        href={item.href}
+                        aria-label={`${item.label}: ${item.value}`}
+                      />
+                    }
+                    nativeButton={false}
+                  >
+                    <span>{item.label}</span>
+                    <Badge
+                      variant={pulseBadgeVariant(item.tone)}
+                      className="ml-auto"
+                    >
+                      {item.value}
+                    </Badge>
+                  </DropdownMenuItem>
+                ))}
+                {canTakeNextCase ? (
+                  <DropdownMenuItem
+                    render={
+                      <Link
+                        href="/reviews?status=unreviewed"
+                        aria-label="Взять следующий кейс"
+                      />
+                    }
+                    nativeButton={false}
+                  >
+                    <ArrowRight />
+                    <span>Взять следующий кейс</span>
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="flex min-w-0 items-center gap-1">
             {pulseItems.map((item) => (
-              <Link key={item.label} href={item.href} className={`work-pulse__item ${item.tone ? `work-pulse__item--${item.tone}` : ""}`}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
+              <Link
+                key={item.label}
+                href={item.href}
+                data-slot="button"
+                aria-label={`${item.label}: ${item.value}`}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "hidden h-8 shrink-0 gap-1.5 px-1.5 text-muted-foreground sm:inline-flex"
+                )}
+              >
+                <span className="hidden text-xs 2xl:inline">{item.label}</span>
+                <Badge variant={pulseBadgeVariant(item.tone)}>{item.value}</Badge>
               </Link>
             ))}
           </div>
           {canTakeNextCase ? (
-            <Link href="/reviews?status=unreviewed" className="app-nav__primary" aria-label="Взять следующий кейс">
-              <span className="app-nav__primary-label">Взять кейс</span>
-              <ArrowRight size={14} aria-hidden="true" />
+            <Link
+              href="/reviews?status=unreviewed"
+              data-slot="button"
+              aria-label="Взять следующий кейс"
+              className={cn(
+                buttonVariants({ size: "sm" }),
+                "hidden shrink-0 sm:inline-flex"
+              )}
+            >
+              <span className="hidden xl:inline">Взять кейс</span>
+              <ArrowRight data-icon="inline-end" />
             </Link>
           ) : null}
         </div>
 
+        <Separator orientation="vertical" className="hidden h-6 sm:block" />
+
         {demoSwitcher ? (
-          <div className="app-nav__identity-slot">
-            <details className="app-nav__identity-menu">
-              <summary className="app-nav__identity-summary">
-                <span className="app-nav__identity-copy">
-                  <strong>{demoSwitcher.roleLabel}</strong>
-                  <small>{demoUserName}</small>
-                </span>
-                <ChevronDown size={14} aria-hidden="true" />
-              </summary>
-              <div className="app-nav__identity-popover">
-                <form action={switchCurrentUser} className="app-nav__identity-form">
-                  <label>
-                    <span>Демо-роль</span>
-                    <select name="userId" defaultValue={demoSwitcher.currentUserId} aria-label="Демо-пользователь">
-                      {demoSwitcher.users.map((workspaceUser) => (
-                        <option key={workspaceUser.id} value={workspaceUser.id}>
-                          {workspaceUser.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="submit">Сменить</button>
-                  <small>{demoSwitcher.roleLabel}</small>
-                </form>
-                <form action="/auth/logout" method="post" className="app-nav__logout-form">
-                  <button type="submit">Выйти</button>
-                </form>
-              </div>
-            </details>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-11 min-w-11 max-w-44 shrink-0 gap-1.5"
+                  aria-label={`Профиль: ${demoSwitcher.roleLabel}, ${demoUserName}`}
+                />
+              }
+            >
+              <span className="hidden min-w-0 flex-col items-start gap-0.5 text-left xl:flex">
+                <span className="truncate text-sm font-medium leading-none">{demoSwitcher.roleLabel}</span>
+                <span className="truncate text-xs text-muted-foreground">{demoUserName}</span>
+              </span>
+              <ChevronDown data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Демо-доступ</DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <form action={switchCurrentUser} className="flex flex-col gap-2 px-1.5 pb-1.5">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">Демо-роль</span>
+                  <NativeSelect
+                    name="userId"
+                    defaultValue={demoSwitcher.currentUserId}
+                    aria-label="Демо-пользователь"
+                    className="w-full"
+                  >
+                    {demoSwitcher.users.map((workspaceUser) => (
+                      <NativeSelectOption key={workspaceUser.id} value={workspaceUser.id}>
+                        {workspaceUser.name}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </label>
+                <Button type="submit" size="sm">
+                  Сменить
+                </Button>
+                <span className="text-xs text-muted-foreground">{demoSwitcher.roleLabel}</span>
+              </form>
+              <DropdownMenuSeparator />
+              <form action="/auth/logout" method="post" className="px-1.5 pb-1">
+                <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
+                  Выйти
+                </Button>
+              </form>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
-          <div className="app-nav__identity-slot">
-            <details className="app-nav__identity-menu">
-              <summary className="app-nav__identity-summary" title={user.email}>
-                <span className="app-nav__identity-copy">
-                  <strong>{user.name}</strong>
-                  <small>{user.email}</small>
-                </span>
-                <ChevronDown size={14} aria-hidden="true" />
-              </summary>
-              <div className="app-nav__identity-popover">
-                <span className="app-nav__identity-user" title={user.email}>
-                  <Bell size={14} aria-hidden="true" />
-                  {user.name}
-                </span>
-                <form action="/auth/logout" method="post" className="app-nav__logout-form">
-                  <button type="submit">Выйти</button>
-                </form>
-              </div>
-            </details>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-11 min-w-11 max-w-48 shrink-0 gap-1.5"
+                  title={user.email}
+                  aria-label={`Профиль: ${user.name}`}
+                />
+              }
+            >
+              <span className="hidden min-w-0 flex-col items-start gap-0.5 text-left xl:flex">
+                <span className="truncate text-sm font-medium leading-none">{user.name}</span>
+                <span className="hidden truncate text-xs text-muted-foreground xl:inline">{user.email}</span>
+              </span>
+              <ChevronDown data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="flex items-center gap-1.5 font-normal" title={user.email}>
+                  <Bell />
+                  <span className="truncate">{user.name}</span>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <form action="/auth/logout" method="post" className="px-1.5 pb-1">
+                <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
+                  Выйти
+                </Button>
+              </form>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
-      {commandOpen ? (
-        <div
-          className="command-palette"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeCommand();
-            }
-          }}
-        >
-          <div
-            ref={panelRef}
-            className="command-palette__panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Поиск и команды"
-            onKeyDown={handlePaletteKeyDown}
-          >
-            <div className="command-palette__search">
-              <Command size={16} aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Найти раздел, очередь, интеграцию или действие"
-                aria-label="Поиск или команда"
-                role="combobox"
-                aria-expanded={visibleCommands.length > 0}
-                aria-controls="command-palette-results"
-              />
-              <button type="button" onClick={closeCommand} aria-label="Закрыть поиск">
-                <X size={16} aria-hidden="true" />
-              </button>
-            </div>
-            <div className="command-palette__list" id="command-palette-results" role="listbox">
-              {visibleCommands.length > 0 ? (
-                visibleCommands.map((command, index) => (
-                  <Link
-                    key={`${command.kind}:${command.href}:${command.label}`}
-                    href={command.href}
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    data-active={index === activeIndex ? "true" : undefined}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={closeCommand}
-                  >
-                    <span>
-                      <strong>{command.label}</strong>
-                      <small>{command.description}</small>
-                    </span>
-                    <span className="command-palette__meta">
-                      {command.kind === "action" ? <em className="command-palette__kind">Действие</em> : null}
-                      <em>{command.modeLabel}</em>
-                    </span>
-                  </Link>
-                ))
-              ) : (
-                <div className="command-palette__empty">Ничего не найдено. Попробуйте “очередь”, “интеграции” или “обучение”.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <CommandDialog
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        title="Поиск и команды"
+        description="Найти раздел, очередь, интеграцию или действие"
+        className="sm:max-w-lg"
+      >
+        <Command shouldFilter={false} className="rounded-xl!">
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Найти раздел, очередь, интеграцию или действие"
+            aria-label="Поиск или команда"
+          />
+          <CommandList>
+            <CommandEmpty>
+              Ничего не найдено. Попробуйте “очередь”, “интеграции” или “обучение”.
+            </CommandEmpty>
+            <CommandGroup>
+              {visibleCommands.map((command) => (
+                <CommandItem
+                  key={`${command.kind}:${command.href}:${command.label}`}
+                  value={`${command.label} ${command.description} ${command.modeLabel} ${command.aliases.join(" ")}`}
+                  onSelect={() => runCommand(command.href)}
+                  className="items-start py-2"
+                >
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="font-medium">{command.label}</span>
+                    <span className="text-xs text-muted-foreground">{command.description}</span>
+                  </span>
+                  <span className="ml-auto flex shrink-0 items-center gap-1.5 self-center">
+                    {command.kind === "action" ? (
+                      <Badge variant="outline" className="font-normal">
+                        Действие
+                      </Badge>
+                    ) : null}
+                    <CommandShortcut className="tracking-normal normal-case">
+                      {command.modeLabel}
+                    </CommandShortcut>
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </CommandDialog>
     </header>
   );
 }

@@ -1,7 +1,23 @@
 import { Inbox } from "lucide-react";
 import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import type { ReviewQueueAssigneeDto, ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import {
@@ -17,6 +33,7 @@ import {
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
 import { formatQualityScore } from "@/lib/score-display";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
+import { cn } from "@/lib/utils";
 
 type QueueTableProps = {
   conversations: ReviewQueueConversationDto[];
@@ -56,185 +73,229 @@ function initials(name: string) {
 export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
   if (conversations.length === 0) {
     return (
-      <div className="panel queue-empty-state">
-        <EmptyState
-          icon={<Inbox size={26} aria-hidden="true" />}
-          title="Очередь пуста"
-          description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
-          action={
-            <Link href="/reviews" className="action-button action-button--primary">
-              Сбросить фильтры
-            </Link>
-          }
-        />
-      </div>
+      <Card className="queue-empty-state overflow-clip">
+        <CardContent>
+          <EmptyState
+            icon={<Inbox size={26} aria-hidden="true" />}
+            title="Очередь пуста"
+            description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
+            action={
+              <Button render={<Link href="/reviews" />} nativeButton={false}>
+                Сбросить фильтры
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <form action={bulkUpdateReviewQueue} className="panel queue-board overflow-clip">
+    <form action={bulkUpdateReviewQueue} className="queue-board overflow-clip">
       <input type="hidden" name="returnTo" value={returnTo} />
 
-      <details className="queue-bulk-actions">
-        <summary className="queue-bulk-actions__summary">
-          <span>Массовые действия</span>
-          <span className="queue-filterbar__summary-action">
-            <span className="queue-filterbar__summary-closed">Раскрыть</span>
-            <span className="queue-filterbar__summary-open">Скрыть</span>
-            <span className="queue-bulk-actions__count">{conversations.length}</span>
-          </span>
-        </summary>
-        <div className="queue-bulk-actions__body">
-          <label className="queue-bulk-actions__field">
-            <span>Состояние</span>
-            <select name="qaStatus" defaultValue="" className="form-control">
-              <option value="">Не менять</option>
-              {Object.entries(qaStatusLabels).map(([status, label]) => (
-                <option key={status} value={status}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="queue-bulk-actions__field">
-            <span>Проверяющий</span>
-            <select name="qaAssigneeId" defaultValue="" className="form-control">
-              <option value="">Не менять</option>
-              {qaAssignees.map((assignee) => (
-                <option key={assignee.id} value={assignee.id}>
-                  {assignee.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="queue-bulk-actions__field">
-            <span>Срок</span>
-            <input name="reviewDueAt" type="date" className="form-control" />
-          </label>
-          <ValidatedSubmitButton
-            minCheckedNames={["conversationId"]}
-            requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt"]}
-            className="action-button action-button--primary queue-bulk-actions__submit"
-          >
-            Обновить
-          </ValidatedSubmitButton>
-        </div>
-      </details>
-
-      <div className="queue-list" role="list">
-        {conversations.map((conversation) => {
-          const latestFinalizedReview =
-            conversation.qaStatus === "FINALIZED"
-              ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
-              : undefined;
-          const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
-          const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
-          const isOverdue =
-            reviewDueAt !== null &&
-            reviewDueAt < new Date() &&
-            conversation.qaStatus !== "FINALIZED";
-          const reviewState = resolveReviewState({
-            qaStatus: conversation.qaStatus,
-            hasDraftReview: Boolean(draftReview),
-            hasFinalizedReview: Boolean(latestFinalizedReview)
-          });
-          const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
-          const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
-          const hasCritical = Boolean(latestFinalizedReview?.criticalError);
-          const appealLabel = latestFinalizedReview
-            ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
-            : "";
-          const reanswerLabel = latestFinalizedReview
-            ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
-            : "Переответ";
-          const dueLabel = reviewDueAt
-            ? reviewDueAt.toLocaleDateString("ru-RU")
-            : conversation.qaStatus === "FINALIZED"
-              ? "закрыто"
-              : "не задан";
-
-          // ONE colored chip per row: pick the single most urgent signal. SLA
-          // breach and critical risk fire the semantic ramp; otherwise the chip
-          // describes the review state with a rationed accent for active work.
-          const statusChipTone: ChipTone = isOverdue || hasCritical
-            ? "danger"
-            : hasReanswer || hasAppeal || reviewState === "reopened"
-              ? "warning"
-              : reviewStateTone(reviewState);
-          const statusChipLabel = isOverdue
-            ? "Просрочено"
-            : hasCritical
-              ? "Критическая ошибка"
-              : hasReanswer
-                ? reanswerLabel
-                : hasAppeal
-                  ? `Апелляция: ${appealLabel}`
-                  : reviewStateLabels[reviewState];
-
-          // Secondary signals stay monochrome (neutral) — the row keeps a single
-          // hue. They live in the meta line, not as rainbow chips.
-          const signalItems = [
-            conversation.csatBucket === "NEGATIVE"
-              ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
-              : null,
-            samplingIsSignal(conversation.samplingType) ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType : null,
-            conversation.riskHint ? "риск" : null
-          ].filter((signal): signal is string => Boolean(signal));
-
-          return (
-            <div key={conversation.id} className="queue-row" role="listitem">
-              <input
-                type="checkbox"
-                name="conversationId"
-                value={conversation.id}
-                aria-label={`Выбрать ${conversation.subject}`}
-                className="queue-row__checkbox"
-              />
-
-              <span className="queue-row__avatar" aria-hidden="true">
-                {initials(conversation.assigneeName ?? conversation.customerName)}
-              </span>
-
-              <span className="queue-row__status">
-                <Chip tone={statusChipTone} size="sm">
-                  {statusChipLabel}
-                </Chip>
-              </span>
-
-              <span className="queue-row__main">
-                <Link href={`/reviews/${conversation.id}`} className="queue-row__title">
-                  {conversation.subject}
-                </Link>
-                <span className="queue-row__reason">{conversation.priorityReason}</span>
-                <span className="queue-row__meta">
-                  {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
-                  {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
-                  {externalSourceLabel(conversation.externalSource)}
-                  {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
-                </span>
-              </span>
-
-              <span className="queue-row__assignee">
-                <span className="queue-row__assignee-label">Проверяющий</span>
-                <span className="queue-row__assignee-name">{conversation.qaAssigneeName ?? "Не назначен"}</span>
-              </span>
-
-              <span className={`queue-row__sla${isOverdue ? " queue-row__sla--overdue" : ""}`}>
-                <span className="queue-row__sla-label">SLA</span>
-                <span className="queue-row__sla-value">{dueLabel}</span>
-              </span>
-
-              <span className="queue-row__score">
-                {formatQualityScore(latestFinalizedReview?.totalScore, draftReview ? "Черновик" : "—")}
-              </span>
-
-              <Link href={`/reviews/${conversation.id}`} className="action-button queue-row__open">
-                Открыть
-              </Link>
+      <Card className="gap-0 overflow-clip py-0">
+        <Collapsible className="queue-bulk-actions">
+          <CollapsibleTrigger className="queue-bulk-actions__summary group flex w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-4 py-3 text-left">
+            <span className="text-sm font-semibold text-foreground">Массовые действия</span>
+            <span className="queue-filterbar__summary-action inline-flex items-center gap-2">
+              <span className="queue-filterbar__summary-closed group-data-[panel-open]:hidden">Раскрыть</span>
+              <span className="queue-filterbar__summary-open hidden group-data-[panel-open]:inline">Скрыть</span>
+              <span className="queue-bulk-actions__count text-muted-foreground">{conversations.length}</span>
+            </span>
+          </CollapsibleTrigger>
+          <CollapsibleContent keepMounted className="queue-bulk-actions__body">
+            <div className="flex flex-wrap items-end gap-3 border-t border-border bg-muted/30 px-4 py-3">
+              <Field className="queue-bulk-actions__field min-w-[160px]">
+                <FieldLabel htmlFor="bulk-qaStatus">Состояние</FieldLabel>
+                <NativeSelect id="bulk-qaStatus" name="qaStatus" defaultValue="" className="w-full">
+                  <NativeSelectOption value="">Не менять</NativeSelectOption>
+                  {Object.entries(qaStatusLabels).map(([status, label]) => (
+                    <NativeSelectOption key={status} value={status}>
+                      {label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field className="queue-bulk-actions__field min-w-[160px]">
+                <FieldLabel htmlFor="bulk-qaAssigneeId">Проверяющий</FieldLabel>
+                <NativeSelect id="bulk-qaAssigneeId" name="qaAssigneeId" defaultValue="" className="w-full">
+                  <NativeSelectOption value="">Не менять</NativeSelectOption>
+                  {qaAssignees.map((assignee) => (
+                    <NativeSelectOption key={assignee.id} value={assignee.id}>
+                      {assignee.name}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field className="queue-bulk-actions__field min-w-[160px]">
+                <FieldLabel htmlFor="bulk-reviewDueAt">Срок</FieldLabel>
+                <Input id="bulk-reviewDueAt" name="reviewDueAt" type="date" />
+              </Field>
+              <ValidatedSubmitButton
+                minCheckedNames={["conversationId"]}
+                requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt"]}
+                className={cn(buttonVariants(), "queue-bulk-actions__submit")}
+              >
+                Обновить
+              </ValidatedSubmitButton>
             </div>
-          );
-        })}
-      </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Separator />
+
+        <Table className="queue-list">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">
+                <span className="sr-only">Выбор</span>
+              </TableHead>
+              <TableHead className="w-10">
+                <span className="sr-only">Оператор</span>
+              </TableHead>
+              <TableHead className="w-[140px]">Статус</TableHead>
+              <TableHead>Обращение</TableHead>
+              <TableHead className="w-[140px]">Проверяющий</TableHead>
+              <TableHead className="w-[100px]">SLA</TableHead>
+              <TableHead className="w-[80px] text-right">Оценка</TableHead>
+              <TableHead className="w-[96px]">
+                <span className="sr-only">Действие</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {conversations.map((conversation) => {
+              const latestFinalizedReview =
+                conversation.qaStatus === "FINALIZED"
+                  ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
+                  : undefined;
+              const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
+              const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
+              const isOverdue =
+                reviewDueAt !== null && reviewDueAt < new Date() && conversation.qaStatus !== "FINALIZED";
+              const reviewState = resolveReviewState({
+                qaStatus: conversation.qaStatus,
+                hasDraftReview: Boolean(draftReview),
+                hasFinalizedReview: Boolean(latestFinalizedReview)
+              });
+              const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
+              const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
+              const hasCritical = Boolean(latestFinalizedReview?.criticalError);
+              const appealLabel = latestFinalizedReview
+                ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
+                : "";
+              const reanswerLabel = latestFinalizedReview
+                ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
+                : "Переответ";
+              const dueLabel = reviewDueAt
+                ? reviewDueAt.toLocaleDateString("ru-RU")
+                : conversation.qaStatus === "FINALIZED"
+                  ? "закрыто"
+                  : "не задан";
+
+              // ONE colored chip per row: pick the single most urgent signal. SLA
+              // breach and critical risk fire the semantic ramp; otherwise the chip
+              // describes the review state with a rationed accent for active work.
+              const statusChipTone: ChipTone =
+                isOverdue || hasCritical
+                  ? "danger"
+                  : hasReanswer || hasAppeal || reviewState === "reopened"
+                    ? "warning"
+                    : reviewStateTone(reviewState);
+              const statusChipLabel = isOverdue
+                ? "Просрочено"
+                : hasCritical
+                  ? "Критическая ошибка"
+                  : hasReanswer
+                    ? reanswerLabel
+                    : hasAppeal
+                      ? `Апелляция: ${appealLabel}`
+                      : reviewStateLabels[reviewState];
+
+              // Secondary signals stay monochrome (neutral) — the row keeps a single
+              // hue. They live in the meta line, not as rainbow chips.
+              const signalItems = [
+                conversation.csatBucket === "NEGATIVE"
+                  ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
+                  : null,
+                samplingIsSignal(conversation.samplingType)
+                  ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType
+                  : null,
+                conversation.riskHint ? "риск" : null
+              ].filter((signal): signal is string => Boolean(signal));
+
+              return (
+                <TableRow key={conversation.id} className="queue-row">
+                  <TableCell>
+                    <Checkbox
+                      name="conversationId"
+                      value={conversation.id}
+                      aria-label={`Выбрать ${conversation.subject}`}
+                      className="queue-row__checkbox"
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    <span
+                      className="queue-row__avatar inline-flex size-7 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+                      aria-hidden="true"
+                    >
+                      {initials(conversation.assigneeName ?? conversation.customerName)}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <Chip tone={statusChipTone}>{statusChipLabel}</Chip>
+                  </TableCell>
+
+                  <TableCell className="max-w-[420px] whitespace-normal">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <Link
+                        href={`/reviews/${conversation.id}`}
+                        className="queue-row__title font-medium text-foreground hover:underline"
+                      >
+                        {conversation.subject}
+                      </Link>
+                      <span className="queue-row__reason text-xs text-muted-foreground">{conversation.priorityReason}</span>
+                      <span className="queue-row__meta text-xs text-muted-foreground">
+                        {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
+                        {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
+                        {externalSourceLabel(conversation.externalSource)}
+                        {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="whitespace-normal">
+                    <span className="text-sm text-foreground">{conversation.qaAssigneeName ?? "Не назначен"}</span>
+                  </TableCell>
+
+                  <TableCell className={cn("whitespace-normal", isOverdue && "text-destructive")}>
+                    <span className="text-sm font-medium tabular-nums">{dueLabel}</span>
+                  </TableCell>
+
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatQualityScore(latestFinalizedReview?.totalScore, draftReview ? "Черновик" : "—")}
+                  </TableCell>
+
+                  <TableCell>
+                    <Button
+                      render={<Link href={`/reviews/${conversation.id}`} />}
+                      nativeButton={false}
+                      variant="outline"
+                      size="sm"
+                      className="queue-row__open"
+                    >
+                      Открыть
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
     </form>
   );
 }

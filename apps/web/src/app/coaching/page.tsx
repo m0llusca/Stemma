@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Clock3,
   Link2,
-  MoreHorizontal,
   PlusCircle,
   Search,
   SlidersHorizontal,
@@ -20,25 +19,35 @@ import {
 } from "lucide-react";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
+import { SparklineChart, type ChartDatum } from "@/components/reports/report-charts";
+import { ToastActionForm } from "@/app/coaching/toast-action-form";
+import { CoachingViewNavLink } from "@/app/coaching/coaching-view-nav-link";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatKpi } from "@/components/ui/stat-kpi";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
-import { TrendChart } from "@/components/reports/trend-chart";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
-import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
-import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { createTrainingAssignmentState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
 import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
 import { listCoachingPlans } from "@/lib/coaching-plan";
-import { loadAssignmentCoachingImpact, type CoachingImpact } from "@/lib/coaching-impact";
+import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
+import { formatReviewCount } from "@/lib/reports/report-format";
 import { createKnowledgeEntryState } from "@/lib/quality-actions";
 import { formatQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +55,6 @@ const dayMs = 24 * 60 * 60 * 1000;
 const coachingViewIds = ["active", "overdue", "week", "mine", "unlinked", "done", "all"] as const;
 
 type CoachingViewId = (typeof coachingViewIds)[number];
-const primaryCoachingViewIds: CoachingViewId[] = ["active", "overdue", "week", "done"];
 
 type CoachingPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -375,8 +383,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     { id: "done", label: "Закрытые", helper: "История разборов", icon: Archive },
     { id: "all", label: "Все", helper: "Полный список", icon: BookOpenCheck }
   ];
-  const primaryViewOptions = viewOptions.filter((option) => primaryCoachingViewIds.includes(option.id));
-  const secondaryViewOptions = viewOptions.filter((option) => !primaryCoachingViewIds.includes(option.id));
   const categoryOptions = Array.from(
     new Set([
       ...assignments.flatMap((assignment) => assignment.review?.findings.map((finding) => finding.category) ?? []),
@@ -449,7 +455,6 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const topCategories = Array.from(activeCategoryCounts.entries())
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "ru"))
     .slice(0, 5);
-  const isSecondaryViewSelected = secondaryViewOptions.some((option) => option.id === view);
   const resetFiltersHref = view === "active" ? "/coaching" : `/coaching?view=${view}`;
   const baseCoachingHref = viewHref(view, { q, assigneeId, category });
   const createTaskHref = `${baseCoachingHref}&create=1`;
@@ -459,7 +464,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const coachingActionHref = nextConversation ? `/reviews/${nextConversation.id}` : createTaskHref;
   const coachingActionTone = overdueAssignments.length > 0 ? "negative" : openAssignments.length > 0 ? "warning" : "positive";
   // Team score-over-time: bucket finalized review scores by month (oldest -> newest)
-  // for the TrendChart. Volume = number of reviews in the bucket.
+  // with review volume in point details, using the same chart logic as quality analytics.
   const scoreBuckets = new Map<string, { sum: number; count: number; order: number }>();
   for (const review of agentScoreHistory) {
     if (!review.finalizedAt) {
@@ -487,14 +492,24 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         volume: bucket.count
       };
     });
-  const trendPoints = scoreTrend.map((point) => ({ label: point.label, value: point.value }));
-  const trendVolume = scoreTrend.map((point) => point.volume);
+  const trendPoints: ChartDatum[] = scoreTrend.map((point) => ({
+    label: point.label,
+    value: point.value,
+    detail: formatReviewCount(point.volume)
+  }));
   const measuredTrainingEffectCount = trainingEffects.size;
   const positiveTrainingEffectCount = trainingEffectValues.filter((value) => value > 0).length;
   const linkedAssignmentShare = assignments.length > 0 ? Math.round((linkedAssignmentCount / assignments.length) * 100) : 0;
 
   const coachingTriageTone: TriageStripTone =
     coachingActionTone === "negative" ? "danger" : coachingActionTone === "warning" ? "warning" : "success";
+  const trainingEffectDelta =
+    averageTrainingEffect == null || averageTrainingEffect === 0
+      ? null
+      : {
+          value: formatQualityScoreDelta(averageTrainingEffect),
+          tone: (averageTrainingEffect > 0 ? "up" : "down") as "up" | "down"
+        };
 
   return (
     <PageShell
@@ -503,14 +518,22 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       description="Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить."
       actions={
         <>
-          <Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} className={`action-button ${createTaskOpen ? "" : "action-button--primary"}`}>
-            {createTaskOpen ? <X size={18} aria-hidden="true" /> : <PlusCircle size={18} aria-hidden="true" />}
+          <Button
+            variant={createTaskOpen ? "outline" : "default"}
+            render={<Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} />}
+            nativeButton={false}
+          >
+            {createTaskOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <PlusCircle data-icon="inline-start" aria-hidden="true" />}
             {createTaskOpen ? "Скрыть форму" : "Новая задача"}
-          </Link>
-          <Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} className="action-button">
-            {createRuleOpen ? <X size={18} aria-hidden="true" /> : <BookOpenCheck size={18} aria-hidden="true" />}
+          </Button>
+          <Button
+            variant="outline"
+            render={<Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} />}
+            nativeButton={false}
+          >
+            {createRuleOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <BookOpenCheck data-icon="inline-start" aria-hidden="true" />}
             {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
-          </Link>
+          </Button>
         </>
       }
     >
@@ -524,43 +547,37 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             : "Активных разборов нет. Создайте задачу из проверки с замечанием или добавьте ручной разбор."
         }
         action={
-          <Link href={coachingActionHref} className="action-button action-button--primary">
+          <Button render={<Link href={coachingActionHref} />} nativeButton={false}>
             {nextConversation ? "Открыть проверку" : "Новая задача"}
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
+            <ArrowRight data-icon="inline-end" aria-hidden="true" />
+          </Button>
         }
       />
 
-      <div className="enablement-kpi-grid" aria-label="Ключевые показатели обучения">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Ключевые показатели обучения">
         <StatKpi
           label="В работе"
           value={openAssignments.length}
-          icon={<Clock3 size={16} aria-hidden="true" />}
           hint={weekAssignments.length > 0 ? `${weekAssignments.length} со сроком на неделе` : "Сроки под контролем"}
         />
         <StatKpi
           label="Просрочено"
           value={overdueAssignments.length}
-          tone={overdueAssignments.length > 0 ? "danger" : "neutral"}
-          icon={<TriangleAlert size={16} aria-hidden="true" />}
           hint={overdueAssignments.length > 0 ? "Поднимаются в начало очереди" : "Просроченных разборов нет"}
         />
         <StatKpi
           label="Эффект обучения"
           value={averageTrainingEffect == null ? "—" : formatQualityScoreDelta(averageTrainingEffect)}
-          tone={averageTrainingEffect != null && averageTrainingEffect !== 0 ? (averageTrainingEffect > 0 ? "success" : "danger") : "neutral"}
-          icon={<BookOpenCheck size={16} aria-hidden="true" />}
-          hint={
-            measuredTrainingEffectCount > 0
-              ? `${positiveTrainingEffectCount} из ${measuredTrainingEffectCount} разборов дали рост`
-              : "Нужны оценки до и после"
-          }
+          delta={trainingEffectDelta}
+          hint={trainingEffectKpiHint({
+            averageDelta: averageTrainingEffect,
+            positiveCount: positiveTrainingEffectCount,
+            measuredCount: measuredTrainingEffectCount
+          })}
         />
         <StatKpi
           label="Связь с QA"
-          value={linkedAssignmentShare}
-          unit="%"
-          icon={<Link2 size={16} aria-hidden="true" />}
+          value={`${linkedAssignmentShare}%`}
           hint={
             assignments.length > 0
               ? `${linkedAssignmentCount} задач с проверкой · закрыто ${doneAssignments.length}/${assignments.length}`
@@ -570,572 +587,670 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       </div>
 
       {trendPoints.length >= 2 || topCategories.length > 0 ? (
-        <section className="coaching-trend-board panel" aria-label="Динамика качества и зоны роста">
-          <div className="coaching-trend-board__chart">
-            <div className="coaching-trend-board__chart-head">
-              <span className="page-kicker">Качество во времени</span>
-              <h2>Средний балл команды</h2>
-              <p>Динамика финальных проверок по месяцам. Закрытые разборы должны двигать линию вверх.</p>
-            </div>
-            {trendPoints.length >= 2 ? (
-              <TrendChart
-                points={trendPoints}
-                volume={trendVolume}
-                height={120}
-                ariaLabel="Средний балл команды по месяцам"
-              />
-            ) : (
-              <EmptyState
-                size="inline"
-                icon={<BookOpenCheck size={20} aria-hidden="true" />}
-                title="Недостаточно данных для тренда"
-                description="Линия появится после финальных проверок за несколько месяцев."
-              />
-            )}
-          </div>
-          <div className="coaching-trend-board__opportunities">
-            <div className="coaching-trend-board__opportunities-head">
-              <h3>Зоны роста</h3>
-              <p>Категории с наибольшим числом активных разборов.</p>
-            </div>
-            {topCategories.length > 0 ? (
-              <ol className="coaching-opportunity-list">
-                {topCategories.map(([categoryName, count], index) => (
-                  <li key={categoryName} className="coaching-opportunity">
-                    <span className="coaching-opportunity__rank" aria-hidden="true">{index + 1}</span>
-                    <span className="coaching-opportunity__name">{categoryName}</span>
-                    <Chip tone="neutral" size="xs" numeric>{count}</Chip>
-                    <Link
-                      href={viewHref(view, { q, assigneeId, category: categoryName })}
-                      className="coaching-opportunity__action"
-                    >
-                      <PlusCircle size={14} aria-hidden="true" />
-                      <span>В обучение</span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <EmptyState
-                size="inline"
-                icon={<ClipboardList size={20} aria-hidden="true" />}
-                title="Зон роста пока нет"
-                description="Категории появятся после привязки разборов к проверкам."
-              />
-            )}
-          </div>
-        </section>
-      ) : null}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]" aria-label="Динамика качества и зоны роста">
+          <Card>
+            <CardHeader>
+              <CardDescription>Качество во времени</CardDescription>
+              <CardTitle>Средний балл команды</CardTitle>
+              <CardDescription>
+                Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {trendPoints.length >= 2 ? (
+                <SparklineChart points={trendPoints} target={90} />
+              ) : (
+                <EmptyState
+                  size="inline"
+                  icon={<BookOpenCheck size={20} aria-hidden="true" />}
+                  title="Недостаточно данных для тренда"
+                  description="Линия появится после финальных проверок за несколько месяцев."
+                />
+              )}
+            </CardContent>
+          </Card>
 
-      <section className="coaching-plan-board panel" aria-label="Планы коучинга">
-        <div className="learning-section-header coaching-plan-board__header">
-          <div className="min-w-0">
-            <h2>Планы коучинга</h2>
-            <p>
-              {coachingPlans.length > 0
-                ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
-                : "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."}
-            </p>
-          </div>
-          <Link
-            href={createPlanOpen ? closeCreatePanelHref : createPlanHref}
-            className={`action-button ${createPlanOpen ? "" : "action-button--primary"}`}
-          >
-            {createPlanOpen ? <X size={16} aria-hidden="true" /> : <Target size={16} aria-hidden="true" />}
-            {createPlanOpen ? "Скрыть форму" : "Новый план"}
-          </Link>
-        </div>
-
-        {createPlanOpen ? (
-          <ToastActionForm
-            action={createCoachingPlanState}
-            className="coaching-plan-form"
-            aria-label="Новый план коучинга"
-          >
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Оператор
-              <select name="agentName" required className="form-control">
-                <option value="">Выберите оператора</option>
-                {supportUsers.map((supportUser) => (
-                  <option key={supportUser.id} value={supportUser.name}>
-                    {supportUser.name}
-                    {supportUser.teamName ? ` / ${supportUser.teamName}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Фокус-тема
-              <input name="focusArea" placeholder="Например: работа с возражениями" className="form-control" />
-            </label>
-            <label className="coaching-plan-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Название плана
-              <input name="title" required placeholder="Например: рост качества по эмпатии" className="form-control" />
-            </label>
-            <div className="coaching-plan-form__action">
-              <ValidatedSubmitButton>Создать план</ValidatedSubmitButton>
-            </div>
-          </ToastActionForm>
-        ) : null}
-
-        {coachingPlans.length > 0 ? (
-          <ul className="coaching-plan-list">
-            {coachingPlans.map((plan) => {
-              const planAssignments = assignmentsByPlan.get(plan.id) ?? [];
-              const planImpact = planImpacts.get(plan.id);
-              const summary = planImpact ? impactSummary(planImpact) : null;
-
-              return (
-                <li key={plan.id} className="coaching-plan-card">
-                  <div className="coaching-plan-card__head">
-                    <div className="coaching-plan-card__title">
-                      <Target size={16} aria-hidden="true" />
-                      <h3>{plan.title}</h3>
-                    </div>
-                    <Chip tone={planStatusTone(plan.status)} size="xs">
-                      {planStatusLabel(plan.status)}
-                    </Chip>
-                  </div>
-                  <div className="coaching-plan-card__meta">
-                    <span className="coaching-plan-card__agent">
-                      <UserRound size={14} aria-hidden="true" />
-                      {plan.agentName}
-                    </span>
-                    {plan.focusArea ? <span>{plan.focusArea}</span> : null}
-                  </div>
-                  <div className="coaching-plan-card__progress" aria-label="Прогресс плана">
-                    <div
-                      className="coaching-plan-card__progress-track"
-                      role="progressbar"
-                      aria-valuemin={0}
-                      aria-valuemax={plan.progress.total}
-                      aria-valuenow={plan.progress.done}
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle>Зоны роста</CardTitle>
+              <CardDescription>Категории с наибольшим числом активных разборов.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {topCategories.length > 0 ? (
+                <ol className="flex flex-col gap-2">
+                  {topCategories.map(([categoryName, count], index) => (
+                    <li
+                      key={categoryName}
+                      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
                     >
                       <span
-                        className="coaching-plan-card__progress-fill"
-                        style={{ width: `${plan.progress.percent}%` }}
-                      />
-                    </div>
-                    <span className="coaching-plan-card__progress-label">
-                      {plan.progress.done}/{plan.progress.total} закрыто
-                    </span>
-                  </div>
-                  {summary ? (
-                    <div className={`coaching-plan-card__impact coaching-plan-card__impact--${summary.trend}`}>
-                      <Sparkles size={14} aria-hidden="true" />
-                      <span>Эффект коучинга: {summary.text}</span>
-                      <Chip tone={impactTone(summary.trend)} size="xs">
-                        {formatQualityScoreDelta(planImpact?.delta ?? 0)}
+                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
+                        aria-hidden="true"
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{categoryName}</span>
+                      <Chip tone="neutral" className="tabular-nums">
+                        {count}
                       </Chip>
-                      {summary.sampleAdequate ? null : (
-                        <Chip tone="neutral" size="xs">
-                          мало данных для вывода
-                        </Chip>
-                      )}
-                    </div>
-                  ) : null}
-                  {planAssignments.length > 0 ? (
-                    <ul className="coaching-plan-card__assignments">
-                      {planAssignments.map((assignment) => {
-                        const assignmentImpact = assignmentImpacts.get(assignment.id);
-                        const assignmentSummary = assignmentImpact ? impactSummary(assignmentImpact) : null;
-
-                        return (
-                          <li key={assignment.id} className="coaching-plan-assignment">
-                            <span className="coaching-plan-assignment__title">{assignment.title}</span>
-                            <Chip tone={trainingStatusTone(assignment.status)} size="xs">
-                              {trainingStatusLabel(assignment.status)}
-                            </Chip>
-                            {assignmentSummary ? (
-                              <span className={`coaching-plan-assignment__impact coaching-plan-assignment__impact--${assignmentSummary.trend}`}>
-                                {assignmentSummary.text}
-                                {assignmentSummary.sampleAdequate ? "" : " · мало данных для вывода"}
-                              </span>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="coaching-plan-card__empty">К плану ещё не привязаны разборы.</p>
-                  )}
-                  <div className="coaching-plan-card__actions">
-                    <ToastActionForm action={updateCoachingPlanStatusState} aria-label="Сменить статус плана">
-                      <input type="hidden" name="id" value={plan.id} />
-                      <input type="hidden" name="status" value={plan.status === "completed" ? "active" : "completed"} />
-                      <button type="submit" className="action-button">
-                        {plan.status === "completed" ? (
-                          <>
-                            <ArrowRight size={15} aria-hidden="true" />
-                            Возобновить
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 size={15} aria-hidden="true" />
-                            Завершить
-                          </>
-                        )}
-                      </button>
-                    </ToastActionForm>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <EmptyState
-            size="inline"
-            icon={<Target size={20} aria-hidden="true" />}
-            title="Планов коучинга пока нет"
-            description="Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
-            action={
-              <Link href={createPlanHref} className="action-button action-button--primary">
-                <Target size={16} aria-hidden="true" />
-                Новый план
-              </Link>
-            }
-          />
-        )}
-      </section>
-
-      {createTaskOpen ? (
-        <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая учебная задача">
-          <div className="learning-section-header coaching-create-inline__header">
-            <div className="min-w-0">
-              <h2>Новая учебная задача</h2>
-              <p>Привяжите задачу к проверке, чтобы оператор сразу видел контекст ошибки.</p>
-            </div>
-            <Link href={closeCreatePanelHref} className="action-button">
-              Скрыть
-            </Link>
-          </div>
-          <ToastActionForm
-            action={createTrainingAssignmentState}
-            className="training-create-form coaching-create-inline__form"
-            aria-label="Новая учебная задача"
-          >
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Исполнитель
-              <select name="assigneeId" required className="form-control">
-                <option value="">Выберите оператора</option>
-                {supportUsers.map((supportUser) => (
-                  <option key={supportUser.id} value={supportUser.id}>
-                    {supportUser.name}
-                    {supportUser.teamName ? ` / ${supportUser.teamName}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Проверка
-              <select name="reviewId" className="form-control">
-                <option value="">Без привязки</option>
-                {reviewCandidates.map((review) => (
-                  <option key={review.id} value={review.id}>
-                    {review.conversation.externalId} / {review.findings[0]?.category ?? review.conversation.subject}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Срок
-              <input name="dueAt" type="date" className="form-control" />
-            </label>
-            <label className="training-create-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Задача
-              <input name="title" required placeholder="Например: разбор маршрутизации" className="form-control" />
-            </label>
-            <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Что разобрать
-              <textarea
-                name="description"
-                required
-                rows={3}
-                placeholder="Коротко опишите ошибку, ожидаемое правило и результат разбора."
-                className="form-control"
-              />
-            </label>
-            <div className="training-create-form__action">
-              <ValidatedSubmitButton>Создать задачу</ValidatedSubmitButton>
-            </div>
-          </ToastActionForm>
-        </section>
-      ) : null}
-
-      {createRuleOpen ? (
-        <section className="training-create-panel workflow-create-panel coaching-create-inline" aria-label="Новая типовая ошибка">
-          <div className="learning-section-header coaching-create-inline__header">
-            <div className="min-w-0">
-              <h2>Новая типовая ошибка</h2>
-              <p>
-                Правило появится в блоке “Правила для разбора”
-                {ruleFocusCategory ? ` для категории “${ruleFocusCategory}”` : " для похожих разборов"}.
-              </p>
-            </div>
-            <Link href={closeCreatePanelHref} className="action-button">
-              Скрыть
-            </Link>
-          </div>
-          <ToastActionForm action={createKnowledgeEntryState} className="training-create-form coaching-create-inline__form coaching-rule-form">
-            <KnowledgeCategoryFields categories={categoryOptions} defaultCategory={ruleCategoryDefault} />
-            <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Риск
-              <select name="riskLevel" defaultValue={ruleFocusRiskLevel} className="form-control">
-                {Object.entries(riskLevelLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="training-create-form__title grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Название правила
-              <input name="title" required placeholder="Например: передача без объяснения клиенту" className="form-control" />
-            </label>
-            <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Описание ошибки
-              <textarea name="description" required rows={3} placeholder="Что именно повторяется в проверках и почему это риск." className="form-control" />
-            </label>
-            <label className="training-create-form__description grid gap-1 text-sm font-medium text-[var(--foreground)]">
-              Рекомендация
-              <textarea name="recommendation" required rows={3} placeholder="Как оператор должен действовать в похожем случае." className="form-control" />
-            </label>
-            <div className="training-create-form__action">
-              <ValidatedSubmitButton>Сохранить правило</ValidatedSubmitButton>
-            </div>
-          </ToastActionForm>
-        </section>
-      ) : null}
-
-      <section className="coaching-rule-strip panel" aria-label="Правила для разбора">
-        <div className="learning-section-header coaching-rule-strip__header">
-          <div className="min-w-0">
-            <h2>Правила для разбора</h2>
-            <p>
-              {ruleFocusCategory
-                ? `Показываем правила для категории “${ruleFocusCategory}”.`
-                : "Показываем критичные правила, которые стоит держать перед глазами."}
-            </p>
-          </div>
-          <Link href={createRuleHref} className="action-button">
-            <BookOpenCheck size={16} aria-hidden="true" />
-            Добавить правило
-          </Link>
+                      <Button
+                        variant="link"
+                        size="xs"
+                        className="h-auto px-0"
+                        render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
+                        nativeButton={false}
+                      >
+                        <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                        В обучение
+                      </Button>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <EmptyState
+                  size="inline"
+                  icon={<ClipboardList size={20} aria-hidden="true" />}
+                  title="Зон роста пока нет"
+                  description="Категории появятся после привязки разборов к проверкам."
+                />
+              )}
+            </CardContent>
+          </Card>
         </div>
-        <div className="coaching-rule-list">
-          {contextualKnowledge.length > 0 ? (
-            contextualKnowledge.slice(0, 3).map((entry) => {
-              const riskTone: ChipTone =
-                entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH" ? "warning" : "neutral";
+      ) : null}
 
-              return (
-                <article key={entry.id} className="coaching-rule-card">
-                  <div className="coaching-rule-card__head">
-                    <span className="coaching-rule-card__category">{entry.category}</span>
-                    <Chip tone={riskTone} size="xs">
-                      {riskLevelLabels[entry.riskLevel]}
-                    </Chip>
-                  </div>
-                  <h3>{entry.title}</h3>
-                  <p>{entry.recommendation}</p>
-                  <Link href={createTaskHref} className="coaching-rule-card__action">
-                    <PlusCircle size={14} aria-hidden="true" />
-                    Добавить в обучение
-                  </Link>
-                </article>
-              );
-            })
+      <Card aria-label="Планы коучинга">
+        <CardHeader className="border-b">
+          <CardTitle>Планы коучинга</CardTitle>
+          <CardDescription>
+            {coachingPlans.length > 0
+              ? `Развитие операторов по фокус-темам. Активных планов: ${activePlanCount}.`
+              : "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."}
+          </CardDescription>
+          <CardAction>
+            <Button
+              variant={createPlanOpen ? "outline" : "default"}
+              size="sm"
+              render={<Link href={createPlanOpen ? closeCreatePanelHref : createPlanHref} />}
+              nativeButton={false}
+            >
+              {createPlanOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <Target data-icon="inline-start" aria-hidden="true" />}
+              {createPlanOpen ? "Скрыть форму" : "Новый план"}
+            </Button>
+          </CardAction>
+        </CardHeader>
+
+        <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+          {createPlanOpen ? (
+            <ToastActionForm
+              action={createCoachingPlanState}
+              className="rounded-lg border border-border bg-muted/40 p-4"
+              aria-label="Новый план коучинга"
+            >
+              <FieldGroup className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="plan-agentName">Оператор</FieldLabel>
+                  <NativeSelect id="plan-agentName" name="agentName" required className="w-full">
+                    <NativeSelectOption value="">Выберите оператора</NativeSelectOption>
+                    {supportUsers.map((supportUser) => (
+                      <NativeSelectOption key={supportUser.id} value={supportUser.name}>
+                        {supportUser.name}
+                        {supportUser.teamName ? ` / ${supportUser.teamName}` : ""}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="plan-focusArea">Фокус-тема</FieldLabel>
+                  <Input id="plan-focusArea" name="focusArea" placeholder="Например: работа с возражениями" />
+                </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="plan-title">Название плана</FieldLabel>
+                  <Input id="plan-title" name="title" required placeholder="Например: рост качества по эмпатии" />
+                </Field>
+                <div className="sm:col-span-2">
+                  <ValidatedSubmitButton className={buttonVariants()}>Создать план</ValidatedSubmitButton>
+                </div>
+              </FieldGroup>
+            </ToastActionForm>
+          ) : null}
+
+          {coachingPlans.length > 0 ? (
+            <ul className="grid gap-3 md:grid-cols-2">
+              {coachingPlans.map((plan) => {
+                const planAssignments = assignmentsByPlan.get(plan.id) ?? [];
+                const planImpact = planImpacts.get(plan.id);
+                const summary = planImpact ? impactSummary(planImpact) : null;
+
+                return (
+                  <li key={plan.id}>
+                    <Card size="sm" className="h-full">
+                      <CardHeader>
+                        <div className="flex min-w-0 items-center gap-2 text-primary">
+                          <Target size={16} aria-hidden="true" />
+                          <CardTitle className="truncate text-foreground">{plan.title}</CardTitle>
+                        </div>
+                        <CardAction>
+                          <Chip tone={planStatusTone(plan.status)}>{planStatusLabel(plan.status)}</Chip>
+                        </CardAction>
+                        <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                            <UserRound size={14} aria-hidden="true" />
+                            {plan.agentName}
+                          </span>
+                          {plan.focusArea ? <span>{plan.focusArea}</span> : null}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2" aria-label="Прогресс плана">
+                          <div
+                            className="relative h-1 w-full overflow-hidden rounded-full bg-muted"
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={plan.progress.total}
+                            aria-valuenow={plan.progress.done}
+                          >
+                            <span
+                              className="absolute inset-y-0 left-0 bg-primary transition-all"
+                              style={{ width: `${plan.progress.percent}%` }}
+                            />
+                          </div>
+                          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                            {plan.progress.done}/{plan.progress.total} закрыто
+                          </span>
+                        </div>
+
+                        {summary ? (
+                          <div
+                            className={cn(
+                              "flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-2 text-xs",
+                              summary.trend === "up" && "border-emerald-500/25 bg-emerald-500/10",
+                              summary.trend === "down" && "border-destructive/25 bg-destructive/10",
+                              summary.trend !== "up" && summary.trend !== "down" && "border-border bg-muted/40"
+                            )}
+                          >
+                            <Sparkles size={14} aria-hidden="true" />
+                            <span>Эффект коучинга: {summary.text}</span>
+                            <Chip tone={impactTone(summary.trend)}>{formatQualityScoreDelta(planImpact?.delta ?? 0)}</Chip>
+                            {summary.sampleAdequate ? null : <Chip tone="neutral">мало данных для вывода</Chip>}
+                          </div>
+                        ) : null}
+
+                        {planAssignments.length > 0 ? (
+                          <ul className="flex flex-col gap-1.5">
+                            {planAssignments.map((assignment) => {
+                              const assignmentImpact = assignmentImpacts.get(assignment.id);
+                              const assignmentSummary = assignmentImpact ? impactSummary(assignmentImpact) : null;
+
+                              return (
+                                <li
+                                  key={assignment.id}
+                                  className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 px-2 py-1.5 text-sm"
+                                >
+                                  <span className="min-w-0 flex-1 font-medium">{assignment.title}</span>
+                                  <Chip tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>
+                                  {assignmentSummary ? (
+                                    <span
+                                      className={cn(
+                                        "text-xs text-muted-foreground",
+                                        assignmentSummary.trend === "up" && "text-emerald-700 dark:text-emerald-300",
+                                        assignmentSummary.trend === "down" && "text-destructive"
+                                      )}
+                                    >
+                                      {assignmentSummary.text}
+                                      {assignmentSummary.sampleAdequate ? "" : " · мало данных для вывода"}
+                                    </span>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">К плану ещё не привязаны разборы.</p>
+                        )}
+                      </CardContent>
+                      <CardFooter className="justify-start">
+                        <ToastActionForm action={updateCoachingPlanStatusState} aria-label="Сменить статус плана">
+                          <input type="hidden" name="id" value={plan.id} />
+                          <input type="hidden" name="status" value={plan.status === "completed" ? "active" : "completed"} />
+                          <Button type="submit" variant="outline" size="sm">
+                            {plan.status === "completed" ? (
+                              <>
+                                <ArrowRight data-icon="inline-start" aria-hidden="true" />
+                                Возобновить
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
+                                Завершить
+                              </>
+                            )}
+                          </Button>
+                        </ToastActionForm>
+                      </CardFooter>
+                    </Card>
+                  </li>
+                );
+              })}
+            </ul>
           ) : (
             <EmptyState
               size="inline"
-              className="coaching-rule-empty"
+              icon={<Target size={20} aria-hidden="true" />}
+              title="Планов коучинга пока нет"
+              description="Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
+              action={
+                <Button render={<Link href={createPlanHref} />} nativeButton={false}>
+                  <Target data-icon="inline-start" aria-hidden="true" />
+                  Новый план
+                </Button>
+              }
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {createTaskOpen ? (
+        <Card aria-label="Новая учебная задача">
+          <CardHeader className="border-b">
+            <CardTitle>Новая учебная задача</CardTitle>
+            <CardDescription>Привяжите задачу к проверке, чтобы оператор сразу видел контекст ошибки.</CardDescription>
+            <CardAction>
+              <Button variant="outline" size="sm" render={<Link href={closeCreatePanelHref} />} nativeButton={false}>
+                Скрыть
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="pt-(--card-spacing)">
+            <ToastActionForm action={createTrainingAssignmentState} aria-label="Новая учебная задача">
+              <FieldGroup className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="task-assigneeId">Исполнитель</FieldLabel>
+                  <NativeSelect id="task-assigneeId" name="assigneeId" required className="w-full">
+                    <NativeSelectOption value="">Выберите оператора</NativeSelectOption>
+                    {supportUsers.map((supportUser) => (
+                      <NativeSelectOption key={supportUser.id} value={supportUser.id}>
+                        {supportUser.name}
+                        {supportUser.teamName ? ` / ${supportUser.teamName}` : ""}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="task-reviewId">Проверка</FieldLabel>
+                  <NativeSelect id="task-reviewId" name="reviewId" className="w-full">
+                    <NativeSelectOption value="">Без привязки</NativeSelectOption>
+                    {reviewCandidates.map((review) => (
+                      <NativeSelectOption key={review.id} value={review.id}>
+                        {review.conversation.externalId} / {review.findings[0]?.category ?? review.conversation.subject}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="task-dueAt">Срок</FieldLabel>
+                  <Input id="task-dueAt" name="dueAt" type="date" />
+                </Field>
+                <Field className="sm:col-span-2 lg:col-span-3">
+                  <FieldLabel htmlFor="task-title">Задача</FieldLabel>
+                  <Input id="task-title" name="title" required placeholder="Например: разбор маршрутизации" />
+                </Field>
+                <Field className="sm:col-span-2 lg:col-span-3">
+                  <FieldLabel htmlFor="task-description">Что разобрать</FieldLabel>
+                  <Textarea
+                    id="task-description"
+                    name="description"
+                    required
+                    rows={3}
+                    placeholder="Коротко опишите ошибку, ожидаемое правило и результат разбора."
+                  />
+                </Field>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <ValidatedSubmitButton className={buttonVariants()}>Создать задачу</ValidatedSubmitButton>
+                </div>
+              </FieldGroup>
+            </ToastActionForm>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {createRuleOpen ? (
+        <Card aria-label="Новая типовая ошибка">
+          <CardHeader className="border-b">
+            <CardTitle>Новая типовая ошибка</CardTitle>
+            <CardDescription>
+              Правило появится в блоке «Правила для разбора»
+              {ruleFocusCategory ? ` для категории «${ruleFocusCategory}»` : " для похожих разборов"}.
+            </CardDescription>
+            <CardAction>
+              <Button variant="outline" size="sm" render={<Link href={closeCreatePanelHref} />} nativeButton={false}>
+                Скрыть
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="pt-(--card-spacing)">
+            <ToastActionForm action={createKnowledgeEntryState} aria-label="Новая типовая ошибка">
+              <FieldGroup className="grid gap-3 sm:grid-cols-2">
+                <KnowledgeCategoryFields categories={categoryOptions} defaultCategory={ruleCategoryDefault} />
+                <Field>
+                  <FieldLabel htmlFor="rule-riskLevel">Риск</FieldLabel>
+                  <NativeSelect id="rule-riskLevel" name="riskLevel" defaultValue={ruleFocusRiskLevel} className="w-full">
+                    {Object.entries(riskLevelLabels).map(([value, label]) => (
+                      <NativeSelectOption key={value} value={value}>
+                        {label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="rule-title">Название правила</FieldLabel>
+                  <Input id="rule-title" name="title" required placeholder="Например: передача без объяснения клиенту" />
+                </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="rule-description">Описание ошибки</FieldLabel>
+                  <Textarea
+                    id="rule-description"
+                    name="description"
+                    required
+                    rows={3}
+                    placeholder="Что именно повторяется в проверках и почему это риск."
+                  />
+                </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="rule-recommendation">Рекомендация</FieldLabel>
+                  <Textarea
+                    id="rule-recommendation"
+                    name="recommendation"
+                    required
+                    rows={3}
+                    placeholder="Как оператор должен действовать в похожем случае."
+                  />
+                </Field>
+                <div className="sm:col-span-2">
+                  <ValidatedSubmitButton className={buttonVariants()}>Сохранить правило</ValidatedSubmitButton>
+                </div>
+              </FieldGroup>
+            </ToastActionForm>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card aria-label="Правила для разбора">
+        <CardHeader className="border-b">
+          <CardTitle>Правила для разбора</CardTitle>
+          <CardDescription>
+            {ruleFocusCategory
+              ? `Показываем правила для категории «${ruleFocusCategory}».`
+              : "Показываем критичные правила, которые стоит держать перед глазами."}
+          </CardDescription>
+          <CardAction>
+            <Button variant="outline" size="sm" render={<Link href={createRuleHref} />} nativeButton={false}>
+              <BookOpenCheck data-icon="inline-start" aria-hidden="true" />
+              Добавить правило
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="pt-(--card-spacing)">
+          {contextualKnowledge.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {contextualKnowledge.slice(0, 3).map((entry) => {
+                const riskTone: ChipTone =
+                  entry.riskLevel === "CRITICAL" || entry.riskLevel === "HIGH" ? "warning" : "neutral";
+
+                return (
+                  <Card key={entry.id} size="sm">
+                    <CardHeader>
+                      <CardDescription className="truncate">{entry.category}</CardDescription>
+                      <CardAction>
+                        <Chip tone={riskTone}>{riskLevelLabels[entry.riskLevel]}</Chip>
+                      </CardAction>
+                      <CardTitle className="leading-snug">{entry.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3">
+                      <p className="line-clamp-2 text-sm text-muted-foreground">{entry.recommendation}</p>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto justify-start px-0"
+                        render={<Link href={createTaskHref} />}
+                        nativeButton={false}
+                      >
+                        <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                        Добавить в обучение
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              size="inline"
               icon={<BookOpenCheck size={20} aria-hidden="true" />}
               title="Нет правила для текущего фокуса"
               description="Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
             />
           )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="coaching-workbench" aria-label="Рабочая область обучения">
-        <div className="coaching-board panel">
-          <div className="learning-section-header coaching-board__header">
-            <div className="min-w-0">
-              <h2>{selectedViewOption.label}</h2>
-              <p>{selectedViewOption.helper}.</p>
-            </div>
-            <Chip tone="neutral" numeric>{filteredAssignments.length}</Chip>
-          </div>
+      <Card aria-label="Рабочая область обучения">
+        <CardHeader className="border-b">
+          <CardTitle>{selectedViewOption.label}</CardTitle>
+          <CardDescription>{selectedViewOption.helper}.</CardDescription>
+          <CardAction>
+            <Chip tone="neutral" className="tabular-nums">
+              {filteredAssignments.length}
+            </Chip>
+          </CardAction>
+        </CardHeader>
 
-<div className="coaching-control-stack">
-          <div className="coaching-segment-row">
-            <nav className="coaching-segment-list" aria-label="Основные срезы обучения">
-              {primaryViewOptions.map((option) => {
-                const Icon = option.icon;
+        <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
+          <nav
+            aria-label="Виды разборов"
+            className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-border pb-px"
+          >
+            {viewOptions.map((option) => {
+              const Icon = option.icon;
+              const isActive = option.id === view;
 
-                return (
-                  <Link
-                    key={option.id}
-                    href={viewHref(option.id, { q, assigneeId, category })}
-                    aria-current={option.id === view ? "page" : undefined}
-                    className={`coaching-segment ${option.id === view ? "coaching-segment--active" : ""} ${
-                      option.id === "overdue" && viewCounts.overdue > 0 ? "coaching-segment--warning" : ""
-                    }`}
+              return (
+                <CoachingViewNavLink
+                  key={option.id}
+                  href={viewHref(option.id, { q, assigneeId, category })}
+                  active={isActive}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "border-b-2 border-primary text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                    option.id === "overdue" && viewCounts.overdue > 0 && "text-warning"
+                  )}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{option.label}</span>
+                  <Chip
+                    tone={option.id === "overdue" && viewCounts.overdue > 0 ? "warning" : "neutral"}
+                    className="h-5 min-w-5 justify-center px-1.5 text-xs tabular-nums"
                   >
-                    <Icon size={15} aria-hidden="true" />
-                    <span>{option.label}</span>
-                    <strong>{viewCounts[option.id]}</strong>
-                  </Link>
-                );
-              })}
-            </nav>
-            <details className={`coaching-more-views ${isSecondaryViewSelected ? "coaching-more-views--active" : ""}`}>
-              <summary>
-                <MoreHorizontal size={16} aria-hidden="true" />
-                <span>{isSecondaryViewSelected ? selectedViewOption.label : "Еще"}</span>
-              </summary>
-              <div className="coaching-more-views__menu">
-                {secondaryViewOptions.map((option) => {
-                  const Icon = option.icon;
+                    {viewCounts[option.id]}
+                  </Chip>
+                </CoachingViewNavLink>
+              );
+            })}
+          </nav>
 
-                  return (
-                    <Link
-                      key={option.id}
-                      href={viewHref(option.id, { q, assigneeId, category })}
-                      aria-current={option.id === view ? "page" : undefined}
-                      className={option.id === view ? "coaching-more-views__item coaching-more-views__item--active" : "coaching-more-views__item"}
-                    >
-                      <Icon size={15} aria-hidden="true" />
-                      <span>{option.label}</span>
-                      <strong>{viewCounts[option.id]}</strong>
-                    </Link>
-                  );
-                })}
-              </div>
-            </details>
-          </div>
-
-          <AutoSubmitFilterForm action="/coaching" className="coaching-filter-bar" debounceMs={350}>
+          <AutoSubmitFilterForm action="/coaching" className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.5fr)_minmax(0,0.58fr)_auto] lg:items-end" debounceMs={350}>
             <input type="hidden" name="view" value={view} />
-            <label className="coaching-filter-bar__search">
-              Поиск
-              <span className="coaching-search-control">
-                <Search size={15} aria-hidden="true" />
-                <input name="q" type="search" defaultValue={q} placeholder="Задача, тикет, категория" className="form-control" />
-              </span>
-            </label>
-            <label>
-              Исполнитель
-              <select name="assigneeId" defaultValue={assigneeId} className="form-control">
-                <option value="">Все операторы</option>
+            <Field>
+              <FieldLabel htmlFor="filter-q">Поиск</FieldLabel>
+              <div className="relative">
+                <Search
+                  size={15}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-2.5 z-10 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  id="filter-q"
+                  name="q"
+                  type="search"
+                  defaultValue={q}
+                  placeholder="Задача, тикет, категория"
+                  className="pl-8"
+                />
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="filter-assigneeId">Исполнитель</FieldLabel>
+              <NativeSelect id="filter-assigneeId" name="assigneeId" defaultValue={assigneeId} className="w-full">
+                <NativeSelectOption value="">Все операторы</NativeSelectOption>
                 {supportUsers.map((supportUser) => (
-                  <option key={supportUser.id} value={supportUser.id}>
+                  <NativeSelectOption key={supportUser.id} value={supportUser.id}>
                     {supportUser.name}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
-            <label>
-              Категория
-              <select name="category" defaultValue={category} className="form-control">
-                <option value="">Все категории</option>
+              </NativeSelect>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="filter-category">Категория</FieldLabel>
+              <NativeSelect id="filter-category" name="category" defaultValue={category} className="w-full">
+                <NativeSelectOption value="">Все категории</NativeSelectOption>
                 {categoryOptions.map((categoryOption) => (
-                  <option key={categoryOption} value={categoryOption}>
+                  <NativeSelectOption key={categoryOption} value={categoryOption}>
                     {categoryOption}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-            </label>
+              </NativeSelect>
+            </Field>
             {q || assigneeId || category ? (
-              <Link href={resetFiltersHref} className="action-button coaching-filter-bar__reset">
-                <SlidersHorizontal size={15} aria-hidden="true" />
+              <Button
+                variant="outline"
+                className="w-full lg:w-auto"
+                render={<Link href={resetFiltersHref} />}
+                nativeButton={false}
+              >
+                <SlidersHorizontal data-icon="inline-start" aria-hidden="true" />
                 Сбросить
-              </Link>
+              </Button>
             ) : null}
           </AutoSubmitFilterForm>
-        </div>
 
-                    <div className="learning-task-list coaching-task-list">
-            {filteredAssignments.length > 0 ? (
-              filteredAssignments.map((assignment) => {
-                const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
-                const dueThisWeek = assignment.status !== "done" && isDueThisWeek(assignment.dueAt, now);
-                const conversation = assignment.review?.conversation;
-                const finding = assignment.review?.findings[0];
-                const isPriority = nextAssignment?.id === assignment.id;
-                const trainingEffect = trainingEffects.get(assignment.id);
+          {filteredAssignments.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Задача</TableHead>
+                  <TableHead>Исполнитель</TableHead>
+                  <TableHead>Срок</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Контекст</TableHead>
+                  <TableHead className="text-right">Действия</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAssignments.map((assignment) => {
+                  const overdue = assignment.status !== "done" && isOverdue(assignment.dueAt, now);
+                  const dueThisWeek = assignment.status !== "done" && isDueThisWeek(assignment.dueAt, now);
+                  const conversation = assignment.review?.conversation;
+                  const finding = assignment.review?.findings[0];
+                  const isPriority = nextAssignment?.id === assignment.id;
+                  const trainingEffect = trainingEffects.get(assignment.id);
 
-                return (
-                  <article
-                    key={assignment.id}
-                    className={`learning-task coaching-task-row ${overdue ? "learning-task--urgent coaching-task-row--urgent" : ""} ${
-                      isPriority ? "learning-task--priority coaching-task-row--priority" : ""
-                    }`}
-                  >
-                    <div className="learning-task__marker" aria-hidden="true">
-                      <BookOpenCheck size={17} />
-                    </div>
-                    <div className="learning-task__content">
-                      <div className="learning-task__head coaching-task-row__head">
-                        <h3>{assignment.title}</h3>
-                        {isPriority ? (
-                          <Chip tone="accent" size="xs">Следующий</Chip>
-                        ) : null}
-                        <Chip tone={trainingStatusTone(assignment.status)} size="xs">
-                          {trainingStatusLabel(assignment.status)}
-                        </Chip>
-                      </div>
-                      <p className="learning-task__description">{assignment.description}</p>
-                      <div className="learning-task__meta coaching-task-row__meta">
-                        <span>{assignment.assigneeName}</span>
-                        <span className={overdue ? "learning-task__meta-chip--warning" : dueThisWeek ? "coaching-task-row__meta-chip--soon" : undefined}>
+                  return (
+                    <TableRow
+                      key={assignment.id}
+                      className={cn(
+                        overdue && "bg-destructive/5",
+                        isPriority && !overdue && "bg-primary/5"
+                      )}
+                      data-state={isPriority ? "selected" : undefined}
+                    >
+                      <TableCell className="max-w-[22rem] whitespace-normal">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-medium text-foreground">{assignment.title}</span>
+                            {isPriority ? <Chip tone="accent">Следующий</Chip> : null}
+                          </div>
+                          <p className="line-clamp-2 text-sm text-muted-foreground">{assignment.description}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{assignment.assigneeName}</TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            overdue && "font-medium text-destructive",
+                            dueThisWeek && !overdue && "font-medium text-primary"
+                          )}
+                        >
                           {dueText(assignment.dueAt)}
                         </span>
-                        {conversation ? <span>{conversation.externalId}</span> : <span>без проверки</span>}
-                        {finding ? <span>{finding.category}</span> : null}
-                        {finding ? <span>{riskLevelLabels[finding.riskLevel]}</span> : null}
-                        {assignment.review ? <span>{formatQualityScore(assignment.review.totalScore)}</span> : null}
-                        {assignment.review?.needsReanswer ? <span>переответ</span> : null}
-                        {trainingEffect != null ? (
-                          <span className={trainingEffect >= 0 ? "training-effect training-effect--up" : "training-effect training-effect--down"}>
-                            {formatQualityScoreDelta(trainingEffect)} после разбора
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="learning-task__actions coaching-task-row__actions">
-                      {conversation ? (
-                        <Link href={`/reviews/${conversation.id}`} className="action-button">
-                          Открыть
-                        </Link>
-                      ) : null}
-                      <ToastActionForm action={updateTrainingAssignmentStatusState}>
-                        <input type="hidden" name="id" value={assignment.id} />
-                        <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
-                        <button type="submit" className="action-button action-button--primary">
-                          {assignment.status === "done" ? "Вернуть" : "Готово"}
-                        </button>
-                      </ToastActionForm>
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <EmptyState
-                icon={<ClipboardList size={24} aria-hidden="true" />}
-                title="В этом срезе нет задач"
-                description="Измените фильтры или создайте учебную задачу из проверки с замечанием."
-                action={
-                  <Link href={createTaskHref} className="action-button action-button--primary">
-                    <PlusCircle size={16} aria-hidden="true" />
-                    Новая задача
-                  </Link>
-                }
-              />
-            )}
-          </div>
-        </div>
-      </section>
+                      </TableCell>
+                      <TableCell>
+                        <Chip tone={trainingStatusTone(assignment.status)}>{trainingStatusLabel(assignment.status)}</Chip>
+                      </TableCell>
+                      <TableCell className="max-w-[18rem] whitespace-normal">
+                        <div className="flex flex-wrap gap-1.5">
+                          {conversation ? (
+                            <Chip tone="neutral">{conversation.externalId}</Chip>
+                          ) : (
+                            <Chip tone="neutral">без проверки</Chip>
+                          )}
+                          {finding ? <Chip tone="neutral">{finding.category}</Chip> : null}
+                          {finding ? <Chip tone="neutral">{riskLevelLabels[finding.riskLevel]}</Chip> : null}
+                          {assignment.review ? (
+                            <Chip tone="neutral" className="tabular-nums">
+                              {formatQualityScore(assignment.review.totalScore)}
+                            </Chip>
+                          ) : null}
+                          {assignment.review?.needsReanswer ? <Chip tone="warning">переответ</Chip> : null}
+                          {trainingEffect != null ? (
+                            <Chip tone={trainingEffect >= 0 ? "success" : "danger"} className="tabular-nums">
+                              {formatQualityScoreDelta(trainingEffect)} после разбора
+                            </Chip>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {conversation ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              render={<Link href={`/reviews/${conversation.id}`} />}
+                              nativeButton={false}
+                            >
+                              Открыть
+                            </Button>
+                          ) : null}
+                          <ToastActionForm action={updateTrainingAssignmentStatusState}>
+                            <input type="hidden" name="id" value={assignment.id} />
+                            <input type="hidden" name="status" value={assignment.status === "done" ? "open" : "done"} />
+                            <Button type="submit" size="sm">
+                              {assignment.status === "done" ? "Вернуть" : "Готово"}
+                            </Button>
+                          </ToastActionForm>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState
+              icon={<ClipboardList size={24} aria-hidden="true" />}
+              title="В этом срезе нет задач"
+              description="Измените фильтры или создайте учебную задачу из проверки с замечанием."
+              action={
+                <Button render={<Link href={createTaskHref} />} nativeButton={false}>
+                  <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                  Новая задача
+                </Button>
+              }
+            />
+          )}
+        </CardContent>
+      </Card>
     </PageShell>
   );
 }

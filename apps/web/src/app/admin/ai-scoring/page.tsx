@@ -3,7 +3,8 @@ import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AiProviderKeyExtraField } from "@/components/admin/ai-provider-key-form";
 import { AiScoringEnginePanel, type AiProviderConfig } from "@/components/admin/ai-scoring-engine-panel";
 import { requireCurrentUserPermission } from "@/lib/current-user";
@@ -15,7 +16,8 @@ import {
   type AiCredentialProvider,
   type AiCredentialView
 } from "@/lib/ai-quality/credentials";
-import type { StatusTone } from "@/lib/ui/status-tone";
+import { statusSurfaceClass, type StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -127,23 +129,29 @@ async function AdminAiScoringPageContent() {
       description="Движок автоскоринга диалогов: YandexGPT, Claude (Anthropic) или ChatGPT (OpenAI). Выберите движок — его ключ и модель настраиваются тут же. Ключи шифруются и хранятся в базе по рабочему пространству, поэтому править .env вручную не нужно. Если ключ не задан, оценка переходит на детерминированный fallback без обращения к сети."
     >
       <AdminFrame>
-        <section className="ops-panel" aria-labelledby="ai-scoring-title">
-          <div className="ops-panel__header">
-            <div className="min-w-0">
-              <p className="ops-panel__eyebrow">Автоскоринг</p>
-              <h2 id="ai-scoring-title" className="ops-panel__title">Движок AI-оценки</h2>
-              <p className="ops-panel__subtitle">
-                Сейчас активен: {scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider}.
-              </p>
+        <Card aria-labelledby="ai-scoring-title">
+          <CardHeader className="border-b">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Автоскоринг</p>
+                <CardTitle id="ai-scoring-title">Движок AI-оценки</CardTitle>
+                <CardDescription>
+                  Сейчас активен: {scoringProviderLabels[activeScoringProvider] ?? activeScoringProvider}.
+                </CardDescription>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "border-transparent",
+                  statusSurfaceClass(usingFallback ? "warning" : "positive")
+                )}
+              >
+                {usingFallback ? "Fallback" : "Провайдер активен"}
+              </Badge>
             </div>
-            <StatusBadge compact
-              label="Состояние"
-              value={usingFallback ? "Fallback" : "Провайдер активен"}
-              tone={usingFallback ? "warning" : "positive"}
-            />
-          </div>
+          </CardHeader>
           <AiScoringEnginePanel currentEngine={currentScoringProvider} providers={providers} />
-        </section>
+        </Card>
       </AdminFrame>
     </PageShell>
   );

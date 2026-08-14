@@ -1,10 +1,11 @@
 import { MetricValue } from "@/components/ui/metric-value";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import type { StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 /**
- * Compact metric tile used across the admin operational surfaces (system,
- * channels, AI scoring). Token-driven; tone maps to the shared soft-callout
- * styling. Extracted from admin/system so multiple admin pages share one copy.
+ * Compact metric tile used across admin operational surfaces.
+ * Public API preserved; surface is shadcn Card.
  */
 export function StatCard({
   label,
@@ -17,19 +18,21 @@ export function StatCard({
   hint: string;
   tone?: StatusTone;
 }) {
-  const toneClass = {
-    positive: "soft-callout--ok",
-    warning: "soft-callout--warn",
-    negative: "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]",
-    info: "",
-    neutral: ""
-  }[tone];
-
   return (
-    <div className={`soft-callout ${toneClass}`}>
-      <p className="soft-callout__label">{label}</p>
-      <MetricValue value={value} tone={tone} />
-      <p className="record-meta">{hint}</p>
-    </div>
+    <Card
+      className={cn(
+        tone === "positive" && "border-emerald-500/30 bg-emerald-500/5",
+        tone === "warning" && "border-amber-500/30 bg-amber-500/5",
+        tone === "negative" && "border-destructive/30 bg-destructive/5"
+      )}
+    >
+      <CardHeader className="pb-2">
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-1">
+        <MetricValue value={value} tone={tone} />
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </CardContent>
+    </Card>
   );
 }

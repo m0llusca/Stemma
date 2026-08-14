@@ -78,3 +78,13 @@ Access 2661k tokens of past work via get_observations([IDs]) or mem-search skill
 - Use `npm install` from `apps/web` before running app commands.
 - Local database is PostgreSQL via Docker Compose at `localhost:55432`; Prisma schema and migrations live in `apps/web/prisma`.
 - Primary commands: `npm run dev`, `npm run test`, `npm run test:e2e`, `npm run typecheck`.
+
+## UI system (shadcn) — 2026-07-23
+
+- Product UI is **shadcn/ui only** for standard controls. Config: `apps/web/components.json` (base **Base UI**, style **base-nova**, lucide).
+- Theme tokens live in `apps/web/src/app/globals.css` (Tailwind v4). Layout does **not** import legacy `styles/components/*` or full `theme.css`.
+- Domain wrappers (`PageShell`, `EmptyState`, `Chip`, `StatusBadge`, `Modal`, `AdminDialog`, `useToast`, …) must compose `@/components/ui/*` shadcn primitives — never native `<dialog class="admin-dialog">` / unimported BEM.
+- Base UI: use `render` prop, not `asChild`. Forms with FormData: prefer `NativeSelect`. Toasts: sonner via `useToast`.
+- Full session write-up: `docs/memory/2026-07-23-shadcn-ui-full-rewrite.md`
+- Full shadcn knowledge for agents: `docs/memory/shadcn-ui-knowledge.md`
+- Host skill: `~/.agents/skills/shadcn/`

@@ -13,10 +13,17 @@ import { ReviewPanel } from "@/components/review/review-panel";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
 import { WorkbenchPaneToggle } from "@/components/review/workbench-pane-toggle";
 import { WorkflowManagementPanel } from "@/components/review/workflow-management-panel";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { MasterDetail } from "@/components/ui/master-detail";
 import { PageShell } from "@/components/ui/page-shell";
+import { Separator } from "@/components/ui/separator";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
@@ -42,6 +49,7 @@ import {
   riskLevelLabels,
   samplingTypeLabels
 } from "@/lib/labels";
+import { russianPlural } from "@/lib/reports/report-format";
 import { computeBatchProgress, formatBatchProgress } from "@/lib/review/batch-progress";
 import { nextReviewOrderBy, nextReviewWhere } from "@/lib/review/next-review-query";
 import { reviewEventActionLabel } from "@/lib/review-events";
@@ -53,12 +61,21 @@ import { getActiveScorecard, getConversationForReview } from "@/lib/review-repos
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
 import { toneForScore, type StatusTone } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 type ReviewDetailPageProps = {
   params: Promise<{ conversationId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const statusChipTone: Record<StatusTone, ChipTone> = {
+  neutral: "neutral",
+  positive: "success",
+  negative: "danger",
+  warning: "warning",
+  info: "info"
 };
 
 function reviewStateTone(state: ReviewState): StatusTone {
@@ -93,19 +110,25 @@ function dueDateTone(value: Date | null, now: Date, state: ReviewState): StatusT
   return "warning";
 }
 
-function chipToneForStatus(tone: StatusTone): ChipTone {
-  if (tone === "positive") return "success";
-  if (tone === "negative") return "danger";
-  if (tone === "warning") return "warning";
-  if (tone === "info") return "accent";
-  return "neutral";
+function StatusChip({
+  label,
+  value,
+  tone = "neutral",
+  numeric = false
+}: {
+  label?: string;
+  value: ReactNode;
+  tone?: StatusTone;
+  numeric?: boolean;
+}) {
+  return <Chip tone={statusChipTone[tone]} label={label} value={value} numeric={numeric} />;
 }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="review-detail-item">
-      <p className="review-detail-item__label">{label}</p>
-      <p className="review-detail-item__value">{children}</p>
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium text-foreground">{children}</p>
     </div>
   );
 }
@@ -137,10 +160,10 @@ function aiDraftStatusLabel(value: string) {
   return labels[value] ?? value;
 }
 
-function aiDraftStatusTone(value: string): ChipTone {
+function aiDraftStatusTone(value: string): StatusTone {
   if (value === "draft") return "warning";
-  if (value === "approved") return "success";
-  if (value === "changed") return "accent";
+  if (value === "approved") return "positive";
+  if (value === "changed") return "info";
   if (value === "rejected") return "neutral";
   return "neutral";
 }
@@ -291,7 +314,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     }),
     // Latest per-criterion AI "score" prediction for the workbench chips. Read
     // only when the reviewer may see AI drafts; one row is enough — the newest
-    // score draft drives the violet chips and their confidence labels.
+    // score draft drives the AI chips and their confidence labels.
     canSeeAiQualityDrafts
       ? prisma.aiQualityDraft.findFirst({
           where: {
@@ -365,49 +388,56 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const canCompleteReanswer = Boolean(latestFinalizedReview?.needsReanswer && latestFinalizedReview.reanswerStatus === "requested");
 
   const detailPane = (
-    <div id="review-evidence" className="review-detail-stack">
-      <div className="grid gap-[18px] items-start lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+    <div id="review-evidence" className="flex flex-col gap-4">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       {canSeeAiQualityDrafts ? (
-        <section className="ai-draft-summary" aria-label="ИИ-подсказки проверки">
-          <div className="ai-draft-summary__header">
+        <Card className="border-(--ai-border) bg-(--ai-soft)" aria-label="ИИ-подсказки проверки">
+          <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-border/60 pb-3">
             <div className="min-w-0">
-              <p className="page-kicker">ИИ-контроль</p>
-              <h2>ИИ-предложения</h2>
-              <p>Подсказки показывают гипотезу и доказательства; решение принимаете вы — примите, отклоните или измените предложение.</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-(--ai-ink)">ИИ-контроль</p>
+              <CardTitle className="mt-1 text-base">ИИ-предложения</CardTitle>
+              <CardDescription>
+                Подсказки показывают гипотезу и доказательства; решение принимаете вы — примите, отклоните или измените предложение.
+              </CardDescription>
             </div>
-            <Chip
+            <StatusChip
               label="Ожидают"
               value={pendingAiDraftCount}
               numeric
               tone={pendingAiDraftCount > 0 ? "warning" : "neutral"}
             />
-          </div>
-          <div className="ai-draft-list">
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 pt-3">
             {aiDrafts.length > 0 ? (
               aiDrafts.map((draft) => (
-                <article key={draft.id} className="ai-draft-card">
-                  <div className="ai-draft-card__header">
+                <article
+                  key={draft.id}
+                  className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h3>{aiDraftKindLabel(draft.kind)}</h3>
-                      <p>{draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}</p>
+                      <h3 className="text-sm font-semibold text-foreground">{aiDraftKindLabel(draft.kind)}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {draft.modelVersion} · {draft.promptVersion} · ссылок на доказательства: {evidenceRefCount(draft.evidenceRefsJson)}
+                      </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {isDeterministicAiModel(draft.modelVersion) ? (
-                        <Chip label="Движок" value="Эвристика (без AI)" tone="warning" />
+                        <StatusChip label="Движок" value="Эвристика (без AI)" tone="warning" />
                       ) : null}
-                      <Chip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
+                      <StatusChip label="Статус" value={aiDraftStatusLabel(draft.status)} tone={aiDraftStatusTone(draft.status)} />
                     </div>
                   </div>
-                  <p className="ai-draft-card__preview">{suggestedValuePreview(draft.suggestedValueJson)}</p>
+                  <p className="text-sm text-foreground">{suggestedValuePreview(draft.suggestedValueJson)}</p>
                   {draft.finalizedAt || draft.decisionReason ? (
-                    <p className="ai-draft-card__decision">
+                    <p className="border-t border-border pt-2 text-xs text-muted-foreground">
                       {draft.finalizedBy?.name ?? "Проверяющий"} · {draft.finalizedAt ? draft.finalizedAt.toLocaleString("ru-RU") : "решение зафиксировано"}
                       {draft.decisionReason ? ` · ${draft.decisionReason}` : ""}
                     </p>
                   ) : draft.status === "draft" ? (
                     <AiDraftDecisionControls draftId={draft.id} suggestedValueJson={draft.suggestedValueJson} />
                   ) : (
-                    <p className="ai-draft-card__decision">Решение пока не зафиксировано.</p>
+                    <p className="border-t border-border pt-2 text-xs text-muted-foreground">Решение пока не зафиксировано.</p>
                   )}
                 </article>
               ))
@@ -419,226 +449,245 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 description="Когда ИИ предложит оценку, её можно будет принять, отклонить или изменить здесь."
               />
             )}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <div className="review-linked-evidence-grid" aria-label="Сводка доказательств проверки">
-        <div className="review-linked-evidence-item">
-          <span>Доказательства</span>
-          <strong>{evidenceMessageIds.length}</strong>
-          <small>{evidenceMessageIds.length > 0 ? "Подсвечены в таймлайне диалога." : "Пока нет привязанных сообщений."}</small>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5" aria-label="Сводка доказательств проверки">
+        <div className="grid gap-1 rounded-xl border border-border bg-muted/30 p-3">
+          <span className="text-xs text-muted-foreground">Доказательства</span>
+          <strong className="text-base text-foreground tabular-nums">{evidenceMessageIds.length}</strong>
+          <small className="text-xs text-muted-foreground">
+            {evidenceMessageIds.length > 0 ? "Подсвечены в таймлайне диалога." : "Пока нет привязанных сообщений."}
+          </small>
         </div>
-        <div className="review-linked-evidence-item">
-          <span>Итоговый риск</span>
-          <strong>{latestFinding ? riskLevelLabels[latestFinding.riskLevel] : "Нет"}</strong>
-          <small>{latestFinding?.category ?? "Категория появится после оценки."}</small>
+        <div className="grid gap-1 rounded-xl border border-border bg-muted/30 p-3">
+          <span className="text-xs text-muted-foreground">Итоговый риск</span>
+          <strong className="text-base text-foreground">{latestFinding ? riskLevelLabels[latestFinding.riskLevel] : "Нет"}</strong>
+          <small className="text-xs text-muted-foreground">{latestFinding?.category ?? "Категория появится после оценки."}</small>
         </div>
-        <div className="review-linked-evidence-item">
-          <span>Обратная связь</span>
-          <strong>{latestFinalizedReview ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus : "Нет"}</strong>
-          <small>{hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}</small>
+        <div className="grid gap-1 rounded-xl border border-border bg-muted/30 p-3">
+          <span className="text-xs text-muted-foreground">Обратная связь</span>
+          <strong className="text-base text-foreground">
+            {latestFinalizedReview ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus : "Нет"}
+          </strong>
+          <small className="text-xs text-muted-foreground">
+            {hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}
+          </small>
         </div>
         {canSeeAiQualityDrafts ? (
-          <div className="review-linked-evidence-item">
-            <span>ИИ-подсказки</span>
-            <strong>{aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0"}</strong>
-            <small>{decidedAiDraftCount > 0 ? `${decidedAiDraftCount} уже имеют решение человека.` : "Ожидают ручного решения."}</small>
+          <div className="grid gap-1 rounded-xl border border-border bg-muted/30 p-3">
+            <span className="text-xs text-muted-foreground">ИИ-подсказки</span>
+            <strong className="text-base text-foreground tabular-nums">
+              {aiDraftTotalCount > 0 ? `${pendingAiDraftCount}/${aiDraftTotalCount}` : "0"}
+            </strong>
+            <small className="text-xs text-muted-foreground">
+              {decidedAiDraftCount > 0 ? `${decidedAiDraftCount} уже имеют решение человека.` : "Ожидают ручного решения."}
+            </small>
           </div>
         ) : null}
       </div>
       </div>
 
-      <div className="grid gap-[18px] items-start md:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-4 md:grid-cols-2">
       {latestFinalizedReview ? (
-        <details className="review-secondary panel disclosure-panel overflow-clip [&[open]]:md:col-span-2">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+        <Collapsible className="group min-w-0 overflow-clip rounded-xl bg-card ring-1 ring-foreground/10 data-open:md:col-span-2">
+          <CollapsibleTrigger className="flex w-full min-w-0 cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left">
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold">Последнее замечание</h2>
-              <p className="mt-1 truncate text-sm text-[var(--text-muted)]">{latestFinalizedReview.summary}</p>
+              <h2 className="text-lg font-semibold text-foreground">Последнее замечание</h2>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{latestFinalizedReview.summary}</p>
             </div>
             <span
-              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
+              className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
               aria-hidden="true"
             >
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="size-4" />
             </span>
-          </summary>
-          <div className="border-t border-[var(--border)] p-5">
-            <p className="text-sm leading-6 text-[var(--text-body)]">{latestFinalizedReview.summary}</p>
-            {latestFinding ? (
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="border-t border-border p-5">
+              <p className="text-sm leading-6 text-foreground">{latestFinalizedReview.summary}</p>
+              {latestFinding ? (
+                <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                  <DetailItem label="Ответственность">{ownerTypeLabels[latestFinding.ownerType]}</DetailItem>
+                  <DetailItem label="Риск">{riskLevelLabels[latestFinding.riskLevel]}</DetailItem>
+                  <DetailItem label="Категория">{latestFinding.category}</DetailItem>
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-                <div>
-                  <p className="font-semibold text-[var(--text-muted)]">Ответственность</p>
-                  <p className="mt-1">{ownerTypeLabels[latestFinding.ownerType]}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-[var(--text-muted)]">Риск</p>
-                  <p className="mt-1">{riskLevelLabels[latestFinding.riskLevel]}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-[var(--text-muted)]">Категория</p>
-                  <p className="mt-1">{latestFinding.category}</p>
-                </div>
+                <DetailItem label="Критическая ошибка">
+                  {latestFinalizedReview.criticalError ? latestFinalizedReview.criticalCategory ?? "Да" : "Нет"}
+                </DetailItem>
+                <DetailItem label="Апелляция">
+                  {appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus}
+                </DetailItem>
+                <DetailItem label="Переответ">
+                  {reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? latestFinalizedReview.reanswerStatus}
+                </DetailItem>
+              </div>
+            </div>
+            {latestFinalizedReview.feedbackComment || latestFinalizedReview.positiveNotes ? (
+              <div className="mx-5 mb-5 grid gap-3 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                {latestFinalizedReview.feedbackComment ? (
+                  <div>
+                    <p className="font-semibold text-muted-foreground">Обратная связь</p>
+                    <p className="mt-1 text-foreground">{latestFinalizedReview.feedbackComment}</p>
+                  </div>
+                ) : null}
+                {latestFinalizedReview.positiveNotes ? (
+                  <div>
+                    <p className="font-semibold text-muted-foreground">Положительные моменты</p>
+                    <p className="mt-1 text-foreground">{latestFinalizedReview.positiveNotes}</p>
+                  </div>
+                ) : null}
               </div>
             ) : null}
-            <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-              <div>
-                <p className="font-semibold text-[var(--text-muted)]">Критическая ошибка</p>
-                <p className="mt-1">{latestFinalizedReview.criticalError ? latestFinalizedReview.criticalCategory ?? "Да" : "Нет"}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-[var(--text-muted)]">Апелляция</p>
-                <p className="mt-1">{appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-[var(--text-muted)]">Переответ</p>
-                <p className="mt-1">{reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? latestFinalizedReview.reanswerStatus}</p>
-              </div>
-            </div>
-          </div>
-          {latestFinalizedReview.feedbackComment || latestFinalizedReview.positiveNotes ? (
-            <div className="soft-callout mx-5 mb-5 text-sm">
-              {latestFinalizedReview.feedbackComment ? (
-                <div>
-                  <p className="font-semibold text-[var(--text-muted)]">Обратная связь</p>
-                  <p className="mt-1 text-[var(--foreground)]">{latestFinalizedReview.feedbackComment}</p>
-                </div>
-              ) : null}
-              {latestFinalizedReview.positiveNotes ? (
-                <div>
-                  <p className="font-semibold text-[var(--text-muted)]">Положительные моменты</p>
-                  <p className="mt-1 text-[var(--foreground)]">{latestFinalizedReview.positiveNotes}</p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {latestFinding?.coachingAction ? (
-            <div className="soft-callout mx-5 mb-5 text-sm">
-              <p className="font-semibold text-[var(--text-muted)]">Разбор с оператором</p>
-              <p className="mt-1 text-[var(--foreground)]">{latestFinding.coachingAction.action}</p>
-              <p className="mt-2 text-[var(--text-muted)]">
-                {latestFinding.coachingAction.assignee}
-                {latestFinding.coachingAction.dueAt
-                  ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
-                  : ""}
-              </p>
-            </div>
-          ) : null}
-          {latestFinalizedReview.needsReanswer ? (
-            <div className="soft-callout soft-callout--warn mx-5 mb-5 grid-cols-[auto_minmax(0,1fr)] text-sm text-[var(--warning)]">
-              <RotateCcw className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
-              <p>Нужен переответ клиенту: проверьте, что руководитель получил сигнал и обращение переоткрыто при необходимости.</p>
-            </div>
-          ) : null}
-          <div className="soft-callout mx-5 mb-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[var(--foreground)]">Обратная связь и апелляция</p>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  Статус: {feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus}
-                  {latestFinalizedReview.feedbackAckAt
-                    ? ` · ознакомлен ${latestFinalizedReview.feedbackAckAt.toLocaleString("ru-RU")}`
+            {latestFinding?.coachingAction ? (
+              <div className="mx-5 mb-5 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                <p className="font-semibold text-muted-foreground">Разбор с оператором</p>
+                <p className="mt-1 text-foreground">{latestFinding.coachingAction.action}</p>
+                <p className="mt-2 text-muted-foreground">
+                  {latestFinding.coachingAction.assignee}
+                  {latestFinding.coachingAction.dueAt
+                    ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
                     : ""}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {canAcknowledgeFeedback ? (
-                  <form action={updateReviewFeedback}>
-                    <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                    <input type="hidden" name="action" value="acknowledged" />
-                    <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
-                      Ознакомлен
-                    </button>
-                  </form>
-                ) : null}
-                {canOpenAppeal ? (
-                  <form action={updateReviewFeedback}>
-                    <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                    <input type="hidden" name="action" value="appeal_opened" />
-                    <button type="submit" className="action-button min-h-[36px] px-3 py-2 text-sm">
-                      Открыть апелляцию
-                    </button>
-                  </form>
-                ) : null}
-                {canCompleteReanswer ? (
-                  <form action={updateReviewFeedback}>
-                    <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                    <input type="hidden" name="action" value="reanswer_completed" />
-                    <button type="submit" className="action-button action-button--primary min-h-[36px] px-3 py-2 text-sm">
-                      Переответ выполнен
-                    </button>
-                  </form>
-                ) : null}
-                {!canAcknowledgeFeedback && !canOpenAppeal && !canCompleteReanswer ? (
-                  <Chip label="Действия" value="нет" tone="neutral" />
-                ) : null}
+            ) : null}
+            {latestFinalizedReview.needsReanswer ? (
+              <Alert className="mx-5 mb-5 border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-300">
+                <RotateCcw aria-hidden="true" />
+                <AlertDescription>
+                  Нужен переответ клиенту: проверьте, что руководитель получил сигнал и обращение переоткрыто при необходимости.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="mx-5 mb-5 rounded-lg border border-border bg-muted/40 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Обратная связь и апелляция</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Статус: {feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus}
+                    {latestFinalizedReview.feedbackAckAt
+                      ? ` · ознакомлен ${latestFinalizedReview.feedbackAckAt.toLocaleString("ru-RU")}`
+                      : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {canAcknowledgeFeedback ? (
+                    <form action={updateReviewFeedback}>
+                      <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                      <input type="hidden" name="action" value="acknowledged" />
+                      <Button type="submit" size="sm" variant="outline">
+                        Ознакомлен
+                      </Button>
+                    </form>
+                  ) : null}
+                  {canOpenAppeal ? (
+                    <form action={updateReviewFeedback}>
+                      <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                      <input type="hidden" name="action" value="appeal_opened" />
+                      <Button type="submit" size="sm" variant="outline">
+                        Открыть апелляцию
+                      </Button>
+                    </form>
+                  ) : null}
+                  {canCompleteReanswer ? (
+                    <form action={updateReviewFeedback}>
+                      <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                      <input type="hidden" name="action" value="reanswer_completed" />
+                      <Button type="submit" size="sm">
+                        Переответ выполнен
+                      </Button>
+                    </form>
+                  ) : null}
+                  {!canAcknowledgeFeedback && !canOpenAppeal && !canCompleteReanswer ? (
+                    <StatusChip label="Действия" value="нет" tone="neutral" />
+                  ) : null}
+                </div>
               </div>
+              {canCreateTrainingAssignment ? (
+                <form
+                  action={createTrainingAssignmentFromReview}
+                  className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end"
+                >
+                  <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                  <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
+                  <Field>
+                    <FieldLabel>Учебная задача</FieldLabel>
+                    <Input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Описание</FieldLabel>
+                    <Input name="description" required defaultValue={latestFinalizedReview.summary} />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Срок</FieldLabel>
+                    <Input name="dueAt" type="date" />
+                  </Field>
+                  <ValidatedSubmitButton className={cn(buttonVariants({ variant: "default" }))}>
+                    Создать
+                  </ValidatedSubmitButton>
+                </form>
+              ) : null}
+              {latestFinalizedReview.feedbackEvents.length > 0 ? (
+                <div className="mt-3 grid gap-2 text-sm">
+                  {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
+                    <div
+                      key={event.id}
+                      className="rounded-md border border-border bg-background px-2.5 py-1.5 text-muted-foreground"
+                    >
+                      {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {reviewEventActionLabel(event.action)}
+                      {event.comment ? ` · ${event.comment}` : ""}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            {canCreateTrainingAssignment ? (
-              <form action={createTrainingAssignmentFromReview} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end">
-                <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Учебная задача
-                  <input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} className="form-control" />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Описание
-                  <input name="description" required defaultValue={latestFinalizedReview.summary} className="form-control" />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                  Срок
-                  <input name="dueAt" type="date" className="form-control" />
-                </label>
-                <ValidatedSubmitButton className="action-button">Создать</ValidatedSubmitButton>
-              </form>
-            ) : null}
-            {latestFinalizedReview.feedbackEvents.length > 0 ? (
-              <div className="grid gap-2 text-sm">
-                {latestFinalizedReview.feedbackEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="inline-code-box text-[var(--text-body)]">
-                    {event.createdAt.toLocaleString("ru-RU")} · {event.actor.name} · {reviewEventActionLabel(event.action)}
-                    {event.comment ? ` · ${event.comment}` : ""}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </details>
+          </CollapsibleContent>
+        </Collapsible>
       ) : null}
 
       {canEvaluateReviewPermission && conversation.reviews.length > 0 ? (
-        <details className="review-secondary panel disclosure-panel overflow-clip [&[open]]:md:col-span-2">
-          <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-            <div>
-              <h2 className="text-lg font-semibold">История проверок</h2>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">{conversation.reviews.length} записей</p>
+        <Collapsible className="group min-w-0 overflow-clip rounded-xl bg-card ring-1 ring-foreground/10 data-open:md:col-span-2">
+          <CollapsibleTrigger className="flex w-full min-w-0 cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-foreground">История проверок</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{russianPlural(conversation.reviews.length, ["запись", "записи", "записей"])}</p>
             </div>
             <span
-              className="disclosure-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--accent-strong)]"
+              className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
               aria-hidden="true"
             >
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="size-4" />
             </span>
-          </summary>
-          <div className="record-list border-t border-[var(--border)] px-5">
-            {conversation.reviews.map((review) => (
-              <article key={review.id} className="record-card">
-                <div className="record-row">
-                  <div className="min-w-0">
-                    <h3 className="record-title">{review.reviewer.name}</h3>
-                    <p className="record-meta mt-1">{(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}</p>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-2 border-t border-border px-5 py-4">
+              {conversation.reviews.map((review) => (
+                <article key={review.id} className="rounded-lg border border-border p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground">{review.reviewer.name}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {(review.finalizedAt ?? review.createdAt).toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                    <StatusChip
+                      label="Оценка"
+                      value={formatQualityScore(review.totalScore)}
+                      numeric
+                      tone={toneForScore(review.totalScore)}
+                    />
                   </div>
-                  <Chip label="Оценка" value={formatQualityScore(review.totalScore)} numeric tone={chipToneForStatus(toneForScore(review.totalScore))} />
-                </div>
-                <p className="record-meta">
-                  {reviewStatusLabels[review.status]} · {review.findings[0]?.category ?? "Без замечаний"}
-                </p>
-              </article>
-            ))}
-          </div>
-        </details>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {reviewStatusLabels[review.status]} · {review.findings[0]?.category ?? "Без замечаний"}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       ) : null}
       </div>
     </div>
@@ -646,77 +695,80 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
 
   return (
     <PageShell
-      className="review-workbench-shell"
       eyebrow="Доска проверки"
       title={conversation.subject}
       description="Диалог, доказательства и форма оценки собраны в одном рабочем экране без лишних служебных таблиц."
     >
       <ReviewSavedToast marker={savedMarker} />
       {latestFinalizedReview && hasOpenAppeal ? (
-        <section className="appeal-alert">
-          <div className="appeal-alert__icon" aria-hidden="true">
-            <MessageSquareWarning size={18} />
-          </div>
-          <div className="appeal-alert__body">
-            <h2>Открыта апелляция</h2>
-            <p>
+        <Alert className="flex flex-wrap items-start gap-3 border-amber-500/30 bg-amber-500/10">
+          <MessageSquareWarning className="size-4 shrink-0" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <AlertTitle>Открыта апелляция</AlertTitle>
+            <AlertDescription>
               Статус: {appealLabel}
               {latestFinalizedReview.appealDueAt ? ` · срок ${latestFinalizedReview.appealDueAt.toLocaleDateString("ru-RU")}` : ""}.
               Руководитель должен принять решение и зафиксировать итог.
-            </p>
+            </AlertDescription>
           </div>
           {canManageWorkflow ? (
-            <div className="appeal-alert__actions">
+            <div className="flex flex-wrap gap-2">
               <form action={updateReviewFeedback}>
                 <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                 <input type="hidden" name="action" value="appeal_confirmed" />
-                <button type="submit" className="action-button">Оценка верна</button>
+                <Button type="submit" size="sm" variant="outline">
+                  Оценка верна
+                </Button>
               </form>
               <form action={updateReviewFeedback}>
                 <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                 <input type="hidden" name="action" value="appeal_corrected" />
-                <button type="submit" className="action-button action-button--primary">Нужна корректировка</button>
+                <Button type="submit" size="sm">
+                  Нужна корректировка
+                </Button>
               </form>
             </div>
           ) : null}
-        </section>
+        </Alert>
       ) : null}
 
-      <section className="review-context-panel panel" aria-label="Контекст обращения">
-        <div className="review-context-panel__details">
-          <div className="review-context-panel__header">
-            <h2>Контекст</h2>
-            <p>Клиент {conversation.customerName} · оператор {conversation.assigneeName ?? "не назначен"}</p>
+      <Card className="py-0" aria-label="Контекст обращения">
+        <CardHeader className="gap-3 border-b border-border px-4 py-3.5">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-base">Контекст</CardTitle>
+            <CardDescription>
+              Клиент {conversation.customerName} · оператор {conversation.assigneeName ?? "не назначен"}
+            </CardDescription>
           </div>
-          <div className="review-context-panel__chips">
-            <Chip label="Состояние" value={reviewStateLabels[reviewState]} tone={chipToneForStatus(reviewStateTone(reviewState))} />
-            <Chip label="Оценка" value={scoreLabel} numeric tone={chipToneForStatus(toneForScore(scorePreviewReview?.totalScore))} />
-            <Chip label="Источник" value={externalSourceLabel(conversation.externalSource)} tone="neutral" />
+          <div className="flex min-w-0 flex-wrap gap-1.5">
+            <StatusChip label="Состояние" value={reviewStateLabels[reviewState]} tone={reviewStateTone(reviewState)} />
+            <StatusChip label="Оценка" value={scoreLabel} numeric tone={toneForScore(scorePreviewReview?.totalScore)} />
+            <StatusChip label="Источник" value={externalSourceLabel(conversation.externalSource)} />
             {conversation.teamName ? (
-              <Chip label="Команда" value={conversation.teamName} tone="neutral" />
+              <StatusChip label="Команда" value={conversation.teamName} />
             ) : null}
-            <Chip
+            <StatusChip
               label="Срок"
               value={conversation.reviewDueAt ? conversation.reviewDueAt.toLocaleDateString("ru-RU") : "Нет"}
               numeric
-              tone={chipToneForStatus(dueDateTone(conversation.reviewDueAt, now, reviewState))}
+              tone={dueDateTone(conversation.reviewDueAt, now, reviewState)}
             />
             {conversation.riskHint ? (
-              <Chip label="Риск" value={conversation.riskHint} tone="warning" />
+              <StatusChip label="Риск" value={conversation.riskHint} tone="warning" />
             ) : null}
             {hasAppeal ? (
-              <Chip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "accent"} />
+              <StatusChip label="Апелляция" value={appealLabel} tone={hasOpenAppeal ? "warning" : "info"} />
             ) : null}
             {hasReanswer ? (
-              <Chip
+              <StatusChip
                 label="Переответ"
                 value={reanswerLabel}
-                tone={latestFinalizedReview?.reanswerStatus === "completed" ? "success" : "warning"}
+                tone={latestFinalizedReview?.reanswerStatus === "completed" ? "positive" : "warning"}
               />
             ) : null}
           </div>
-        </div>
-        <div className="review-detail-grid">
+        </CardHeader>
+        <CardContent className="grid gap-3 px-4 py-3.5 sm:grid-cols-2 lg:grid-cols-3">
           <DetailItem label="Канал">{channelLabels[conversation.channel]}</DetailItem>
           <DetailItem label="Тикет">{conversationStatusLabel(conversation.status)}</DetailItem>
           <DetailItem label="Сообщения">{formatMessageCount(conversation.messages.length)}</DetailItem>
@@ -725,67 +777,82 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           <DetailItem label="CSAT">
             {conversation.csatScore ? `${conversation.csatScore} · ${csatBucketLabels[conversation.csatBucket]}` : csatBucketLabels[conversation.csatBucket]}
           </DetailItem>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <div id="review-workspace" className="review-workbench" data-active-pane="dialog">
-        <div className="review-workbench__bar">
+      <div
+        id="review-workspace"
+        className={cn(
+          "flex min-w-0 flex-col gap-3",
+          "max-lg:[&[data-active-pane=dialog]_.master-detail>div:has(>[data-slot=review-score-pane])]:hidden",
+          "max-lg:[&[data-active-pane=score]_.master-detail>div:has(>[data-slot=review-dialog-pane])]:hidden"
+        )}
+        data-active-pane="dialog"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <WorkbenchPaneToggle targetId="review-workspace" />
         </div>
         <MasterDetail
-          className="review-workbench__panes"
           listWidth="minmax(0, 1fr)"
           list={
-            <ConversationTimeline
-              messages={conversation.messages}
-              highlightedMessageIds={evidenceMessageIds}
-              conversationId={conversation.id}
-              coachingPins={canSeeCoachingPins ? conversation.coachingPins : []}
-              canCoach={canSeeCoachingPins && reviewSource === "CALIBRATION"}
-              canManagePins={canManageWorkflow}
-              currentUserId={user.id}
-            />
+            <div data-slot="review-dialog-pane" className="min-w-0">
+              <ConversationTimeline
+                messages={conversation.messages}
+                highlightedMessageIds={evidenceMessageIds}
+                conversationId={conversation.id}
+                coachingPins={canSeeCoachingPins ? conversation.coachingPins : []}
+                canCoach={canSeeCoachingPins && reviewSource === "CALIBRATION"}
+                canManagePins={canManageWorkflow}
+                currentUserId={user.id}
+              />
+            </div>
           }
           detail={
-            canShowReviewPanel && scorecard ? (
-              <div className="review-panel-column">
-                <ReviewPanel
-                  conversationId={conversation.id}
-                  messages={conversation.messages}
-                  scorecard={scorecard}
-                  draftReview={currentDraftReview}
-                  reviewSource={reviewSource}
-                  returnTo={returnTo}
-                  title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
-                  aiPredictions={aiPredictions}
-                />
-              </div>
-            ) : (
-              <aside className="review-panel-column">
-                <section className="panel overflow-clip">
-                  <div className="border-b border-[var(--border)] px-5 py-4">
-                    <h2 className="text-lg font-semibold">Итог проверки</h2>
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">Оператор видит только собственное обращение и финальную обратную связь.</p>
-                  </div>
-                  <div className="grid gap-3 p-5 text-sm">
-                    <DetailItem label="Обратная связь">
-                      {latestFinalizedReview
-                        ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
-                        : "Пока нет финальной проверки"}
-                    </DetailItem>
-                    <DetailItem label="Апелляция">{appealLabel}</DetailItem>
-                  </div>
-                </section>
-              </aside>
-            )
+            <div data-slot="review-score-pane" className="min-w-0">
+              {canShowReviewPanel && scorecard ? (
+                <div>
+                  <ReviewPanel
+                    conversationId={conversation.id}
+                    messages={conversation.messages}
+                    scorecard={scorecard}
+                    draftReview={currentDraftReview}
+                    reviewSource={reviewSource}
+                    returnTo={returnTo}
+                    title={reviewSource === "CALIBRATION" ? "Калибровочная оценка" : reviewSource === "SELF_REVIEW" ? "Комментарий оператора" : "Проверка"}
+                    aiPredictions={aiPredictions}
+                  />
+                </div>
+              ) : (
+                <aside>
+                  <Card className="overflow-clip py-0">
+                    <CardHeader className="border-b border-border px-5 py-4">
+                      <CardTitle className="text-lg">Итог проверки</CardTitle>
+                      <CardDescription>
+                        Оператор видит только собственное обращение и финальную обратную связь.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-3 p-5 text-sm">
+                      <DetailItem label="Обратная связь">
+                        {latestFinalizedReview
+                          ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
+                          : "Пока нет финальной проверки"}
+                      </DetailItem>
+                      <DetailItem label="Апелляция">{appealLabel}</DetailItem>
+                    </CardContent>
+                  </Card>
+                </aside>
+              )}
+            </div>
           }
         />
-        <footer className="review-workbench__footer">
-          <span className="review-workbench__footer-label">Прогресс по очереди</span>
-          <strong className="review-workbench__progress-value" aria-live="polite">
+        <footer className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1 border-t border-border pt-3">
+          <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
+            Прогресс по очереди
+          </span>
+          <strong className="text-sm font-bold tabular-nums text-foreground" aria-live="polite">
             {batchProgressLabel}
           </strong>
-          <span className="review-workbench__footer-hint">
+          <span className="text-xs text-muted-foreground">
             {batchProgress.position === 0
               ? "Обращение вне активной очереди проверки."
               : batchProgress.isLast

@@ -1,10 +1,32 @@
 "use client";
 
 import { Activity, AlertTriangle, CheckCircle2, Play } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { ActionFlowGuard } from "@/components/action-flow-guard";
+import { actionFlowNavigation } from "@/lib/action-result-bridge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { runOtrsDiagnosticsActionState, type OtrsDiagnosticsActionState } from "@/lib/integration-actions";
+import { cn } from "@/lib/utils";
 
 const initialState: OtrsDiagnosticsActionState = null;
 
@@ -34,28 +56,28 @@ type OtrsDiagnosticsPanelProps = {
   latestDiagnostic: DiagnosticRun;
 };
 
-function statusChipTone(status: string): ChipTone {
+function statusBadgeClass(status: string) {
   if (["succeeded", "ok"].includes(status)) {
-    return "success";
+    return "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300";
   }
 
   if (["failed", "error"].includes(status)) {
-    return "danger";
+    return "border-transparent bg-destructive/15 text-destructive";
   }
 
-  return "neutral";
+  return "";
 }
 
 function statusIcon(status: string) {
   if (["succeeded", "ok"].includes(status)) {
-    return <CheckCircle2 size={16} className="text-[var(--success)]" aria-hidden="true" />;
+    return <CheckCircle2 size={16} className="text-emerald-600" aria-hidden="true" />;
   }
 
   if (["failed", "error"].includes(status)) {
-    return <AlertTriangle size={16} className="text-[var(--danger)]" aria-hidden="true" />;
+    return <AlertTriangle size={16} className="text-destructive" aria-hidden="true" />;
   }
 
-  return <Activity size={16} className="text-[var(--text-muted)]" aria-hidden="true" />;
+  return <Activity size={16} className="text-muted-foreground" aria-hidden="true" />;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -66,102 +88,158 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="action-button action-button--primary" disabled={pending}>
-      <Play size={16} aria-hidden="true" />
+    <Button type="submit" disabled={pending}>
+      <Play data-icon="inline-start" aria-hidden="true" />
       {pending ? "Запускаем" : "Запустить диагностику"}
-    </button>
+    </Button>
   );
 }
 
 export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDiagnosticsPanelProps) {
-  const [state, formAction] = useActionState(runOtrsDiagnosticsActionState, initialState);
+  const flashKey = `otrs-diagnostics-result:${integrationId}`;
+  const [actionState, formAction] = useActionState(runOtrsDiagnosticsActionState, initialState);
+  // The bridged result feeds the alert when the client router drops the
+  // action commit; on success the page reloads so the fresh diagnostic run
+  // renders from the server, and the flash keeps the message across it.
+  const [bridgedState, setBridgedState] = useState<OtrsDiagnosticsActionState>(null);
+  const state = bridgedState ?? actionState;
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(flashKey);
+    if (raw) {
+      sessionStorage.removeItem(flashKey);
+      try {
+        setBridgedState(JSON.parse(raw) as OtrsDiagnosticsActionState);
+      } catch {
+        // A malformed flash entry is simply dropped.
+      }
+    }
+  }, [flashKey]);
 
   return (
-    <section className="panel overflow-clip">
-      <div className="border-b border-[var(--border)] px-5 py-4">
-        <h2 className="text-lg font-semibold">Диагностика</h2>
-        <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
+    <Card
+      className="overflow-clip"
+      role="region"
+      aria-labelledby="otrs-diagnostics-title"
+    >
+      <CardHeader className="border-b">
+        <CardTitle id="otrs-diagnostics-title">Диагностика</CardTitle>
+        <CardDescription>
           Проверяет конфиг, GenericInterface endpoint, авторизацию, TicketGet и безопасный dry-run.
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
 
-      <div className="grid gap-4 p-4">
-        <form action={formAction} className="soft-callout grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <CardContent className="grid gap-4 pt-(--card-spacing)">
+        <form action={formAction} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <ActionFlowGuard
+            onResult={(value) => {
+              const result = value as OtrsDiagnosticsActionState;
+              if (!result) return;
+              if (result.ok) {
+                sessionStorage.setItem(flashKey, JSON.stringify(result));
+                actionFlowNavigation.reload();
+                return;
+              }
+              setBridgedState(result);
+            }}
+          />
           <input type="hidden" name="integrationId" value={integrationId} />
-          <label className="grid gap-1.5 text-sm font-medium text-[var(--text-body)]">
-            Manual TicketID для TicketGet
-            <input name="manualTicketId" placeholder="42" className="form-control h-10 text-sm" />
-          </label>
+          <Field>
+            <FieldLabel htmlFor="otrs-manualTicketId">Manual TicketID для TicketGet</FieldLabel>
+            <Input id="otrs-manualTicketId" name="manualTicketId" placeholder="42" />
+          </Field>
           <SubmitButton />
         </form>
 
         {state ? (
-          <div className={`soft-callout text-sm font-medium ${state.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-            {state.message}
-            {state.status ? ` Статус: ${state.status}.` : ""}
-          </div>
+          <Alert variant={state.ok ? "default" : "destructive"}>
+            <AlertDescription>
+              {state.message}
+              {state.status ? ` Статус: ${state.status}.` : ""}
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         {latestDiagnostic ? (
           <div className="grid gap-3">
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="soft-callout">
-                <p className="soft-callout__label">Статус</p>
-                <p className="record-title record-title--tight">
-                  <Chip tone={statusChipTone(latestDiagnostic.status)} size="xs">{latestDiagnostic.status}</Chip>
-                </p>
-              </div>
-              <div className="soft-callout">
-                <p className="soft-callout__label">Запуск</p>
-                <p className="record-meta">{formatDate(latestDiagnostic.startedAt)}</p>
-              </div>
-              <div className="soft-callout">
-                <p className="soft-callout__label">Endpoint</p>
-                <p className="record-meta compact-text">{latestDiagnostic.redactedEndpoint ?? "Нет данных"}</p>
-              </div>
+              <Card size="sm">
+                <CardContent className="grid gap-1">
+                  <p className="text-xs font-medium text-muted-foreground">Статус</p>
+                  <Badge
+                    variant={["succeeded", "ok"].includes(latestDiagnostic.status) ? "secondary" : "outline"}
+                    className={cn("font-normal", statusBadgeClass(latestDiagnostic.status))}
+                  >
+                    {latestDiagnostic.status}
+                  </Badge>
+                </CardContent>
+              </Card>
+              <Card size="sm">
+                <CardContent className="grid gap-1">
+                  <p className="text-xs font-medium text-muted-foreground">Запуск</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(latestDiagnostic.startedAt)}</p>
+                </CardContent>
+              </Card>
+              <Card size="sm">
+                <CardContent className="grid gap-1">
+                  <p className="text-xs font-medium text-muted-foreground">Endpoint</p>
+                  <p className="break-all text-sm text-muted-foreground">
+                    {latestDiagnostic.redactedEndpoint ?? "Нет данных"}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="scroll-area">
-              <table className="table-fixed-copy w-full min-w-[720px] border-collapse text-left text-sm">
-                <thead className="bg-[var(--accent-soft)] text-xs uppercase text-[var(--text-subtle)]">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Step</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Duration</th>
-                    <th className="px-4 py-3 font-semibold">Remediation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {latestDiagnostic.steps.map((step) => (
-                    <tr key={step.id}>
-                      <td className="px-4 py-3 font-mono text-xs">{step.key}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-2">
-                          {statusIcon(step.status)}
-                          <Chip tone={statusChipTone(step.status)} size="xs">{step.status}</Chip>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-body)]">{step.durationMs} ms</td>
-                      <td className="px-4 py-3 text-[var(--text-body)]">{step.remediationHint ?? "Нет подсказки."}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table className="min-w-[720px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Шаг</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Длительность</TableHead>
+                  <TableHead>Подсказка</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {latestDiagnostic.steps.map((step) => (
+                  <TableRow key={step.id}>
+                    <TableCell className="font-mono text-xs">{step.key}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-2">
+                        {statusIcon(step.status)}
+                        <Badge
+                          variant={["succeeded", "ok"].includes(step.status) ? "secondary" : "outline"}
+                          className={cn("font-normal", statusBadgeClass(step.status))}
+                        >
+                          {step.status}
+                        </Badge>
+                      </span>
+                    </TableCell>
+                    <TableCell>{step.durationMs} ms</TableCell>
+                    <TableCell className="max-w-[280px] whitespace-normal">
+                      {step.remediationHint ?? "Нет подсказки."}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
             {latestDiagnostic.errorMessage ? (
-              <div className="soft-callout soft-callout--warn text-sm leading-5 text-[var(--warning)]">
-                {latestDiagnostic.errorCode ? `${latestDiagnostic.errorCode}: ` : ""}
-                {latestDiagnostic.errorMessage}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {latestDiagnostic.errorCode ? `${latestDiagnostic.errorCode}: ` : ""}
+                  {latestDiagnostic.errorMessage}
+                </AlertDescription>
+              </Alert>
             ) : null}
           </div>
         ) : (
-          <div className="soft-callout text-sm leading-5 text-[var(--text-muted)]">
-            Диагностика еще не запускалась. Первый запуск создаст redacted endpoint и пошаговый отчет.
-          </div>
+          <Alert>
+            <AlertDescription>
+              Диагностика еще не запускалась. Первый запуск создаст redacted endpoint и пошаговый отчет.
+            </AlertDescription>
+          </Alert>
         )}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

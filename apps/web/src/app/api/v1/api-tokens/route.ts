@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const createApiTokenSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  scopes: z.array(z.enum(allowedApiScopes as [string, ...string[]])).min(1).optional(),
+  scopes: z.array(z.enum(allowedApiScopes as [string, ...string[]])).min(1),
   expiresAt: z.string().datetime().optional().nullable()
 });
 
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     const created = await createApiToken({
       workspaceId: user.workspaceId,
       name: parsed.data.name,
-      scopes: parsed.data.scopes ?? ["all"],
+      scopes: parsed.data.scopes,
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null
     });
 

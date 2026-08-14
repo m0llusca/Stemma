@@ -35,7 +35,7 @@ export function parsePositiveInteger(value: string | null | undefined, fallback:
 
 export function parsePagination(input: PaginationInput) {
   const limit = parsePositiveInteger(input.limit, input.defaultLimit ?? 50, input.maxLimit ?? 100);
-  const page = parsePositiveInteger(input.page, 1);
+  const page = parsePositiveInteger(input.page, 1, 10_000);
 
   return {
     page,

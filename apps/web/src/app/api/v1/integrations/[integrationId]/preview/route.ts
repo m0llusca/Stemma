@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const previewSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("manual_ticket_ids"),
-    manualTicketIds: z.array(z.union([z.string().trim().min(1), z.number().int().positive()])).min(1)
+    manualTicketIds: z.array(z.union([z.string().trim().min(1), z.number().int().positive()])).min(1).max(500)
   }),
   z.object({
     mode: z.literal("ticket_search"),

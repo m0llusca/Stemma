@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceApiRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit";
 import { recordApiTokenError, recordApiTokenSuccess, requireApiToken } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 
@@ -14,6 +15,20 @@ export async function GET(request: NextRequest) {
 
   if (!auth.ok) {
     return auth.response;
+  }
+
+  const rateLimit = await enforceApiRateLimit({
+    workspaceId: auth.workspaceId,
+    apiTokenId: auth.apiTokenId,
+    routeKey: "GET /api/reviews/export"
+  });
+
+  if (!rateLimit.ok) {
+    await recordApiTokenError(auth.apiTokenId, "Rate limit exceeded.");
+    return NextResponse.json(
+      { error: "Rate limit exceeded." },
+      { status: 429, headers: rateLimitHeaders(rateLimit) }
+    );
   }
 
   try {
@@ -113,7 +128,7 @@ export async function GET(request: NextRequest) {
           coachingAction: finding.coachingAction?.action ?? null
         }))
       }))
-    });
+    }, { headers: rateLimitHeaders(rateLimit) });
 
     await recordApiTokenSuccess(auth.apiTokenId);
 

@@ -1,7 +1,18 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 type AdminDialogProps = {
   /** Подпись кнопки-триггера (например «Новый ключ»). */
@@ -21,85 +32,68 @@ type AdminDialogProps = {
 };
 
 /**
- * Лёгкое всплывающее окно настроек на нативном <dialog>: браузерный focus
- * trap, Esc и затемнение бесплатно. Заменяет секции-вкладки для коротких форм
- * (создание ключа, правила, пользователя, расписания) — список остаётся на
- * экране, контекст не теряется. Содержимое (children) приходит с сервера,
- * поэтому формы с server actions работают без изменений.
+ * Admin settings dialog on shadcn Dialog (Base UI).
+ * Replaces native <dialog> + BEM so modals work without unimported 40-admin.css.
+ * Children stay server-rendered forms with server actions intact.
  */
 export function AdminDialog({
   triggerLabel,
-  triggerClassName = "action-button action-button--primary",
+  triggerClassName,
   title,
   description,
   defaultOpen = false,
   wide = false,
   children
 }: AdminDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(defaultOpen);
-  const titleId = useId();
-
-  // Нативный showModal (недоступен в jsdom) с фолбэком на атрибут open.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog || !open) {
-      return;
-    }
-
-    if (typeof dialog.showModal === "function" && !dialog.hasAttribute("open")) {
-      dialog.showModal();
-    } else {
-      dialog.setAttribute("open", "");
-    }
-  }, [open]);
-
-  const close = useCallback(() => {
-    const dialog = dialogRef.current;
-    if (dialog && typeof dialog.close === "function") {
-      dialog.close();
-    }
-    setOpen(false);
-
-    // Deep-link ?section=create: после закрытия возвращаем чистый адрес,
-    // иначе повторное открытие/обновление снова показывает форму.
-    if (defaultOpen && typeof window !== "undefined" && window.location.search) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  }, [defaultOpen]);
 
   return (
-    <>
-      <button type="button" className={triggerClassName} onClick={() => setOpen(true)}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        // Deep-link ?section=create: clear query on close so reopen works.
+        if (!next && defaultOpen && typeof window !== "undefined" && window.location.search) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button type="button" className={cn(triggerClassName)} />}>
         {triggerLabel}
-      </button>
-      {open ? (
-        <dialog
-          ref={dialogRef}
-          className={`admin-dialog ${wide ? "admin-dialog--wide" : ""}`}
-          aria-labelledby={titleId}
-          onClose={close}
-          onMouseDown={(event) => {
-            // Клик по подложке (сам <dialog> вне панели) закрывает окно.
-            if (event.target === event.currentTarget) {
-              close();
-            }
-          }}
-        >
-          <div className="admin-dialog__panel">
-            <header className="admin-dialog__header">
-              <div className="admin-dialog__heading">
-                <h2 id={titleId} className="admin-dialog__title">{title}</h2>
-                {description ? <p className="admin-dialog__description">{description}</p> : null}
-              </div>
-              <button type="button" className="admin-dialog__close" aria-label="Закрыть окно" onClick={close}>
-                <X size={16} aria-hidden="true" />
-              </button>
-            </header>
-            <div className="admin-dialog__body">{children}</div>
+      </DialogTrigger>
+      <DialogContent
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden",
+          wide ? "sm:max-w-3xl" : "sm:max-w-lg"
+        )}
+        showCloseButton={false}
+      >
+        <DialogHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pr-8">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <DialogTitle>{title}</DialogTitle>
+            {description ? <DialogDescription>{description}</DialogDescription> : null}
           </div>
-        </dialog>
-      ) : null}
-    </>
+          <DialogClose
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute top-2 right-2"
+                aria-label="Закрыть окно"
+              />
+            }
+          >
+            <X aria-hidden="true" />
+          </DialogClose>
+        </DialogHeader>
+        <div
+          data-slot="admin-dialog-body"
+          className="min-h-0 overflow-y-auto overscroll-contain"
+        >
+          <div className="flex flex-col gap-4">{children}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

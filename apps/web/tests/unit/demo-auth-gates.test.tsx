@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -140,12 +138,62 @@ describe("demo auth gated surfaces", () => {
     expect(screen.getByText(/Плейсхолдер <API_TOKEN>/)).not.toBeNull();
   });
 
-  it("keeps seeded demo API token creation gated by QC_DEMO_AUTH", () => {
-    const seedSource = readFileSync(join(process.cwd(), "prisma/seed.ts"), "utf8");
-    const demoAuthGateIndex = seedSource.indexOf('process.env.QC_DEMO_AUTH === "enabled"');
-    const demoTokenCreateIndex = seedSource.indexOf("prisma.apiToken.create");
+  it("does not create a seeded demo API token for disabled or malformed QC_DEMO_AUTH values", async () => {
+    const seedMutation = (await import(
+      "../../prisma/demo-seed-mutation"
+    )) as Record<string, unknown>;
+    const createSeededDemoApiToken =
+      seedMutation.createSeededDemoApiToken;
 
-    expect(demoAuthGateIndex).toBeGreaterThanOrEqual(0);
-    expect(demoAuthGateIndex).toBeLessThan(demoTokenCreateIndex);
+    expect(createSeededDemoApiToken).toEqual(expect.any(Function));
+    if (typeof createSeededDemoApiToken !== "function") return;
+
+    const create = vi.fn();
+    const apiToken = { create };
+
+    for (const value of [undefined, "", "disabled", "true", "ENABLED"]) {
+      await expect(
+        createSeededDemoApiToken(
+          { QC_DEMO_AUTH: value },
+          apiToken,
+          "workspace-1"
+        )
+      ).resolves.toBeNull();
+    }
+
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("creates the seeded demo API token only for the exact enabled QC_DEMO_AUTH value", async () => {
+    const seedMutation = (await import(
+      "../../prisma/demo-seed-mutation"
+    )) as Record<string, unknown>;
+    const createSeededDemoApiToken =
+      seedMutation.createSeededDemoApiToken;
+
+    expect(createSeededDemoApiToken).toEqual(expect.any(Function));
+    if (typeof createSeededDemoApiToken !== "function") return;
+
+    const createdToken = { id: "seeded-token-1" };
+    const create = vi.fn().mockResolvedValue(createdToken);
+
+    await expect(
+      createSeededDemoApiToken(
+        { QC_DEMO_AUTH: "enabled" },
+        { create },
+        "workspace-1"
+      )
+    ).resolves.toBe(createdToken);
+    expect(create).toHaveBeenCalledOnce();
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        workspaceId: "workspace-1",
+        name: "Локальный dev API",
+        tokenPrefix: "qa_demo...",
+        tokenHash:
+          "6bbe407ad127855fc9e93d854f380303789e1c6b0f36e8806573a156b2c3395d",
+        scopes: "all"
+      }
+    });
   });
 });

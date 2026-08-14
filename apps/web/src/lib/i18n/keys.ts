@@ -17,9 +17,9 @@ export const translationKeySeeds = [
   {
     namespace: "shell",
     key: "nav.dashboard",
-    defaultText: "Дашборд",
+    defaultText: "Сегодня",
     ownerArea: "shell",
-    en: "Dashboard"
+    en: "Today"
   },
   {
     namespace: "shell",

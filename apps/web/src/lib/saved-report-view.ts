@@ -1,4 +1,11 @@
 import { prisma } from "@/lib/db";
+import {
+  canonicalizeReportAnalysisHref,
+  parseReportAnalysisState,
+  serializeReportAnalysisState,
+  type ReportFilterCatalog
+} from "@/lib/reports/report-analysis-state";
+import { loadReportFilterCatalog } from "@/lib/reports/report-filter-catalog";
 
 /**
  * A saved report view: a named `/reports?...` URL capturing the current report
@@ -27,7 +34,9 @@ export async function listSavedReportViews(
   workspaceId: string,
   userId: string
 ): Promise<SavedReportViewSummary[]> {
-  return prisma.savedReportView.findMany({
+  const [catalog, views] = await Promise.all([
+    loadReportFilterCatalog(workspaceId),
+    prisma.savedReportView.findMany({
     where: {
       workspaceId,
       OR: [{ userId }, { scope: "shared" }]
@@ -39,7 +48,13 @@ export async function listSavedReportViews(
       href: true,
       scope: true
     }
-  });
+    })
+  ]);
+
+  return views.map((view) => ({
+    ...view,
+    href: safeReportsHref(view.href, catalog)
+  }));
 }
 
 /**
@@ -47,20 +62,17 @@ export async function listSavedReportViews(
  * cross-origin or off-surface value (defense against open-redirect / stored
  * phishing in a saved view). Mirrors the reviews-surface normalizer.
  */
-export function safeReportsHref(value: string): string {
-  if (!value || !value.startsWith("/reports") || value.startsWith("//")) {
-    return "/reports";
-  }
-
-  try {
-    const parsed = new URL(value, "http://local.qc");
-
-    if (parsed.origin !== "http://local.qc" || parsed.pathname !== "/reports") {
-      return "/reports";
-    }
-
-    return `${parsed.pathname}${parsed.search}`;
-  } catch {
-    return "/reports";
-  }
+export function safeReportsHref(
+  value: string,
+  catalog: ReportFilterCatalog = { teams: [], sources: [], blocks: [] }
+): string {
+  const canonical = canonicalizeReportAnalysisHref(value, catalog);
+  const params = Object.fromEntries(
+    new URL(canonical, "https://reports.local").searchParams.entries()
+  );
+  delete params.evidenceType;
+  delete params.evidenceKey;
+  return serializeReportAnalysisState(
+    parseReportAnalysisState(params, catalog)
+  );
 }

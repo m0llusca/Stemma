@@ -2,7 +2,7 @@ import type { AuthSessionStatus, IdentityProvider, IdentityProviderType, RoleNam
 import { KeyRound, Link2, ShieldCheck, UsersRound } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import {
   revokeAuthSessionById,
   saveGroupRoleMapping,
@@ -12,14 +12,39 @@ import {
 import { CoachCallout } from "@/components/guidance/coach-callout";
 import { PageSkeleton } from "@/components/loading-states";
 import { ScimTokenManager } from "@/components/admin/scim-token-manager";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { AdminFrame } from "@/components/admin/admin-frame";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatKpi } from "@/components/ui/stat-kpi";
-import { PageShell } from "@/components/ui/page-shell";
-import { AdminFrame } from "@/components/admin/admin-frame";
-import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { PageShell } from "@/components/ui/page-shell";
+import { Separator } from "@/components/ui/separator";
+import { StatKpi } from "@/components/ui/stat-kpi";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
@@ -31,6 +56,8 @@ import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { resolvePublicOrigin } from "@/lib/public-origin";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +66,8 @@ type AccessPageProps = {
 };
 
 type AccessSection = "overview" | "provider" | "scim" | "mappings" | "sessions" | "recommendations";
+
+type StatusTone = "neutral" | "success" | "warning" | "danger";
 
 const accessSections: Array<{ value: AccessSection; label: string }> = [
   { value: "overview", label: "Провайдеры" },
@@ -73,6 +102,13 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
 const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
 const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"];
 
+const toneClass: Record<StatusTone, string> = {
+  neutral: "",
+  success: cn("border-transparent", statusSurfaceClass("positive")),
+  warning: cn("border-transparent", statusSurfaceClass("warning")),
+  danger: "border-transparent bg-destructive/15 text-destructive"
+};
+
 function firstParam(value: string | string[] | undefined) {
   const firstValue = Array.isArray(value) ? value[0] : value;
   return firstValue?.trim() || undefined;
@@ -92,7 +128,7 @@ function formatDate(value: Date | null | undefined) {
   return value.toLocaleString("ru-RU");
 }
 
-function statusTone(status: string): ChipTone {
+function statusTone(status: string): StatusTone {
   if (status === "active" || status === "ACTIVE") {
     return "success";
   }
@@ -112,6 +148,17 @@ function providerStatusLabel(status: string) {
   };
 
   return labels[status] ?? status;
+}
+
+function StatusPill({ tone = "neutral", children, className }: { tone?: StatusTone; children: ReactNode; className?: string }) {
+  return (
+    <Badge
+      variant={tone === "neutral" ? "secondary" : "outline"}
+      className={cn("font-normal", toneClass[tone], className)}
+    >
+      {children}
+    </Badge>
+  );
 }
 
 function configText(provider: IdentityProvider | null | undefined) {
@@ -176,7 +223,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (!provider) {
     return {
       label: "Не выбран",
-      tone: "neutral" as ChipTone,
+      tone: "neutral" as StatusTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -187,7 +234,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (provider.type === "DEMO") {
     return {
       label: "Демо",
-      tone: "neutral" as ChipTone,
+      tone: "neutral" as StatusTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -208,7 +255,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
     if (missing.length > 0) {
       return {
         label: "Неполная LDAPS-конфигурация",
-        tone: "warning" as ChipTone,
+        tone: "warning" as StatusTone,
         canTest: false,
         canDirectorySync: false,
         canDryRun: false,
@@ -218,7 +265,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
 
     return {
       label: provider.status === "active" ? "Готов к live-проверке" : "Готов к dry-run",
-      tone: (provider.status === "active" ? "success" : "warning") as ChipTone,
+      tone: (provider.status === "active" ? "success" : "warning") as StatusTone,
       canTest: false,
       canDirectorySync: provider.status === "active",
       canDryRun: true,
@@ -233,7 +280,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (!interactiveSsoTypes.includes(provider.type)) {
     return {
       label: "Только каталог",
-      tone: "neutral" as ChipTone,
+      tone: "neutral" as StatusTone,
       canTest: false,
       canDirectorySync: provider.status === "active",
       canDryRun: false,
@@ -257,7 +304,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (provider.status !== "active") {
     return {
       label: provider.status === "disabled" ? "Отключен" : "Черновик",
-      tone: (provider.status === "disabled" ? "neutral" : "warning") as ChipTone,
+      tone: (provider.status === "disabled" ? "neutral" : "warning") as StatusTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -268,7 +315,7 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   if (missing.length > 0) {
     return {
       label: "Неполная конфигурация",
-      tone: "warning" as ChipTone,
+      tone: "warning" as StatusTone,
       canTest: false,
       canDirectorySync: false,
       canDryRun: false,
@@ -277,8 +324,8 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   }
 
   return {
-    label: provider.type === "SAML" ? "Готов к contract test" : "Готов к SSO",
-    tone: "success" as ChipTone,
+    label: provider.type === "SAML" ? "Готов к контрактному тесту" : "Готов к SSO",
+    tone: "success" as StatusTone,
     canTest: true,
     canDirectorySync: true,
     canDryRun: false,
@@ -292,7 +339,8 @@ function ProviderField({
   defaultValue,
   placeholder,
   type = "text",
-  required = false
+  required = false,
+  className
 }: {
   label: string;
   name: string;
@@ -300,19 +348,20 @@ function ProviderField({
   placeholder?: string;
   type?: string;
   required?: boolean;
+  className?: string;
 }) {
   return (
-    <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-      {label}
-      <input
+    <Field className={className}>
+      <FieldLabel htmlFor={name}>{label}</FieldLabel>
+      <Input
+        id={name}
         type={type}
         name={name}
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
         required={required}
-        className="form-control"
       />
-    </label>
+    </Field>
   );
 }
 
@@ -326,7 +375,6 @@ export default function AdminAccessPage({ searchParams }: AccessPageProps) {
 
 async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
   const params = await searchParams;
-  const origin = resolvePublicOrigin({ headers: await headers() });
   const user = await requireCurrentUserPermission("auth_providers:manage");
   const [providers, sessions] = await Promise.all([
     prisma.identityProvider.findMany({
@@ -389,7 +437,9 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
       : null;
   const samlMetadata =
     selectedProvider?.type === "SAML"
-      ? buildSamlServiceProviderUrls(selectedProvider, origin)
+      ? // The public origin throws without QC_PUBLIC_ORIGIN in production, so resolve it
+        // lazily — only the SAML SP metadata block needs absolute URLs.
+        buildSamlServiceProviderUrls(selectedProvider, resolvePublicOrigin({ headers: await headers() }))
       : null;
   const guidance = getDirectoryIntegrationGuidance();
   const readiness = providerReadiness(selectedProvider);
@@ -412,72 +462,76 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
       eyebrow={adminEyebrow}
       title={adminSectionTitles["/admin/access"]}
       description="Настройка сквозной авторизации, связки AD/Entra-групп с ролями и контроль активных сессий."
+      actions={
+        <>
+          {readiness.canTest ? (
+            <Button render={<Link href={selectedProviderSsoPath} />} nativeButton={false}>
+              <KeyRound data-icon="inline-start" aria-hidden="true" />
+              Проверить вход
+            </Button>
+          ) : (
+            <Button type="button" disabled>
+              <KeyRound data-icon="inline-start" aria-hidden="true" />
+              Проверить вход
+            </Button>
+          )}
+          <Button render={<Link href="/admin/users" />} nativeButton={false} variant="outline">
+            <UsersRound data-icon="inline-start" aria-hidden="true" />
+            Пользователи
+          </Button>
+        </>
+      }
+      tabs={accessSections.map((section) => ({
+        href: accessSectionHref(section.value),
+        label: section.label,
+        active: activeSection === section.value,
+        count:
+          section.value === "mappings"
+            ? selectedProvider?.groupRoleMappings.length
+            : section.value === "sessions"
+              ? sessions.length
+              : section.value === "overview"
+                ? providers.length
+                : undefined
+      }))}
     >
       <AdminFrame>
-      <section className="ops-metric-grid" aria-label="Сводка доступа">
-        <StatKpi
-          label="Провайдеры"
-          value={providers.length}
-          hint={`Активны: ${providers.filter((provider) => provider.status === "active").length}`}
-        />
-        <StatKpi
-          label={
-            <span className="flex items-center gap-1">
-              Группы
-              <HelpTooltip
-                label="Как работает приоритет групп?"
-                content="Меньшее значение priority применяется раньше. Если пользователь состоит в нескольких группах, победит первое активное правило."
-                placement="top-start"
-              />
-            </span>
-          }
-          value={providers.reduce((sum, provider) => sum + provider.groupRoleMappings.length, 0)}
-          hint={`Активных у выбранного: ${activeMappings}`}
-        />
-        <StatKpi label="SSO-профили" value={linkedUsers} hint="Связанные внешние учетные записи" />
-        <StatKpi label="Активные сессии" value={activeSessions} hint="Показано до 40 в разделе сессий" />
-      </section>
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Сводка доступа">
+          <StatKpi
+            label="Провайдеры"
+            value={providers.length}
+            hint={`Активны: ${providers.filter((provider) => provider.status === "active").length}`}
+          />
+          <StatKpi
+            label={
+              <span className="flex items-center gap-1">
+                Группы
+                <HelpTooltip
+                  label="Как работает приоритет групп?"
+                  content="Меньшее значение priority применяется раньше. Если пользователь состоит в нескольких группах, победит первое активное правило."
+                  placement="top-start"
+                />
+              </span>
+            }
+            value={providers.reduce((sum, provider) => sum + provider.groupRoleMappings.length, 0)}
+            hint={`Активных у выбранного: ${activeMappings}`}
+          />
+          <StatKpi label="SSO-профили" value={linkedUsers} hint="Связанные внешние учетные записи" />
+          <StatKpi label="Активные сессии" value={activeSessions} hint="Показано до 40 в разделе сессий" />
+        </section>
 
-      <AdminSectionTabs
-        ariaLabel="Разделы доступа и SSO"
-        items={accessSections.map((section) => ({
-          href: accessSectionHref(section.value),
-          label: section.label,
-          active: activeSection === section.value
-        }))}
-        actions={
-          <>
-            {readiness.canTest ? (
-              <Link href={selectedProviderSsoPath} className="action-button action-button--primary">
-                <KeyRound size={16} aria-hidden="true" />
-                Проверить вход
-              </Link>
-            ) : (
-              <button type="button" className="action-button action-button--primary" disabled aria-disabled="true">
-                <KeyRound size={16} aria-hidden="true" />
-                Проверить вход
-              </button>
-            )}
-            <Link href="/admin/users" className="action-button">
-              <UsersRound size={16} aria-hidden="true" />
-              Пользователи
-            </Link>
-          </>
-        }
-      />
-
-      {activeSection === "overview" ? (
-        <section className="ops-panel" aria-labelledby="providers-title">
-            <div className="ops-panel__header">
-              <div>
-                <p className="ops-panel__eyebrow">Провайдеры удостоверений</p>
-                <h2 id="providers-title" className="ops-panel__title">Провайдеры входа</h2>
-                <p className="ops-panel__subtitle">Выберите провайдера, чтобы открыть его настройку в отдельной вкладке.</p>
-              </div>
-              <Chip tone={readiness.tone} size="sm">{readiness.label}</Chip>
-            </div>
-            {accessSetupHint ? (
-              <div className="admin-setup-inline">
+        {activeSection === "overview" ? (
+          <Card aria-labelledby="providers-title">
+            <CardHeader className="border-b">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Провайдеры удостоверений</p>
+              <CardTitle id="providers-title">Провайдеры входа</CardTitle>
+              <CardDescription>Выберите провайдера, чтобы открыть его настройку в отдельной вкладке.</CardDescription>
+              <CardAction>
+                <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {accessSetupHint ? (
                 <CoachCallout
                   title={accessSetupHint.title}
                   body={accessSetupHint.body}
@@ -489,314 +543,413 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                   stepIndex={1}
                   dismissId="settings:access"
                 />
-              </div>
-            ) : null}
-            {providers.length === 0 ? (
-              <EmptyState
-                size="inline"
-                icon={<ShieldCheck size={20} aria-hidden="true" />}
-                title="Провайдеров пока нет"
-                description="Настройте первого провайдера входа, чтобы включить SSO и синхронизацию каталога."
-                action={
-                  <Link href={accessSectionHref("provider")} className="action-button action-button--small">
-                    Настроить провайдера
-                  </Link>
-                }
-              />
-            ) : (
-            <div className="ops-table-shell">
-              <div className="ops-table ops-table--providers" aria-label="Провайдеры входа">
-                <div className="ops-table__row ops-table__row--head">
-                  <span>Провайдер</span>
-                  <span>Тип</span>
-                  <span>Готовность</span>
-                  <span>Группы</span>
-                  <span>Пользователи</span>
-                  <span>Сессии</span>
-                </div>
-                {providers.map((provider) => {
-                  const providerReady = providerReadiness(provider);
+              ) : null}
+              {providers.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<ShieldCheck size={20} aria-hidden="true" />}
+                  title="Провайдеров пока нет"
+                  description="Настройте первого провайдера входа, чтобы включить SSO и синхронизацию каталога."
+                  action={
+                    <Button render={<Link href={accessSectionHref("provider")} />} nativeButton={false} size="sm">
+                      Настроить провайдера
+                    </Button>
+                  }
+                />
+              ) : (
+                <Table aria-label="Провайдеры входа">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Провайдер</TableHead>
+                      <TableHead>Тип</TableHead>
+                      <TableHead>Готовность</TableHead>
+                      <TableHead className="text-right">Группы</TableHead>
+                      <TableHead className="text-right">Пользователи</TableHead>
+                      <TableHead className="text-right">Сессии</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {providers.map((provider) => {
+                      const providerReady = providerReadiness(provider);
+                      const selected = selectedProvider?.id === provider.id;
 
-                  return (
-                    <Link
-                      key={provider.id}
-                      href={accessSectionHref("provider", provider.id)}
-                      className={`ops-table__row ${selectedProvider?.id === provider.id ? "record-card--selected" : ""}`}
-                    >
-                      <div className="ops-table__cell">
-                        <span className="ops-table__label">Провайдер</span>
-                        <span className="flex flex-wrap items-center gap-2">
-                          <ShieldCheck size={16} aria-hidden="true" />
-                          <strong className="record-title">{provider.name}</strong>
-                        </span>
-                        <span className="record-meta compact-text">{provider.slug}</span>
-                      </div>
-                      <div className="ops-table__cell">
-                        <span className="ops-table__label">Тип</span>
-                        <span className="record-title">{providerTypeLabels[provider.type]}</span>
-                        <Chip tone={statusTone(provider.status)} size="xs">{providerStatusLabel(provider.status)}</Chip>
-                      </div>
-                      <div className="ops-table__cell">
-                        <span className="ops-table__label">Готовность</span>
-                        <Chip tone={providerReady.tone} size="xs">{providerReady.label}</Chip>
-                        <span className="record-meta compact-text">{providerReady.details.slice(0, 2).join(", ")}</span>
-                      </div>
-                      <span className="record-meta tabular-nums">
-                        <span className="ops-table__label">Группы</span>
-                        {provider.groupRoleMappings.length}
-                      </span>
-                      <span className="record-meta tabular-nums">
-                        <span className="ops-table__label">Пользователи</span>
-                        {provider._count.externalIdentities}
-                      </span>
-                      <span className="record-meta tabular-nums">
-                        <span className="ops-table__label">Сессии</span>
-                        {provider._count.authSessions}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-            )}
-        </section>
-      ) : null}
+                      return (
+                        <TableRow
+                          key={provider.id}
+                          data-state={selected ? "selected" : undefined}
+                          className={cn(selected && "bg-muted/60")}
+                        >
+                          <TableCell>
+                            <Link
+                              href={accessSectionHref("provider", provider.id)}
+                              className="flex min-w-0 flex-col gap-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <span className="flex items-center gap-2 font-medium text-foreground">
+                                <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                {provider.name}
+                              </span>
+                              <span className="font-mono text-xs text-muted-foreground">{provider.slug}</span>
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-foreground">{providerTypeLabels[provider.type]}</span>
+                              <StatusPill tone={statusTone(provider.status)}>{providerStatusLabel(provider.status)}</StatusPill>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex max-w-xs flex-col gap-1.5">
+                              <StatusPill tone={providerReady.tone}>{providerReady.label}</StatusPill>
+                              <span className="text-xs text-muted-foreground whitespace-normal">
+                                {providerReady.details.slice(0, 2).join(", ")}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {provider.groupRoleMappings.length}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {provider._count.externalIdentities}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {provider._count.authSessions}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
-      {activeSection === "provider" ? (
-        <section className="ops-panel" aria-labelledby="provider-settings-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Настройка</p>
-              <h2 id="provider-settings-title" className="ops-panel__title">{selectedProvider?.name ?? "Провайдер авторизации"}</h2>
-              <p className="ops-panel__subtitle">Редактируйте поля при смене каталога, приложения или технических адресов.</p>
+        {activeSection === "provider" ? (
+          <Card aria-labelledby="provider-settings-title">
+            <CardHeader className="border-b">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Настройка</p>
+              <CardTitle id="provider-settings-title">{selectedProvider?.name ?? "Провайдер авторизации"}</CardTitle>
+              <CardDescription>Редактируйте поля при смене каталога, приложения или технических адресов.</CardDescription>
+              <CardAction>
+                <StatusPill tone={readiness.tone}>{readiness.label}</StatusPill>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
               {selectedProvider && selectedProvider.type !== "DEMO" ? (
-                <div className="admin-actions mt-3">
+                <div className="flex flex-wrap items-center gap-2">
                   {readiness.canDryRun ? (
                     <form action={queueDirectorySync}>
                       <input type="hidden" name="providerId" value={selectedProvider.id} />
                       <input type="hidden" name="dryRun" value="true" />
-                      <button type="submit" className="action-button action-button--small">
-                        <ShieldCheck size={15} aria-hidden="true" />
-                        Dry-run
-                      </button>
+                      <Button type="submit" variant="outline" size="sm">
+                        <ShieldCheck data-icon="inline-start" aria-hidden="true" />
+                        Пробный запуск
+                      </Button>
                     </form>
                   ) : null}
                   <form action={queueDirectorySync}>
                     <input type="hidden" name="providerId" value={selectedProvider.id} />
-                    <button type="submit" className="action-button action-button--small" disabled={!readiness.canDirectorySync} aria-disabled={!readiness.canDirectorySync}>
-                      <ShieldCheck size={15} aria-hidden="true" />
+                    <Button type="submit" variant="outline" size="sm" disabled={!readiness.canDirectorySync}>
+                      <ShieldCheck data-icon="inline-start" aria-hidden="true" />
                       Синхронизировать
-                    </button>
+                    </Button>
                   </form>
                 </div>
               ) : null}
-            </div>
-            <Chip tone={readiness.tone} size="sm">{readiness.label}</Chip>
-          </div>
-          <div className="ops-status-strip" aria-label="Готовность выбранного провайдера">
-            <div className="ops-status-item">
-              <span className="ops-status-item__label">Адрес возврата</span>
-              <span className="ops-status-item__value font-mono text-sm compact-text">{callbackPath(selectedProvider)}</span>
-              <span className="record-meta">Укажите этот путь в приложении провайдера.</span>
-            </div>
-            <div className="ops-status-item">
-              <span className="ops-status-item__label">Последняя синхронизация</span>
-              <span className="ops-status-item__value">{formatDate(selectedProvider?.lastSyncAt)}</span>
-              <span className="record-meta compact-text">
-                {selectedProvider?.lastSyncStatus ?? "Синхронизация каталога запускается как фоновая задача."}
-                {selectedProvider?.lastSyncError ? ` · ${selectedProvider.lastSyncError}` : ""}
-              </span>
-            </div>
-          </div>
-          {accessSetupHint ? (
-            <div className="admin-setup-inline">
-              <CoachCallout
-                title={accessSetupHint.title}
-                body={accessSetupHint.body}
-                href={accessSetupHint.href}
-                actionLabel={accessSetupHint.actionLabel}
-                variant="spotlight"
-                placement="top"
-                anchorLabel="Подсказка к настройке провайдера"
-                stepIndex={1}
-                dismissId="settings:access"
-              />
-            </div>
-          ) : null}
-          <form action={saveIdentityProvider} className="grid gap-5 p-5">
-          <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
-          <input type="hidden" name="returnSection" value="provider" />
-          <div className="ops-form-grid">
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Тип
-              <select name="type" defaultValue={selectedProviderType} className="form-control">
-                {providerTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-              Статус
-              <select name="status" defaultValue={selectedProvider?.status ?? "draft"} className="form-control">
-                <option value="draft">Черновик</option>
-                <option value="active">Активен</option>
-                <option value="disabled">Отключен</option>
-              </select>
-            </label>
-            <ProviderField label="Название" name="name" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.name} placeholder="Microsoft Entra ID" />
-            <ProviderField label="Код для входа" name="slug" required defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.slug} placeholder="microsoft-entra-id" />
-            <ProviderField label="Идентификатор каталога" name="tenantId" defaultValue={selectedProvider?.tenantId} placeholder="00000000-0000-0000-0000-000000000000" />
-            <ProviderField label="Идентификатор приложения" name="clientId" defaultValue={selectedProvider?.clientId} placeholder="Идентификатор приложения" />
-            <ProviderField label="Ссылка на секрет" name="clientSecretRef" defaultValue={selectedProvider?.clientSecretRef} placeholder="env:QC_ENTRA_CLIENT_SECRET" />
-            <ProviderField label="Области доступа" name="scopes" defaultValue={selectedProvider?.scopes ?? "openid profile email"} />
-          </div>
 
-          <details className="compact-details">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-body)]">
-              Адреса OIDC/SAML и расширенная настройка
-            </summary>
-            <div className="ops-form-grid border-t border-[var(--border)] p-4">
-              <ProviderField label="Издатель токенов" name="issuer" defaultValue={selectedProvider?.issuer} placeholder="https://login.microsoftonline.com/{tenantId}/v2.0" />
-              <ProviderField label="Адрес авторизации" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
-              <ProviderField label="Адрес токена" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
-              <ProviderField label="Адрес ключей JWKS" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
-              <ProviderField label="SAML Entity ID" name="samlEntityId" defaultValue={selectedProvider?.samlEntityId} placeholder="https://app.example.com/auth/saml/metadata?provider=saml" />
-              <ProviderField label="SAML Metadata URL IdP" name="samlMetadataUrl" defaultValue={selectedProvider?.samlMetadataUrl} />
-              <ProviderField label="LDAPS URL" name="ldapsUrl" defaultValue={selectedProvider?.ldapsUrl} placeholder="ldaps://dc01.example.com:636" />
-              <ProviderField label="LDAPS bind DN" name="ldapsBindDn" defaultValue={selectedProvider?.ldapsBindDn} placeholder="CN=qc-sync,OU=Service Accounts,DC=example,DC=com" />
-              <ProviderField label="LDAPS bind secret ref" name="ldapsBindSecretRef" defaultValue={selectedProvider?.ldapsBindSecretRef} placeholder="env:QC_AD_BIND_PASSWORD" />
-              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                SAML сертификаты IdP
-                <textarea
-                  name="samlCertificateRef"
-                  defaultValue={selectedProvider?.samlCertificateRef ?? ""}
-                  rows={4}
-                  className="form-control font-mono text-xs"
-                  placeholder="env:SAML_IDP_CERT_CURRENT&#10;env:SAML_IDP_CERT_NEXT"
-                />
-              </label>
-              <label className="ops-form-grid__wide grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Настройка JSON
-                <textarea
-                  name="configJson"
-                  defaultValue={configText(selectedProvider)}
-                  rows={5}
-                  className="form-control font-mono text-xs"
-                  placeholder='{"userSearchBase":"OU=Users,DC=example,DC=com","groupSearchBase":"OU=Groups,DC=example,DC=com","nestedGroups":true,"caCertRefs":["env:QC_AD_CA_PEM"]}'
-                />
-              </label>
-            </div>
-          </details>
-
-          {entraMetadata ? (
-            <div className="soft-callout text-sm text-[var(--text-muted)]">
-              <p className="font-semibold text-[var(--text-body)]">Метаданные Entra/OIDC</p>
-              <p className="compact-text">Авторизация: {entraMetadata.authorizationUrl}</p>
-              <p className="compact-text">Токен: {entraMetadata.tokenUrl}</p>
-              <p>Сценарий: {entraMetadata.recommendedFlow}</p>
-              <p>Group overage: Graph fallback включайте только явно в JSON-конфигурации; используйте Microsoft Graph getMemberGroups с минимальными правами GroupMember.Read.All или Directory.Read.All.</p>
-            </div>
-          ) : null}
-
-          {samlMetadata ? (
-            <div className="soft-callout text-sm text-[var(--text-muted)]">
-              <p className="font-semibold text-[var(--text-body)]">Метаданные SAML SP</p>
-              <p className="compact-text">Entity ID: {samlMetadata.entityId}</p>
-              <p className="compact-text">ACS: {samlMetadata.acsUrl}</p>
-              <p className="compact-text">Metadata: {samlMetadata.metadataUrl}</p>
-              <p>Статус означает готовность к contract test с IdP, а не подтвержденную production/live интеграцию.</p>
-            </div>
-          ) : null}
-
-          {selectedProvider?.type === "ACTIVE_DIRECTORY_LDAPS" ? (
-            <div className="soft-callout text-sm text-[var(--text-muted)]">
-              <p className="font-semibold text-[var(--text-body)]">Active Directory LDAPS</p>
-              <p>LDAPS здесь используется только для синхронизации пользователей и групп. LDAP password login не включается.</p>
-              <p className="compact-text">TLS обязателен: используйте ldaps:// на 636/3269; bind secret и CA сейчас исполняются только через env:-ссылки.</p>
-              <p className="compact-text">Готовность означает возможность dry-run или live-проверки, а не подтвержденный production-live статус.</p>
-            </div>
-          ) : null}
-
-          <div className="flex justify-end">
-            <ValidatedSubmitButton>
-              Сохранить провайдера
-            </ValidatedSubmitButton>
-          </div>
-        </form>
-        </section>
-      ) : null}
-
-      {activeSection === "scim" && selectedProvider ? (
-        <section className="ops-panel" aria-labelledby="scim-token-title">
-          {selectedProvider.type === "DEMO" ? (
-            <>
-              <div className="ops-panel__header">
-                <div>
-                  <p className="ops-panel__eyebrow">Provisioning</p>
-                  <h2 id="scim-token-title" className="ops-panel__title">SCIM 2.0 bearer token</h2>
-                  <p className="ops-panel__subtitle">
-                    Выпуск, ротация и отзыв токена входящего provisioning для выбранного провайдера.
-                  </p>
+              <div className="grid gap-3 md:grid-cols-2" aria-label="Готовность выбранного провайдера">
+                <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
+                  <span className="text-xs font-medium text-muted-foreground">Адрес возврата</span>
+                  <span className="font-mono text-sm text-foreground">{callbackPath(selectedProvider)}</span>
+                  <span className="text-xs text-muted-foreground">Укажите этот путь в приложении провайдера.</span>
                 </div>
-                <Chip tone="warning" size="sm">Не выпущен</Chip>
+                <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
+                  <span className="text-xs font-medium text-muted-foreground">Последняя синхронизация</span>
+                  <span className="text-sm text-foreground">{formatDate(selectedProvider?.lastSyncAt)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedProvider?.lastSyncStatus ?? "Синхронизация каталога запускается как фоновая задача."}
+                    {selectedProvider?.lastSyncError ? ` · ${selectedProvider.lastSyncError}` : ""}
+                  </span>
+                </div>
               </div>
-              <EmptyState
-                size="inline"
-                icon={<KeyRound size={20} aria-hidden="true" />}
-                title="SCIM недоступен"
-                description="Для демо-провайдера токен provisioning не выпускается."
-              />
-            </>
-          ) : (
-            <div className="p-5">
-              <ScimTokenManager
-                titleId="scim-token-title"
-                providerId={selectedProvider.id}
-                providerName={selectedProvider.name}
-                initialTokenPrefix={selectedProvider.scimTokenPrefix}
-                scimBaseUrl={scimBaseUrl}
-              />
-            </div>
-          )}
-        </section>
-      ) : null}
 
-      {activeSection === "mappings" && selectedProvider ? (
-        <section className="ops-panel" aria-labelledby="mappings-title">
-          <div className="ops-panel__header">
-            <div>
-              <p className="ops-panel__eyebrow">Политика ролей</p>
-              <h2 id="mappings-title" className="ops-panel__title">Группы и роли</h2>
-              <p className="ops-panel__subtitle">Приоритет меньше - роль применяется раньше. Неактивные строки остаются в истории конфигурации.</p>
-            </div>
-            <Chip tone="neutral" size="sm" numeric>{selectedProvider.groupRoleMappings.length}</Chip>
-          </div>
-          {groupMappingsHint ? (
-            <div className="admin-setup-inline">
-              <CoachCallout
-                title={groupMappingsHint.title}
-                body={groupMappingsHint.body}
-                href={groupMappingsHint.href}
-                actionLabel={groupMappingsHint.actionLabel}
-                variant="spotlight"
-                placement="top"
-                anchorLabel="Подсказка к группам и ролям"
-                stepIndex={2}
-                dismissId="settings:groupMappings"
-              />
-            </div>
-          ) : null}
-          <div className="ops-table-shell">
-            <div className="ops-table ops-table--mappings" aria-label="Группы и роли">
-              <div className="ops-table__row ops-table__row--head">
-                <span>Статус</span>
-                <span>Группа</span>
-                <span>Идентификатор группы</span>
-                <span>Роль</span>
-                <span>Приоритет</span>
-              </div>
+              {accessSetupHint ? (
+                <CoachCallout
+                  title={accessSetupHint.title}
+                  body={accessSetupHint.body}
+                  href={accessSetupHint.href}
+                  actionLabel={accessSetupHint.actionLabel}
+                  variant="spotlight"
+                  placement="top"
+                  anchorLabel="Подсказка к настройке провайдера"
+                  stepIndex={1}
+                  dismissId="settings:access"
+                />
+              ) : null}
+
+              <form action={saveIdentityProvider} className="flex flex-col gap-5">
+                <input type="hidden" name="providerId" value={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.id ?? ""} />
+                <input type="hidden" name="returnSection" value="provider" />
+
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="type">Тип</FieldLabel>
+                    <NativeSelect id="type" name="type" defaultValue={selectedProviderType} className="w-full">
+                      {providerTypes.map((type) => (
+                        <NativeSelectOption key={type.value} value={type.value}>
+                          {type.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="status">Статус</FieldLabel>
+                    <NativeSelect id="status" name="status" defaultValue={selectedProvider?.status ?? "draft"} className="w-full">
+                      <NativeSelectOption value="draft">Черновик</NativeSelectOption>
+                      <NativeSelectOption value="active">Активен</NativeSelectOption>
+                      <NativeSelectOption value="disabled">Отключен</NativeSelectOption>
+                    </NativeSelect>
+                  </Field>
+                  <ProviderField
+                    label="Название"
+                    name="name"
+                    required
+                    defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.name}
+                    placeholder="Microsoft Entra ID"
+                  />
+                  <ProviderField
+                    label="Код для входа"
+                    name="slug"
+                    required
+                    defaultValue={selectedProvider?.type === "DEMO" ? "" : selectedProvider?.slug}
+                    placeholder="microsoft-entra-id"
+                  />
+                  <ProviderField
+                    label="Идентификатор каталога"
+                    name="tenantId"
+                    defaultValue={selectedProvider?.tenantId}
+                    placeholder="00000000-0000-0000-0000-000000000000"
+                  />
+                  <ProviderField
+                    label="Идентификатор приложения"
+                    name="clientId"
+                    defaultValue={selectedProvider?.clientId}
+                    placeholder="Идентификатор приложения"
+                  />
+                  <ProviderField
+                    label="Ссылка на секрет"
+                    name="clientSecretRef"
+                    defaultValue={selectedProvider?.clientSecretRef}
+                    placeholder="env:QC_ENTRA_CLIENT_SECRET"
+                  />
+                  <ProviderField
+                    label="Области доступа"
+                    name="scopes"
+                    defaultValue={selectedProvider?.scopes ?? "openid profile email"}
+                  />
+                </FieldGroup>
+
+                <Separator />
+
+                <Tabs defaultValue="endpoints">
+                  <TabsList variant="line" className="w-full justify-start">
+                    <TabsTrigger value="endpoints">Адреса OIDC/SAML</TabsTrigger>
+                    <TabsTrigger value="directory">Каталог / LDAPS</TabsTrigger>
+                    <TabsTrigger value="advanced">JSON и сертификаты</TabsTrigger>
+                  </TabsList>
+
+                  {/* keepMounted: hidden tab panels must stay in the form DOM so save still posts all fields */}
+                  <TabsContent value="endpoints" keepMounted className="pt-4">
+                    <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                      <ProviderField
+                        label="Издатель токенов"
+                        name="issuer"
+                        defaultValue={selectedProvider?.issuer}
+                        placeholder="https://login.microsoftonline.com/{tenantId}/v2.0"
+                      />
+                      <ProviderField label="Адрес авторизации" name="authorizationUrl" defaultValue={selectedProvider?.authorizationUrl} />
+                      <ProviderField label="Адрес токена" name="tokenUrl" defaultValue={selectedProvider?.tokenUrl} />
+                      <ProviderField label="Адрес ключей JWKS" name="jwksUrl" defaultValue={selectedProvider?.jwksUrl} />
+                      <ProviderField
+                        label="SAML Entity ID"
+                        name="samlEntityId"
+                        defaultValue={selectedProvider?.samlEntityId}
+                        placeholder="https://app.example.com/auth/saml/metadata?provider=saml"
+                      />
+                      <ProviderField label="SAML Metadata URL IdP" name="samlMetadataUrl" defaultValue={selectedProvider?.samlMetadataUrl} />
+                    </FieldGroup>
+                  </TabsContent>
+
+                  <TabsContent value="directory" keepMounted className="pt-4">
+                    <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                      <ProviderField
+                        label="LDAPS URL"
+                        name="ldapsUrl"
+                        defaultValue={selectedProvider?.ldapsUrl}
+                        placeholder="ldaps://dc01.example.com:636"
+                      />
+                      <ProviderField
+                        label="LDAPS bind DN"
+                        name="ldapsBindDn"
+                        defaultValue={selectedProvider?.ldapsBindDn}
+                        placeholder="CN=qc-sync,OU=Service Accounts,DC=example,DC=com"
+                      />
+                      <ProviderField
+                        label="LDAPS bind secret ref"
+                        name="ldapsBindSecretRef"
+                        defaultValue={selectedProvider?.ldapsBindSecretRef}
+                        placeholder="env:QC_AD_BIND_PASSWORD"
+                        className="sm:col-span-2"
+                      />
+                    </FieldGroup>
+                  </TabsContent>
+
+                  <TabsContent value="advanced" keepMounted className="pt-4">
+                    <FieldGroup className="grid gap-4">
+                      <Field>
+                        <FieldLabel htmlFor="samlCertificateRef">SAML сертификаты IdP</FieldLabel>
+                        <Textarea
+                          id="samlCertificateRef"
+                          name="samlCertificateRef"
+                          defaultValue={selectedProvider?.samlCertificateRef ?? ""}
+                          rows={4}
+                          className="font-mono text-xs"
+                          placeholder={"env:SAML_IDP_CERT_CURRENT\nenv:SAML_IDP_CERT_NEXT"}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="configJson">Настройка JSON</FieldLabel>
+                        <Textarea
+                          id="configJson"
+                          name="configJson"
+                          defaultValue={configText(selectedProvider)}
+                          rows={5}
+                          className="font-mono text-xs"
+                          placeholder='{"userSearchBase":"OU=Users,DC=example,DC=com","groupSearchBase":"OU=Groups,DC=example,DC=com","nestedGroups":true,"caCertRefs":["env:QC_AD_CA_PEM"]}'
+                        />
+                      </Field>
+                    </FieldGroup>
+                  </TabsContent>
+                </Tabs>
+
+                {entraMetadata ? (
+                  <Alert>
+                    <AlertTitle>Метаданные Entra/OIDC</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-1">
+                      <span className="font-mono text-xs">Авторизация: {entraMetadata.authorizationUrl}</span>
+                      <span className="font-mono text-xs">Токен: {entraMetadata.tokenUrl}</span>
+                      <span>Сценарий: {entraMetadata.recommendedFlow}</span>
+                      <span>
+                        Переполнение групп: Graph fallback включайте только явно в JSON-конфигурации; используйте Microsoft Graph
+                        getMemberGroups с минимальными правами GroupMember.Read.All или Directory.Read.All.
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {samlMetadata ? (
+                  <Alert>
+                    <AlertTitle>Метаданные SAML SP</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-1">
+                      <span className="font-mono text-xs">Entity ID: {samlMetadata.entityId}</span>
+                      <span className="font-mono text-xs">ACS: {samlMetadata.acsUrl}</span>
+                      <span className="font-mono text-xs">Metadata: {samlMetadata.metadataUrl}</span>
+                      <span>
+                        Статус означает готовность к контрактному тесту с IdP, а не подтвержденную production/live интеграцию.
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {selectedProvider?.type === "ACTIVE_DIRECTORY_LDAPS" ? (
+                  <Alert>
+                    <AlertTitle>Active Directory LDAPS</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-1">
+                      <span>LDAPS здесь используется только для синхронизации пользователей и групп. Вход по паролю LDAP не включается.</span>
+                      <span className="text-xs">
+                        TLS обязателен: используйте ldaps:// на 636/3269; bind secret и CA сейчас исполняются только через env:-ссылки.
+                      </span>
+                      <span className="text-xs">
+                        Готовность означает возможность dry-run или live-проверки, а не подтвержденный production-live статус.
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <div className="flex justify-end">
+                  <ValidatedSubmitButton className={buttonVariants()}>Сохранить провайдера</ValidatedSubmitButton>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {activeSection === "scim" && selectedProvider ? (
+          <Card aria-labelledby="scim-token-title">
+            {selectedProvider.type === "DEMO" ? (
+              <>
+                <CardHeader className="border-b">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Провижининг</p>
+                  <CardTitle id="scim-token-title">Bearer-токен SCIM 2.0</CardTitle>
+                  <CardDescription>
+                    Выпуск, ротация и отзыв токена входящего провижининга для выбранного провайдера.
+                  </CardDescription>
+                  <CardAction>
+                    <StatusPill tone="warning">Не выпущен</StatusPill>
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <EmptyState
+                    size="inline"
+                    icon={<KeyRound size={20} aria-hidden="true" />}
+                    title="SCIM недоступен"
+                    description="Для демо-провайдера токен провижининга не выпускается."
+                  />
+                </CardContent>
+              </>
+            ) : (
+              <CardContent className="pt-(--card-spacing)">
+                <ScimTokenManager
+                  titleId="scim-token-title"
+                  providerId={selectedProvider.id}
+                  providerName={selectedProvider.name}
+                  initialTokenPrefix={selectedProvider.scimTokenPrefix}
+                  scimBaseUrl={scimBaseUrl}
+                />
+              </CardContent>
+            )}
+          </Card>
+        ) : null}
+
+        {activeSection === "mappings" && selectedProvider ? (
+          <Card aria-labelledby="mappings-title">
+            <CardHeader className="border-b">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Политика ролей</p>
+              <CardTitle id="mappings-title">Группы и роли</CardTitle>
+              <CardDescription>
+                Приоритет меньше — роль применяется раньше. Неактивные строки остаются в истории конфигурации.
+              </CardDescription>
+              <CardAction>
+                <Badge variant="secondary" className="tabular-nums">
+                  {selectedProvider.groupRoleMappings.length}
+                </Badge>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              {groupMappingsHint ? (
+                <CoachCallout
+                  title={groupMappingsHint.title}
+                  body={groupMappingsHint.body}
+                  href={groupMappingsHint.href}
+                  actionLabel={groupMappingsHint.actionLabel}
+                  variant="spotlight"
+                  placement="top"
+                  anchorLabel="Подсказка к группам и ролям"
+                  stepIndex={2}
+                  dismissId="settings:groupMappings"
+                />
+              ) : null}
+
               {selectedProvider.groupRoleMappings.length === 0 ? (
                 <EmptyState
                   size="inline"
@@ -805,188 +958,223 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                   description="Добавьте связь группы и роли, чтобы участники каталога получали доступ автоматически."
                 />
               ) : (
-                selectedProvider.groupRoleMappings.map((mapping) => (
-                  <div key={mapping.id} className="ops-table__row">
-                    <form action={toggleGroupRoleMapping} className="ops-table__cell">
-                      <span className="ops-table__label">Статус</span>
-                      <input type="hidden" name="mappingId" value={mapping.id} />
-                      <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
-                      <button
-                        type="submit"
-                        className={`action-button action-button--small ${mapping.isActive ? "" : "action-button--primary"}`}
-                        aria-label={`${mapping.isActive ? "Отключить" : "Включить"} группу ${mapping.externalGroupName}`}
-                      >
-                        {mapping.isActive ? "Отключить" : "Включить"}
-                      </button>
-                    </form>
-                    <div className="ops-table__cell">
-                      <span className="ops-table__label">Группа</span>
-                      <strong className="record-title">{mapping.externalGroupName}</strong>
-                      <Chip tone={mapping.isActive ? "success" : "neutral"} size="xs">{mapping.isActive ? "Активна" : "Отключена"}</Chip>
-                    </div>
-                    <span className="record-meta compact-text font-mono">
-                      <span className="ops-table__label">Идентификатор группы</span>
-                      {mapping.externalGroupId}
-                    </span>
-                    <span className="ops-table__cell">
-                      <span className="ops-table__label">Роль</span>
-                      <Chip tone="neutral" size="xs">{roleLabels[mapping.role]}</Chip>
-                    </span>
-                    <span className="record-meta tabular-nums">
-                      <span className="ops-table__label">Приоритет</span>
-                      {mapping.priority}
-                    </span>
-                  </div>
-                ))
+                <Table aria-label="Группы и роли">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Группа</TableHead>
+                      <TableHead>Идентификатор группы</TableHead>
+                      <TableHead>Роль</TableHead>
+                      <TableHead className="text-right">Приоритет</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedProvider.groupRoleMappings.map((mapping) => (
+                      <TableRow key={mapping.id}>
+                        <TableCell>
+                          <form action={toggleGroupRoleMapping}>
+                            <input type="hidden" name="mappingId" value={mapping.id} />
+                            <input type="hidden" name="isActive" value={mapping.isActive ? "false" : "true"} />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant={mapping.isActive ? "outline" : "default"}
+                              aria-label={`${mapping.isActive ? "Отключить" : "Включить"} группу ${mapping.externalGroupName}`}
+                            >
+                              {mapping.isActive ? "Отключить" : "Включить"}
+                            </Button>
+                          </form>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1.5">
+                            <span className="font-medium text-foreground">{mapping.externalGroupName}</span>
+                            <StatusPill tone={mapping.isActive ? "success" : "neutral"}>
+                              {mapping.isActive ? "Активна" : "Отключена"}
+                            </StatusPill>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-normal">
+                          {mapping.externalGroupId}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{roleLabels[mapping.role]}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{mapping.priority}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </div>
-          </div>
-          <details className="compact-details m-4">
-            <summary className="disclosure-summary flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-              <h3 className="font-semibold text-[var(--foreground)]">Добавить группу</h3>
-              <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[var(--accent-strong)]">Открыть</span>
-            </summary>
-            <form action={saveGroupRoleMapping} className="ops-form-grid border-t border-[var(--border)] p-4">
-              <input type="hidden" name="providerId" value={selectedProvider.id} />
-              <input type="hidden" name="returnSection" value="mappings" />
-              <ProviderField label="Идентификатор группы" name="externalGroupId" required placeholder="QC_Analysts или GUID группы" />
-              <ProviderField label="Название группы" name="externalGroupName" required placeholder="Аналитики контроля качества" />
-              <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                Роль
-                <select name="role" defaultValue="QA_ANALYST" className="form-control">
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {roleLabels[role]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
-              <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-body)]">
-                <input type="checkbox" name="isActive" defaultChecked />
-                Активна
-              </label>
-              <div className="flex justify-end">
-                <ValidatedSubmitButton>
-                  Сохранить группу
-                </ValidatedSubmitButton>
-              </div>
-            </form>
-          </details>
-        </section>
-      ) : null}
 
-      {activeSection === "sessions" ? (
-        <section className="ops-panel" aria-labelledby="sessions-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Сессии</p>
-            <h2 id="sessions-title" className="ops-panel__title">Сессии пользователей</h2>
-            <p className="ops-panel__subtitle">Последние 40 сессий: источник входа, пользователь и возможность отзыва.</p>
-          </div>
-          <Chip tone="neutral" size="sm" numeric>{sessions.length}</Chip>
-        </div>
-        {sessions.length === 0 ? (
-          <EmptyState
-            size="inline"
-            icon={<UsersRound size={20} aria-hidden="true" />}
-            title="Сессий пока нет"
-            description="Активные входы появятся здесь после первой авторизации пользователей."
-          />
-        ) : (
-          <div className="ops-table-shell">
-            <div className="ops-table ops-table--sessions" aria-label="Сессии пользователей">
-              <div className="ops-table__row ops-table__row--head">
-                <span>Пользователь</span>
-                <span>Провайдер</span>
-                <span>Статус</span>
-                <span>Последняя активность</span>
-                <span>Завершение</span>
-                <span>Действие</span>
-              </div>
-              {sessions.map((session) => (
-                <div key={session.id} className="ops-table__row">
-                  <div className="ops-table__cell">
-                    <span className="ops-table__label">Пользователь</span>
-                    <span className="record-title">{session.user.name}</span>
-                    <span className="record-meta compact-text">
-                      {session.user.email} · {roleLabels[session.user.role]}
-                    </span>
-                  </div>
-                  <div className="ops-table__cell">
-                    <span className="ops-table__label">Провайдер</span>
-                    <span className="record-title">{session.provider?.name ?? "Без провайдера"}</span>
-                    <span className="record-meta">{session.provider ? providerTypeLabels[session.provider.type] : "Локальный вход"}</span>
-                  </div>
-                  <span className="ops-table__cell">
-                    <span className="ops-table__label">Статус</span>
-                    <Chip tone={statusTone(session.status)} size="xs">{sessionStatusLabels[session.status]}</Chip>
-                  </span>
-                  <span className="record-meta tabular-nums">
-                    <span className="ops-table__label">Последняя активность</span>
-                    {formatDate(session.lastSeenAt)}
-                  </span>
-                  <span className="record-meta tabular-nums">
-                    <span className="ops-table__label">Завершение</span>
-                    {formatDate(session.expiresAt)}
-                  </span>
-                  <div className="ops-table__cell ops-table__cell--actions">
-                    <span className="ops-table__label">Действие</span>
-                    {session.status === "ACTIVE" ? (
-                      <form action={revokeAuthSessionById}>
-                        <input type="hidden" name="sessionId" value={session.id} />
-                        <ConfirmSubmitButton
-                          className="action-button action-button--small"
-                          aria-label={`Отозвать сессию ${session.user.email}`}
-                          confirmMessage={`Отозвать сессию пользователя ${session.user.email}? Пользователь будет разлогинен, сессию нельзя восстановить — потребуется повторный вход.`}
-                        >
-                          Отозвать
-                        </ConfirmSubmitButton>
-                      </form>
-                    ) : (
-                      <span className="record-meta">Нет действия</span>
-                    )}
-                  </div>
+              <Separator />
+
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Добавить группу</h3>
+                  <p className="text-sm text-muted-foreground">Создайте правило сопоставления группы каталога с ролью QC.</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-        </section>
-      ) : null}
+                <form action={saveGroupRoleMapping} className="flex flex-col gap-4">
+                  <input type="hidden" name="providerId" value={selectedProvider.id} />
+                  <input type="hidden" name="returnSection" value="mappings" />
+                  <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                    <ProviderField
+                      label="Идентификатор группы"
+                      name="externalGroupId"
+                      required
+                      placeholder="QC_Analysts или GUID группы"
+                    />
+                    <ProviderField
+                      label="Название группы"
+                      name="externalGroupName"
+                      required
+                      placeholder="Аналитики контроля качества"
+                    />
+                    <Field>
+                      <FieldLabel htmlFor="role">Роль</FieldLabel>
+                      <NativeSelect id="role" name="role" defaultValue="QA_ANALYST" className="w-full">
+                        {roles.map((role) => (
+                          <NativeSelectOption key={role} value={role}>
+                            {roleLabels[role]}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </Field>
+                    <ProviderField label="Приоритет" name="priority" defaultValue="100" type="number" />
+                    <Field orientation="horizontal" className="items-center sm:col-span-2">
+                      <Switch id="mapping-is-active" name="isActive" defaultChecked />
+                      <FieldLabel htmlFor="mapping-is-active" className="font-normal">
+                        Активна
+                      </FieldLabel>
+                    </Field>
+                  </FieldGroup>
+                  <div className="flex justify-end">
+                    <ValidatedSubmitButton className={buttonVariants()}>Сохранить группу</ValidatedSubmitButton>
+                  </div>
+                </form>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
-      {activeSection === "recommendations" ? (
-        <section className="ops-panel" aria-labelledby="recommendations-title">
-        <div className="ops-panel__header">
-          <div>
-            <p className="ops-panel__eyebrow">Справка</p>
-            <h2 id="recommendations-title" className="ops-panel__title">Рекомендации</h2>
-            <p className="ops-panel__subtitle">Короткие подсказки по AD/Entra и резервным сценариям.</p>
-          </div>
-        </div>
-        <div className="grid gap-3 p-5 md:grid-cols-3">
-          <div className="soft-callout text-sm leading-6 text-[var(--text-muted)]">
-            <h3 className="record-title">Основной путь</h3>
-            <p>{guidance.preferred}</p>
-          </div>
-          <div className="soft-callout text-sm leading-6 text-[var(--text-muted)]">
-            <h3 className="record-title">Локальный AD</h3>
-            <p>{guidance.onPremDirectory}</p>
-          </div>
-          <div className="soft-callout text-sm leading-6 text-[var(--text-muted)]">
-            <h3 className="record-title">Роли</h3>
-            <p>{guidance.authorization}</p>
-          </div>
-        </div>
-        <div className="soft-callout m-5 mt-0 text-sm text-[var(--text-muted)]">
-          <Link2 size={16} className="mr-2 inline-block align-[-3px]" aria-hidden="true" />
-          Для входа через выбранный провайдер используйте:
-          <code className="inline-code-box inline-code-box--wrap mt-2 font-mono compact-text">
-            {selectedProviderSsoPath}
-          </code>
-        </div>
-        </section>
-      ) : null}
+        {activeSection === "sessions" ? (
+          <Card aria-labelledby="sessions-title">
+            <CardHeader className="border-b">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Сессии</p>
+              <CardTitle id="sessions-title">Сессии пользователей</CardTitle>
+              <CardDescription>Последние 40 сессий: источник входа, пользователь и возможность отзыва.</CardDescription>
+              <CardAction>
+                <Badge variant="secondary" className="tabular-nums">
+                  {sessions.length}
+                </Badge>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              {sessions.length === 0 ? (
+                <EmptyState
+                  size="inline"
+                  icon={<UsersRound size={20} aria-hidden="true" />}
+                  title="Сессий пока нет"
+                  description="Активные входы появятся здесь после первой авторизации пользователей."
+                />
+              ) : (
+                <Table aria-label="Сессии пользователей">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Пользователь</TableHead>
+                      <TableHead>Провайдер</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Последняя активность</TableHead>
+                      <TableHead>Завершение</TableHead>
+                      <TableHead className="text-right">Действие</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sessions.map((session) => (
+                      <TableRow key={session.id}>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium text-foreground">{session.user.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {session.user.email} · {roleLabels[session.user.role]}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-foreground">{session.provider?.name ?? "Без провайдера"}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {session.provider ? providerTypeLabels[session.provider.type] : "Локальный вход"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusPill tone={statusTone(session.status)}>{sessionStatusLabels[session.status]}</StatusPill>
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">{formatDate(session.lastSeenAt)}</TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">{formatDate(session.expiresAt)}</TableCell>
+                        <TableCell className="text-right">
+                          {session.status === "ACTIVE" ? (
+                            <form action={revokeAuthSessionById} className="inline-flex">
+                              <input type="hidden" name="sessionId" value={session.id} />
+                              <ConfirmSubmitButton
+                                className={buttonVariants({ variant: "destructive", size: "sm" })}
+                                aria-label={`Отозвать сессию ${session.user.email}`}
+                                confirmMessage={`Отозвать сессию пользователя ${session.user.email}? Пользователь будет разлогинен, сессию нельзя восстановить — потребуется повторный вход.`}
+                              >
+                                Отозвать
+                              </ConfirmSubmitButton>
+                            </form>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Нет действия</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {activeSection === "recommendations" ? (
+          <Card aria-labelledby="recommendations-title">
+            <CardHeader className="border-b">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Справка</p>
+              <CardTitle id="recommendations-title">Рекомендации</CardTitle>
+              <CardDescription>Короткие подсказки по AD/Entra и резервным сценариям.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <Alert>
+                  <AlertTitle>Основной путь</AlertTitle>
+                  <AlertDescription>{guidance.preferred}</AlertDescription>
+                </Alert>
+                <Alert>
+                  <AlertTitle>Локальный AD</AlertTitle>
+                  <AlertDescription>{guidance.onPremDirectory}</AlertDescription>
+                </Alert>
+                <Alert>
+                  <AlertTitle>Роли</AlertTitle>
+                  <AlertDescription>{guidance.authorization}</AlertDescription>
+                </Alert>
+              </div>
+              <Alert>
+                <Link2 className="size-4" aria-hidden="true" />
+                <AlertTitle>Ссылка для входа</AlertTitle>
+                <AlertDescription className="flex flex-col gap-2">
+                  <span>Для входа через выбранный провайдер используйте:</span>
+                  <code className="rounded-md border border-border bg-muted/50 px-2 py-1.5 font-mono text-xs break-all text-foreground">
+                    {selectedProviderSsoPath}
+                  </code>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+            <CardFooter className="text-xs text-muted-foreground">
+              Рекомендации носят справочный характер и не заменяют проверку конфигурации IdP.
+            </CardFooter>
+          </Card>
+        ) : null}
       </AdminFrame>
     </PageShell>
   );

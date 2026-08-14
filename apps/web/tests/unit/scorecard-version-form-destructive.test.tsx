@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ScorecardVersionForm } from "@/components/scorecards/scorecard-version-form";
 
@@ -32,16 +32,24 @@ function renderForm() {
   return render(<ScorecardVersionForm initialName="Форма v1" initialCriteria={initialCriteria} />);
 }
 
+/** Click + flush Base UI ToggleGroup/Checkbox effects that update after unmount. */
+async function clickDeleteFirst() {
+  await act(async () => {
+    fireEvent.click(screen.getAllByTitle("Удалить")[0]);
+    await Promise.resolve();
+  });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("scorecard version form destructive actions", () => {
-  it("keeps the criterion when the deletion confirm is dismissed", () => {
+  it("keeps the criterion when the deletion confirm is dismissed", async () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     renderForm();
 
-    fireEvent.click(screen.getAllByTitle("Удалить")[0]);
+    await clickDeleteFirst();
 
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(confirmSpy.mock.calls[0][0]).toContain("Удалить критерий «Приветствие»?");
@@ -49,22 +57,22 @@ describe("scorecard version form destructive actions", () => {
     expect(screen.getAllByTitle("Удалить")).toHaveLength(2);
   });
 
-  it("removes the criterion after the deletion is confirmed", () => {
+  it("removes the criterion after the deletion is confirmed", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     renderForm();
 
-    fireEvent.click(screen.getAllByTitle("Удалить")[0]);
+    await clickDeleteFirst();
 
     expect(screen.queryByText("Приветствие")).toBeNull();
     expect(screen.getAllByTitle("Удалить")).toHaveLength(1);
   });
 
-  it("keeps the submit button always enabled and blocks submit inline when weights are off", () => {
+  it("keeps the submit button always enabled and blocks submit inline when weights are off", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     renderForm();
 
     // Delete one criterion: total weight becomes 50 — the button must stay enabled.
-    fireEvent.click(screen.getAllByTitle("Удалить")[0]);
+    await clickDeleteFirst();
 
     const submit = screen.getByRole("button", { name: "Создать новую версию" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(false);
@@ -73,9 +81,15 @@ describe("scorecard version form destructive actions", () => {
     expect(form).not.toBeNull();
 
     const submitEvent = new Event("submit", { bubbles: true, cancelable: true });
-    form?.dispatchEvent(submitEvent);
+    await act(async () => {
+      form?.dispatchEvent(submitEvent);
+      await Promise.resolve();
+    });
 
     expect(submitEvent.defaultPrevented).toBe(true);
-    expect(screen.getByText(/Сумма весов/)).toBeDefined();
+    // Inline field error (badge also shows "Сумма весов N%" — assert the alert).
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /Сумма весов критериев должна быть 100% \(сейчас 50%\)\./
+    );
   });
 });

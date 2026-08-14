@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { cn } from "@/lib/utils";
 
 export type SourceMeta = {
   color: string;
@@ -144,6 +145,11 @@ export function sourceLogoMeta(source: string, label?: string): SourceMeta {
   );
 }
 
+/**
+ * Neutral monochrome source glyph. Brand color stays on `meta.color` for API
+ * consumers; the mark itself uses muted ink unless a caller overrides
+ * `--source-color` via style/className for connection-state emphasis.
+ */
 export function SourceLogoMark({
   source,
   label,
@@ -156,26 +162,35 @@ export function SourceLogoMark({
   className?: string;
 }) {
   const resolvedMeta = meta ?? sourceLogoMeta(source ?? "", label);
-  const classes = ["source-logo-mark", "connect-source-card__mark", className].filter(Boolean).join(" ");
 
-  // Default = neutral monochrome glyph. The per-source brand color stays in
-  // `meta.color` (part of the API), but it is NOT applied as incidental color
-  // here — callers opt into color only when a connection STATE needs it, by
-  // overriding `--source-color` via className/style on the mark.
   return (
-    <span className={classes} style={{ "--source-color": "var(--text-subtle)" } as SourceMarkStyle} aria-hidden="true">
+    <span
+      className={cn(
+        "inline-flex size-[34px] shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-[var(--source-color)]",
+        className
+      )}
+      style={{ "--source-color": "var(--muted-foreground)" } as SourceMarkStyle}
+      aria-hidden="true"
+    >
       {resolvedMeta.logo.kind === "svg" ? (
-        <svg viewBox={resolvedMeta.logo.viewBox ?? "0 0 24 24"} focusable="false">
+        <svg
+          viewBox={resolvedMeta.logo.viewBox ?? "0 0 24 24"}
+          className="size-[19px] fill-current"
+          focusable="false"
+        >
           <path d={resolvedMeta.logo.path} />
         </svg>
       ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- external favicons / brand assets
         <img
           src={resolvedMeta.logo.src}
           alt=""
           loading="lazy"
           referrerPolicy="no-referrer"
-          data-fit={resolvedMeta.logo.fit ?? "contain"}
-          style={{ filter: "grayscale(1) opacity(0.78)" }}
+          className={cn(
+            "grayscale opacity-[0.78]",
+            resolvedMeta.logo.fit === "cover" ? "size-full object-cover" : "size-[22px] object-contain"
+          )}
         />
       )}
     </span>

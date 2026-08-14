@@ -22,3 +22,6 @@ apps/web/next-env.d.ts
 night-ops-*.png
 recon-dashboard.png
 verint-sa-screenshot1.png
+output/
+.playwright-cli/
+.claude/

@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { safeReportsHref } from "@/lib/saved-report-view";
+import { loadReportFilterCatalog } from "@/lib/reports/report-filter-catalog";
 
 function stringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -20,7 +21,8 @@ function stringField(formData: FormData, key: string) {
 export async function createSavedReportView(formData: FormData) {
   const user = await requireCurrentUserPermission("reports:read");
   const name = stringField(formData, "name");
-  const href = safeReportsHref(stringField(formData, "href"));
+  const catalog = await loadReportFilterCatalog(user.workspaceId);
+  const href = safeReportsHref(stringField(formData, "href"), catalog);
   const scope = stringField(formData, "scope") === "shared" ? "shared" : "private";
 
   if (!name) {

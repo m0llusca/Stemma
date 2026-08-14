@@ -1,4 +1,14 @@
-export type StatStripTone = "neutral" | "accent" | "success" | "warning" | "danger";
+import { cn } from "@/lib/utils";
+
+export type StatStripTone =
+  | "neutral"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "positive"
+  | "risk";
 
 export type StatStripItem = {
   label: string;
@@ -8,20 +18,50 @@ export type StatStripItem = {
   hint?: string;
 };
 
+const valueTone: Record<string, string> = {
+  neutral: "text-foreground",
+  accent: "text-primary",
+  success: "text-emerald-700 dark:text-emerald-300",
+  positive: "text-emerald-700 dark:text-emerald-300",
+  warning: "text-amber-800 dark:text-amber-300",
+  danger: "text-destructive",
+  risk: "text-destructive",
+  info: "text-primary"
+};
+
 /**
- * Компактная строка метрик: «значение подпись · значение подпись …».
- * Замена громоздким сеткам карточек там, где числа маленькие и их 3–5:
- * строка читается одним взглядом и не съедает первый экран раздела.
+ * Компактная строка метрик. ariaLabel optional for swarm-migrated call sites.
  */
-export function StatStrip({ items, ariaLabel }: { items: StatStripItem[]; ariaLabel: string }) {
+export function StatStrip({
+  items,
+  ariaLabel,
+  className
+}: {
+  items: StatStripItem[];
+  ariaLabel?: string;
+  className?: string;
+}) {
   return (
-    <dl className="stat-strip" aria-label={ariaLabel}>
+    <dl
+      className={cn(
+        "flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border border-border bg-card px-4 py-3",
+        className
+      )}
+      aria-label={ariaLabel ?? "Метрики"}
+    >
       {items.map((item) => (
-        <div key={item.label} className="stat-strip__item">
-          <dd className={`stat-strip__value stat-strip__value--${item.tone ?? "neutral"}`}>{item.value}</dd>
-          <dt className="stat-strip__label">
+        <div key={item.label} className="flex min-w-0 flex-col gap-0.5">
+          <dd
+            className={cn(
+              "text-xl font-semibold tabular-nums",
+              valueTone[item.tone ?? "neutral"] ?? valueTone.neutral
+            )}
+          >
+            {item.value}
+          </dd>
+          <dt className="text-xs text-muted-foreground">
             {item.label}
-            {item.hint ? <span className="stat-strip__hint"> · {item.hint}</span> : null}
+            {item.hint ? <span> · {item.hint}</span> : null}
           </dt>
         </div>
       ))}

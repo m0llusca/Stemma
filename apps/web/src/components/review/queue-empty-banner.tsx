@@ -2,6 +2,8 @@
 
 import { Inbox, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 /**
  * Brief, dismissible "queue is empty" banner shown when `takeNext` (or
@@ -40,19 +42,16 @@ export function QueueEmptyBanner() {
   }
 
   return (
-    <div className="queue-empty-banner" role="status">
-      <span className="queue-empty-banner__icon" aria-hidden="true">
-        <Inbox size={18} />
-      </span>
-      <p className="queue-empty-banner__text">Свободных обращений в очереди нет.</p>
-      <button
-        type="button"
-        className="queue-empty-banner__close"
-        onClick={dismiss}
-        aria-label="Скрыть уведомление"
-      >
-        <X size={16} aria-hidden="true" />
-      </button>
-    </div>
+    <Alert role="status" className="queue-empty-banner flex items-center gap-3">
+      <Inbox size={18} aria-hidden="true" />
+      <AlertDescription className="queue-empty-banner__text flex-1">
+        Свободных обращений в очереди нет.
+      </AlertDescription>
+      <AlertAction>
+        <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть уведомление">
+          <X size={16} aria-hidden="true" />
+        </Button>
+      </AlertAction>
+    </Alert>
   );
 }

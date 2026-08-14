@@ -1,6 +1,8 @@
 "use client";
 
 import type { MouseEvent } from "react";
+import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 /** How long the target message keeps the transient highlight class. */
 const HIGHLIGHT_MS = 1200;
@@ -21,9 +23,22 @@ type EvidenceJumpLinkProps = {
  */
 export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJumpLinkProps) {
   const targetId = `msg-${messageId}`;
+  const highlightTimerRef = useRef<number | null>(null);
+  const highlightedTargetRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+      highlightedTargetRef.current?.classList.remove(
+        "conversation-message--evidence-flash"
+      );
+    };
+  }, []);
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    // Inside a <details><summary>, stop the click from toggling the disclosure.
+    // Inside a collapsible trigger/header, stop the click from toggling the panel.
     event.stopPropagation();
 
     const target = document.getElementById(targetId);
@@ -33,14 +48,31 @@ export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJu
     }
 
     event.preventDefault();
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    const prefersReducedMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center"
+    });
 
-    // Restart the flash even if the same message was just highlighted.
+    if (highlightTimerRef.current !== null) {
+      window.clearTimeout(highlightTimerRef.current);
+    }
+    if (highlightedTargetRef.current !== target) {
+      highlightedTargetRef.current?.classList.remove(
+        "conversation-message--evidence-flash"
+      );
+    }
+
+    // Static class feedback remains visible when animation is reduced.
     target.classList.remove("conversation-message--evidence-flash");
-    void target.offsetWidth;
     target.classList.add("conversation-message--evidence-flash");
-    window.setTimeout(() => {
+    highlightedTargetRef.current = target;
+    highlightTimerRef.current = window.setTimeout(() => {
       target.classList.remove("conversation-message--evidence-flash");
+      highlightTimerRef.current = null;
+      highlightedTargetRef.current = null;
     }, HIGHLIGHT_MS);
   }
 
@@ -48,7 +80,11 @@ export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJu
     <a
       href={`#${targetId}`}
       onClick={handleClick}
-      className={className}
+      data-qc-motion="feedback"
+      className={cn(
+        "text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        className
+      )}
       aria-label={`Перейти к сообщению-доказательству, ${timeLabel}`}
     >
       Доказательство → {timeLabel}

@@ -2,44 +2,73 @@ import type { ReactNode } from "react";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import type { StatusTone } from "@/lib/ui/status-tone";
 
-const chipToneForStatusTone: Record<StatusTone, ChipTone> = {
+/** Extended tones used by swarm-migrated pages (maps onto Chip tones). */
+export type StatusBadgeTone =
+  | StatusTone
+  | "success"
+  | "danger"
+  | "accent"
+  | "ai"
+  | "risk"
+  | "positive"
+  | "negative"
+  | "warning"
+  | "neutral"
+  | "info";
+
+const chipToneForStatusTone: Record<string, ChipTone> = {
   positive: "success",
+  success: "success",
   warning: "warning",
   negative: "danger",
+  danger: "danger",
+  risk: "danger",
   neutral: "neutral",
-  info: "info"
+  info: "info",
+  accent: "accent",
+  ai: "ai"
+};
+
+type StatusBadgeProps = {
+  label?: ReactNode;
+  value?: ReactNode;
+  children?: ReactNode;
+  tone?: StatusBadgeTone;
+  className?: string;
+  compact?: boolean;
+  size?: string;
+  icon?: ReactNode;
 };
 
 /**
- * Thin wrapper around the canonical {@link Chip} primitive. The public API is
- * unchanged; it keeps the legacy `status-badge` class hooks while sharing the
- * `.chip` token-driven look (radius, border, tone fills).
+ * Status chip wrapper around shadcn Badge via Chip.
+ * Supports original {label,value,tone,compact} and compact {children,tone} APIs.
  */
 export function StatusBadge({
   label,
   value,
+  children,
   tone = "neutral",
   className,
-  compact = false
-}: {
-  label: ReactNode;
-  value: ReactNode;
-  tone?: StatusTone;
-  className?: string;
-  /**
-   * Компактный статус-чип: видимой подписи нет (значение самодостаточно —
-   * «Активен», «В очереди»), рендерится маленьким value-only чипом; подпись
-   * сохраняется в title. Канонический вид статусов в строках/таблицах админки.
-   */
-  compact?: boolean;
-}) {
-  if (compact) {
+  compact = false,
+  size,
+  icon
+}: StatusBadgeProps) {
+  const chipTone = chipToneForStatusTone[tone] ?? "neutral";
+  const displayValue = value ?? children;
+
+  if (compact || (label == null && displayValue != null)) {
     return (
       <Chip
-        tone={chipToneForStatusTone[tone]}
-        size="xs"
-        value={value}
-        title={typeof label === "string" && typeof value === "string" ? `${label}: ${value}` : undefined}
+        tone={chipTone}
+        size={compact || size === "xs" || size === "sm" ? "xs" : "sm"}
+        value={displayValue}
+        icon={icon}
+        title={
+          typeof label === "string" && typeof displayValue === "string"
+            ? `${label}: ${displayValue}`
+            : undefined
+        }
         className={className}
       />
     );
@@ -47,9 +76,10 @@ export function StatusBadge({
 
   return (
     <Chip
-      tone={chipToneForStatusTone[tone]}
+      tone={chipTone}
       label={label}
-      value={value}
+      value={displayValue}
+      icon={icon}
       baseClassName="status-badge"
       partPrefix="status-badge"
       className={className}

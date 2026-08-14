@@ -4,9 +4,17 @@ import type { CriterionKind } from "@prisma/client";
 import { ArrowDown, ArrowUp, ChevronDown, GripVertical, Plus, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
-import { Chip } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/required-mark";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { createScorecardVersion, updateScorecardVersion } from "@/lib/scorecard-actions";
+import { cn } from "@/lib/utils";
 
 type CriterionRow = {
   clientId: string;
@@ -53,7 +61,12 @@ function normalizeKeySeed(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-export function ScorecardVersionForm({ mode = "create", scorecardId, initialName, initialCriteria }: ScorecardVersionFormProps) {
+export function ScorecardVersionForm({
+  mode = "create",
+  scorecardId,
+  initialName,
+  initialCriteria
+}: ScorecardVersionFormProps) {
   const [name, setName] = useState(initialName);
   const [criteria, setCriteria] = useState<CriterionRow[]>(
     initialCriteria.map((criterion) => ({
@@ -66,12 +79,17 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
       required: criterion.required
     }))
   );
-  const totalWeight = useMemo(() => criteria.reduce((sum, criterion) => sum + Number(criterion.weight || 0), 0), [criteria]);
+  const totalWeight = useMemo(
+    () => criteria.reduce((sum, criterion) => sum + Number(criterion.weight || 0), 0),
+    [criteria]
+  );
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   function updateCriterion(index: number, patch: Partial<CriterionRow>) {
     setCriteria((current) =>
-      current.map((criterion, currentIndex) => (currentIndex === index ? { ...criterion, ...patch } : criterion))
+      current.map((criterion, currentIndex) =>
+        currentIndex === index ? { ...criterion, ...patch } : criterion
+      )
     );
   }
 
@@ -127,222 +145,247 @@ export function ScorecardVersionForm({ mode = "create", scorecardId, initialName
   }
 
   const formAction = mode === "edit" ? updateScorecardVersion : createScorecardVersion;
-  const weightShare = (weight: number) => (totalWeight > 0 ? Math.round((Number(weight || 0) / totalWeight) * 100) : 0);
+  const weightShare = (weight: number) =>
+    totalWeight > 0 ? Math.round((Number(weight || 0) / totalWeight) * 100) : 0;
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="grid gap-4 p-5">
-      {mode === "edit" && scorecardId ? <input type="hidden" name="scorecardId" value={scorecardId} /> : null}
+    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {mode === "edit" && scorecardId ? (
+        <input type="hidden" name="scorecardId" value={scorecardId} />
+      ) : null}
       <input type="hidden" name="criterionCount" value={criteria.length} />
-      <label className="grid max-w-xl gap-1 text-sm font-medium text-[var(--text-body)]">
-        <span>
-          Название
-          <RequiredMark />
-        </span>
-        <input
-          name="name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
-          className="form-control"
-        />
-      </label>
 
-      <div className="scorecard-builder">
-        <p className="scorecard-builder__section-label">Критерии</p>
-        <div className="scorecard-builder__list">
+      <FieldGroup className="max-w-xl gap-4">
+        <Field>
+          <FieldLabel htmlFor="scorecard-name">
+            Название
+            <RequiredMark />
+          </FieldLabel>
+          <Input
+            id="scorecard-name"
+            name="name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </Field>
+      </FieldGroup>
+
+      <div className="flex flex-col gap-3">
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+          Критерии
+        </p>
+        <div className="flex flex-col gap-2">
           {criteria.map((criterion, index) => (
-            <details key={criterion.clientId} className="criterion-card" open={criterion.clientId.startsWith("new-")}>
-              <summary className="criterion-card__summary">
-                <span className="criterion-card__handle" aria-hidden="true">
-                  <GripVertical size={16} />
-                </span>
-                <span className="criterion-card__heading">
-                  <span className="criterion-card__title">{criterion.label || `Критерий ${index + 1}`}</span>
-                  <span className="criterion-card__meta tabular-nums">
-                    {criterion.block} · {kindOptions.find((option) => option.value === criterion.kind)?.label}
+            <Collapsible
+              key={criterion.clientId}
+              defaultOpen={criterion.clientId.startsWith("new-")}
+              className="group rounded-xl ring-1 ring-foreground/10 data-open:bg-muted/15"
+            >
+              <div className="flex items-center gap-2 p-3">
+                <CollapsibleTrigger className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left outline-none">
+                  <span className="text-muted-foreground" aria-hidden="true">
+                    <GripVertical size={16} />
                   </span>
-                </span>
-                <Chip
-                  tone="neutral"
-                  size="sm"
-                  numeric
-                  label="Вес"
-                  value={`${criterion.weight}%`}
-                  className="criterion-card__weight"
-                />
-                <span className="criterion-card__controls">
-                  <button
+                  <span className="min-w-0 flex-1 flex flex-col gap-0.5">
+                    <span className="truncate font-medium text-foreground">
+                      {criterion.label || `Критерий ${index + 1}`}
+                    </span>
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {criterion.block} ·{" "}
+                      {kindOptions.find((option) => option.value === criterion.kind)?.label}
+                    </span>
+                  </span>
+                  <Badge variant="secondary" className="tabular-nums shrink-0">
+                    Вес {criterion.weight}%
+                  </Badge>
+                </CollapsibleTrigger>
+                <span className="flex items-center gap-1">
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     title="Поднять"
                     disabled={index === 0}
                     onClick={() => setCriteria((current) => moveRow(current, index, index - 1))}
-                    className="icon-action-button"
                   >
                     <ArrowUp size={15} aria-hidden="true" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     title="Опустить"
                     disabled={index === criteria.length - 1}
                     onClick={() => setCriteria((current) => moveRow(current, index, index + 1))}
-                    className="icon-action-button"
                   >
                     <ArrowDown size={15} aria-hidden="true" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     title="Удалить"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => removeCriterion(index)}
-                    className="icon-action-button icon-action-button--danger"
                   >
                     <Trash2 size={15} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </span>
-                <span className="criterion-card__chevron" aria-hidden="true">
-                  <ChevronDown size={16} />
-                </span>
-              </summary>
-
-              <div className="criterion-card__body">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(150px,0.8fr)_minmax(160px,0.9fr)_minmax(220px,1.2fr)]">
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Ключ
-                      <RequiredMark />
-                    </span>
-                    <input
-                      name={`criterion.${index}.key`}
-                      value={criterion.key}
-                      onChange={(event) => updateCriterion(index, { key: normalizeKeySeed(event.target.value) })}
-                      required
-                      pattern="[a-z0-9_]+"
-                      className="form-control font-mono text-xs"
-                    />
-                    {mode === "edit" && !criterion.clientId.startsWith("new-") ? (
-                      <input type="hidden" name={`criterion.${index}.id`} value={criterion.clientId} />
-                    ) : null}
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Блок
-                      <RequiredMark />
-                    </span>
-                    <input
-                      name={`criterion.${index}.block`}
-                      value={criterion.block}
-                      onChange={(event) => updateCriterion(index, { block: event.target.value })}
-                      required
-                      className="form-control"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Название
-                      <RequiredMark />
-                    </span>
-                    <input
-                      name={`criterion.${index}.label`}
-                      value={criterion.label}
-                      onChange={(event) => updateCriterion(index, { label: event.target.value })}
-                      required
-                      className="form-control"
-                    />
-                  </label>
-                </div>
-
-                <div className="criterion-card__row">
-                  <div className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>Тип оценки</span>
-                    <div className="segmented" role="group" aria-label="Тип оценки">
-                      {kindOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`segmented__option ${criterion.kind === option.value ? "segmented__option--active" : ""}`}
-                          aria-pressed={criterion.kind === option.value}
-                          onClick={() => updateCriterion(index, { kind: option.value })}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    <select
-                      name={`criterion.${index}.kind`}
-                      value={criterion.kind}
-                      onChange={(event) => updateCriterion(index, { kind: event.target.value as CriterionKind })}
-                      className="sr-only"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    >
-                      {kindOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <label className="grid gap-1 text-sm font-medium text-[var(--text-body)]">
-                    <span>
-                      Вес, %
-                      <RequiredMark />
-                    </span>
-                    <input
-                      name={`criterion.${index}.weight`}
-                      value={criterion.weight}
-                      onChange={(event) => updateCriterion(index, { weight: Number(event.target.value) })}
-                      required
-                      type="number"
-                      min="1"
-                      max="100"
-                      className="form-control tabular-nums"
-                    />
-                    <span className="criterion-card__share tabular-nums">Доля в итоге: {weightShare(criterion.weight)}%</span>
-                  </label>
-                  <label className="flex min-h-[40px] items-center gap-2 self-end text-sm font-medium text-[var(--text-body)]">
-                    <input
-                      name={`criterion.${index}.required`}
-                      type="checkbox"
-                      checked={criterion.required}
-                      onChange={(event) => updateCriterion(index, { required: event.target.checked })}
-                    />
-                    Обязателен
-                  </label>
-                </div>
+                <CollapsibleTrigger
+                  className="flex size-8 shrink-0 items-center justify-center text-muted-foreground outline-none"
+                  aria-label={criterion.label || `Критерий ${index + 1}`}
+                >
+                  <ChevronDown
+                    size={16}
+                    aria-hidden="true"
+                    className="transition-transform group-data-open:rotate-180"
+                  />
+                </CollapsibleTrigger>
               </div>
-            </details>
+
+              <CollapsibleContent keepMounted>
+                <Card className="rounded-none border-0 bg-transparent ring-0 shadow-none">
+                  <CardContent className="flex flex-col gap-4 border-t border-border pt-4">
+                    <FieldGroup className="gap-3 md:grid md:grid-cols-2 xl:grid-cols-[minmax(150px,0.8fr)_minmax(160px,0.9fr)_minmax(220px,1.2fr)]">
+                      <Field>
+                        <FieldLabel htmlFor={`criterion-${index}-key`}>
+                          Ключ
+                          <RequiredMark />
+                        </FieldLabel>
+                        <Input
+                          id={`criterion-${index}-key`}
+                          name={`criterion.${index}.key`}
+                          value={criterion.key}
+                          onChange={(event) =>
+                            updateCriterion(index, { key: normalizeKeySeed(event.target.value) })
+                          }
+                          required
+                          pattern="[a-z0-9_]+"
+                          className="font-mono text-xs"
+                        />
+                        {mode === "edit" && !criterion.clientId.startsWith("new-") ? (
+                          <input type="hidden" name={`criterion.${index}.id`} value={criterion.clientId} />
+                        ) : null}
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`criterion-${index}-block`}>
+                          Блок
+                          <RequiredMark />
+                        </FieldLabel>
+                        <Input
+                          id={`criterion-${index}-block`}
+                          name={`criterion.${index}.block`}
+                          value={criterion.block}
+                          onChange={(event) => updateCriterion(index, { block: event.target.value })}
+                          required
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`criterion-${index}-label`}>
+                          Название
+                          <RequiredMark />
+                        </FieldLabel>
+                        <Input
+                          id={`criterion-${index}-label`}
+                          name={`criterion.${index}.label`}
+                          value={criterion.label}
+                          onChange={(event) => updateCriterion(index, { label: event.target.value })}
+                          required
+                        />
+                      </Field>
+                    </FieldGroup>
+
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(120px,0.5fr)_auto] md:items-end">
+                      <Field>
+                        <FieldLabel>Тип оценки</FieldLabel>
+                        <ToggleGroup
+                          value={[criterion.kind]}
+                          onValueChange={(v) => {
+                            const next = v[0];
+                            if (next) updateCriterion(index, { kind: next as CriterionKind });
+                          }}
+                          spacing={0}
+                          variant="outline"
+                          size="sm"
+                          aria-label="Тип оценки"
+                        >
+                          {kindOptions.map((option) => (
+                            <ToggleGroupItem key={option.value} value={option.value}>
+                              {option.label}
+                            </ToggleGroupItem>
+                          ))}
+                        </ToggleGroup>
+                        <input type="hidden" name={`criterion.${index}.kind`} value={criterion.kind} />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`criterion-${index}-weight`}>
+                          Вес, %
+                          <RequiredMark />
+                        </FieldLabel>
+                        <Input
+                          id={`criterion-${index}-weight`}
+                          name={`criterion.${index}.weight`}
+                          value={criterion.weight}
+                          onChange={(event) =>
+                            updateCriterion(index, { weight: Number(event.target.value) })
+                          }
+                          required
+                          type="number"
+                          min={1}
+                          max={100}
+                          className="tabular-nums"
+                        />
+                        <FieldDescription className="tabular-nums">
+                          Доля в итоге: {weightShare(criterion.weight)}%
+                        </FieldDescription>
+                      </Field>
+                      <Field orientation="horizontal" className="min-h-8 items-center self-end pb-0.5">
+                        <Checkbox
+                          id={`criterion-${index}-required`}
+                          name={`criterion.${index}.required`}
+                          checked={criterion.required}
+                          onCheckedChange={(checked) =>
+                            updateCriterion(index, { required: checked === true })
+                          }
+                        />
+                        <FieldLabel htmlFor={`criterion-${index}-required`} className="font-normal">
+                          Обязателен
+                        </FieldLabel>
+                      </Field>
+                    </div>
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <button
-            type="button"
-            onClick={addCriterion}
-            className="action-button"
-          >
+          <Button type="button" variant="outline" onClick={addCriterion}>
             <Plus size={16} aria-hidden="true" />
             Добавить критерий
-          </button>
+          </Button>
           <span aria-live="polite" className="inline-flex">
-            <Chip
-              tone={totalWeight === 100 ? "success" : "warning"}
-              size="sm"
-              numeric
-              label="Сумма весов"
-              value={`${totalWeight}%`}
-            />
+            <Badge
+              variant={totalWeight === 100 ? "default" : "outline"}
+              className={cn(
+                "tabular-nums",
+                totalWeight !== 100 &&
+                  "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-300"
+              )}
+            >
+              Сумма весов {totalWeight}%
+            </Badge>
           </span>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <button type="submit" className="action-button action-button--primary">
+          <Button type="submit">
             {mode === "edit" ? "Сохранить текущую форму" : "Создать новую версию"}
-          </button>
-          {submitError ? (
-            <span role="alert" className="text-sm font-medium text-[var(--danger)]">
-              {submitError}
-            </span>
-          ) : null}
+          </Button>
+          {submitError ? <FieldError>{submitError}</FieldError> : null}
         </div>
       </div>
     </form>
