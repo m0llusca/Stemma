@@ -147,7 +147,7 @@ describe("SAML auth routes", () => {
           "user-agent": "vitest-saml",
           "x-forwarded-host": "attacker.example.com"
         },
-        body: formData
+        body: formData.toString()
       })
     );
 
@@ -198,7 +198,7 @@ describe("SAML auth routes", () => {
       new NextRequest("https://app.example.com/auth/saml/acs?provider=saml", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-host": "attacker.example.com" },
-        body: formData
+        body: formData.toString()
       })
     );
 
