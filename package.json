@@ -1,0 +1,5 @@
+# Stemma
+
+Local monorepo root. The application lives in [`apps/web`](apps/web).
+
+See the [README](README.md) for setup.

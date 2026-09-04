@@ -1,7 +1,17 @@
 {
-  "name": "support-qa-platform-web",
+  "name": "stemma",
   "version": "0.1.0",
   "private": true,
+  "description": "Stemma — omnichannel support QA hub (Next.js)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m0llusca/Stemma.git"
+  },
+  "homepage": "https://github.com/m0llusca/Stemma",
+  "bugs": {
+    "url": "https://github.com/m0llusca/Stemma/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
