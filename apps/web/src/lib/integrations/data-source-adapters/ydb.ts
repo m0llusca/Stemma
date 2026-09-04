@@ -1,4 +1,6 @@
+import { AccessTokenCredentialsProvider } from "@ydbjs/auth/access-token";
 import { StaticCredentialsProvider } from "@ydbjs/auth/static";
+import { ServiceAccountCredentialsProvider } from "@ydbjs/auth-yandex-cloud";
 import { Driver } from "@ydbjs/core";
 import { query, unsafe } from "@ydbjs/query";
 import type { JSValue } from "@ydbjs/value";
@@ -9,6 +11,19 @@ import type {
 } from "@/lib/integrations/data-source-adapters/types";
 
 type YdbResultRow = Record<string, JSValue>;
+type YdbCredentialsProvider =
+  | StaticCredentialsProvider
+  | AccessTokenCredentialsProvider
+  | ServiceAccountCredentialsProvider;
+
+type YandexServiceAccountKey = {
+  id: string;
+  service_account_id: string;
+  private_key: string;
+  created_at?: string;
+  key_algorithm?: string;
+  public_key?: string;
+};
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 2_000_000;
@@ -17,6 +32,8 @@ const mutationKeywordPattern = /\b(UPSERT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE
 const commentTokenPattern = /--|\/\*|\*\//;
 const trailingLimitPattern = /\s+LIMIT\s+(\d+)\s*$/i;
 const tablePathPattern = /^[A-Za-z0-9_./-]+$/;
+const credentialsShapeError =
+  "YDB credentials: JSON с username+password, token, или Yandex service account key (id, service_account_id, private_key).";
 
 function inputLimit(limit: number) {
   return Math.max(0, Math.floor(limit));
@@ -106,7 +123,30 @@ function diagnosticUrl(value: string) {
   }
 }
 
-function credentials(value: string | undefined, endpoint: string) {
+function isServiceAccountKey(value: Record<string, unknown>): value is YandexServiceAccountKey {
+  return (
+    typeof value.id === "string" &&
+    value.id.trim().length > 0 &&
+    typeof value.service_account_id === "string" &&
+    value.service_account_id.trim().length > 0 &&
+    typeof value.private_key === "string" &&
+    value.private_key.trim().length > 0
+  );
+}
+
+function accessTokenFromCredential(value: Record<string, unknown>) {
+  for (const key of ["token", "accessToken", "access_token", "iamToken", "iam_token"] as const) {
+    const candidate = value[key];
+
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
+function credentials(value: string | undefined, endpoint: string): YdbCredentialsProvider | undefined {
   if (!value) {
     return undefined;
   }
@@ -123,14 +163,31 @@ function credentials(value: string | undefined, endpoint: string) {
     throw new Error("YDB credentials должны быть JSON-объектом.");
   }
 
-  const username = (parsed as { username?: unknown }).username;
-  const password = (parsed as { password?: unknown }).password;
+  const record = parsed as Record<string, unknown>;
 
-  if (typeof username !== "string" || typeof password !== "string") {
-    throw new Error("YDB credentials должны содержать username и password.");
+  if (isServiceAccountKey(record)) {
+    return new ServiceAccountCredentialsProvider(record);
   }
 
-  return new StaticCredentialsProvider({ username, password }, endpoint);
+  const token = accessTokenFromCredential(record);
+
+  if (token) {
+    return new AccessTokenCredentialsProvider({ token });
+  }
+
+  const username = record.username;
+  const password = record.password;
+
+  if (typeof username === "string" && typeof password === "string") {
+    return new StaticCredentialsProvider({ username, password }, endpoint);
+  }
+
+  throw new Error(credentialsShapeError);
+}
+
+/** Build a credentials provider from the encrypted/live credential JSON payload. */
+export function createYdbCredentialsProvider(credential: string | undefined, endpoint: string) {
+  return credentials(credential, endpoint);
 }
 
 function firstResultRows(resultSets: unknown, limit: number): YdbResultRow[] {
@@ -186,10 +243,19 @@ export function createYdbAdapter() {
         const resultSets = await withTimeout(sql`${unsafe(yql)}`, timeoutMs, "YDB query timed out.");
         const rows = firstResultRows(resultSets, input.limit);
         assertRowsWithinMaxResponseBytes(rows, maxResponseBytes);
-        const conversations = normalizeTabularConversationRows(rows, {
-          source: "ydb",
-          samplingReason: "Импорт YDB: строки YQL-запроса."
-        });
+        const connectivityOnly = input.config.connectivityOnly === true;
+        let conversations: ReturnType<typeof normalizeTabularConversationRows> = [];
+
+        try {
+          conversations = normalizeTabularConversationRows(rows, {
+            source: "ydb",
+            samplingReason: "Импорт YDB: строки YQL-запроса."
+          });
+        } catch (error) {
+          if (!connectivityOnly) {
+            throw error;
+          }
+        }
 
         return {
           source: "ydb",

@@ -52,10 +52,16 @@ function missingRequiredEnvironment(source: DataSourceSource | null) {
 
 function sourceConfig(source: DataSourceSource) {
   if (source === "ydb") {
-    return { query: stringEnv("DATA_SOURCE_LIVE_YDB_QUERY") };
+    return {
+      query: stringEnv("DATA_SOURCE_LIVE_YDB_QUERY"),
+      ...(connectivityOnly ? { connectivityOnly: true } : {})
+    };
   }
 
-  return { tablePath: stringEnv("DATA_SOURCE_LIVE_YTSAURUS_TABLE_PATH") };
+  return {
+    tablePath: stringEnv("DATA_SOURCE_LIVE_YTSAURUS_TABLE_PATH"),
+    ...(connectivityOnly ? { connectivityOnly: true } : {})
+  };
 }
 
 function createAdapter(source: DataSourceSource) {

@@ -81,9 +81,29 @@ vi.mock("@ydbjs/query", () => ({
   unsafe
 }));
 
+const serviceAccountCredentialsProvider = vi.fn().mockImplementation((value) => ({ kind: "service_account", value }));
+const accessTokenCredentialsProvider = vi.fn().mockImplementation((value) => ({ kind: "access_token", value }));
+
 vi.mock("@ydbjs/auth/static", () => ({
   StaticCredentialsProvider: staticCredentialsProvider
 }));
+
+vi.mock("@ydbjs/auth/access-token", () => ({
+  AccessTokenCredentialsProvider: accessTokenCredentialsProvider
+}));
+
+vi.mock("@ydbjs/auth-yandex-cloud", () => ({
+  ServiceAccountCredentialsProvider: serviceAccountCredentialsProvider
+}));
+
+const serviceAccountKey = {
+  id: "ajeexamplekeyid00001",
+  service_account_id: "ajeexamplesaid00001",
+  created_at: "2026-01-01T00:00:00Z",
+  key_algorithm: "RSA_2048",
+  private_key: "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n",
+  public_key: "-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n"
+};
 
 describe("YDB adapter", () => {
   beforeEach(() => {
@@ -267,6 +287,76 @@ describe("YDB adapter", () => {
       })
     ).rejects.toThrow("query failed");
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses Yandex Cloud service account key JSON for IAM auth", async () => {
+    const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
+    const baseUrl = "grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/demo";
+
+    const result = await createYdbAdapter().loadRows({
+      source: "ydb",
+      baseUrl,
+      config: { query: "SELECT 1 AS conversation_id" },
+      credential: JSON.stringify(serviceAccountKey),
+      limit: 1
+    });
+
+    expect(serviceAccountCredentialsProvider).toHaveBeenCalledWith(serviceAccountKey);
+    expect(staticCredentialsProvider).not.toHaveBeenCalled();
+    expect(driverConstructor).toHaveBeenCalledWith(baseUrl, {
+      credentialsProvider: { kind: "service_account", value: serviceAccountKey }
+    });
+    expect(JSON.stringify(result.diagnostics)).not.toContain("BEGIN PRIVATE KEY");
+    expect(JSON.stringify(result.diagnostics)).not.toContain(serviceAccountKey.private_key);
+  });
+
+  it("uses access token credentials when token is provided", async () => {
+    const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
+
+    await createYdbAdapter().loadRows({
+      source: "ydb",
+      baseUrl: "grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/demo",
+      config: { query: "SELECT 1 AS conversation_id" },
+      credential: JSON.stringify({ token: "iam-token-secret" }),
+      limit: 1
+    });
+
+    expect(accessTokenCredentialsProvider).toHaveBeenCalledWith({ token: "iam-token-secret" });
+    expect(staticCredentialsProvider).not.toHaveBeenCalled();
+    expect(serviceAccountCredentialsProvider).not.toHaveBeenCalled();
+  });
+
+  it("rejects credentials that are neither static, token, nor service account", async () => {
+    const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
+
+    await expect(
+      createYdbAdapter().loadRows({
+        source: "ydb",
+        baseUrl: "grpc://localhost:2136/local",
+        config: { query: "SELECT 1" },
+        credential: JSON.stringify({ foo: "bar" }),
+        limit: 1
+      })
+    ).rejects.toThrow(/username и password|service account|token/i);
+
+    expect(driverConstructor).not.toHaveBeenCalled();
+  });
+
+  it("allows non-conversation rows when connectivityOnly is set", async () => {
+    queryFn.mockResolvedValueOnce([[{ n: 1 }]]);
+    const { createYdbAdapter } = await import("@/lib/integrations/data-source-adapters/ydb");
+
+    const result = await createYdbAdapter().loadRows({
+      source: "ydb",
+      baseUrl: "grpc://localhost:2136/local",
+      config: { query: "SELECT 1 AS n", connectivityOnly: true },
+      credential: JSON.stringify({ username: "user", password: "pass" }),
+      limit: 1
+    });
+
+    expect(result.rows).toEqual([{ n: 1 }]);
+    expect(result.conversations).toEqual([]);
+    expect(result.diagnostics.requests[0]?.statusCode).toBe(200);
   });
 
   it("rejects empty normalized results unless connectivityOnly is explicit", async () => {

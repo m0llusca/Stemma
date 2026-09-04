@@ -16,10 +16,18 @@ describe("data-source profile metadata", () => {
     expect(ytsaurus.urlPolicy).toBe("required");
   });
 
-  it("ydb collects a connection string, username and password (password is the only secret)", () => {
-    expect(ydb.credentialFields.map((f) => f.key)).toEqual(["connectionString", "username", "password"]);
+  it("ydb collects connection string plus SA key / token / static credentials", () => {
+    expect(ydb.credentialFields.map((f) => f.key)).toEqual([
+      "connectionString",
+      "serviceAccountKey",
+      "accessToken",
+      "username",
+      "password"
+    ]);
     const byKey = Object.fromEntries(ydb.credentialFields.map((f) => [f.key, f]));
     expect(byKey.connectionString.secret).toBe(false);
+    expect(byKey.serviceAccountKey.secret).toBe(true);
+    expect(byKey.accessToken.secret).toBe(true);
     expect(byKey.username.secret).toBe(false);
     expect(byKey.password.secret).toBe(true);
   });

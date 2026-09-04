@@ -159,8 +159,16 @@ async function buildRuntime(): Promise<SmokeRuntime> {
       process.env.OTRS_TICKET_SEARCH_METHOD?.trim() ||
       process.env.OTRS_TICKET_GET_METHOD?.trim()
   );
+  const ticketSearchMethod =
+    parseMethodEnv("OTRS_TICKET_SEARCH_METHOD") ?? defaultConfig.routes.ticketSearchMethod;
+  const ticketGetMethod = parseMethodEnv("OTRS_TICKET_GET_METHOD") ?? defaultConfig.routes.ticketGetMethod;
+  const ticketGetPathRaw = process.env.OTRS_TICKET_GET_PATH?.trim();
+  const ticketGetPath = ticketGetPathRaw
+    ? ticketGetPathRaw.replace(/:TicketID\b/g, "{TicketID}")
+    : defaultConfig.routes.ticketGetPath;
+  const { requestMode: _ignoredDefaultRequestMode, ...defaultConfigWithoutRequestMode } = defaultConfig;
   const config = parseOtrsConnectorConfig({
-    ...defaultConfig,
+    ...defaultConfigWithoutRequestMode,
     webServiceName: process.env.OTRS_WEBSERVICE_NAME?.trim() || defaultConfig.webServiceName,
     ...(process.env.OTRS_TIME_ZONE?.trim() ? { timeZone: process.env.OTRS_TIME_ZONE.trim() } : {}),
     advanced: {
@@ -170,9 +178,13 @@ async function buildRuntime(): Promise<SmokeRuntime> {
     routes: {
       ...defaultConfig.routes,
       ...(process.env.OTRS_TICKET_SEARCH_PATH?.trim() ? { ticketSearchPath: process.env.OTRS_TICKET_SEARCH_PATH.trim() } : {}),
-      ...(process.env.OTRS_TICKET_GET_PATH?.trim() ? { ticketGetPath: process.env.OTRS_TICKET_GET_PATH.trim() } : {}),
-      ...(parseMethodEnv("OTRS_TICKET_SEARCH_METHOD") ? { ticketSearchMethod: parseMethodEnv("OTRS_TICKET_SEARCH_METHOD") } : {}),
-      ...(parseMethodEnv("OTRS_TICKET_GET_METHOD") ? { ticketGetMethod: parseMethodEnv("OTRS_TICKET_GET_METHOD") } : {})
+      ...(ticketGetPathRaw ? { ticketGetPath } : {}),
+      ticketSearchMethod,
+      ticketGetMethod
+    },
+    requestMode: {
+      ticketSearch: ticketSearchMethod === "POST" ? "post_json" : "get_query",
+      ticketGet: ticketGetMethod === "POST" ? "post_json" : "get_query"
     },
     auth: {
       ...defaultConfig.auth,

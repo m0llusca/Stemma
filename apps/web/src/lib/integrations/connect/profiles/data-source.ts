@@ -1,5 +1,5 @@
-import { StaticCredentialsProvider } from "@ydbjs/auth/static";
 import { Driver } from "@ydbjs/core";
+import { createYdbCredentialsProvider } from "@/lib/integrations/data-source-adapters/ydb";
 import { HelpdeskAdapterError } from "@/lib/integrations/helpdesk-adapters/errors";
 import {
   createHelpdeskHttpClient,
@@ -88,10 +88,22 @@ export const dataSourceProfiles = {
         hint: "Endpoint и database в формате grpc(s)://host:port/?database=/path."
       },
       {
+        key: "serviceAccountKey",
+        label: "Service account key (JSON)",
+        secret: true,
+        hint: "Authorized key Яндекс Облака (id, service_account_id, private_key). Приоритетнее username/password."
+      },
+      {
+        key: "accessToken",
+        label: "IAM / access token",
+        secret: true,
+        hint: "Готовый IAM-токен. Если задан service account key — не нужен."
+      },
+      {
         key: "username",
         label: "Имя пользователя",
         secret: false,
-        hint: "Учётная запись со статическими кредами YDB."
+        hint: "Статические креды YDB (если нет SA key / token)."
       },
       { key: "password", label: "Пароль", secret: true }
     ],
@@ -101,30 +113,37 @@ export const dataSourceProfiles = {
       return { baseUrl: raw };
     },
     async verifyAuth(ctx: TestableContext): Promise<VerifyResult> {
+      const timeoutMs = ctx.__timeoutMs ?? defaultProbeTimeoutMs;
+      const serviceAccountKey = ctx.credentials.serviceAccountKey?.trim() ?? "";
+      const accessToken = ctx.credentials.accessToken?.trim() ?? "";
       const username = ctx.credentials.username ?? "";
       const password = ctx.credentials.password ?? "";
-      const timeoutMs = ctx.__timeoutMs ?? defaultProbeTimeoutMs;
-      // Лёгкая проверка готовности драйвера (driver.ready), а не SELECT 1:
-      // выполнение запроса в probe требует построения YQL и таблицы/конфигурации
-      // и существенно тяжелее. ready() поднимает gRPC-канал и проходит
-      // discovery — этого достаточно, чтобы подтвердить доступность endpoint и
-      // валидность статических кредов. Конструируем драйвер внутри try: ошибка
-      // парсинга строки подключения может бросаться синхронно из new Driver.
+      const credentialJson = serviceAccountKey
+        ? serviceAccountKey
+        : accessToken
+          ? JSON.stringify({ token: accessToken })
+          : JSON.stringify({ username, password });
+      // Лёгкая проверка готовности драйвера (driver.ready), а не SELECT 1.
       let driver: Driver | undefined;
+      const authMode = serviceAccountKey
+        ? "service_account"
+        : accessToken
+          ? "access_token"
+          : "static_credentials";
 
       try {
         driver = new Driver(ctx.baseUrl, {
-          credentialsProvider: new StaticCredentialsProvider({ username, password }, ctx.baseUrl)
+          credentialsProvider: createYdbCredentialsProvider(credentialJson, ctx.baseUrl)
         });
         await withTimeout(driver.ready(), timeoutMs, "YDB не ответил за отведённое время.");
         return {
           status: "ok",
           detail: "Драйвер YDB готов (проверка driver.ready, без выполнения запроса).",
-          authMode: "static_credentials",
+          authMode,
           secretSlots: [
             {
               kind: "data_source_credentials",
-              secret: JSON.stringify({ username, password })
+              secret: credentialJson
             }
           ]
         };
@@ -135,8 +154,8 @@ export const dataSourceProfiles = {
           hint:
             error instanceof Error
               ? error.message
-              : "Проверьте строку подключения, имя пользователя и пароль.",
-          authMode: "static_credentials",
+              : "Проверьте строку подключения и креды (SA key, IAM token или username/password).",
+          authMode,
           secretSlots: []
         };
       } finally {

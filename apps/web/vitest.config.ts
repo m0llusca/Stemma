@@ -5,6 +5,7 @@ const includeLiveTests = process.env.VITEST_INCLUDE_LIVE === "1";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    environmentMatchGlobs: [["tests/live/**", "node"]],
     globals: true,
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: includeLiveTests ? configDefaults.exclude : [...configDefaults.exclude, "tests/live/**"]
