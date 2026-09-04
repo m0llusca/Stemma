@@ -7,6 +7,7 @@ import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import { cancelBackendJob, runDueBackendJobs } from "@/lib/jobs/queue";
 import { logBackendEvent } from "@/lib/observability";
 import { queueDirectorySync as queueDirectorySyncAction } from "@/lib/system-enqueue-actions";
+import { evaluateWorkspaceQuotaRisk } from "@/lib/reports/quota-risk-evaluation";
 
 export async function queueDirectorySync(formData: FormData) {
   return queueDirectorySyncAction(formData);
@@ -69,6 +70,31 @@ export async function runQueuedBackendJobs(formData: FormData) {
   }
 
   revalidatePath("/admin/system");
+}
+
+export async function queueQuotaRiskCheck() {
+  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  await assertCanPersistSettings(user);
+  const result = await evaluateWorkspaceQuotaRisk(user.workspaceId);
+
+  logBackendEvent({
+    event: "quota_risk.evaluated_from_ui",
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    metadata: result
+  });
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "quota_risk.evaluated",
+    targetType: "workspace",
+    targetId: user.workspaceId,
+    metadata: result
+  });
+
+  revalidatePath("/admin/system");
+  return result;
 }
 
 export async function queueRetentionCleanup() {

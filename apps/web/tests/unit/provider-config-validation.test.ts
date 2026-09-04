@@ -114,7 +114,7 @@ describe("provider config validation", () => {
         ldapsBindSecretRef: "vault:qc/ad/bind-password",
         config: {}
       })
-    ).toThrow(/env:-ссылкой/);
+    ).toThrow(/vault:\/secret:/);
 
     expect(() =>
       validateLdapsProviderConfigForSave({
@@ -125,7 +125,7 @@ describe("provider config validation", () => {
         ldapsBindSecretRef: "secret:qc/ad/bind-password",
         config: {}
       })
-    ).toThrow(/env:-ссылкой/);
+    ).toThrow(/vault:\/secret:/);
 
     expect(() =>
       validateLdapsProviderConfigForSave({
@@ -138,6 +138,6 @@ describe("provider config validation", () => {
           caCertRefs: ["vault:qc/ad/ca"]
         }
       })
-    ).toThrow(/env:-ссылкой/);
+    ).toThrow(/vault:\/secret:/);
   });
 });

@@ -119,7 +119,8 @@ type EvidenceForReport = {
 const liveSmokeAckGates = [
   "OTRS_LIVE_SMOKE=1",
   "HELPDESK_LIVE_SMOKE=1",
-  "IDENTITY_LIVE_SMOKE=1"
+  "IDENTITY_LIVE_SMOKE=1",
+  "DATA_SOURCE_LIVE_SMOKE=1"
 ] as const;
 
 const protectedEnvironmentGates = [
@@ -186,9 +187,40 @@ export function redactCertificationDiagnostics(value: unknown): Record<string, u
   return redacted && typeof redacted === "object" && !Array.isArray(redacted) ? (redacted as Record<string, unknown>) : {};
 }
 
+function liveSmokeAckKeysFromEnvGate(envGate: string) {
+  return envGate
+    .split(/[;,\n]+/)
+    .map((item) => item.trim())
+    .filter((item) => liveSmokeAckGates.includes(item as (typeof liveSmokeAckGates)[number]))
+    .map((item) => item.split("=")[0]?.trim())
+    .filter((key): key is string => Boolean(key));
+}
+
+function assertLiveSmokeAckFlagsPresent(envGate: string) {
+  for (const ackKey of liveSmokeAckKeysFromEnvGate(envGate)) {
+    if (process.env[ackKey] !== "1") {
+      throw new Error(`Для записи certification evidence требуется установить ${ackKey}=1 в окружении.`);
+    }
+  }
+}
+
 export async function recordCertificationEvidence(input: CertificationEvidenceInput) {
   if (!isProtectedLiveEnvGate(input.envGate)) {
     throw new Error("Certification evidence requires a protected live smoke env gate.");
+  }
+
+  assertLiveSmokeAckFlagsPresent(input.envGate);
+
+  if (input.targetType === "integration") {
+    if (!input.integrationId?.trim()) {
+      throw new Error("Для integration evidence требуется integrationId.");
+    }
+  }
+
+  if (input.targetType === "identity_provider") {
+    if (!input.identityProviderId?.trim()) {
+      throw new Error("Для identity_provider evidence требуется identityProviderId.");
+    }
   }
 
   return prisma.certificationEvidence.create({
@@ -257,11 +289,7 @@ function latestEvidenceForItem(
       (item.integrationId === id || item.identityProviderId === id)
   );
 
-  if (targetType === "identity_provider") {
-    return targetIdEvidence ?? null;
-  }
-
-  return targetIdEvidence ?? evidence.find((item) => item.targetType === targetType && item.source === source) ?? null;
+  return targetIdEvidence ?? null;
 }
 
 function evidenceHasPromotableLiveScope(
@@ -274,7 +302,7 @@ function evidenceHasPromotableLiveScope(
   }
 
   if (targetType === "integration") {
-    return true;
+    return Boolean(evidence.integrationId);
   }
 
   if (source === "ACTIVE_DIRECTORY_LDAPS") {

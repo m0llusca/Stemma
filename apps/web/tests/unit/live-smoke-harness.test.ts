@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { protectedLiveEnvGates } from "@/lib/certification/readiness-report";
 
 const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
   scripts: Record<string, string>;
@@ -49,5 +50,6 @@ describe("Phase D live smoke harness", () => {
 
   it("includes data source live smoke in the Phase D live harness", () => {
     expect(packageJson.scripts["test:live:phase-d"]).toContain("tests/live/data-source-live-smoke.test.ts");
+    expect(protectedLiveEnvGates).toContain("DATA_SOURCE_LIVE_SMOKE=1");
   });
 });

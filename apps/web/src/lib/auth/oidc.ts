@@ -1,7 +1,10 @@
 import { createHash, createPublicKey, createVerify, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IdentityProvider, RoleName } from "@prisma/client";
 import { buildEntraAuthorizationMetadata, resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
+import { assertProductionSecretReference, resolveSecretReference } from "@/lib/auth/secret-refs";
 import { prisma } from "@/lib/db";
+
+export { assertProductionSecretReference, isManagedSecretReference } from "@/lib/auth/secret-refs";
 
 export const oidcStateCookieName = "qc_oidc_state";
 export const oidcVerifierCookieName = "qc_oidc_verifier";
@@ -100,35 +103,7 @@ export function resolveProviderClientSecret(provider: Pick<IdentityProvider, "cl
     return process.env.QC_ENTRA_CLIENT_SECRET || process.env.QC_OIDC_CLIENT_SECRET;
   }
 
-  if (secretRef.startsWith("env:")) {
-    return process.env[secretRef.slice("env:".length)];
-  }
-
-  if (isManagedSecretReference(secretRef)) {
-    throw new Error("Секрет клиента использует vault:/secret:-ссылку, но в текущем runtime исполняются только env:-ссылки.");
-  }
-
-  if (isProductionRuntime()) {
-    throw new Error("В production секрет клиента должен храниться как env:/vault:-ссылка, а не inline-значение.");
-  }
-
-  return secretRef;
-}
-
-function isProductionRuntime() {
-  return process.env.NODE_ENV === "production";
-}
-
-export function isManagedSecretReference(value: string) {
-  return /^(env|vault|secret):[A-Za-z0-9_.:/@-]+$/.test(value.trim());
-}
-
-export function assertProductionSecretReference(value: string | null | undefined, label = "Секрет клиента") {
-  const trimmed = value?.trim();
-
-  if (isProductionRuntime() && trimmed && !isManagedSecretReference(trimmed)) {
-    throw new Error(`${label} в production должен быть env:/vault:-ссылкой, а не inline-значением.`);
-  }
+  return resolveSecretReference(secretRef, "Секрет клиента");
 }
 
 function normalizeIssuerTemplate(value: string, tenantId: string | null | undefined) {

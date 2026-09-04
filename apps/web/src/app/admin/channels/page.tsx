@@ -140,7 +140,8 @@ function messagingEventTypeLabel(value: string) {
     source_certification_lost: "сертификация источника",
     training_overdue: "просрочено обучение",
     queue_without_start: "очередь без старта",
-    risk_spike: "рост риска"
+    risk_spike: "рост риска",
+    "quota.at_risk": "план проверок под риском"
   };
 
   return labels[value] ?? value;

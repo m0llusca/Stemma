@@ -10,6 +10,7 @@ import {
   type MissingUserAction,
   type ParsedLdapsConfig
 } from "@/lib/auth/ldaps-config";
+import { resolveSecretReference } from "@/lib/auth/secret-refs";
 import { resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
 import { applyUserLifecycleStatus } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -103,34 +104,8 @@ export type LdapsDirectorySyncResult = {
   };
 };
 
-function resolveSecretReference(ref: string | null | undefined, label: string) {
-  const trimmed = ref?.trim();
-
-  if (!trimmed) {
-    throw new Error(`${label} не настроен.`);
-  }
-
-  if (trimmed.startsWith("env:")) {
-    const value = process.env[trimmed.slice("env:".length)];
-    if (!value) {
-      throw new Error(`${label} ссылается на пустую переменную окружения.`);
-    }
-    return value;
-  }
-
-  throw new Error(`${label} должен быть env:-ссылкой.`);
-}
-
 function resolveManagedTextRef(ref: string) {
-  if (ref.startsWith("env:")) {
-    const value = process.env[ref.slice("env:".length)];
-    if (!value) {
-      throw new Error("LDAPS CA ref ссылается на пустую переменную окружения.");
-    }
-    return value;
-  }
-
-  throw new Error("LDAPS CA должна задаваться через env:-ссылку; vault:/secret:-ссылки пока не исполняются этим runtime.");
+  return resolveSecretReference(ref, "LDAPS CA");
 }
 
 function buildTlsOptions(config: ParsedLdapsConfig) {

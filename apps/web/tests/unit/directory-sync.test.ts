@@ -442,7 +442,7 @@ describe("directory sync", () => {
         client: client as never,
         ldapClientFactory
       })
-    ).rejects.toThrow(/пустую переменную окружения/);
+    ).rejects.toThrow(/пустую или отсутствующую переменную окружения/);
 
     expect(ldapClientFactory).not.toHaveBeenCalled();
     expect(client.identityProvider.update).toHaveBeenNthCalledWith(1, {
@@ -457,7 +457,7 @@ describe("directory sync", () => {
       where: { id: "provider-1" },
       data: {
         lastSyncStatus: "ldaps_dry_run_failed",
-        lastSyncError: expect.stringContaining("пустую переменную окружения")
+        lastSyncError: expect.stringContaining("пустую или отсутствующую переменную окружения")
       }
     });
   });
@@ -501,7 +501,7 @@ describe("directory sync", () => {
         client: client as never,
         ldapClientFactory
       })
-    ).rejects.toThrow(/LDAPS CA ref/);
+    ).rejects.toThrow(/LDAPS CA ссылается на пустую или отсутствующую/);
 
     expect(ldapClientFactory).not.toHaveBeenCalled();
     expect(client.identityProvider.update).toHaveBeenNthCalledWith(1, {
@@ -516,7 +516,7 @@ describe("directory sync", () => {
       where: { id: "provider-1" },
       data: {
         lastSyncStatus: "ldaps_sync_failed",
-        lastSyncError: expect.stringContaining("LDAPS CA ref")
+        lastSyncError: expect.stringContaining("LDAPS CA")
       }
     });
   });

@@ -1,4 +1,5 @@
 import type { IdentityProvider } from "@prisma/client";
+import { assertSupportedSecretReference } from "@/lib/auth/secret-refs";
 
 export type MissingUserAction = "none" | "suspend" | "deprovision";
 
@@ -137,12 +138,8 @@ export function assertLdapsUrl(value: string | null | undefined) {
   }
 }
 
-function assertEnvReference(value: string | null | undefined, label: string) {
-  const trimmed = value?.trim();
-
-  if (trimmed && !trimmed.startsWith("env:")) {
-    throw new Error(`${label} должен быть env:-ссылкой; vault:/secret:-ссылки пока не исполняются этим runtime.`);
-  }
+function assertSecretReference(value: string | null | undefined, label: string) {
+  assertSupportedSecretReference(value, label);
 }
 
 export function validateLdapsProviderConfigForSave(input: {
@@ -161,12 +158,12 @@ export function validateLdapsProviderConfigForSave(input: {
     assertLdapsUrl(input.ldapsUrl);
   }
 
-  assertEnvReference(input.ldapsBindSecretRef, "Секрет bind-учетной записи LDAPS");
+  assertSecretReference(input.ldapsBindSecretRef, "Секрет bind-учетной записи LDAPS");
 
   const parsed = parseLdapsConfig({ configJson: JSON.stringify(input.config) });
 
   for (const ref of [...parsed.caCertRefs, ...parsed.caFileRefs]) {
-    assertEnvReference(ref, "CA-сертификат LDAPS");
+    assertSecretReference(ref, "CA-сертификат LDAPS");
   }
 
   if (input.status !== "active") {

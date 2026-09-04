@@ -35,10 +35,15 @@ describe("integration capabilities and sync state", () => {
       label: "Готово к живой сертификации",
       productionReady: false
     });
-    expect(getIntegrationCapability("custom_api").certification.summary).toEqual({
-      status: "live_certified",
-      label: "Живая сертификация пройдена",
-      productionReady: true
+    expect(getIntegrationCapability("custom_api")).toMatchObject({
+      readiness: "adapter_ready",
+      certification: {
+        summary: {
+          status: "ready_for_live_certification",
+          label: "Готово к живой сертификации",
+          productionReady: false
+        }
+      }
     });
     expect(getIntegrationCapability("servicenow").certification.summary).toMatchObject({
       label: "Готово к живой сертификации",

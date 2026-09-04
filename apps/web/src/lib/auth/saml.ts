@@ -1,6 +1,10 @@
 import { SAML, ValidateInResponseTo, generateServiceProviderMetadata, type CacheProvider, type Profile } from "@node-saml/node-saml";
 import type { IdentityProvider, RoleName } from "@prisma/client";
-import { isManagedSecretReference } from "@/lib/auth/oidc";
+import {
+  assertProductionSecretReference,
+  isEncryptedSecretReference,
+  resolveSecretReference
+} from "@/lib/auth/secret-refs";
 import { resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
 import { prisma } from "@/lib/db";
 
@@ -39,10 +43,6 @@ type SamlProviderConfig = {
 const defaultRequestIdExpirationMs = 10 * 60 * 1000;
 const defaultClockSkewMs = 2 * 60 * 1000;
 
-function isProductionRuntime() {
-  return process.env.NODE_ENV === "production";
-}
-
 function parseConfig(configJson: string | null | undefined): SamlProviderConfig {
   if (!configJson) {
     return {};
@@ -76,22 +76,24 @@ function splitRefList(value: string | null | undefined) {
     .filter(Boolean);
 }
 
-function envSecret(ref: string) {
-  if (!ref.startsWith("env:")) {
-    if (isManagedSecretReference(ref)) {
-      throw new Error("SAML сертификат использует vault:/secret:-ссылку, но в текущем runtime исполняются только env:-ссылки.");
-    }
+function resolveCertificateRef(ref: string) {
+  const trimmed = ref.trim();
 
-    return null;
+  if (trimmed.startsWith("env:") || isEncryptedSecretReference(trimmed)) {
+    return resolveSecretReference(trimmed, "SAML сертификат IdP");
   }
 
-  return process.env[ref.slice("env:".length)]?.trim() || "";
+  if (trimmed.startsWith("vault:") || trimmed.startsWith("secret:")) {
+    throw new Error(
+      "SAML сертификат использует vault:/secret:-ссылку, но в текущем runtime исполняются только env:- и зашифрованные v1:-ссылки."
+    );
+  }
+
+  return null;
 }
 
 function assertDevInlineCertificateAllowed(value: string) {
-  if (isProductionRuntime() && !isManagedSecretReference(value)) {
-    throw new Error("SAML сертификаты IdP в production должны храниться как env:/vault:-ссылки, а не inline-значения.");
-  }
+  assertProductionSecretReference(value, "SAML сертификат IdP");
 }
 
 function resolveSamlSignaturePolicy(config: SamlProviderConfig) {
@@ -135,15 +137,11 @@ function resolveIdpCertificates(provider: SamlProvider) {
   const certs: string[] = [];
 
   for (const ref of refs) {
-    const resolved = envSecret(ref);
+    const resolved = resolveCertificateRef(ref);
 
     if (resolved) {
       certs.push(resolved);
       continue;
-    }
-
-    if (resolved === "") {
-      throw new Error("SAML сертификат IdP не найден в окружении.");
     }
 
     assertDevInlineCertificateAllowed(ref);

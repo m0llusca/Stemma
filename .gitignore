@@ -25,3 +25,7 @@ verint-sa-screenshot1.png
 output/
 .playwright-cli/
 .claude/
+
+# Local tooling / unrelated asset dumps (never commit)
+graphify-out/
+coiaf-rebuild/

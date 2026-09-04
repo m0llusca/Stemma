@@ -11,6 +11,7 @@ const liveBaseUrl = process.env.HELPDESK_LIVE_BASE_URL;
 const liveToken = process.env.HELPDESK_LIVE_TOKEN;
 const liveExternalId = process.env.HELPDESK_LIVE_EXTERNAL_ID;
 const evidenceWorkspaceId = process.env.CERTIFICATION_EVIDENCE_WORKSPACE_ID;
+const evidenceIntegrationId = process.env.CERTIFICATION_EVIDENCE_INTEGRATION_ID;
 const evidenceRunId = process.env.CERTIFICATION_EVIDENCE_RUN_ID || `helpdesk-live-${randomUUID()}`;
 const evidenceActorId = process.env.CERTIFICATION_EVIDENCE_ACTOR_ID || null;
 
@@ -50,11 +51,16 @@ describe.skipIf(!runLive && !invalidLiveSourceConfigured && !missingHardGate && 
     expect(result.conversations.length).toBeGreaterThan(0);
     expect(result.conversations[0]?.messages.length).toBeGreaterThan(0);
 
-    if (evidenceWorkspaceId) {
+    if (evidenceWorkspaceId && !evidenceIntegrationId) {
+      throw new Error("CERTIFICATION_EVIDENCE_INTEGRATION_ID is required when recording helpdesk live smoke evidence.");
+    }
+
+    if (evidenceWorkspaceId && evidenceIntegrationId) {
       await recordCertificationEvidence({
         workspaceId: evidenceWorkspaceId,
         targetType: "integration",
         source: liveHelpdeskSource,
+        integrationId: evidenceIntegrationId,
         runId: evidenceRunId,
         actorId: evidenceActorId,
         envGate: "HELPDESK_LIVE_SMOKE=1;protected:live-smoke",

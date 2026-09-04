@@ -60,7 +60,7 @@ async function defaultSendToChannel(transport?: MessagingTransport): Promise<Sen
  * ACTIVE MessagingChannel in the workspace.
  *
  * For each active channel it records a queued MessagingDelivery row, POSTs to
- * the channel webhook, then marks the row "sent"/"failed" and updates the
+ * the channel webhook, then marks the row "delivered"/"failed" and updates the
  * channel's lastDeliveredAt/lastError. With no active channels it no-ops
  * gracefully (records a job event and succeeds). A malformed payload fails the
  * job cleanly via MessagingDeliveryMalformedError.
@@ -144,7 +144,7 @@ export async function runMessagingDeliveryJob(
       sent += 1;
       await prisma.messagingDelivery.update({
         where: { id: delivery.id },
-        data: { status: "sent", error: null, deliveredAt: now }
+        data: { status: "delivered", error: null, deliveredAt: now }
       });
       await prisma.messagingChannel.update({
         where: { id: channel.id },

@@ -10,9 +10,9 @@ process.env.DATABASE_URL = testDatabaseUrl;
 // Deterministic demo anchor: chart/evidence specs are certified against the
 // current seed anchor (see report-keyboard-evidence.spec.ts), and every seed run —
 // the webServer boot and each spec's beforeEach — inherits this process env.
-// Re-anchored 2026-08-13: the runtime dashboard/reports clock is real `now`, so
+// Re-anchored 2026-09-03: the runtime dashboard/reports clock is real `now`, so
 // the anchor must stay within the rolling windows or demo-data-current fails stale.
-const demoSeedAnchor = "2026-08-13T09:00:00.000Z";
+const demoSeedAnchor = "2026-09-03T09:00:00.000Z";
 process.env.DEMO_SEED_NOW = demoSeedAnchor;
 // Fail-fast on anchor rot: the seed clock is pinned for byte-stable screenshots
 // while the app renders rolling windows from the real clock, so a stale anchor
@@ -69,7 +69,15 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] }
+      // Local-only bypass when Playwright CDN cannot download the pinned Chromium
+      // build: PW_USE_SYSTEM_CHROME=1 uses installed Google Chrome. Refused in CI
+      // so reported e2e evidence stays on the pinned browser.
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.PW_USE_SYSTEM_CHROME === "1" && !process.env.CI
+          ? { channel: "chrome" as const }
+          : {})
+      }
     },
     {
       name: "firefox",

@@ -2,10 +2,203 @@ import { describe, expect, it } from "vitest";
 import {
   composePhaseDReadinessReport,
   isProtectedLiveEnvGate,
+  protectedLiveEnvGates,
+  recordCertificationEvidence,
   redactCertificationDiagnostics
 } from "@/lib/certification/readiness-report";
 
 describe("Phase D readiness report", () => {
+  it("does not promote integrations from source-only evidence without integrationId", () => {
+    const report = composePhaseDReadinessReport({
+      generatedAt: new Date("2026-05-25T10:00:00.000Z"),
+      integrations: [
+        {
+          id: "integration-zendesk",
+          source: "zendesk",
+          displayName: "Zendesk sandbox",
+          type: "native_helpdesk",
+          status: "active",
+          baseUrl: "https://zendesk.example.com",
+          credentials: [{ kind: "auth_password" }]
+        }
+      ],
+      identityProviders: [],
+      evidence: [
+        {
+          id: "evidence-source-only",
+          targetType: "integration",
+          source: "zendesk",
+          provider: null,
+          integrationId: null,
+          identityProviderId: null,
+          runId: "run-source-only",
+          actorId: "actor-1",
+          actor: { name: "Admin", email: "admin@example.com" },
+          recordedAt: new Date("2026-05-25T09:00:00.000Z"),
+          envGate: "HELPDESK_LIVE_SMOKE=1;protected:live-smoke",
+          result: "passed",
+          redactedDiagnosticsJson: JSON.stringify({ conversationCount: 1 })
+        }
+      ]
+    });
+    const zendesk = report.integrations.find((item) => item.source === "zendesk");
+
+    expect(zendesk).toMatchObject({
+      status: "ready_for_live_certification",
+      productionReady: false,
+      latestEvidence: null
+    });
+    expect(zendesk?.blockers).toContain("Нет успешного protected live smoke evidence.");
+  });
+
+  it("does not promote integrations when evidence integrationId mismatches configured integration", () => {
+    const report = composePhaseDReadinessReport({
+      generatedAt: new Date("2026-05-25T10:00:00.000Z"),
+      integrations: [
+        {
+          id: "integration-zendesk",
+          source: "zendesk",
+          displayName: "Zendesk sandbox",
+          type: "native_helpdesk",
+          status: "active",
+          baseUrl: "https://zendesk.example.com",
+          credentials: [{ kind: "auth_password" }]
+        }
+      ],
+      identityProviders: [],
+      evidence: [
+        {
+          id: "evidence-other-integration",
+          targetType: "integration",
+          source: "zendesk",
+          provider: null,
+          integrationId: "integration-other",
+          identityProviderId: null,
+          runId: "run-other",
+          actorId: "actor-1",
+          actor: { name: "Admin", email: "admin@example.com" },
+          recordedAt: new Date("2026-05-25T09:00:00.000Z"),
+          envGate: "HELPDESK_LIVE_SMOKE=1;protected:live-smoke",
+          result: "passed",
+          redactedDiagnosticsJson: JSON.stringify({ conversationCount: 1 })
+        }
+      ]
+    });
+    const zendesk = report.integrations.find((item) => item.source === "zendesk");
+
+    expect(zendesk).toMatchObject({
+      status: "ready_for_live_certification",
+      productionReady: false,
+      latestEvidence: null
+    });
+    expect(zendesk?.blockers).toContain("Нет успешного protected live smoke evidence.");
+  });
+
+  it("promotes integrations only when protected evidence matches configured integrationId", () => {
+    const report = composePhaseDReadinessReport({
+      generatedAt: new Date("2026-05-25T10:00:00.000Z"),
+      integrations: [
+        {
+          id: "integration-zendesk",
+          source: "zendesk",
+          displayName: "Zendesk sandbox",
+          type: "native_helpdesk",
+          status: "active",
+          baseUrl: "https://zendesk.example.com",
+          credentials: [{ kind: "auth_password" }]
+        }
+      ],
+      identityProviders: [],
+      evidence: [
+        {
+          id: "evidence-matched",
+          targetType: "integration",
+          source: "zendesk",
+          provider: null,
+          integrationId: "integration-zendesk",
+          identityProviderId: null,
+          runId: "run-matched",
+          actorId: "actor-1",
+          actor: { name: "Admin", email: "admin@example.com" },
+          recordedAt: new Date("2026-05-25T09:00:00.000Z"),
+          envGate: "HELPDESK_LIVE_SMOKE=1;protected:live-smoke",
+          result: "passed",
+          redactedDiagnosticsJson: JSON.stringify({ conversationCount: 1 })
+        }
+      ]
+    });
+    const zendesk = report.integrations.find((item) => item.source === "zendesk");
+
+    expect(zendesk).toMatchObject({
+      status: "live_certified",
+      productionReady: true,
+      latestEvidence: expect.objectContaining({ runId: "run-matched" }),
+      blockers: []
+    });
+  });
+
+  it("rejects recordCertificationEvidence without required target ids or live smoke ack flags", async () => {
+    const previousHelpdeskAck = process.env.HELPDESK_LIVE_SMOKE;
+    const previousIdentityAck = process.env.IDENTITY_LIVE_SMOKE;
+    process.env.HELPDESK_LIVE_SMOKE = "1";
+    process.env.IDENTITY_LIVE_SMOKE = "1";
+
+    try {
+      await expect(
+        recordCertificationEvidence({
+          workspaceId: "workspace-1",
+          targetType: "integration",
+          source: "zendesk",
+          runId: "run-1",
+          envGate: "HELPDESK_LIVE_SMOKE=1;protected:live-smoke",
+          result: "passed"
+        })
+      ).rejects.toThrow("Для integration evidence требуется integrationId.");
+
+      await expect(
+        recordCertificationEvidence({
+          workspaceId: "workspace-1",
+          targetType: "identity_provider",
+          source: "OIDC",
+          runId: "run-2",
+          envGate: "IDENTITY_LIVE_SMOKE=1;protected:live-smoke",
+          result: "passed"
+        })
+      ).rejects.toThrow("Для identity_provider evidence требуется identityProviderId.");
+
+      delete process.env.HELPDESK_LIVE_SMOKE;
+
+      await expect(
+        recordCertificationEvidence({
+          workspaceId: "workspace-1",
+          targetType: "integration",
+          source: "zendesk",
+          integrationId: "integration-zendesk",
+          runId: "run-3",
+          envGate: "HELPDESK_LIVE_SMOKE=1;protected:live-smoke",
+          result: "passed"
+        })
+      ).rejects.toThrow("Для записи certification evidence требуется установить HELPDESK_LIVE_SMOKE=1 в окружении.");
+    } finally {
+      if (previousHelpdeskAck === undefined) {
+        delete process.env.HELPDESK_LIVE_SMOKE;
+      } else {
+        process.env.HELPDESK_LIVE_SMOKE = previousHelpdeskAck;
+      }
+
+      if (previousIdentityAck === undefined) {
+        delete process.env.IDENTITY_LIVE_SMOKE;
+      } else {
+        process.env.IDENTITY_LIVE_SMOKE = previousIdentityAck;
+      }
+    }
+  });
+
+  it("recognizes data source live smoke ack gates as protected", () => {
+    expect(isProtectedLiveEnvGate("DATA_SOURCE_LIVE_SMOKE=1;protected:live-smoke")).toBe(true);
+    expect(protectedLiveEnvGates).toContain("DATA_SOURCE_LIVE_SMOKE=1");
+  });
+
   it("does not live-certify integrations from unprotected smoke evidence", () => {
     const report = composePhaseDReadinessReport({
       generatedAt: new Date("2026-05-25T10:00:00.000Z"),

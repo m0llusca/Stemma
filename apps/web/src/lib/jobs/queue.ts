@@ -7,6 +7,7 @@ import { runMessagingDeliveryJob } from "@/lib/jobs/messaging-delivery-job";
 import type { BackendJobPayload } from "@/lib/jobs/enqueue";
 import { logBackendEvent } from "@/lib/observability";
 import { enqueueDueReportSchedules } from "@/lib/report-schedule";
+import { evaluateWorkspaceQuotaRisk } from "@/lib/reports/quota-risk-evaluation";
 
 export { enqueueBackendJob } from "@/lib/jobs/enqueue";
 export type { BackendJobPayload } from "@/lib/jobs/enqueue";
@@ -764,6 +765,23 @@ async function executeBackendJob(job: BackendJob) {
 
     await recordJobEvent(tx, job.id, "info", "Задача завершена.", result);
   });
+
+  if (job.type === "RETENTION_CLEANUP") {
+    try {
+      await evaluateWorkspaceQuotaRisk(job.workspaceId);
+    } catch (error) {
+      logBackendEvent({
+        level: "error",
+        event: "quota_risk.evaluation_failed",
+        workspaceId: job.workspaceId,
+        targetType: "backend_job",
+        targetId: job.id,
+        metadata: {
+          message: error instanceof Error ? error.message : "Неизвестная ошибка оценки квоты."
+        }
+      });
+    }
+  }
 
   return result;
 }

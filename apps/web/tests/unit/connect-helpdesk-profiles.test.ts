@@ -1,6 +1,8 @@
 import { Buffer } from "node:buffer";
 import { describe, expect, it, vi } from "vitest";
 import { helpdeskProfiles } from "@/lib/integrations/connect/profiles/helpdesk";
+import { getConnectionProfile } from "@/lib/integrations/connect/profiles";
+import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
 
 const zendesk = helpdeskProfiles.zendesk;
 
@@ -96,5 +98,54 @@ describe("helpdesk profile metadata", () => {
     expect(out.baseUrl).toBe("https://acme.zendesk.com");
     expect(out.hints?.detectedSource).toBe("zendesk");
     expect(out.hints?.testTicketId).toBe("123");
+  });
+});
+
+describe("helpdesk probeCapabilities", () => {
+  it.each(["zendesk", "freshdesk", "intercom", "hubspot", "jira"] as const)(
+    "registers probeCapabilities on the %s connect profile",
+    (source) => {
+      expect(typeof getConnectionProfile(source)?.probeCapabilities).toBe("function");
+    }
+  );
+
+  it("zendesk: maps adapter diagnostics without claiming live certification", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
+
+    try {
+      const result = await helpdeskProfiles.zendesk.probeCapabilities!({
+        baseUrl: server.baseUrl,
+        credentials: { email: "a@b.c", apiToken: "tok" },
+        config: {},
+        testTicketId: "ZD-1001"
+      });
+
+      expect(result.status).toBe("ok");
+      expect(result.diagnostics).toMatchObject({
+        probeKind: "diagnostic",
+        operations: expect.arrayContaining(["ticket_get", "comments_get"])
+      });
+      expect(result.diagnostics).not.toHaveProperty("live_certified");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("zendesk: forwards testTicketId from url hints when testTicketId is absent", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
+
+    try {
+      const result = await helpdeskProfiles.zendesk.probeCapabilities!({
+        baseUrl: server.baseUrl,
+        credentials: { email: "a@b.c", apiToken: "tok" },
+        config: {},
+        hints: { testTicketId: "555" }
+      });
+
+      expect(result.status).toBe("ok");
+      expect(result.detail).toMatch(/zendesk/i);
+    } finally {
+      await server.close();
+    }
   });
 });

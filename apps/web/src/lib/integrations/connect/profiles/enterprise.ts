@@ -3,8 +3,10 @@ import {
   type HelpdeskTransport
 } from "@/lib/integrations/helpdesk-adapters/http";
 import type { PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
+import { runHelpdeskCapabilityProbe } from "@/lib/integrations/connect/probe-capabilities";
 import { detectSourceFromHost } from "@/lib/integrations/connect/url-normalize";
 import type {
+  CapabilityProbeResult,
   ConnectContext,
   CredentialField,
   SourceConnectionProfile,
@@ -69,6 +71,31 @@ function buildTokenRequestBody(credentials: ConnectContext["credentials"]): stri
   return params.toString();
 }
 
+async function fetchEnterpriseAccessToken(
+  ctx: TestableContext,
+  source: EnterpriseProfileConfig["source"],
+  tokenPath: string
+): Promise<string | null> {
+  const client = createHelpdeskHttpClient(ctx.__transport ? { transport: ctx.__transport } : {});
+
+  try {
+    const response = await client.requestJson({
+      source,
+      operation: "diagnostics",
+      method: "POST",
+      url: `${ctx.baseUrl}${tokenPath}`,
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: buildTokenRequestBody(ctx.credentials),
+      timeoutMs: TOKEN_TIMEOUT_MS,
+      maxResponseBytes: TOKEN_MAX_RESPONSE_BYTES
+    });
+    const token = (response.body as { access_token?: unknown } | undefined)?.access_token;
+    return typeof token === "string" && token.length > 0 ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildEnterpriseProfile(config: EnterpriseProfileConfig): SourceConnectionProfile {
   return {
     source: config.source,
@@ -81,52 +108,43 @@ function buildEnterpriseProfile(config: EnterpriseProfileConfig): SourceConnecti
       return { baseUrl, hints: { detectedSource: detectSourceFromHost(raw) } };
     },
     async verifyAuth(ctx: TestableContext): Promise<VerifyResult> {
-      const client = createHelpdeskHttpClient(ctx.__transport ? { transport: ctx.__transport } : {});
       const secret = JSON.stringify({
         clientId: ctx.credentials.clientId ?? "",
         clientSecret: ctx.credentials.clientSecret ?? ""
       });
-      try {
-        const response = await client.requestJson({
-          source: config.source,
-          operation: "diagnostics",
-          method: "POST",
-          url: `${ctx.baseUrl}${config.tokenPath}`,
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body: buildTokenRequestBody(ctx.credentials),
-          timeoutMs: TOKEN_TIMEOUT_MS,
-          maxResponseBytes: TOKEN_MAX_RESPONSE_BYTES
-        });
-        // requestJson resolves only on 2xx with parsed JSON; treat a body that carries an
-        // access_token as a successful client-credentials exchange.
-        const token = (response.body as { access_token?: unknown } | undefined)?.access_token;
-        if (typeof token === "string" && token.length > 0) {
-          return {
-            status: "ok",
-            detail: "Токен по client credentials получен.",
-            authMode: ENTERPRISE_AUTH_MODE,
-            secretSlots: [{ kind: "oauth_client_credentials", secret }]
-          };
-        }
-        // 2xx without a token is not a usable connection.
+      const accessToken = await fetchEnterpriseAccessToken(ctx, config.source, config.tokenPath);
+      if (accessToken) {
         return {
-          status: "failed",
-          detail: "Источник не вернул токен доступа.",
-          hint: MANUAL_FALLBACK_HINT,
+          status: "ok",
+          detail: "Токен по client credentials получен.",
           authMode: ENTERPRISE_AUTH_MODE,
-          secretSlots: []
-        };
-      } catch {
-        // requestJson throws on non-2xx (incl. 401/403), timeout, network and invalid JSON.
-        // All of these are treated as a failed live probe with the manual-fallback hint.
-        return {
-          status: "failed",
-          detail: "Не удалось получить токен по client credentials.",
-          hint: MANUAL_FALLBACK_HINT,
-          authMode: ENTERPRISE_AUTH_MODE,
-          secretSlots: []
+          secretSlots: [{ kind: "oauth_client_credentials", secret }]
         };
       }
+      return {
+        status: "failed",
+        detail: "Не удалось получить токен по client credentials.",
+        hint: MANUAL_FALLBACK_HINT,
+        authMode: ENTERPRISE_AUTH_MODE,
+        secretSlots: []
+      };
+    },
+    async probeCapabilities(ctx: TestableContext): Promise<CapabilityProbeResult> {
+      const accessToken = await fetchEnterpriseAccessToken(ctx, config.source, config.tokenPath);
+      if (!accessToken) {
+        return {
+          status: "failed",
+          detail: "Не удалось получить OAuth-токен для диагностики возможностей.",
+          hint: "Проверьте client ID/secret и token endpoint. Это сбой авторизации, не результат живой сертификации.",
+          diagnostics: { probeKind: "diagnostic" }
+        };
+      }
+
+      return runHelpdeskCapabilityProbe({
+        source: config.source,
+        ctx,
+        token: accessToken
+      });
     }
   };
 }

@@ -4,7 +4,9 @@ import {
   enterpriseProfiles,
   limitedSupportSources
 } from "@/lib/integrations/connect/profiles/enterprise";
+import { getConnectionProfile } from "@/lib/integrations/connect/profiles";
 import type { ConnectContext } from "@/lib/integrations/connect/types";
+import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
 
 type FakeTransport = (req: unknown) => Promise<{ statusCode: number; body: Buffer }>;
 
@@ -150,5 +152,62 @@ describe("enterprise connection profiles", () => {
     expect(limitedSupportSources.has("servicenow")).toBe(true);
     expect(limitedSupportSources.has("dynamics")).toBe(true);
     expect(limitedSupportSources.size).toBe(3);
+  });
+});
+
+describe("enterprise probeCapabilities", () => {
+  it.each(["salesforce", "servicenow", "dynamics"] as const)(
+    "registers probeCapabilities on the %s connect profile",
+    (source) => {
+      expect(typeof getConnectionProfile(source)?.probeCapabilities).toBe("function");
+    }
+  );
+
+  it("salesforce: exchanges client credentials then maps adapter diagnostics", async () => {
+    const server = await createHelpdeskAdapterServer({ source: "salesforce", mode: "success" });
+    const transport = vi.fn(async (req: { url: string }) => {
+      if (req.url.endsWith("/services/oauth2/token")) {
+        return {
+          statusCode: 200,
+          body: Buffer.from(JSON.stringify({ access_token: "fixture-token" }))
+        };
+      }
+
+      throw new Error(`Unexpected transport request: ${req.url}`);
+    });
+
+    try {
+      const result = await enterpriseProfiles.salesforce.probeCapabilities!({
+        baseUrl: server.baseUrl,
+        credentials: { clientId: "id", clientSecret: "secret" },
+        config: {},
+        testTicketId: "500xx0000012345",
+        __transport: transport
+      } as ConnectContext & { __transport: typeof transport });
+
+      expect(result.status).toBe("ok");
+      expect(result.diagnostics).toMatchObject({
+        probeKind: "diagnostic",
+        operations: expect.arrayContaining(["case_get", "activities_get"])
+      });
+      expect(result.diagnostics).not.toHaveProperty("live_certified");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("salesforce: returns failed when the token exchange fails", async () => {
+    const transport = vi.fn(async () => ({ statusCode: 401, body: Buffer.from("denied") }));
+    const result = await enterpriseProfiles.salesforce.probeCapabilities!({
+      baseUrl: "https://example.my.salesforce.com",
+      credentials: { clientId: "id", clientSecret: "secret" },
+      config: {},
+      __transport: transport
+    } as ConnectContext & { __transport: typeof transport });
+
+    expect(result.status).toBe("failed");
+    expect(result.hint ?? "").toMatch(/авторизации/i);
+    expect(result.hint ?? "").not.toMatch(/Живая сертификация не пройдена/i);
+    expect(result.diagnostics).toMatchObject({ probeKind: "diagnostic" });
   });
 });

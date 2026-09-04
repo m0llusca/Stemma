@@ -288,16 +288,17 @@ export const integrationCapabilities: IntegrationCapability[] = [
     docsHref: "/admin/tokens",
     setupStatus: "available",
     payloadLimits: { batchSize: 50, importLimit: 500 },
-    readiness: "production_slice",
+    readiness: "adapter_ready",
     certification: certification({
-      gates: liveCertifiedGates,
+      gates: adapterReadyGates,
       docs: [
         {
           label: "OpenAPI contract",
           href: "/api/v1/openapi",
           status: "contract_certified"
         }
-      ]
+      ],
+      limitations: ["Живая сертификация требует protected live smoke evidence для конкретной интеграции."]
     })
   },
   {

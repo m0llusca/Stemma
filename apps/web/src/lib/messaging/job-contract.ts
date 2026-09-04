@@ -12,7 +12,8 @@
 export const MESSAGING_EVENT_TYPES = [
   "review.finalized",
   "training.assigned",
-  "appeal.opened"
+  "appeal.opened",
+  "quota.at_risk"
 ] as const;
 
 export type MessagingEventType = (typeof MESSAGING_EVENT_TYPES)[number];

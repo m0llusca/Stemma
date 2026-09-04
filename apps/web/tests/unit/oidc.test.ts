@@ -1,5 +1,6 @@
 import { createSign, generateKeyPairSync } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { encryptSecret } from "@/lib/secrets";
 import {
   assertProductionSecretReference,
   buildAuthorizationUrl,
@@ -81,11 +82,27 @@ describe("OIDC helpers", () => {
     expect(resolveProviderClientSecret({ clientSecretRef: "inline-secret" })).toBe("inline-secret");
   });
 
+  it("rejects vault client secret references at runtime", () => {
+    expect(() => resolveProviderClientSecret({ clientSecretRef: "vault:qc/oidc/client-secret" })).toThrow(
+      /исполняются только env:- и зашифрованные v1:-ссылки/
+    );
+    expect(() => resolveProviderClientSecret({ clientSecretRef: "secret:qc/oidc/client-secret" })).toThrow(
+      /исполняются только env:- и зашифрованные v1:-ссылки/
+    );
+  });
+
+  it("round-trips encrypted client secret references", () => {
+    const encrypted = encryptSecret("encrypted-client-secret");
+
+    expect(resolveProviderClientSecret({ clientSecretRef: encrypted })).toBe("encrypted-client-secret");
+  });
+
   it("rejects inline client secrets in production", () => {
     vi.stubEnv("NODE_ENV", "production");
 
     expect(() => assertProductionSecretReference("env:OIDC_SECRET")).not.toThrow();
     expect(() => assertProductionSecretReference("inline-secret")).toThrow(/production/);
+    expect(() => assertProductionSecretReference("vault:qc/oidc/client-secret")).toThrow(/vault:\/secret:/);
   });
 
   it("creates opaque state and nonce values", () => {

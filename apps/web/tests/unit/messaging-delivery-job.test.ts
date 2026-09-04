@@ -86,7 +86,7 @@ beforeEach(() => {
 });
 
 describe("runMessagingDeliveryJob", () => {
-  it("records a queued delivery and marks it sent on success", async () => {
+  it("records a queued delivery and marks it delivered on success", async () => {
     mocks.prisma.messagingChannel.findMany.mockResolvedValue([
       { id: "chan-1", kind: "slack", configJson: JSON.stringify({ webhookUrl: "https://x" }), secretRef: null }
     ]);
@@ -111,9 +111,9 @@ describe("runMessagingDeliveryJob", () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][1]).toMatchObject({ title: "Проверка финализирована" });
 
-    // The row is flipped to "sent" and the channel stamped lastDeliveredAt.
+    // The row is flipped to "delivered" and the channel stamped lastDeliveredAt.
     expect(mocks.prisma.messagingDelivery.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "delivery-1" }, data: expect.objectContaining({ status: "sent" }) })
+      expect.objectContaining({ where: { id: "delivery-1" }, data: expect.objectContaining({ status: "delivered" }) })
     );
     expect(mocks.prisma.messagingChannel.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "chan-1" }, data: expect.objectContaining({ lastError: null }) })

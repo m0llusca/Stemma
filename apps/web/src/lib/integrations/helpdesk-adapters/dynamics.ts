@@ -1,6 +1,12 @@
 import { HelpdeskAdapterError } from "@/lib/integrations/helpdesk-adapters/errors";
 import { bearerHeaders, createHelpdeskHttpClient } from "@/lib/integrations/helpdesk-adapters/http";
-import type { HelpdeskAdapterLoadInput, HelpdeskAdapterLoadResult } from "@/lib/integrations/helpdesk-adapters/types";
+import { capabilityProbeFromLoadResult } from "@/lib/integrations/helpdesk-adapters/probes";
+import type {
+  HelpdeskAdapterLoadInput,
+  HelpdeskAdapterLoadResult,
+  HelpdeskAdapterProbeInput,
+  HelpdeskCapabilityProbeResult
+} from "@/lib/integrations/helpdesk-adapters/types";
 import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdesk";
 
 const defaultTimeoutMs = 15_000;
@@ -69,6 +75,24 @@ export function createDynamicsAdapter() {
           requests: [incidentResponse.diagnostic, ...activityDiagnostics]
         }
       };
+    },
+
+    async probeCapabilities(input: HelpdeskAdapterProbeInput): Promise<HelpdeskCapabilityProbeResult> {
+      if (!input.externalId) {
+        return {
+          status: "warning",
+          operations: [],
+          detail: "Для проверки Dynamics нужен тестовый Incident GUID.",
+          hint: "Укажите Incident GUID и повторите проверку.",
+          diagnostics: { requests: [] }
+        };
+      }
+
+      const loaded = await this.loadConversation({
+        ...input,
+        externalId: input.externalId
+      });
+      return capabilityProbeFromLoadResult(input, loaded, ["case_get", "activities_get"]);
     }
   };
 }

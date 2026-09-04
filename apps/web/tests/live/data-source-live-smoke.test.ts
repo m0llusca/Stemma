@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { recordCertificationEvidence } from "@/lib/certification/readiness-report";
 import { createYdbAdapter } from "@/lib/integrations/data-source-adapters/ydb";
 import { createYTsaurusAdapter } from "@/lib/integrations/data-source-adapters/ytsaurus";
 import { dataSourceSources } from "@/lib/integrations/data-source-adapters/source-contracts";
@@ -12,6 +14,10 @@ const connectivityOnly = process.env.DATA_SOURCE_LIVE_CONNECTIVITY_ONLY === "1";
 const liveSource = normalizeSource(process.env.DATA_SOURCE_LIVE_SOURCE);
 const unsupportedSourceConfigured = Boolean(process.env.DATA_SOURCE_LIVE_SOURCE && !liveSource);
 const missingLiveConfig = liveSmokeAck && !unsupportedSourceConfigured && missingRequiredEnvironment(liveSource).length > 0;
+const evidenceWorkspaceId = process.env.CERTIFICATION_EVIDENCE_WORKSPACE_ID;
+const evidenceIntegrationId = process.env.CERTIFICATION_EVIDENCE_INTEGRATION_ID;
+const evidenceRunId = process.env.CERTIFICATION_EVIDENCE_RUN_ID || `data-source-live-${randomUUID()}`;
+const evidenceActorId = process.env.CERTIFICATION_EVIDENCE_ACTOR_ID || null;
 
 function normalizeSource(value: string | undefined): DataSourceSource | null {
   const normalized = value?.trim().toLowerCase();
@@ -97,5 +103,29 @@ describe.skipIf(!liveSmokeAck)("live data source adapter smoke", () => {
     }
 
     expect(result.conversations.length).toBeGreaterThan(0);
+
+    if (evidenceWorkspaceId && !evidenceIntegrationId) {
+      throw new Error("CERTIFICATION_EVIDENCE_INTEGRATION_ID is required when recording data-source live smoke evidence.");
+    }
+
+    if (evidenceWorkspaceId && evidenceIntegrationId) {
+      await recordCertificationEvidence({
+        workspaceId: evidenceWorkspaceId,
+        targetType: "integration",
+        source: liveSource,
+        integrationId: evidenceIntegrationId,
+        runId: evidenceRunId,
+        actorId: evidenceActorId,
+        envGate: "DATA_SOURCE_LIVE_SMOKE=1;protected:live-smoke",
+        result: "passed",
+        redactedDiagnostics: {
+          source: liveSource,
+          baseUrl: stringEnv("DATA_SOURCE_LIVE_BASE_URL"),
+          rowCount: result.rows.length,
+          conversationCount: result.conversations.length,
+          requestCount: result.diagnostics.requests.length
+        }
+      });
+    }
   });
 });

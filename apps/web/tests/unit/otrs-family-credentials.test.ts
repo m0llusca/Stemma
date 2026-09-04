@@ -640,63 +640,68 @@ describe("OTRS-family credential slots", () => {
     }
   });
 
-  it("does not include failed upstream response bodies in runner errors", async () => {
-    const leakedBody =
-      "GET /otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST?UserLogin=qa_api&Password=super-secret";
-    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(leakedBody, { status: 502, statusText: "Bad Gateway" })));
-    const now = new Date("2026-05-07T10:00:00.000Z");
-    const client = {
-      integration: {
-        findFirst: vi.fn().mockResolvedValue({
-          id: "integration-1",
-          workspaceId: "workspace-1",
-          source: "custom",
-          displayName: "Custom API",
-          type: "custom_api",
-          status: "ready",
-          baseUrl: "https://support.example.com",
-          configJson: "{}",
-          authMode: "token",
-          importLimit: 100,
-          batchSize: 25,
-          dateRangeDays: 30,
-          schedule: null,
-          syncCursor: null,
-          lastSyncedAt: null,
-          lastDryRunAt: null,
-          lastImportAt: null,
-          lastError: null,
-          createdAt: now,
-          updatedAt: now,
-          credentials: []
-        })
+  it(
+    "does not include failed upstream response bodies in runner errors",
+    async () => {
+      const leakedBody =
+        "GET /otrs/nph-genericinterface.pl/Webservice/GenericTicketConnectorREST?UserLogin=qa_api&Password=super-secret";
+      // Resolve immediately — never leave fetch pending (AbortSignal.timeout(15s) in runner).
+      const fetchMock = vi.fn().mockResolvedValue(new Response(leakedBody, { status: 502, statusText: "Bad Gateway" }));
+      const now = new Date("2026-05-07T10:00:00.000Z");
+      const client = {
+        integration: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "integration-1",
+            workspaceId: "workspace-1",
+            source: "custom",
+            displayName: "Custom API",
+            type: "custom_api",
+            status: "ready",
+            baseUrl: "https://support.example.com",
+            configJson: "{}",
+            authMode: "token",
+            importLimit: 100,
+            batchSize: 25,
+            dateRangeDays: 30,
+            schedule: null,
+            syncCursor: null,
+            lastSyncedAt: null,
+            lastDryRunAt: null,
+            lastImportAt: null,
+            lastError: null,
+            createdAt: now,
+            updatedAt: now,
+            credentials: []
+          })
+        }
+      };
+
+      vi.stubGlobal("fetch", fetchMock);
+
+      try {
+        const { runIntegrationConnector } = await import("@/lib/integrations/runner");
+
+        await expect(
+          runIntegrationConnector({
+            workspaceId: "workspace-1",
+            integrationId: "integration-1",
+            dryRun: true,
+            client: client as never
+          })
+        ).rejects.toThrow("Источник вернул HTTP 502: Bad Gateway");
+
+        await expect(
+          runIntegrationConnector({
+            workspaceId: "workspace-1",
+            integrationId: "integration-1",
+            dryRun: true,
+            client: client as never
+          })
+        ).rejects.not.toThrow(/Password|super-secret|UserLogin|GenericTicketConnectorREST/);
+      } finally {
+        vi.unstubAllGlobals();
       }
-    };
-
-    vi.stubGlobal("fetch", fetchMock);
-
-    try {
-      const { runIntegrationConnector } = await import("@/lib/integrations/runner");
-
-      await expect(
-        runIntegrationConnector({
-          workspaceId: "workspace-1",
-          integrationId: "integration-1",
-          dryRun: true,
-          client: client as never
-        })
-      ).rejects.toThrow("Источник вернул HTTP 502: Bad Gateway");
-
-      await expect(
-        runIntegrationConnector({
-          workspaceId: "workspace-1",
-          integrationId: "integration-1",
-          dryRun: true,
-          client: client as never
-        })
-      ).rejects.not.toThrow(/Password|super-secret|UserLogin|GenericTicketConnectorREST/);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
+    },
+    15000
+  );
 });

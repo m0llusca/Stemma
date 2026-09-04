@@ -5,7 +5,7 @@ import { findSeededDemoAdmin, signInE2EUser } from "./helpers/auth";
 // Task 10 axe certification (brief section 9.2).
 //
 // Deterministic demo data is required: the web server must run against the
-// dedicated verify database seeded with DEMO_SEED_NOW=2026-08-13T09:00:00.000Z.
+// dedicated verify database seeded with DEMO_SEED_NOW=2026-09-03T09:00:00.000Z.
 //
 // Gate: zero `critical` and zero `serious` axe violations on /dashboard and on
 // every report view (src/lib/reports/report-format.ts: overview, performance,

@@ -13,7 +13,9 @@ import {
   extractTicketIdFromPath,
   normalizeHelpdeskBaseUrl
 } from "@/lib/integrations/connect/url-normalize";
+import { runHelpdeskCapabilityProbe } from "@/lib/integrations/connect/probe-capabilities";
 import type {
+  CapabilityProbeResult,
   ConnectContext,
   CredentialField,
   SourceConnectionProfile,
@@ -59,6 +61,10 @@ function buildHelpdeskProfile(config: HelpdeskProfileConfig): SourceConnectionPr
           testTicketId: extractTicketIdFromPath(raw)
         }
       };
+    },
+    async probeCapabilities(ctx: ConnectContext): Promise<CapabilityProbeResult> {
+      const token = config.buildSecret(ctx.credentials);
+      return runHelpdeskCapabilityProbe({ source: config.source, ctx, token });
     },
     async verifyAuth(rawCtx: ConnectContext): Promise<VerifyResult> {
       const ctx = rawCtx as TestableContext;
