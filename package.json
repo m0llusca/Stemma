@@ -1,5 +1,10 @@
-# Stemma
-
-Local monorepo root. The application lives in [`apps/web`](apps/web).
-
-See the [README](README.md) for setup.
+{
+  "name": "stemma",
+  "private": true,
+  "description": "Stemma — omnichannel support QA hub. Application lives in apps/web.",
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "test": "npm run test --prefix apps/web",
+    "typecheck": "npm run typecheck --prefix apps/web"
+  }
+}
