@@ -20,13 +20,23 @@ describe("QueueFilters", () => {
         qaAssignees={[]}
         supportLines={[]}
         teamNames={[]}
+        resultCount={12}
       />
     );
 
     expect(screen.getByLabelText("Поиск в очереди проверок")).toBeInTheDocument();
-    expect(screen.getByLabelText("Состояние")).toHaveValue("QUEUED");
-    expect(screen.getByRole("button", { name: /точные фильтры/i })).toHaveTextContent("1 применено");
-    expect(screen.getByText("Состояние: В очереди")).toBeInTheDocument();
+    expect(screen.getByLabelText("Итог")).toHaveValue("all");
+    expect(screen.getByRole("button", { name: /^точные фильтры/i, hidden: true })).toHaveTextContent(
+      "1 применено"
+    );
+    expect(screen.getByLabelText("Статус проверки")).toHaveValue("QUEUED");
+    expect(screen.getByText("Статус проверки: В очереди")).toBeInTheDocument();
+    expect(screen.getByText("Сбросить фильтры").closest("a")).toHaveAttribute("href", "/reviews");
+    expect(screen.getByText(/Применено фильтров: 1\. Найдено обращений: 12\./)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /что такое источник/i })).toBeInTheDocument();
   });
 
   it("synchronizes queue search with refreshed filters without Base UI ownership warnings", () => {

@@ -2,6 +2,7 @@ import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, Histor
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
 import { PageSkeleton } from "@/components/loading-states";
 import { EvidenceDrawer } from "@/components/operations/evidence-drawer";
 import { OperationKpiCard, type OperationKpiDelta } from "@/components/operations/operation-kpi-card";
@@ -125,6 +126,7 @@ async function DashboardPageContent() {
     highRiskCount,
     activeTrainingCount,
     overdueTrainingCount,
+    overdueReviewCount,
     dailyReviews,
     recentEvents,
     recentTrainings,
@@ -197,6 +199,14 @@ async function DashboardPageContent() {
         status: { not: "done" },
         dueAt: { lt: now },
         ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
+      }
+    }),
+    prisma.conversation.count({
+      where: {
+        workspaceId: user.workspaceId,
+        reviewDueAt: { lt: now },
+        qaStatus: { not: "FINALIZED" },
+        ...conversationScope
       }
     }),
     prisma.review.findMany({
@@ -274,8 +284,19 @@ async function DashboardPageContent() {
   const agentRows = computeAgentLeaderboard(agentReviews, 5);
   const canReadAudit = hasPermission(user.role, "audit:read");
   const canReadReports = hasPermission(user.role, "reports:read");
+  const isLeadDashboard = user.role === "TEAM_LEAD" || user.role === "ADMIN";
   const totalQueueCount = queuedCount + inWorkCount;
   const focusItemCandidates: Array<FocusItem | null> = [
+    overdueReviewCount > 0
+      ? {
+          icon: Clock3,
+          href: "/reviews?due=overdue",
+          label: "Просрочено SLA",
+          value: overdueReviewCount,
+          tone: "negative" as const,
+          hint: "Открыть очередь просроченных проверок"
+        }
+      : null,
     highRiskCount > 0
       ? {
           icon: TriangleAlert,
@@ -341,8 +362,13 @@ async function DashboardPageContent() {
     <PageShell
       className="dashboard-shell min-w-0"
       title="Сегодня"
-      description="Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
+      description={
+        isLeadDashboard
+          ? "Риск и просроченный SLA за 30 секунд — с переходом в очередь. Ops-лента и суета фильтров скрыты."
+          : "Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
+      }
     >
+      <WelcomeBackBanner />
       <TriageStrip
         tone={focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : "success"}
         icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
@@ -358,52 +384,100 @@ async function DashboardPageContent() {
 
       <section
         className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        aria-label="Ключевые показатели"
+        aria-label={isLeadDashboard ? "Риск и нагрузка" : "Ключевые показатели"}
       >
-        <OperationKpiCard
-          href="/reviews?status=reviewed"
-          icon={ClipboardCheck}
-          value={checkedThisWeek}
-          tone={checkedStatus.tone}
-          delta={countDelta(checkedDelta)}
-          label="Проверок за неделю"
-          hint="к прошлой неделе"
-        />
-        <OperationKpiCard
-          href={canReadReports ? "/reports" : "/reviews"}
-          icon={Star}
-          value={currentAverage == null ? "—" : Math.round(currentAverage)}
-          unit={currentAverage == null ? undefined : qualityScorePointWord(currentAverage)}
-          tone={scoreStatus.tone}
-          delta={
-            scoreDelta == null
-              ? undefined
-              : {
-                  value: Math.abs(scoreDelta),
-                  direction: scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat",
-                  tone: scoreDeltaTone(scoreDelta)
-                }
-          }
-          label="Средний балл"
-          hint={scoreDelta == null ? "Недостаточно данных для сравнения" : "к прошлой неделе"}
-          trend={scoreSparkPoints.length >= 2 ? <ScoreSparkline points={scoreSparkPoints} /> : undefined}
-        />
-        <OperationKpiCard
-          href="/reviews?status=unreviewed"
-          icon={Clock3}
-          value={totalQueueCount}
-          tone={queueStatus.tone}
-          label="В очереди и работе"
-          hint={`${queuedCount} ждут старта · ${inWorkCount} в работе`}
-        />
-        <OperationKpiCard
-          href="/coaching"
-          icon={BookOpenCheck}
-          value={activeTrainingCount}
-          tone={trainingStatus.tone}
-          label="Активных обучений"
-          hint={overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}
-        />
+        {isLeadDashboard ? (
+          <>
+            <OperationKpiCard
+              href={overdueReviewCount > 0 ? "/reviews?due=overdue" : "/reviews?status=unreviewed"}
+              icon={Clock3}
+              value={overdueReviewCount > 0 ? overdueReviewCount : totalQueueCount}
+              tone={overdueReviewCount > 0 ? "negative" : queueStatus.tone}
+              label={overdueReviewCount > 0 ? "Просрочено SLA" : "В очереди и работе"}
+              hint={
+                overdueReviewCount > 0
+                  ? `${queuedCount} ждут старта · ${inWorkCount} в работе`
+                  : `${queuedCount} ждут старта · ${inWorkCount} в работе`
+              }
+            />
+            <OperationKpiCard
+              href="/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL"
+              icon={TriangleAlert}
+              value={highRiskCount}
+              tone={highRiskCount > 0 ? "negative" : "neutral"}
+              label="Высокий риск"
+              hint="за 30 дней · открыть проверки"
+            />
+            <OperationKpiCard
+              href="/reviews?status=reviewed"
+              icon={ClipboardCheck}
+              value={checkedThisWeek}
+              tone={checkedStatus.tone}
+              delta={countDelta(checkedDelta)}
+              label="Проверок за неделю"
+              hint="к прошлой неделе"
+            />
+            <OperationKpiCard
+              href="/coaching"
+              icon={BookOpenCheck}
+              value={activeTrainingCount}
+              tone={trainingStatus.tone}
+              label="Активных обучений"
+              hint={overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}
+            />
+          </>
+        ) : (
+          <>
+            <OperationKpiCard
+              href="/reviews?status=reviewed"
+              icon={ClipboardCheck}
+              value={checkedThisWeek}
+              tone={checkedStatus.tone}
+              delta={countDelta(checkedDelta)}
+              label="Проверок за неделю"
+              hint="к прошлой неделе"
+            />
+            <OperationKpiCard
+              href={canReadReports ? "/reports" : "/reviews"}
+              icon={Star}
+              value={currentAverage == null ? "—" : Math.round(currentAverage)}
+              unit={currentAverage == null ? undefined : qualityScorePointWord(currentAverage)}
+              tone={scoreStatus.tone}
+              delta={
+                scoreDelta == null
+                  ? undefined
+                  : {
+                      value: Math.abs(scoreDelta),
+                      direction: scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat",
+                      tone: scoreDeltaTone(scoreDelta)
+                    }
+              }
+              label="Средний балл"
+              hint={scoreDelta == null ? "Недостаточно данных для сравнения" : "к прошлой неделе"}
+              trend={scoreSparkPoints.length >= 2 ? <ScoreSparkline points={scoreSparkPoints} /> : undefined}
+            />
+            <OperationKpiCard
+              href={overdueReviewCount > 0 ? "/reviews?due=overdue" : "/reviews?status=unreviewed"}
+              icon={Clock3}
+              value={totalQueueCount}
+              tone={queueStatus.tone}
+              label="В очереди и работе"
+              hint={
+                overdueReviewCount > 0
+                  ? `${overdueReviewCount} просрочено SLA · ${queuedCount} ждут старта`
+                  : `${queuedCount} ждут старта · ${inWorkCount} в работе`
+              }
+            />
+            <OperationKpiCard
+              href="/coaching"
+              icon={BookOpenCheck}
+              value={activeTrainingCount}
+              tone={trainingStatus.tone}
+              label="Активных обучений"
+              hint={overdueTrainingCount > 0 ? `${overdueTrainingCount} просрочено` : "Сроки под контролем"}
+            />
+          </>
+        )}
       </section>
 
       <section
@@ -415,7 +489,7 @@ async function DashboardPageContent() {
           <CardHeader className="border-b pb-(--card-spacing)">
             <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <TrendingUp size={14} aria-hidden="true" />
-              Качество за 7 дней
+              {isLeadDashboard ? "Качество команды · 7 дней" : "Качество за 7 дней"}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-(--card-spacing)">
@@ -519,7 +593,7 @@ async function DashboardPageContent() {
             <CardHeader className="border-b pb-(--card-spacing)">
               <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <TrendingUp size={14} aria-hidden="true" />
-                Области для роста
+                {isLeadDashboard ? "Риск и апелляции" : "Области для роста"}
               </CardTitle>
               {canReadReports ? (
                 <CardAction>
@@ -531,7 +605,9 @@ async function DashboardPageContent() {
             </CardHeader>
             <CardContent className="grid gap-3 pt-(--card-spacing)">
               <CardDescription>
-                Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней.
+                {isLeadDashboard
+                  ? "Операторы с наибольшей нагрузкой по риску и апелляциям — переход в очередь по клику."
+                  : "Операторы с наибольшей нагрузкой по риску и апелляциям за 30 дней."}
               </CardDescription>
               <div className="grid min-w-0 gap-2">
                 {agentRows.length === 0 ? (
@@ -580,6 +656,7 @@ async function DashboardPageContent() {
             </CardContent>
           </Card>
 
+          {isLeadDashboard ? null : (
           <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении.">
             <div className="mb-2 flex items-center justify-end">
               <Button
@@ -631,6 +708,7 @@ async function DashboardPageContent() {
               )}
             </div>
           </EvidenceDrawer>
+          )}
         </div>
       </section>
     </PageShell>

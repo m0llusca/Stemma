@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const permissionDeniedMessage = "Недостаточно прав для выполнения операции.";
-const authRequiredMessage = "Нет активной пользовательской сессии.";
+const authRequiredMessage = "Нет активной сессии. Войдите снова, чтобы продолжить.";
 
 const mocks = vi.hoisted(() => ({
   AuthRequiredError: class AuthRequiredError extends Error {
     constructor() {
-      super("Нет активной пользовательской сессии.");
+      super("Нет активной сессии. Войдите снова, чтобы продолжить.");
       this.name = "AuthRequiredError";
     }
   },

@@ -37,11 +37,19 @@ export function nextActionForConnectSteps(steps: ConnectStep[]): ConnectNextActi
     };
   }
 
+  const persistOk = steps.some((step) => step.step === "persist" && step.status === "ok");
   const webhookWarning = steps.find((step) => step.step === "webhook_probe" && step.status === "warning");
-  if (webhookWarning) {
+  const probesPassed = steps.some(
+    (step) =>
+      (step.step === "verify_auth" || step.step === "capability_probe") && step.status === "ok"
+  );
+
+  // Probe/persist success is not production-ready: push live certification next.
+  if (persistOk || webhookWarning || probesPassed) {
     return {
       label: "Запустить живую сертификацию",
-      description: "Базовое подключение готово. Для production-ready статуса нужен protected smoke-run с evidence.",
+      description:
+        "Базовое подключение готово после проверки. Зелёный production-ready — только после живой сертификации с evidence.",
       severity: "warning",
       action: "run_live_certification"
     };
@@ -49,7 +57,7 @@ export function nextActionForConnectSteps(steps: ConnectStep[]): ConnectNextActi
 
   return {
     label: "Открыть источник",
-    description: "Источник подключен. Проверьте импорт, диагностику и readiness evidence.",
+    description: "Проверьте импорт, диагностику и readiness evidence. Зелёный статус — только после живой сертификации.",
     severity: "info",
     action: "open_source"
   };

@@ -28,6 +28,10 @@ function getTopbarRootMargin() {
   return `-${topbarHeight}px 0px 0px 0px`;
 }
 
+function isElementVisible(element: HTMLElement) {
+  return element.getClientRects().length > 0;
+}
+
 function useQueueCommandBarPresentation(
   sentinelRef: RefObject<HTMLDivElement | null>
 ) {
@@ -79,6 +83,66 @@ function useQueueCommandBarPresentation(
   return state;
 }
 
+/**
+ * When stuck mode hides expanded-only chrome, restore focus to a still-visible
+ * control inside the sticky bar (or the bar itself) so keyboard users are not
+ * stranded on a display:none node.
+ */
+function useStickyFocusRestore(
+  barRef: RefObject<HTMLElement | null>,
+  state: QueueCommandBarPresentationState
+) {
+  const previousStateRef = useRef(state);
+
+  useEffect(() => {
+    if (previousStateRef.current === state) {
+      return;
+    }
+
+    previousStateRef.current = state;
+    const bar = barRef.current;
+    if (!bar) {
+      return;
+    }
+
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || !bar.contains(active)) {
+      return;
+    }
+
+    const inExpandedOnly = active.closest("[data-expanded-only]");
+    const inStuckOnly = active.closest("[data-stuck-only]");
+    const focusTrappedInHiddenRegion =
+      (state === "stuck" && inExpandedOnly != null) ||
+      (state === "resting" && inStuckOnly != null) ||
+      !isElementVisible(active);
+
+    if (!focusTrappedInHiddenRegion) {
+      return;
+    }
+
+    const stableControls = Array.from(
+      bar.querySelectorAll<HTMLElement>(
+        "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])"
+      )
+    ).filter((candidate) => {
+      const expanded = candidate.closest("[data-expanded-only]");
+      const stuck = candidate.closest("[data-stuck-only]");
+      if (state === "stuck" && expanded) return false;
+      if (state === "resting" && stuck) return false;
+      return true;
+    });
+
+    const fallback = stableControls[0] ?? bar;
+
+    if (fallback === bar && !bar.hasAttribute("tabindex")) {
+      bar.tabIndex = -1;
+    }
+
+    fallback.focus({ preventScroll: true });
+  }, [barRef, state]);
+}
+
 export function QueueCommandBarState({
   ariaLabel,
   children,
@@ -86,7 +150,9 @@ export function QueueCommandBarState({
   stuckOnly
 }: QueueCommandBarStateProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLElement>(null);
   const state = useQueueCommandBarPresentation(sentinelRef);
+  useStickyFocusRestore(barRef, state);
 
   return (
     <>
@@ -96,24 +162,29 @@ export function QueueCommandBarState({
         aria-hidden="true"
       />
       <section
+        ref={barRef}
         data-slot="review-queue-command-bar"
         data-state={state}
-        className="group/queue-command-bar sticky top-[var(--app-topbar-height)] z-10 min-w-0"
+        className="group/queue-command-bar sticky top-[var(--app-topbar-height)] z-10 min-w-0 overflow-clip rounded-xl border border-border bg-card shadow-sm"
         aria-label={ariaLabel}
       >
-        <div
-          className="group-data-[state=stuck]/queue-command-bar:hidden"
-          data-expanded-only
-        >
-          {expandedOnly}
-        </div>
+        {expandedOnly != null ? (
+          <div
+            className="group-data-[state=stuck]/queue-command-bar:hidden"
+            data-expanded-only
+          >
+            {expandedOnly}
+          </div>
+        ) : null}
         {children}
-        <div
-          className="hidden group-data-[state=stuck]/queue-command-bar:block"
-          data-stuck-only
-        >
-          {stuckOnly}
-        </div>
+        {stuckOnly != null ? (
+          <div
+            className="hidden group-data-[state=stuck]/queue-command-bar:block"
+            data-stuck-only
+          >
+            {stuckOnly}
+          </div>
+        ) : null}
       </section>
     </>
   );

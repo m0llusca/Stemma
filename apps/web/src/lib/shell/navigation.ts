@@ -67,7 +67,7 @@ export const topNavAreas: ShellNavArea[] = [
     id: "feedback",
     href: "/self-review",
     label: "Моя обратная связь",
-    description: "Личный результат, сравнение с командой и ответы на проверки.",
+    description: "Личный результат, разбор замечаний и ответы на проверки.",
     icon: "feedback",
     roles: ["SUPPORT_AGENT"],
     permission: "feedback:acknowledge"

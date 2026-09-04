@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertCircle, Check, CheckCircle2, ChevronDown, Info } from "lucide-react";
+import { AlertCircle, Check, ChevronDown, Info } from "lucide-react";
 import { ActionFlowGuard } from "@/components/action-flow-guard";
 import { SourceLogoMark, sourceLogoMeta } from "@/components/integrations/source-logo-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
+import { capabilityMatrixFromConnectSteps } from "@/lib/integrations/connect/capability-probe-display";
 import { nextActionForConnectSteps } from "@/lib/integrations/connect/next-action";
 import type { IntegrationInstallState } from "@/lib/integrations/install-contracts/types";
 import type { ConnectStep, ConnectStepStatus, CredentialField } from "@/lib/integrations/connect/types";
@@ -69,7 +70,7 @@ const STEP_LABELS: Record<string, string> = {
   verify_auth: "Авторизация",
   capability_probe: "Права и лимиты",
   webhook_probe: "Webhook",
-  persist: "Источник подключён",
+  persist: "Источник сохранён после проверки",
   test_import: "Пробный импорт",
   certification_evidence: "Evidence сертификации"
 };
@@ -82,7 +83,8 @@ const STATUS_ICONS: Record<ConnectStepStatus, string> = {
 };
 
 const STATUS_COLORS: Record<ConnectStepStatus, string> = {
-  ok: "text-emerald-600 dark:text-emerald-400",
+  // Diagnostic/probe ok is informational — reserve production-green for live cert only.
+  ok: "text-primary",
   warning: "text-amber-600 dark:text-amber-400",
   failed: "text-destructive",
   skipped: "text-muted-foreground"
@@ -197,7 +199,7 @@ function SubmitButton() {
 
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Подключаем..." : "Подключить"}
+      {pending ? "Проверяем..." : "Проверить и подключить"}
     </Button>
   );
 }
@@ -279,6 +281,7 @@ export function ConnectSourceForm({
 
   const steps = hasSteps(state) ? state.steps : [];
   const nextAction = steps.length > 0 ? nextActionForConnectSteps(steps) : null;
+  const capabilityMatrix = capabilityMatrixFromConnectSteps(steps);
   const fallbackOpen = steps.some(
     (step) => step.status === "failed" && MANUAL_FIXABLE_STEPS.has(step.step)
   );
@@ -292,7 +295,8 @@ export function ConnectSourceForm({
           Подключение источника
         </h2>
         <CardDescription>
-          Укажите адрес и доступы. Stemma проверит права, сохранит источник и подготовит пробный импорт.
+          Укажите адрес и доступы. Stemma сначала проверит доступ (probe), и только при успехе сохранит
+          источник. Зелёный production-ready — только после живой сертификации.
         </CardDescription>
       </CardHeader>
 
@@ -310,12 +314,12 @@ export function ConnectSourceForm({
             {
               label: "2. Доступы",
               value: "URL и секреты",
-              hint: "Секреты в открытом виде не показываются после сохранения."
+              hint: "Секреты write-only: после сохранения в UI не возвращаются."
             },
             {
               label: "3. Проверка",
-              value: "Диагностика и пробный запуск",
-              hint: "Живая сертификация требует доказательств перед рабочим режимом."
+              value: "Probe до сохранения",
+              hint: "Живая сертификация — отдельный шаг с evidence; stub ≠ production."
             }
           ]}
         />
@@ -509,6 +513,12 @@ export function ConnectSourceForm({
                     autoComplete={field.secret ? "new-password" : "off"}
                   />
                   {field.hint ? <FieldDescription>{field.hint}</FieldDescription> : null}
+                  {field.secret ? (
+                    <FieldDescription>
+                      Секрет write-only: вводится для проверки и сохранения, обратно в UI не
+                      отображается.
+                    </FieldDescription>
+                  ) : null}
                 </Field>
               ))}
 
@@ -555,10 +565,38 @@ export function ConnectSourceForm({
                 </li>
               ))}
             </ul>
+            {capabilityMatrix ? (
+              <div className="grid gap-2 rounded-lg border border-border p-3">
+                <p className="text-sm font-semibold text-foreground">Матрица возможностей (probe)</p>
+                <ul className="grid gap-1.5">
+                  {capabilityMatrix.rows.map((row) => (
+                    <li key={row.key} className="flex items-start justify-between gap-2 text-sm">
+                      <span className="min-w-0 break-words text-foreground">{row.label}</span>
+                      <span className={cn("shrink-0 font-medium", STATUS_COLORS[row.status === "unknown" ? "skipped" : row.status])}>
+                        {row.status === "ok"
+                          ? "probe ok"
+                          : row.status === "warning"
+                            ? "частично"
+                            : row.status === "failed"
+                              ? "ошибка"
+                              : "н/д"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">{capabilityMatrix.honestyNote}</p>
+              </div>
+            ) : null}
             {connected ? (
-              <Alert>
-                <CheckCircle2 className="text-emerald-600 dark:text-emerald-400" />
-                <AlertTitle className="text-emerald-700 dark:text-emerald-400">Источник подключён</AlertTitle>
+              <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                <Info className="text-amber-700 dark:text-amber-400" />
+                <AlertTitle className="text-amber-900 dark:text-amber-200">
+                  Базовое подключение сохранено
+                </AlertTitle>
+                <AlertDescription className="text-amber-800 dark:text-amber-300">
+                  Проверка доступа прошла, источник записан. Это ещё не production-ready: зелёный
+                  статус — только после живой сертификации с evidence.
+                </AlertDescription>
               </Alert>
             ) : null}
             {nextAction ? (

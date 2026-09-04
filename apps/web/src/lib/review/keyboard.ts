@@ -1,6 +1,8 @@
 /**
  * Pure keyboard model for the review workbench (no DOM, no React).
  *
+ * Contract: docs/ux-queue-hotkeys-contract.md
+ *
  * The reducer drives "focus" — which criterion card is the keyboard target —
  * while the actual scoring is applied by the client wiring against the existing
  * radio inputs. Keeping this layer pure makes the navigation logic unit-testable
@@ -20,6 +22,120 @@ export type ScoreOption = "pass" | "partial" | "fail";
 
 const NEXT_KEYS = new Set(["j", "ArrowDown"]);
 const PREV_KEYS = new Set(["k", "ArrowUp"]);
+
+/** Input types that still leave workbench hotkeys active (not "typing"). */
+const NON_TYPING_INPUT_TYPES = new Set([
+  "button",
+  "checkbox",
+  "radio",
+  "submit",
+  "reset",
+  "file",
+  "image",
+  "range",
+  "color",
+  "hidden"
+]);
+
+/**
+ * True when the event target is a typing / form-text surface.
+ * Hotkeys must never steal keys here (contract: docs/ux-queue-hotkeys-contract.md).
+ */
+export function isEditableTarget(element: EventTarget | null): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const contentEditableAttr = element.getAttribute("contenteditable");
+  if (
+    element.isContentEditable ||
+    element.contentEditable === "true" ||
+    contentEditableAttr === "true" ||
+    contentEditableAttr === ""
+  ) {
+    return true;
+  }
+
+  const tag = element.tagName;
+
+  if (tag === "TEXTAREA" || tag === "SELECT") {
+    return true;
+  }
+
+  if (tag === "INPUT") {
+    const type = (element as HTMLInputElement).type || "text";
+    return !NON_TYPING_INPUT_TYPES.has(type.toLowerCase());
+  }
+
+  return false;
+}
+
+export type ReviewHotkeyAction =
+  | { type: "navigate"; key: string }
+  | { type: "score"; option: ScoreOption }
+  | { type: "toggle_legend" }
+  | { type: "expand_focused" }
+  | { type: "escape" }
+  | { type: "submit_finalize_next" };
+
+export type ReviewHotkeyInput = {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  defaultPrevented: boolean;
+  targetIsEditable: boolean;
+  criterionCount: number;
+};
+
+/**
+ * Resolve a keydown into a workbench hotkey action, or null when the event
+ * must be left alone (editable target, unrelated chord, no criteria, …).
+ */
+export function resolveReviewHotkey(input: ReviewHotkeyInput): ReviewHotkeyAction | null {
+  if (input.defaultPrevented || input.targetIsEditable) {
+    return null;
+  }
+
+  const isMod = input.metaKey || input.ctrlKey;
+
+  if (isMod && input.key === "Enter" && !input.altKey) {
+    return { type: "submit_finalize_next" };
+  }
+
+  // Let real shortcuts (copy/paste, devtools, etc.) through untouched.
+  if (isMod || input.altKey) {
+    return null;
+  }
+
+  if (input.key === "?") {
+    return { type: "toggle_legend" };
+  }
+
+  if (input.key === "Escape") {
+    return { type: "escape" };
+  }
+
+  if (input.criterionCount === 0) {
+    return null;
+  }
+
+  if (input.key === "Enter") {
+    return { type: "expand_focused" };
+  }
+
+  if (NEXT_KEYS.has(input.key) || PREV_KEYS.has(input.key)) {
+    return { type: "navigate", key: input.key };
+  }
+
+  const option = scoreKeyToOption(input.key);
+
+  if (option) {
+    return { type: "score", option };
+  }
+
+  return null;
+}
 
 function clampIndex(index: number, criterionCount: number): number {
   // No criteria → no valid index; collapse to 0 rather than going negative.

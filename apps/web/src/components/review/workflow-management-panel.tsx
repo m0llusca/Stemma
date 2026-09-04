@@ -53,7 +53,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
         <Card className="rounded-none border-0 ring-0">
           <CardHeader className="border-t border-border py-0 sr-only">
             <CardTitle>Параметры проверки</CardTitle>
-            <CardDescription>Состояние, исполнитель и срок</CardDescription>
+            <CardDescription>Статус проверки, исполнитель и срок</CardDescription>
           </CardHeader>
           <CardContent className="border-t border-border pt-4">
             <form
@@ -66,7 +66,7 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
               <input type="hidden" name="conversationId" value={conversation.id} />
 
               <Field>
-                <FieldLabel htmlFor="workflow-qa-status">Состояние проверки</FieldLabel>
+                <FieldLabel htmlFor="workflow-qa-status">Статус проверки</FieldLabel>
                 <NativeSelect
                   id="workflow-qa-status"
                   name="qaStatus"

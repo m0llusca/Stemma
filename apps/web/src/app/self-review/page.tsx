@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpenCheck, MessageSquareText, ShieldQuestion } from "lucide-react";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { AgentCriterionFeedbackList } from "@/components/feedback/agent-criterion-feedback-list";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { updateReviewFeedbackState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
+import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
@@ -64,7 +66,7 @@ export default function SelfReviewPage() {
 async function SelfReviewPageContent() {
   const user = await requireCurrentUserPermission("feedback:acknowledge");
   const scopedToAgent = user.role === "SUPPORT_AGENT";
-  const [conversations, assignments, teamScoreAggregate] = await Promise.all([
+  const [conversations, assignments] = await Promise.all([
     prisma.conversation.findMany({
       where: {
         workspaceId: user.workspaceId,
@@ -80,7 +82,12 @@ async function SelfReviewPageContent() {
           include: {
             findings: true,
             reviewer: true,
-            scores: { include: { criterion: true } }
+            scores: {
+              include: {
+                criterion: true,
+                evidenceMessage: { select: { id: true, body: true } }
+              }
+            }
           },
           orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
           take: 1
@@ -100,10 +107,6 @@ async function SelfReviewPageContent() {
       },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 6
-    }),
-    prisma.review.aggregate({
-      where: { workspaceId: user.workspaceId, status: "FINALIZED", reviewSource: "HUMAN" },
-      _avg: { totalScore: true }
     })
   ]);
   // Personal score trend: the agent's finalized review scores oldest -> newest.
@@ -118,7 +121,6 @@ async function SelfReviewPageContent() {
   const earlierHalf = myReviewScores.slice(0, Math.floor(myReviewScores.length / 2));
   const recentAverage = recentHalf.length > 0 ? recentHalf.reduce((sum, value) => sum + value, 0) / recentHalf.length : null;
   const earlierAverage = earlierHalf.length > 0 ? earlierHalf.reduce((sum, value) => sum + value, 0) / earlierHalf.length : null;
-  const teamAverage = teamScoreAggregate._avg.totalScore;
   // Per-criterion strengths and focus areas from the agent's finalized reviews.
   const criterionGroups = new Map<string, { label: string; percents: number[] }>();
   for (const conversation of conversations) {
@@ -164,13 +166,13 @@ async function SelfReviewPageContent() {
   const renderFeedbackCard = (conversation: (typeof conversations)[number], mode: "action" | "history" = "action") => {
     const review = conversation.reviews[0];
     const findings = review?.findings ?? [];
-    const visibleFindings = findings.slice(0, 3);
-    const hiddenFindingCount = Math.max(0, findings.length - visibleFindings.length);
+    const visibleFindings = findings.slice(0, 2);
 
     if (!review) {
       return null;
     }
 
+    const deductionItems = toAgentCriterionFeedbackItems(review.scores);
     const feedbackClosed = review.feedbackStatus === "acknowledged" || review.feedbackStatus === "corrected";
     const hasOpenAppeal = review.appealStatus === "open";
     const canAcknowledge = !feedbackClosed && !hasOpenAppeal;
@@ -185,11 +187,8 @@ async function SelfReviewPageContent() {
       : hasOpenAppeal
         ? "Дождитесь решения по апелляции или откройте детали проверки."
         : canAcknowledge
-          ? "Примите проверку, если замечания понятны; спорные пункты можно оспорить."
-          : "Откройте детали, чтобы посмотреть основание оценки.";
-
-    const findingTone = (riskLevel: string): ChipTone =>
-      riskLevel === "CRITICAL" || riskLevel === "HIGH" ? "warning" : "neutral";
+          ? "Примите оценку, если замечания понятны. Спорный пункт можно оспорить с обоснованием."
+          : "Откройте детали, чтобы сверить цитату и комментарий проверяющего.";
 
     return (
       <Card key={conversation.id} size="sm" className="gap-0">
@@ -223,6 +222,27 @@ async function SelfReviewPageContent() {
 
         <CardContent className="flex flex-col gap-3 pt-3">
           <p className="text-sm text-foreground">{review.summary}</p>
+          {review.feedbackComment?.trim() ? (
+            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Комментарий проверяющего</p>
+              <p className="mt-1 text-foreground">{review.feedbackComment}</p>
+            </div>
+          ) : null}
+          {review.positiveNotes?.trim() ? (
+            <div className="text-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Что сделано хорошо</p>
+              <p className="mt-1 text-foreground">{review.positiveNotes}</p>
+            </div>
+          ) : null}
+          {deductionItems.length > 0 ? (
+            <AgentCriterionFeedbackList items={deductionItems} conversationId={conversation.id} dense />
+          ) : null}
+          {review.instructionLinks?.trim() ? (
+            <div className="text-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Материалы</p>
+              <p className="mt-1 whitespace-pre-wrap text-foreground">{review.instructionLinks}</p>
+            </div>
+          ) : null}
           <p className="text-sm font-medium text-muted-foreground">{nextStep}</p>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>
@@ -232,13 +252,23 @@ async function SelfReviewPageContent() {
             <span>{(review.finalizedAt ?? review.createdAt).toLocaleDateString("ru-RU")}</span>
           </div>
           {visibleFindings.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5" aria-label="Основания оценки">
+            <div className="flex flex-col gap-2" aria-label="Замечания">
               {visibleFindings.map((finding) => (
-                <Chip key={`${finding.category}:${finding.riskLevel}`} tone={findingTone(finding.riskLevel)}>
-                  {finding.category} · {riskLevelLabels[finding.riskLevel]}
-                </Chip>
+                <div key={finding.id} className="rounded-md border border-border/80 px-2.5 py-2 text-xs">
+                  <p className="font-medium text-foreground">
+                    {finding.category} · {riskLevelLabels[finding.riskLevel]}
+                  </p>
+                  {finding.evidenceSummary?.trim() ? (
+                    <p className="mt-1 text-muted-foreground">{finding.evidenceSummary}</p>
+                  ) : null}
+                  {finding.rootCause?.trim() ? (
+                    <p className="mt-1 text-foreground">
+                      <span className="text-muted-foreground">Причина: </span>
+                      {finding.rootCause}
+                    </p>
+                  ) : null}
+                </div>
               ))}
-              {hiddenFindingCount > 0 ? <Chip tone="neutral">+{hiddenFindingCount}</Chip> : null}
             </div>
           ) : null}
         </CardContent>
@@ -256,12 +286,15 @@ async function SelfReviewPageContent() {
               {canOpenAppeal ? (
                 <Collapsible className="min-w-[min(100%,16rem)] flex-1 rounded-lg border border-border bg-background data-open:bg-muted/30">
                   <CollapsibleTrigger className="w-full cursor-pointer px-3 py-2 text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    Оспорить
+                    Оспорить оценку
                   </CollapsibleTrigger>
                   <CollapsibleContent keepMounted>
                     <ToastActionForm action={updateReviewFeedbackState} className="flex flex-col gap-2 border-t border-border p-3">
                       <input type="hidden" name="reviewId" value={review.id} />
                       <input type="hidden" name="action" value="appeal_opened" />
+                      <p className="text-xs text-muted-foreground">
+                        Апелляция — рабочий разбор спорного пункта. Укажите критерий или фрагмент диалога; статус сотрудника не меняется.
+                      </p>
                       <div className="flex flex-col gap-1.5">
                         <Label htmlFor={`appeal-comment-${review.id}`}>Обоснование</Label>
                         <Textarea
@@ -269,7 +302,7 @@ async function SelfReviewPageContent() {
                           name="comment"
                           rows={2}
                           required
-                          placeholder="С каким пунктом не согласны и почему."
+                          placeholder="С каким пунктом не согласны и почему — со ссылкой на цитату, если есть."
                         />
                       </div>
                       <Button type="submit" variant="outline" size="sm">
@@ -303,7 +336,6 @@ async function SelfReviewPageContent() {
   };
 
   const periodDelta = recentAverage != null && earlierAverage != null ? Math.round(recentAverage - earlierAverage) : null;
-  const benchmarkDelta = myAverage != null && teamAverage != null ? Math.round(myAverage - teamAverage) : null;
 
   const pendingResponseCount = actionConversations.length;
   const triageTone: TriageStripTone = nextConversation ? (appealCount > 0 ? "warning" : "accent") : "success";
@@ -312,8 +344,8 @@ async function SelfReviewPageContent() {
     : "Срочных ответов нет";
   const triageDescription = nextConversation
     ? appealCount > 0
-      ? `Среди них ${appealCount} с открытой апелляцией. Подтвердите оценку или оспорьте спорные пункты.`
-      : "Подтвердите оценку, если замечания понятны; спорные пункты можно оспорить."
+      ? `Среди них ${appealCount} с открытой апелляцией. Примите оценку или оспорьте конкретный пункт с обоснованием.`
+      : "Примите оценку, если замечания понятны; спорный пункт можно оспорить."
     : assignments.length > 0
       ? `Осталось закрыть ${russianPlural(assignments.length, ["учебную задачу", "учебные задачи", "учебных задач"])} после разбора.`
       : "Новые финальные проверки и апелляции появятся здесь первыми.";
@@ -330,7 +362,7 @@ async function SelfReviewPageContent() {
           </CardTitle>
           <span className="pb-0.5 text-sm text-muted-foreground">из 100</span>
           {periodDelta != null && periodDelta !== 0 ? (
-            <Chip tone={periodDelta > 0 ? "success" : "warning"}>
+            <Chip tone={periodDelta > 0 ? "success" : "neutral"}>
               {periodDelta > 0 ? "↑" : "↓"} {formatQualityScoreDelta(periodDelta)}
             </Chip>
           ) : periodDelta === 0 ? (
@@ -340,14 +372,9 @@ async function SelfReviewPageContent() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          {myReviewScores.length > 0 ? `${formatReviewCount(myReviewScores.length)} за период` : "Проверок пока нет"}
-          {benchmarkDelta != null
-            ? benchmarkDelta === 0
-              ? " · на уровне команды"
-              : benchmarkDelta > 0
-                ? ` · выше команды на ${Math.abs(benchmarkDelta)}`
-                : ` · ниже команды на ${Math.abs(benchmarkDelta)}`
-            : ""}
+          {myReviewScores.length > 0
+            ? `${formatReviewCount(myReviewScores.length)} за период · личная динамика`
+            : "Проверок пока нет"}
         </p>
         {myReviewScores.length >= 2 ? <ScoreSparkline points={myReviewScores} /> : null}
       </CardContent>
@@ -358,7 +385,7 @@ async function SelfReviewPageContent() {
     <PageShell
       eyebrow="Обратная связь"
       title="Моя обратная связь"
-      description="Это не отдельная самооценка, а рабочее место оператора: принять проверку, открыть апелляцию и закрыть учебные задачи."
+      description="Рабочее место оператора: разобрать замечания по цитатам, принять оценку или открыть апелляцию и закрыть учебные задачи."
     >
       <TriageStrip
         tone={triageTone}
@@ -379,7 +406,7 @@ async function SelfReviewPageContent() {
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.2fr)]">
           {heroPanel}
 
-          <Card aria-label="Сильные стороны и зоны роста">
+          <Card aria-label="Сильные стороны и фокус внимания">
             <CardHeader>
               <CardTitle>По критериям</CardTitle>
               <CardDescription>Средний процент выполнения по критериям за последние проверки.</CardDescription>
@@ -411,7 +438,7 @@ async function SelfReviewPageContent() {
                 ) : null}
                 {focusCriteria.length > 0 ? (
                   <div className="flex flex-col gap-3">
-                    <h3 className="text-sm font-medium text-foreground">Зоны роста</h3>
+                    <h3 className="text-sm font-medium text-foreground">На что обратить внимание</h3>
                     <ul className="flex flex-col gap-3">
                       {focusCriteria.map((stat) => (
                         <li key={stat.label} className="flex flex-col gap-1.5">
@@ -423,7 +450,7 @@ async function SelfReviewPageContent() {
                           </div>
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
                             <div
-                              className="h-full rounded-full bg-amber-500/80 transition-all"
+                              className="h-full rounded-full bg-muted-foreground/35 transition-all"
                               style={{ width: `${stat.averagePercent}%` }}
                             />
                           </div>

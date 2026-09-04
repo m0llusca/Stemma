@@ -30,7 +30,7 @@ test("keeps enterprise adapters on explicit client-credentials setup", async ({ 
   await expect(page.getByLabel("Client ID")).toBeVisible();
   await expect(page.getByLabel("Client Secret")).toBeVisible();
   await expect(salesforce).toContainText("Ограниченная поддержка: требуется живая сертификация");
-  await expect(page.getByRole("button", { name: "Подключить" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Проверить и подключить" })).toBeEnabled();
 });
 
 test("keeps Zendesk native adapter on the runnable check path", async ({ page }) => {
@@ -41,5 +41,5 @@ test("keeps Zendesk native adapter on the runnable check path", async ({ page })
   await page.getByLabel("Email агента").fill("agent@example.com");
   await page.getByRole("textbox", { name: /^API-токен/ }).fill("zendesk-test-token");
 
-  await expect(page.getByRole("button", { name: "Подключить" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Проверить и подключить" })).toBeEnabled();
 });

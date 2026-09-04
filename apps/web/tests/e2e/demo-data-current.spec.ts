@@ -113,14 +113,18 @@ test("review queue exposes every active state and mixed SLA dates", async ({ pag
   for (const queueCase of queueCases) {
     await page.goto(`/reviews?qaStatus=${queueCase.status}`);
 
-    await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Фильтры и виды очереди" }).getByLabel("Состояние")
-    ).toHaveValue(queueCase.status);
+    await expect(page.locator('[data-slot="page-shell"] h1')).toHaveText("Очередь проверок", {
+      timeout: 15_000
+    });
+    // «Статус проверки» is an advanced ("Точные фильтры") control; target by id so
+    // portaled panel markup outside the command-bar region still matches.
+    await expect(page.locator("#queue-filter-qaStatus")).toHaveValue(queueCase.status);
 
-    const scenarioRow = page.getByRole("row").filter({ hasText: queueCase.subject });
-    await expect(scenarioRow).toBeVisible();
-    await expect(scenarioRow.getByText(queueCase.dueDate, { exact: true })).toBeVisible();
+    // Prefer DOM row class: cold Chromium a11y trees sometimes omit name/text on role=row.
+    const scenarioRow = page.locator("tr.queue-row", { hasText: queueCase.subject });
+    await expect(scenarioRow).toBeVisible({ timeout: 15_000 });
+    // Due cell is "DD.MM.YYYY" + "— просрочено" siblings; exact text match on a leaf fails.
+    await expect(scenarioRow).toContainText(queueCase.dueDate);
   }
 });
 

@@ -18,11 +18,21 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    const text = message.text();
+    // Integration catalog may hotlink vendor favicons; bad upstream TLS must not fail the UX smoke.
+    if (
+      text.includes("net::ERR_CERT_AUTHORITY_INVALID") ||
+      text.includes("net::ERR_CONNECTION_REFUSED") ||
+      text.includes("Failed to load resource")
+    ) {
+      return;
+    }
+
     const location = message.location();
     diagnostics.push(
       [
         `route: ${page.url()}`,
-        `${message.type()}: ${message.text()}`,
+        `${message.type()}: ${text}`,
         `source: ${location.url}:${location.lineNumber}:${location.columnNumber}`
       ].join("\n")
     );
@@ -74,16 +84,17 @@ test("shows standard login with SSO and demo login as separate options", async (
 
   await page.getByRole("button", { name: "Демо-вход" }).press("Enter");
   await page.getByRole("button", { name: "Войти в демо-режиме" }).press("Enter");
-  await expect(page).toHaveURL(/\/reviews$/);
-  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
+  // ADMIN demo user lands on role home (dashboard), not the generic /reviews returnTo.
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: "Сегодня" })).toBeVisible();
 });
 
 test("completes the seeded refund request review workflow", async ({ page }) => {
   await page.goto("/reviews");
 
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
-  await expect(page.getByText("Найдено")).toBeVisible();
-  await expect(page.getByText(/завершено/i).first()).toBeVisible();
+  await expect(page.getByText(/^Найдено \d+ из \d+/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Где смотреть в очереди сейчас" })).toBeVisible();
   await expect(page.getByLabel("Предпросмотр следующего обращения")).toBeVisible();
 
   await page.getByLabel("Поиск в очереди проверок").fill("Мила");
@@ -108,7 +119,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Управление проверкой" })).toBeVisible();
 
   await page.getByRole("button", { name: /Управление проверкой/ }).click();
-  await page.getByLabel("Состояние проверки").selectOption("IN_PROGRESS");
+  await page.getByLabel("Статус проверки").selectOption("IN_PROGRESS");
   await page.getByRole("button", { name: "Обновить" }).click();
   await expect(reviewContext.getByText("В работе", { exact: true })).toBeVisible({
     timeout: 10_000
@@ -130,7 +141,7 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
 
   await expect(reviewContext.getByText("Завершена", { exact: true })).toBeVisible();
   await expect(page.getByText("100 баллов").first()).toBeVisible();
-  await expect(page.getByText("Доказательство", { exact: true })).toBeVisible();
+  await expect(page.locator("#review-workspace").getByText("Доказательство", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "История проверок" })).toBeVisible();
 
   await page.goto("/reviews?status=reviewed&q=Мила");

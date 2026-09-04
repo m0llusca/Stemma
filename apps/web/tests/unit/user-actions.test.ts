@@ -197,7 +197,7 @@ describe("user actions", () => {
     formData.set("password", " local-password-123 ");
     formData.set("returnTo", "https://evil.example/reviews");
 
-    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/reviews");
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/dashboard");
 
     expect(mocks.authorizeLocalCredentials).toHaveBeenCalledWith({
       login: "real-admin",
@@ -237,11 +237,48 @@ describe("user actions", () => {
     expect(mocks.authSignIn).not.toHaveBeenCalled();
   });
 
+  it("lands a local QA analyst on mine+overdue when returnTo is the generic queue", async () => {
+    mocks.authorizeLocalCredentials.mockResolvedValue({
+      id: "analyst-user",
+      workspaceId: "workspace-1",
+      email: "analyst@example.com",
+      name: "Анна QA",
+      role: "QA_ANALYST"
+    });
+    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("login", "anna");
+    formData.set("password", "local-password-123");
+    formData.set("returnTo", "/reviews");
+
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
+  });
+
+  it("lands a local support agent on self-review for a generic returnTo", async () => {
+    mocks.authorizeLocalCredentials.mockResolvedValue({
+      id: "agent-user",
+      workspaceId: "workspace-1",
+      email: "agent@example.com",
+      name: "Мария",
+      role: "SUPPORT_AGENT"
+    });
+    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("login", "maria");
+    formData.set("password", "local-password-123");
+    formData.set("returnTo", "/dashboard");
+
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/self-review");
+  });
+
   it("keeps demo sign-in behavior while using the shared session cookie helper", async () => {
     mocks.prisma.user.findFirst.mockResolvedValue({
       id: "demo-user",
       workspaceId: "demo-workspace",
-      role: "SUPPORT_AGENT"
+      role: "SUPPORT_AGENT",
+      name: "Демо оператор"
     });
     const { signInWithDemoUser } = await import("@/lib/user-actions");
     const formData = new FormData();
@@ -295,7 +332,8 @@ describe("user actions", () => {
     mocks.prisma.user.findFirst.mockResolvedValue({
       id: "demo-user",
       workspaceId: "demo-workspace",
-      role: "ADMIN"
+      role: "ADMIN",
+      name: "Демо админ"
     });
     const { switchCurrentUser } = await import("@/lib/user-actions");
     const formData = new FormData();
@@ -304,6 +342,22 @@ describe("user actions", () => {
     await expect(switchCurrentUser(formData)).rejects.toThrow("NEXT_REDIRECT:/dashboard");
 
     expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("switches a demo QA analyst onto the mine+overdue queue from the shell default", async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "demo-analyst",
+      workspaceId: "demo-workspace",
+      role: "QA_ANALYST",
+      name: "Анна QA"
+    });
+    const { switchCurrentUser } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("userId", "demo-analyst");
+
+    await expect(switchCurrentUser(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
   });
 
   it("keeps sidebar demo switching disabled when demo auth is off", async () => {
@@ -326,7 +380,7 @@ describe("user actions", () => {
     await expect(switchCurrentUser(formData)).rejects.toThrow("Демо-пользователь не найден.");
     expect(mocks.prisma.user.findFirst).toHaveBeenCalledWith({
       where: demoUserByIdWhere("real-user"),
-      select: { id: true, workspaceId: true, role: true }
+      select: { id: true, workspaceId: true, role: true, name: true }
     });
     expect(mocks.createAuthSession).not.toHaveBeenCalled();
   });

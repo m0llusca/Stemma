@@ -26,7 +26,7 @@ describe("integration catalog route", () => {
       {
         error: {
           code: "unauthorized",
-          message: "Нет активной пользовательской сессии.",
+          message: "Нет активной сессии. Войдите снова, чтобы продолжить.",
           details: null,
           requestId: "req-catalog"
         }
@@ -51,7 +51,7 @@ describe("integration catalog route", () => {
     await expect(response.json()).resolves.toEqual({
       error: {
         code: "unauthorized",
-        message: "Нет активной пользовательской сессии.",
+        message: "Нет активной сессии. Войдите снова, чтобы продолжить.",
         details: null,
         requestId: "req-catalog"
       }

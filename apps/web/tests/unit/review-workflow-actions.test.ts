@@ -133,7 +133,7 @@ describe("review workflow actions", () => {
     mocks.tx.conversation.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(updateConversationWorkflow(workflowForm("IN_PROGRESS"))).rejects.toThrow(
-      "Состояние проверки изменилось. Обновите страницу и повторите действие."
+      "Статус проверки изменился. Обновите страницу и повторите действие."
     );
 
     expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith(

@@ -157,13 +157,27 @@ function isCriterionIssue(criterion: ScorecardCriterion, score?: CriterionScore)
   return score?.passed === false;
 }
 
-function criterionStatus(criterion: ScorecardCriterion, score?: CriterionScore): { label: string; tone: ChipTone } {
+function criterionStatus(
+  criterion: ScorecardCriterion,
+  score: CriterionScore | undefined,
+  presentation: "authoring" | "agent"
+): { label: string; tone: ChipTone } {
   if (score?.isNotApplicable) {
     return { label: "Не применимо", tone: "neutral" };
   }
 
   if (criterion.kind === "SCALE_1_3") {
     const value = score?.value ?? 3;
+
+    if (presentation === "agent") {
+      if (value <= 1) {
+        return { label: "1/3", tone: "warning" };
+      }
+      if (value === 2) {
+        return { label: "2/3", tone: "warning" };
+      }
+      return { label: "3/3", tone: "success" };
+    }
 
     if (value <= 1) {
       return { label: "1/3 критично", tone: "danger" };
@@ -174,6 +188,12 @@ function criterionStatus(criterion: ScorecardCriterion, score?: CriterionScore):
     }
 
     return { label: "3/3 стандарт", tone: "success" };
+  }
+
+  if (presentation === "agent") {
+    return score?.passed === false
+      ? { label: "не зачтено", tone: "warning" }
+      : { label: "зачтено", tone: "success" };
   }
 
   return score?.passed === false
@@ -331,6 +351,8 @@ export function ReviewPanel({
   title = "Проверка",
   aiPredictions
 }: ReviewPanelProps) {
+  // Self-review is agent-facing authoring: keep controls usable, drop FAIL spectacle.
+  const presentation = reviewSource === "SELF_REVIEW" ? "agent" : "authoring";
   const draftScores = new Map(draftReview?.scores.map((score) => [score.criterionId, score]) ?? []);
   const draftFinding = draftReview?.findings[0];
   const hasOptionalDetails = Boolean(
@@ -475,20 +497,27 @@ export function ReviewPanel({
         <div
           className={cn(
             "flex items-center justify-between gap-2.5 rounded-md border border-border bg-card px-2.5 py-2",
-            draftReview?.criticalError && "border-destructive/40 bg-destructive/10"
+            draftReview?.criticalError &&
+              (presentation === "agent"
+                ? "border-border bg-muted/50"
+                : "border-destructive/40 bg-destructive/10")
           )}
           data-active={draftReview?.criticalError ? "true" : undefined}
         >
           <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">
-            Критическая ошибка
+            {presentation === "agent" ? "Критичный пункт" : "Критическая ошибка"}
           </span>
           <span
             className={cn(
               "text-right text-[13px] font-bold leading-tight text-foreground",
-              draftReview?.criticalError && "text-destructive"
+              draftReview?.criticalError && presentation === "authoring" && "text-destructive"
             )}
           >
-            {draftReview?.criticalError ? draftReview.criticalCategory ?? "Выявлена" : "Не выявлена"}
+            {draftReview?.criticalError
+              ? draftReview.criticalCategory ?? (presentation === "agent" ? "Отмечен" : "Выявлена")
+              : presentation === "agent"
+                ? "Нет"
+                : "Не выявлена"}
           </span>
         </div>
 
@@ -555,7 +584,7 @@ export function ReviewPanel({
                     {group.criteria.map((criterion) => {
                       const draftScore = draftScores.get(criterion.id);
                       const passedValue = draftScore?.passed ?? true;
-                      const status = criterionStatus(criterion, draftScore);
+                      const status = criterionStatus(criterion, draftScore, presentation);
                       const densityMeta = getCriterionDensityMeta(draftScore);
                       const hasIssue = isCriterionIssue(criterion, draftScore);
                       const contribution = criterionContribution(criterion, draftScore);
@@ -580,9 +609,11 @@ export function ReviewPanel({
                             "data-[state=muted]:bg-muted",
                             "data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warning)_7%,transparent),transparent_38%),var(--card)]",
                             "data-open:bg-muted/40",
-                            "data-open:data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
+                            presentation === "authoring" &&
+                              "data-open:data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
                             "data-[ai-flag=true]:relative data-[ai-flag=true]:z-[1] data-[ai-flag=true]:my-1.5 data-[ai-flag=true]:rounded-lg data-[ai-flag=true]:border-[1.5px] data-[ai-flag=true]:border-primary/30",
-                            "data-[ai-flag=true]:data-[state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
+                            presentation === "authoring" &&
+                              "data-[ai-flag=true]:data-[state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
                             "data-kbd-focused:relative data-kbd-focused:z-[2] data-kbd-focused:rounded-lg data-kbd-focused:outline data-kbd-focused:outline-2 data-kbd-focused:-outline-offset-2 data-kbd-focused:outline-primary"
                           )}
                           data-criterion-card=""
@@ -688,7 +719,7 @@ export function ReviewPanel({
                                     <label className={segmentLabelScaleClass}>
                                       <RadioGroupItem value="1" className={segmentRadioClass} />
                                       <span className="min-w-0 text-xs font-semibold leading-tight [overflow-wrap:anywhere]">
-                                        1 · не соответствует
+                                        {presentation === "agent" ? "1 · слабо" : "1 · не соответствует"}
                                       </span>
                                       <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
                                         {(criterion.weight / 3).toFixed(criterion.weight % 3 === 0 ? 0 : 1)}%
@@ -713,14 +744,18 @@ export function ReviewPanel({
                                   >
                                     <label className={segmentLabelBinaryClass}>
                                       <RadioGroupItem value="true" className={segmentRadioClass} />
-                                      <span className="min-w-0 text-xs font-semibold leading-tight">Зачет</span>
+                                      <span className="min-w-0 text-xs font-semibold leading-tight">
+                                        {presentation === "agent" ? "Зачтено" : "Зачет"}
+                                      </span>
                                       <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
                                         +{criterion.weight}%
                                       </span>
                                     </label>
-                                    <label className={segmentLabelDangerClass}>
+                                    <label className={presentation === "agent" ? segmentLabelBinaryClass : segmentLabelDangerClass}>
                                       <RadioGroupItem value="false" className={segmentRadioClass} />
-                                      <span className="min-w-0 text-xs font-semibold leading-tight">Незачет</span>
+                                      <span className="min-w-0 text-xs font-semibold leading-tight">
+                                        {presentation === "agent" ? "Не зачтено" : "Незачет"}
+                                      </span>
                                       <span data-segment-points className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
                                         0%
                                       </span>

@@ -1,4 +1,5 @@
 import type { RoleName, User } from "@prisma/client";
+import { permissionDeniedMessage } from "@/lib/api/user-facing-errors";
 
 export type Permission =
   | "reviews:read"
@@ -82,12 +83,12 @@ export function hasPermission(role: RoleName, permission: Permission) {
   return rolePermissions[role].includes(permission);
 }
 
-export function requirePermission(user: AuthUser, permission: Permission) {
-  if (!hasPermission(user.role, permission)) {
-    throw new Error("Недостаточно прав для выполнения операции.");
-  }
-}
-
 export function getPermissions(role: RoleName) {
   return [...rolePermissions[role]];
+}
+
+export function requirePermission(user: AuthUser, permission: Permission) {
+  if (!hasPermission(user.role, permission)) {
+    throw new Error(permissionDeniedMessage);
+  }
 }

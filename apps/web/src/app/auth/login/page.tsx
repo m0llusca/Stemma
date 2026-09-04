@@ -24,6 +24,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Separator } from "@/components/ui/separator";
 import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
+import { resolvePostLoginPath, sanitizeReturnTo } from "@/lib/auth/role-home";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -47,7 +48,8 @@ function firstParam(value: string | string[] | undefined) {
 }
 
 function safeReturnTo(value: string | undefined) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
+  // Missing returnTo stays generic (`/`) so post-login role home applies.
+  return value == null || value === "" ? "/" : sanitizeReturnTo(value);
 }
 
 function ssoHref(input: { provider: string; workspaceId: string; returnTo: string }) {
@@ -88,7 +90,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const existingSession = await getValidAuthSession(cookieStore.get(sessionCookieName)?.value);
 
   if (existingSession) {
-    redirect(returnTo);
+    redirect(resolvePostLoginPath(returnTo, existingSession.user));
   }
 
   const selectedProviderSlug = firstParam(params.provider);

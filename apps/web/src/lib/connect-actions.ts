@@ -16,7 +16,17 @@ import type {
 } from "@/lib/integrations/connect/types";
 
 export type ConnectJournalState =
-  | { steps: Array<{ step: string; status: ConnectStepStatus; detail?: string; hint?: string }>; connected: boolean; integrationId?: string }
+  | {
+      steps: Array<{
+        step: string;
+        status: ConnectStepStatus;
+        detail?: string;
+        hint?: string;
+        diagnostics?: Record<string, unknown>;
+      }>;
+      connected: boolean;
+      integrationId?: string;
+    }
   | { error: string }
   | null;
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  certificationDisplayTone,
   certificationStatusLabels,
   certificationStatusTone,
   summarizeCertification
@@ -84,11 +85,20 @@ describe("certification status registry", () => {
     });
   });
 
-  it("maps certification statuses to pill tones", () => {
+  it("maps certification statuses to honesty-gated pill tones", () => {
     expect(certificationStatusTone("live_certified")).toBe("pill--ok");
+    expect(certificationStatusTone("stub_certified")).toBe("pill--neutral");
+    expect(certificationStatusTone("docs_checked")).toBe("pill--neutral");
+    expect(certificationStatusTone("contract_certified")).toBe("pill--neutral");
     expect(certificationStatusTone("waiting_for_access")).toBe("pill--warn");
     expect(certificationStatusTone("not_production_ready")).toBe("pill--warn");
     expect(certificationStatusTone("configuration_required")).toBe("pill--warn");
-    expect(certificationStatusTone("limited")).toBe("pill--neutral");
+    expect(certificationStatusTone("limited")).toBe("pill--warn");
+  });
+
+  it("keeps green display tone only for live certification", () => {
+    expect(certificationDisplayTone("live_certified")).toBe("positive");
+    expect(certificationDisplayTone("stub_certified")).toBe("info");
+    expect(certificationDisplayTone("ready_for_live_certification")).toBe("warning");
   });
 });

@@ -217,7 +217,7 @@ async function AdminChannelsPageContent() {
             <CardHeader className="border-b">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
-                  <CardTitle id="channels-title">Каналы</CardTitle>
+                  <CardTitle id="channels-title">Исходящие каналы</CardTitle>
                   <CardDescription>
                     Активных: {activeActionChannels} · настроено: {messagingChannels.length}
                   </CardDescription>
@@ -325,7 +325,7 @@ async function AdminChannelsPageContent() {
                 <EmptyState
                   size="inline"
                   icon={<Send size={20} aria-hidden="true" />}
-                  title="Каналы не подключены"
+                  title="Исходящие каналы не подключены"
                   description="Нажмите «Добавить канал» в шапке панели, чтобы подключить Slack, Teams, Telegram или WhatsApp."
                 />
               ) : (

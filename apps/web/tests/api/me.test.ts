@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   AuthRequiredError: class AuthRequiredError extends Error {
     constructor() {
-      super("Нет активной пользовательской сессии.");
+      super("Нет активной сессии. Войдите снова, чтобы продолжить.");
       this.name = "AuthRequiredError";
     }
   },
@@ -37,7 +37,7 @@ describe("GET /api/v1/me", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "unauthorized",
-        message: "Нет активной пользовательской сессии.",
+        message: "Нет активной сессии. Войдите снова, чтобы продолжить.",
         requestId: "req-me"
       }
     });

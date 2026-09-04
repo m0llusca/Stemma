@@ -12,6 +12,7 @@ import {
   upsertUserFromOidcClaims,
   validateIdToken
 } from "@/lib/auth/oidc";
+import { resolvePostLoginPath, sanitizeReturnTo } from "@/lib/auth/role-home";
 import { setAuthSessionCookies } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { logBackendEvent, requestIdFromHeaders } from "@/lib/observability";
@@ -25,13 +26,9 @@ function clearOidcCookies(response: NextResponse) {
   }
 }
 
-function safeReturnTo(value: string | undefined) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
-}
-
 function errorRedirect(request: NextRequest, origin: string, code: LoginFlashCode) {
   const url = new URL("/auth/login", origin);
-  url.searchParams.set("returnTo", safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value));
+  url.searchParams.set("returnTo", sanitizeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value));
   const response = NextResponse.redirect(url);
   response.cookies.set(loginFlashCookieName, code, loginFlashCookieOptions());
   clearOidcCookies(response);
@@ -66,7 +63,7 @@ export async function GET(request: NextRequest) {
   const codeVerifier = request.cookies.get(oidcVerifierCookieName)?.value;
   const nonce = request.cookies.get(oidcNonceCookieName)?.value;
   const providerId = request.cookies.get(oidcProviderCookieName)?.value;
-  const returnTo = safeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value);
+  const returnTo = sanitizeReturnTo(request.cookies.get(oidcReturnToCookieName)?.value);
 
   if (!code || !state || !expectedState || state !== expectedState || !codeVerifier || !nonce || !providerId) {
     logBackendEvent({
@@ -131,7 +128,8 @@ export async function GET(request: NextRequest) {
       throw new Error("Enterprise assertion did not issue a session.");
     }
 
-    const response = NextResponse.redirect(new URL(returnTo, origin));
+    const destination = resolvePostLoginPath(returnTo, user);
+    const response = NextResponse.redirect(new URL(destination, origin));
 
     setAuthSessionCookies(response.cookies, authSession.token);
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());

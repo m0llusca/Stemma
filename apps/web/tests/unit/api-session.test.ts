@@ -4,7 +4,7 @@ import { requireSessionApi, verifySameOrigin } from "@/lib/api/session";
 const mocks = vi.hoisted(() => ({
   AuthRequiredError: class AuthRequiredError extends Error {
     constructor() {
-      super("Нет активной пользовательской сессии.");
+      super("Нет активной сессии. Войдите снова, чтобы продолжить.");
       this.name = "AuthRequiredError";
     }
   },
@@ -107,7 +107,7 @@ describe("session api guard", () => {
       await expect(result.response.json()).resolves.toMatchObject({
         error: {
           code: "unauthorized",
-          message: "Нет активной пользовательской сессии.",
+          message: "Нет активной сессии. Войдите снова, чтобы продолжить.",
           requestId: "req-auth-required"
         }
       });

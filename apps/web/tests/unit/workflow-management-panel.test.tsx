@@ -38,7 +38,7 @@ function renderOpenPanel() {
 describe("WorkflowManagementPanel", () => {
   it.each([
     {
-      label: "Состояние проверки",
+      label: "Статус проверки",
       id: "workflow-qa-status",
       name: "qaStatus",
       value: "IN_PROGRESS"

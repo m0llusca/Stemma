@@ -10,7 +10,7 @@ describe("IntegrationFact", () => {
         <IntegrationFact label="Адрес источника" technical>
           https://support.example.test/very/long/path
         </IntegrationFact>
-        <IntegrationFact label="Состояние">Источник ожидает настройки</IntegrationFact>
+        <IntegrationFact label="Статус интеграции">Источник ожидает настройки</IntegrationFact>
       </>
     );
 

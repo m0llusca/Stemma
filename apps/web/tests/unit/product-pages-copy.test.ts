@@ -37,6 +37,21 @@ describe("dashboard page copy", () => {
   it("exposes a machine-readable dateTime on activity timestamps", () => {
     expect(dashboardPage).toContain("dateTime={event.createdAt.toISOString()}");
   });
+
+  it("surfaces overdue SLA as the lead triage drill-down when present", () => {
+    expect(dashboardPage).toContain('href: "/reviews?due=overdue"');
+    expect(dashboardPage).toContain('"Просрочено SLA"');
+    expect(dashboardPage).toContain("overdueReviewCount");
+  });
+
+  it("tones lead/admin dashboard toward risk/SLA and hides activity ops chrome", () => {
+    expect(dashboardPage).toContain('user.role === "TEAM_LEAD" || user.role === "ADMIN"');
+    expect(dashboardPage).toContain("Риск и просроченный SLA за 30 секунд");
+    expect(dashboardPage).toContain("isLeadDashboard ? null : (");
+    expect(dashboardPage).toContain("EvidenceDrawer");
+    expect(dashboardPage).toContain('"Высокий риск"');
+    expect(dashboardPage).toContain('"Риск и апелляции"');
+  });
 });
 
 describe("calibration page copy", () => {
@@ -75,9 +90,20 @@ describe("self-review page copy", () => {
     expect(selfReviewPage).toContain(
       '`Осталось закрыть ${russianPlural(assignments.length, ["учебную задачу", "учебные задачи", "учебных задач"])} после разбора.`'
     );
-    expect(selfReviewPage).toContain("`${formatReviewCount(myReviewScores.length)} за период`");
+    expect(selfReviewPage).toContain("`${formatReviewCount(myReviewScores.length)} за период");
     expect(selfReviewPage).not.toContain("${assignments.length} учебных задач");
     expect(selfReviewPage).not.toContain("{myReviewScores.length} проверок за период");
+  });
+
+  it("keeps personal feedback calm without team-rank chrome", () => {
+    expect(selfReviewPage).not.toContain("ниже команды");
+    expect(selfReviewPage).not.toContain("выше команды");
+    expect(selfReviewPage).not.toContain("на уровне команды");
+    expect(selfReviewPage).not.toContain("teamScoreAggregate");
+    expect(selfReviewPage).toContain("личная динамика");
+    expect(selfReviewPage).toContain("На что обратить внимание");
+    expect(selfReviewPage).toContain("AgentCriterionFeedbackList");
+    expect(selfReviewPage).toContain("Оспорить оценку");
   });
 });
 

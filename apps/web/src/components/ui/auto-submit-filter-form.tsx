@@ -12,6 +12,7 @@ type AutoSubmitFilterFormProps = {
   children: ReactNode;
   className?: string;
   debounceMs?: number;
+  id?: string;
 };
 
 function isTextInput(element: EventTarget | null) {
@@ -56,7 +57,8 @@ export function AutoSubmitFilterForm({
   action,
   children,
   className,
-  debounceMs = 450
+  debounceMs = 450,
+  id
 }: AutoSubmitFilterFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const timerRef = useRef<number | null>(null);
@@ -138,6 +140,7 @@ export function AutoSubmitFilterForm({
   return (
     <form
       ref={formRef}
+      id={id}
       action={action}
       className={cn("relative", pending && "cursor-progress", className)}
       data-pending={pending ? "true" : undefined}

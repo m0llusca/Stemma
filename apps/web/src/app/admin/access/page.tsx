@@ -264,13 +264,15 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
     }
 
     return {
-      label: provider.status === "active" ? "Готов к live-проверке" : "Готов к dry-run",
-      tone: (provider.status === "active" ? "success" : "warning") as StatusTone,
+      label: provider.status === "active" ? "Конфиг готов к live-проверке" : "Конфиг готов к dry-run",
+      // Config completeness ≠ executed check: never success/green without a real probe.
+      tone: "warning" as StatusTone,
       canTest: false,
       canDirectorySync: provider.status === "active",
       canDryRun: true,
       details: [
         "Только синхронизация каталога, не LDAP password login",
+        "Статус — готовность конфигурации, а не подтверждённый live-результат",
         config.nestedGroups ? "Nested groups включены" : "Nested groups выключены",
         config.caConfigured ? "Custom CA настроен" : "Используется системное доверие TLS"
       ]
@@ -324,12 +326,18 @@ function providerReadiness(provider: IdentityProvider | null | undefined) {
   }
 
   return {
-    label: provider.type === "SAML" ? "Готов к контрактному тесту" : "Готов к SSO",
-    tone: "success" as StatusTone,
+    label: provider.type === "SAML" ? "Конфиг готов к контрактному тесту" : "Конфиг готов к проверке SSO",
+    // Fail-closed: filled config allows a test attempt, never implies SSO already works.
+    tone: "warning" as StatusTone,
     canTest: true,
     canDirectorySync: true,
     canDryRun: false,
-    details: [provider.type === "SAML" ? "Можно запускать тестовый вход после настройки IdP" : "Можно запускать тестовый вход"]
+    details: [
+      provider.type === "SAML"
+        ? "Можно запускать тестовый вход после настройки IdP — успех только после реального ACS-обмена"
+        : "Можно запускать тестовый вход — успех только после реального callback от IdP",
+      "Зелёный/боевой SSO не выставляется по заполненной форме"
+    ]
   };
 }
 
@@ -475,6 +483,12 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               Проверить вход
             </Button>
           )}
+          {readiness.canTest ? (
+            <p className="sr-only">
+              Проверка входа запускает реальный SSO-обмен. Заполненная конфигурация сама по себе не считается
+              успешным входом.
+            </p>
+          ) : null}
           <Button render={<Link href="/admin/users" />} nativeButton={false} variant="outline">
             <UsersRound data-icon="inline-start" aria-hidden="true" />
             Пользователи
@@ -635,6 +649,15 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               </CardAction>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
+              {readiness.canTest ? (
+                <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+                  <AlertTitle>SSO fail-closed</AlertTitle>
+                  <AlertDescription>
+                    Конфигурация позволяет запустить «Проверить вход», но это ещё не успешный SSO. Боевой
+                    доступ появляется только после реального обмена с IdP без ошибок.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               {selectedProvider && selectedProvider.type !== "DEMO" ? (
                 <div className="flex flex-wrap items-center gap-2">
                   {readiness.canDryRun ? (
@@ -855,7 +878,8 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                       <span className="font-mono text-xs">ACS: {samlMetadata.acsUrl}</span>
                       <span className="font-mono text-xs">Metadata: {samlMetadata.metadataUrl}</span>
                       <span>
-                        Статус означает готовность к контрактному тесту с IdP, а не подтвержденную production/live интеграцию.
+                        Статус — готовность конфигурации к контрактному тесту с IdP, а не подтверждённый
+                        production/live SSO. Успех только после реального ACS-обмена.
                       </span>
                     </AlertDescription>
                   </Alert>
@@ -870,7 +894,8 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
                         TLS обязателен: используйте ldaps:// на 636/3269; bind secret и CA сейчас исполняются только через env:-ссылки.
                       </span>
                       <span className="text-xs">
-                        Готовность означает возможность dry-run или live-проверки, а не подтвержденный production-live статус.
+                        Готовность — возможность запустить dry-run или live-проверку, а не подтверждённый
+                        production-live статус. Без реального прогона результат fail-closed.
                       </span>
                     </AlertDescription>
                   </Alert>

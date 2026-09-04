@@ -28,7 +28,25 @@ describe("connect next action", () => {
 
     expect(nextActionForConnectSteps(steps)).toEqual({
       label: "Запустить живую сертификацию",
-      description: "Базовое подключение готово. Для production-ready статуса нужен protected smoke-run с evidence.",
+      description:
+        "Базовое подключение готово после проверки. Зелёный production-ready — только после живой сертификации с evidence.",
+      severity: "warning",
+      action: "run_live_certification"
+    });
+  });
+
+  it("routes successful persist without webhook warning to live certification", () => {
+    const steps: ConnectStep[] = [
+      { step: "validate_url", status: "ok" },
+      { step: "verify_auth", status: "ok" },
+      { step: "capability_probe", status: "ok" },
+      { step: "persist", status: "ok" }
+    ];
+
+    expect(nextActionForConnectSteps(steps)).toEqual({
+      label: "Запустить живую сертификацию",
+      description:
+        "Базовое подключение готово после проверки. Зелёный production-ready — только после живой сертификации с evidence.",
       severity: "warning",
       action: "run_live_certification"
     });

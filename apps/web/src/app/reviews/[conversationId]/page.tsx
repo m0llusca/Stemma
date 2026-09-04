@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { AgentCriterionFeedbackList } from "@/components/feedback/agent-criterion-feedback-list";
 import { AiDraftDecisionControls } from "@/components/review/ai-draft-decision-controls";
 import { ConversationTimeline } from "@/components/review/conversation-timeline";
 import { ReviewPanel } from "@/components/review/review-panel";
@@ -21,11 +22,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MasterDetail } from "@/components/ui/master-detail";
 import { PageShell } from "@/components/ui/page-shell";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
+import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
 import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
 import {
   canManageReviewWorkflow,
@@ -360,6 +364,22 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
         .filter((messageId): messageId is string => Boolean(messageId)) ?? []
     )
   );
+  const messageById = new Map(conversation.messages.map((message) => [message.id, message]));
+  const agentDeductionItems = toAgentCriterionFeedbackItems(
+    (latestFinalizedReview?.scores ?? []).map((score) => {
+      const evidence = score.evidenceMessageId ? messageById.get(score.evidenceMessageId) : undefined;
+      return {
+        id: score.id,
+        value: score.value,
+        passed: score.passed,
+        isNotApplicable: score.isNotApplicable,
+        comment: score.comment,
+        evidenceMessageId: score.evidenceMessageId,
+        criterion: { label: score.criterion.label, kind: score.criterion.kind },
+        evidenceMessage: evidence ? { id: evidence.id, body: evidence.body } : null
+      };
+    })
+  );
   const aiDrafts = [...pendingAiDrafts, ...decidedAiDrafts].slice(0, 5);
   const decidedAiDraftCount = Math.max(aiDraftTotalCount - pendingAiDraftCount, 0);
   // The latest "score" draft is parsed into a per-criterion map the workbench
@@ -514,6 +534,16 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                   <DetailItem label="Категория">{latestFinding.category}</DetailItem>
                 </div>
               ) : null}
+              {latestFinding?.evidenceSummary?.trim() || latestFinding?.rootCause?.trim() ? (
+                <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                  {latestFinding.evidenceSummary?.trim() ? (
+                    <DetailItem label="Доказательство">{latestFinding.evidenceSummary}</DetailItem>
+                  ) : null}
+                  {latestFinding.rootCause?.trim() ? (
+                    <DetailItem label="Причина">{latestFinding.rootCause}</DetailItem>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
                 <DetailItem label="Критическая ошибка">
                   {latestFinalizedReview.criticalError ? latestFinalizedReview.criticalCategory ?? "Да" : "Нет"}
@@ -526,7 +556,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 </DetailItem>
               </div>
             </div>
-            {latestFinalizedReview.feedbackComment || latestFinalizedReview.positiveNotes ? (
+            {latestFinalizedReview.feedbackComment || latestFinalizedReview.positiveNotes || latestFinalizedReview.instructionLinks ? (
               <div className="mx-5 mb-5 grid gap-3 rounded-lg border border-border bg-muted/40 p-3 text-sm">
                 {latestFinalizedReview.feedbackComment ? (
                   <div>
@@ -536,10 +566,22 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 ) : null}
                 {latestFinalizedReview.positiveNotes ? (
                   <div>
-                    <p className="font-semibold text-muted-foreground">Положительные моменты</p>
+                    <p className="font-semibold text-muted-foreground">Что сделано хорошо</p>
                     <p className="mt-1 text-foreground">{latestFinalizedReview.positiveNotes}</p>
                   </div>
                 ) : null}
+                {latestFinalizedReview.instructionLinks?.trim() ? (
+                  <div>
+                    <p className="font-semibold text-muted-foreground">Материалы</p>
+                    <p className="mt-1 whitespace-pre-wrap text-foreground">{latestFinalizedReview.instructionLinks}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {agentDeductionItems.length > 0 ? (
+              <div className="mx-5 mb-5">
+                <p className="mb-2 text-sm font-semibold text-foreground">Снижения по критериям</p>
+                <AgentCriterionFeedbackList items={agentDeductionItems} conversationId={conversation.id} />
               </div>
             ) : null}
             {latestFinding?.coachingAction ? (
@@ -572,6 +614,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                       ? ` · ознакомлен ${latestFinalizedReview.feedbackAckAt.toLocaleString("ru-RU")}`
                       : ""}
                   </p>
+                  {canOpenAppeal ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Не согласны с пунктом — откройте апелляцию с обоснованием. Это рабочий разбор, не санкция.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {canAcknowledgeFeedback ? (
@@ -579,16 +626,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                       <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
                       <input type="hidden" name="action" value="acknowledged" />
                       <Button type="submit" size="sm" variant="outline">
-                        Ознакомлен
-                      </Button>
-                    </form>
-                  ) : null}
-                  {canOpenAppeal ? (
-                    <form action={updateReviewFeedback}>
-                      <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
-                      <input type="hidden" name="action" value="appeal_opened" />
-                      <Button type="submit" size="sm" variant="outline">
-                        Открыть апелляцию
+                        Принять оценку
                       </Button>
                     </form>
                   ) : null}
@@ -606,6 +644,32 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                   ) : null}
                 </div>
               </div>
+              {canOpenAppeal ? (
+                <Collapsible className="mt-3 rounded-lg border border-border bg-background data-open:bg-muted/20">
+                  <CollapsibleTrigger className="w-full cursor-pointer px-3 py-2 text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    Оспорить оценку
+                  </CollapsibleTrigger>
+                  <CollapsibleContent keepMounted>
+                    <form action={updateReviewFeedback} className="flex flex-col gap-2 border-t border-border p-3">
+                      <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                      <input type="hidden" name="action" value="appeal_opened" />
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor={`detail-appeal-comment-${latestFinalizedReview.id}`}>Обоснование</Label>
+                        <Textarea
+                          id={`detail-appeal-comment-${latestFinalizedReview.id}`}
+                          name="comment"
+                          rows={3}
+                          required
+                          placeholder="С каким пунктом не согласны и почему — со ссылкой на цитату, если есть."
+                        />
+                      </div>
+                      <Button type="submit" size="sm" variant="outline">
+                        Открыть апелляцию
+                      </Button>
+                    </form>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
               {canCreateTrainingAssignment ? (
                 <form
                   action={createTrainingAssignmentFromReview}
@@ -741,7 +805,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             </CardDescription>
           </div>
           <div className="flex min-w-0 flex-wrap gap-1.5">
-            <StatusChip label="Состояние" value={reviewStateLabels[reviewState]} tone={reviewStateTone(reviewState)} />
+            <StatusChip label="Статус проверки" value={reviewStateLabels[reviewState]} tone={reviewStateTone(reviewState)} />
             <StatusChip label="Оценка" value={scoreLabel} numeric tone={toneForScore(scorePreviewReview?.totalScore)} />
             <StatusChip label="Источник" value={externalSourceLabel(conversation.externalSource)} />
             {conversation.teamName ? (
@@ -828,16 +892,42 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                     <CardHeader className="border-b border-border px-5 py-4">
                       <CardTitle className="text-lg">Итог проверки</CardTitle>
                       <CardDescription>
-                        Оператор видит только собственное обращение и финальную обратную связь.
+                        Финальная обратная связь по вашему обращению: баллы, цитаты и комментарии проверяющего.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-3 p-5 text-sm">
+                      <DetailItem label="Оценка">
+                        {latestFinalizedReview ? formatQualityScore(latestFinalizedReview.totalScore) : "Пока нет финальной проверки"}
+                      </DetailItem>
                       <DetailItem label="Обратная связь">
                         {latestFinalizedReview
                           ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus
-                          : "Пока нет финальной проверки"}
+                          : "—"}
                       </DetailItem>
                       <DetailItem label="Апелляция">{appealLabel}</DetailItem>
+                      {latestFinalizedReview?.summary ? (
+                        <DetailItem label="Резюме">{latestFinalizedReview.summary}</DetailItem>
+                      ) : null}
+                      {latestFinalizedReview?.feedbackComment?.trim() ? (
+                        <DetailItem label="Комментарий">{latestFinalizedReview.feedbackComment}</DetailItem>
+                      ) : null}
+                      {agentDeductionItems.length > 0 ? (
+                        <div className="pt-1">
+                          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Снижения по критериям
+                          </p>
+                          <AgentCriterionFeedbackList
+                            items={agentDeductionItems}
+                            conversationId={conversation.id}
+                            dense
+                          />
+                        </div>
+                      ) : null}
+                      {canOpenAppeal ? (
+                        <p className="text-xs text-muted-foreground">
+                          Спорный пункт можно оспорить в блоке «Последнее замечание» — с обоснованием и ссылкой на цитату.
+                        </p>
+                      ) : null}
                     </CardContent>
                   </Card>
                 </aside>

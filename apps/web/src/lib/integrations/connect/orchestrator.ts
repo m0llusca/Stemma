@@ -115,7 +115,8 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
       step: "capability_probe",
       status: probed.status,
       detail: probed.detail,
-      hint: probed.hint
+      hint: probed.hint,
+      diagnostics: probed.diagnostics
     });
     if (probed.status === "failed") {
       return { steps, connected: false };
@@ -134,7 +135,8 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
       step: "webhook_probe",
       status: probed.status,
       detail: probed.detail,
-      hint: probed.hint
+      hint: probed.hint,
+      diagnostics: probed.diagnostics
     });
   } else {
     steps.push({

@@ -1,5 +1,6 @@
 import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api/response";
+import { permissionDeniedMessage, sessionRequiredMessage } from "@/lib/api/user-facing-errors";
 import type { Permission } from "@/lib/auth/permissions";
 import { AuthRequiredError, DemoSettingsMutationError, assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 
@@ -26,7 +27,6 @@ const settingsMutationPermissions = new Set<Permission>([
   "training:manage",
   "users:manage"
 ]);
-const permissionDeniedMessage = "Недостаточно прав для выполнения операции.";
 
 function originOf(value: string) {
   try {
@@ -87,14 +87,14 @@ export async function requireSessionApi(
     if (error instanceof AuthRequiredError || (error instanceof Error && error.name === "AuthRequiredError")) {
       return {
         ok: false,
-        response: apiError("unauthorized", error.message, 401, options.requestId)
+        response: apiError("unauthorized", sessionRequiredMessage, 401, options.requestId)
       };
     }
 
     if (error instanceof Error && error.message === permissionDeniedMessage) {
       return {
         ok: false,
-        response: apiError("forbidden", error.message, 403, options.requestId)
+        response: apiError("forbidden", permissionDeniedMessage, 403, options.requestId)
       };
     }
 

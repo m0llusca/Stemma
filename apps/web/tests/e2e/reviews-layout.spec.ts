@@ -5,10 +5,10 @@ import { findSeededDemoAdmin, signInE2EUser } from "./helpers/auth";
 import { expectNoDocumentOverflow, rect } from "./helpers/layout";
 
 const queueCases = [
-  { width: 390, columns: 1, sideBySide: false },
-  { width: 768, columns: 2, sideBySide: false },
-  { width: 1280, columns: 4, sideBySide: true },
-  { width: 1440, columns: 4, sideBySide: true }
+  { width: 390, sideBySide: false },
+  { width: 768, sideBySide: false },
+  { width: 1280, sideBySide: true },
+  { width: 1440, sideBySide: true }
 ] as const;
 
 const seededLongMessageBody =
@@ -80,13 +80,12 @@ for (const scenario of queueCases) {
     await page.goto("/reviews");
 
     const workspace = page.locator('[data-slot="review-queue-workspace"]');
-    const kpis = page.locator('[data-slot="review-queue-kpis"]');
+    const focus = page.getByRole("region", { name: "Где смотреть в очереди сейчас" });
     const list = page.locator('[data-slot="review-queue-list"]');
     const preview = page.locator('[data-slot="review-queue-preview"]');
 
     await expect(workspace).toBeVisible();
-    expect(await kpis.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length))
-      .toBe(scenario.columns);
+    await expect(focus).toBeVisible();
     const [listBox, previewBox] = await Promise.all([rect(list), rect(preview)]);
     expect(Math.abs(listBox.y - previewBox.y) < 8).toBe(scenario.sideBySide);
     await expectNoDocumentOverflow(page);

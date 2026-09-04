@@ -73,6 +73,6 @@ export function assertHumanReviewFinalizeTransition(input: { fromStatus: QaStatu
 
 export function assertConditionalWorkflowWrite(count: number) {
   if (count !== 1) {
-    throw new QaWorkflowTransitionError("Состояние проверки изменилось. Обновите страницу и повторите действие.");
+    throw new QaWorkflowTransitionError("Статус проверки изменился. Обновите страницу и повторите действие.");
   }
 }

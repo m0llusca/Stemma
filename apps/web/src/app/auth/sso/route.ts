@@ -20,7 +20,8 @@ import { resolvePublicOrigin } from "@/lib/public-origin";
 export const dynamic = "force-dynamic";
 
 function safeReturnTo(value: string | null) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/reviews";
+  // Keep generic `/` when missing so ACS/OIDC callback can apply role home.
+  return value == null || value === "" ? "/" : value.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
 
 function authErrorRedirect(request: NextRequest, origin: string, code: LoginFlashCode) {

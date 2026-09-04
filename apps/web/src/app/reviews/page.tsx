@@ -1,15 +1,18 @@
-import { ArrowRight, CheckCircle2, Clock3, Inbox, TriangleAlert } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { QueueDay1Tour } from "@/components/guidance/queue-day1-tour";
+import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
 import { PageSkeleton } from "@/components/loading-states";
 import { QueueEmptyBanner } from "@/components/review/queue-empty-banner";
 import { QueueFilters } from "@/components/review/queue-filters";
+import { QueueNextCasePreview } from "@/components/review/queue-next-case-preview";
 import { QueueSavedViews } from "@/components/review/queue-saved-views";
 import { QueueTable } from "@/components/review/queue-table";
 import { QueueWorkspace } from "@/components/review/queue-workspace";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import {
   Pagination,
@@ -18,7 +21,6 @@ import {
   PaginationNext,
   PaginationPrevious
 } from "@/components/ui/pagination";
-import { Separator } from "@/components/ui/separator";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import {
   channelLabels,
@@ -95,10 +97,10 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
   const savedMarker = firstParam(rawParams.saved);
   const data = await getReviewQueuePageData(rawParams);
   const filteredCount = data.conversations.length;
-  const { total, queued, inWork, reviewed, overdue } = data.summary;
+  const { total, queued, inWork, overdue } = data.summary;
   // Render-only pagination: the global priority sort already happened in the
   // repository, so this just bounds how many rows hit the DOM per page. Focus
-  // strip and summary counts below still read the full filtered set.
+  // strip still reads the full filtered set.
   const queuePage = paginateReviewQueue(
     data.conversations,
     parseReviewQueuePage(rawParams.page),
@@ -202,66 +204,46 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
     : [];
   const queuePreviewCard =
     queuePreview && queuePreviewState ? (
-      <Card className="h-full gap-0 overflow-clip py-0">
-        <CardHeader className="gap-1.5 border-b border-border">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Следующий кейс</span>
-          <CardTitle className="text-base leading-snug">{queuePreview.subject}</CardTitle>
-          <CardDescription>
-            {queuePreview.customerName} · {queuePreview.assigneeName ?? "оператор не назначен"} ·{" "}
-            {qaStatusLabels[queuePreview.qaStatus]}
-          </CardDescription>
-        </CardHeader>
+      <QueueNextCasePreview
+        subject={queuePreview.subject}
+        description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"} · ${qaStatusLabels[queuePreview.qaStatus]}`}
+        openHref={queuePreviewHref(queuePreview, data.currentHref)}
+      >
+        <StatKpi
+          label="Оценка"
+          value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
+          hint={reviewStateLabels[queuePreviewState]}
+        />
 
-        <CardContent className="flex flex-col gap-4 py-4">
-          <StatKpi
-            label="Оценка"
-            value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
-            hint={reviewStateLabels[queuePreviewState]}
-          />
+        <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Почему первый</span>
+          <strong className="text-sm font-semibold text-foreground">{queuePreview.priorityReason}</strong>
+          <small className="text-xs text-muted-foreground">
+            Очередь учитывает SLA, риск, переответ и назначение проверяющего.
+          </small>
+        </div>
 
-          <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Почему первый</span>
-            <strong className="text-sm font-semibold text-foreground">{queuePreview.priorityReason}</strong>
-            <small className="text-xs text-muted-foreground">
-              Очередь учитывает SLA, риск, переответ и назначение проверяющего.
-            </small>
-          </div>
-
-          <dl className="grid gap-2">
-            {queuePreviewSignals.map((signal) => (
-              <div
-                key={signal.label}
-                className="grid grid-cols-[72px_minmax(0,1fr)] gap-x-2 gap-y-0.5 border-b border-border pb-2 last:border-b-0 last:pb-0"
-              >
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {signal.label}
-                </dt>
-                <dd className="min-w-0">
-                  {signal.tone === "neutral" ? (
-                    <span className="text-sm font-medium text-foreground">{signal.value}</span>
-                  ) : (
-                    <Chip tone={signal.tone === "danger" ? "danger" : "warning"}>{signal.value}</Chip>
-                  )}
-                </dd>
-                <dd className="col-start-2 text-xs text-muted-foreground">
-                  {signal.detail}
-                </dd>
-              </div>
-            ))}
-          </dl>
-
-          <Separator />
-
-          <Button
-            render={<Link href={queuePreviewHref(queuePreview, data.currentHref)} />}
-            nativeButton={false}
-            className="w-full"
-          >
-            Открыть приоритетный кейс
-            <ArrowRight size={15} aria-hidden="true" data-icon="inline-end" />
-          </Button>
-        </CardContent>
-      </Card>
+        <dl className="grid gap-2">
+          {queuePreviewSignals.map((signal) => (
+            <div
+              key={signal.label}
+              className="grid grid-cols-[72px_minmax(0,1fr)] gap-x-2 gap-y-0.5 border-b border-border pb-2 last:border-b-0 last:pb-0"
+            >
+              <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {signal.label}
+              </dt>
+              <dd className="min-w-0">
+                {signal.tone === "neutral" ? (
+                  <span className="text-sm font-medium text-foreground">{signal.value}</span>
+                ) : (
+                  <Chip tone={signal.tone === "danger" ? "danger" : "warning"}>{signal.value}</Chip>
+                )}
+              </dd>
+              <dd className="col-start-2 text-xs text-muted-foreground">{signal.detail}</dd>
+            </div>
+          ))}
+        </dl>
+      </QueueNextCasePreview>
     ) : undefined;
 
   return (
@@ -277,19 +259,9 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       }
     >
       <ReviewSavedToast marker={savedMarker} />
+      <WelcomeBackBanner />
+      <QueueDay1Tour />
       {queueEmpty ? <QueueEmptyBanner /> : null}
-
-      <QueueWorkspace.Kpis aria-label="Сводка очереди проверок">
-        <StatKpi label="Ожидают" value={queued} icon={<Inbox size={16} aria-hidden="true" />} />
-        <StatKpi label="В работе" value={inWork} icon={<Clock3 size={16} aria-hidden="true" />} />
-        <StatKpi
-          label="Просрочено"
-          value={overdue}
-          tone={overdue > 0 ? "danger" : "neutral"}
-          icon={<TriangleAlert size={16} aria-hidden="true" />}
-        />
-        <StatKpi label="Завершено" value={reviewed} icon={<CheckCircle2 size={16} aria-hidden="true" />} />
-      </QueueWorkspace.Kpis>
 
       <section aria-label="Где смотреть в очереди сейчас">
         <Card size="sm" className="overflow-clip py-0">
@@ -354,33 +326,6 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
             savedViews={data.savedViews}
           />
         }
-        stuckOnly={
-          <div
-            className="flex min-w-0 flex-wrap items-center gap-3 border-t border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground"
-            aria-label="Сводка очереди"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <Inbox size={14} aria-hidden="true" />
-              <strong className="font-semibold tabular-nums text-foreground">{queued}</strong>
-              ожидают
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Clock3 size={14} aria-hidden="true" />
-              <strong className="font-semibold tabular-nums text-foreground">{inWork}</strong>
-              в работе
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <TriangleAlert size={14} aria-hidden="true" />
-              <strong className="font-semibold tabular-nums text-destructive">{overdue}</strong>
-              просрочено
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 size={14} aria-hidden="true" />
-              <strong className="font-semibold tabular-nums text-foreground">{reviewed}</strong>
-              завершено
-            </span>
-          </div>
-        }
       >
         <QueueFilters
           filters={data.filters}
@@ -389,6 +334,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           qaAssignees={data.filterOptions.qaAssignees}
           supportLines={data.filterOptions.supportLines}
           teamNames={data.filterOptions.teamNames}
+          resultCount={filteredCount}
         />
       </QueueWorkspace.CommandBar>
 

@@ -19,8 +19,12 @@ describe("admin access UI", () => {
     expect(accessPage).toContain("hasStringEntry(config.idpCertRefs)");
     expect(accessPage).toContain("hasStringEntry(config.idpCerts)");
     expect(accessPage).toContain('if (provider.type === "OIDC" && !provider.issuer) missing.push("Issuer")');
-    expect(accessPage).toContain("Готов к контрактному тесту");
-    expect(accessPage).toContain("Статус означает готовность к контрактному тесту");
+    expect(accessPage).toContain("Конфиг готов к контрактному тесту");
+    expect(accessPage).toContain("Конфиг готов к проверке SSO");
+    expect(accessPage).toContain("SSO fail-closed");
+    expect(accessPage).toContain("Зелёный/боевой SSO не выставляется по заполненной форме");
+    expect(accessPage).not.toContain('label: provider.type === "SAML" ? "Готов к контрактному тесту" : "Готов к SSO"');
+    expect(accessPage).not.toContain('tone: "success" as StatusTone');
   });
 
   it("displays SAML SP details from the same absolute URL builder used at runtime", () => {
@@ -43,9 +47,10 @@ describe("admin access UI", () => {
   });
 
   it("describes LDAPS dry-run readiness and env-only executable refs", () => {
-    expect(accessPage).toContain("Готов к dry-run");
-    expect(accessPage).toContain("Готов к live-проверке");
+    expect(accessPage).toContain("Конфиг готов к dry-run");
+    expect(accessPage).toContain("Конфиг готов к live-проверке");
     expect(accessPage).toContain("bind secret и CA сейчас исполняются только через env:-ссылки");
+    expect(accessPage).toContain("Статус — готовность конфигурации, а не подтверждённый live-результат");
     expect(accessPage).not.toContain("CA через env:/vault:/secret:-ссылки");
   });
 

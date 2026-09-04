@@ -43,6 +43,7 @@ import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
+import { certificationDisplayTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -146,25 +147,7 @@ function stripTone(tone: StatusTone): StatStripTone {
 }
 
 function certificationTone(status: string): StatusTone {
-  if (["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(status)) {
-    return "positive";
-  }
-
-  if (
-    [
-      "ready_for_live_certification",
-      "waiting_for_access",
-      "limited",
-      "not_production_ready",
-      "configuration_required",
-      "secret_required",
-      "certificate_required"
-    ].includes(status)
-  ) {
-    return "warning";
-  }
-
-  return "neutral";
+  return certificationDisplayTone(status);
 }
 
 function runtimeStatusLabel(status: string) {

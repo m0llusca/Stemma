@@ -18,6 +18,7 @@ export type ConnectStep = {
   status: ConnectStepStatus;
   detail?: string;
   hint?: string;
+  diagnostics?: Record<string, unknown>;
 };
 
 export type UrlHints = {

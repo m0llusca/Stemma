@@ -207,7 +207,7 @@ export function IntegrationSettingsForm({ integration }: { integration: Integrat
           <Field>
             <FieldLabel htmlFor="settings-secret">Ключ/токен</FieldLabel>
             <Input id="settings-secret" name={secretFieldName} type="password" autoComplete="new-password" />
-            <FieldDescription>Оставьте пустым, чтобы не менять сохранённый ключ.</FieldDescription>
+            <FieldDescription>Оставьте пустым, чтобы не менять сохранённый ключ. Секрет write-only и в UI не возвращается.</FieldDescription>
           </Field>
         ) : null}
       </FieldGroup>

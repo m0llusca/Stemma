@@ -39,9 +39,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { adminEyebrow } from "@/lib/admin-sections";
+import { certificationDisplayTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
+import { capabilityMatrixFromContract } from "@/lib/integrations/connect/capability-probe-display";
 import { parseOtrsConnectorConfig, redactOtrsConfigForUi } from "@/lib/integrations/otrs-family/config";
 import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/credentials";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -119,26 +121,6 @@ function authModeLabel(value: string) {
   return labels[value] ?? value;
 }
 
-function operationLabel(value: string) {
-  const labels: Record<string, string> = {
-    activities_get: "Получение активностей",
-    case_get: "Получение case",
-    comments_get: "Получение комментариев",
-    conversation_import: "Импорт диалогов",
-    conversations_get: "Получение диалогов",
-    diagnostics: "Диагностика",
-    fixture_import: "Импорт fixture",
-    preview: "Предпросмотр",
-    review_export: "Экспорт проверок",
-    selected_import: "Выборочный импорт",
-    ticket_get: "Получение тикета",
-    ticket_search: "Поиск тикетов",
-    webhook_ingest: "Прием вебхуков"
-  };
-
-  return labels[value] ?? value;
-}
-
 function certificationGateLabel(value: string) {
   const labels: Record<string, string> = {
     configuration_required: "Нужна настройка",
@@ -146,7 +128,7 @@ function certificationGateLabel(value: string) {
     docs_checked: "Документация проверена",
     live_certified: "Живая сертификация пройдена",
     not_production_ready: "Не готово",
-    stub_certified: "Stub проверен",
+    stub_certified: "Сертификация на заглушке",
     waiting_for_access: "Ожидает доступы"
   };
 
@@ -189,25 +171,7 @@ function readinessActionLabel(hasBaseUrl: boolean, hasRequiredSecrets: boolean) 
 }
 
 function certificationTone(status: string): StatusTone {
-  if (["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(status)) {
-    return "positive";
-  }
-
-  if (
-    [
-      "ready_for_live_certification",
-      "waiting_for_access",
-      "limited",
-      "not_production_ready",
-      "configuration_required",
-      "secret_required",
-      "certificate_required"
-    ].includes(status)
-  ) {
-    return "warning";
-  }
-
-  return "neutral";
+  return certificationDisplayTone(status);
 }
 
 function credentialFingerprintLabel(value: string | null) {
@@ -230,8 +194,9 @@ function diagnosticSucceeded(status: string | undefined) {
 }
 
 function readinessStepStatusView(state: OperationalStep["state"]) {
+  // Operational "ready" is config/probe progress — never production-green.
   const views: Record<OperationalStep["state"], { label: string; tone: StatusTone }> = {
-    ready: { label: "Готово", tone: "positive" },
+    ready: { label: "Готово", tone: "info" },
     active: { label: "Активно", tone: "info" },
     waiting: { label: "Ожидание", tone: "neutral" },
     blocked: { label: "Блок", tone: "negative" }
@@ -387,6 +352,13 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
     { label: "Stub", value: capability.certification.gates.stub },
     { label: "Live", value: capability.certification.gates.live }
   ];
+  const contractMatrix = capabilityMatrixFromContract({
+    operations: capability.operations,
+    supportsDiagnostics: capability.supportsDiagnostics,
+    supportsInboundWebhooks: capability.supportsInboundWebhooks,
+    supportsPaging: capability.supportsPaging,
+    supportsCursor: capability.supportsCursor
+  });
 
   return (
     <section
@@ -465,7 +437,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
                 >
                   <div className="flex min-w-0 items-start justify-between gap-2">
                     <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
-                    <StatusBadge compact label="Состояние" value={status.label} tone={status.tone} />
+                    <StatusBadge compact label="Готовность" value={status.label} tone={status.tone} />
                   </div>
                   <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>
                 </div>
@@ -485,8 +457,24 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
 
       <div className="grid min-w-0 gap-3 md:grid-cols-2">
         <div className="min-w-0 rounded-lg border border-border px-3">
-          <IntegrationFact label="Операции">
-            {capability.operations.map(operationLabel).join(", ")}
+          <IntegrationFact label="Матрица возможностей (контракт)">
+            <div className="grid min-w-0 gap-1.5">
+              {contractMatrix.map((row) => (
+                <p key={row.key} className="flex min-w-0 items-start justify-between gap-2 break-words">
+                  <span>{row.label}</span>
+                  <StatusBadge
+                    compact
+                    label={row.label}
+                    value={row.status === "ok" ? "заявлено" : "нет"}
+                    tone={row.status === "ok" ? "info" : "neutral"}
+                  />
+                </p>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Контракт и diagnostic probe ≠ живая сертификация. Зелёный production-ready — только после
+                live cert с evidence.
+              </p>
+            </div>
           </IntegrationFact>
         </div>
         <div className="min-w-0 rounded-lg border border-border px-3">
@@ -906,7 +894,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
           </CardHeader>
           <CardContent className="grid min-w-0 items-start gap-4 pt-(--card-spacing) xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
             <div className="grid min-w-0 rounded-lg border border-border px-3">
-              <IntegrationFact label="Состояние">
+              <IntegrationFact label="Статус интеграции">
                 {integrationStatusLabel(integration.status)}
               </IntegrationFact>
               <IntegrationFact label="Последние запуски">
@@ -1027,7 +1015,7 @@ function OtrsDetailCockpit({
               >
                 <div className="flex min-w-0 items-start justify-between gap-2">
                   <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
-                  <StatusBadge compact label="Состояние" value={status.label} tone={status.tone} />
+                  <StatusBadge compact label="Готовность" value={status.label} tone={status.tone} />
                 </div>
                 <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>
               </div>
@@ -1070,7 +1058,7 @@ function OtrsDetailCockpit({
             <div className="min-w-0 p-4">
               <Alert className="min-w-0">
                 <AlertDescription className="break-words">
-                  Ожидает доступы. Raw секреты не отображаются; сохраните пароль или API-секрет в настройке подключения.
+                  Ожидает доступы. Секреты write-only: сохранённые значения в UI не отображаются — введите пароль или API-секрет заново, чтобы обновить.
                 </AlertDescription>
               </Alert>
             </div>

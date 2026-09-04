@@ -37,6 +37,11 @@ export function QueueSavedViews({
   const views: SavedView[] = [
     { label: "Все", href: "/reviews", tone: "neutral" },
     { label: "Мои проверки", href: `/reviews?qaAssignee=${encodeURIComponent(currentAssigneeName)}`, tone: "info" },
+    {
+      label: "Мои + просрочено",
+      href: `/reviews?qaAssignee=${encodeURIComponent(currentAssigneeName)}&due=overdue`,
+      tone: "danger"
+    },
     { label: "Просрочено", href: "/reviews?due=overdue", tone: "danger" },
     { label: "Критические", href: "/reviews?process=critical", tone: "danger" },
     { label: "Переответы", href: "/reviews?process=reanswer", tone: "warning" },

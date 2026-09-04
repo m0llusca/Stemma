@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
   initialReviewKeyboardState,
+  isEditableTarget,
   reduceReviewKey,
-  scoreKeyToOption,
+  resolveReviewHotkey,
   type ScoreOption
 } from "@/lib/review/keyboard";
 
@@ -14,17 +15,20 @@ import {
  * form (like EvidencePickerListener) and drives the EXISTING criterion cards and
  * radio inputs from the DOM — it never owns form state or field names.
  *
- *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
- *  - 1 / 2 / 3                    → set the focused criterion's score by clicking
- *                                   the matching existing radio (pass / partial /
- *                                   fail), so form state + submission stay intact
- *  - ?                            → reveal the shortcut legend in the footer hint
+ * Contract: docs/ux-queue-hotkeys-contract.md
  *
- * Key events are ignored while an INPUT / TEXTAREA / SELECT / contentEditable is
- * focused, so typing comments or picking evidence is never hijacked.
+ *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
+ *  - 1 / 2 / 3                    → set the focused criterion's score
+ *  - Enter                        → expand the focused criterion
+ *  - Esc                          → hide legend, else collapse focused criterion
+ *  - Cmd/Ctrl+Enter               → finalize & take next
+ *  - ?                            → reveal the shortcut legend
+ *
+ * Key events are ignored while a typing field is focused.
  */
 
 const CARD_SELECTOR = "[data-criterion-card]";
+const FINALIZE_NEXT_SELECTOR = 'button[type="submit"][name="intent"][value="finalize_next"]';
 
 /** For a stable score token, the concrete radio value per field. */
 function radioMatcher(card: HTMLElement, option: ScoreOption): HTMLInputElement | null {
@@ -53,22 +57,30 @@ function radioMatcher(card: HTMLElement, option: ScoreOption): HTMLInputElement 
   return null;
 }
 
-function isEditableTarget(element: Element | null): boolean {
-  if (!(element instanceof HTMLElement)) {
+function isCriterionOpen(card: HTMLElement): boolean {
+  if (card instanceof HTMLDetailsElement) {
+    return card.open;
+  }
+
+  if (card.hasAttribute("data-closed")) {
     return false;
   }
 
-  if (element.isContentEditable) {
+  if (card.getAttribute("data-open") !== null) {
     return true;
   }
 
-  const tag = element.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  return (
+    card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")?.getAttribute("aria-expanded") !==
+    "false"
+  );
 }
 
 export function ReviewKeyboard() {
   const stateRef = useRef(initialReviewKeyboardState);
   const [legendVisible, setLegendVisible] = useState(false);
+  const legendVisibleRef = useRef(legendVisible);
+  legendVisibleRef.current = legendVisible;
 
   useEffect(() => {
     const root = document.querySelector(".review-panel-form");
@@ -98,14 +110,23 @@ export function ReviewKeyboard() {
         return;
       }
 
-      // Base UI Collapsible root: closed panels expose data-closed; open ones data-open.
-      const isClosed =
-        card.hasAttribute("data-closed") ||
-        card.getAttribute("data-open") === null ||
-        card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")?.getAttribute("aria-expanded") ===
-          "false";
+      if (isCriterionOpen(card)) {
+        return;
+      }
 
-      if (!isClosed) {
+      const trigger = card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
+      trigger?.click();
+    }
+
+    function ensureCriterionClosed(card: HTMLElement) {
+      if (card instanceof HTMLDetailsElement) {
+        if (card.open) {
+          card.open = false;
+        }
+        return;
+      }
+
+      if (!isCriterionOpen(card)) {
         return;
       }
 
@@ -147,43 +168,80 @@ export function ReviewKeyboard() {
       radio.click();
     }
 
+    function submitFinalizeNext() {
+      const form = root!.closest("form") ?? root!.querySelector("form");
+      const button =
+        (form instanceof HTMLFormElement
+          ? form.querySelector<HTMLButtonElement>(FINALIZE_NEXT_SELECTOR)
+          : null) ?? root!.querySelector<HTMLButtonElement>(FINALIZE_NEXT_SELECTOR);
+
+      if (!button || button.disabled) {
+        return;
+      }
+
+      button.click();
+    }
+
     function onKeyDown(event: KeyboardEvent) {
-      // Never hijack typing in text fields, selects, or contentEditable regions.
-      if (event.defaultPrevented || isEditableTarget(event.target as Element | null)) {
-        return;
-      }
-
-      // Let real shortcuts (copy/paste, devtools, etc.) through untouched.
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return;
-      }
-
-      if (event.key === "?") {
-        setLegendVisible((visible) => !visible);
-        return;
-      }
-
       const all = cards();
+      const action = resolveReviewHotkey({
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        defaultPrevented: event.defaultPrevented,
+        targetIsEditable: isEditableTarget(event.target),
+        criterionCount: all.length
+      });
 
-      if (all.length === 0) {
+      if (!action) {
         return;
       }
 
-      const nextState = reduceReviewKey(stateRef.current, event.key, all.length);
-
-      if (nextState !== stateRef.current) {
-        stateRef.current = nextState;
-        event.preventDefault();
-        paintFocus();
-        focusCard(nextState.focusedIndex);
-        return;
-      }
-
-      const option = scoreKeyToOption(event.key);
-
-      if (option) {
-        event.preventDefault();
-        applyScore(stateRef.current.focusedIndex, option);
+      switch (action.type) {
+        case "toggle_legend":
+          setLegendVisible((visible) => !visible);
+          return;
+        case "escape":
+          event.preventDefault();
+          if (legendVisibleRef.current) {
+            setLegendVisible(false);
+            return;
+          }
+          {
+            const card = all[stateRef.current.focusedIndex];
+            if (card) {
+              ensureCriterionClosed(card);
+            }
+          }
+          return;
+        case "expand_focused": {
+          event.preventDefault();
+          const card = all[stateRef.current.focusedIndex];
+          if (card) {
+            ensureCriterionOpen(card);
+            card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+          return;
+        }
+        case "submit_finalize_next":
+          event.preventDefault();
+          submitFinalizeNext();
+          return;
+        case "navigate": {
+          const nextState = reduceReviewKey(stateRef.current, action.key, all.length);
+          if (nextState !== stateRef.current) {
+            stateRef.current = nextState;
+            event.preventDefault();
+            paintFocus();
+            focusCard(nextState.focusedIndex);
+          }
+          return;
+        }
+        case "score":
+          event.preventDefault();
+          applyScore(stateRef.current.focusedIndex, action.option);
+          return;
       }
     }
 
@@ -216,6 +274,15 @@ export function ReviewKeyboard() {
       <span>частично ·</span>
       <Kbd>3</Kbd>
       <span>незачёт ·</span>
+      <Kbd>Enter</Kbd>
+      <span>— раскрыть ·</span>
+      <Kbd>Esc</Kbd>
+      <span>— свернуть ·</span>
+      <KbdGroup>
+        <Kbd>⌘</Kbd>
+        <Kbd>Enter</Kbd>
+      </KbdGroup>
+      <span>— завершить и взять следующий ·</span>
       <Kbd>?</Kbd>
       <span>— скрыть подсказку</span>
     </p>

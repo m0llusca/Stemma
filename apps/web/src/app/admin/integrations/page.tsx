@@ -35,6 +35,7 @@ import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
+import { certificationDisplayTone } from "@/lib/certification/status";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
@@ -187,25 +188,7 @@ function integrationTone(status: string): StatusTone {
 }
 
 function certificationTone(status: string): StatusTone {
-  if (["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(status)) {
-    return "positive";
-  }
-
-  if (
-    [
-      "ready_for_live_certification",
-      "waiting_for_access",
-      "limited",
-      "not_production_ready",
-      "configuration_required",
-      "secret_required",
-      "certificate_required"
-    ].includes(status)
-  ) {
-    return "warning";
-  }
-
-  return "neutral";
+  return certificationDisplayTone(status);
 }
 
 function readinessTone(readiness: string): StatusTone {
@@ -747,7 +730,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
                             <TableHead className="min-w-[230px]">Источник</TableHead>
-                            <TableHead className="min-w-[160px]">Состояние</TableHead>
+                            <TableHead className="min-w-[160px]">Состояние подключения</TableHead>
                             <TableHead className="min-w-[150px]">Импорт</TableHead>
                             <TableHead className="min-w-[200px]">Активность</TableHead>
                             <TableHead className="w-[132px] text-right">Действия</TableHead>

@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { parseApiErrorPayload, userFacingApiErrorMessage } from "@/lib/api/user-facing-errors";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
 
@@ -29,15 +30,14 @@ type ScimTokenResponse = {
   };
 };
 
-function errorMessage(payload: unknown, fallback: string) {
-  if (payload && typeof payload === "object" && "error" in payload) {
-    const error = (payload as ScimTokenResponse).error;
-    if (typeof error?.message === "string" && error.message.trim()) {
-      return error.message;
-    }
-  }
-
-  return fallback;
+function errorMessage(payload: unknown, status: number, fallback: string) {
+  const parsed = parseApiErrorPayload(payload);
+  return userFacingApiErrorMessage({
+    status,
+    code: parsed.code,
+    message: parsed.message,
+    fallback
+  });
 }
 
 export function ScimTokenManager({
@@ -72,7 +72,7 @@ export function ScimTokenManager({
 
       if (!response.ok) {
         setPlainToken(null);
-        setError(errorMessage(payload, "Не удалось обновить SCIM-токен."));
+        setError(errorMessage(payload, response.status, "Не удалось обновить SCIM-токен."));
         return;
       }
 

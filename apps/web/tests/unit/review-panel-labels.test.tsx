@@ -175,4 +175,36 @@ describe("ReviewPanel field labels", () => {
       expect(label).toHaveAttribute("for", control.id);
     }
   });
+
+  it("tones down FAIL spectacle for self-review while keeping QA authoring sharp", () => {
+    const { rerender } = render(
+      <ToastProvider>
+        <ReviewPanel
+          conversationId="conversation-1"
+          messages={messages}
+          scorecard={scorecard}
+          reviewSource="HUMAN"
+        />
+      </ToastProvider>
+    );
+
+    expect(screen.getByRole("radio", { name: /Незачет/ })).toBeInTheDocument();
+    expect(screen.getByText("Не выявлена")).toBeInTheDocument();
+
+    rerender(
+      <ToastProvider>
+        <ReviewPanel
+          conversationId="conversation-1"
+          messages={messages}
+          scorecard={scorecard}
+          reviewSource="SELF_REVIEW"
+        />
+      </ToastProvider>
+    );
+
+    expect(screen.getByText("Критичный пункт")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Не зачтено/ })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /^Незачет$/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Нет")).toBeInTheDocument();
+  });
 });

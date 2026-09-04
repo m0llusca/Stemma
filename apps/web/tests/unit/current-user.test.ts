@@ -216,7 +216,7 @@ describe("current user resolution", () => {
 
     const { getCurrentUser } = await import("@/lib/current-user");
 
-    await expect(getCurrentUser()).rejects.toThrow("Нет активной пользовательской сессии.");
+    await expect(getCurrentUser()).rejects.toThrow("Нет активной сессии. Войдите снова, чтобы продолжить.");
     expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
   });

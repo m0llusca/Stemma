@@ -53,14 +53,19 @@ function hasCertifiedPrerequisites(gates: CertificationGateSummary) {
   return gates.docs === "docs_checked" && gates.contract === "contract_certified" && gates.stub === "stub_certified";
 }
 
-export function certificationStatusTone(status: CertificationStatus) {
-  if (
-    status === "live_certified" ||
-    status === "docs_checked" ||
-    status === "contract_certified" ||
-    status === "stub_certified"
-  ) {
-    return "pill--ok";
+/**
+ * Honesty gate for certification badges: green/positive only after live cert.
+ * Intermediate docs/contract/stub gates are informational — never production-green.
+ */
+export type CertificationDisplayTone = "positive" | "warning" | "info" | "neutral";
+
+export function certificationDisplayTone(status: string): CertificationDisplayTone {
+  if (status === "live_certified") {
+    return "positive";
+  }
+
+  if (status === "docs_checked" || status === "contract_certified" || status === "stub_certified") {
+    return "info";
   }
 
   if (
@@ -69,11 +74,23 @@ export function certificationStatusTone(status: CertificationStatus) {
     status === "certificate_required" ||
     status === "ready_for_live_certification" ||
     status === "not_production_ready" ||
-    status === "configuration_required"
+    status === "configuration_required" ||
+    status === "limited"
   ) {
-    return "pill--warn";
+    return "warning";
   }
 
+  return "neutral";
+}
+
+export function certificationStatusTone(status: CertificationStatus) {
+  const tone = certificationDisplayTone(status);
+  if (tone === "positive") {
+    return "pill--ok";
+  }
+  if (tone === "warning") {
+    return "pill--warn";
+  }
   return "pill--neutral";
 }
 

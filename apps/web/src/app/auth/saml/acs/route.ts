@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createEnterpriseAssertion, issueSessionFromEnterpriseAssertion } from "@/auth/providers/assertion";
 import { expiredCookieOptions } from "@/lib/auth/cookies";
 import { loginFlashCookieName, loginFlashCookieOptions } from "@/lib/auth/login-flash";
+import { resolvePostLoginPath, sanitizeReturnTo } from "@/lib/auth/role-home";
 import { validateSamlPostResponse, upsertUserFromSamlProfile } from "@/lib/auth/saml";
 import { setAuthSessionCookies } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -10,14 +11,9 @@ import { resolvePublicOrigin } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
-function safeReturnTo(value: FormDataEntryValue | string | null | undefined) {
-  const text = typeof value === "string" ? value : "";
-  return text.startsWith("/") && !text.startsWith("//") ? text : "/reviews";
-}
-
 function errorRedirect(request: NextRequest, origin: string, providerId: string | undefined, reason: string) {
   const url = new URL("/auth/login", origin);
-  url.searchParams.set("returnTo", "/reviews");
+  url.searchParams.set("returnTo", "/");
   const response = NextResponse.redirect(url);
   response.cookies.set(loginFlashCookieName, "sso_callback_failed", loginFlashCookieOptions());
   logBackendEvent({
@@ -92,7 +88,8 @@ export async function POST(request: NextRequest) {
       throw new Error("Enterprise assertion session was not issued.");
     }
 
-    const response = NextResponse.redirect(new URL(safeReturnTo(formData?.get("RelayState")), origin));
+    const destination = resolvePostLoginPath(sanitizeReturnTo(String(formData?.get("RelayState") ?? "")), user);
+    const response = NextResponse.redirect(new URL(destination, origin));
 
     setAuthSessionCookies(response.cookies, authSession.token);
     response.cookies.set(loginFlashCookieName, "", expiredCookieOptions());

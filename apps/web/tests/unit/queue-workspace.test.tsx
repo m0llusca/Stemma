@@ -200,6 +200,61 @@ it("switches command-bar presentation when its sentinel crosses the sticky edge"
   expect(commandBar).toHaveAttribute("data-state", "resting");
 });
 
+it("restores focus into the sticky bar when stuck mode hides the focused control", () => {
+  installDesktopMediaQuery();
+  document.documentElement.style.setProperty("--app-topbar-height", "52px");
+
+  let observerCallback: IntersectionObserverCallback | undefined;
+  let observer: IntersectionObserver;
+
+  class TestIntersectionObserver implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "-52px 0px 0px 0px";
+    readonly thresholds = [0];
+
+    constructor(callback: IntersectionObserverCallback) {
+      observerCallback = callback;
+      observer = this;
+    }
+
+    disconnect() {}
+    observe() {}
+    takeRecords() {
+      return [];
+    }
+    unobserve() {}
+  }
+
+  vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
+
+  render(
+    <QueueWorkspace.CommandBar
+      aria-label="Фильтры и виды очереди"
+      expandedOnly={<button type="button">Сохранённые виды</button>}
+      stuckOnly={<div>4 ожидают</div>}
+    >
+      <button type="button">Фильтры</button>
+    </QueueWorkspace.CommandBar>
+  );
+
+  const expandedControl = screen.getByRole("button", { name: "Сохранённые виды" });
+  expandedControl.focus();
+  expect(expandedControl).toHaveFocus();
+
+  act(() => {
+    observerCallback?.(
+      [{ isIntersecting: false } as IntersectionObserverEntry],
+      observer
+    );
+  });
+
+  expect(screen.getByLabelText("Фильтры и виды очереди")).toHaveAttribute(
+    "data-state",
+    "stuck"
+  );
+  expect(screen.getByRole("button", { name: "Фильтры" })).toHaveFocus();
+});
+
 it(
   "keeps the full resting presentation when IntersectionObserver is unavailable",
   () => {
@@ -224,3 +279,4 @@ it(
     expect(screen.getByText("Сохранённые виды")).toBeInTheDocument();
   }
 );
+

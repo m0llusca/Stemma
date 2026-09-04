@@ -32,7 +32,7 @@ describe("ConnectSourceForm", () => {
     // picker card and in the form's current-source chip.
     expect(screen.getAllByText("Zendesk").length).toBeGreaterThan(0);
     expect(screen.getByRole("radio", { name: /Zendesk/i })).toBeChecked();
-    expect(screen.getByRole("button", { name: /Подключить/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Проверить и подключить/i })).toBeInTheDocument();
   });
 
   it("shows token-only install state and first limitation", () => {
@@ -65,7 +65,7 @@ describe("ConnectSourceForm", () => {
     expect(screen.queryByText(/подключение пройдёт автоматически/i)).not.toBeInTheDocument();
   });
 
-  it("renders the step checklist from a journal state", () => {
+  it("renders the step checklist from a journal state without green production claim", () => {
     render(
       <ConnectSourceForm
         sources={[]}
@@ -73,6 +73,12 @@ describe("ConnectSourceForm", () => {
           connected: true,
           steps: [
             { step: "verify_auth", status: "ok", detail: "вход выполнен" },
+            {
+              step: "capability_probe",
+              status: "ok",
+              detail: "права подтверждены",
+              diagnostics: { operations: ["list_conversations", "diagnostics"] }
+            },
             { step: "persist", status: "ok", detail: "сохранено" }
           ]
         }}
@@ -80,6 +86,11 @@ describe("ConnectSourceForm", () => {
     );
 
     expect(screen.getByText(/вход выполнен/)).toBeInTheDocument();
+    expect(screen.getByText(/Базовое подключение сохранено/)).toBeInTheDocument();
+    expect(screen.getByText(/Матрица возможностей \(probe\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Список обращений/)).toBeInTheDocument();
+    expect(screen.getAllByText(/только после живой сертификации/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Источник подключён/)).not.toBeInTheDocument();
   });
 
   it("keeps Base UI controls controlled consistently while switching sources", () => {

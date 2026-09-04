@@ -11,7 +11,7 @@ export const adminSectionTitles = {
   "/admin/ai-scoring": "AI-оценка",
   "/admin/integrations": "Интеграции",
   "/admin/access": "Доступ и SSO",
-  "/admin/channels": "Каналы уведомлений",
+  "/admin/channels": "Уведомления",
   "/admin/users": "Пользователи и роли",
   "/admin/system": "Состояние системы",
   "/admin/tokens": "API-доступ",

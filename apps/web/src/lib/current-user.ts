@@ -9,7 +9,7 @@ export const currentUserCookieName = "qc_current_user_id";
 
 export class AuthRequiredError extends Error {
   constructor() {
-    super("Нет активной пользовательской сессии.");
+    super("Нет активной сессии. Войдите снова, чтобы продолжить.");
     this.name = "AuthRequiredError";
   }
 }

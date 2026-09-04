@@ -107,7 +107,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
           <CollapsibleContent keepMounted className="queue-bulk-actions__body">
             <div className="flex flex-wrap items-end gap-3 border-t border-border bg-muted/30 px-4 py-3">
               <Field className="queue-bulk-actions__field min-w-[160px]">
-                <FieldLabel htmlFor="bulk-qaStatus">Состояние</FieldLabel>
+                <FieldLabel htmlFor="bulk-qaStatus">Статус проверки</FieldLabel>
                 <NativeSelect id="bulk-qaStatus" name="qaStatus" defaultValue="" className="w-full">
                   <NativeSelectOption value="">Не менять</NativeSelectOption>
                   {Object.entries(qaStatusLabels).map(([status, label]) => (
@@ -154,10 +154,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               <TableHead className="w-10">
                 <span className="sr-only">Оператор</span>
               </TableHead>
-              <TableHead className="w-[140px]">Статус</TableHead>
+              <TableHead className="w-[140px]">Статус проверки</TableHead>
               <TableHead>Обращение</TableHead>
               <TableHead className="w-[140px]">Проверяющий</TableHead>
-              <TableHead className="w-[100px]">SLA</TableHead>
+              <TableHead className="w-[100px]">Срок</TableHead>
               <TableHead className="w-[80px] text-right">Оценка</TableHead>
               <TableHead className="w-[96px]">
                 <span className="sr-only">Действие</span>
@@ -194,28 +194,16 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   ? "закрыто"
                   : "не задан";
 
-              // ONE colored chip per row: pick the single most urgent signal. SLA
-              // breach and critical risk fire the semantic ramp; otherwise the chip
-              // describes the review state with a rationed accent for active work.
-              const statusChipTone: ChipTone =
-                isOverdue || hasCritical
-                  ? "danger"
-                  : hasReanswer || hasAppeal || reviewState === "reopened"
-                    ? "warning"
-                    : reviewStateTone(reviewState);
-              const statusChipLabel = isOverdue
-                ? "Просрочено"
-                : hasCritical
-                  ? "Критическая ошибка"
-                  : hasReanswer
-                    ? reanswerLabel
-                    : hasAppeal
-                      ? `Апелляция: ${appealLabel}`
-                      : reviewStateLabels[reviewState];
+              // One chip = one source of truth for review status (qa/review state).
+              // Overdue, critical, reanswer, and appeal stay in meta / date column —
+              // not as a second competing "status" chip.
+              const statusChipTone: ChipTone = reviewStateTone(reviewState);
+              const statusChipLabel = reviewStateLabels[reviewState];
 
-              // Secondary signals stay monochrome (neutral) — the row keeps a single
-              // hue. They live in the meta line, not as rainbow chips.
               const signalItems = [
+                hasCritical ? "критическая ошибка" : null,
+                hasReanswer ? reanswerLabel : null,
+                hasAppeal ? `апелляция: ${appealLabel}` : null,
                 conversation.csatBucket === "NEGATIVE"
                   ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
                   : null,
@@ -272,7 +260,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   </TableCell>
 
                   <TableCell className={cn("whitespace-normal", isOverdue && "text-destructive")}>
-                    <span className="text-sm font-medium tabular-nums">{dueLabel}</span>
+                    <span className="text-sm font-medium tabular-nums">
+                      {dueLabel}
+                      {isOverdue ? <span className="sr-only"> — просрочено</span> : null}
+                    </span>
                   </TableCell>
 
                   <TableCell className="text-right font-medium tabular-nums">

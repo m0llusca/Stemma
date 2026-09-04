@@ -201,9 +201,9 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   await page.getByLabel("Логин агента").fill(otrsFixtureUserLogin);
   await page.getByLabel("Пароль").fill(otrsFixturePassword);
   await page.getByLabel("№ тикета (необязательно)").fill(ticketId);
-  await page.getByRole("button", { name: "Подключить" }).click();
+  await page.getByRole("button", { name: "Проверить и подключить" }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Источник подключён" })
+    page.getByRole("alert").filter({ hasText: "Базовое подключение сохранено" })
   ).toBeVisible({ timeout: 30_000 });
 
   await page.goto("/admin/integrations");
