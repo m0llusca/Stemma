@@ -143,7 +143,8 @@ describe("OIDC callback route public origin", () => {
     expect(mocks.setAuthSessionCookies).toHaveBeenCalledWith(expect.any(Object), "db-session-token");
     expect(response.cookies.get("authjs.session-token")?.value).toBe("db-session-token");
     expect(response.cookies.get("qc_session")?.value).toBe("db-session-token");
-    expect(response.headers.get("location")).toBe("https://app.example.com/reviews");
+    // Generic /reviews returnTo → role home for SUPPORT_AGENT
+    expect(response.headers.get("location")).toBe("https://app.example.com/self-review");
     expect(mocks.logBackendEvent).toHaveBeenCalledWith({
       requestId: "req-1",
       event: "auth.oidc.login_succeeded",

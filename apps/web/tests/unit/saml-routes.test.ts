@@ -152,7 +152,8 @@ describe("SAML auth routes", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://app.example.com/reviews");
+    // Generic RelayState /reviews → QA_ANALYST role home (no name on mock → due=overdue only)
+    expect(response.headers.get("location")).toBe("https://app.example.com/reviews?due=overdue");
     expect(response.cookies.get("authjs.session-token")?.value).toBe("db-session-token");
     expect(response.cookies.get("qc_session")?.value).toBe("db-session-token");
     expect(mocks.createEnterpriseAssertion).toHaveBeenCalledWith({
@@ -203,7 +204,8 @@ describe("SAML auth routes", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://app.example.com/auth/login?returnTo=%2Freviews");
+    // Fail-closed ACS errors reset returnTo to generic `/` (role home applies after next login)
+    expect(response.headers.get("location")).toBe("https://app.example.com/auth/login?returnTo=%2F");
     expect(response.cookies.get("qc_login_flash")?.value).toBe("sso_callback_failed");
     expect(JSON.stringify(mocks.logBackendEvent.mock.calls)).not.toContain("raw-sensitive-saml-response");
     expect(mocks.logBackendEvent).toHaveBeenCalledWith(
