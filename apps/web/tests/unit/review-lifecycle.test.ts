@@ -93,8 +93,8 @@ describe("review lifecycle policy", () => {
       assertSelfReviewScope({
         reviewSource: "SELF_REVIEW",
         userRole: "SUPPORT_AGENT",
-        userName: "Анна",
-        conversationAssigneeName: "Иван"
+        userId: "user-anna",
+        conversationAssigneeId: "user-ivan"
       })
     ).toThrow("Оператор может отправить самопроверку только по своему диалогу.");
 
@@ -102,8 +102,8 @@ describe("review lifecycle policy", () => {
       assertSelfReviewScope({
         reviewSource: "SELF_REVIEW",
         userRole: "QA_ANALYST",
-        userName: "Мария",
-        conversationAssigneeName: "Иван"
+        userId: "user-maria",
+        conversationAssigneeId: "user-ivan"
       })
     ).toThrow("Оператор может отправить самопроверку только по своему диалогу.");
 
@@ -111,28 +111,19 @@ describe("review lifecycle policy", () => {
       assertSelfReviewScope({
         reviewSource: "SELF_REVIEW",
         userRole: "SUPPORT_AGENT",
-        userName: "Анна",
-        conversationAssigneeName: "Анна"
+        userId: "user-anna",
+        conversationAssigneeId: "user-anna"
       })
     ).not.toThrow();
   });
 
-  it("normalizes whitespace and rejects unassigned conversations in self-review scope", () => {
+  it("rejects unassigned conversations in self-review scope and ignores display-name collisions", () => {
     expect(() =>
       assertSelfReviewScope({
         reviewSource: "SELF_REVIEW",
         userRole: "SUPPORT_AGENT",
-        userName: "Анна ",
-        conversationAssigneeName: " Анна"
-      })
-    ).not.toThrow();
-
-    expect(() =>
-      assertSelfReviewScope({
-        reviewSource: "SELF_REVIEW",
-        userRole: "SUPPORT_AGENT",
-        userName: "Анна",
-        conversationAssigneeName: null
+        userId: "user-anna",
+        conversationAssigneeId: null
       })
     ).toThrow("Оператор может отправить самопроверку только по своему диалогу.");
 
@@ -140,8 +131,8 @@ describe("review lifecycle policy", () => {
       assertSelfReviewScope({
         reviewSource: "HUMAN",
         userRole: "QA_ANALYST",
-        userName: "Мария",
-        conversationAssigneeName: null
+        userId: "user-maria",
+        conversationAssigneeId: null
       })
     ).not.toThrow();
   });

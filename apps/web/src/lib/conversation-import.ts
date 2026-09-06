@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { enqueueBackendJob, type EnqueueJobClient } from "@/lib/jobs/enqueue";
 import { normalizeCustomConversation, normalizeCustomMessage } from "@/lib/normalizers/custom-api";
 import { assignReviewerForConversation } from "@/lib/review-assignment";
-import { applySamplingDecision, evaluateSamplingRules, type SamplingRuleRecord } from "@/lib/sampling-engine";
+import { applySamplingDecision, evaluateSamplingRules, outOfSampleSamplingType, type SamplingRuleRecord } from "@/lib/sampling-engine";
 import { customConversationLimits, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 type ConversationImportClient = Pick<Prisma.TransactionClient, "conversation" | "message"> & {
@@ -96,7 +96,11 @@ export async function upsertCustomConversation(
     rules: samplingRules
   });
   const sampledPayload = applySamplingDecision(payload, samplingDecision);
-  const conversationData = normalizeCustomConversation(sampledPayload);
+  const conversationData = {
+    ...normalizeCustomConversation(sampledPayload),
+    // QaStatus has no OUT_OF_SAMPLE/SKIPPED; unmatched rows stay out of take-next via samplingType.
+    ...(!samplingDecision.matched ? { samplingType: outOfSampleSamplingType } : {})
+  };
 
   // Resolve the operator display name to a unique user id (fail-closed on
   // ambiguity / no match). assigneeName stays as-is from normalization; the

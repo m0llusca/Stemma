@@ -107,6 +107,30 @@ describe("auth session lifecycle hardening", () => {
     });
   });
 
+  it("revokes an active session when workspaceId diverges from the user workspace", async () => {
+    const future = new Date(Date.now() + 60_000);
+    mocks.prisma.authSession.findUnique.mockResolvedValue({
+      id: "session-1",
+      status: "ACTIVE",
+      workspaceId: "workspace-a",
+      expiresAt: future,
+      user: {
+        workspaceId: "workspace-b",
+        lifecycleStatus: "ACTIVE"
+      }
+    });
+    const { getValidAuthSession } = await import("@/lib/auth/session");
+
+    await expect(getValidAuthSession("session-token")).resolves.toBeNull();
+    expect(mocks.prisma.authSession.update).toHaveBeenCalledWith({
+      where: { id: "session-1" },
+      data: {
+        status: "REVOKED",
+        revokedAt: expect.any(Date)
+      }
+    });
+  });
+
   it("revokes active sessions for lifecycle actions and writes redacted audit-safe metadata", async () => {
     mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 2 });
     const { revokeActiveSessionsForUser } = await import("@/lib/auth/session");

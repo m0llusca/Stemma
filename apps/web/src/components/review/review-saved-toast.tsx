@@ -2,6 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/toast";
+import {
+  coachingOfferFromSearchParams,
+  coachingPlanCreateHref
+} from "@/lib/coaching-follow-up";
+import { toast as sonnerToast } from "sonner";
 
 const savedMessages: Record<string, string> = {
   draft: "Черновик проверки сохранён.",
@@ -17,8 +22,8 @@ const savedMessages: Record<string, string> = {
  * fires the toast once, then strips the marker from the address bar via
  * `history.replaceState` so a refresh or back-nav does not re-announce it.
  *
- * Render-only: takes the already-parsed marker as a prop (server reads the
- * search param) and owns no routing. A neutral/unknown marker is a no-op.
+ * When finalize carried a coaching offer (`coachOffer=1` + agent/review ids),
+ * the final toast adds a Russian CTA to open the coaching plan form.
  */
 export function ReviewSavedToast({ marker }: { marker?: string }) {
   const toast = useToast();
@@ -36,11 +41,36 @@ export function ReviewSavedToast({ marker }: { marker?: string }) {
     }
 
     announced.current = true;
-    toast.success(message);
+    const offer =
+      typeof window !== "undefined" ? coachingOfferFromSearchParams(new URL(window.location.href).searchParams) : null;
+
+    if (marker === "final" && offer) {
+      const href = coachingPlanCreateHref({
+        agentName: offer.agentName,
+        reviewId: offer.reviewId,
+        conversationId: offer.conversationId
+      });
+      sonnerToast.success(message, {
+        description: `Низкий балл или критическое замечание у ${offer.agentName}. Можно открыть план коучинга или создать учебную задачу на проверке.`,
+        duration: 12_000,
+        action: {
+          label: "План коучинга",
+          onClick: () => {
+            window.location.assign(href);
+          }
+        }
+      });
+    } else {
+      toast.success(message);
+    }
 
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("saved");
+      url.searchParams.delete("coachOffer");
+      url.searchParams.delete("coachAgent");
+      url.searchParams.delete("coachReviewId");
+      url.searchParams.delete("coachConversationId");
       window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
     }
   }, [marker, toast]);

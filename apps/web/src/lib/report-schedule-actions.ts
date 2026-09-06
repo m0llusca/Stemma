@@ -61,10 +61,10 @@ function normalizedFiltersJson(value: string): string {
       return JSON.stringify(parsed);
     }
   } catch {
-    // Fall through to the empty-object default below.
+    // Fall through to fail closed below — never silently widen to {}.
   }
 
-  return "{}";
+  throw new Error("filtersJson должен быть JSON-объектом (например {\"supportLine\":\"L1\"}).");
 }
 
 export async function createReportSchedule(

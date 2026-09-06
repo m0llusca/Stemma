@@ -118,6 +118,19 @@ describe("createReportSchedule", () => {
     expect(data.periodPreset).toBe("last_7_days");
     expect(data.exportFormat).toBe("xlsx");
   });
+
+  it("rejects malformed filtersJson instead of silently widening to {}", async () => {
+    const { createReportSchedule } = await import("@/lib/report-schedule-actions");
+
+    const result = await createReportSchedule(
+      { status: "idle" },
+      buildFormData({ filtersJson: "{not-json" })
+    );
+
+    expect(result.status).toBe("error");
+    expect(result.message).toMatch(/filtersJson/i);
+    expect(mocks.prisma.reportSchedule.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("setReportScheduleActive", () => {

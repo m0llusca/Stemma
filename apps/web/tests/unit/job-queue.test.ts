@@ -36,6 +36,9 @@ const mocks = vi.hoisted(() => ({
     },
     reportSnapshot: {
       create: vi.fn()
+    },
+    review: {
+      findMany: vi.fn()
     }
   },
   logBackendEvent: vi.fn(),
@@ -97,6 +100,7 @@ describe("backend job queue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.prisma.review.findMany.mockResolvedValue([]);
   });
 
   it("enqueues jobs through a provided transaction client", async () => {
@@ -1040,9 +1044,93 @@ describe("backend job queue", () => {
       integrationId: "integration-1",
       integrationRunId: "run-1",
       selectedItemIds: ["item-1"],
-      beforeWrite: expect.any(Function)
+      beforeWrite: expect.any(Function),
+      onItemProgress: expect.any(Function)
     });
     expect(mocks.runIntegrationConnector).not.toHaveBeenCalled();
+  });
+
+  it("persists filtered report export metrics from loadReportExportRows", async () => {
+    const { runDueBackendJobs } = await import("@/lib/jobs/queue");
+    const queuedJob = backendJob({
+      type: "REPORT_EXPORT",
+      queueName: "reports",
+      payloadJson: JSON.stringify({
+        name: "Weekly quality",
+        periodStart: "2026-05-01T00:00:00.000Z",
+        periodEnd: "2026-05-07T23:59:59.999Z",
+        filters: { supportLine: "L1" },
+        format: "xlsx"
+      })
+    });
+    const runningJob = backendJob({
+      ...queuedJob,
+      status: "RUNNING",
+      attempts: 1,
+      lockedAt: new Date("2026-05-04T08:01:00.000Z"),
+      lockedBy: "worker-a",
+      startedAt: new Date("2026-05-04T08:01:00.000Z")
+    });
+    mocks.prisma.backendJob.findMany.mockResolvedValue([]);
+    mocks.prisma.backendJob.findFirst.mockResolvedValueOnce(queuedJob);
+    mocks.prisma.backendJob.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.backendJob.findUnique.mockResolvedValue(runningJob);
+    mocks.prisma.review.findMany.mockResolvedValue([
+      {
+        finalizedAt: new Date("2026-05-03T12:00:00.000Z"),
+        totalScore: 80,
+        criticalError: true,
+        criticalCategory: "Скрипт",
+        needsReanswer: false,
+        reanswerStatus: "not_needed",
+        appealStatus: "none",
+        summary: "Итог",
+        reviewer: { name: "QA" },
+        conversation: {
+          externalSource: "otrs",
+          externalId: "1",
+          subject: "Тема",
+          customerName: "Клиент",
+          assigneeName: "Оператор",
+          supportLine: "L1",
+          csatScore: 4,
+          csatBucket: "POSITIVE"
+        },
+        findings: [{ category: "Тон", riskLevel: "HIGH" }]
+      }
+    ]);
+    mocks.prisma.reportSnapshot.create.mockResolvedValue({ id: "snapshot-metrics" });
+    mocks.prisma.backendJobEvent.create.mockResolvedValue({});
+    mocks.prisma.backendJob.update.mockResolvedValue({});
+
+    await expect(runDueBackendJobs({ workerId: "worker-a", queueName: "reports", limit: 1 })).resolves.toEqual([
+      {
+        jobId: "job-1",
+        status: "SUCCEEDED",
+        result: { snapshotId: "snapshot-metrics", rowCount: 1 }
+      }
+    ]);
+
+    expect(mocks.prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          conversation: { supportLine: "L1" }
+        })
+      })
+    );
+    expect(mocks.prisma.reportSnapshot.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "Weekly quality",
+        metricsJson: JSON.stringify({
+          finalizedCount: 1,
+          averageScore: 80,
+          criticalErrorCount: 1,
+          highRiskCount: 1,
+          format: "xlsx",
+          reportScheduleId: null
+        })
+      })
+    });
   });
 
   it("propagates a workspace filter to stale recovery and job claiming", async () => {

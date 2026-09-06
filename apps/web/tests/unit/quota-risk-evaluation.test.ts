@@ -50,6 +50,22 @@ describe("computeWorkspaceQuotaTotals", () => {
     expect(totals.actualCount).toBe(3);
     expect(totals.completionPercent).toBe(10);
   });
+
+  it("counts each review once when open-line and exact-line quotas overlap", () => {
+    const totals = computeWorkspaceQuotaTotals(
+      [
+        { assigneeName: "Alice", supportLine: null, plannedCount: 10 },
+        { assigneeName: "Alice", supportLine: "Line A", plannedCount: 5 }
+      ],
+      Array.from({ length: 5 }, () => ({
+        conversation: { assigneeName: "Alice", supportLine: "Line A" }
+      }))
+    );
+
+    expect(totals.plannedCount).toBe(15);
+    expect(totals.actualCount).toBe(5);
+    expect(totals.completionPercent).toBe(33);
+  });
 });
 
 describe("hasRecentQuotaRiskNotification", () => {

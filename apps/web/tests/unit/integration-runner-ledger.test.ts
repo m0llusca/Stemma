@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => ({
     },
     samplingRule: {
       findMany: vi.fn()
+    },
+    certificationEvidence: {
+      findFirst: vi.fn()
     }
   }
 }));
@@ -44,6 +47,10 @@ vi.mock("@/lib/integrations/data-source-adapters/service", () => ({
 }));
 
 const now = new Date("2026-05-09T08:00:00.000Z");
+const liveEvidence = {
+  envGate: "HELPDESK_LIVE_SMOKE=1;github-environment:helpdesk-live",
+  integrationId: "integration-1"
+};
 
 function integration(overrides: Record<string, unknown> = {}) {
   return {
@@ -132,6 +139,7 @@ function fakeClient() {
 describe("integration connector run ledger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(liveEvidence);
   });
 
   afterEach(() => {

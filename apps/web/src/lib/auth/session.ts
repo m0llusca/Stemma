@@ -152,6 +152,19 @@ export async function getValidAuthSession(token: string | undefined): Promise<
     return null;
   }
 
+  // Session row and user must stay in the same workspace. A mismatch is treated
+  // as a stolen/stale session boundary and revoked fail-closed.
+  if (session.workspaceId !== session.user.workspaceId) {
+    await prisma.authSession.update({
+      where: { id: session.id },
+      data: {
+        status: "REVOKED",
+        revokedAt: new Date()
+      }
+    });
+    return null;
+  }
+
   await prisma.authSession.update({
     where: { id: session.id },
     data: { lastSeenAt: new Date() }

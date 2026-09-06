@@ -194,7 +194,10 @@ describe("report evidence model links", () => {
       'reportView === "overview" && defaultTrend'
     );
     expect(reportsPageSource).toContain("relinkReportChartModel(");
-    expect(reportsPageSource).toContain("relinkReportRows(");
+    // Ranked lists / overview KPIs keep `/reviews?...` queue hrefs; evidence
+    // descriptors still seed chart models, matrix cells, and process default.
+    expect(reportsPageSource).not.toContain("relinkReportRows(");
+    expect(reportsPageSource).not.toContain('"Риск HIGH+": highRiskEvidenceLink.href');
     for (const evidenceType of ["trend", "driver", "matrix", "kpi"]) {
       expect(reportsPageSource).toContain(`evidenceType: "${evidenceType}"`);
     }

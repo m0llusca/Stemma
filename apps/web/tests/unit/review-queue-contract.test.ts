@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     conversation: {
       findMany: vi.fn(),
-      findFirst: vi.fn()
+      findFirst: vi.fn(),
+      count: vi.fn()
     }
   }
 }));
@@ -374,5 +375,89 @@ describe("review queue frontend/backend contract", () => {
         { teamName: "ФГИС" }
       ])
     );
+  });
+
+  it("excludes OUT_OF_SAMPLE from default queue listing unless samplingType is explicit", async () => {
+    mocks.prisma.conversation.findMany.mockResolvedValue([]);
+    const { buildReviewQueueWhere, parseReviewQueueFilters } = await import("@/lib/review-repository");
+
+    const defaultWhere = buildReviewQueueWhere("workspace-1", parseReviewQueueFilters({}));
+    expect(defaultWhere.AND).toEqual(
+      expect.arrayContaining([{ samplingType: { not: "OUT_OF_SAMPLE" } }])
+    );
+
+    const filteredWhere = buildReviewQueueWhere(
+      "workspace-1",
+      parseReviewQueueFilters({ samplingType: "DSAT" })
+    );
+    expect(filteredWhere.AND).toEqual(expect.arrayContaining([{ samplingType: "DSAT" }]));
+    expect(filteredWhere.AND).not.toEqual(
+      expect.arrayContaining([{ samplingType: { not: "OUT_OF_SAMPLE" } }])
+    );
+  });
+
+  it("excludes OUT_OF_SAMPLE from queue summary KPI counts", async () => {
+    mocks.prisma.conversation.count.mockResolvedValue(0);
+    const { getReviewQueueSummary } = await import("@/lib/review-repository");
+
+    await getReviewQueueSummary("workspace-1");
+
+    expect(mocks.prisma.conversation.count).toHaveBeenCalled();
+    for (const call of mocks.prisma.conversation.count.mock.calls) {
+      expect(call[0].where.AND).toEqual(
+        expect.arrayContaining([{ samplingType: { not: "OUT_OF_SAMPLE" } }])
+      );
+    }
+  });
+
+  it("parses process=ai_exception and filters by low-confidence / decided score drafts", async () => {
+    const { buildReviewQueueWhere, parseReviewQueueFilters } = await import("@/lib/review-repository");
+    const { aiExceptionDraftWhere } = await import("@/lib/ai-quality/exceptions");
+
+    const filters = parseReviewQueueFilters({ process: "ai_exception" });
+    expect(filters.process).toBe("ai_exception");
+
+    const where = buildReviewQueueWhere("workspace-1", filters);
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        {
+          aiQualityDrafts: {
+            some: aiExceptionDraftWhere()
+          }
+        }
+      ])
+    );
+    // Must not force FINALIZED human reviews the way critical/appeal process filters do.
+    expect(JSON.stringify(where)).not.toContain('"qaStatus":"FINALIZED"');
+  });
+
+  it("parses qaScoreBand and filters HUMAN totalScore for QA×CSAT drill-downs", async () => {
+    const { buildReviewQueueWhere, parseReviewQueueFilters } = await import("@/lib/review-repository");
+
+    const filters = parseReviewQueueFilters({
+      status: "reviewed",
+      csatBucket: "NEGATIVE",
+      qaScoreBand: "LOW"
+    });
+    expect(filters.qaScoreBand).toBe("LOW");
+    expect(filters.csatBucket).toBe("NEGATIVE");
+
+    const where = buildReviewQueueWhere("workspace-1", filters);
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        { csatBucket: "NEGATIVE" },
+        {
+          reviews: {
+            some: expect.objectContaining({
+              reviewSource: "HUMAN",
+              status: "FINALIZED",
+              totalScore: { lt: 70 }
+            })
+          }
+        }
+      ])
+    );
+
+    expect(parseReviewQueueFilters({ qaScoreBand: "bogus" }).qaScoreBand).toBeUndefined();
   });
 });

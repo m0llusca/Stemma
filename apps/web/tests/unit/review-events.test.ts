@@ -5,6 +5,8 @@ describe("review event recorder", () => {
   it("localizes seeded and workflow event actions", () => {
     expect(reviewEventActionLabel("qa.reopened")).toBe("Проверка возвращена в работу");
     expect(reviewEventActionLabel("conversation.workflow_updated")).toBe("Маршрут проверки обновлен");
+    expect(reviewEventActionLabel("calibration.appeal_signal")).toBe("Сигнал калибровки по апелляции");
+    expect(reviewEventActionLabel("review.feedback.appeal_corrected")).toBe("Апелляция скорректирована");
     expect(reviewEventActionLabel("unknown.action")).toBe("unknown.action");
   });
 

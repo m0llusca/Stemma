@@ -91,7 +91,8 @@ async function persistIntegration(args: {
         source: profile.source,
         displayName: connectionSourceLabel(profile.source),
         type: profile.type,
-        status: "active",
+        // Probe/persist is not live-certified production — stay ready until live evidence.
+        status: "ready",
         baseUrl,
         authMode,
         configJson: JSON.stringify(config)
@@ -99,7 +100,7 @@ async function persistIntegration(args: {
       update: {
         displayName: connectionSourceLabel(profile.source),
         type: profile.type,
-        status: "active",
+        status: "ready",
         baseUrl,
         authMode,
         configJson: JSON.stringify(config),

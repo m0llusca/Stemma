@@ -91,6 +91,25 @@ describe("loadReportExportRows narrow select", () => {
     expect(call.orderBy).toEqual({ finalizedAt: "desc" });
   });
 
+  it("applies known conversation filters from export query params", async () => {
+    mocks.prisma.review.findMany.mockResolvedValue([]);
+
+    const { loadReportExportRows } = await import("@/lib/report-export");
+    await loadReportExportRows("workspace-1", {
+      period: "last-30-days",
+      supportLine: "L1",
+      assigneeName: "Ольга Иванова",
+      unknownKey: "ignore-me"
+    });
+
+    const call = mocks.prisma.review.findMany.mock.calls[0][0];
+    expect(call.where.conversation).toEqual({
+      supportLine: "L1",
+      assigneeName: "Ольга Иванова"
+    });
+    expect(call.where.conversation.unknownKey).toBeUndefined();
+  });
+
   it("produces the same export row the whole-row include produced", async () => {
     mocks.prisma.review.findMany.mockResolvedValue([reviewRow]);
 
@@ -139,7 +158,7 @@ describe("loadReportExportRows narrow select", () => {
     ]);
 
     const { loadReportExportRows } = await import("@/lib/report-export");
-    const { rows } = await loadReportExportRows("workspace-1", { period: "last-30-days" });
+    const { rows, metrics } = await loadReportExportRows("workspace-1", { period: "last-30-days" });
 
     expect(rows[0]).toEqual([
       reviewRow.finalizedAt.toLocaleString("ru-RU"),
@@ -159,5 +178,11 @@ describe("loadReportExportRows narrow select", () => {
       "",
       "Ответ корректный; следующий шаг понятен."
     ]);
+    expect(metrics).toEqual({
+      finalizedCount: 1,
+      averageScore: 94,
+      criticalErrorCount: 1,
+      highRiskCount: 0
+    });
   });
 });

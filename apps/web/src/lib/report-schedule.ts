@@ -9,7 +9,7 @@ import { enqueueBackendJob } from "@/lib/jobs/enqueue";
  *
  * The enqueued payload mirrors what runReportExportJob in jobs/queue.ts reads:
  *   { name, periodStart, periodEnd, filters, format }
- * (metrics is intentionally omitted — the snapshot defaults it to {}).
+ * Metrics are computed by loadReportExportRows (same filters as on-demand export).
  */
 
 export const REPORT_SCHEDULE_PERIOD_PRESETS = [
@@ -117,14 +117,15 @@ type DueScheduleRow = {
   cadence: string;
   filtersJson: string;
   createdById: string | null;
+  nextRunAt: Date;
 };
 
 type ReportScheduleClient = Pick<Prisma.TransactionClient, "reportSchedule" | "backendJob">;
 
 /**
- * Finds active schedules whose nextRunAt has passed, enqueues a REPORT_EXPORT
- * job for each (payload shaped for runReportExportJob), then advances each
- * schedule's lastRunAt/nextRunAt. Returns how many jobs were enqueued.
+ * Finds active schedules whose nextRunAt has passed, claims each row by advancing
+ * nextRunAt (compare-and-set), then enqueues a REPORT_EXPORT job. Concurrent
+ * workers cannot double-enqueue the same due schedule because only one claim wins.
  */
 export async function enqueueDueReportSchedules(now: Date, client: ReportScheduleClient) {
   const dueSchedules = (await client.reportSchedule.findMany({
@@ -138,6 +139,24 @@ export async function enqueueDueReportSchedules(now: Date, client: ReportSchedul
   let enqueuedCount = 0;
 
   for (const schedule of dueSchedules) {
+    const nextRunAt = advanceNextRun(schedule.cadence, now);
+    const claimed = await client.reportSchedule.updateMany({
+      where: {
+        id: schedule.id,
+        isActive: true,
+        nextRunAt: schedule.nextRunAt
+      },
+      data: {
+        lastRunAt: now,
+        nextRunAt
+      }
+    });
+
+    if (claimed.count === 0) {
+      // Another worker already claimed this due slot.
+      continue;
+    }
+
     const { start, end } = resolvePeriodPreset(schedule.periodPreset, now);
 
     await enqueueBackendJob(
@@ -158,14 +177,6 @@ export async function enqueueDueReportSchedules(now: Date, client: ReportSchedul
       },
       client
     );
-
-    await client.reportSchedule.update({
-      where: { id: schedule.id },
-      data: {
-        lastRunAt: now,
-        nextRunAt: advanceNextRun(schedule.cadence, now)
-      }
-    });
 
     enqueuedCount += 1;
   }

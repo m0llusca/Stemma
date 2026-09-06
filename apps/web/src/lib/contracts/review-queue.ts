@@ -1,7 +1,7 @@
 import type { ConversationChannel, QaStatus, ReviewSource, ReviewStatus, RiskLevel } from "@prisma/client";
 
 export type ReviewQueueStatus = "all" | "unreviewed" | "reviewed";
-export type ReviewQueueProcessFilter = "critical" | "reanswer" | "appeal";
+export type ReviewQueueProcessFilter = "critical" | "reanswer" | "appeal" | "ai_exception";
 export type ReviewQueueDueFilter = "overdue";
 export type ReviewQueueRiskFilter = RiskLevel | "HIGH_OR_CRITICAL";
 export type ReviewQueueCoachingFilter = "open";
@@ -16,6 +16,8 @@ export type ReviewQueueFilters = {
   qaAssignee?: string;
   samplingType?: string;
   csatBucket?: string;
+  /** Internal QA total-score band for QA×CSAT matrix drill-downs. */
+  qaScoreBand?: string;
   supportLine?: string;
   teamName?: string;
   process?: ReviewQueueProcessFilter;

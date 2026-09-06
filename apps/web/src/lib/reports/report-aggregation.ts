@@ -398,3 +398,133 @@ export function computeSentimentCorrelation(reviews: readonly SentimentReview[])
     totalCount: reviews.length
   };
 }
+
+/** Internal QA total-score bands used by the QA×CSAT matrix drill-down. */
+export type QaScoreBandKey = "LOW" | "MID" | "HIGH";
+
+export type QaCsatBucketKey = "NEGATIVE" | "POSITIVE" | "NO_SCORE";
+
+export type QaCsatReview = {
+  totalScore: number;
+  csatBucket: string | null;
+};
+
+export type QaScoreBandMeta = {
+  key: QaScoreBandKey;
+  label: string;
+  /** Inclusive lower bound (null = −∞). */
+  min: number | null;
+  /** Exclusive upper bound (null = +∞). */
+  maxExclusive: number | null;
+};
+
+export type QaCsatMatrixCell = {
+  qaScoreBand: QaScoreBandKey;
+  csatBucket: QaCsatBucketKey;
+  count: number;
+  averageScore: number | null;
+};
+
+export type QaCsatMatrix = {
+  bands: QaScoreBandMeta[];
+  csatBuckets: Array<{ key: QaCsatBucketKey; label: string }>;
+  cells: QaCsatMatrixCell[];
+  withCsatCount: number;
+  withoutCsatCount: number;
+  totalCount: number;
+};
+
+export const qaScoreBandMeta: QaScoreBandMeta[] = [
+  { key: "LOW", label: "QA < 70", min: null, maxExclusive: 70 },
+  { key: "MID", label: "QA 70–84", min: 70, maxExclusive: 85 },
+  { key: "HIGH", label: "QA ≥ 85", min: 85, maxExclusive: null }
+];
+
+const qaCsatBucketOrder: QaCsatBucketKey[] = ["NEGATIVE", "POSITIVE", "NO_SCORE"];
+
+const qaCsatBucketLabels: Record<QaCsatBucketKey, string> = {
+  NEGATIVE: "CSAT 1–2",
+  POSITIVE: "CSAT 3–5",
+  NO_SCORE: "Без CSAT"
+};
+
+export function resolveQaScoreBand(totalScore: number): QaScoreBandKey {
+  if (totalScore < 70) {
+    return "LOW";
+  }
+
+  if (totalScore < 85) {
+    return "MID";
+  }
+
+  return "HIGH";
+}
+
+export function qaScoreBandWhere(band: QaScoreBandKey): { gte?: number; lt?: number } {
+  const meta = qaScoreBandMeta.find((entry) => entry.key === band);
+  if (!meta) {
+    return {};
+  }
+
+  return {
+    ...(meta.min != null ? { gte: meta.min } : {}),
+    ...(meta.maxExclusive != null ? { lt: meta.maxExclusive } : {})
+  };
+}
+
+function resolveQaCsatBucket(value: string | null): QaCsatBucketKey {
+  if (value === "NEGATIVE" || value === "POSITIVE") {
+    return value;
+  }
+
+  return "NO_SCORE";
+}
+
+/**
+ * Cross-tabs internal QA score bands against conversation CSAT buckets for the
+ * same reviewed conversations — one evidence path for QA×CSAT drill-down.
+ */
+export function computeQaCsatMatrix(reviews: readonly QaCsatReview[]): QaCsatMatrix {
+  const cellScores = new Map<string, number[]>();
+  for (const band of qaScoreBandMeta) {
+    for (const csat of qaCsatBucketOrder) {
+      cellScores.set(`${band.key}:${csat}`, []);
+    }
+  }
+
+  let withCsatCount = 0;
+  let withoutCsatCount = 0;
+
+  for (const review of reviews) {
+    const band = resolveQaScoreBand(review.totalScore);
+    const csat = resolveQaCsatBucket(review.csatBucket);
+    if (csat === "NO_SCORE") {
+      withoutCsatCount += 1;
+    } else {
+      withCsatCount += 1;
+    }
+    cellScores.get(`${band}:${csat}`)!.push(review.totalScore);
+  }
+
+  const cells: QaCsatMatrixCell[] = [];
+  for (const band of qaScoreBandMeta) {
+    for (const csat of qaCsatBucketOrder) {
+      const values = cellScores.get(`${band.key}:${csat}`)!;
+      cells.push({
+        qaScoreBand: band.key,
+        csatBucket: csat,
+        count: values.length,
+        averageScore: average(values)
+      });
+    }
+  }
+
+  return {
+    bands: qaScoreBandMeta,
+    csatBuckets: qaCsatBucketOrder.map((key) => ({ key, label: qaCsatBucketLabels[key] })),
+    cells,
+    withCsatCount,
+    withoutCsatCount,
+    totalCount: reviews.length
+  };
+}

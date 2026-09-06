@@ -46,6 +46,7 @@ export function QueueSavedViews({
     { label: "Критические", href: "/reviews?process=critical", tone: "danger" },
     { label: "Переответы", href: "/reviews?process=reanswer", tone: "warning" },
     { label: "Апелляции", href: "/reviews?process=appeal", tone: "warning" },
+    { label: "AI-исключения", href: "/reviews?process=ai_exception", tone: "info" },
     { label: "Негативный CSAT", href: "/reviews?csatBucket=NEGATIVE", tone: "warning" }
   ];
 

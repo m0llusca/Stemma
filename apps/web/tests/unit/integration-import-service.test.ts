@@ -19,6 +19,9 @@ const mocks = vi.hoisted(() => {
     },
     backendJob: {
       create: vi.fn()
+    },
+    certificationEvidence: {
+      findFirst: vi.fn()
     }
   };
 
@@ -36,10 +39,16 @@ vi.mock("@/lib/audit", () => ({
   auditLog: mocks.auditLog
 }));
 
+const liveEvidence = {
+  envGate: "HELPDESK_LIVE_SMOKE=1;github-environment:helpdesk-live",
+  integrationId: "integration-1"
+};
+
 describe("integration import service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(liveEvidence);
   });
 
   it("queues an integration import job for the current workspace", async () => {
@@ -382,6 +391,69 @@ describe("integration import service", () => {
     expect(() => assertIntegrationSourceContractSupported({ source: "ydb", type: "custom_api" })).toThrow(
       "Тип интеграции не соответствует data source contract."
     );
+  });
+
+  it("rejects production import without protected live certification evidence", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        dryRun: false
+      })
+    ).rejects.toThrow("Импорт в production недоступен без живой сертификации с evidence.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("allows dry-run import without live certification evidence", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
+    });
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.integrationRun.create.mockResolvedValue({
+      id: "run-1",
+      status: "dry_run_queued",
+      requestedLimit: 25,
+      dryRun: true
+    });
+    mocks.prisma.backendJob.create.mockResolvedValue({
+      id: "job-1",
+      status: "QUEUED"
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        dryRun: true
+      })
+    ).resolves.toMatchObject({
+      run: { dryRun: true }
+    });
+
+    expect(mocks.prisma.certificationEvidence.findFirst).not.toHaveBeenCalled();
   });
 
   it("queues a selected OTRS import job with explicit operation payload", async () => {

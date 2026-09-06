@@ -1043,7 +1043,7 @@ describe("OTRS-family preview/import planning", () => {
         id: {
           in: ["item-1", "item-2", "item-other-workspace", "item-other-run"]
         },
-        status: { in: ["previewed", "selected"] }
+        status: { in: ["previewed", "selected", "importing"] }
       },
       data: {
         status: "selected"
@@ -1286,6 +1286,52 @@ describe("OTRS-family preview/import planning", () => {
     });
   });
 
+  it("invokes onItemProgress once per selected item before claim", async () => {
+    const { db, state } = createFakeDb();
+    const onItemProgress = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      dryRun: true
+    });
+    state.items.push(
+      {
+        id: "item-1",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "501",
+        status: "previewed",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("501"))
+      },
+      {
+        id: "item-2",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "502",
+        status: "previewed",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("502"))
+      }
+    );
+
+    await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1", "item-2"],
+      onItemProgress
+    });
+
+    expect(onItemProgress).toHaveBeenCalledTimes(2);
+  });
+
   it("empty selected import does not advance integration sync state or claim import success", async () => {
     const { db, state } = createFakeDb();
     state.runs.push({
@@ -1323,6 +1369,49 @@ describe("OTRS-family preview/import planning", () => {
       importedCount: 0,
       errorCount: 0
     });
+  });
+
+  it("idempotent re-entry does not clobber an already-imported run with no_selection", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "imported",
+      dryRun: false,
+      importedCount: 1
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "601",
+      status: "imported",
+      conversationId: "conversation-601",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("601"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"]
+    });
+
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 0
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "imported",
+      importedCount: 1
+    });
+    expect(state.integrationUpdates).toEqual([]);
   });
 
   it("all-failed selected import does not advance integration sync state", async () => {

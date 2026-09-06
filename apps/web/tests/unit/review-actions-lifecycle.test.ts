@@ -82,6 +82,7 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
 });
 
 vi.mock("@/lib/queue-view-actions", () => ({
+  filtersFromReviewsHref: vi.fn(() => undefined),
   selectNextReviewConversationId: mocks.selectNextReviewConversationId
 }));
 
@@ -106,6 +107,7 @@ function baseFinalizeForm() {
   formData.set("ownerType", "AGENT");
   formData.set("riskLevel", "LOW");
   formData.set("category", "Полнота ответа");
+  formData.set("criterion.crit-a.passed", "true");
   return formData;
 }
 
@@ -120,6 +122,7 @@ describe("review action lifecycle guards", () => {
     mocks.prisma.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
       assigneeName: "Оператор",
+      assigneeId: null,
       qaStatus: "IN_PROGRESS",
       qaAssigneeId: null,
       qaAssigneeName: null,
@@ -128,7 +131,7 @@ describe("review action lifecycle guards", () => {
     mocks.prisma.scorecard.findFirst.mockResolvedValue({
       id: "scorecard-1",
       version: 3,
-      criteria: []
+      criteria: [{ id: "crit-a", label: "Точность", kind: "PASS_FAIL", weight: 100 }]
     });
     mocks.prisma.user.count.mockResolvedValue(1);
     mocks.tx.conversation.findFirst.mockResolvedValue({
@@ -151,7 +154,6 @@ describe("review action lifecycle guards", () => {
   it("enqueues a MESSAGING_DELIVERY job for the manager when a review is finalized", async () => {
     const { finalizeReview } = await import("@/lib/review-actions");
     const formData = baseFinalizeForm();
-    formData.set("criterion.x.score", "3");
 
     await finalizeReview(formData);
 
@@ -165,7 +167,7 @@ describe("review action lifecycle guards", () => {
           recipientType: "manager",
           context: expect.objectContaining({
             title: "Проверка завершена",
-            body: "Оператор · 0 баллов",
+            body: "Оператор · 100 баллов",
             href: "/reviews/conversation-1"
           })
         })
@@ -295,46 +297,39 @@ describe("review action lifecycle guards", () => {
     );
   });
 
-  it("rejects self-review when several active users share the reviewer's name", async () => {
+  it("rejects self-review when the conversation is not assigned to the reviewer", async () => {
     const { finalizeReview } = await import("@/lib/review-actions");
     mocks.prisma.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
       assigneeName: "Проверяющий",
+      assigneeId: "other-agent",
       qaStatus: "IN_PROGRESS",
       qaAssigneeId: null,
       qaAssigneeName: null,
       messages: []
     });
-    mocks.prisma.user.count.mockResolvedValue(2);
     const formData = baseFinalizeForm();
     formData.set("reviewSource", "SELF_REVIEW");
 
     await expect(finalizeReview(formData)).rejects.toThrow(
-      "В рабочем пространстве несколько активных пользователей с вашим именем"
+      "Оператор может отправить самопроверку только по своему диалогу."
     );
 
-    expect(mocks.prisma.user.count).toHaveBeenCalledWith({
-      where: {
-        workspaceId: "workspace-1",
-        name: "Проверяющий",
-        lifecycleStatus: "ACTIVE"
-      }
-    });
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.review.create).not.toHaveBeenCalled();
   });
 
-  it("allows self-review when the reviewer's name is unique among active users", async () => {
+  it("allows self-review when the conversation assigneeId matches the reviewer", async () => {
     const { finalizeReview } = await import("@/lib/review-actions");
     mocks.prisma.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
       assigneeName: "Проверяющий",
+      assigneeId: "reviewer-1",
       qaStatus: "IN_PROGRESS",
       qaAssigneeId: null,
       qaAssigneeName: null,
       messages: []
     });
-    mocks.prisma.user.count.mockResolvedValue(1);
     const formData = baseFinalizeForm();
     formData.set("reviewSource", "SELF_REVIEW");
 
@@ -363,9 +358,44 @@ describe("review action lifecycle guards", () => {
     );
     expect(mocks.selectNextReviewConversationId).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: "workspace-1" }),
-      "conversation-1"
+      "conversation-1",
+      undefined
     );
     expect(mocks.redirect).toHaveBeenCalledWith("/reviews/conversation-next?saved=final");
+  });
+
+  it("refuses to finalize when every criterion is N/A (zero applicable weight)", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    mocks.prisma.scorecard.findFirst.mockResolvedValue({
+      id: "scorecard-1",
+      version: 3,
+      criteria: [
+        { id: "crit-a", label: "Точность", kind: "PASS_FAIL", weight: 50 },
+        { id: "crit-b", label: "Тон", kind: "PASS_FAIL", weight: 50 }
+      ]
+    });
+    const formData = baseFinalizeForm();
+    formData.set("criterion.crit-a.notApplicable", "on");
+    formData.set("criterion.crit-b.notApplicable", "on");
+
+    await expect(finalizeReview(formData)).rejects.toThrow(
+      "Нельзя завершить проверку без оценок по применимым критериям."
+    );
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses to finalize an empty scorecard with no criteria", async () => {
+    const { finalizeReview } = await import("@/lib/review-actions");
+    mocks.prisma.scorecard.findFirst.mockResolvedValue({
+      id: "scorecard-1",
+      version: 3,
+      criteria: []
+    });
+
+    await expect(finalizeReview(baseFinalizeForm())).rejects.toThrow(
+      "Нельзя завершить проверку без оценок по применимым критериям."
+    );
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("redirects to the empty-queue marker when nothing remains after finalizing", async () => {

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
   return {
     auditLog: vi.fn(),
     canAcknowledgeFeedback: vi.fn(),
+    canManageReviewWorkflow: vi.fn(),
     canManageTraining: vi.fn(),
     enqueueBackendJob: vi.fn(),
     getCurrentUser: vi.fn(),
@@ -27,6 +28,12 @@ const mocks = vi.hoisted(() => {
         findFirst: vi.fn()
       },
       user: {
+        findFirst: vi.fn()
+      },
+      coachingAction: {
+        findFirst: vi.fn()
+      },
+      trainingAssignment: {
         findFirst: vi.fn()
       }
     },
@@ -44,6 +51,7 @@ vi.mock("@/lib/audit", () => ({
 
 vi.mock("@/lib/current-user", () => ({
   canAcknowledgeFeedback: mocks.canAcknowledgeFeedback,
+  canManageReviewWorkflow: mocks.canManageReviewWorkflow,
   canManageTraining: mocks.canManageTraining,
   getCurrentUser: mocks.getCurrentUser
 }));
@@ -81,7 +89,7 @@ function reviewRecord(overrides: Record<string, unknown> = {}) {
     feedbackStatus: "new",
     appealStatus: "none",
     reanswerStatus: "not_needed",
-    conversation: { assigneeName: "Оператор" },
+    conversation: { assigneeName: "Оператор", assigneeId: "agent-1" },
     ...overrides
   };
 }
@@ -92,9 +100,12 @@ describe("feedback action messaging emitters", () => {
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.tx));
     mocks.getCurrentUser.mockResolvedValue(managerUser());
     mocks.canAcknowledgeFeedback.mockReturnValue(true);
+    mocks.canManageReviewWorkflow.mockReturnValue(true);
     mocks.canManageTraining.mockReturnValue(true);
     mocks.prisma.review.findFirst.mockResolvedValue(reviewRecord());
     mocks.prisma.user.findFirst.mockResolvedValue({ id: "agent-1", name: "Оператор" });
+    mocks.prisma.coachingAction.findFirst.mockResolvedValue(null);
+    mocks.prisma.trainingAssignment.findFirst.mockResolvedValue(null);
     mocks.tx.trainingAssignment.create.mockResolvedValue({ id: "assignment-1" });
     mocks.tx.review.update.mockResolvedValue({ id: "review-1" });
     mocks.tx.reviewFeedbackEvent.create.mockResolvedValue({ id: "event-1" });
@@ -113,6 +124,14 @@ describe("feedback action messaging emitters", () => {
 
     await createTrainingAssignmentFromReview(formData);
 
+    expect(mocks.tx.trainingAssignment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        reviewId: "review-1",
+        assigneeId: "agent-1",
+        assigneeName: "Оператор",
+        title: "Работа с возражениями"
+      })
+    });
     expect(mocks.enqueueBackendJob).toHaveBeenCalledTimes(1);
     expect(mocks.enqueueBackendJob).toHaveBeenCalledWith(
       {

@@ -8,6 +8,7 @@ import {
   computeAgentLeaderboard,
   computeReasonTrends,
   computeSentimentCorrelation,
+  computeQaCsatMatrix,
   countGroupRows,
   criterionEarnedPercent,
   rankedScoreRows,
@@ -507,5 +508,36 @@ describe("computeSentimentCorrelation", () => {
     expect(result.unscoredCount).toBe(2);
     expect(result.totalCount).toBe(2);
     expect(result.rows.every((row) => row.count === 0 && row.averageScore === null)).toBe(true);
+  });
+});
+
+describe("computeQaCsatMatrix", () => {
+  it("cross-tabs QA score bands against CSAT buckets with coverage counts", () => {
+    const result = computeQaCsatMatrix([
+      { totalScore: 60, csatBucket: "NEGATIVE" },
+      { totalScore: 65, csatBucket: "NEGATIVE" },
+      { totalScore: 75, csatBucket: "POSITIVE" },
+      { totalScore: 90, csatBucket: "POSITIVE" },
+      { totalScore: 88, csatBucket: "NO_SCORE" },
+      { totalScore: 50, csatBucket: null }
+    ]);
+
+    const cell = (band: string, csat: string) =>
+      result.cells.find((entry) => entry.qaScoreBand === band && entry.csatBucket === csat);
+
+    expect(cell("LOW", "NEGATIVE")).toMatchObject({ count: 2, averageScore: 62.5 });
+    expect(cell("MID", "POSITIVE")).toMatchObject({ count: 1, averageScore: 75 });
+    expect(cell("HIGH", "POSITIVE")).toMatchObject({ count: 1, averageScore: 90 });
+    expect(cell("HIGH", "NO_SCORE")).toMatchObject({ count: 1, averageScore: 88 });
+    expect(cell("LOW", "NO_SCORE")).toMatchObject({ count: 1, averageScore: 50 });
+    expect(result.withCsatCount).toBe(4);
+    expect(result.withoutCsatCount).toBe(2);
+    expect(result.totalCount).toBe(6);
+  });
+
+  it("returns empty cells when there are no reviews", () => {
+    const result = computeQaCsatMatrix([]);
+    expect(result.totalCount).toBe(0);
+    expect(result.cells.every((cell) => cell.count === 0 && cell.averageScore === null)).toBe(true);
   });
 });

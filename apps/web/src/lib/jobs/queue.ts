@@ -549,7 +549,12 @@ async function runSelectedOtrsImportJob(job: BackendJob, payload: BackendJobPayl
     integrationRunId,
     selectedItemIds,
     beforeWrite: async (client) => {
-      pendingLockState = await assertCurrentJobLock(client, job);
+      // Ownership check only — renewals happen per item outside this TX so other
+      // workers see committed lock heartbeats during long multi-ticket imports.
+      pendingLockState = await assertCurrentJobLock(client, job, { renew: false });
+    },
+    onItemProgress: async () => {
+      await renewCurrentJobLock(prisma, job);
     }
   });
   applyJobLockState(job, pendingLockState);
@@ -589,23 +594,56 @@ async function runIntegrationImportJob(job: BackendJob, payload: BackendJobPaylo
 async function runReportExportJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {
   const lockState = await assertCurrentJobLock(client, job);
 
+  const periodStart = payload.periodStart ? new Date(String(payload.periodStart)) : new Date();
+  const periodEnd = payload.periodEnd ? new Date(String(payload.periodEnd)) : new Date();
+  const filtersRaw = payload.filters && typeof payload.filters === "object" && !Array.isArray(payload.filters)
+    ? (payload.filters as Record<string, unknown>)
+    : {};
+
+  const { loadReportExportRows, summarizeReportExportMetrics } = await import("@/lib/report-export");
+  const { reportScheduleFilterKeys } = await import("@/lib/report-schedule-filters");
+
+  const rawParams: Record<string, string> = {
+    period: "custom",
+    start: periodStart.toISOString().slice(0, 10),
+    end: periodEnd.toISOString().slice(0, 10)
+  };
+
+  for (const key of reportScheduleFilterKeys) {
+    const value = filtersRaw[key];
+    if (typeof value === "string" && value.trim()) {
+      rawParams[key] = value.trim();
+    }
+  }
+
+  // Same filtered loader as on-demand CSV/XLSX/PDF export routes.
+  const { period, rows, metrics: loadedMetrics } = await loadReportExportRows(job.workspaceId, rawParams);
+  const metrics = loadedMetrics ?? summarizeReportExportMetrics(rows);
+
   const snapshot = await client.reportSnapshot.create({
     data: {
       workspaceId: job.workspaceId,
       name: typeof payload.name === "string" ? payload.name : "Отчет по качеству",
-      periodStart: payload.periodStart ? new Date(String(payload.periodStart)) : new Date(),
-      periodEnd: payload.periodEnd ? new Date(String(payload.periodEnd)) : new Date(),
-      filtersJson: JSON.stringify(payload.filters ?? {}),
-      metricsJson: JSON.stringify(payload.metrics ?? {}),
+      periodStart: period.start,
+      periodEnd: period.end,
+      filtersJson: JSON.stringify(rawParams),
+      metricsJson: JSON.stringify({
+        ...metrics,
+        format: typeof payload.format === "string" ? payload.format : null,
+        reportScheduleId: typeof payload.reportScheduleId === "string" ? payload.reportScheduleId : null
+      }),
       exportFormat: typeof payload.format === "string" ? payload.format : null,
       status: "READY",
       createdById: job.createdById
     }
   });
 
-  await recordJobEvent(client, job.id, "info", "Снимок отчета подготовлен.", { snapshotId: snapshot.id });
+  await recordJobEvent(client, job.id, "info", "Снимок отчета подготовлен.", {
+    snapshotId: snapshot.id,
+    rowCount: metrics.finalizedCount
+  });
 
-  return { result: { snapshotId: snapshot.id }, lockState };
+  return { result: { snapshotId: snapshot.id, rowCount: metrics.finalizedCount }, lockState };
 }
 
 async function runDirectorySyncJob(client: JobClient, job: BackendJob, payload: BackendJobPayload) {

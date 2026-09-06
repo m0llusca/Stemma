@@ -1,4 +1,5 @@
 import { auditLog } from "@/lib/audit";
+import { isProtectedLiveEnvGate } from "@/lib/certification/readiness-report";
 import { prisma } from "@/lib/db";
 import { dataSourceContracts } from "@/lib/integrations/data-source-adapters/source-contracts";
 import { phaseBSourceContracts } from "@/lib/integrations/helpdesk-adapters/source-contracts";
@@ -22,6 +23,37 @@ const importClaimableStatuses = ["ready", "active", "error", "paused"] as const;
 function assertIntegrationEnabled(integration: { status?: string | null }) {
   if (integration.status === "disabled") {
     throw new Error("Интеграция отключена.");
+  }
+}
+
+/**
+ * Fail-closed gate for production imports: require passed protected live smoke evidence.
+ * Dry-run / probe paths must skip this check.
+ */
+export async function assertIntegrationLiveCertifiedForProductionImport(input: {
+  workspaceId: string;
+  integrationId: string;
+  source: string;
+  client?: Pick<typeof prisma, "certificationEvidence">;
+}) {
+  const db = input.client ?? prisma;
+  const evidence = await db.certificationEvidence.findFirst({
+    where: {
+      workspaceId: input.workspaceId,
+      targetType: "integration",
+      integrationId: input.integrationId,
+      source: input.source,
+      result: "passed"
+    },
+    orderBy: { recordedAt: "desc" },
+    select: {
+      envGate: true,
+      integrationId: true
+    }
+  });
+
+  if (!evidence?.integrationId || !isProtectedLiveEnvGate(evidence.envGate)) {
+    throw new Error("Импорт в production недоступен без живой сертификации с evidence.");
   }
 }
 
@@ -147,6 +179,13 @@ export async function queueIntegrationImportJob(input: {
   assertRequiredIntegrationSecretSlots(integration);
 
   const dryRun = input.dryRun ?? false;
+  if (!dryRun) {
+    await assertIntegrationLiveCertifiedForProductionImport({
+      workspaceId: input.workspaceId,
+      integrationId: integration.id,
+      source: integration.source
+    });
+  }
   const requestedLimit = input.requestedLimit ?? integration.importLimit;
   const now = new Date();
 
@@ -281,6 +320,11 @@ export async function queueSelectedOtrsImportJob(input: {
     throw new Error("Выборочный импорт поддерживается только для OTRS-family интеграций.");
   }
   assertRequiredIntegrationSecretSlots(integration);
+  await assertIntegrationLiveCertifiedForProductionImport({
+    workspaceId: input.workspaceId,
+    integrationId: integration.id,
+    source: integration.source
+  });
 
   const run = await prisma.integrationRun.findFirst({
     where: {

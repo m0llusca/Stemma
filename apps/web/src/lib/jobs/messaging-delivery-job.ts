@@ -2,7 +2,7 @@ import type { BackendJob } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { BackendJobPayload } from "@/lib/jobs/enqueue";
 import { parseMessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
-import { recordMessagingDelivery } from "@/lib/messaging/delivery";
+import { findMessagingDeliveryForJobChannel, recordMessagingDelivery } from "@/lib/messaging/delivery";
 import type { SendToChannelOptions, SendToChannelResult } from "@/lib/messaging/send";
 import type { MessagingTransport } from "@/lib/messaging/http";
 import type { MessagingChannelKind } from "@/lib/messaging/types";
@@ -109,21 +109,44 @@ export async function runMessagingDeliveryJob(
   let skipped = 0;
 
   for (const channel of channels) {
-    const delivery = await recordMessagingDelivery({
+    // Retries (stale lock recovery, crash after webhook POST) must not re-POST
+    // to channels that already recorded a successful delivery for this job.
+    const existing = await findMessagingDeliveryForJobChannel({
       workspaceId: job.workspaceId,
       channelId: channel.id,
-      kind: channel.kind as MessagingChannelKind,
-      eventType: parsed.eventType,
-      recipientType: parsed.recipientType,
-      recipientRef: parsed.recipientRef ?? null,
-      message: {
-        title: parsed.context.title,
-        body: parsed.context.body,
-        actionLabel: "Открыть",
-        href: parsed.context.href ?? ""
-      },
-      payload: { recipientRef: parsed.recipientRef }
+      backendJobId: job.id
     });
+
+    if (existing?.status === "delivered") {
+      // Already fanned out successfully on a prior attempt — count as sent, no re-POST.
+      sent += 1;
+      continue;
+    }
+
+    const delivery =
+      existing ??
+      (await recordMessagingDelivery({
+        workspaceId: job.workspaceId,
+        channelId: channel.id,
+        kind: channel.kind as MessagingChannelKind,
+        eventType: parsed.eventType,
+        recipientType: parsed.recipientType,
+        recipientRef: parsed.recipientRef ?? null,
+        message: {
+          title: parsed.context.title,
+          body: parsed.context.body,
+          actionLabel: "Открыть",
+          href: parsed.context.href ?? ""
+        },
+        payload: { backendJobId: job.id, recipientRef: parsed.recipientRef }
+      }));
+
+    if (existing && existing.status !== "queued") {
+      await prisma.messagingDelivery.update({
+        where: { id: delivery.id },
+        data: { status: "queued", error: null, deliveredAt: null }
+      });
+    }
 
     let result: SendToChannelResult;
     try {

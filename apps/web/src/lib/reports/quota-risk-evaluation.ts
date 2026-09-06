@@ -54,15 +54,33 @@ export type QuotaRiskEvaluationResult =
 
 export function computeWorkspaceQuotaTotals(quotas: QuotaRow[], reviews: ReviewForQuota[]) {
   const plannedCount = quotas.reduce((sum, quota) => sum + quota.plannedCount, 0);
-  const actualCount = quotas.reduce((sum, quota) => {
-    const matched = reviews.filter(
-      (review) =>
-        review.conversation.assigneeName === quota.assigneeName &&
-        (quota.supportLine ? review.conversation.supportLine === quota.supportLine : true)
-    ).length;
 
-    return sum + matched;
-  }, 0);
+  // Count each review at most once. Prefer an exact supportLine quota match over a
+  // null-line (all-lines) quota so overlapping plans cannot inflate actualCount
+  // and produce a false-green completion percent.
+  let actualCount = 0;
+
+  for (const review of reviews) {
+    const assigneeName = review.conversation.assigneeName;
+    if (!assigneeName) {
+      continue;
+    }
+
+    const supportLine = review.conversation.supportLine;
+    const exactMatch = quotas.some(
+      (quota) =>
+        quota.assigneeName === assigneeName &&
+        quota.supportLine != null &&
+        quota.supportLine === supportLine
+    );
+    const openMatch =
+      !exactMatch &&
+      quotas.some((quota) => quota.assigneeName === assigneeName && quota.supportLine == null);
+
+    if (exactMatch || openMatch) {
+      actualCount += 1;
+    }
+  }
 
   const completionPercent =
     plannedCount > 0 ? Math.floor((actualCount / plannedCount) * 100) : null;

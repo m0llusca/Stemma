@@ -44,6 +44,14 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).toContain("overdueReviewCount");
   });
 
+  it("scopes lead KPIs and leaderboard rows to reviewed-queue filters", () => {
+    expect(dashboardPage).toContain("reportReviewRangeHref(thisWeekStart, now)");
+    expect(dashboardPage).toContain('riskLevel: "HIGH_OR_CRITICAL"');
+    expect(dashboardPage).toContain("reportReviewRangeHref(thirtyDaysStart, now");
+    expect(dashboardPage).toContain("appealStatus: \"open\"");
+    expect(dashboardPage).toContain("reportReviewRangeHref(item.date, new Date(item.date.getTime() + dayMs - 1))");
+  });
+
   it("tones lead/admin dashboard toward risk/SLA and hides activity ops chrome", () => {
     expect(dashboardPage).toContain('user.role === "TEAM_LEAD" || user.role === "ADMIN"');
     expect(dashboardPage).toContain("Риск и просроченный SLA за 30 секунд");
@@ -51,6 +59,14 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).toContain("EvidenceDrawer");
     expect(dashboardPage).toContain('"Высокий риск"');
     expect(dashboardPage).toContain('"Риск и апелляции"');
+  });
+
+  it("surfaces reviewer assignment workload for lead/admin", () => {
+    expect(dashboardPage).toContain("loadReviewerWorkload");
+    expect(dashboardPage).toContain("reviewerWorkloadHref");
+    expect(dashboardPage).toContain("Нагрузка проверяющих");
+    expect(dashboardPage).toContain('reviewerWorkloadHref(row.name, "QUEUED")');
+    expect(dashboardPage).toContain('reviewerWorkloadHref(row.name, "IN_PROGRESS")');
   });
 });
 
@@ -75,6 +91,18 @@ describe("calibration page copy", () => {
     );
     expect(calibrationPage).toContain("дождитесь участников или напомните им");
     expect(calibrationPage).not.toContain("Дождитесь или напомните");
+  });
+
+  it("surfaces appeal calibration signals with Russian copy", () => {
+    expect(calibrationPage).toContain("Сигналы по апелляциям");
+    expect(calibrationPage).toContain("Пока нет сигналов");
+    expect(calibrationPage).toContain("Все апелляции в очереди");
+  });
+
+  it("exposes GraderQA-lite disagreement and volume copy in Russian", () => {
+    expect(calibrationPage).toContain("Низкая согласованность");
+    expect(calibrationPage).toContain("Объём проверяющих");
+    expect(calibrationPage).toContain("Это покрытие, не слепая переоценка");
   });
 });
 
@@ -121,5 +149,11 @@ describe("coaching page copy", () => {
     // The view links render through a client wrapper that arms the
     // navigation-commit fallback; the aria-current contract lives there.
     expect(coachingViewNavLink).toContain('aria-current={active ? "page" : undefined}');
+  });
+
+  it("suggests coaching themes from recent failed criteria and findings", () => {
+    expect(coachingPage).toContain("groupCoachingThemesByAgent");
+    expect(coachingPage).toContain("CoachingPlanThemeField");
+    expect(coachingPage).toContain("defaultPlanFocusArea");
   });
 });

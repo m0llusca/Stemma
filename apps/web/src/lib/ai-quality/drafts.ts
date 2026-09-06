@@ -1,5 +1,7 @@
-import { prisma } from "@/lib/db";
+import { auditLog } from "@/lib/audit";
+import { applyApprovedScoreDraft } from "@/lib/ai-quality/apply-score-draft";
 import type { AiQualityDraftDecision, AiQualityDraftKind } from "@/lib/ai-quality/types";
+import { prisma } from "@/lib/db";
 
 export type CreateAiQualityDraftInput = {
   workspaceId: string;
@@ -21,6 +23,8 @@ export type DecideAiQualityDraftInput = {
   reason?: string | null;
   changedValue?: unknown;
   decidedAt?: Date;
+  /** Workspace for audit trail of the human decision. */
+  workspaceId: string;
 };
 
 function jsonText(value: unknown, fallback: unknown) {
@@ -56,14 +60,64 @@ export async function decideAiQualityDraft(input: DecideAiQualityDraftInput) {
     throw new Error("Для изменения AI-черновика нужно передать новое значение.");
   }
 
-  return prisma.aiQualityDraft.update({
-    where: { id: input.draftId },
-    data: {
-      status: input.decision,
-      finalizedById: actorId,
-      finalizedAt: input.decidedAt ?? new Date(),
-      decisionReason: input.reason?.trim() ? input.reason.trim() : null,
-      ...(Object.hasOwn(input, "changedValue") ? { suggestedValueJson: jsonText(input.changedValue, {}) } : {})
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.aiQualityDraft.updateMany({
+      where: { id: input.draftId, status: "draft" },
+      data: {
+        status: input.decision,
+        finalizedById: actorId,
+        finalizedAt: input.decidedAt ?? new Date(),
+        decisionReason: input.reason?.trim() ? input.reason.trim() : null,
+        ...(Object.hasOwn(input, "changedValue")
+          ? { suggestedValueJson: jsonText(input.changedValue, {}) }
+          : {})
+      }
+    });
+
+    if (updated.count !== 1) {
+      throw new Error("Предложение ИИ уже решено или не найдено.");
     }
+
+    const draft = await tx.aiQualityDraft.findUniqueOrThrow({
+      where: { id: input.draftId }
+    });
+
+    await auditLog(
+      {
+        workspaceId: input.workspaceId,
+        actorId,
+        action: "ai_quality.draft.decided",
+        targetType: "ai_quality_draft",
+        targetId: draft.id,
+        metadata: {
+          decision: input.decision,
+          conversationId: draft.conversationId,
+          kind: draft.kind,
+          reason: input.reason?.trim() ? input.reason.trim() : null
+        }
+      },
+      tx
+    );
+
+    // Accept / override materializes CriterionScores into a DRAFT Review.
+    // Reject writes no scores. Never auto-finalizes.
+    if (input.decision === "approved" || input.decision === "changed") {
+      await applyApprovedScoreDraft(tx, {
+        workspaceId: input.workspaceId,
+        actorId,
+        draft: {
+          id: draft.id,
+          kind: draft.kind,
+          conversationId: draft.conversationId,
+          reviewId: draft.reviewId,
+          suggestedValueJson: draft.suggestedValueJson
+        },
+        decision: input.decision
+      });
+    }
+
+    return tx.aiQualityDraft.findUniqueOrThrow({
+      where: { id: input.draftId }
+    });
   });
 }

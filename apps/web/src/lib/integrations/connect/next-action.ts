@@ -31,7 +31,7 @@ export function nextActionForConnectSteps(steps: ConnectStep[]): ConnectNextActi
   if (failed?.step === "webhook_probe") {
     return {
       label: "Настроить webhook",
-      description: "Источник подключен, но webhook-проверка не прошла. Проверьте endpoint, секрет и события.",
+      description: "Webhook-проверка не прошла — источник не активирован. Проверьте endpoint, секрет и события, затем повторите подключение.",
       severity: "negative",
       action: "configure_webhook"
     };

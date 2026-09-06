@@ -102,6 +102,23 @@ describe("SAML auth routes", () => {
     });
   });
 
+  it("fail-closes SSO start when workspaceId is missing", async () => {
+    const { GET } = await import("@/app/auth/sso/route");
+    const response = await GET(
+      new NextRequest("https://app.example.com/auth/sso?provider=saml&returnTo=/reports", {
+        headers: {
+          "x-forwarded-host": "attacker.example.com"
+        }
+      })
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://app.example.com/auth/login?returnTo=%2Freports");
+    expect(response.cookies.get("qc_login_flash")?.value).toBe("sso_unavailable");
+    expect(mocks.prisma.identityProvider.findFirst).not.toHaveBeenCalled();
+    expect(mocks.buildSamlAuthorizationUrl).not.toHaveBeenCalled();
+  });
+
   it("serves SP metadata with a SAML metadata content type", async () => {
     mocks.generateSamlMetadata.mockReturnValue("<EntityDescriptor />");
     const { GET } = await import("@/app/auth/saml/metadata/route");

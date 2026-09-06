@@ -29,6 +29,7 @@ describe("runConnectPipeline", () => {
     const steps = journal.steps.map((s) => `${s.step}:${s.status}`);
     expect(steps).toContain("verify_auth:ok");
     expect(steps).toContain("persist:ok");
+    expect(journal.steps.find((s) => s.step === "persist")?.detail).toContain("ready");
     expect(persist).toHaveBeenCalledOnce();
     expect(journal.connected).toBe(true);
   });
@@ -102,5 +103,25 @@ describe("runConnectPipeline", () => {
     expect(calls).toEqual(["verify", "capabilities", "webhooks", "persist"]);
     expect(result.steps.map((step) => step.step)).toContain("capability_probe");
     expect(result.steps.map((step) => step.step)).toContain("webhook_probe");
+  });
+
+  it("does not persist when webhook_probe fails", async () => {
+    const persist = vi.fn(async () => ({ integrationId: "integration-1" }));
+    const journal = await runConnectPipeline({
+      profile: fakeProfile({
+        probeCapabilities: vi.fn(async () => ({ status: "ok" as const, detail: "ok" })),
+        probeWebhooks: vi.fn(async () => ({ status: "failed" as const, detail: "webhook broken", hint: "fix" }))
+      }),
+      rawUrl: "https://acme.example.com",
+      credentials: { token: "t" },
+      workspaceId: "ws-1",
+      actorId: "u-1",
+      reachabilityCheck: vi.fn(async () => ({ status: "ok" as const })),
+      persist
+    });
+
+    expect(persist).not.toHaveBeenCalled();
+    expect(journal.connected).toBe(false);
+    expect(journal.steps.find((s) => s.step === "webhook_probe")?.status).toBe("failed");
   });
 });

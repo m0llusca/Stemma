@@ -44,6 +44,8 @@ export type CoachingPlanListItem = {
   title: string;
   focusArea: string | null;
   status: string;
+  reviewId: string | null;
+  conversationId: string | null;
   createdAt: Date;
   updatedAt: Date;
   progress: CoachingPlanProgress;
@@ -72,6 +74,8 @@ export async function listCoachingPlans(workspaceId: string): Promise<CoachingPl
     title: plan.title,
     focusArea: plan.focusArea,
     status: plan.status,
+    reviewId: plan.reviewId,
+    conversationId: plan.conversationId,
     createdAt: plan.createdAt,
     updatedAt: plan.updatedAt,
     progress: computePlanProgress(plan.assignments.map((assignment) => assignment.status))

@@ -52,6 +52,12 @@ export async function POST(request: Request, context: RouteContext) {
     return apiError("bad_request", "x-qc-webhook-signature header is required.", 400, requestId);
   }
 
+  const workspaceId = request.headers.get("x-qc-workspace-id")?.trim();
+
+  if (!workspaceId) {
+    return apiError("bad_request", "Заголовок x-qc-workspace-id обязателен.", 400, requestId);
+  }
+
   const contentLength = contentLengthBytes(request.headers);
 
   if (contentLength !== null && contentLength > maxWebhookBodyBytes) {
@@ -67,6 +73,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const result = await ingestWebhookEvent({
       endpointId,
+      workspaceId,
       rawBody,
       idempotencyKey,
       timestamp,

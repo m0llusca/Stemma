@@ -28,6 +28,19 @@ import { PageShell } from "@/components/ui/page-shell";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import {
+  coachingActionStatusLabels,
+  isOpenCoachingActionStatus,
+  type CoachingActionStatus
+} from "@/lib/coaching-action";
+import { updateCoachingActionStatus } from "@/lib/coaching-action-actions";
+import {
+  coachingAgentFocusHref,
+  coachingPlanCreateHref,
+  coachingPlanFocusHref,
+  needsCoachingFollowUp,
+  trainingAssignmentDefaultsFromFinding
+} from "@/lib/coaching-follow-up";
 import { createTrainingAssignmentFromReview, updateReviewFeedback } from "@/lib/feedback-actions";
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
 import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
@@ -66,6 +79,7 @@ import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/r
 import { formatQualityScore } from "@/lib/score-display";
 import { toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -207,14 +221,14 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     requestedReviewSource === "CALIBRATION" || requestedReviewSource === "SELF_REVIEW" ? requestedReviewSource : "HUMAN";
   const returnTo = singleParam(rawSearchParams.returnTo);
   const savedMarker = singleParam(rawSearchParams.saved);
-  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : undefined;
+  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : undefined;
   const canSaveHumanReviewDraft = canSaveReviewDraft(user.role);
   const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveHumanReviewDraft;
   const canManageWorkflow = canManageReviewWorkflow(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
-  // Calibration pins are internal alignment notes: visible to QA roles only,
-  // and new ones can be added only while evaluating in calibration mode.
-  const canSeeCoachingPins = canSaveHumanReviewDraft;
+  // QA authors pins; agents may read open pins on their own conversations (self-feedback).
+  const canSeeCoachingPins = canSaveHumanReviewDraft || user.role === "SUPPORT_AGENT";
+  const canAuthorCoachingPins = canSaveHumanReviewDraft && reviewSource === "CALIBRATION";
   const canSeeAiQualityDrafts = canSaveHumanReviewDraft;
   const aiDraftPreviewSelect = {
     id: true,
@@ -352,6 +366,57 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const canShowReviewPanel = canEvaluateReviewPermission && (reviewSource !== "HUMAN" || conversation.qaStatus !== "FINALIZED");
   const scorePreviewReview = latestFinalizedReview ?? currentDraftReview;
   const latestFinding = latestFinalizedReview?.findings[0];
+  const linkedTrainingAssignments = latestFinalizedReview?.trainingAssignments ?? [];
+  const openLinkedTraining = linkedTrainingAssignments.filter((assignment) => assignment.status !== "done");
+
+  const originLinkedPlans = await prisma.coachingPlan.findMany({
+    where: {
+      workspaceId: user.workspaceId,
+      OR: [
+        { conversationId: conversation.id },
+        ...(latestFinalizedReview ? [{ reviewId: latestFinalizedReview.id }] : [])
+      ]
+    },
+    select: { id: true, title: true, status: true, agentName: true, reviewId: true, conversationId: true },
+    orderBy: { updatedAt: "desc" },
+    take: 10
+  });
+
+  const agentActivePlans =
+    canCreateTrainingAssignment && conversation.assigneeName
+      ? await prisma.coachingPlan.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            agentName: conversation.assigneeName,
+            status: "active"
+          },
+          select: { id: true, title: true, status: true, agentName: true, reviewId: true, conversationId: true },
+          orderBy: { updatedAt: "desc" },
+          take: 5
+        })
+      : [];
+
+  const linkedCoachingPlans = [
+    ...new Map(
+      [
+        ...originLinkedPlans,
+        ...linkedTrainingAssignments
+          .map((assignment) => assignment.coachingPlan)
+          .filter((plan): plan is NonNullable<typeof plan> => Boolean(plan)),
+        ...agentActivePlans
+      ].map((plan) => [plan.id, plan])
+    ).values()
+  ];
+  const plansLinkedToThisReview = originLinkedPlans;
+  const offerCoachingFollowUp =
+    Boolean(latestFinalizedReview) &&
+    canCreateTrainingAssignment &&
+    Boolean(conversation.assigneeName) &&
+    needsCoachingFollowUp({
+      totalScore: latestFinalizedReview!.totalScore,
+      criticalError: latestFinalizedReview!.criticalError,
+      findings: latestFinalizedReview!.findings
+    });
   const reviewState = resolveReviewState({
     qaStatus: conversation.qaStatus,
     hasDraftReview: Boolean(currentDraftReview),
@@ -586,15 +651,188 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             ) : null}
             {latestFinding?.coachingAction ? (
               <div className="mx-5 mb-5 rounded-lg border border-border bg-muted/40 p-3 text-sm">
-                <p className="font-semibold text-muted-foreground">Разбор с оператором</p>
-                <p className="mt-1 text-foreground">{latestFinding.coachingAction.action}</p>
-                <p className="mt-2 text-muted-foreground">
-                  {latestFinding.coachingAction.assignee}
-                  {latestFinding.coachingAction.dueAt
-                    ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
-                    : ""}
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-muted-foreground">Разбор с оператором</p>
+                    <p className="mt-1 text-foreground">{latestFinding.coachingAction.action}</p>
+                    <p className="mt-2 text-muted-foreground">
+                      {latestFinding.coachingAction.assignee}
+                      {latestFinding.coachingAction.dueAt
+                        ? ` · до ${latestFinding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
+                        : ""}
+                    </p>
+                  </div>
+                  <Chip
+                    tone={
+                      latestFinding.coachingAction.status === "completed"
+                        ? "success"
+                        : latestFinding.coachingAction.status === "cancelled"
+                          ? "neutral"
+                          : "warning"
+                    }
+                  >
+                    {coachingActionStatusLabels[latestFinding.coachingAction.status as CoachingActionStatus] ??
+                      latestFinding.coachingAction.status}
+                  </Chip>
+                </div>
+                {canCreateTrainingAssignment && isOpenCoachingActionStatus(latestFinding.coachingAction.status) ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <form action={updateCoachingActionStatus}>
+                      <input type="hidden" name="id" value={latestFinding.coachingAction.id} />
+                      <input type="hidden" name="status" value="completed" />
+                      <Button type="submit" size="sm">
+                        Разбор выполнен
+                      </Button>
+                    </form>
+                    <form action={updateCoachingActionStatus}>
+                      <input type="hidden" name="id" value={latestFinding.coachingAction.id} />
+                      <input type="hidden" name="status" value="cancelled" />
+                      <Button type="submit" size="sm" variant="outline">
+                        Отменить разбор
+                      </Button>
+                    </form>
+                  </div>
+                ) : null}
+                {canCreateTrainingAssignment && !isOpenCoachingActionStatus(latestFinding.coachingAction.status) ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <form action={updateCoachingActionStatus}>
+                      <input type="hidden" name="id" value={latestFinding.coachingAction.id} />
+                      <input type="hidden" name="status" value="open" />
+                      <Button type="submit" size="sm" variant="outline">
+                        Вернуть в открытые
+                      </Button>
+                    </form>
+                    {latestFinalizedReview &&
+                    openLinkedTraining.length === 0 &&
+                    (conversation.assigneeName || conversation.assigneeId) ? (
+                      <form action={createTrainingAssignmentFromReview}>
+                        <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                        <input type="hidden" name="coachingActionId" value={latestFinding.coachingAction.id} />
+                        <input type="hidden" name="assigneeId" value={conversation.assigneeId ?? ""} />
+                        <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
+                        <Button type="submit" size="sm">
+                          Создать задание
+                        </Button>
+                      </form>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
+            ) : null}
+            {linkedTrainingAssignments.length > 0 || linkedCoachingPlans.length > 0 ? (
+              <div className="mx-5 mb-5 rounded-lg border border-border bg-muted/40 p-3 text-sm" aria-label="Связанное обучение">
+                <p className="font-semibold text-foreground">Связанное обучение</p>
+                {plansLinkedToThisReview.length > 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Планы, привязанные к этой проверке или обращению: {plansLinkedToThisReview.length}
+                  </p>
+                ) : null}
+                {linkedCoachingPlans.length > 0 ? (
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {linkedCoachingPlans.map((plan) => {
+                      const linkedByOrigin =
+                        ("conversationId" in plan && plan.conversationId === conversation.id) ||
+                        ("reviewId" in plan &&
+                          latestFinalizedReview != null &&
+                          plan.reviewId === latestFinalizedReview.id);
+
+                      return (
+                      <li key={plan.id} className="flex flex-wrap items-center gap-2">
+                        <span className="text-foreground">{plan.title}</span>
+                        <Chip tone={plan.status === "completed" ? "success" : "accent"}>
+                          {plan.status === "completed" ? "Завершён" : "План"}
+                        </Chip>
+                        {linkedByOrigin ? <Chip tone="neutral">из этой проверки</Chip> : null}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto px-0"
+                          render={
+                            <Link
+                              href={coachingPlanFocusHref({ planId: plan.id, agentName: plan.agentName })}
+                            />
+                          }
+                          nativeButton={false}
+                        >
+                          Открыть в обучении
+                        </Button>
+                      </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+                {linkedTrainingAssignments.length > 0 ? (
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {linkedTrainingAssignments.map((assignment) => (
+                      <li key={assignment.id} className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                        <span className="text-foreground">{assignment.title}</span>
+                        <Chip tone={assignment.status === "done" ? "success" : "neutral"}>
+                          {assignment.status === "done" ? "Закрыта" : assignment.status === "in_progress" ? "В работе" : "Открыта"}
+                        </Chip>
+                        {assignment.dueAt ? (
+                          <span>до {assignment.dueAt.toLocaleDateString("ru-RU")}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+            {offerCoachingFollowUp && conversation.assigneeName && latestFinalizedReview ? (
+              <Alert className="mx-5 mb-5 border-primary/30 bg-primary/5">
+                <MessageSquareWarning aria-hidden="true" />
+                <AlertTitle>Нужен follow-up по оператору</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span>
+                    Низкий балл или критическое замечание — создайте план коучинга или откройте существующий для{" "}
+                    {conversation.assigneeName}.
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {plansLinkedToThisReview.length > 0 || agentActivePlans.length > 0 ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        render={
+                          <Link
+                            href={
+                              plansLinkedToThisReview[0]
+                                ? coachingPlanFocusHref({
+                                    planId: plansLinkedToThisReview[0].id,
+                                    agentName: plansLinkedToThisReview[0].agentName
+                                  })
+                                : coachingAgentFocusHref(conversation.assigneeName)
+                            }
+                          />
+                        }
+                        nativeButton={false}
+                      >
+                        Открыть план
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        render={
+                          <Link
+                            href={coachingPlanCreateHref({
+                              agentName: conversation.assigneeName,
+                              reviewId: latestFinalizedReview.id,
+                              conversationId: conversation.id
+                            })}
+                          />
+                        }
+                        nativeButton={false}
+                      >
+                        Создать план коучинга
+                      </Button>
+                    )}
+                    {openLinkedTraining.length === 0 ? (
+                      <span className="text-xs text-muted-foreground self-center">
+                        Или назначьте учебную задачу ниже.
+                      </span>
+                    ) : null}
+                  </div>
+                </AlertDescription>
+              </Alert>
             ) : null}
             {latestFinalizedReview.needsReanswer ? (
               <Alert className="mx-5 mb-5 border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-300">
@@ -676,21 +914,44 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                   className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto] md:items-end"
                 >
                   <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />
+                  <input type="hidden" name="assigneeId" value={conversation.assigneeId ?? ""} />
                   <input type="hidden" name="assigneeName" value={conversation.assigneeName ?? ""} />
                   <Field>
                     <FieldLabel>Учебная задача</FieldLabel>
-                    <Input name="title" required defaultValue={`Разбор: ${latestFinding?.category ?? "итог проверки"}`} />
+                    <Input
+                      name="title"
+                      required
+                      defaultValue={
+                        trainingAssignmentDefaultsFromFinding({
+                          category: latestFinding?.category ?? "итог проверки",
+                          coachingAction: latestFinding?.coachingAction?.action,
+                          evidenceSummary: latestFinding?.evidenceSummary,
+                          summary: latestFinalizedReview.summary
+                        }).title
+                      }
+                    />
                   </Field>
                   <Field>
                     <FieldLabel>Описание</FieldLabel>
-                    <Input name="description" required defaultValue={latestFinalizedReview.summary} />
+                    <Input
+                      name="description"
+                      required
+                      defaultValue={
+                        trainingAssignmentDefaultsFromFinding({
+                          category: latestFinding?.category ?? "итог проверки",
+                          coachingAction: latestFinding?.coachingAction?.action,
+                          evidenceSummary: latestFinding?.evidenceSummary,
+                          summary: latestFinalizedReview.summary
+                        }).description
+                      }
+                    />
                   </Field>
                   <Field>
                     <FieldLabel>Срок</FieldLabel>
                     <Input name="dueAt" type="date" />
                   </Field>
                   <ValidatedSubmitButton className={cn(buttonVariants({ variant: "default" }))}>
-                    Создать
+                    Создать задание на обучение
                   </ValidatedSubmitButton>
                 </form>
               ) : null}
@@ -865,7 +1126,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
                 highlightedMessageIds={evidenceMessageIds}
                 conversationId={conversation.id}
                 coachingPins={canSeeCoachingPins ? conversation.coachingPins : []}
-                canCoach={canSeeCoachingPins && reviewSource === "CALIBRATION"}
+                canCoach={canAuthorCoachingPins}
                 canManagePins={canManageWorkflow}
                 currentUserId={user.id}
               />

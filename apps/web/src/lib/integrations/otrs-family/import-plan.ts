@@ -74,7 +74,11 @@ type ImportDb = {
   };
   integrationRunItem: {
     updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
-    findMany(args: { where: JsonRecord; orderBy?: JsonRecord }): Promise<JsonRecord[]>;
+    findMany(args: {
+      where: JsonRecord;
+      orderBy?: JsonRecord;
+      select?: JsonRecord;
+    }): Promise<JsonRecord[]>;
     update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
   };
   integration: {
@@ -123,6 +127,8 @@ export type ImportSelectedOtrsRunItemsInput = {
   integrationId: string;
   integrationRunId: string;
   selectedItemIds: string[];
+  /** Called before each item claim so long imports can renew the job lock. */
+  onItemProgress?: () => Promise<void>;
   importer?: (
     workspaceId: string,
     payload: CustomConversationInput,
@@ -293,8 +299,8 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     throw new Error("Интеграция отключена.");
   }
 
-  // Claim both "previewed" rows and rows stuck in "selected" from a previous
-  // crashed import attempt, so a re-run can resume them instead of hanging forever.
+  // Claim both "previewed" rows and rows stuck in "selected"/"importing" from a
+  // previous crashed import attempt, so a re-run can resume them instead of hanging.
   await db.integrationRunItem.updateMany({
     where: {
       workspaceId: input.workspaceId,
@@ -302,7 +308,7 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
       id: {
         in: input.selectedItemIds
       },
-      status: { in: ["previewed", "selected"] }
+      status: { in: ["previewed", "selected", "importing"] }
     },
     data: {
       status: "selected"
@@ -327,6 +333,30 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   let lastSuccessfulExternalId: string | undefined;
 
   if (selectedItems.length === 0) {
+    // Race / re-entry: if a concurrent worker already imported these rows, do not
+    // clobber a successful run with no_selection.
+    const alreadyImported = await db.integrationRunItem.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        integrationRunId: input.integrationRunId,
+        id: {
+          in: input.selectedItemIds
+        },
+        status: "imported"
+      },
+      select: {
+        id: true,
+        externalId: true
+      }
+    });
+
+    if (alreadyImported.length > 0) {
+      return {
+        importedCount: alreadyImported.length,
+        errorCount: 0
+      };
+    }
+
     const finishedAt = new Date();
 
     await db.integrationRun.update({
@@ -355,6 +385,25 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
   }
 
   for (const item of selectedItems) {
+    await input.onItemProgress?.();
+
+    // Per-item claim: only one worker may advance a row from selected → importing.
+    const claimed = await db.integrationRunItem.updateMany({
+      where: {
+        id: String(item.id),
+        workspaceId: input.workspaceId,
+        integrationRunId: input.integrationRunId,
+        status: "selected"
+      },
+      data: {
+        status: "importing"
+      }
+    });
+
+    if (claimed.count !== 1) {
+      continue;
+    }
+
     try {
       const conversation = parsePreviewConversation(item.normalizedPreviewJson);
       const imported = await importer(input.workspaceId, conversation, db);
@@ -385,6 +434,31 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
           ])
         }
       });
+    }
+  }
+
+  // Concurrent worker claimed every row first — treat as idempotent success if
+  // those rows are already imported, instead of marking the run failed.
+  if (importedCount === 0 && errorCount === 0) {
+    const alreadyImported = await db.integrationRunItem.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        integrationRunId: input.integrationRunId,
+        id: {
+          in: input.selectedItemIds
+        },
+        status: "imported"
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (alreadyImported.length > 0) {
+      return {
+        importedCount: alreadyImported.length,
+        errorCount: 0
+      };
     }
   }
 

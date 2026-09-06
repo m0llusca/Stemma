@@ -22,6 +22,9 @@ const mocks = vi.hoisted(() => ({
     },
     conversation: {
       findMany: vi.fn()
+    },
+    coachingPlan: {
+      findMany: vi.fn()
     }
   }
 }));
@@ -77,6 +80,10 @@ vi.mock("@/lib/feedback-actions", () => ({
   updateReviewFeedback: vi.fn()
 }));
 
+vi.mock("@/lib/coaching-action-actions", () => ({
+  updateCoachingActionStatus: vi.fn()
+}));
+
 vi.mock("@/lib/review-repository", () => ({
   getActiveScorecard: mocks.getActiveScorecard,
   getConversationForReview: mocks.getConversationForReview
@@ -125,6 +132,7 @@ describe("review detail page", () => {
     mocks.prisma.aiQualityDraft.findMany.mockResolvedValue([]);
     mocks.prisma.aiQualityDraft.findFirst.mockResolvedValue(null);
     mocks.prisma.aiQualityDraft.count.mockResolvedValue(0);
+    mocks.prisma.coachingPlan.findMany.mockResolvedValue([]);
     // The workbench footer's "N из M" batch counter queries the priority-ordered
     // queue ids; an empty queue renders the neutral "Вне очереди" hint.
     mocks.prisma.conversation.findMany.mockResolvedValue([]);

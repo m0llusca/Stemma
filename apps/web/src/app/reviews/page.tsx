@@ -251,6 +251,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       description={`Найдено ${filteredCount} из ${total}. Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия.`}
       actions={
         <form action={takeNextReview}>
+          <input type="hidden" name="queueHref" value={data.currentHref} />
           <Button type="submit">
             <ArrowRight size={16} aria-hidden="true" data-icon="inline-start" />
             Взять следующий

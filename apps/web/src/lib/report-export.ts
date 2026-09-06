@@ -2,6 +2,7 @@ import fs from "node:fs";
 import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/db";
 import { resolveReportPeriod, type ReportPeriod } from "@/lib/report-period";
+import { reportScheduleFilterKeys } from "@/lib/report-schedule-filters";
 import { formatQualityScore } from "@/lib/score-display";
 
 export const reportExportColumns = [
@@ -24,6 +25,23 @@ export const reportExportColumns = [
 ];
 
 export type ReportExportRow = string[];
+
+export type ReportExportMetrics = {
+  finalizedCount: number;
+  averageScore: number | null;
+  criticalErrorCount: number;
+  highRiskCount: number;
+};
+
+/** Fallback summary when only string rows are available (job path uses review-backed metrics). */
+export function summarizeReportExportMetrics(rows: ReportExportRow[]): ReportExportMetrics {
+  return {
+    finalizedCount: rows.length,
+    averageScore: null,
+    criticalErrorCount: 0,
+    highRiskCount: 0
+  };
+}
 
 // CSV/Formula injection (CWE-1236): a leading =, +, -, @, tab, CR or LF makes
 // Excel/LibreOffice/Google Sheets treat a CSV cell as a formula. Exported cells
@@ -190,6 +208,15 @@ function fontPath() {
 
 export async function loadReportExportRows(workspaceId: string, rawParams: Record<string, string>) {
   const period = resolveReportPeriod(rawParams);
+  const conversationFilter: Record<string, string> = {};
+
+  for (const key of reportScheduleFilterKeys) {
+    const value = rawParams[key]?.trim();
+    if (value) {
+      conversationFilter[key] = value;
+    }
+  }
+
   const reviews = await prisma.review.findMany({
     where: {
       workspaceId,
@@ -198,7 +225,12 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
       finalizedAt: {
         gte: period.start,
         lte: period.end
-      }
+      },
+      ...(Object.keys(conversationFilter).length > 0
+        ? {
+            conversation: conversationFilter
+          }
+        : {})
     },
     // Narrow select: only the columns the CSV/XLSX/PDF rows actually read.
     // Output stays byte-identical to the previous `include` of whole rows.
@@ -267,7 +299,24 @@ export async function loadReportExportRows(workspaceId: string, rawParams: Recor
     ];
   });
 
-  return { period, rows };
+  const criticalErrorCount = reviews.filter((review) => review.criticalError).length;
+  const highRiskCount = reviews.filter((review) => {
+    const risk = review.findings[0]?.riskLevel;
+    return risk === "HIGH" || risk === "CRITICAL";
+  }).length;
+  const averageScore =
+    reviews.length > 0
+      ? Math.round((reviews.reduce((sum, review) => sum + review.totalScore, 0) / reviews.length) * 10) / 10
+      : null;
+
+  const metrics: ReportExportMetrics = {
+    finalizedCount: reviews.length,
+    averageScore,
+    criticalErrorCount,
+    highRiskCount
+  };
+
+  return { period, rows, metrics };
 }
 
 export function reportExportFilename(period: ReportPeriod, extension: string) {

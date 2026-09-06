@@ -20,6 +20,12 @@ const mocks = vi.hoisted(() => {
       $transaction: vi.fn(),
       coachingPlan: {
         findFirst: vi.fn()
+      },
+      review: {
+        findFirst: vi.fn()
+      },
+      conversation: {
+        findFirst: vi.fn()
       }
     },
     tx
@@ -59,6 +65,8 @@ describe("coaching plan actions", () => {
     mocks.getCurrentUser.mockResolvedValue(managerUser());
     mocks.canManageTraining.mockReturnValue(true);
     mocks.prisma.coachingPlan.findFirst.mockResolvedValue({ id: "plan-1" });
+    mocks.prisma.review.findFirst.mockResolvedValue(null);
+    mocks.prisma.conversation.findFirst.mockResolvedValue(null);
     mocks.tx.coachingPlan.create.mockResolvedValue({ id: "plan-1" });
     mocks.tx.coachingPlan.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.trainingAssignment.updateMany.mockResolvedValue({ count: 1 });
@@ -81,6 +89,8 @@ describe("coaching plan actions", () => {
           agentName: "Оператор",
           title: "Работа с возражениями",
           focusArea: "Возражения",
+          reviewId: null,
+          conversationId: null,
           createdById: "manager-1"
         }
       });
@@ -102,6 +112,88 @@ describe("coaching plan actions", () => {
       expect(mocks.tx.coachingPlan.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ focusArea: null }) })
       );
+    });
+
+    it("persists origin review and conversation IDs from the form", async () => {
+      mocks.prisma.review.findFirst.mockResolvedValue({
+        id: "rev-1",
+        conversationId: "conv-1"
+      });
+      const { createCoachingPlan } = await import("@/lib/coaching-plan-actions");
+      const formData = new FormData();
+      formData.set("agentName", "Оператор");
+      formData.set("title", "План после проверки");
+      formData.set("reviewId", "rev-1");
+      formData.set("conversationId", "conv-1");
+
+      await createCoachingPlan(formData);
+
+      expect(mocks.prisma.review.findFirst).toHaveBeenCalledWith({
+        where: { id: "rev-1", workspaceId: "workspace-1" },
+        select: { id: true, conversationId: true }
+      });
+      expect(mocks.tx.coachingPlan.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          reviewId: "rev-1",
+          conversationId: "conv-1"
+        })
+      });
+      expect(mocks.auditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ reviewId: "rev-1", conversationId: "conv-1" })
+        }),
+        mocks.tx
+      );
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/reviews/conv-1");
+    });
+
+    it("fills conversationId from the review when only reviewId is given", async () => {
+      mocks.prisma.review.findFirst.mockResolvedValue({
+        id: "rev-1",
+        conversationId: "conv-1"
+      });
+      const { createCoachingPlan } = await import("@/lib/coaching-plan-actions");
+      const formData = new FormData();
+      formData.set("agentName", "Оператор");
+      formData.set("title", "План");
+      formData.set("reviewId", "rev-1");
+
+      await createCoachingPlan(formData);
+
+      expect(mocks.tx.coachingPlan.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          reviewId: "rev-1",
+          conversationId: "conv-1"
+        })
+      });
+    });
+
+    it("rejects a foreign review id", async () => {
+      mocks.prisma.review.findFirst.mockResolvedValue(null);
+      const { createCoachingPlan } = await import("@/lib/coaching-plan-actions");
+      const formData = new FormData();
+      formData.set("agentName", "Оператор");
+      formData.set("title", "План");
+      formData.set("reviewId", "foreign-rev");
+
+      await expect(createCoachingPlan(formData)).rejects.toThrow("Проверка для плана коучинга не найдена");
+      expect(mocks.tx.coachingPlan.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects mismatched review and conversation ids", async () => {
+      mocks.prisma.review.findFirst.mockResolvedValue({
+        id: "rev-1",
+        conversationId: "conv-1"
+      });
+      const { createCoachingPlan } = await import("@/lib/coaching-plan-actions");
+      const formData = new FormData();
+      formData.set("agentName", "Оператор");
+      formData.set("title", "План");
+      formData.set("reviewId", "rev-1");
+      formData.set("conversationId", "other-conv");
+
+      await expect(createCoachingPlan(formData)).rejects.toThrow("не относится к указанному обращению");
+      expect(mocks.tx.coachingPlan.create).not.toHaveBeenCalled();
     });
 
     it("rejects creation without manager rights", async () => {

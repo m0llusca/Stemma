@@ -11,7 +11,10 @@ import type {
   ReviewQueueStatus,
   ReviewQueueSummaryDto
 } from "@/lib/contracts/review-queue";
+import { aiExceptionDraftWhere } from "@/lib/ai-quality/exceptions";
 import { prisma } from "@/lib/db";
+import { qaScoreBandWhere } from "@/lib/reports/report-aggregation";
+import { outOfSampleSamplingType } from "@/lib/sampling-engine";
 
 export type {
   ReviewQueueDueFilter,
@@ -27,7 +30,8 @@ export const reviewQueueStatuses = ["all", "unreviewed", "reviewed"] as const;
 export const qaQueueStatuses = ["all", "QUEUED", "ASSIGNED", "IN_PROGRESS", "FINALIZED", "REOPENED"] as const;
 export const queueSamplingTypes = ["RANDOM", "DSAT", "LEAD_SIGNAL", "NEW_HIRE", "LOW_SCORE", "MANUAL"] as const;
 export const queueCsatBuckets = ["NEGATIVE", "POSITIVE", "NO_SCORE"] as const;
-export const queueProcessFilters = ["critical", "reanswer", "appeal"] as const;
+export const queueQaScoreBands = ["LOW", "MID", "HIGH"] as const;
+export const queueProcessFilters = ["critical", "reanswer", "appeal", "ai_exception"] as const;
 export const queueDueFilters = ["overdue"] as const;
 
 const conversationChannels = ["CHAT", "EMAIL", "TICKET", "MESSENGER"] as const satisfies readonly ConversationChannel[];
@@ -84,6 +88,7 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
   const requestedQaStatus = cleanParam(searchParams.qaStatus);
   const requestedSamplingType = cleanParam(searchParams.samplingType);
   const requestedCsatBucket = cleanParam(searchParams.csatBucket);
+  const requestedQaScoreBand = cleanParam(searchParams.qaScoreBand);
   const requestedProcess = cleanParam(searchParams.process);
   const requestedDue = cleanParam(searchParams.due);
   const requestedRiskLevel = cleanParam(searchParams.riskLevel);
@@ -108,6 +113,9 @@ export function parseReviewQueueFilters(searchParams: ReviewQueueSearchParams = 
       : undefined,
     csatBucket: queueCsatBuckets.includes(requestedCsatBucket as (typeof queueCsatBuckets)[number])
       ? requestedCsatBucket
+      : undefined,
+    qaScoreBand: queueQaScoreBands.includes(requestedQaScoreBand as (typeof queueQaScoreBands)[number])
+      ? requestedQaScoreBand
       : undefined,
     supportLine: cleanParam(searchParams.supportLine),
     teamName: cleanParam(searchParams.teamName),
@@ -139,7 +147,7 @@ function scopedConversationWhere(workspaceId: string, scope?: ReviewQueueScope):
   };
 }
 
-function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters, scope?: ReviewQueueScope): Prisma.ConversationWhereInput {
+export function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters, scope?: ReviewQueueScope): Prisma.ConversationWhereInput {
   const and: Prisma.ConversationWhereInput[] = [{ workspaceId }];
   const finalizedHumanReviewAnd: Prisma.ReviewWhereInput[] = [];
   const addFinalizedHumanReviewFilter = (where: Prisma.ReviewWhereInput) => {
@@ -219,12 +227,21 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
     and.push({ qaAssigneeName: filters.qaAssignee });
   }
 
+  // Default listing matches take-next: unmatched sampling stays out of the queue
+  // unless an explicit samplingType filter requests a specific type.
   if (filters.samplingType) {
     and.push({ samplingType: filters.samplingType });
+  } else {
+    and.push({ samplingType: { not: outOfSampleSamplingType } });
   }
 
   if (filters.csatBucket) {
     and.push({ csatBucket: filters.csatBucket });
+  }
+
+  if (filters.qaScoreBand) {
+    const band = filters.qaScoreBand as (typeof queueQaScoreBands)[number];
+    addFinalizedHumanReviewFilter({ totalScore: qaScoreBandWhere(band) });
   }
 
   if (filters.supportLine) {
@@ -254,6 +271,15 @@ function buildReviewQueueWhere(workspaceId: string, filters: ReviewQueueFilters,
     addFinalizedHumanReviewFilter({
       appealStatus: {
         not: "none"
+      }
+    });
+  }
+
+  // AI exceptions are draft-driven (not finalized-human-review process filters).
+  if (filters.process === "ai_exception") {
+    and.push({
+      aiQualityDrafts: {
+        some: aiExceptionDraftWhere()
       }
     });
   }
@@ -518,7 +544,9 @@ function reviewQueuePriority({
 }
 
 export async function getReviewQueueSummary(workspaceId: string, scope?: ReviewQueueScope): Promise<ReviewQueueSummaryDto> {
-  const baseWhere = scopedConversationWhere(workspaceId, scope);
+  // Match the default queue listing: OUT_OF_SAMPLE is excluded unless the
+  // user explicitly filters by samplingType (KPI counts have no sampling filter).
+  const baseWhere = buildReviewQueueWhere(workspaceId, parseReviewQueueFilters({}), scope);
   const [total, queued, inWork, drafts, reviewed, overdue] = await Promise.all([
     prisma.conversation.count({
       where: baseWhere
@@ -716,6 +744,16 @@ export async function getConversationForReview(workspaceId: string, conversation
           trainingAssignments: {
             orderBy: {
               createdAt: "desc"
+            },
+            include: {
+              coachingPlan: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                  agentName: true
+                }
+              }
             }
           }
         }

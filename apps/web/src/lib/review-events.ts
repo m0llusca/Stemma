@@ -37,13 +37,19 @@ const REVIEW_EVENT_ACTION_LABELS: Record<string, string> = {
   "review.draft_saved": "Черновик проверки",
   "review.feedback.acknowledged": "Обратная связь подтверждена",
   "review.feedback.appeal_confirmed": "Апелляция подтверждена",
+  "review.feedback.appeal_corrected": "Апелляция скорректирована",
   "review.feedback.appeal_opened": "Открыта апелляция",
   "review.feedback.reanswer_completed": "Переответ выполнен",
   "review.feedback.reanswer_requested": "Запрошен переответ",
   "review.finalized": "Проверка завершена",
   "review.reopened": "Проверка переоткрыта",
+  "calibration.appeal_signal": "Сигнал калибровки по апелляции",
+  "coaching.action_status_updated": "Статус разбора обновлён",
   "training.assignment_created": "Учебная задача создана"
 };
+
+/** Dedicated ReviewEvent action written when an appeal is confirmed or corrected. */
+export const CALIBRATION_APPEAL_SIGNAL_ACTION = "calibration.appeal_signal";
 
 export function reviewEventActionLabel(action: string) {
   return REVIEW_EVENT_ACTION_LABELS[action] ?? action;

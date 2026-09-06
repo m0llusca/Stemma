@@ -23,6 +23,7 @@ import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-categor
 import { SparklineChart, type ChartDatum } from "@/components/reports/report-charts";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { CoachingViewNavLink } from "@/app/coaching/coaching-view-nav-link";
+import { CoachingPlanThemeField } from "@/app/coaching/coaching-plan-theme-field";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,8 +39,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createTrainingAssignmentState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
+import { updateCoachingActionStatusState } from "@/lib/coaching-action-actions";
+import { coachingActionStatusLabels } from "@/lib/coaching-action";
 import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
 import { listCoachingPlans } from "@/lib/coaching-plan";
+import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -202,11 +206,35 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const createTaskOpen = cleanParam(rawSearchParams.create) === "1";
   const createRuleOpen = cleanParam(rawSearchParams.rule) === "1";
   const createPlanOpen = cleanParam(rawSearchParams.plan) === "1";
+  const prefillsAgentName = cleanParam(rawSearchParams.agentName);
+  const prefillsReviewId = cleanParam(rawSearchParams.reviewId);
+  const prefillsConversationId = cleanParam(rawSearchParams.conversationId);
+  const focusPlanId = cleanParam(rawSearchParams.planId);
+  const isSupportAgent = user.role === "SUPPORT_AGENT";
+  // Agents may view their own training tasks; team scoring, create forms, and
+  // other operators' reviews stay manager-only.
+  const canManageCoachingOps = !isSupportAgent;
   const trainingWhere =
-    user.role === "SUPPORT_AGENT"
+    isSupportAgent
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
       : { workspaceId: user.workspaceId };
-  const [rawAssignments, knowledgeEntries, supportUsers, reviewCandidates, agentScoreHistory, coachingPlans] = await Promise.all([
+  const scoreHistoryWhere = {
+    workspaceId: user.workspaceId,
+    status: "FINALIZED" as const,
+    reviewSource: "HUMAN" as const,
+    finalizedAt: { not: null },
+    ...(isSupportAgent ? { conversation: { assigneeId: user.id } } : {})
+  };
+  const [
+    rawAssignments,
+    knowledgeEntries,
+    supportUsers,
+    reviewCandidates,
+    agentScoreHistory,
+    coachingPlans,
+    openCoachingActions,
+    themeSourceReviews
+  ] = await Promise.all([
     prisma.trainingAssignment.findMany({
       where: trainingWhere,
       include: {
@@ -224,34 +252,33 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       where: { workspaceId: user.workspaceId },
       orderBy: [{ riskLevel: "desc" }, { category: "asc" }]
     }),
-    prisma.user.findMany({
-      where: { workspaceId: user.workspaceId, role: "SUPPORT_AGENT" },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, supportLine: true, teamName: true }
-    }),
+    canManageCoachingOps
+      ? prisma.user.findMany({
+          where: { workspaceId: user.workspaceId, role: "SUPPORT_AGENT" },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, supportLine: true, teamName: true }
+        })
+      : Promise.resolve([]),
+    canManageCoachingOps
+      ? prisma.review.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            conversation: {
+              qaStatus: "FINALIZED"
+            }
+          },
+          include: {
+            conversation: true,
+            findings: true
+          },
+          orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
+          take: 20
+        })
+      : Promise.resolve([]),
     prisma.review.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        conversation: {
-          qaStatus: "FINALIZED"
-        }
-      },
-      include: {
-        conversation: true,
-        findings: true
-      },
-      orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
-      take: 20
-    }),
-    prisma.review.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { not: null }
-      },
+      where: scoreHistoryWhere,
       select: {
         totalScore: true,
         finalizedAt: true,
@@ -260,8 +287,77 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       orderBy: { finalizedAt: "desc" },
       take: 600
     }),
-    listCoachingPlans(user.workspaceId)
+    listCoachingPlans(user.workspaceId).then((plans) =>
+      isSupportAgent ? plans.filter((plan) => plan.agentName === user.name) : plans
+    ),
+    canManageCoachingOps
+      ? prisma.coachingAction.findMany({
+          where: {
+            status: "open",
+            finding: {
+              review: {
+                workspaceId: user.workspaceId
+              }
+            }
+          },
+          include: {
+            finding: {
+              select: {
+                category: true,
+                riskLevel: true,
+                review: {
+                  select: {
+                    id: true,
+                    conversationId: true,
+                    conversation: {
+                      select: {
+                        assigneeName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+          take: 40
+        })
+      : Promise.resolve([]),
+    canManageCoachingOps
+      ? prisma.review.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            conversation: { assigneeName: { not: null } }
+          },
+          select: {
+            conversation: { select: { assigneeName: true } },
+            findings: { select: { category: true, rootCause: true, riskLevel: true } },
+            scores: {
+              select: {
+                passed: true,
+                value: true,
+                isNotApplicable: true,
+                criterion: { select: { label: true, kind: true } }
+              }
+            }
+          },
+          orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
+          take: 200
+        })
+      : Promise.resolve([])
   ]);
+  const themesByAgent = canManageCoachingOps
+    ? groupCoachingThemesByAgent(
+        themeSourceReviews.map((review) => ({
+          assigneeName: review.conversation.assigneeName,
+          findings: review.findings,
+          scores: review.scores
+        }))
+      )
+    : {};
+  const defaultPlanFocusArea = prefillsAgentName ? themesByAgent[prefillsAgentName]?.[0]?.label ?? "" : "";
   const assignments = [...rawAssignments].sort((left, right) => {
     const leftOverdue = left.status !== "done" && isOverdue(left.dueAt, now);
     const rightOverdue = right.status !== "done" && isOverdue(right.dueAt, now);
@@ -461,7 +557,11 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   const createRuleHref = `${baseCoachingHref}&rule=1`;
   const createPlanHref = `${baseCoachingHref}&plan=1`;
   const closeCreatePanelHref = baseCoachingHref;
-  const coachingActionHref = nextConversation ? `/reviews/${nextConversation.id}` : createTaskHref;
+  const coachingActionHref = nextConversation
+    ? `/reviews/${nextConversation.id}`
+    : canManageCoachingOps
+      ? createTaskHref
+      : "/coaching";
   const coachingActionTone = overdueAssignments.length > 0 ? "negative" : openAssignments.length > 0 ? "warning" : "positive";
   // Team score-over-time: bucket finalized review scores by month (oldest -> newest)
   // with review volume in point details, using the same chart logic as quality analytics.
@@ -517,40 +617,46 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       title="Обучение"
       description="Рабочая очередь разборов: сначала срочные задачи, затем контекст проверки и правило, которое нужно закрепить."
       actions={
-        <>
-          <Button
-            variant={createTaskOpen ? "outline" : "default"}
-            render={<Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} />}
-            nativeButton={false}
-          >
-            {createTaskOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <PlusCircle data-icon="inline-start" aria-hidden="true" />}
-            {createTaskOpen ? "Скрыть форму" : "Новая задача"}
-          </Button>
-          <Button
-            variant="outline"
-            render={<Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} />}
-            nativeButton={false}
-          >
-            {createRuleOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <BookOpenCheck data-icon="inline-start" aria-hidden="true" />}
-            {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
-          </Button>
-        </>
+        canManageCoachingOps ? (
+          <>
+            <Button
+              variant={createTaskOpen ? "outline" : "default"}
+              render={<Link href={createTaskOpen ? closeCreatePanelHref : createTaskHref} />}
+              nativeButton={false}
+            >
+              {createTaskOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <PlusCircle data-icon="inline-start" aria-hidden="true" />}
+              {createTaskOpen ? "Скрыть форму" : "Новая задача"}
+            </Button>
+            <Button
+              variant="outline"
+              render={<Link href={createRuleOpen ? closeCreatePanelHref : createRuleHref} />}
+              nativeButton={false}
+            >
+              {createRuleOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <BookOpenCheck data-icon="inline-start" aria-hidden="true" />}
+              {createRuleOpen ? "Скрыть правило" : "Типовая ошибка"}
+            </Button>
+          </>
+        ) : undefined
       }
     >
       <TriageStrip
         tone={coachingTriageTone}
         icon={overdueAssignments.length > 0 ? <TriangleAlert size={18} aria-hidden="true" /> : <ClipboardList size={18} aria-hidden="true" />}
-        title={nextAssignment ? nextAssignment.title : "Создать следующий разбор"}
+        title={nextAssignment ? nextAssignment.title : canManageCoachingOps ? "Создать следующий разбор" : "Очередь разборов"}
         description={
           nextAssignment
             ? `${nextAssignment.assigneeName} · ${dueText(nextAssignment.dueAt)}. Сначала закройте этот разбор.`
-            : "Активных разборов нет. Создайте задачу из проверки с замечанием или добавьте ручной разбор."
+            : canManageCoachingOps
+              ? "Активных разборов нет. Создайте задачу из проверки с замечанием или добавьте ручной разбор."
+              : "Активных разборов нет. Новые задачи появятся, когда их назначит тимлид."
         }
         action={
-          <Button render={<Link href={coachingActionHref} />} nativeButton={false}>
-            {nextConversation ? "Открыть проверку" : "Новая задача"}
-            <ArrowRight data-icon="inline-end" aria-hidden="true" />
-          </Button>
+          nextConversation || canManageCoachingOps ? (
+            <Button render={<Link href={coachingActionHref} />} nativeButton={false}>
+              {nextConversation ? "Открыть проверку" : "Новая задача"}
+              <ArrowRight data-icon="inline-end" aria-hidden="true" />
+            </Button>
+          ) : undefined
         }
       />
 
@@ -586,14 +692,86 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         />
       </div>
 
+      {canManageCoachingOps && openCoachingActions.length > 0 ? (
+        <Card aria-label="Открытые разборы из проверок">
+          <CardHeader className="border-b">
+            <CardTitle>Открытые разборы из проверок</CardTitle>
+            <CardDescription>
+              Follow-up из Finding — закройте, когда разбор с оператором проведён. KPI отчётов считает только статус «открыт».
+            </CardDescription>
+            <CardAction>
+              <Chip tone="warning" className="tabular-nums">
+                {openCoachingActions.length}
+              </Chip>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
+            {openCoachingActions.map((action) => {
+              const conversationId = action.finding.review.conversationId;
+              const overdue = isOverdue(action.dueAt, now);
+              return (
+                <div
+                  key={action.id}
+                  className="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-foreground">{action.action}</p>
+                      <Chip tone={overdue ? "danger" : "warning"}>
+                        {coachingActionStatusLabels.open}
+                        {overdue ? " · просрочен" : ""}
+                      </Chip>
+                      <Chip tone="neutral">{action.finding.category}</Chip>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {action.assignee}
+                      {action.finding.review.conversation.assigneeName
+                        ? ` · оператор ${action.finding.review.conversation.assigneeName}`
+                        : ""}
+                      {action.dueAt ? ` · до ${action.dueAt.toLocaleDateString("ru-RU")}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      render={<Link href={`/reviews/${conversationId}`} />}
+                      nativeButton={false}
+                    >
+                      К проверке
+                    </Button>
+                    <ToastActionForm action={updateCoachingActionStatusState}>
+                      <input type="hidden" name="id" value={action.id} />
+                      <input type="hidden" name="status" value="completed" />
+                      <Button type="submit" size="sm">
+                        Разбор выполнен
+                      </Button>
+                    </ToastActionForm>
+                    <ToastActionForm action={updateCoachingActionStatusState}>
+                      <input type="hidden" name="id" value={action.id} />
+                      <input type="hidden" name="status" value="cancelled" />
+                      <Button type="submit" size="sm" variant="outline">
+                        Отменить
+                      </Button>
+                    </ToastActionForm>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {trendPoints.length >= 2 || topCategories.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]" aria-label="Динамика качества и зоны роста">
           <Card>
             <CardHeader>
               <CardDescription>Качество во времени</CardDescription>
-              <CardTitle>Средний балл команды</CardTitle>
+              <CardTitle>{isSupportAgent ? "Ваш средний балл" : "Средний балл команды"}</CardTitle>
               <CardDescription>
-                Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов.
+                {isSupportAgent
+                  ? "Динамика ваших финальных проверок по месяцам."
+                  : "Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -668,30 +846,45 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               : "Сгруппируйте разборы оператора под одной темой развития и отслеживайте прогресс."}
           </CardDescription>
           <CardAction>
-            <Button
-              variant={createPlanOpen ? "outline" : "default"}
-              size="sm"
-              render={<Link href={createPlanOpen ? closeCreatePanelHref : createPlanHref} />}
-              nativeButton={false}
-            >
-              {createPlanOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <Target data-icon="inline-start" aria-hidden="true" />}
-              {createPlanOpen ? "Скрыть форму" : "Новый план"}
-            </Button>
+            {canManageCoachingOps ? (
+              <Button
+                variant={createPlanOpen ? "outline" : "default"}
+                size="sm"
+                render={<Link href={createPlanOpen ? closeCreatePanelHref : createPlanHref} />}
+                nativeButton={false}
+              >
+                {createPlanOpen ? <X data-icon="inline-start" aria-hidden="true" /> : <Target data-icon="inline-start" aria-hidden="true" />}
+                {createPlanOpen ? "Скрыть форму" : "Новый план"}
+              </Button>
+            ) : null}
           </CardAction>
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 pt-(--card-spacing)">
-          {createPlanOpen ? (
+          {canManageCoachingOps && createPlanOpen ? (
             <ToastActionForm
               action={createCoachingPlanState}
               className="rounded-lg border border-border bg-muted/40 p-4"
               aria-label="Новый план коучинга"
             >
+              {prefillsReviewId ? <input type="hidden" name="reviewId" value={prefillsReviewId} /> : null}
+              {prefillsConversationId ? (
+                <input type="hidden" name="conversationId" value={prefillsConversationId} />
+              ) : null}
               <FieldGroup className="grid gap-3 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="plan-agentName">Оператор</FieldLabel>
-                  <NativeSelect id="plan-agentName" name="agentName" required className="w-full">
+                  <NativeSelect
+                    id="plan-agentName"
+                    name="agentName"
+                    required
+                    className="w-full"
+                    defaultValue={prefillsAgentName || ""}
+                  >
                     <NativeSelectOption value="">Выберите оператора</NativeSelectOption>
+                    {prefillsAgentName && !supportUsers.some((supportUser) => supportUser.name === prefillsAgentName) ? (
+                      <NativeSelectOption value={prefillsAgentName}>{prefillsAgentName}</NativeSelectOption>
+                    ) : null}
                     {supportUsers.map((supportUser) => (
                       <NativeSelectOption key={supportUser.id} value={supportUser.name}>
                         {supportUser.name}
@@ -699,15 +892,31 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
+                  {prefillsConversationId ? (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Из проверки:{" "}
+                      <Link href={`/reviews/${prefillsConversationId}`} className="underline-offset-4 hover:underline">
+                        открыть обращение
+                      </Link>
+                      {prefillsReviewId ? ` · review ${prefillsReviewId.slice(0, 8)}…` : ""}
+                    </p>
+                  ) : null}
                 </Field>
-                <Field>
-                  <FieldLabel htmlFor="plan-focusArea">Фокус-тема</FieldLabel>
-                  <Input id="plan-focusArea" name="focusArea" placeholder="Например: работа с возражениями" />
-                </Field>
-                <Field className="sm:col-span-2">
+                <Field className="sm:col-span-1 sm:col-start-2">
                   <FieldLabel htmlFor="plan-title">Название плана</FieldLabel>
-                  <Input id="plan-title" name="title" required placeholder="Например: рост качества по эмпатии" />
+                  <Input
+                    id="plan-title"
+                    name="title"
+                    required
+                    placeholder="Например: рост качества по эмпатии"
+                    defaultValue={defaultPlanFocusArea ? `Развитие: ${defaultPlanFocusArea}` : undefined}
+                  />
                 </Field>
+                <CoachingPlanThemeField
+                  themesByAgent={themesByAgent}
+                  defaultAgentName={prefillsAgentName}
+                  defaultFocusArea={defaultPlanFocusArea}
+                />
                 <div className="sm:col-span-2">
                   <ValidatedSubmitButton className={buttonVariants()}>Создать план</ValidatedSubmitButton>
                 </div>
@@ -721,10 +930,17 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 const planAssignments = assignmentsByPlan.get(plan.id) ?? [];
                 const planImpact = planImpacts.get(plan.id);
                 const summary = planImpact ? impactSummary(planImpact) : null;
+                const isFocusedPlan = focusPlanId === plan.id;
 
                 return (
-                  <li key={plan.id}>
-                    <Card size="sm" className="h-full">
+                  <li key={plan.id} id={`coaching-plan-${plan.id}`}>
+                    <Card
+                      size="sm"
+                      className={cn(
+                        "h-full",
+                        isFocusedPlan && "ring-2 ring-primary/40"
+                      )}
+                    >
                       <CardHeader>
                         <div className="flex min-w-0 items-center gap-2 text-primary">
                           <Target size={16} aria-hidden="true" />
@@ -739,6 +955,15 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                             {plan.agentName}
                           </span>
                           {plan.focusArea ? <span>{plan.focusArea}</span> : null}
+                          {plan.conversationId ? (
+                            <Link
+                              href={`/reviews/${plan.conversationId}`}
+                              className="inline-flex items-center gap-1 text-foreground underline-offset-4 hover:underline"
+                            >
+                              <Link2 size={14} aria-hidden="true" />
+                              Исходная проверка
+                            </Link>
+                          ) : null}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="flex flex-col gap-3">
@@ -838,19 +1063,25 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               size="inline"
               icon={<Target size={20} aria-hidden="true" />}
               title="Планов коучинга пока нет"
-              description="Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
+              description={
+                canManageCoachingOps
+                  ? "Создайте план, чтобы вести развитие оператора по конкретной теме и видеть эффект до и после."
+                  : "Когда тимлид назначит план развития, он появится здесь."
+              }
               action={
-                <Button render={<Link href={createPlanHref} />} nativeButton={false}>
-                  <Target data-icon="inline-start" aria-hidden="true" />
-                  Новый план
-                </Button>
+                canManageCoachingOps ? (
+                  <Button render={<Link href={createPlanHref} />} nativeButton={false}>
+                    <Target data-icon="inline-start" aria-hidden="true" />
+                    Новый план
+                  </Button>
+                ) : undefined
               }
             />
           )}
         </CardContent>
       </Card>
 
-      {createTaskOpen ? (
+      {canManageCoachingOps && createTaskOpen ? (
         <Card aria-label="Новая учебная задача">
           <CardHeader className="border-b">
             <CardTitle>Новая учебная задача</CardTitle>
@@ -866,7 +1097,15 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               <FieldGroup className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field>
                   <FieldLabel htmlFor="task-assigneeId">Исполнитель</FieldLabel>
-                  <NativeSelect id="task-assigneeId" name="assigneeId" required className="w-full">
+                  <NativeSelect
+                    id="task-assigneeId"
+                    name="assigneeId"
+                    required
+                    className="w-full"
+                    defaultValue={
+                      supportUsers.find((supportUser) => supportUser.name === prefillsAgentName)?.id ?? ""
+                    }
+                  >
                     <NativeSelectOption value="">Выберите оператора</NativeSelectOption>
                     {supportUsers.map((supportUser) => (
                       <NativeSelectOption key={supportUser.id} value={supportUser.id}>
@@ -878,7 +1117,16 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="task-reviewId">Проверка</FieldLabel>
-                  <NativeSelect id="task-reviewId" name="reviewId" className="w-full">
+                  <NativeSelect
+                    id="task-reviewId"
+                    name="reviewId"
+                    className="w-full"
+                    defaultValue={
+                      prefillsReviewId && reviewCandidates.some((review) => review.id === prefillsReviewId)
+                        ? prefillsReviewId
+                        : ""
+                    }
+                  >
                     <NativeSelectOption value="">Без привязки</NativeSelectOption>
                     {reviewCandidates.map((review) => (
                       <NativeSelectOption key={review.id} value={review.id}>
@@ -914,7 +1162,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </Card>
       ) : null}
 
-      {createRuleOpen ? (
+      {canManageCoachingOps && createRuleOpen ? (
         <Card aria-label="Новая типовая ошибка">
           <CardHeader className="border-b">
             <CardTitle>Новая типовая ошибка</CardTitle>

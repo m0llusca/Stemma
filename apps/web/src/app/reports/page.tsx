@@ -74,6 +74,7 @@ import {
   blockRows,
   computeReasonTrends,
   computeSentimentCorrelation,
+  computeQaCsatMatrix,
   countGroupRows,
   criterionEarnedPercent,
   rankedScoreRows,
@@ -82,7 +83,7 @@ import {
   scoreDistributionRows,
   scoreGroupRows
 } from "@/lib/reports/report-aggregation";
-import { ReasonTrendPanel, SentimentCorrelationPanel } from "@/components/reports/insight-correlation-panels";
+import { QaCsatMatrixPanel, ReasonTrendPanel, SentimentCorrelationPanel } from "@/components/reports/insight-correlation-panels";
 import { listSavedReportViews } from "@/lib/saved-report-view";
 import { loadAiHumanAgreementReport } from "@/lib/ai-quality/agreement-report";
 import { loadAiScoreDriftReport } from "@/lib/ai-quality/drift-report";
@@ -130,8 +131,7 @@ import {
 } from "@/lib/reports/report-evidence";
 import {
   buildTrustedReportEvidenceHref,
-  relinkReportChartModel,
-  relinkReportRows
+  relinkReportChartModel
 } from "@/lib/reports/report-evidence-links";
 import {
   loadFinalizedReviews,
@@ -519,6 +519,24 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       totalScore: review.totalScore
     }))
   );
+  // QA × CSAT matrix: same conversations, internal score band × csatBucket, with
+  // dual-filter queue drill-downs (csatBucket + qaScoreBand).
+  const qaCsatMatrix = computeQaCsatMatrix(
+    scoredFinalizedReviews.map((review) => ({
+      totalScore: review.totalScore,
+      csatBucket: review.conversation.csatBucket
+    }))
+  );
+  const qaCsatCellHrefs = qaCsatMatrix.cells
+    .filter((cell) => cell.count > 0)
+    .map((cell) => ({
+      qaScoreBand: cell.qaScoreBand,
+      csatBucket: cell.csatBucket,
+      href: reportReviewHref(period, {
+        csatBucket: cell.csatBucket,
+        qaScoreBand: cell.qaScoreBand
+      })
+    }));
   const blockScoreRows = blockRows(scoredFinalizedReviews);
   const previousBlockScoreRows = blockRows(scoredPreviousReviews);
   const finalizedCount = finalizedReviews.length;
@@ -683,73 +701,28 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
-  const operatorRankRows = relinkReportRows(
-    baseOperatorRankRows,
-    Object.fromEntries(
-      baseOperatorRankRows.flatMap((row) => {
-        if (row.label === "Не назначен") return [];
-        const evidenceLink = evidenceLinkFor(
-          {
-            evidenceType: "driver",
-            metric: "operator-score",
-            facet: { operator: row.label }
-          },
-          { operators: workspaceOperators }
-        );
-        return evidenceLink ? [[row.key, evidenceLink.href]] : [];
-      })
-    )
-  );
+  // Ranked lists keep `/reviews?...` drill-throughs (assignee / source / team).
+  // Evidence Sheet descriptors stay on chart models and matrix cells above —
+  // not on these list hrefs — so «Открыть» means filtered cases, not an in-page sheet.
+  const operatorRankRows = baseOperatorRankRows;
   const baseSourceRankRows = rankedScoreRows(sourceRows, previousSourceRows).map((row) => ({
     ...row,
     key: row.label,
     value: Math.round(row.averageScore ?? 0),
+    href: row.href,
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
-  const sourceRankRows = relinkReportRows(
-    baseSourceRankRows,
-    Object.fromEntries(
-      baseSourceRankRows.flatMap((row) => {
-        const source = filterCatalog.sources.find(
-          (candidate) => externalSourceLabel(candidate) === row.label
-        );
-        const evidenceLink = source
-          ? evidenceLinkFor({
-              evidenceType: "driver",
-              metric: "source-score",
-              facet: { source }
-            })
-          : undefined;
-        return evidenceLink ? [[row.key, evidenceLink.href]] : [];
-      })
-    )
-  );
+  const sourceRankRows = baseSourceRankRows;
   const baseTeamRankRows = rankedScoreRows(teamRows, previousTeamRows).map((row) => ({
     ...row,
     key: row.label,
     value: Math.round(row.averageScore ?? 0),
+    href: row.href,
     detail: formatReviewCount(row.count),
     meta: row.delta == null ? "нет базы сравнения" : undefined
   }));
-  const teamRankRows = relinkReportRows(
-    baseTeamRankRows,
-    Object.fromEntries(
-      baseTeamRankRows.flatMap((row) => {
-        const team = filterCatalog.teams.find(
-          (candidate) => candidate.value === row.label
-        );
-        const evidenceLink = team
-          ? evidenceLinkFor({
-              evidenceType: "driver",
-              metric: "team-score",
-              facet: { team: team.slug }
-            })
-          : undefined;
-        return evidenceLink ? [[row.key, evidenceLink.href]] : [];
-      })
-    )
-  );
+  const teamRankRows = baseTeamRankRows;
   const weakestAssigneeFocus = operatorRankRows[0];
   const weakestSourceFocus = sourceRankRows[0];
   const weakestTeamFocus = teamRankRows[0];
@@ -775,8 +748,9 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       key: segment.label
     })
   );
-  // Each stack segment keeps its exact risk-specific queue href. The combined
-  // HIGH+ evidence descriptor belongs only to the aggregate KPI.
+  // Each stack segment keeps its exact risk-specific queue href. The HIGH+
+  // evidence descriptor seeds the process-view Evidence Sheet default only —
+  // the overview KPI itself stays on the queue drill-through below.
   const riskStackSegments = baseRiskStackSegments;
   const quotaProgressRows = quotas.map((quota) => {
     const actualReviews = finalizedReviews.filter(
@@ -860,12 +834,9 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       href: reportHref(period, { view: "details" })
     }
   ] satisfies MetricInsightItem[];
-  const metricInsightItems: MetricInsightItem[] = relinkReportRows(
-    baseMetricInsightItems.map((item) => ({ ...item, key: item.label })),
-    highRiskEvidenceLink
-      ? { "Риск HIGH+": highRiskEvidenceLink.href }
-      : {}
-  );
+  // Keep queue drill-throughs on overview KPIs (HIGH+ → riskLevel, coaching →
+  // coachingStatus). Evidence Sheet remains available via process-view default.
+  const metricInsightItems: MetricInsightItem[] = baseMetricInsightItems;
   const criterionHeatmapRows: CriterionHeatmapRow[] = blockScoreRows.map((row) => ({
     label: row.label,
     score: row.averageScore ?? null,
@@ -990,7 +961,14 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       label: "Процессный риск",
       value: processRiskCount > 0 ? `${processRiskCount} событий` : "Нет событий",
       detail: "Критические ошибки, переответы и апелляции.",
-      href: processRiskCount > 0 ? reportHref(period, { view: "process" }) : undefined,
+      href:
+        criticalCount > 0
+          ? reportReviewHref(period, { process: "critical" })
+          : reanswerCount > 0
+            ? reportReviewHref(period, { process: "reanswer" })
+            : appealCount > 0
+              ? reportReviewHref(period, { process: "appeal" })
+              : undefined,
       actionLabel: "Разобрать процесс"
     }
   ];
@@ -1361,6 +1339,14 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
           />
           <SentimentCorrelationPanel correlation={sentimentCorrelation} actionHref={reportReviewHref(period)} />
         </section>
+      ) : null}
+
+      {reportView === "overview" ? (
+        <QaCsatMatrixPanel
+          matrix={qaCsatMatrix}
+          cellHrefs={qaCsatCellHrefs}
+          actionHref={reportReviewHref(period)}
+        />
       ) : null}
 
       {reportView === "performance" ? (

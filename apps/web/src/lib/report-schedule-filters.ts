@@ -1,7 +1,7 @@
 /**
  * Клиентская валидация поля filtersJson в форме расписаний отчетов
- * (#20). Сервер (normalizedFiltersJson в report-schedule-actions.ts) молча
- * заменяет невалидный JSON и не-объекты на "{}", поэтому ловим это до сабмита.
+ * (#20). Сервер (normalizedFiltersJson в report-schedule-actions.ts) отклоняет
+ * невалидный JSON и не-объекты — fail-closed, без тихой подмены на "{}".
  *
  * Список ключей отражает атрибуты обращения, которые реально попадают в строки
  * выгрузки (loadReportExportRows в report-export.ts: supportLine, csatBucket,

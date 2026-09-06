@@ -138,6 +138,10 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
       hint: probed.hint,
       diagnostics: probed.diagnostics
     });
+    // Fail-closed: a hard webhook probe failure must not silently activate the source.
+    if (probed.status === "failed") {
+      return { steps, connected: false };
+    }
   } else {
     steps.push({
       step: "webhook_probe",
@@ -156,7 +160,7 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
     workspaceId,
     actorId
   });
-  steps.push({ step: "persist", status: "ok", detail: "Источник сохранён и активирован." });
+  steps.push({ step: "persist", status: "ok", detail: "Источник сохранён со статусом ready (ожидает живую сертификацию)." });
 
   // 7. test_import — пробный импорт; warning не отменяет подключение.
   const ticketId = ctx.testTicketId;

@@ -65,6 +65,7 @@ describe("submitAiDraftDecision", () => {
       draftId: "draft-1",
       decision: "approved",
       actorId: "qa-1",
+      workspaceId: "workspace-1",
       reason: undefined
     });
     expect(state).toEqual({ ok: true, decision: "approved", message: expect.stringContaining("принят") });
@@ -80,6 +81,7 @@ describe("submitAiDraftDecision", () => {
       draftId: "draft-1",
       decision: "rejected",
       actorId: "qa-1",
+      workspaceId: "workspace-1",
       reason: "Оценка завышена"
     });
   });
@@ -101,6 +103,7 @@ describe("submitAiDraftDecision", () => {
       draftId: "draft-1",
       decision: "changed",
       actorId: "qa-1",
+      workspaceId: "workspace-1",
       reason: "Скорректировал оценку",
       changedValue: { overallConfidence: 0.5, criteria: [], summary: "Правка" }
     });
@@ -134,9 +137,19 @@ describe("submitAiDraftDecision", () => {
     expect(mocks.decideAiQualityDraft).not.toHaveBeenCalled();
     expect(mocks.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: "draft-1", workspaceId: "workspace-1" })
+        where: expect.objectContaining({ id: "draft-1", workspaceId: "workspace-1", status: "draft" })
       })
     );
     expect(state).toEqual({ ok: false, message: expect.any(String) });
+  });
+
+  it("refuses when the draft is already decided", async () => {
+    mocks.findFirst.mockResolvedValue(null);
+    const { submitAiDraftDecision } = await import("@/lib/ai-quality/draft-decision-actions");
+
+    const state = await submitAiDraftDecision(null, form({ draftId: "draft-1", decision: "approved" }));
+
+    expect(mocks.decideAiQualityDraft).not.toHaveBeenCalled();
+    expect(state).toEqual({ ok: false, message: expect.stringMatching(/не найдено|уже решено/i) });
   });
 });

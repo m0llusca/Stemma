@@ -45,10 +45,17 @@ export async function GET(request: NextRequest) {
   const providerSlug = request.nextUrl.searchParams.get("provider") || "microsoft-entra-id";
   const workspaceId = request.nextUrl.searchParams.get("workspaceId") || undefined;
   const returnTo = safeReturnTo(request.nextUrl.searchParams.get("returnTo"));
+
+  // Fail closed without an explicit workspace: shared provider slugs must never
+  // silently pick the oldest tenant's IdP (cross-workspace session risk).
+  if (!workspaceId) {
+    return authErrorRedirect(request, origin, "sso_unavailable");
+  }
+
   const provider = await prisma.identityProvider.findFirst({
     where: {
       slug: providerSlug,
-      ...(workspaceId ? { workspaceId } : {}),
+      workspaceId,
       status: "active",
       type: {
         in: ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"]

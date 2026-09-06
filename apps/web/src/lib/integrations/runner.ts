@@ -1,7 +1,10 @@
 import type { Integration, IntegrationCredential, Prisma } from "@prisma/client";
 import { upsertCustomConversation, type ImportedConversation } from "@/lib/conversation-import";
 import { prisma } from "@/lib/db";
-import { assertIntegrationSourceContractSupported } from "@/lib/integration-import-service";
+import {
+  assertIntegrationLiveCertifiedForProductionImport,
+  assertIntegrationSourceContractSupported
+} from "@/lib/integration-import-service";
 import { importSelectedOtrsRunItems } from "@/lib/integrations/otrs-family/import-plan";
 import { loadDataSourceAdapterConversations } from "@/lib/integrations/data-source-adapters/service";
 import { loadHelpdeskAdapterConversations } from "@/lib/integrations/helpdesk-adapters/service";
@@ -391,6 +394,14 @@ export async function runIntegrationConnector(input: {
   assertIntegrationEnabled(integration);
   assertIntegrationSourceContractSupported(integration);
 
+  if (!input.dryRun) {
+    await assertIntegrationLiveCertifiedForProductionImport({
+      workspaceId: input.workspaceId,
+      integrationId: integration.id,
+      source: integration.source
+    });
+  }
+
   const config = parseConfig(integration.configJson);
   const limit = requestedLimit(input.requestedLimit, integration.importLimit);
   const conversations = (await loadIntegrationConversations(integration, config, limit)).slice(0, limit);
@@ -456,13 +467,38 @@ export async function runSelectedOtrsImportConnector(input: {
   integrationRunId: string;
   selectedItemIds: string[];
   beforeWrite?: ConnectorWriteGuard;
+  onItemProgress?: () => Promise<void>;
 }): Promise<SelectedOtrsImportRunResult> {
+  const integration = await prisma.integration.findFirst({
+    where: {
+      id: input.integrationId,
+      workspaceId: input.workspaceId
+    },
+    select: {
+      id: true,
+      source: true,
+      status: true
+    }
+  });
+
+  if (!integration) {
+    throw new Error("Интеграция не найдена в рабочем пространстве задачи.");
+  }
+
+  assertIntegrationEnabled(integration);
+  await assertIntegrationLiveCertifiedForProductionImport({
+    workspaceId: input.workspaceId,
+    integrationId: integration.id,
+    source: integration.source
+  });
+
   const result = await prisma.$transaction(async (tx) => {
     await input.beforeWrite?.(tx);
 
     return importSelectedOtrsRunItems({
       ...input,
-      db: tx
+      db: tx,
+      onItemProgress: input.onItemProgress
     });
   });
 

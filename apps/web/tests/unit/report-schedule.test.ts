@@ -81,6 +81,7 @@ describe("enqueueDueReportSchedules", () => {
     return {
       reportSchedule: {
         findMany: vi.fn().mockResolvedValue(schedules),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         update: vi.fn().mockResolvedValue({})
       }
     };
@@ -91,6 +92,7 @@ describe("enqueueDueReportSchedules", () => {
   });
 
   it("enqueues one REPORT_EXPORT job per due active schedule and advances nextRunAt", async () => {
+    const dueAt = new Date("2026-06-30T09:00:00.000Z");
     const client = buildClient([
       {
         id: "sched-1",
@@ -100,7 +102,8 @@ describe("enqueueDueReportSchedules", () => {
         exportFormat: "xlsx",
         cadence: "weekly",
         filtersJson: JSON.stringify({ supportLine: "L1" }),
-        createdById: "user-1"
+        createdById: "user-1",
+        nextRunAt: dueAt
       }
     ]);
 
@@ -111,6 +114,13 @@ describe("enqueueDueReportSchedules", () => {
         where: expect.objectContaining({ isActive: true, nextRunAt: { lte: now } })
       })
     );
+    expect(client.reportSchedule.updateMany).toHaveBeenCalledWith({
+      where: { id: "sched-1", isActive: true, nextRunAt: dueAt },
+      data: {
+        lastRunAt: now,
+        nextRunAt: advanceNextRun("weekly", now)
+      }
+    });
     expect(mocks.enqueueBackendJob).toHaveBeenCalledTimes(1);
 
     const [jobInput, passedClient] = mocks.enqueueBackendJob.mock.calls[0];
@@ -132,14 +142,6 @@ describe("enqueueDueReportSchedules", () => {
       resolvePeriodPreset("last_7_days", now).end.toISOString()
     );
 
-    expect(client.reportSchedule.update).toHaveBeenCalledWith({
-      where: { id: "sched-1" },
-      data: {
-        lastRunAt: now,
-        nextRunAt: advanceNextRun("weekly", now)
-      }
-    });
-
     expect(result.enqueuedCount).toBe(1);
   });
 
@@ -149,7 +151,7 @@ describe("enqueueDueReportSchedules", () => {
     const result = await enqueueDueReportSchedules(now, client as never);
 
     expect(mocks.enqueueBackendJob).not.toHaveBeenCalled();
-    expect(client.reportSchedule.update).not.toHaveBeenCalled();
+    expect(client.reportSchedule.updateMany).not.toHaveBeenCalled();
     expect(result.enqueuedCount).toBe(0);
   });
 
@@ -163,7 +165,8 @@ describe("enqueueDueReportSchedules", () => {
         exportFormat: "csv",
         cadence: "daily",
         filtersJson: "{not json",
-        createdById: null
+        createdById: null,
+        nextRunAt: now
       }
     ]);
 
@@ -171,12 +174,28 @@ describe("enqueueDueReportSchedules", () => {
 
     const [jobInput] = mocks.enqueueBackendJob.mock.calls[0];
     expect(jobInput.payload.filters).toEqual({});
-    expect(client.reportSchedule.update).toHaveBeenCalledWith({
-      where: { id: "sched-2" },
-      data: {
-        lastRunAt: now,
-        nextRunAt: advanceNextRun("daily", now)
+    expect(client.reportSchedule.updateMany).toHaveBeenCalled();
+  });
+
+  it("skips enqueue when another worker already claimed the due slot", async () => {
+    const client = buildClient([
+      {
+        id: "sched-race",
+        workspaceId: "workspace-1",
+        name: "Гонка",
+        periodPreset: "last_7_days",
+        exportFormat: "xlsx",
+        cadence: "weekly",
+        filtersJson: "{}",
+        createdById: "user-1",
+        nextRunAt: now
       }
-    });
+    ]);
+    client.reportSchedule.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await enqueueDueReportSchedules(now, client as never);
+
+    expect(mocks.enqueueBackendJob).not.toHaveBeenCalled();
+    expect(result.enqueuedCount).toBe(0);
   });
 });

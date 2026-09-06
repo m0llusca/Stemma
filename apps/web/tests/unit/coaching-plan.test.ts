@@ -83,6 +83,8 @@ describe("listCoachingPlans", () => {
         title: "Работа с возражениями",
         focusArea: "Возражения",
         status: "active",
+        reviewId: "rev-1",
+        conversationId: "conv-1",
         createdAt: now,
         updatedAt: now,
         assignments: [{ status: "done" }, { status: "open" }, { status: "done" }, { status: "in_progress" }]
@@ -103,6 +105,8 @@ describe("listCoachingPlans", () => {
       title: "Работа с возражениями",
       focusArea: "Возражения",
       status: "active",
+      reviewId: "rev-1",
+      conversationId: "conv-1",
       progress: { total: 4, done: 2, percent: 50 }
     });
   });

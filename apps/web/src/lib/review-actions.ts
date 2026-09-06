@@ -3,12 +3,17 @@
 import type { FindingOwnerType, Prisma, ReviewSource, RiskLevel, Scorecard, ScorecardCriterion } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  appendCoachingOfferParams,
+  needsCoachingFollowUp,
+  type CoachingOfferParams
+} from "@/lib/coaching-follow-up";
 import { auditLog } from "@/lib/audit";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
-import { selectNextReviewConversationId } from "@/lib/queue-view-actions";
+import { filtersFromReviewsHref, selectNextReviewConversationId } from "@/lib/queue-view-actions";
 import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
   ReviewLifecycleTransitionError,
@@ -37,11 +42,15 @@ export type ReviewSavedMarker = "draft" | "final";
 // the action — it rides along on the destination URL as `?saved=...`, where a
 // mount-time client component reads it and then strips it from the address bar.
 // Internal-only marker on an already-trusted internal href; never widens scope.
-function withSavedMarker(href: string, marker: ReviewSavedMarker) {
+function withSavedMarker(href: string, marker: ReviewSavedMarker, coachingOffer?: CoachingOfferParams | null) {
   const [path, query = ""] = href.split("?");
   const params = new URLSearchParams(query);
   params.set("saved", marker);
-  return `${path}?${params.toString()}`;
+  const withMarker = `${path}?${params.toString()}`;
+  if (marker === "final" && coachingOffer) {
+    return appendCoachingOfferParams(withMarker, coachingOffer);
+  }
+  return withMarker;
 }
 
 function requiredString(formData: FormData, key: string) {
@@ -153,6 +162,7 @@ async function loadReviewContext(workspaceId: string, conversationId: string, sc
       select: {
         id: true,
         assigneeName: true,
+        assigneeId: true,
         qaStatus: true,
         qaAssigneeId: true,
         qaAssigneeName: true,
@@ -252,29 +262,18 @@ async function findCurrentReview(
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
-      status: true
+      status: true,
+      totalScore: true,
+      scores: {
+        select: {
+          criterionId: true,
+          value: true,
+          passed: true,
+          isNotApplicable: true
+        }
+      }
     }
   });
-}
-
-async function assertSelfReviewIdentityResolvable(reviewSource: ReviewSource, user: { workspaceId: string; name: string }) {
-  if (reviewSource !== "SELF_REVIEW") {
-    return;
-  }
-
-  const activeUsersWithSameName = await prisma.user.count({
-    where: {
-      workspaceId: user.workspaceId,
-      name: user.name,
-      lifecycleStatus: "ACTIVE"
-    }
-  });
-
-  if (activeUsersWithSameName > 1) {
-    throw new ReviewLifecycleTransitionError(
-      "В рабочем пространстве несколько активных пользователей с вашим именем, поэтому принадлежность диалога нельзя определить однозначно. Обратитесь к тимлиду."
-    );
-  }
 }
 
 async function assertCurrentReviewStillWritable(
@@ -311,10 +310,9 @@ export async function saveReviewDraft(formData: FormData) {
   assertSelfReviewScope({
     reviewSource,
     userRole: user.role,
-    userName: user.name,
-    conversationAssigneeName: conversation.assigneeName
+    userId: user.id,
+    conversationAssigneeId: conversation.assigneeId
   });
-  await assertSelfReviewIdentityResolvable(reviewSource, user);
   const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
   const validEvidenceMessageIds = new Set(conversation.messages.map((message) => message.id));
   const criterionScores = buildCriterionScores(scorecard, formData, validEvidenceMessageIds);
@@ -343,7 +341,8 @@ export async function saveReviewDraft(formData: FormData) {
                   create: {
                     assignee: coachingAssignee,
                     action: coachingAction,
-                    dueAt: coachingDueAt ? new Date(`${coachingDueAt}T00:00:00.000Z`) : undefined
+                    dueAt: coachingDueAt ? new Date(`${coachingDueAt}T00:00:00.000Z`) : undefined,
+                    status: "open"
                   }
                 }
               : undefined
@@ -444,6 +443,20 @@ export async function saveReviewDraft(formData: FormData) {
       assertConditionalWorkflowWrite(updateResult.count);
     }
 
+    const scoreAudit = {
+      conversationId,
+      scorecardId: scorecard.id,
+      totalScore: reviewTotalScore,
+      previousTotalScore: existingReview?.totalScore ?? null,
+      previousScores: existingReview?.scores ?? [],
+      scores: criterionScores.map((entry) => ({
+        criterionId: entry.criterionId,
+        value: entry.value,
+        passed: entry.passed,
+        isNotApplicable: entry.isNotApplicable
+      }))
+    };
+
     await auditLog(
       {
         workspaceId: user.workspaceId,
@@ -451,11 +464,7 @@ export async function saveReviewDraft(formData: FormData) {
         action: "review.draft_saved",
         targetType: "review",
         targetId: reviewId,
-        metadata: {
-          conversationId,
-          scorecardId: scorecard.id,
-          totalScore: reviewTotalScore
-        }
+        metadata: scoreAudit
       },
       tx
     );
@@ -471,6 +480,7 @@ export async function saveReviewDraft(formData: FormData) {
       metadata: {
         reviewSource,
         totalScore: reviewTotalScore,
+        previousTotalScore: existingReview?.totalScore ?? null,
         criticalError: processFields.criticalError
       }
     });
@@ -502,11 +512,13 @@ async function finalizeReviewCore(formData: FormData) {
   assertSelfReviewScope({
     reviewSource,
     userRole: user.role,
-    userName: user.name,
-    conversationAssigneeName: conversation.assigneeName
+    userId: user.id,
+    conversationAssigneeId: conversation.assigneeId
   });
-  await assertSelfReviewIdentityResolvable(reviewSource, user);
-  const { totalScore } = calculateReviewScore(buildScoreInputs(scorecard, formData));
+  const { totalScore, maxWeight } = calculateReviewScore(buildScoreInputs(scorecard, formData));
+  if (maxWeight === 0) {
+    throw new Error("Нельзя завершить проверку без оценок по применимым критериям.");
+  }
   const coachingAction = optionalString(formData, "coachingAction");
   const coachingAssignee = optionalString(formData, "coachingAssignee");
   const coachingDueAt = optionalString(formData, "coachingDueAt");
@@ -518,6 +530,7 @@ async function finalizeReviewCore(formData: FormData) {
   const processFields = reviewProcessFields(formData, summary);
   const reviewTotalScore = processFields.criticalError ? 0 : totalScore;
   const findingRiskLevel = processFields.criticalError ? "CRITICAL" : riskLevel;
+  let finalizedReviewId = "";
 
   await prisma.$transaction(async (tx) => {
     const currentConversation = await tx.conversation.findFirst({
@@ -575,7 +588,8 @@ async function finalizeReviewCore(formData: FormData) {
                   create: {
                     assignee: coachingAssignee,
                     action: coachingAction,
-                    dueAt: coachingDueAt ? new Date(`${coachingDueAt}T00:00:00.000Z`) : undefined
+                    dueAt: coachingDueAt ? new Date(`${coachingDueAt}T00:00:00.000Z`) : undefined,
+                    status: "open"
                   }
                 }
               : undefined
@@ -596,6 +610,7 @@ async function finalizeReviewCore(formData: FormData) {
             ...reviewData
           }
         });
+    finalizedReviewId = review.id;
 
     if (reviewSource === "HUMAN") {
       const updateResult = await tx.conversation.updateMany({
@@ -672,16 +687,29 @@ async function finalizeReviewCore(formData: FormData) {
   revalidatePath("/reviews");
   revalidatePath(`/reviews/${conversationId}`);
 
-  return { user, conversationId };
+  const agentName = conversation.assigneeName?.trim() ?? "";
+  const coachingOffer: CoachingOfferParams | null =
+    reviewSource === "HUMAN" &&
+    agentName &&
+    finalizedReviewId &&
+    needsCoachingFollowUp({
+      totalScore: reviewTotalScore,
+      criticalError: processFields.criticalError,
+      findings: [{ riskLevel: findingRiskLevel }]
+    })
+      ? { agentName, reviewId: finalizedReviewId, conversationId }
+      : null;
+
+  return { user, conversationId, coachingOffer };
 }
 
 export async function finalizeReview(formData: FormData) {
   const conversationId = requiredString(formData, "conversationId");
   const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
 
-  await finalizeReviewCore(formData);
+  const { coachingOffer } = await finalizeReviewCore(formData);
 
-  redirect(withSavedMarker(returnTo, "final"));
+  redirect(withSavedMarker(returnTo, "final", coachingOffer));
 }
 
 /**
@@ -693,20 +721,27 @@ export async function finalizeReview(formData: FormData) {
  */
 export async function finalizeReviewAndTakeNext(formData: FormData) {
   // Carry the reviewer's queue view forward so the eventual "back to queue" from
-  // the next workbench lands on their filtered view, not the bare queue.
+  // the next workbench lands on their filtered view, not the bare queue. Also
+  // apply those filters when selecting the next case so take-next cannot jump
+  // outside the active queue view.
   const returnTo = optionalString(formData, "returnTo");
-  const { user, conversationId } = await finalizeReviewCore(formData);
+  const { user, conversationId, coachingOffer } = await finalizeReviewCore(formData);
+  const filters = filtersFromReviewsHref(returnTo);
 
-  const nextId = await selectNextReviewConversationId(user, conversationId);
+  const nextId = await selectNextReviewConversationId(user, conversationId, filters);
 
   if (!nextId) {
-    redirect(withSavedMarker("/reviews?empty=1", "final"));
+    const emptyTarget =
+      returnTo && returnTo.startsWith("/reviews")
+        ? `${returnTo}${returnTo.includes("?") ? "&" : "?"}empty=1`
+        : "/reviews?empty=1";
+    redirect(withSavedMarker(emptyTarget, "final", coachingOffer));
   }
 
   const params = new URLSearchParams({ saved: "final" });
   if (returnTo) {
     params.set("returnTo", returnTo);
   }
-
-  redirect(`/reviews/${nextId}?${params.toString()}`);
+  const nextHref = `/reviews/${nextId}?${params.toString()}`;
+  redirect(coachingOffer ? appendCoachingOfferParams(nextHref, coachingOffer) : nextHref);
 }

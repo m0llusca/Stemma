@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, Star, TrendingUp, TriangleAlert } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, Star, TrendingUp, TriangleAlert, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -14,13 +14,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
-import { formatReviewCount } from "@/lib/reports/report-format";
+import { formatReviewCount, reportReviewRangeHref } from "@/lib/reports/report-format";
 import { reviewEventActionLabel } from "@/lib/review-events";
+import { loadReviewerWorkload, reviewerWorkloadHref } from "@/lib/reviewer-workload";
 import { formatQualityScore, qualityScoreDelta, qualityScorePointWord } from "@/lib/score-display";
 import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
 import { statusToneClass, type StatusTone } from "@/lib/ui/status-tone";
@@ -130,7 +132,8 @@ async function DashboardPageContent() {
     dailyReviews,
     recentEvents,
     recentTrainings,
-    agentReviews
+    agentReviews,
+    reviewerWorkload
   ] = await Promise.all([
     prisma.review.count({
       where: {
@@ -257,7 +260,10 @@ async function DashboardPageContent() {
         conversation: { select: { assigneeName: true } },
         findings: { select: { riskLevel: true } }
       }
-    })
+    }),
+    user.role === "TEAM_LEAD" || user.role === "ADMIN"
+      ? loadReviewerWorkload(user.workspaceId, prisma)
+      : Promise.resolve([])
   ]);
 
   const currentAverage = currentScore._avg.totalScore ?? null;
@@ -286,6 +292,12 @@ async function DashboardPageContent() {
   const canReadReports = hasPermission(user.role, "reports:read");
   const isLeadDashboard = user.role === "TEAM_LEAD" || user.role === "ADMIN";
   const totalQueueCount = queuedCount + inWorkCount;
+  // KPI / sparkline / leaderboard drill-downs share the same queue filter contract
+  // as /reviews (finalizedFrom/To, riskLevel, assignee, appealStatus).
+  const weekReviewedHref = reportReviewRangeHref(thisWeekStart, now);
+  const thirtyDayHighRiskHref = reportReviewRangeHref(thirtyDaysStart, now, {
+    riskLevel: "HIGH_OR_CRITICAL"
+  });
   const focusItemCandidates: Array<FocusItem | null> = [
     overdueReviewCount > 0
       ? {
@@ -300,7 +312,7 @@ async function DashboardPageContent() {
     highRiskCount > 0
       ? {
           icon: TriangleAlert,
-          href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+          href: thirtyDayHighRiskHref,
           label: "Высокий риск",
           value: highRiskCount,
           tone: "negative" as const,
@@ -350,7 +362,11 @@ async function DashboardPageContent() {
     .map((item) => ({
       label: weekdayLabel(item.date),
       value: item.average as number,
-      detail: formatReviewCount(item.count)
+      detail: formatReviewCount(item.count),
+      href:
+        item.count > 0
+          ? reportReviewRangeHref(item.date, new Date(item.date.getTime() + dayMs - 1))
+          : undefined
     }));
   const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : "Критичных отклонений нет";
   const triageDescription = focusItems.length
@@ -401,7 +417,7 @@ async function DashboardPageContent() {
               }
             />
             <OperationKpiCard
-              href="/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL"
+              href={thirtyDayHighRiskHref}
               icon={TriangleAlert}
               value={highRiskCount}
               tone={highRiskCount > 0 ? "negative" : "neutral"}
@@ -409,7 +425,7 @@ async function DashboardPageContent() {
               hint="за 30 дней · открыть проверки"
             />
             <OperationKpiCard
-              href="/reviews?status=reviewed"
+              href={weekReviewedHref}
               icon={ClipboardCheck}
               value={checkedThisWeek}
               tone={checkedStatus.tone}
@@ -429,7 +445,7 @@ async function DashboardPageContent() {
         ) : (
           <>
             <OperationKpiCard
-              href="/reviews?status=reviewed"
+              href={weekReviewedHref}
               icon={ClipboardCheck}
               value={checkedThisWeek}
               tone={checkedStatus.tone}
@@ -438,7 +454,7 @@ async function DashboardPageContent() {
               hint="к прошлой неделе"
             />
             <OperationKpiCard
-              href={canReadReports ? "/reports" : "/reviews"}
+              href={weekReviewedHref}
               icon={Star}
               value={currentAverage == null ? "—" : Math.round(currentAverage)}
               unit={currentAverage == null ? undefined : qualityScorePointWord(currentAverage)}
@@ -509,6 +525,79 @@ async function DashboardPageContent() {
         </Card>
 
         <div className="grid min-w-0 content-start gap-3">
+          {isLeadDashboard ? (
+            <Card aria-label="Нагрузка проверяющих">
+              <CardHeader className="border-b pb-(--card-spacing)">
+                <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Users size={14} aria-hidden="true" />
+                  Нагрузка проверяющих
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-(--card-spacing)">
+                {reviewerWorkload.length === 0 ? (
+                  <EmptyState
+                    size="inline"
+                    icon={<Users size={20} aria-hidden="true" />}
+                    title="Нет активных проверяющих"
+                    description="Назначьте роли QA / тимлид / админ, чтобы видеть очередь по исполнителям."
+                  />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Проверяющий</TableHead>
+                        <TableHead className="text-right">Открыто</TableHead>
+                        <TableHead className="text-right">Очередь</TableHead>
+                        <TableHead className="text-right">В работе</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reviewerWorkload.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <Link
+                              href={reviewerWorkloadHref(row.name)}
+                              className="font-medium text-foreground underline-offset-4 hover:underline"
+                            >
+                              {row.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            <Link
+                              href={reviewerWorkloadHref(row.name)}
+                              className="underline-offset-4 hover:underline"
+                            >
+                              {row.openCount}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            <Link
+                              href={reviewerWorkloadHref(row.name, "QUEUED")}
+                              className="text-muted-foreground underline-offset-4 hover:underline"
+                            >
+                              {row.queuedCount}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            <Link
+                              href={reviewerWorkloadHref(row.name, "IN_PROGRESS")}
+                              className="text-muted-foreground underline-offset-4 hover:underline"
+                            >
+                              {row.inProgressCount}
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Открытая нагрузка = QUEUED + IN_PROGRESS — та же метрика, что и у автоназначения.
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+
           {secondaryFocusItems.length > 0 ? (
             <Card>
               <CardHeader className="border-b pb-(--card-spacing)">
@@ -621,7 +710,14 @@ async function DashboardPageContent() {
                   agentRows.map((agent) => (
                     <Link
                       key={agent.name}
-                      href={`/reviews?status=reviewed&assignee=${encodeURIComponent(agent.name)}`}
+                      href={reportReviewRangeHref(thirtyDaysStart, now, {
+                        assignee: agent.name,
+                        ...(agent.riskCount > 0
+                          ? { riskLevel: "HIGH_OR_CRITICAL" }
+                          : agent.appealCount > 0
+                            ? { appealStatus: "open" }
+                            : {})
+                      })}
                       className="relative grid min-w-0 gap-2 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
                     >
                       <div className="grid min-w-0 grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-0.5">

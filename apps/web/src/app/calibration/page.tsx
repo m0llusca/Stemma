@@ -38,9 +38,15 @@ import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip"
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import { createCalibrationSession, updateCalibrationSessionStatus } from "@/lib/calibration-actions";
 import { computeCalibrationItemAgreement, type CalibrationCriterionKind } from "@/lib/calibration/agreement";
+import {
+  aggregateReviewerVolume,
+  listLowAgreementCalibrationItems,
+  type ReviewerQualityCalibrationItemInput
+} from "@/lib/calibration/reviewer-quality";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { russianPlural } from "@/lib/reports/report-format";
+import { CALIBRATION_APPEAL_SIGNAL_ACTION, reviewEventActionLabel } from "@/lib/review-events";
+import { reportReviewRangeHref, russianPlural } from "@/lib/reports/report-format";
 import { formatQualityScore } from "@/lib/score-display";
 import { cn } from "@/lib/utils";
 
@@ -139,7 +145,9 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
   const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("calibration:manage"), searchParams]);
   const selectedSessionId = firstParam(rawSearchParams.session);
   const openNewSession = firstParam(rawSearchParams.new) === "1";
-  const [sessions, qaUsers, conversations] = await Promise.all([
+  const volumePeriodEnd = new Date();
+  const volumePeriodStart = new Date(volumePeriodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const [sessions, qaUsers, conversations, appealSignalEvents, humanFinalizeVolume] = await Promise.all([
     prisma.calibrationSession.findMany({
       where: { workspaceId: user.workspaceId },
       include: {
@@ -172,8 +180,74 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       },
       orderBy: { updatedAt: "desc" },
       take: 8
+    }),
+    prisma.reviewEvent.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        action: CALIBRATION_APPEAL_SIGNAL_ACTION
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: {
+        id: true,
+        conversationId: true,
+        reviewId: true,
+        toStatus: true,
+        createdAt: true,
+        metadata: true
+      }
+    }),
+    prisma.review.findMany({
+      where: {
+        workspaceId: user.workspaceId,
+        reviewSource: "HUMAN",
+        status: "FINALIZED",
+        finalizedAt: { gte: volumePeriodStart, lte: volumePeriodEnd }
+      },
+      select: {
+        reviewerId: true,
+        reviewer: { select: { name: true } }
+      }
     })
   ]);
+  const reviewerVolumeRows = aggregateReviewerVolume(
+    humanFinalizeVolume.map((review) => ({
+      reviewerId: review.reviewerId,
+      reviewerName: review.reviewer.name
+    }))
+  );
+  const reviewerVolumeHref = reportReviewRangeHref(volumePeriodStart, volumePeriodEnd);
+  const appealSignalConversationIds = [
+    ...new Set(appealSignalEvents.map((event) => event.conversationId).filter((id): id is string => Boolean(id)))
+  ];
+  const appealSignalConversations =
+    appealSignalConversationIds.length > 0
+      ? await prisma.conversation.findMany({
+          where: { workspaceId: user.workspaceId, id: { in: appealSignalConversationIds } },
+          select: { id: true, subject: true }
+        })
+      : [];
+  const appealSignalSubjectById = new Map(appealSignalConversations.map((row) => [row.id, row.subject]));
+  const appealCalibrationSignals = appealSignalEvents.map((event) => {
+    let appealOutcome: string | null = null;
+    try {
+      const parsed = JSON.parse(event.metadata) as { appealOutcome?: unknown };
+      appealOutcome = typeof parsed.appealOutcome === "string" ? parsed.appealOutcome : null;
+    } catch {
+      appealOutcome = null;
+    }
+
+    return {
+      id: event.id,
+      conversationId: event.conversationId,
+      reviewId: event.reviewId,
+      toStatus: event.toStatus,
+      createdAt: event.createdAt,
+      appealOutcome,
+      subject: event.conversationId ? (appealSignalSubjectById.get(event.conversationId) ?? "Обращение") : "Обращение"
+    };
+  });
+  const appealSignalCount = appealCalibrationSignals.length;
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0];
   const selectedItemCount = selectedSession?.items.length ?? 0;
   const selectedParticipantCount = selectedSession?.participants.length ?? 0;
@@ -317,6 +391,35 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
       waitingCount: Math.max(expectedCount - completedCount, 0)
     };
   });
+  // GraderQA-lite: cross-session list of CALIBRATION pairs with low inter-rater agreement.
+  const reviewerQualityInputs: ReviewerQualityCalibrationItemInput[] = sessions.flatMap((session) => {
+    const participantIds = new Set(session.participants.map((participant) => participant.userId));
+    const criteria = session.scorecard.criteria.map((criterion) => ({
+      id: criterion.id,
+      kind: criterion.kind as CalibrationCriterionKind
+    }));
+
+    return session.items.map((item) => {
+      const reviews = item.conversation.reviews.filter(
+        (review) =>
+          review.reviewSource === "CALIBRATION" &&
+          review.status === "FINALIZED" &&
+          participantIds.has(review.reviewerId)
+      );
+
+      return {
+        sessionId: session.id,
+        sessionName: session.name,
+        conversationId: item.conversationId,
+        conversationSubject: item.conversation.subject,
+        conversationExternalId: item.conversation.externalId,
+        criteria,
+        participants: reviews.map((review) => ({ scores: review.scores })),
+        totalScores: reviews.map((review) => review.totalScore)
+      };
+    });
+  });
+  const lowAgreementRows = listLowAgreementCalibrationItems(reviewerQualityInputs);
   const selectedSessionIsOpen = selectedSession?.status === "active" || selectedSession?.status === "draft";
   const disagreementLabel = russianPlural(selectedDisagreementCount, ["расхождение требует", "расхождения требуют", "расхождений требуют"]);
   const waitingScoresLabel = russianPlural(selectedWaitingCount, ["оценка ещё ждёт", "оценки ещё ждут", "оценок ещё ждут"]);
@@ -437,6 +540,183 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
           />
         </div>
       </div>
+
+      <Card aria-label="Сигналы по апелляциям">
+        <CardHeader className="border-b">
+          <CardTitle>Сигналы по апелляциям</CardTitle>
+          <CardDescription>
+            Исходы апелляций (подтверждена / скорректирована) для фокуса калибровки и проверки формы оценки. Критерии
+            scorecard не меняются автоматически.
+          </CardDescription>
+          <CardAction>
+            <Badge variant="secondary">{appealSignalCount}</Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {appealCalibrationSignals.length > 0 ? (
+            <ul className="flex flex-col gap-2" aria-label="Список сигналов по апелляциям">
+              {appealCalibrationSignals.map((signal) => {
+                const outcomeLabel =
+                  signal.appealOutcome === "corrected"
+                    ? "Скорректирована"
+                    : signal.appealOutcome === "confirmed"
+                      ? "Подтверждена"
+                      : signal.toStatus === "corrected"
+                        ? "Скорректирована"
+                        : signal.toStatus === "confirmed"
+                          ? "Подтверждена"
+                          : reviewEventActionLabel(CALIBRATION_APPEAL_SIGNAL_ACTION);
+                const href = signal.conversationId
+                  ? `/reviews/${signal.conversationId}?returnTo=${encodeURIComponent("/calibration")}`
+                  : "/reviews?process=appeal";
+
+                return (
+                  <li key={signal.id} className="flex min-w-0 items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{signal.subject}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {outcomeLabel} · {signal.createdAt.toLocaleDateString("ru-RU")}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" render={<Link href={href} />} nativeButton={false}>
+                      Открыть
+                      <ArrowRight data-icon="inline-end" size={14} aria-hidden="true" />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              size="inline"
+              icon={<TriangleAlert size={20} aria-hidden="true" />}
+              title="Пока нет сигналов"
+              description="Когда менеджер подтвердит или скорректирует апелляцию, здесь появится ссылка на проверку."
+            />
+          )}
+          <div>
+            <Link
+              href="/reviews?process=appeal"
+              className={cn(buttonVariants({ variant: "link", size: "sm" }), "px-0")}
+            >
+              Все апелляции в очереди
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section
+        aria-label="Качество проверяющих"
+        className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
+      >
+        <Card aria-label="Низкая согласованность калибровки">
+          <CardHeader className="border-b">
+            <CardTitle>Низкая согласованность</CardTitle>
+            <CardDescription>
+              Пары CALIBRATION-оценок одного обращения, где консенсус ниже 75% или разброс баллов выше ±10.
+            </CardDescription>
+            <CardAction>
+              <Badge variant="secondary">{lowAgreementRows.length}</Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="pt-(--card-spacing)">
+            {lowAgreementRows.length > 0 ? (
+              <ul className="flex flex-col gap-2" aria-label="Список расхождений между проверяющими">
+                {lowAgreementRows.map((row) => {
+                  const agreementPercent =
+                    row.overallAgreementRate != null ? `${Math.round(row.overallAgreementRate * 100)}%` : "—";
+                  const reviewHref = `/reviews/${row.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${row.sessionId}`)}`;
+                  const sessionHref = calibrationHref({ sessionId: row.sessionId });
+
+                  return (
+                    <li
+                      key={`${row.sessionId}:${row.conversationId}`}
+                      className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 flex flex-col gap-0.5">
+                        <p className="truncate text-sm font-medium text-foreground">{row.conversationSubject}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {row.conversationExternalId} ·{" "}
+                          <Link href={sessionHref} className="underline-offset-4 hover:underline">
+                            {row.sessionName}
+                          </Link>
+                          {" · "}
+                          согласие {agreementPercent}
+                          {row.scoreSpread != null ? ` · разброс ${row.scoreSpread}` : ""}
+                          {row.misalignedCriteria > 0
+                            ? ` · спорных критериев ${row.misalignedCriteria}`
+                            : ""}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="outline" render={<Link href={reviewHref} />} nativeButton={false}>
+                        Разбор
+                        <ArrowRight data-icon="inline-end" size={14} aria-hidden="true" />
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <EmptyState
+                size="inline"
+                icon={<UsersRound size={20} aria-hidden="true" />}
+                title="Сильных расхождений нет"
+                description="Когда несколько участников по-разному оценят одно обращение, пара появится здесь."
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card aria-label="Объём проверок QA">
+          <CardHeader className="border-b">
+            <CardTitle>Объём проверяющих</CardTitle>
+            <CardDescription>
+              Сколько HUMAN-проверок финализировал каждый аналитик за 30 дней. Это покрытие, не слепая переоценка.
+            </CardDescription>
+            <CardAction>
+              <Button size="sm" variant="outline" render={<Link href={reviewerVolumeHref} />} nativeButton={false}>
+                Очередь
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="pt-(--card-spacing)">
+            {reviewerVolumeRows.length > 0 ? (
+              <Table aria-label="Финализации по проверяющим за 30 дней">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Проверяющий</TableHead>
+                    <TableHead className="text-right">Финализаций</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reviewerVolumeRows.map((row) => (
+                    <TableRow key={row.reviewerId}>
+                      <TableCell className="font-medium">{row.reviewerName}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <Link
+                          href={reportReviewRangeHref(volumePeriodStart, volumePeriodEnd, {
+                            qaAssignee: row.reviewerName
+                          })}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {row.count}
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <EmptyState
+                size="inline"
+                icon={<ClipboardCheck size={20} aria-hidden="true" />}
+                title="Нет финализаций за 30 дней"
+                description="Объём появится после первых HUMAN-проверок."
+              />
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       {openNewSession ? (
         <Card aria-label="Новая калибровка">
@@ -611,6 +891,18 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                   </div>
                 );
               })}
+              <Link
+                href="/admin/scorecards"
+                className="flex min-w-[7.5rem] items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 transition-colors hover:bg-muted/60"
+              >
+                <ClipboardCheck size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Форма оценки</span>
+                  <span className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline">
+                    {selectedSession.scorecard.name} · v{selectedSession.scorecard.version}
+                  </span>
+                </div>
+              </Link>
             </div>
 
             <Tabs defaultValue={hasMatrix ? "matrix" : "consensus"} className="gap-4">
@@ -658,9 +950,25 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                           <TableRow key={state.item.id}>
                             <TableCell className="whitespace-normal">
                               <div className="flex flex-col gap-0.5">
-                                <span className="font-medium text-foreground">{state.item.conversation.subject}</span>
+                                <Link
+                                  href={`/reviews/${state.item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                                >
+                                  {state.item.conversation.subject}
+                                </Link>
                                 <span className="text-xs text-muted-foreground">
                                   {state.alignmentPercent != null ? `${state.alignmentPercent}% в норме` : "нет эталона"}
+                                  {state.baselineReview ? (
+                                    <>
+                                      {" · "}
+                                      <Link
+                                        href={`/reviews/${state.item.conversationId}?returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
+                                        className="underline-offset-4 hover:underline"
+                                      >
+                                        эталон {formatQualityScore(state.baselineScore)}
+                                      </Link>
+                                    </>
+                                  ) : null}
                                 </span>
                               </div>
                             </TableCell>
@@ -803,7 +1111,7 @@ async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
                               <div className="flex min-w-0 flex-1 flex-col gap-4">
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                   <Link
-                                    href={`/reviews/${item.conversationId}`}
+                                    href={`/reviews/${item.conversationId}?reviewSource=CALIBRATION&returnTo=${encodeURIComponent(`/calibration?session=${selectedSession.id}`)}`}
                                     className="text-sm font-medium text-foreground hover:underline"
                                   >
                                     {item.conversation.subject}

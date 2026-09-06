@@ -3,7 +3,12 @@
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
-import { canAcknowledgeFeedback, canManageTraining, getCurrentUser } from "@/lib/current-user";
+import {
+  canAcknowledgeFeedback,
+  canManageReviewWorkflow,
+  canManageTraining,
+  getCurrentUser
+} from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
@@ -12,8 +17,12 @@ import {
   trainingCreatedToastMessage,
   trainingStatusToastMessage
 } from "@/lib/feedback-toast-messages";
-import { recordReviewEvent } from "@/lib/review-events";
+import { recordReviewEvent, CALIBRATION_APPEAL_SIGNAL_ACTION } from "@/lib/review-events";
+import { trainingAssignmentDefaultsFromFinding } from "@/lib/coaching-follow-up";
 import { assertFeedbackTransition, reviewFeedbackTransitionStatuses } from "@/lib/review-lifecycle";
+
+/** Appeal resolve / reanswer request — manager workflow only; agents must not self-close. */
+const managerOnlyFeedbackActions = new Set(["appeal_confirmed", "appeal_corrected", "reanswer_requested"]);
 
 /**
  * Result of a feedback/coaching server action consumed via `useActionState`.
@@ -87,6 +96,11 @@ export async function updateReviewFeedback(formData: FormData) {
   const reviewId = stringField(formData, "reviewId");
   const action = stringField(formData, "action");
   const comment = stringField(formData, "comment");
+
+  if (managerOnlyFeedbackActions.has(action) && !canManageReviewWorkflow(user.role)) {
+    throw new Error("Нет прав на решение по апелляции.");
+  }
+
   const review = await loadReviewForAction(reviewId, user.workspaceId);
   assertFeedbackScope({
     userRole: user.role,
@@ -140,7 +154,15 @@ export async function updateReviewFeedback(formData: FormData) {
         action: `review.feedback.${action}`,
         targetType: "review",
         targetId: review.id,
-        metadata: { comment }
+        metadata: {
+          comment,
+          ...(action === "appeal_confirmed" || action === "appeal_corrected"
+            ? {
+                calibrationSignal: true,
+                appealOutcome: action === "appeal_corrected" ? "corrected" : "confirmed"
+              }
+            : {})
+        }
       },
       tx
     );
@@ -155,6 +177,25 @@ export async function updateReviewFeedback(formData: FormData) {
       toStatus: eventStatuses.toStatus,
       metadata: { comment }
     });
+
+    // Appeal outcomes seed a calibration signal (no scorecard auto-edit).
+    if (action === "appeal_confirmed" || action === "appeal_corrected") {
+      const appealOutcome = action === "appeal_corrected" ? "corrected" : "confirmed";
+      await recordReviewEvent(tx, {
+        workspaceId: user.workspaceId,
+        reviewId: review.id,
+        conversationId: review.conversationId,
+        actorId: user.id,
+        action: CALIBRATION_APPEAL_SIGNAL_ACTION,
+        fromStatus: eventStatuses.fromStatus,
+        toStatus: eventStatuses.toStatus,
+        metadata: {
+          appealOutcome,
+          sourceAction: action,
+          comment
+        }
+      });
+    }
 
     // An opened appeal needs a manager's attention. Enqueued inside the same
     // transaction so it commits atomically; the worker no-ops with no channel.
@@ -182,6 +223,9 @@ export async function updateReviewFeedback(formData: FormData) {
   revalidatePath(`/reviews/${review.conversationId}`);
   revalidatePath("/coaching");
   revalidatePath("/self-review");
+  if (action === "appeal_confirmed" || action === "appeal_corrected") {
+    revalidatePath("/calibration");
+  }
 }
 
 export async function createTrainingAssignmentFromReview(formData: FormData) {
@@ -192,27 +236,92 @@ export async function createTrainingAssignmentFromReview(formData: FormData) {
   }
 
   const reviewId = stringField(formData, "reviewId");
-  const title = stringField(formData, "title");
-  const description = stringField(formData, "description");
-  const assigneeName = stringField(formData, "assigneeName");
+  if (!reviewId) {
+    throw new Error("Нужен идентификатор проверки.");
+  }
+
+  const coachingActionId = stringField(formData, "coachingActionId");
+  const assigneeIdField = stringField(formData, "assigneeId");
+  let title = stringField(formData, "title");
+  let description = stringField(formData, "description");
+  let assigneeName = stringField(formData, "assigneeName");
   const dueAt = stringField(formData, "dueAt");
   const review = await loadReviewForAction(reviewId, user.workspaceId);
+
+  if (coachingActionId) {
+    const coachingAction = await prisma.coachingAction.findFirst({
+      where: {
+        id: coachingActionId,
+        finding: {
+          review: {
+            id: review.id,
+            workspaceId: user.workspaceId
+          }
+        }
+      },
+      select: {
+        id: true,
+        action: true,
+        finding: {
+          select: {
+            category: true,
+            evidenceSummary: true
+          }
+        }
+      }
+    });
+
+    if (!coachingAction) {
+      throw new Error("Разбор не найден для этой проверки.");
+    }
+
+    const openExisting = await prisma.trainingAssignment.findFirst({
+      where: {
+        workspaceId: user.workspaceId,
+        reviewId: review.id,
+        status: { not: "done" }
+      },
+      select: { id: true }
+    });
+
+    if (openExisting) {
+      throw new Error("У этой проверки уже есть открытая учебная задача.");
+    }
+
+    const defaults = trainingAssignmentDefaultsFromFinding({
+      category: coachingAction.finding.category,
+      coachingAction: coachingAction.action,
+      evidenceSummary: coachingAction.finding.evidenceSummary
+    });
+    title = title || defaults.title;
+    description = description || defaults.description;
+  }
+
+  const preferredAssigneeId = assigneeIdField || review.conversation.assigneeId || "";
+  const assignee = preferredAssigneeId
+    ? await prisma.user.findFirst({
+        where: { id: preferredAssigneeId, workspaceId: user.workspaceId },
+        select: { id: true, name: true }
+      })
+    : assigneeName
+      ? await prisma.user.findFirst({
+          where: { workspaceId: user.workspaceId, name: assigneeName },
+          select: { id: true, name: true }
+        })
+      : null;
+
+  assigneeName = assignee?.name ?? (assigneeName || review.conversation.assigneeName || "");
 
   if (!title || !description || !assigneeName) {
     throw new Error("Нужны название, описание и оператор.");
   }
-
-  const assignee = await prisma.user.findFirst({
-    where: { workspaceId: user.workspaceId, name: assigneeName },
-    select: { id: true }
-  });
 
   await prisma.$transaction(async (tx) => {
     const assignment = await tx.trainingAssignment.create({
       data: {
         workspaceId: user.workspaceId,
         reviewId: review.id,
-        assigneeId: assignee?.id,
+        assigneeId: assignee?.id ?? review.conversation.assigneeId,
         assignedById: user.id,
         assigneeName,
         title,
@@ -229,7 +338,8 @@ export async function createTrainingAssignmentFromReview(formData: FormData) {
       action: "training.assignment_created",
       metadata: {
         assignmentId: assignment.id,
-        assigneeName
+        assigneeName,
+        coachingActionId: coachingActionId || null
       }
     });
 

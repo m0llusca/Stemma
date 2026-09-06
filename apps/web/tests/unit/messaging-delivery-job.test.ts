@@ -17,7 +17,8 @@ const mocks = vi.hoisted(() => ({
       create: vi.fn()
     }
   },
-  recordMessagingDelivery: vi.fn()
+  recordMessagingDelivery: vi.fn(),
+  findMessagingDeliveryForJobChannel: vi.fn()
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -25,7 +26,8 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/messaging/delivery", () => ({
-  recordMessagingDelivery: mocks.recordMessagingDelivery
+  recordMessagingDelivery: mocks.recordMessagingDelivery,
+  findMessagingDeliveryForJobChannel: mocks.findMessagingDeliveryForJobChannel
 }));
 
 function backendJob(overrides: Partial<BackendJob> = {}): BackendJob {
@@ -80,6 +82,7 @@ beforeEach(() => {
     counter += 1;
     return { id: `delivery-${counter}` };
   });
+  mocks.findMessagingDeliveryForJobChannel.mockResolvedValue(null);
   mocks.prisma.messagingDelivery.update.mockResolvedValue({});
   mocks.prisma.messagingChannel.update.mockResolvedValue({});
   mocks.prisma.backendJobEvent.create.mockResolvedValue({});
@@ -162,5 +165,73 @@ describe("runMessagingDeliveryJob", () => {
     await expect(runMessagingDeliveryJob(backendJob(), { eventType: "not.an.event" })).rejects.toThrow();
     expect(mocks.prisma.messagingChannel.findMany).not.toHaveBeenCalled();
     expect(mocks.recordMessagingDelivery).not.toHaveBeenCalled();
+  });
+
+  it("does not re-POST when a prior attempt already delivered to the channel", async () => {
+    mocks.prisma.messagingChannel.findMany.mockResolvedValue([
+      { id: "chan-1", kind: "slack", configJson: JSON.stringify({ webhookUrl: "https://x" }), secretRef: null }
+    ]);
+    mocks.findMessagingDeliveryForJobChannel.mockResolvedValue({
+      id: "delivery-existing",
+      status: "delivered",
+      channelId: "chan-1",
+      payloadJson: JSON.stringify({ backendJobId: "job-1" })
+    });
+    const send = fakeSend({ ok: true });
+    const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
+
+    const result = await runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(mocks.recordMessagingDelivery).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ sent: 1, failed: 0, skipped: 0 });
+  });
+
+  it("retries a failed prior attempt without creating a duplicate delivery row", async () => {
+    mocks.prisma.messagingChannel.findMany.mockResolvedValue([
+      { id: "chan-1", kind: "slack", configJson: JSON.stringify({ webhookUrl: "https://x" }), secretRef: null }
+    ]);
+    mocks.findMessagingDeliveryForJobChannel.mockResolvedValue({
+      id: "delivery-failed",
+      status: "failed",
+      channelId: "chan-1",
+      payloadJson: JSON.stringify({ backendJobId: "job-1" })
+    });
+    const send = fakeSend({ ok: true });
+    const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
+
+    const result = await runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send });
+
+    expect(mocks.recordMessagingDelivery).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.messagingDelivery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "delivery-failed" },
+        data: expect.objectContaining({ status: "queued" })
+      })
+    );
+    expect(mocks.prisma.messagingDelivery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "delivery-failed" },
+        data: expect.objectContaining({ status: "delivered" })
+      })
+    );
+    expect(result).toMatchObject({ sent: 1, failed: 0 });
+  });
+
+  it("tags new delivery rows with backendJobId for retry dedupe", async () => {
+    mocks.prisma.messagingChannel.findMany.mockResolvedValue([
+      { id: "chan-1", kind: "slack", configJson: JSON.stringify({ webhookUrl: "https://x" }), secretRef: null }
+    ]);
+    const send = fakeSend({ ok: true });
+    const { runMessagingDeliveryJob } = await import("@/lib/jobs/messaging-delivery-job");
+
+    await runMessagingDeliveryJob(backendJob(), payload(), { sendToChannel: send });
+
+    expect(mocks.recordMessagingDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ backendJobId: "job-1" })
+      })
+    );
   });
 });

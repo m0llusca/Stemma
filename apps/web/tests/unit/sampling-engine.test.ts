@@ -90,10 +90,10 @@ describe("sampling engine", () => {
     expect(applySamplingDecision(conversation(), decision).samplingReason).toContain("Fallback");
   });
 
-  it("keeps caller sampling context when no rule matches", () => {
+  it("keeps caller sampling reason but forces random type when no rule matches", () => {
     const decision = evaluateSamplingRules({
       workspaceId: "workspace-1",
-      conversation: conversation({ tags: ["general"], csatScore: 5 }),
+      conversation: conversation({ tags: ["general"], csatScore: 5, samplingType: "dsat" }),
       rules: [
         {
           id: "rule-dsat",
@@ -113,6 +113,45 @@ describe("sampling engine", () => {
         samplingReason: "Caller provided reason"
       })
     );
+    expect(applySamplingDecision(conversation({ samplingType: "dsat" }), decision).samplingType).toBe("random");
+  });
+
+  it("does not fall through to a catch-all after a percentage exclusion", () => {
+    // ticket-1 / rule-dsat bucket is deterministic; pick a targetPercent that excludes it.
+    const bucket = samplingBucket({
+      workspaceId: "workspace-1",
+      ruleId: "rule-dsat",
+      externalSource: "zendesk",
+      externalId: "ticket-1"
+    });
+    const decision = evaluateSamplingRules({
+      workspaceId: "workspace-1",
+      conversation: conversation({ csatScore: 2 }),
+      rules: [
+        {
+          id: "rule-dsat",
+          name: "Low CSAT",
+          type: "dsat",
+          priority: 10,
+          targetPercent: bucket, // exclude this exact bucket (>= targetPercent)
+          conditionsJson: JSON.stringify({ csatScoreAtMost: 3 })
+        },
+        {
+          id: "rule-catch-all",
+          name: "Catch all",
+          type: "manual",
+          priority: 100,
+          targetPercent: 100,
+          conditionsJson: "{}"
+        }
+      ]
+    });
+
+    expect(decision).toMatchObject({
+      matched: false,
+      samplingType: "random",
+      samplingReason: expect.stringContaining("Исключено процентом")
+    });
   });
 
   it("honors the legacy conditions written by the sampling rule admin UI", () => {

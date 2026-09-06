@@ -150,6 +150,12 @@ export const csatBucketLabels: Record<string, string> = {
   NO_SCORE: "Без CSAT"
 };
 
+export const qaScoreBandLabels: Record<string, string> = {
+  LOW: "QA < 70",
+  MID: "QA 70–84",
+  HIGH: "QA ≥ 85"
+};
+
 export const feedbackStatusLabels: Record<string, string> = {
   new: "Новая",
   feedback_sent: "Обратная связь отправлена",

@@ -36,7 +36,9 @@ function stringField(formData: FormData, key: string) {
 async function requireTrainingManager() {
   const user = await getCurrentUser();
 
-  if (!canManageTraining(user.role)) {
+  // SUPPORT_AGENT holds training:manage for consuming assigned tasks, but must
+  // never create or mutate coaching plans for the team.
+  if (!canManageTraining(user.role) || user.role === "SUPPORT_AGENT") {
     throw new Error("Нет прав на управление планами коучинга.");
   }
 
@@ -44,8 +46,53 @@ async function requireTrainingManager() {
 }
 
 /**
+ * Resolves optional origin review/conversation IDs from the create form.
+ * Both must belong to the caller's workspace; when both are present they must
+ * refer to the same conversation. A lone reviewId fills conversationId from
+ * the review row so deep links stay complete.
+ */
+async function resolvePlanOrigin(
+  workspaceId: string,
+  reviewId: string,
+  conversationId: string
+): Promise<{ reviewId: string | null; conversationId: string | null }> {
+  if (!reviewId && !conversationId) {
+    return { reviewId: null, conversationId: null };
+  }
+
+  if (reviewId) {
+    const review = await prisma.review.findFirst({
+      where: { id: reviewId, workspaceId },
+      select: { id: true, conversationId: true }
+    });
+
+    if (!review) {
+      throw new Error("Проверка для плана коучинга не найдена.");
+    }
+
+    if (conversationId && conversationId !== review.conversationId) {
+      throw new Error("Проверка не относится к указанному обращению.");
+    }
+
+    return { reviewId: review.id, conversationId: review.conversationId };
+  }
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, workspaceId },
+    select: { id: true }
+  });
+
+  if (!conversation) {
+    throw new Error("Обращение для плана коучинга не найдено.");
+  }
+
+  return { reviewId: null, conversationId: conversation.id };
+}
+
+/**
  * Creates a coaching plan for a single agent. Requires agent name and title;
- * focus area is optional. Records an audit entry inside the same transaction.
+ * focus area and origin review/conversation are optional. Records an audit
+ * entry inside the same transaction.
  */
 export async function createCoachingPlan(formData: FormData) {
   const user = await requireTrainingManager();
@@ -53,6 +100,11 @@ export async function createCoachingPlan(formData: FormData) {
   const agentName = stringField(formData, "agentName");
   const title = stringField(formData, "title");
   const focusArea = stringField(formData, "focusArea");
+  const origin = await resolvePlanOrigin(
+    user.workspaceId,
+    stringField(formData, "reviewId"),
+    stringField(formData, "conversationId")
+  );
 
   if (!agentName || !title) {
     throw new Error("Нужны оператор и название плана.");
@@ -65,6 +117,8 @@ export async function createCoachingPlan(formData: FormData) {
         agentName,
         title,
         focusArea: focusArea || null,
+        reviewId: origin.reviewId,
+        conversationId: origin.conversationId,
         createdById: user.id
       }
     });
@@ -76,13 +130,22 @@ export async function createCoachingPlan(formData: FormData) {
         action: "coaching.plan_created",
         targetType: "coaching_plan",
         targetId: plan.id,
-        metadata: { agentName, title, focusArea: focusArea || null }
+        metadata: {
+          agentName,
+          title,
+          focusArea: focusArea || null,
+          reviewId: origin.reviewId,
+          conversationId: origin.conversationId
+        }
       },
       tx
     );
   });
 
   revalidatePath("/coaching");
+  if (origin.conversationId) {
+    revalidatePath(`/reviews/${origin.conversationId}`);
+  }
 }
 
 /**

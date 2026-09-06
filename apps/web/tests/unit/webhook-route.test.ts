@@ -32,6 +32,7 @@ describe("public webhook route", () => {
         headers: {
           "content-length": String(maxWebhookBodyBytes + 1),
           "idempotency-key": "idem-1",
+          "x-qc-workspace-id": "workspace-1",
           "x-qc-webhook-timestamp": "1750000000",
           "x-qc-webhook-signature": "v1=signature",
           "x-request-id": "req-webhook-size"
@@ -59,6 +60,7 @@ describe("public webhook route", () => {
         method: "POST",
         headers: {
           "idempotency-key": "idem-1",
+          "x-qc-workspace-id": "workspace-1",
           "x-qc-webhook-timestamp": "1750000000",
           "x-qc-webhook-signature": "v1=signature",
           "x-request-id": "req-webhook-raw-size"
@@ -80,6 +82,7 @@ describe("public webhook route", () => {
         method: "POST",
         headers: {
           "idempotency-key": "idem-1",
+          "x-qc-workspace-id": "workspace-1",
           "x-qc-webhook-signature": "v1=signature",
           "x-request-id": "req-webhook-no-timestamp"
         },
@@ -102,6 +105,7 @@ describe("public webhook route", () => {
         method: "POST",
         headers: {
           "idempotency-key": "idem-1",
+          "x-qc-workspace-id": "workspace-1",
           "x-qc-webhook-timestamp": "1750000000",
           "x-request-id": "req-webhook-no-signature"
         },
@@ -120,5 +124,55 @@ describe("public webhook route", () => {
     });
 
     expect(mocks.ingestWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it("requires workspace scope and passes it to ingest", async () => {
+    const { POST } = await import("@/app/api/v1/webhooks/[endpointId]/route");
+
+    const missingWorkspace = await POST(
+      new Request("https://qc.example.test/api/v1/webhooks/endpoint-1", {
+        method: "POST",
+        headers: {
+          "idempotency-key": "idem-1",
+          "x-qc-webhook-timestamp": "1750000000",
+          "x-qc-webhook-signature": "v1=signature",
+          "x-request-id": "req-webhook-no-workspace"
+        },
+        body: "{}"
+      }),
+      context()
+    );
+
+    expect(missingWorkspace.status).toBe(400);
+    await expect(missingWorkspace.json()).resolves.toMatchObject({
+      error: {
+        code: "bad_request",
+        message: "Заголовок x-qc-workspace-id обязателен.",
+        requestId: "req-webhook-no-workspace"
+      }
+    });
+    expect(mocks.ingestWebhookEvent).not.toHaveBeenCalled();
+
+    await POST(
+      new Request("https://qc.example.test/api/v1/webhooks/endpoint-1", {
+        method: "POST",
+        headers: {
+          "idempotency-key": "idem-1",
+          "x-qc-workspace-id": "workspace-1",
+          "x-qc-webhook-timestamp": "1750000000",
+          "x-qc-webhook-signature": "v1=signature",
+          "x-request-id": "req-webhook-scoped"
+        },
+        body: "{}"
+      }),
+      context()
+    );
+
+    expect(mocks.ingestWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpointId: "endpoint-1",
+        workspaceId: "workspace-1"
+      })
+    );
   });
 });

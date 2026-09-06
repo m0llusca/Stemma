@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox, MessageSquareWarning } from "lucide-react";
+import { Inbox, MessageSquareWarning, Scale } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +12,20 @@ import {
 } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { ChartFrame } from "@/components/charts/chart-frame";
 import { ReasonTrendChart } from "@/components/charts/reason-trend-chart.client";
 import type { ChartView } from "@/components/charts/chart-view-links";
 import { ownerTypeLabels } from "@/lib/labels";
 import { formatAverageScore } from "@/lib/reports/report-format";
-import type { ReasonTrendRow, SentimentCorrelation } from "@/lib/reports/report-aggregation";
+import type { QaCsatMatrix, ReasonTrendRow, SentimentCorrelation } from "@/lib/reports/report-aggregation";
 import type {
   ReasonTimelineSeries,
   ReportChartBundle
@@ -238,6 +246,126 @@ export function SentimentCorrelationPanel({
                 Размечено выборки. Ещё {unscoredCount} без тональности.
               </p>
             ) : null}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export type QaCsatMatrixCellLink = {
+  qaScoreBand: string;
+  csatBucket: string;
+  href: string;
+};
+
+/** Internal QA score × customer CSAT as one drill-down matrix. */
+export function QaCsatMatrixPanel({
+  matrix,
+  cellHrefs,
+  actionHref,
+  actionLabel = "Открыть проверки"
+}: {
+  matrix: QaCsatMatrix;
+  cellHrefs: QaCsatMatrixCellLink[];
+  actionHref?: string;
+  actionLabel?: string;
+}) {
+  const hrefByKey = new Map(cellHrefs.map((entry) => [`${entry.qaScoreBand}:${entry.csatBucket}`, entry.href]));
+  const coveragePercent =
+    matrix.totalCount > 0 ? Math.round((matrix.withCsatCount / matrix.totalCount) * 100) : 0;
+
+  return (
+    <Card className="overflow-hidden" aria-labelledby="qa-csat-matrix-title">
+      <CardHeader className="border-b">
+        <div className="min-w-0">
+          <CardTitle id="qa-csat-matrix-title">QA × CSAT</CardTitle>
+          <CardDescription>
+            Внутренний балл проверки и CSAT обращения в одной матрице. Ячейка ведёт в очередь с обоими фильтрами.
+          </CardDescription>
+        </div>
+        {actionHref ? (
+          <CardAction>
+            <Button
+              render={
+                <Link href={actionHref} {...reportPageLocalLinkProps(actionHref)} />
+              }
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+            >
+              {actionLabel}
+            </Button>
+          </CardAction>
+        ) : null}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
+        {matrix.totalCount === 0 ? (
+          <EmptyState
+            icon={<Scale size={22} aria-hidden="true" />}
+            title="Нет завершённых проверок"
+            description="Матрица QA × CSAT появится после первых финализаций за период."
+            size="inline"
+          />
+        ) : (
+          <>
+            <Table aria-label="Матрица QA и CSAT">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[7rem]">Балл QA</TableHead>
+                  {matrix.csatBuckets.map((bucket) => (
+                    <TableHead key={bucket.key} className="text-center">
+                      {bucket.label}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrix.bands.map((band) => (
+                  <TableRow key={band.key}>
+                    <TableCell className="font-medium">{band.label}</TableCell>
+                    {matrix.csatBuckets.map((bucket) => {
+                      const cell = matrix.cells.find(
+                        (entry) => entry.qaScoreBand === band.key && entry.csatBucket === bucket.key
+                      );
+                      const href = hrefByKey.get(`${band.key}:${bucket.key}`);
+                      const count = cell?.count ?? 0;
+
+                      return (
+                        <TableCell key={bucket.key} className="text-center tabular-nums">
+                          {count > 0 && href ? (
+                            <Link
+                              href={href}
+                              {...reportPageLocalLinkProps(href)}
+                              className="inline-flex flex-col items-center gap-0.5 rounded-md px-1.5 py-1 text-foreground underline-offset-4 hover:bg-muted/60 hover:underline"
+                            >
+                              <span className="font-semibold">{count}</span>
+                              <span className="text-[0.65rem] text-muted-foreground">
+                                ср. {formatAverageScore(cell?.averageScore ?? null)}
+                              </span>
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {matrix.withoutCsatCount > 0 ? (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="secondary" className="tabular-nums">
+                  {coveragePercent}%
+                </Badge>
+                с CSAT. Ещё {matrix.withoutCsatCount} без оценки клиента (поле{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-[0.7rem]">csatBucket</code>
+                ).
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Все проверки периода имеют CSAT-бакет.</p>
+            )}
           </>
         )}
       </CardContent>

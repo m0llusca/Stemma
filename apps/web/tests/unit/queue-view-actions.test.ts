@@ -107,11 +107,12 @@ describe("queue view actions", () => {
 
     await expect(takeNextReview()).rejects.toThrow("NEXT_REDIRECT:/reviews/conv-7");
 
-    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reviews:read");
+    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reviews:write");
     expect(mocks.prisma.conversation.findFirst).toHaveBeenCalledWith({
       where: {
         workspaceId: "workspace-1",
-        qaStatus: { not: "FINALIZED" }
+        qaStatus: { not: "FINALIZED" },
+        samplingType: { not: "OUT_OF_SAMPLE" }
       },
       orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
       select: { id: true }
@@ -119,7 +120,7 @@ describe("queue view actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/reviews/conv-7");
   });
 
-  it("scopes the next review to the support agent's own conversations", async () => {
+  it("scopes the next review to the support agent's own conversations by assigneeId", async () => {
     mocks.requireCurrentUserPermission.mockResolvedValue({
       id: "agent-1",
       name: "Оператор",
@@ -135,11 +136,93 @@ describe("queue view actions", () => {
       where: {
         workspaceId: "workspace-1",
         qaStatus: { not: "FINALIZED" },
-        assigneeName: "Оператор"
+        samplingType: { not: "OUT_OF_SAMPLE" },
+        assigneeId: "agent-1"
       },
       orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
       select: { id: true }
     });
+  });
+
+  it("applies active queue filters when taking the next review", async () => {
+    mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-overdue" });
+    const { takeNextReview } = await import("@/lib/queue-view-actions");
+    const formData = new FormData();
+    formData.set("queueHref", "/reviews?due=overdue");
+
+    await expect(takeNextReview(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reviews/conv-overdue?returnTo=%2Freviews%3Fdue%3Doverdue"
+    );
+
+    expect(mocks.prisma.conversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            workspaceId: "workspace-1",
+            qaStatus: { not: "FINALIZED" },
+            samplingType: { not: "OUT_OF_SAMPLE" }
+          },
+          expect.objectContaining({
+            AND: expect.arrayContaining([
+              { workspaceId: "workspace-1" },
+              expect.objectContaining({
+                reviewDueAt: { lt: expect.any(Date) },
+                qaStatus: { not: "FINALIZED" }
+              })
+            ])
+          })
+        ]
+      },
+      orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
+      select: { id: true }
+    });
+  });
+
+  it("keeps take-next inside the AI exceptions process filter", async () => {
+    mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-ai" });
+    const { takeNextReview, filtersFromReviewsHref } = await import("@/lib/queue-view-actions");
+    expect(filtersFromReviewsHref("/reviews?process=ai_exception")).toEqual(
+      expect.objectContaining({ process: "ai_exception" })
+    );
+
+    const formData = new FormData();
+    formData.set("queueHref", "/reviews?process=ai_exception");
+
+    await expect(takeNextReview(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/reviews/conv-ai?returnTo=%2Freviews%3Fprocess%3Dai_exception"
+    );
+
+    expect(mocks.prisma.conversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            workspaceId: "workspace-1",
+            qaStatus: { not: "FINALIZED" },
+            samplingType: { not: "OUT_OF_SAMPLE" }
+          },
+          expect.objectContaining({
+            AND: expect.arrayContaining([
+              { workspaceId: "workspace-1" },
+              expect.objectContaining({
+                aiQualityDrafts: {
+                  some: expect.objectContaining({ kind: "score" })
+                }
+              })
+            ])
+          })
+        ]
+      },
+      orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
+      select: { id: true }
+    });
+  });
+
+  it("parses overdue filters from a reviews href", async () => {
+    const { filtersFromReviewsHref } = await import("@/lib/queue-view-actions");
+    expect(filtersFromReviewsHref("/reviews?due=overdue")).toEqual(
+      expect.objectContaining({ due: "overdue" })
+    );
+    expect(filtersFromReviewsHref("/reviews")).toBeUndefined();
   });
 
   it("redirects back to the queue when nothing is left to review", async () => {

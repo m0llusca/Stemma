@@ -77,16 +77,31 @@ async function SelfReviewPageContent() {
         reviews: { some: { reviewSource: "HUMAN", status: "FINALIZED" } }
       },
       include: {
+        coachingPins: {
+          where: { resolvedAt: null },
+          include: { author: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 5
+        },
         reviews: {
           where: { reviewSource: "HUMAN", status: "FINALIZED" },
           include: {
-            findings: true,
+            findings: {
+              include: { coachingAction: true }
+            },
             reviewer: true,
             scores: {
               include: {
                 criterion: true,
                 evidenceMessage: { select: { id: true, body: true } }
               }
+            },
+            trainingAssignments: {
+              where: { status: { not: "done" } },
+              include: {
+                coachingPlan: { select: { id: true, title: true, status: true } }
+              },
+              take: 3
             }
           },
           orderBy: [{ finalizedAt: "desc" }, { createdAt: "desc" }],
@@ -267,7 +282,41 @@ async function SelfReviewPageContent() {
                       {finding.rootCause}
                     </p>
                   ) : null}
+                  {finding.coachingAction ? (
+                    <p className="mt-1.5 text-foreground">
+                      <span className="text-muted-foreground">Разбор: </span>
+                      {finding.coachingAction.action}
+                      {finding.coachingAction.dueAt
+                        ? ` · до ${finding.coachingAction.dueAt.toLocaleDateString("ru-RU")}`
+                        : ""}
+                    </p>
+                  ) : null}
                 </div>
+              ))}
+            </div>
+          ) : null}
+          {conversation.coachingPins.length > 0 ? (
+            <div className="flex flex-col gap-2" aria-label="Заметки коучинга">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Заметки коучинга</p>
+              {conversation.coachingPins.map((pin) => (
+                <div key={pin.id} className="rounded-md border border-primary/20 bg-primary/5 px-2.5 py-2 text-xs">
+                  <p className="text-foreground">{pin.body}</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {pin.author.name} · {pin.createdAt.toLocaleDateString("ru-RU")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {(review.trainingAssignments?.length ?? 0) > 0 ? (
+            <div className="flex flex-col gap-1.5 text-xs" aria-label="Учебные задачи по проверке">
+              <p className="font-medium uppercase tracking-wide text-muted-foreground">Учебные задачи</p>
+              {review.trainingAssignments.map((assignment) => (
+                <p key={assignment.id} className="text-foreground">
+                  {assignment.title}
+                  {assignment.coachingPlan ? ` · план «${assignment.coachingPlan.title}»` : ""}
+                  {assignment.dueAt ? ` · до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : ""}
+                </p>
               ))}
             </div>
           ) : null}

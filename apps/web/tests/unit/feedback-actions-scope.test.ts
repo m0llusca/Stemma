@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
   return {
     auditLog: vi.fn(),
     canAcknowledgeFeedback: vi.fn(),
+    canManageReviewWorkflow: vi.fn(),
     canManageTraining: vi.fn(),
     enqueueBackendJob: vi.fn(),
     getCurrentUser: vi.fn(),
@@ -28,6 +29,12 @@ const mocks = vi.hoisted(() => {
         findFirst: vi.fn()
       },
       user: {
+        findFirst: vi.fn()
+      },
+      coachingAction: {
+        findFirst: vi.fn()
+      },
+      trainingAssignment: {
         findFirst: vi.fn()
       }
     },
@@ -45,6 +52,7 @@ vi.mock("@/lib/audit", () => ({
 
 vi.mock("@/lib/current-user", () => ({
   canAcknowledgeFeedback: mocks.canAcknowledgeFeedback,
+  canManageReviewWorkflow: mocks.canManageReviewWorkflow,
   canManageTraining: mocks.canManageTraining,
   getCurrentUser: mocks.getCurrentUser
 }));
@@ -97,10 +105,13 @@ describe("feedback action scope enforcement", () => {
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.tx));
     mocks.getCurrentUser.mockResolvedValue(agentUser());
     mocks.canAcknowledgeFeedback.mockReturnValue(true);
+    mocks.canManageReviewWorkflow.mockReturnValue(false);
     // A SUPPORT_AGENT holds training:manage, so canManageTraining is true.
     mocks.canManageTraining.mockReturnValue(true);
     mocks.prisma.review.findFirst.mockResolvedValue(reviewRecord());
     mocks.prisma.user.findFirst.mockResolvedValue({ id: "agent-1", name: "Оператор" });
+    mocks.prisma.coachingAction.findFirst.mockResolvedValue(null);
+    mocks.prisma.trainingAssignment.findFirst.mockResolvedValue(null);
     mocks.tx.trainingAssignment.create.mockResolvedValue({ id: "assignment-1" });
     mocks.tx.trainingAssignment.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.review.update.mockResolvedValue({ id: "review-1" });
@@ -154,6 +165,104 @@ describe("feedback action scope enforcement", () => {
     await updateReviewFeedback(formData);
 
     expect(mocks.tx.review.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks a support agent from confirming their own appeal (manager-only)", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    mocks.prisma.review.findFirst.mockResolvedValue(
+      reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
+    );
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+    formData.set("action", "appeal_confirmed");
+
+    await expect(updateReviewFeedback(formData)).rejects.toThrow("Нет прав на решение по апелляции.");
+    expect(mocks.tx.review.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks a support agent from correcting their own appeal (manager-only)", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    mocks.prisma.review.findFirst.mockResolvedValue(
+      reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
+    );
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+    formData.set("action", "appeal_corrected");
+
+    await expect(updateReviewFeedback(formData)).rejects.toThrow("Нет прав на решение по апелляции.");
+    expect(mocks.tx.review.update).not.toHaveBeenCalled();
+  });
+
+  it("opens an appeal confirmation as a calibration signal for managers", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    const { CALIBRATION_APPEAL_SIGNAL_ACTION } = await import("@/lib/review-events");
+    mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "lead-1", role: "TEAM_LEAD", name: "Тимлид" }));
+    mocks.canManageReviewWorkflow.mockReturnValue(true);
+    mocks.prisma.review.findFirst.mockResolvedValue(
+      reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
+    );
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+    formData.set("action", "appeal_confirmed");
+
+    await updateReviewFeedback(formData);
+
+    expect(mocks.tx.review.update).toHaveBeenCalledTimes(1);
+    expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
+      mocks.tx,
+      expect.objectContaining({
+        action: "review.feedback.appeal_confirmed"
+      })
+    );
+    expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
+      mocks.tx,
+      expect.objectContaining({
+        action: CALIBRATION_APPEAL_SIGNAL_ACTION,
+        reviewId: "review-1",
+        conversationId: "conversation-1",
+        metadata: expect.objectContaining({
+          appealOutcome: "confirmed",
+          sourceAction: "appeal_confirmed"
+        })
+      })
+    );
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "review.feedback.appeal_confirmed",
+        metadata: expect.objectContaining({
+          calibrationSignal: true,
+          appealOutcome: "confirmed"
+        })
+      }),
+      mocks.tx
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/calibration");
+  });
+
+  it("opens an appeal correction as a calibration signal for managers", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    const { CALIBRATION_APPEAL_SIGNAL_ACTION } = await import("@/lib/review-events");
+    mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "lead-1", role: "TEAM_LEAD", name: "Тимлид" }));
+    mocks.canManageReviewWorkflow.mockReturnValue(true);
+    mocks.prisma.review.findFirst.mockResolvedValue(
+      reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
+    );
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+    formData.set("action", "appeal_corrected");
+
+    await updateReviewFeedback(formData);
+
+    expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
+      mocks.tx,
+      expect.objectContaining({
+        action: CALIBRATION_APPEAL_SIGNAL_ACTION,
+        metadata: expect.objectContaining({
+          appealOutcome: "corrected",
+          sourceAction: "appeal_corrected"
+        })
+      })
+    );
   });
 
   // Finding #2: updateTrainingAssignmentStatus must self-scope SUPPORT_AGENT.

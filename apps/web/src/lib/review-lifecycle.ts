@@ -18,17 +18,16 @@ export class ReviewLifecycleTransitionError extends Error {
 export function assertSelfReviewScope(input: {
   reviewSource: string;
   userRole: string;
-  userName: string;
-  conversationAssigneeName: string | null;
+  userId: string;
+  conversationAssigneeId: string | null;
 }) {
   if (input.reviewSource !== "SELF_REVIEW") {
     return;
   }
 
-  const assigneeName = input.conversationAssigneeName?.trim() ?? null;
-  const userName = input.userName.trim();
-
-  if (assigneeName === null || assigneeName !== userName) {
+  // Identity is keyed off the unique assigneeId, never the non-unique display name.
+  // Fail-closed: an unassigned conversation is never the operator's own.
+  if (input.conversationAssigneeId === null || input.conversationAssigneeId !== input.userId) {
     throw new ReviewLifecycleTransitionError("Оператор может отправить самопроверку только по своему диалогу.");
   }
 }

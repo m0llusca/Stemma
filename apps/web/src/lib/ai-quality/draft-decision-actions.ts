@@ -75,12 +75,12 @@ export async function submitAiDraftDecision(
     }
 
     const draft = await prisma.aiQualityDraft.findFirst({
-      where: { id: draftId, workspaceId: user.workspaceId },
+      where: { id: draftId, workspaceId: user.workspaceId, status: "draft" },
       select: { id: true, conversationId: true }
     });
 
     if (!draft) {
-      throw new Error("Предложение ИИ не найдено.");
+      throw new Error("Предложение ИИ не найдено или уже решено.");
     }
 
     const reason = stringField(formData, "reason");
@@ -89,6 +89,7 @@ export async function submitAiDraftDecision(
       draftId: draft.id,
       decision,
       actorId: user.id,
+      workspaceId: user.workspaceId,
       reason: reason ? reason : undefined,
       ...(decision === "changed"
         ? { changedValue: parseChangedValue(stringField(formData, "changedValueJson")) }

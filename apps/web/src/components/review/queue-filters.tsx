@@ -14,6 +14,7 @@ import {
   csatBucketLabels,
   appealStatusLabels,
   feedbackStatusLabels,
+  qaScoreBandLabels,
   qaStatusLabels,
   reanswerStatusLabels,
   reviewQueueStatusLabels,
@@ -86,7 +87,8 @@ export function QueueFilters({
   const processLabels = {
     critical: "Критические ошибки",
     reanswer: "Переответы",
-    appeal: "Апелляции"
+    appeal: "Апелляции",
+    ai_exception: "AI-исключения"
   } as const;
   const riskLevels = ["HIGH_OR_CRITICAL", "CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
   const riskFilterLabels = {
@@ -103,6 +105,7 @@ export function QueueFilters({
     filters.qaAssignee ? { label: "Проверяющий", value: filters.qaAssignee } : null,
     filters.samplingType ? { label: "Выборка", value: samplingTypeLabels[filters.samplingType] ?? filters.samplingType } : null,
     filters.csatBucket ? { label: "CSAT", value: csatBucketLabels[filters.csatBucket] ?? filters.csatBucket } : null,
+    filters.qaScoreBand ? { label: "Балл QA", value: qaScoreBandLabels[filters.qaScoreBand] ?? filters.qaScoreBand } : null,
     filters.supportLine ? { label: "Линия", value: filters.supportLine } : null,
     filters.teamName ? { label: "Команда", value: filters.teamName } : null,
     filters.process ? { label: "Процесс", value: processLabels[filters.process] } : null,

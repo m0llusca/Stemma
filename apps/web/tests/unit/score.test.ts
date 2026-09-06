@@ -71,4 +71,29 @@ describe("calculateReviewScore", () => {
       "Missing scale score for accuracy"
     );
   });
+
+  it("returns zero weight when every criterion is N/A (finalize must reject this)", () => {
+    const criteria: CriterionInput[] = [
+      {
+        id: "accuracy",
+        label: "Accuracy",
+        type: "SCALE_1_3",
+        weight: 50,
+        score: 3,
+        notApplicable: true
+      },
+      {
+        id: "policy",
+        label: "Policy",
+        type: "PASS_FAIL",
+        weight: 50,
+        notApplicable: true
+      }
+    ];
+
+    expect(calculateReviewScore(criteria)).toEqual({
+      totalScore: 0,
+      maxWeight: 0
+    });
+  });
 });

@@ -94,5 +94,27 @@ describe("conversation import → AI_SCORE enqueue gate", () => {
     });
 
     expect(backendJobCreate).not.toHaveBeenCalled();
+    expect(tx.conversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          samplingType: "OUT_OF_SAMPLE"
+        })
+      })
+    );
+  });
+
+  it("persists OUT_OF_SAMPLE when sampling does not match so take-next can exclude the row", async () => {
+    const { tx } = makeTx();
+
+    await upsertCustomConversation("workspace-1", conversationPayload(), tx as never, {
+      samplingRules: [selectingRule(0)]
+    });
+
+    expect(tx.conversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ samplingType: "OUT_OF_SAMPLE" }),
+        update: expect.objectContaining({ samplingType: "OUT_OF_SAMPLE" })
+      })
+    );
   });
 });
