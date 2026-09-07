@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 import { encryptSecret } from "@/lib/secrets";
 
 /**
@@ -90,6 +91,18 @@ export async function saveMessagingChannel(
       message: "Webhook URL должен быть корректной ссылкой https://.",
       kind
     };
+  }
+
+  if (webhookUrl) {
+    try {
+      assertPublicBaseUrl(new URL(webhookUrl));
+    } catch (error) {
+      return {
+        status: "error",
+        message: error instanceof Error ? error.message : "Webhook URL недопустим.",
+        kind
+      };
+    }
   }
 
   const configJson = JSON.stringify({ webhookUrl });

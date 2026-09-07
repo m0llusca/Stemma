@@ -8,6 +8,7 @@ import {
 } from "@/lib/messaging/http";
 import type { MessagingMessageContext } from "@/lib/messaging/job-contract";
 import type { MessagingChannelKind } from "@/lib/messaging/types";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 
 /**
  * Per-kind webhook delivery for a configured MessagingChannel.
@@ -150,6 +151,15 @@ export async function sendToChannel(
 
   if (!webhookUrl) {
     return { ok: false, error: "В канале не настроен webhookUrl." };
+  }
+
+  try {
+    assertPublicBaseUrl(new URL(webhookUrl));
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Webhook URL недопустим."
+    };
   }
 
   let token: string | null = null;
