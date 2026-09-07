@@ -31,8 +31,8 @@ import {
   MessagingChannelStatusToggle
 } from "@/components/admin/messaging-channel-form";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-
 import { prisma } from "@/lib/db";
+import { messagingChannelTone } from "@/lib/integrations/connection-tone";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { maskSecret } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
@@ -82,13 +82,6 @@ function messagingDeliveryTone(status: string): StatusBadgeTone {
   if (status === "delivered") return "success";
   if (status === "failed") return "danger";
   if (status === "queued") return "warning";
-  return "neutral";
-}
-
-function messagingChannelTone(status: string): StatusBadgeTone {
-  if (status === "active") return "success";
-  if (status === "error") return "danger";
-  if (status === "disabled") return "warning";
   return "neutral";
 }
 
@@ -225,7 +218,7 @@ async function AdminChannelsPageContent() {
                 </div>
                 <CardAction>
                   <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge tone={activeActionChannels > 0 ? "success" : "neutral"}>
+                    <StatusBadge tone={activeActionChannels > 0 ? messagingChannelTone("active") : "neutral"}>
                       Активны {activeActionChannels}
                     </StatusBadge>
                     <AdminDialog

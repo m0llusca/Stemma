@@ -1,5 +1,4 @@
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { Suspense } from "react";
 import { QueueDay1Tour } from "@/components/guidance/queue-day1-tour";
 import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
@@ -12,7 +11,6 @@ import { QueueTable } from "@/components/review/queue-table";
 import { QueueWorkspace } from "@/components/review/queue-workspace";
 import { ReviewSavedToast } from "@/components/review/review-saved-toast";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import {
   Pagination,
@@ -27,7 +25,6 @@ import {
   csatBucketLabels,
   externalSourceLabel,
   formatMessageCount,
-  qaStatusLabels,
   samplingTypeLabels
 } from "@/lib/labels";
 import { takeNextReview } from "@/lib/queue-view-actions";
@@ -39,7 +36,7 @@ import {
   reviewQueueDefaultPageSize,
   type ReviewQueueSearchParams
 } from "@/lib/review-repository";
-import { resolveReviewState, reviewStateLabels } from "@/lib/review-state";
+import { resolveQueueStatusChip } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
@@ -97,72 +94,20 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
   const savedMarker = firstParam(rawParams.saved);
   const data = await getReviewQueuePageData(rawParams);
   const filteredCount = data.conversations.length;
-  const { total, queued, inWork, overdue } = data.summary;
+  const { total } = data.summary;
   // Render-only pagination: the global priority sort already happened in the
-  // repository, so this just bounds how many rows hit the DOM per page. Focus
-  // strip still reads the full filtered set.
+  // repository, so this just bounds how many rows hit the DOM per page.
   const queuePage = paginateReviewQueue(
     data.conversations,
     parseReviewQueuePage(rawParams.page),
     reviewQueueDefaultPageSize
   );
-  const visibleCriticalCount = data.conversations.filter((conversation) =>
-    conversation.reviews.some((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN" && review.criticalError)
-  ).length;
-  const visibleReanswerCount = data.conversations.filter((conversation) =>
-    conversation.reviews.some((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN" && review.needsReanswer)
-  ).length;
-  const visibleUnassignedCount = data.conversations.filter(
-    (conversation) => conversation.qaStatus !== "FINALIZED" && !conversation.qaAssigneeName
-  ).length;
-  const reviewFocusItems = [
-    overdue > 0
-      ? {
-          href: "/reviews?due=overdue",
-          label: "Просроченные SLA",
-          value: overdue,
-          description: "Сначала закрыть или переназначить"
-        }
-      : null,
-    visibleCriticalCount > 0
-      ? {
-          href: "/reviews?process=critical",
-          label: "Критический риск",
-          value: visibleCriticalCount,
-          description: "Проверить переответ и обучение"
-        }
-      : null,
-    visibleUnassignedCount > 0
-      ? {
-          href: "/reviews?qaStatus=QUEUED",
-          label: "Без проверяющего",
-          value: visibleUnassignedCount,
-          description: "Назначить владельца проверки"
-        }
-      : null,
-    visibleReanswerCount > 0
-      ? {
-          href: "/reviews?process=reanswer",
-          label: "Нужен переответ",
-          value: visibleReanswerCount,
-          description: "Сверить текст до отправки"
-        }
-      : null
-  ]
-    .filter((item): item is { href: string; label: string; value: number; description: string } => Boolean(item))
-    .slice(0, 3);
   const queuePreview = data.conversations[0];
   const queuePreviewFinalized = queuePreview?.reviews.find(
     (review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN"
   );
   const queuePreviewDraft = queuePreview?.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
-  const queuePreviewState = queuePreview
-    ? resolveReviewState({
-        qaStatus: queuePreview.qaStatus,
-        hasDraftReview: Boolean(queuePreviewDraft),
-        hasFinalizedReview: Boolean(queuePreviewFinalized)
-      })
-    : null;
+  const queuePreviewChip = queuePreview ? resolveQueueStatusChip(queuePreview) : null;
   const queuePreviewDueAt = queuePreview?.reviewDueAt ? new Date(queuePreview.reviewDueAt) : null;
   const queuePreviewOverdue =
     Boolean(queuePreviewDueAt && queuePreviewDueAt.getTime() < Date.now()) && queuePreview?.qaStatus !== "FINALIZED";
@@ -203,16 +148,17 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       ]
     : [];
   const queuePreviewCard =
-    queuePreview && queuePreviewState ? (
+    queuePreview && queuePreviewChip ? (
       <QueueNextCasePreview
         subject={queuePreview.subject}
-        description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"} · ${qaStatusLabels[queuePreview.qaStatus]}`}
+        description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"}`}
         openHref={queuePreviewHref(queuePreview, data.currentHref)}
+        statusConversation={queuePreview}
       >
         <StatKpi
           label="Оценка"
           value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
-          hint={reviewStateLabels[queuePreviewState]}
+          hint={queuePreviewChip.label}
         />
 
         <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
@@ -263,60 +209,6 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       <WelcomeBackBanner />
       <QueueDay1Tour />
       {queueEmpty ? <QueueEmptyBanner /> : null}
-
-      <section aria-label="Где смотреть в очереди сейчас">
-        <Card size="sm" className="overflow-clip py-0">
-          <div className="grid min-w-0 md:grid-cols-[minmax(200px,0.7fr)_minmax(0,2fr)]">
-            <div className="flex flex-col justify-center gap-1 border-b border-border bg-muted/40 p-4 md:border-r md:border-b-0">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Фокус очереди</span>
-              <strong className="text-sm font-semibold text-foreground">
-                {reviewFocusItems.length > 0 ? "Есть действия на сейчас" : "Критичных действий нет"}
-              </strong>
-              <small className="text-xs text-muted-foreground">
-                {reviewFocusItems.length > 0
-                  ? "Открывайте с самого жесткого SLA или риска."
-                  : "Можно разбирать очередь по обычному приоритету."}
-              </small>
-            </div>
-            <div className="grid min-w-0 sm:grid-flow-col sm:auto-cols-fr">
-              {reviewFocusItems.length > 0 ? (
-                reviewFocusItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex flex-col gap-0.5 border-b border-border p-3.5 transition-colors last:border-b-0 hover:bg-muted/40 sm:border-b-0 sm:border-r sm:last:border-r-0"
-                  >
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {item.label}
-                    </span>
-                    <strong className="text-xl font-semibold tabular-nums text-foreground">
-                      {item.value}
-                    </strong>
-                    <small className="text-xs text-muted-foreground">{item.description}</small>
-                    <ArrowRight size={15} aria-hidden="true" className="mt-1 text-muted-foreground" />
-                  </Link>
-                ))
-              ) : (
-                <Link
-                  href="/reviews?status=unreviewed"
-                  className="flex flex-col gap-0.5 p-3.5 transition-colors hover:bg-muted/40"
-                >
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Незавершенные
-                  </span>
-                  <strong className="text-xl font-semibold tabular-nums text-foreground">
-                    {queued + inWork}
-                  </strong>
-                  <small className="text-xs text-muted-foreground">
-                    Открыть незавершенные обращения
-                  </small>
-                  <ArrowRight size={15} aria-hidden="true" className="mt-1 text-muted-foreground" />
-                </Link>
-              )}
-            </div>
-          </div>
-        </Card>
-      </section>
 
       <QueueWorkspace.CommandBar
         aria-label="Фильтры и виды очереди"

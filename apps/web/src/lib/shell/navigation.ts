@@ -22,10 +22,14 @@ export type ShellNavMode = {
   destinations: ShellNavDestination[];
 };
 
-export type ShellCommandItem = ShellNavDestination & {
+export type ShellCommandActionId = "take-next";
+
+export type ShellCommandItem = Omit<ShellNavDestination, "href"> & {
+  href?: string;
   modeId: ShellNavModeId;
   modeLabel: string;
   kind: "mode" | "destination" | "action";
+  actionId?: ShellCommandActionId;
 };
 
 export type ShellNavigation = {
@@ -367,24 +371,22 @@ const modeDefinitions: ModeDefinition[] = [
 ];
 
 /**
- * Action-type command items turn the ⌘K palette into a real fast path: instead
- * of only jumping to a section, these run the most common manager moves with the
- * exact filters used elsewhere in the product (queue triage, SLA, quarterly
- * analytics, coaching). Routes/filters mirror real links so a click lands on the
- * same filtered view the rest of the app produces.
+ * Action-type command items turn the ⌘K palette into a real fast path.
+ * Navigation actions use real product routes/filters. `take-next` is not a
+ * href — it runs the same `takeNextReview` path as the queue button.
  */
 const actionDefinitions: Array<
   ShellCommandItem & { permission?: Permission; permissionsAny?: Permission[]; roles?: RoleName[] }
 > = [
   {
-    href: "/reviews?status=unreviewed",
+    actionId: "take-next",
     label: "Взять следующий кейс",
-    description: "Открыть очередь с непроверенными диалогами.",
+    description: "Открыть следующий кейс по текущим фильтрам очереди — тот же путь, что кнопка «Взять следующий».",
     aliases: ["следующий кейс", "начать проверку", "next case", "next review", "проверить"],
     modeId: "work",
     modeLabel: "Работа",
     kind: "action",
-    permission: "reviews:read",
+    permission: "reviews:write",
     roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
   },
   {
