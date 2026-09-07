@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { RoleName } from "@prisma/client";
+import { sessionRequiredMessage } from "@/lib/api/user-facing-errors";
 import { isDemoAuthEnabled } from "@/lib/auth/demo";
 import { hasPermission, type Permission, requirePermission } from "@/lib/auth/permissions";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
@@ -9,9 +10,17 @@ export const currentUserCookieName = "qc_current_user_id";
 
 export class AuthRequiredError extends Error {
   constructor() {
-    super("Нет активной сессии. Войдите снова, чтобы продолжить.");
+    super(sessionRequiredMessage);
     this.name = "AuthRequiredError";
   }
+}
+
+export function isAuthRequiredError(error: unknown): error is AuthRequiredError {
+  return (
+    error instanceof AuthRequiredError ||
+    (error instanceof Error &&
+      (error.name === "AuthRequiredError" || error.message === sessionRequiredMessage))
+  );
 }
 
 export class DemoSettingsMutationError extends Error {

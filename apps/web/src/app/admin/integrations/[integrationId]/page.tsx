@@ -45,6 +45,12 @@ import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { capabilityMatrixFromContract } from "@/lib/integrations/connect/capability-probe-display";
 import { diagnosticReadinessHint, readinessActionLabel } from "@/lib/integrations/labels";
+import {
+  adapterProfileStep,
+  certificationBadgeLabel,
+  probeStepStatusView,
+  stepBadgeLabel
+} from "@/lib/integrations/probe-honesty";
 import { parseOtrsConnectorConfig, redactOtrsConfigForUi } from "@/lib/integrations/otrs-family/config";
 import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/credentials";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -192,15 +198,7 @@ function diagnosticSucceeded(status: string | undefined) {
 }
 
 function readinessStepStatusView(state: OperationalStep["state"]) {
-  // Operational "ready" is config/probe progress — never production-green.
-  const views: Record<OperationalStep["state"], { label: string; tone: StatusTone }> = {
-    ready: { label: "Готово", tone: "info" },
-    active: { label: "Активно", tone: "info" },
-    waiting: { label: "Ожидание", tone: "neutral" },
-    blocked: { label: "Блок", tone: "negative" }
-  };
-
-  return views[state];
+  return probeStepStatusView(state);
 }
 
 async function loadIntegration(workspaceId: string, integrationId: string) {
@@ -314,10 +312,12 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
   const latestDiagnostic = integration.diagnosticRuns[0];
   const latestRun = integration.runs[0];
   const latestRunStatus = latestRun ? integrationRunStatusView(latestRun.status) : null;
-  const readinessSteps: OperationalStep[] = [
+  const profileStep = adapterProfileStep(hasBaseUrl);
+  const readinessSteps: Array<OperationalStep & { statusLabel?: string }> = [
     {
       label: "Профиль",
-      state: hasBaseUrl ? "ready" : "active",
+      state: profileStep.state,
+      statusLabel: profileStep.statusLabel,
       detail: hasBaseUrl ? "Адрес источника сохранён." : "Укажите адрес источника."
     },
     {
@@ -373,7 +373,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
           </p>
         </div>
         <StatusBadge compact
-          label="Готовность"
+          label={certificationBadgeLabel}
           value={capability.certification.summary.label}
           tone={certificationTone(capability.certification.summary.status)}
         />
@@ -435,7 +435,12 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
                 >
                   <div className="flex min-w-0 items-start justify-between gap-2">
                     <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
-                    <StatusBadge compact label="Готовность" value={status.label} tone={status.tone} />
+                    <StatusBadge
+                      compact
+                      label={stepBadgeLabel}
+                      value={step.statusLabel ?? status.label}
+                      tone={status.tone}
+                    />
                   </div>
                   <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>
                 </div>
@@ -1015,7 +1020,7 @@ function OtrsDetailCockpit({
               >
                 <div className="flex min-w-0 items-start justify-between gap-2">
                   <span className="min-w-0 break-words text-sm font-medium">{step.label}</span>
-                  <StatusBadge compact label="Готовность" value={status.label} tone={status.tone} />
+                  <StatusBadge compact label={stepBadgeLabel} value={status.label} tone={status.tone} />
                 </div>
                 <span className="min-w-0 break-words text-xs text-muted-foreground">{step.detail}</span>
               </div>

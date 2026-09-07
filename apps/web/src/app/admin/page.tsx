@@ -16,7 +16,6 @@ import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
 import { loadWorkspaceAiCredentials } from "@/lib/ai-quality/credentials";
 import { getPhaseDReadinessReport } from "@/lib/certification/readiness-report";
 import { isLiveCertified } from "@/lib/certification/status";
-import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import {
@@ -26,7 +25,7 @@ import {
   adminHubIntegrationsTone,
   adminHubOverviewTone
 } from "@/lib/integrations/connection-tone";
-import { denyPageAccess } from "@/lib/page-permission";
+import { denyPageAccess, requirePageUser } from "@/lib/page-permission";
 import { russianPlural } from "@/lib/reports/report-format";
 import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
@@ -72,7 +71,7 @@ export default function AdminHomePage() {
 }
 
 async function AdminHomePageContent() {
-  const user = await getCurrentUser();
+  const user = await requirePageUser();
   if (!canAccessAdminHub(user.role)) {
     denyPageAccess();
   }

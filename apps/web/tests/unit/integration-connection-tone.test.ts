@@ -88,6 +88,9 @@ describe("admin connection chip wiring", () => {
     expect(channelsPage).toContain('import { messagingChannelTone } from "@/lib/integrations/connection-tone"');
     expect(channelsPage).toContain("messagingChannelTone(channelStatus)");
     expect(channelsPage).toContain('activeActionChannels > 0 ? messagingChannelTone("active")');
+    expect(channelsPage).toContain("Включены {activeActionChannels}");
+    expect(channelsPage).not.toContain("Активны {activeActionChannels}");
+    expect(channelsPage).toContain("channelsEnabledWarningTitle");
   });
 });
 

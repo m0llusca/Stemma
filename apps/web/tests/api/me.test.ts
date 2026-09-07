@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/current-user", () => ({
   AuthRequiredError: mocks.AuthRequiredError,
-  getCurrentUser: mocks.getCurrentUser
+  getCurrentUser: mocks.getCurrentUser,
+  isAuthRequiredError: (error: unknown) =>
+    error instanceof mocks.AuthRequiredError ||
+    (error instanceof Error && error.name === "AuthRequiredError")
 }));
 
 function meRequest() {

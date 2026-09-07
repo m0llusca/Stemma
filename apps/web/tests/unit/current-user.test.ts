@@ -243,4 +243,14 @@ describe("current user resolution", () => {
     expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
   });
+
+  it("recognizes AuthRequiredError by instance, name, and session message", async () => {
+    const { AuthRequiredError, isAuthRequiredError } = await import("@/lib/current-user");
+    const named = new Error("Нет активной сессии. Войдите снова, чтобы продолжить.");
+    named.name = "AuthRequiredError";
+
+    expect(isAuthRequiredError(new AuthRequiredError())).toBe(true);
+    expect(isAuthRequiredError(named)).toBe(true);
+    expect(isAuthRequiredError(new Error("database password leaked"))).toBe(false);
+  });
 });

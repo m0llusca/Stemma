@@ -40,6 +40,9 @@ vi.mock("@/lib/current-user", () => ({
   AuthRequiredError: mocks.AuthRequiredError,
   DemoSettingsMutationError: mocks.DemoSettingsMutationError,
   assertCanPersistSettings: mocks.assertCanPersistSettings,
+  isAuthRequiredError: (error: unknown) =>
+    error instanceof mocks.AuthRequiredError ||
+    (error instanceof Error && error.name === "AuthRequiredError"),
   isDemoAuthEnabled: mocks.isDemoAuthEnabled,
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
 }));

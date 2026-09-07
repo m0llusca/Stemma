@@ -11,14 +11,14 @@ import {
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
 
 export const diagnosticStepDefinitions = [
-  { key: "config", label: "Configuration" },
+  { key: "config", label: "Конфигурация" },
   { key: "tls", label: "TLS" },
   { key: "webservice", label: "WebService" },
-  { key: "auth", label: "Authentication" },
-  { key: "ticket_search", label: "TicketSearch" },
-  { key: "ticket_get", label: "TicketGet" },
-  { key: "normalize", label: "Normalize" },
-  { key: "db_dry_run", label: "Database dry run" }
+  { key: "auth", label: "Авторизация" },
+  { key: "ticket_search", label: "Поиск тикетов" },
+  { key: "ticket_get", label: "Получение тикета" },
+  { key: "normalize", label: "Нормализация" },
+  { key: "db_dry_run", label: "Пробная запись" }
 ] as const;
 
 type DiagnosticStepDefinition = (typeof diagnosticStepDefinitions)[number];

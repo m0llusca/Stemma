@@ -34,6 +34,9 @@ export function proxy(request: NextRequest) {
   }
 
   if (hasMigrationSessionCookie(request)) {
+    // Cookie presence is not session validity. An expired/forged cookie still
+    // reaches the page; requirePagePermission / requirePageUser map
+    // AuthRequiredError to unauthorized() — not generic error.tsx.
     return NextResponse.next();
   }
 

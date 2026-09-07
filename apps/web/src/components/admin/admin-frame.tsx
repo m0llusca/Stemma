@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AdminSubnav } from "@/components/admin/admin-subnav";
-import { getCurrentUser } from "@/lib/current-user";
+import { requirePageUser } from "@/lib/page-permission";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,7 +22,7 @@ export async function AdminFrame({
   // Pass only the role across the server→client boundary; AdminSubnav (a
   // "use client" component) filters its own sections. Calling the client-module
   // helper filterAdminSubnavGroups() here would crash every admin page.
-  const { role } = await getCurrentUser();
+  const { role } = await requirePageUser();
 
   return (
     <div

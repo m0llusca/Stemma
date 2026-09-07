@@ -143,7 +143,7 @@ test("authenticated app shell routes render stable chrome and content", async ({
         .locator('[data-slot="card-title"]')
         .filter({ hasText: "Путь от доступа до мониторинга" });
       const evidence = integrationFrame.getByRole("button", {
-        name: /Свидетельства готовности/
+        name: /Операционный срез/
       });
 
       await expect(integrationFrame, "integrations operational region").toBeVisible();
