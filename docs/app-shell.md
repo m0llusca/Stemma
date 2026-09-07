@@ -59,7 +59,7 @@ API routes and server actions keep `requireCurrentUserPermission` (403 JSON or t
 
 Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status.
 
-`AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). The shell in `layout.tsx` is **not** wrapped in `Suspense`. Residual — see Follow-up.
+`AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). `AppNav` wraps the shell in `Suspense` (after the unauthenticated `null` return) so the layout can statically render without a CSR bailout. Do not wrap `<AppNav />` itself in `layout.tsx` — that would flash the header fallback on the login shell.
 
 ## Runtime Import Guard
 
@@ -80,4 +80,3 @@ When adding or changing an enqueue route, keep validation and enqueue code in a 
 ## Follow-up (not fixed)
 
 - **AGENT deep-link `/dashboard`.** Brand and login send SUPPORT_AGENT to `/self-review`. Typed `/dashboard` still opens: page gate is `reviews:read`, which agents have. Nav hides «Сегодня»; the route does not.
-- **Suspense active-area.** `useSearchParams()` in `AppNavShell` has no layout `Suspense`. Analyst «Сегодня» highlight can trip the client search-params boundary.
