@@ -4,7 +4,13 @@ import type { RoleName } from "@prisma/client";
  * Paths treated as "no explicit destination" after login / demo switch.
  * Deep links (including `/reviews?...` with filters) are kept as-is.
  */
-const GENERIC_LANDING_PATHNAMES = new Set(["/", "/reviews", "/dashboard", "/auth/login"]);
+const GENERIC_LANDING_PATHNAMES = new Set([
+  "/",
+  "/reviews",
+  "/dashboard",
+  "/auth/login",
+  "/auth/pending-access"
+]);
 
 /**
  * Analyst inbox default: assigned to me AND overdue SLA.
@@ -35,7 +41,7 @@ export function isGenericPostLoginPath(path: string) {
 
 /**
  * Role-gated product home after login when the caller did not request a specific page.
- * VIEWER stays on `/reviews` so page permission guards fail closed as today.
+ * VIEWER lands on `/auth/pending-access` (no product permissions) instead of a deny page.
  */
 export function roleHomePath(role: RoleName, options?: { name?: string }) {
   switch (role) {
@@ -49,7 +55,7 @@ export function roleHomePath(role: RoleName, options?: { name?: string }) {
     case "SUPPORT_AGENT":
       return "/self-review";
     case "VIEWER":
-      return "/reviews";
+      return "/auth/pending-access";
     default: {
       const _exhaustive: never = role;
       return _exhaustive;

@@ -21,13 +21,14 @@ describe("role-home", () => {
     expect(roleHomePath("TEAM_LEAD")).toBe("/dashboard");
     expect(roleHomePath("ADMIN")).toBe("/dashboard");
     expect(roleHomePath("SUPPORT_AGENT")).toBe("/self-review");
-    expect(roleHomePath("VIEWER")).toBe("/reviews");
+    expect(roleHomePath("VIEWER")).toBe("/auth/pending-access");
   });
 
   it("treats bare product roots as generic and keeps filtered deep links", () => {
     expect(isGenericPostLoginPath("/")).toBe(true);
     expect(isGenericPostLoginPath("/reviews")).toBe(true);
     expect(isGenericPostLoginPath("/dashboard")).toBe(true);
+    expect(isGenericPostLoginPath("/auth/pending-access")).toBe(true);
     expect(isGenericPostLoginPath("/reviews?due=overdue")).toBe(false);
     expect(isGenericPostLoginPath("/self-review")).toBe(false);
   });
@@ -49,6 +50,8 @@ describe("role-home", () => {
     expect(
       resolvePostLoginPath("/reviews?status=unreviewed", { role: "QA_ANALYST", name: "Анна QA" })
     ).toBe("/reviews?status=unreviewed");
-    expect(resolvePostLoginPath("/reviews", { role: "VIEWER", name: "Гость" })).toBe("/reviews");
+    expect(resolvePostLoginPath("/reviews", { role: "VIEWER", name: "Гость" })).toBe(
+      "/auth/pending-access"
+    );
   });
 });
