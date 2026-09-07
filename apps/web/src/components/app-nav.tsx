@@ -51,7 +51,8 @@ type PulseItem = {
  */
 async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[]> {
   const canReadReviews = hasPermission(user.role, "reviews:read");
-  const canManageTraining = hasPermission(user.role, "training:manage");
+  const canAccessTraining =
+    hasPermission(user.role, "training:manage") || hasPermission(user.role, "training:consume");
   // SUPPORT_AGENT скоупит счётчики по назначенным на него диалогам через
   // assigneeId (устойчивее к тёзкам, чем прежний assigneeName).
   const conversationScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {};
@@ -73,7 +74,7 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
           }
         })
       : Promise.resolve(0),
-    canManageTraining
+    canAccessTraining
       ? prisma.trainingAssignment.count({
           where: {
             workspaceId: user.workspaceId,
@@ -89,7 +90,7 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
     items.push({ href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: queuedCount });
     items.push({ href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: highRiskCount, tone: "risk" });
   }
-  if (canManageTraining) {
+  if (canAccessTraining) {
     items.push({ href: "/coaching", label: "Обучение", value: trainingCount, tone: trainingCount > 0 ? "warning" : "neutral" });
   }
 

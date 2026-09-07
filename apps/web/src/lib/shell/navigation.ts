@@ -46,6 +46,8 @@ export type ShellNavArea = {
   roles?: RoleName[];
   /** Role must hold this permission — mirrors the target page's own guard. */
   permission?: Permission;
+  /** Role must hold any of these permissions (OR). Prefer over `permission` when set. */
+  permissionsAny?: Permission[];
 };
 
 /**
@@ -94,7 +96,8 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Обучение",
     description: "Задачи, коучинг и корректирующие действия после проверок.",
     icon: "coaching",
-    permission: "training:manage"
+    // Page allows manage (operators) OR consume (agents).
+    permissionsAny: ["training:manage", "training:consume"]
   },
   {
     id: "analytics",
@@ -150,11 +153,13 @@ export function activeAreaForPath(pathname: string): ShellNavAreaId | null {
 type DestinationDefinition = ShellNavDestination & {
   roles?: RoleName[];
   permission?: Permission;
+  permissionsAny?: Permission[];
 };
 
 type ModeDefinition = Omit<ShellNavMode, "href" | "destinations"> & {
   roles?: RoleName[];
   permission?: Permission;
+  permissionsAny?: Permission[];
   destinations: DestinationDefinition[];
 };
 
@@ -277,7 +282,7 @@ const modeDefinitions: ModeDefinition[] = [
         label: "Обучение",
         description: "Задачи, коучинг и корректирующие действия после проверок.",
         aliases: ["coaching", "training", "коучинг"],
-        permission: "training:manage"
+        permissionsAny: ["training:manage", "training:consume"]
       },
       {
         href: "/admin/users",
@@ -362,7 +367,9 @@ const modeDefinitions: ModeDefinition[] = [
  * analytics, coaching). Routes/filters mirror real links so a click lands on the
  * same filtered view the rest of the app produces.
  */
-const actionDefinitions: Array<ShellCommandItem & { permission?: Permission; roles?: RoleName[] }> = [
+const actionDefinitions: Array<
+  ShellCommandItem & { permission?: Permission; permissionsAny?: Permission[]; roles?: RoleName[] }
+> = [
   {
     href: "/reviews?status=unreviewed",
     label: "Взять следующий кейс",
@@ -403,16 +410,23 @@ const actionDefinitions: Array<ShellCommandItem & { permission?: Permission; rol
     modeId: "team",
     modeLabel: "Команда",
     kind: "action",
-    permission: "training:manage"
+    permissionsAny: ["training:manage", "training:consume"]
   }
 ];
 
-function canSeeDefinition(role: RoleName, definition: { roles?: RoleName[]; permission?: Permission }) {
+function canSeeDefinition(
+  role: RoleName,
+  definition: { roles?: RoleName[]; permission?: Permission; permissionsAny?: Permission[] }
+) {
   if (definition.roles && !definition.roles.includes(role)) {
     return false;
   }
 
-  if (definition.permission && !hasPermission(role, definition.permission)) {
+  if (definition.permissionsAny?.length) {
+    if (!definition.permissionsAny.some((permission) => hasPermission(role, permission))) {
+      return false;
+    }
+  } else if (definition.permission && !hasPermission(role, definition.permission)) {
     return false;
   }
 

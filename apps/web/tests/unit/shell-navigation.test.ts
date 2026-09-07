@@ -209,6 +209,14 @@ describe("buildShellNavigation gating gaps", () => {
     expect(viewerHrefs).not.toContain("/admin/report-schedules");
   });
 
+  it("keeps coaching for SUPPORT_AGENT via training:consume", () => {
+    expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).toContain("coaching");
+    const agentHrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map(
+      (item) => item.href
+    );
+    expect(agentHrefs).toContain("/coaching");
+  });
+
   it("labels the report-schedules destination inside the quality mode", () => {
     const reportSchedules = buildShellNavigation({ role: "QA_ANALYST" }).commandItems.find(
       (item) => item.href === "/admin/report-schedules"
