@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { QueueFilters } from "@/components/review/queue-filters";
@@ -25,7 +25,12 @@ describe("QueueFilters", () => {
     );
 
     expect(screen.getByLabelText("Поиск в очереди проверок")).toBeInTheDocument();
-    expect(screen.getByLabelText("Итог")).toHaveValue("all");
+    const itog = screen.getByLabelText("Итог");
+    expect(itog).toHaveValue("all");
+    expect(within(itog).getByRole("option", { name: "Ещё не проверена" })).toHaveValue("unreviewed");
+    expect(within(itog).getByRole("option", { name: "Проверка завершена" })).toHaveValue("reviewed");
+    expect(within(itog).queryByRole("option", { name: "В очереди" })).not.toBeInTheDocument();
+    expect(within(itog).queryByRole("option", { name: "Завершена" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^точные фильтры/i, hidden: true })).toHaveTextContent(
       "1 применено"
     );
@@ -37,6 +42,22 @@ describe("QueueFilters", () => {
     expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое источник/i })).toBeInTheDocument();
+  });
+
+  it("shows the Итог chip with reviewed/unreviewed words, not status-chip words", () => {
+    render(
+      <QueueFilters
+        filters={{ status: "unreviewed" }}
+        sources={[]}
+        assignees={[]}
+        qaAssignees={[]}
+        supportLines={[]}
+        teamNames={[]}
+      />
+    );
+
+    expect(screen.getByText("Итог: Ещё не проверена")).toBeInTheDocument();
+    expect(screen.queryByText("Итог: В очереди")).not.toBeInTheDocument();
   });
 
   it("synchronizes queue search with refreshed filters without Base UI ownership warnings", () => {
