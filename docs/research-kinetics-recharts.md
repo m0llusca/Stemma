@@ -23,6 +23,7 @@
 - zero → role home или `/reviews` без фильтра
 - никогда impostor `status=unreviewed`
 - empty / zero — без fake-green
+- empty SoT для Exec = `queueFilterResetHref`, не `qaStatus=QUEUED`
 
 Реализация:
 
@@ -69,7 +70,7 @@
 
 ## Фазы
 
-1. Drill-chart spike на Exec (потом Lead) через текущие `Chart*`
+1. Drill-chart spike на Exec (потом Lead) через текущие `Chart*` — **сделано** (PR #101 / #99, master ~`3fff63f`): BarChart via existing Chart*, click = `opsQueueKpiMetricHref` / same KPI drills; empty chart + TriageStrip primary share one SoT `queueFilterResetHref(EXEC)` → `/reviews` (not dual QUEUED vs bare /reviews); Agent/VIEWER chartless; summary table beside chart.
 2. Kinetics: 4–6 токенов / паттернов — **сделано** (токены + wiring выше)
 3. Эта заметка — fit; таблица adopted tokens обновляется вместе с CSS
 
