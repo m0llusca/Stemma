@@ -23,6 +23,7 @@ describe("role-home", () => {
     expect(roleHomePath("TEAM_LEAD")).toBe("/dashboard");
     expect(roleHomePath("ADMIN")).toBe("/dashboard");
     expect(roleHomePath("EXEC")).toBe("/dashboard");
+    expect(roleHomePath("EXEC")).not.toBe(roleHomePath("QA_ANALYST", { name: "Наталья" }));
     expect(roleHomePath("SUPPORT_AGENT")).toBe("/self-review");
     expect(roleHomePath("VIEWER")).toBe("/auth/pending-access");
   });

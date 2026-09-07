@@ -19,7 +19,7 @@ describe("buildExecRiskNarrative", () => {
     });
   });
 
-  it("falls through to high risk, then unstarted queue, then an all-clear", () => {
+  it("falls through to high risk, then unstarted queue, then an honest empty", () => {
     expect(
       buildExecRiskNarrative({ overdueReviewCount: 0, highRiskCount: 3, queuedCount: 1 }, hrefs)
         .primaryHref
