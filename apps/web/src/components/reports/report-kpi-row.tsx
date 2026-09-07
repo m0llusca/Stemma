@@ -114,7 +114,15 @@ export function ReportKpiRow({
           <CardHeader className="pb-2">
             <CardDescription>{scoreLabel}</CardDescription>
             <div className="flex flex-wrap items-end gap-2">
-              <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight">
+              <CardTitle
+                key={
+                  typeof scoreValue === "string" || typeof scoreValue === "number"
+                    ? String(scoreValue)
+                    : "score"
+                }
+                data-qc-motion="kpi-bump"
+                className="text-2xl font-semibold tabular-nums tracking-tight"
+              >
                 {scoreValue}
               </CardTitle>
               {scoreUnit != null ? (
@@ -153,7 +161,17 @@ export function ReportKpiRow({
           <Card className="h-full">
             <CardHeader className="pb-2">
               <CardDescription>{item.label}</CardDescription>
-              <CardTitle className="text-2xl font-semibold tabular-nums">{item.value}</CardTitle>
+              <CardTitle
+                key={
+                  typeof item.value === "string" || typeof item.value === "number"
+                    ? String(item.value)
+                    : item.label
+                }
+                data-qc-motion="kpi-bump"
+                className="text-2xl font-semibold tabular-nums"
+              >
+                {item.value}
+              </CardTitle>
             </CardHeader>
             {item.detail ? (
               <CardContent className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

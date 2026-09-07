@@ -79,8 +79,10 @@ export function StatKpi({
         <div className="flex flex-wrap items-baseline gap-2">
           {/* Value is a metric, not a section title: opt out of CardTitle heading semantics. */}
           <CardTitle
+            key={typeof value === "string" || typeof value === "number" ? String(value) : "kpi"}
             role="presentation"
             aria-level={undefined}
+            data-qc-motion="kpi-bump"
             className={cn(
               "text-2xl font-semibold tabular-nums",
               statusTone != null && statusToneClass(statusTone)

@@ -225,6 +225,14 @@ describe("canonical UI theme contract", () => {
     }
     expect(globals).toContain("--motion-duration-feedback: 90ms;");
     expect(globals).toContain("--motion-ease-spring-gentle:");
+    expect(globals).toContain("--motion-ease-spring-overshoot:");
+    expect(globals).toContain("--motion-ease-spring-toast:");
+    expect(globals).toContain("--motion-ease-spring-panel:");
+    expect(globals).toContain("--motion-ease-spring-glide:");
+    expect(globals).toContain("--motion-duration-spring:");
+    expect(globals).toContain("--motion-duration-spring-enter:");
+    expect(globals).toContain("--motion-duration-morph:");
+    expect(globals).toContain("--motion-duration-shimmer:");
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*--motion-duration-standard:\s*1ms/
     );
@@ -234,12 +242,46 @@ describe("canonical UI theme contract", () => {
     const reducedMotion = blockFor("@media (prefers-reduced-motion: reduce)");
     expect(reducedMotion).toMatch(/transition-duration:\s*1ms\s*!important/);
     expect(reducedMotion).not.toMatch(/transition-duration:\s*0s/);
+    expect(reducedMotion).toMatch(/--motion-duration-spring:\s*1ms/);
+    expect(reducedMotion).toMatch(/--motion-duration-spring-enter:\s*1ms/);
+    expect(reducedMotion).toMatch(/--motion-duration-shimmer:\s*1ms/);
+    expect(reducedMotion).toMatch(/--motion-scale-kpi-bump:\s*1/);
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-slot="skeleton"\][\s\S]*animation:\s*none/
+    );
+    expect(globals).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-qc-motion="kpi-bump"\][\s\S]*animation:\s*none/
     );
     expect(globals).not.toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*transform:\s*none/
     );
+  });
+
+  it("adopts Kinetics spring patterns as CSS tokens wired to real surfaces, not an npm package", () => {
+    expect(globals).toContain("@keyframes qc-skeleton-shimmer");
+    expect(globals).toContain("@keyframes qc-kpi-bump");
+    expect(globals).toContain('[data-sonner-toast].cn-toast');
+    expect(globals).toContain("var(--motion-ease-spring-toast)");
+    expect(globals).toContain('[data-qc-motion="kpi-bump"]');
+    expect(globals).not.toContain("qc-skeleton-pulse");
+
+    const switchSource = readFileSync(resolve(appRoot, "src/components/ui/switch.tsx"), "utf8");
+    const badgeSource = readFileSync(resolve(appRoot, "src/components/ui/badge.tsx"), "utf8");
+    const accordionSource = readFileSync(resolve(appRoot, "src/components/ui/accordion.tsx"), "utf8");
+    const tabsSource = readFileSync(resolve(appRoot, "src/components/ui/tabs.tsx"), "utf8");
+    const statKpiSource = readFileSync(resolve(appRoot, "src/components/ui/stat-kpi.tsx"), "utf8");
+    const packageJson = readFileSync(resolve(appRoot, "package.json"), "utf8");
+
+    expect(switchSource).toContain("--motion-ease-spring-overshoot");
+    expect(switchSource).toContain("--motion-duration-spring");
+    expect(badgeSource).toContain("--motion-duration-morph");
+    expect(badgeSource).toContain("--motion-ease-spring-gentle");
+    expect(accordionSource).toContain("--motion-ease-spring-overshoot");
+    expect(tabsSource).toContain("--motion-ease-spring-glide");
+    expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
+    expect(packageJson).not.toMatch(/["']kinetics["']/);
+    expect(packageJson).not.toMatch(/@kinetics\//);
+    expect(globals).not.toMatch(/magnetic[- ]cursor|liquid[- ]glass|cursor[- ]trail|speed-dial|scramble|typewriter/i);
   });
 
   it("keeps semantic status text and focus rings above WCAG floors in every theme", () => {
