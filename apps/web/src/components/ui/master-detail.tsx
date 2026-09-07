@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * breakpoint (1024px) the layout collapses to a single column so it stays
  * usable on narrow viewports — the same breakpoint the review workbench pane
  * toggle switches on.
- * Layout is pure flex/grid + gap tokens; BEM hooks stay for workbench CSS.
+ * Layout is pure flex/grid + gap tokens; pane hooks use data-slot.
  */
 export function MasterDetail({
   list,
@@ -26,6 +26,7 @@ export function MasterDetail({
 }) {
   return (
     <div
+      data-slot="master-detail"
       className={cn(
         "master-detail grid w-full min-w-0 items-start gap-4",
         "grid-cols-1 lg:grid-cols-[var(--master-detail-list-width)_minmax(0,1fr)]",
@@ -34,15 +35,18 @@ export function MasterDetail({
       style={{ "--master-detail-list-width": listWidth } as CSSProperties}
     >
       <div
+        data-slot="master-detail-list"
         className={cn(
-          "master-detail__list flex min-w-0 flex-col",
+          "flex min-w-0 flex-col",
           "sticky top-[calc(var(--app-topbar-height)+1rem)] max-h-[calc(100vh-var(--app-topbar-height)-3rem)] overflow-y-auto",
           "max-lg:static max-lg:max-h-none max-lg:overflow-y-visible"
         )}
       >
         {list}
       </div>
-      <div className="master-detail__detail min-w-0">{detail}</div>
+      <div data-slot="master-detail-detail" className="min-w-0">
+        {detail}
+      </div>
     </div>
   );
 }

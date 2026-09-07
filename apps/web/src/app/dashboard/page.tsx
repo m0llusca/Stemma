@@ -577,16 +577,16 @@ async function DashboardPageContent() {
                       href={item.href}
                       className="dashboard-focus-row grid min-h-[62px] min-w-0 grid-cols-[32px_minmax(0,1fr)_minmax(52px,auto)] items-center gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/70"
                     >
-                      <span className="dashboard-focus-row__icon inline-flex size-8 items-center justify-start text-muted-foreground">
+                      <span className="inline-flex size-8 items-center justify-start text-muted-foreground">
                         <Icon size={16} aria-hidden="true" />
                       </span>
-                      <span className="dashboard-focus-row__copy grid min-w-0 gap-1 content-center">
+                      <span className="grid min-w-0 gap-1 content-center">
                         <strong className="truncate text-sm font-medium text-foreground">{item.label}</strong>
                         <small className="truncate text-xs text-muted-foreground">{item.hint}</small>
                       </span>
                       <span
                         className={cn(
-                          "dashboard-focus-row__metric inline-grid min-h-[42px] grid-cols-[auto_14px] items-center justify-end gap-2.5",
+                          "inline-grid min-h-[42px] grid-cols-[auto_14px] items-center justify-end gap-2.5",
                           statusToneClass(item.tone)
                         )}
                       >
@@ -684,12 +684,12 @@ async function DashboardPageContent() {
                       className="relative grid min-w-0 gap-2 rounded-lg border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/70"
                     >
                       <div className="grid min-w-0 grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-0.5">
-                        <span className="dashboard-agent-row__avatar inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-[11px] font-semibold text-muted-foreground">
+                        <span className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-[11px] font-semibold text-muted-foreground">
                           {agent.name.slice(0, 2).toLocaleUpperCase("ru-RU")}
                         </span>
                         <strong className="truncate text-sm font-medium text-foreground">{agent.name}</strong>
                         {agent.riskCount > 0 ? (
-                          <Chip tone="danger" className="dashboard-agent-row__flag self-center tabular-nums">
+                          <Chip tone="danger" className="self-center tabular-nums">
                             {agent.riskCount} риск
                           </Chip>
                         ) : (
@@ -698,7 +698,7 @@ async function DashboardPageContent() {
                         <em className="self-center text-lg font-semibold not-italic tabular-nums text-foreground">
                           {Math.round(agent.average)}
                         </em>
-                        <small className="dashboard-agent-row__meta col-start-2 min-w-0 truncate text-xs text-muted-foreground">
+                        <small className="col-start-2 min-w-0 truncate text-xs text-muted-foreground">
                           {formatReviewCount(agent.count)}
                           {agent.appealCount > 0 ? ` · ${agent.appealCount} апелл.` : ""}
                         </small>
@@ -745,10 +745,10 @@ async function DashboardPageContent() {
                       href={event.conversationId ? `/reviews/${event.conversationId}` : "/reviews"}
                       className="dashboard-activity-row grid min-w-0 grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2.5 py-2 transition-colors hover:bg-muted/40"
                     >
-                      <span className="dashboard-activity-row__avatar inline-flex size-8 items-center justify-center rounded-md border border-border bg-muted/50 text-[11px] font-semibold text-muted-foreground">
+                      <span className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-muted/50 text-[11px] font-semibold text-muted-foreground">
                         {event.actor?.name?.slice(0, 2).toLocaleUpperCase("ru-RU") ?? "QA"}
                       </span>
-                      <span className="dashboard-activity-row__body grid min-w-0 gap-0.5">
+                      <span className="grid min-w-0 gap-0.5">
                         <strong className="truncate text-sm font-medium text-foreground">
                           {event.actor?.name ?? "Система"} · {reviewEventActionLabel(event.action)}
                         </strong>

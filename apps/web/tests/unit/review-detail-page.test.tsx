@@ -176,9 +176,9 @@ describe("review detail page", () => {
     render(page);
 
     const workspace = document.getElementById("review-workspace");
-    const masterDetail = workspace?.querySelector(".master-detail");
-    const listPane = masterDetail?.querySelector(".master-detail__list");
-    const detailPane = masterDetail?.querySelector(".master-detail__detail");
+    const masterDetail = workspace?.querySelector('[data-slot="master-detail"]');
+    const listPane = masterDetail?.querySelector('[data-slot="master-detail-list"]');
+    const detailPane = masterDetail?.querySelector('[data-slot="master-detail-detail"]');
     const dialogContent = listPane?.querySelector('[data-slot="review-dialog-pane"]');
     const scoreContent = detailPane?.querySelector('[data-slot="review-score-pane"]');
     const toggle = screen.getByRole("group", { name: "Переключение панели" });
