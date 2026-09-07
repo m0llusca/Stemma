@@ -1,4 +1,5 @@
 import type { BrowserContext } from "@playwright/test";
+import { hashLocalPassword } from "@/lib/auth/local-credentials";
 import { prisma } from "@/lib/db";
 import { authJsSessionCookieName, createAuthSession, sessionCookieName } from "@/lib/auth/session";
 
@@ -45,7 +46,6 @@ export async function findSeededDemoAgent() {
 
 /** Local admin with password login and no DEMO identity — can persist settings. */
 export async function createLocalNonDemoAdmin() {
-  const { hashLocalPassword } = await import("@/lib/auth/local-credentials");
   const passwordData = await hashLocalPassword(localQaAdmin.password);
 
   return prisma.user.create({

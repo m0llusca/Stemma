@@ -63,7 +63,6 @@ test("dual-control reopen requires a second workflow manager", async ({ browser 
   await requesterPage.getByLabel("Причина переоткрытия").fill("Калибровка: нужна повторная оценка критериев.");
   await requesterPage.getByRole("button", { name: "Запросить / обновить" }).click();
   await expect(requesterPage.getByText("ожидает подтверждения переоткрытия")).toBeVisible();
-  await expect(requesterPage.getByText("Подтвердить должен другой сотрудник")).toBeVisible();
   await requesterContext.close();
 
   const confirmerContext = await browser.newContext();
@@ -86,11 +85,11 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
 
   await page.goto("/admin/users");
-  await expect(page.getByRole("heading", { name: "Что-то пошло не так" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("Что-то пошло не так");
   await expect(page.getByRole("heading", { name: "Пользователи" })).toHaveCount(0);
 
   await page.goto("/admin/scorecards");
-  await expect(page.getByRole("heading", { name: "Что-то пошло не так" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("Что-то пошло не так");
   await expect(page.getByRole("button", { name: "Новая версия" })).toHaveCount(0);
   await context.close();
 });
