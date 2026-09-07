@@ -47,6 +47,22 @@ Resume is the same `INTEGRATION_IMPORT` job after stale recovery or retry. It ca
 
 A second cockpit enqueue still needs a `previewed` run and `previewed` items. After a terminal job failure, start a new preview.
 
+### Finalize backlog (known, not fixed)
+
+PR #4 (`d47222a`) closed the SUCCEEDED-job / non-terminal-run hole. These three remain in `import-plan.ts`. Benefit of fixing them is a stable cursor and honest terminal status. Risk of leaving them is a wrong `syncCursor` or a last-write-wins `imported` over `failed` / `cancelled`.
+
+**1. Unstable `syncCursor` — no `orderBy` on already-imported rows**
+
+`syncCursor` should be the last successful `externalId`, not an arbitrary row. Both already-imported `findMany` calls (empty reclaim set, and lost concurrent claims) have no `orderBy`. `finalizeAlreadyImportedSelectedRun` then takes `.at(-1)`. Reclaimable `selected` rows already use `orderBy: { createdAt: "asc" }`. Follow-up: same `orderBy` on the already-imported queries.
+
+**2. Last-write-wins finalize — not CAS**
+
+A concurrent cancel or a second worker should not overwrite a terminal run. Finalize uses `integrationRun.update({ where: { id } })`. The already-imported path only skips when the start-of-function snapshot is `imported`. Enqueue already CAS-claims with `updateMany` where `status: "previewed"` (`integration-import-service.ts`). Follow-up: `updateMany` where `status in ("queued", "retry_scheduled")`; `count === 0` means leave the run alone.
+
+**3. Skip set is `imported`-only**
+
+A mixed selected set must not look like a clean import. Early-return counts only `status: "imported"`. If any imported item exists, the run is finalized as `imported` with `errorCount: 0`. Item rows in `failed` stay `failed` (not reclaimed), but they do not block that success path. A run already `failed` or `cancelled` is also rewritten to `imported` — the snapshot guard does not treat those as terminal. Follow-up: treat `failed` / `cancelled` as terminal skip; mixed imported+failed must not report a clean import.
+
 ## What did not change
 
 - Cockpit UI/API contract: preview, select, “Импортировать выбранные”, queue message, drain.
