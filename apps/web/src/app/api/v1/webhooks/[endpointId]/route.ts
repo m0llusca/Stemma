@@ -1,7 +1,16 @@
 import { ZodError } from "zod";
+import {
+  enforceWebhookIngressRateLimit,
+  rateLimitHeaders
+} from "@/lib/api/rate-limit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { ingestWebhookEvent } from "@/lib/webhooks/inbound";
 
+/**
+ * Public webhook ingress trust tier (policy B): HMAC + workspace header + rate
+ * limit. Live-cert evidence gates *integration import jobs*, not this custom
+ * ingest pipe — treat stolen endpoint secrets as full write to the workspace.
+ */
 export const dynamic = "force-dynamic";
 export const maxWebhookBodyBytes = 1024 * 1024;
 
@@ -56,6 +65,16 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (!workspaceId) {
     return apiError("bad_request", "Заголовок x-qc-workspace-id обязателен.", 400, requestId);
+  }
+
+  const rateLimit = enforceWebhookIngressRateLimit({ workspaceId, endpointId });
+
+  if (!rateLimit.ok) {
+    return apiError("rate_limited", "Превышен лимит запросов webhook.", 429, {
+      requestId,
+      headers: rateLimitHeaders(rateLimit),
+      includeDetails: false
+    });
   }
 
   const contentLength = contentLengthBytes(request.headers);

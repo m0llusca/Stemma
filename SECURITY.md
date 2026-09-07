@@ -38,6 +38,8 @@ Set these before starting a production process (boot fails closed without them):
 
 Terminate TLS at a reverse proxy (or the platform) and prefer security headers (CSP/HSTS/frame denial) at the app or ingress. See `apps/web/next.config.ts` when headers are configured.
 
+Public webhook ingest (`/api/v1/webhooks/...`) is a separate trust tier from live-certified integration imports: it requires HMAC, workspace header, and per-endpoint rate limits, but not live-cert evidence. Treat leaked webhook secrets as write access to that workspace.
+
 ## Secrets and live environments
 
 - Never commit `.env`, service-account JSON keys, OAuth tokens, or production URLs with credentials.

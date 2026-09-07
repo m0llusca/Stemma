@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetWebhookIngressRateLimitsForTests } from "@/lib/api/rate-limit";
 
 const mocks = vi.hoisted(() => ({
   ingestWebhookEvent: vi.fn()
@@ -17,6 +18,7 @@ function context() {
 describe("public webhook route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetWebhookIngressRateLimitsForTests();
     mocks.ingestWebhookEvent.mockResolvedValue({
       status: "processed",
       eventId: "event-1",
