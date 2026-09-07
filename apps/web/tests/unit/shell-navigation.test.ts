@@ -76,14 +76,16 @@ describe("visibleTopNavAreas", () => {
     ]);
   });
 
-  it("hides settings from QA analysts because /admin requires audit:read", () => {
+  it("gives QA analysts Settings because reports:manage unlocks the admin hub", () => {
     expect(visibleTopNavAreas("QA_ANALYST").map((area) => area.id)).toEqual([
       "today",
       "review",
       "calibration",
       "coaching",
-      "analytics"
+      "analytics",
+      "settings"
     ]);
+    expect(visibleTopNavAreas("QA_ANALYST").find((area) => area.id === "settings")?.href).toBe("/admin");
   });
 
   it("gives exec Сегодня, queue and analytics without ops chrome", () => {
@@ -151,6 +153,9 @@ describe("activeAreaForPath", () => {
   it("maps admin paths to the settings area", () => {
     expect(activeAreaForPath("/admin")).toBe("settings");
     expect(activeAreaForPath("/admin/integrations")).toBe("settings");
+    expect(
+      activeAreaForPath("/admin/report-schedules", { areas: visibleTopNavAreas("QA_ANALYST") })
+    ).toBe("settings");
   });
 
   it("returns null for unknown paths", () => {
@@ -232,14 +237,12 @@ describe("buildShellNavigation gating gaps", () => {
     expect(navigation.modes).toEqual([]);
   });
 
-  it("surfaces the report-schedules destination for everyone holding reports:manage", () => {
-    // /admin/report-schedules гейтится reports:manage; точка входа в /admin
-    // индексе требует audit:read, а область «Настройки» ограничена
-    // ADMIN/TEAM_LEAD. Destination по reports:manage получают ADMIN,
-    // TEAM_LEAD и QA_ANALYST.
+  it("surfaces the report-schedules destination and /admin home for reports:manage", () => {
+    // reports:manage открывает и страницу расписаний, и дом админ-IA (/admin).
     for (const role of ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] as const) {
       const hrefs = buildShellNavigation({ role }).commandItems.map((item) => item.href);
       expect(hrefs).toContain("/admin/report-schedules");
+      expect(hrefs).toContain("/admin");
     }
   });
 
@@ -290,6 +293,16 @@ describe("buildShellNavigation gating gaps", () => {
     expect(agentHrefs).toContain("/coaching");
     expect(buildShellNavigation({ role: "SUPPORT_AGENT" }).modes.map((mode) => mode.id)).not.toContain(
       "today"
+    );
+  });
+
+  it("gives QA an admin hub home in the system mode", () => {
+    const navigation = buildShellNavigation({ role: "QA_ANALYST" });
+    const system = navigation.modes.find((mode) => mode.id === "system");
+
+    expect(system?.destinations.map((destination) => destination.href)).toEqual(["/admin"]);
+    expect(navigation.commandItems.some((item) => item.href === "/admin" && item.label === "Обзор настроек")).toBe(
+      true
     );
   });
 

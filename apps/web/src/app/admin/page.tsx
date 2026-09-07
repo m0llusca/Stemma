@@ -9,17 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import { PageSkeleton } from "@/components/loading-states";
+import { canAccessAdminHub } from "@/lib/admin-access";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
-
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { denyPageAccess } from "@/lib/page-permission";
 import { russianPlural } from "@/lib/reports/report-format";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
 import { loadWorkspaceAiCredentials } from "@/lib/ai-quality/credentials";
 import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
 import { cn } from "@/lib/utils";
-import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,10 @@ export default function AdminHomePage() {
 }
 
 async function AdminHomePageContent() {
-  const user = await requirePagePermission("audit:read");
+  const user = await getCurrentUser();
+  if (!canAccessAdminHub(user.role)) {
+    denyPageAccess();
+  }
   const [
     workspace,
     activeScorecard,
@@ -267,7 +271,7 @@ async function AdminHomePageContent() {
       href: "/admin/report-schedules",
       title: adminSectionTitles["/admin/report-schedules"],
       icon: CalendarClock,
-      roles: ["ADMIN", "TEAM_LEAD"],
+      roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"],
       metric: russianPlural(reportSchedules, ["активное расписание", "активных расписания", "активных расписаний"]),
       tone: reportSchedules > 0 ? "ok" : "neutral"
     }
@@ -299,7 +303,7 @@ async function AdminHomePageContent() {
     ? primarySetupCoachmark.body
     : attentionCount > 0
       ? "Сначала закрывайте блокеры, которые мешают проверкам и импорту."
-      : "Можно переходить к методологии, источникам или журналу действий.";
+      : "Можно переходить к доступным разделам настроек.";
 
   return (
     <PageShell

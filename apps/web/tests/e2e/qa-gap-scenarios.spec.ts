@@ -147,6 +147,47 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   await context.close();
 });
 
+test("QA_ANALYST has Settings home into report-schedules, not an orphan admin page", async ({
+  browser
+}) => {
+  const analyst = await findSeededDemoAnalyst();
+  const context = await browser.newContext();
+  await signInE2EUser(context, analyst, "playwright-qa-admin-hub");
+  const page = await context.newPage();
+
+  await page.goto("/reviews");
+  const areaNav = page.getByRole("navigation", { name: "Основные разделы" });
+  const areaMenuTrigger = page.getByRole("button", { name: "Разделы" });
+  if (await areaNav.isVisible()) {
+    await expect(areaNav.getByRole("link", { name: /Настройки/ })).toBeVisible();
+    await areaNav.getByRole("link", { name: /Настройки/ }).click();
+  } else {
+    await areaMenuTrigger.click();
+    const areaMenu = page.getByRole("menu");
+    await expect(areaMenu.getByRole("menuitem", { name: /Настройки/ })).toBeVisible();
+    await areaMenu.getByRole("menuitem", { name: /Настройки/ }).click();
+  }
+
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole("heading", { name: "Обзор настроек" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Расписания отчетов/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Формы оценки/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Пользователи и роли/ })).toHaveCount(0);
+
+  await page.getByRole("link", { name: /Расписания отчетов/ }).first().click();
+  await expect(page).toHaveURL(/\/admin\/report-schedules/);
+  await expect(page.getByRole("heading", { name: "Расписания отчетов" })).toBeVisible();
+
+  if (await areaNav.isVisible()) {
+    await expect(areaNav.getByRole("link", { name: /Настройки/ })).toHaveAttribute("aria-current", "page");
+  }
+
+  await page.goto("/admin/users");
+  await expect(page.getByRole("alert").filter({ hasText: "Недостаточно прав" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Пользователи" })).toHaveCount(0);
+  await context.close();
+});
+
 test("non-demo admin creates an API token and a new scorecard version", async ({ browser }) => {
   const localAdmin = await createLocalNonDemoAdmin();
   const context = await browser.newContext();

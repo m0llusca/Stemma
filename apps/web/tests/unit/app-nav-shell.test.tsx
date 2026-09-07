@@ -158,6 +158,20 @@ describe("app nav shell", () => {
     expect(active[0]?.textContent).toContain("Настройки");
   });
 
+  it("highlights Settings for a QA analyst on report-schedules", () => {
+    mocks.pathname = "/admin/report-schedules";
+    const areas = visibleTopNavAreas("QA_ANALYST", { name: "Анна QA" });
+
+    render(<AppNavShell {...baseProps} areas={areas} />);
+
+    expect(within(areaNav()).getByRole("link", { name: /Настройки/ }).getAttribute("href")).toBe(
+      "/admin"
+    );
+    expect(within(areaNav()).getByRole("link", { name: /Настройки/ }).getAttribute("aria-current")).toBe(
+      "page"
+    );
+  });
+
   it("opens the command palette with the ⌘K keybinding and filters items", () => {
     render(<AppNavShell {...baseProps} />);
 
