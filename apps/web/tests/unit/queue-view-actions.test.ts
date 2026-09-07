@@ -144,6 +144,45 @@ describe("queue view actions", () => {
     });
   });
 
+  it("ANDs parsed URL filters onto nextReviewWhere in selectNextReviewConversationId", async () => {
+    mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-view" });
+    const { filtersFromReviewsHref } = await import("@/lib/review/queue-href-filters");
+    const { nextReviewWhere } = await import("@/lib/review/next-review-query");
+    const { selectNextReviewConversationId } = await import("@/lib/queue-view-actions");
+
+    const href = "/reviews?due=overdue&assignee=%D0%9E%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D0%BE%D1%80";
+    const filters = filtersFromReviewsHref(href);
+    expect(filters).toEqual(expect.objectContaining({ due: "overdue", assignee: "Оператор" }));
+
+    const user = {
+      id: "user-1",
+      name: "Аналитик",
+      workspaceId: "workspace-1",
+      role: "QA_ANALYST"
+    };
+    await expect(selectNextReviewConversationId(user, "skip-me", filters)).resolves.toBe("conv-view");
+
+    expect(mocks.prisma.conversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          nextReviewWhere(user, "skip-me"),
+          expect.objectContaining({
+            AND: expect.arrayContaining([
+              { workspaceId: "workspace-1" },
+              { assigneeName: "Оператор" },
+              expect.objectContaining({
+                reviewDueAt: { lt: expect.any(Date) },
+                qaStatus: { not: "FINALIZED" }
+              })
+            ])
+          })
+        ]
+      },
+      orderBy: [{ reviewDueAt: { sort: "asc", nulls: "last" } }, { openedAt: "desc" }],
+      select: { id: true }
+    });
+  });
+
   it("applies active queue filters when taking the next review", async () => {
     mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-overdue" });
     const { takeNextReview } = await import("@/lib/queue-view-actions");
