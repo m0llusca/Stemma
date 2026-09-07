@@ -259,8 +259,8 @@ function shouldOpenCriterion(criterion: ScorecardCriterion, score?: CriterionSco
 
 function StepHeader({ number, title, detail }: { number: number; title: string; detail: string }) {
   return (
-    <div className="step-header flex min-w-0 items-start gap-2.5">
-      <span className="step-header__number flex size-[26px] shrink-0 items-center justify-center rounded-md border border-border bg-card text-xs font-extrabold tabular-nums text-muted-foreground">
+    <div className="flex min-w-0 items-start gap-2.5">
+      <span className="flex size-[26px] shrink-0 items-center justify-center rounded-md border border-border bg-card text-xs font-extrabold tabular-nums text-muted-foreground">
         {number}
       </span>
       <div className="min-w-0">

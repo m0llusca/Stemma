@@ -46,7 +46,7 @@ describe("EvidenceJumpLink motion and timer safety", () => {
         behavior,
         block: "center"
       });
-      expect(target).toHaveClass("conversation-message--evidence-flash");
+      expect(target).toHaveAttribute("data-evidence-flash");
     }
   );
 

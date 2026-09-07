@@ -183,18 +183,22 @@ describe("ConversationTimeline", () => {
     const system = container.querySelector<HTMLElement>('[data-party="SYSTEM"]');
 
     expect(cardHeader).toHaveClass("flex", "flex-wrap");
-    expect(customer?.querySelector(".conversation-message__header")).toHaveClass(
-      "flex",
-      "flex-wrap"
-    );
+    expect(
+      customer?.querySelector('[data-slot="conversation-message-header"]')
+    ).toHaveClass("flex", "flex-wrap");
 
-    const agentSurface = human?.querySelector(".conversation-message__bubble");
-    const systemSurface = system?.querySelector(".conversation-message__plain");
+    const agentSurface = human?.querySelector(
+      '[data-slot="conversation-message-surface"][data-variant="bubble"]'
+    );
+    const systemSurface = system?.querySelector(
+      '[data-slot="conversation-message-surface"][data-variant="plain"]'
+    );
     const longMessageBody = screen.getByText(/очень-длинная-ссылка-без-разрывов/);
 
     expect(agentSurface).toHaveClass("max-w-prose");
     expect(systemSurface).toBeInTheDocument();
-    expect(systemSurface).not.toHaveClass("conversation-message__bubble");
+    expect(systemSurface).toHaveAttribute("data-variant", "plain");
+    expect(systemSurface).not.toHaveAttribute("data-variant", "bubble");
     expect(longMessageBody).toHaveClass("whitespace-pre-wrap", "break-words");
     expect(longMessageBody).not.toHaveClass("break-all");
   });
@@ -235,18 +239,18 @@ describe("ConversationTimeline", () => {
       behavior: "smooth",
       block: "center"
     });
-    expect(target).toHaveClass("conversation-message--evidence-flash");
+    expect(target).toHaveAttribute("data-evidence-flash");
     expect(target).toHaveClass(
-      "[&.conversation-message--evidence-flash]:bg-primary/10",
-      "[&.conversation-message--evidence-flash]:ring-2",
-      "motion-safe:[&.conversation-message--evidence-flash]:animate-pulse",
-      "motion-reduce:[&.conversation-message--evidence-flash]:animate-none"
+      "data-[evidence-flash]:bg-primary/10",
+      "data-[evidence-flash]:ring-2",
+      "motion-safe:data-[evidence-flash]:animate-pulse",
+      "motion-reduce:data-[evidence-flash]:animate-none"
     );
 
     act(() => {
       vi.runAllTimers();
     });
-    expect(target).not.toHaveClass("conversation-message--evidence-flash");
+    expect(target).not.toHaveAttribute("data-evidence-flash");
 
     const evidenceField = screen.getByRole("combobox", {
       name: "Доказательство критерия"
