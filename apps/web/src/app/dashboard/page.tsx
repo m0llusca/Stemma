@@ -247,22 +247,26 @@ async function DashboardPageContent() {
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 3
     }),
-    prisma.review.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { gte: thirtyDaysStart, lte: now },
-        conversation: { assigneeName: { not: null }, ...conversationScope }
-      },
-      select: {
-        totalScore: true,
-        criticalError: true,
-        appealStatus: true,
-        conversation: { select: { assigneeName: true } },
-        findings: { select: { riskLevel: true } }
-      }
-    }),
+    // Peer score rows are ops chrome. SUPPORT_AGENT must not see them (#16).
+    // TEAM_LEAD+ADMIN-only leaderboard/avg gating is issue #18.
+    user.role === "SUPPORT_AGENT"
+      ? Promise.resolve([])
+      : prisma.review.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            finalizedAt: { gte: thirtyDaysStart, lte: now },
+            conversation: { assigneeName: { not: null } }
+          },
+          select: {
+            totalScore: true,
+            criticalError: true,
+            appealStatus: true,
+            conversation: { select: { assigneeName: true } },
+            findings: { select: { riskLevel: true } }
+          }
+        }),
     user.role === "TEAM_LEAD" || user.role === "ADMIN"
       ? loadReviewerWorkload(user.workspaceId, prisma)
       : Promise.resolve([])
@@ -293,6 +297,7 @@ async function DashboardPageContent() {
   const canReadAudit = hasPermission(user.role, "audit:read");
   const canReadReports = hasPermission(user.role, "reports:read");
   const isLeadDashboard = user.role === "TEAM_LEAD" || user.role === "ADMIN";
+  const showPeerScoreRows = user.role !== "SUPPORT_AGENT";
   const totalQueueCount = queuedCount + inWorkCount;
   // KPI / sparkline / leaderboard drill-downs share the same queue filter contract
   // as /reviews (finalizedFrom/To, riskLevel, assignee, appealStatus).
@@ -680,6 +685,7 @@ async function DashboardPageContent() {
           data-slot="dashboard-secondary-grid"
           className="col-span-full grid items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
         >
+          {showPeerScoreRows ? (
           <Card>
             <CardHeader className="border-b pb-(--card-spacing)">
               <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
@@ -753,6 +759,7 @@ async function DashboardPageContent() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
 
           {isLeadDashboard ? null : (
           <EvidenceDrawer title="Последняя активность" description="Что менялось в проверках и обучении.">

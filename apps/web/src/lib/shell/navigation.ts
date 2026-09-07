@@ -63,7 +63,10 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Сегодня",
     description: "Пульс дня и следующий управленческий фокус.",
     icon: "today",
-    permission: "reviews:read"
+    // Ops pulse is for reviewers and leads. SUPPORT_AGENT home is calm
+    // self-review — «Сегодня»→/dashboard must not be a primary agent path.
+    permission: "reviews:read",
+    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
   },
   {
     id: "feedback",
@@ -172,14 +175,17 @@ const modeDefinitions: ModeDefinition[] = [
     icon: "today",
     // /dashboard гейтится reviews:read — зеркалим гвард на уровне мода, чтобы
     // роли без права (VIEWER) не получали командных ссылок в никуда.
+    // SUPPORT_AGENT also has reviews:read, but ops «Сегодня» is not their home.
     permission: "reviews:read",
+    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"],
     destinations: [
       {
         href: "/dashboard",
         label: "Пульс дня",
         description: "Очередь, риск, обучение и последние изменения в одном входном экране.",
         aliases: ["дашборд", "dashboard", "обзор", "пульс"],
-        permission: "reviews:read"
+        permission: "reviews:read",
+        roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
       }
     ]
   },

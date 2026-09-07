@@ -26,4 +26,11 @@ describe("dashboard page agent scope", () => {
   it("does not authorize SUPPORT_AGENT metrics by assigneeName: user.name", () => {
     expect(source).not.toMatch(/assigneeName:\s*user\.name/);
   });
+
+  it("hides peer score rows from SUPPORT_AGENT and does not load the leaderboard query", () => {
+    expect(source).toContain("showPeerScoreRows");
+    expect(source).toContain('user.role !== "SUPPORT_AGENT"');
+    expect(source).toContain('user.role === "SUPPORT_AGENT"\n      ? Promise.resolve([])');
+    expect(source).toContain("{showPeerScoreRows ? (");
+  });
 });

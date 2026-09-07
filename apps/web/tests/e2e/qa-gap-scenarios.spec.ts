@@ -84,6 +84,24 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   await page.goto("/self-review");
   await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
 
+  const areaNav = page.getByRole("navigation", { name: "Основные разделы" });
+  const areaMenuTrigger = page.getByRole("button", { name: "Разделы" });
+  if (await areaNav.isVisible()) {
+    await expect(areaNav.getByRole("link", { name: "Сегодня" })).toHaveCount(0);
+    await expect(areaNav.getByRole("link", { name: "Моя обратная связь" })).toBeVisible();
+  } else {
+    await areaMenuTrigger.click();
+    const areaMenu = page.getByRole("menu");
+    await expect(areaMenu.getByRole("menuitem", { name: "Сегодня" })).toHaveCount(0);
+    await expect(areaMenu.getByRole("menuitem", { name: /Моя обратная связь/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+  }
+
+  await page.goto("/dashboard");
+  await expect(page.getByText("Операторы с наибольшей нагрузкой")).toHaveCount(0);
+  await expect(page.getByText("Области для роста")).toHaveCount(0);
+  await expect(page.getByText("Риск и апелляции")).toHaveCount(0);
+
   await page.goto("/admin/users");
   await expect(page.getByRole("alert").filter({ hasText: "Недостаточно прав" })).toBeVisible();
   await expect(page.getByText("Недостаточно прав для выполнения операции.")).toBeVisible();

@@ -50,7 +50,6 @@ describe("visibleTopNavAreas", () => {
     // Калибровка (calibration:manage), Аналитика (reports:read) и Настройки
     // недоступны роли SUPPORT_AGENT — их страницы бросают "Недостаточно прав".
     expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).toEqual([
-      "today",
       "feedback",
       "review",
       "coaching"
@@ -215,6 +214,18 @@ describe("buildShellNavigation gating gaps", () => {
       (item) => item.href
     );
     expect(agentHrefs).toContain("/coaching");
+  });
+
+  it("hides ops Сегодня/dashboard from SUPPORT_AGENT nav and command palette", () => {
+    expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).not.toContain("today");
+    const agentHrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map(
+      (item) => item.href
+    );
+    expect(agentHrefs).not.toContain("/dashboard");
+    expect(agentHrefs).toContain("/self-review");
+    expect(buildShellNavigation({ role: "SUPPORT_AGENT" }).modes.map((mode) => mode.id)).not.toContain(
+      "today"
+    );
   });
 
   it("labels the report-schedules destination inside the quality mode", () => {
