@@ -74,7 +74,8 @@ async function recordIntegrationSync(
   });
   const data = {
     displayName: sourceConfig?.label ?? source,
-    status: "active",
+    // Paste import is not live-certified; keep status ready until a certified path promotes to active.
+    status: "ready",
     lastSyncedAt: new Date()
   };
 

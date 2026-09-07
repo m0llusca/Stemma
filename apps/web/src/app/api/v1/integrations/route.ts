@@ -21,7 +21,8 @@ const integrationSchema = z.object({
   source: z.string().trim().min(2).max(80).regex(/^[a-z0-9_-]+$/),
   displayName: z.string().trim().min(2).max(160),
   type: z.string().trim().min(2).max(80).optional(),
-  status: z.enum(["draft", "ready", "active", "disabled", "queued"]).optional(),
+  // Client may only set draft|ready|disabled. Promotion to active stays on certified import paths.
+  status: z.enum(["draft", "ready", "disabled"]).optional(),
   baseUrl: z.string().trim().url().optional().or(z.literal("")),
   authMode: z.string().trim().min(2).max(80).optional(),
   importLimit: z.number().int().min(1).max(10000).optional(),
