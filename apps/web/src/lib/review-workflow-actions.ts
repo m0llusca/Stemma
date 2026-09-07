@@ -4,6 +4,7 @@ import type { Prisma, QaStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
+import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { canManageReviewWorkflow, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
@@ -176,7 +177,7 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
   const qaStatusValue = optionalStringField(formData, "qaStatus");
   const qaAssigneeId = optionalStringField(formData, "qaAssigneeId");
   const reviewDueAt = optionalStringField(formData, "reviewDueAt");
-  const returnTo = stringField(formData, "returnTo") || "/reviews";
+  const returnTo = sanitizeReturnTo(stringField(formData, "returnTo") || "/reviews");
 
   if (conversationIds.length === 0) {
     redirect(returnTo);

@@ -9,6 +9,7 @@ import {
   type CoachingOfferParams
 } from "@/lib/coaching-follow-up";
 import { auditLog } from "@/lib/audit";
+import { sanitizeReturnTo } from "@/lib/auth/role-home";
 import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
@@ -301,7 +302,7 @@ export async function saveReviewDraft(formData: FormData) {
   const conversationId = requiredString(formData, "conversationId");
   const scorecardId = requiredString(formData, "scorecardId");
   const reviewSource = reviewSourceField(formData);
-  const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
+  const returnTo = sanitizeReturnTo(optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`);
 
   if (reviewSource === "SELF_REVIEW" ? !canSelfReview(user.role) : !canSaveReviewDraft(user.role)) {
     throw new Error("Нет прав на сохранение черновиков.");
@@ -705,7 +706,7 @@ async function finalizeReviewCore(formData: FormData) {
 
 export async function finalizeReview(formData: FormData) {
   const conversationId = requiredString(formData, "conversationId");
-  const returnTo = optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`;
+  const returnTo = sanitizeReturnTo(optionalString(formData, "returnTo") ?? `/reviews/${conversationId}`);
 
   const { coachingOffer } = await finalizeReviewCore(formData);
 
@@ -724,7 +725,8 @@ export async function finalizeReviewAndTakeNext(formData: FormData) {
   // the next workbench lands on their filtered view, not the bare queue. Also
   // apply those filters when selecting the next case so take-next cannot jump
   // outside the active queue view.
-  const returnTo = optionalString(formData, "returnTo");
+  const rawReturnTo = optionalString(formData, "returnTo");
+  const returnTo = rawReturnTo ? sanitizeReturnTo(rawReturnTo) : undefined;
   const { user, conversationId, coachingOffer } = await finalizeReviewCore(formData);
   const filters = filtersFromReviewsHref(returnTo);
 
