@@ -81,4 +81,3 @@ When adding or changing an enqueue route, keep validation and enqueue code in a 
 
 - **AGENT deep-link `/dashboard`.** Brand and login send SUPPORT_AGENT to `/self-review`. Typed `/dashboard` still opens: page gate is `reviews:read`, which agents have. Nav hides «Сегодня»; the route does not.
 - **Suspense active-area.** `useSearchParams()` in `AppNavShell` has no layout `Suspense`. Analyst «Сегодня» highlight can trip the client search-params boundary.
-- **#24 pending.** Dashboard peer leaderboard / vanity avg still gated by `role !== SUPPORT_AGENT`. Target: `peer_quality:read` (TEAM_LEAD+ADMIN). Permission is not in the matrix yet. QA Analyst still sees peer rows.

@@ -12,7 +12,7 @@
 - Role homes: Analyst «Сегодня» = Мои+просрочено; Agent brand → `/self-review`; Lead «Сегодня» = `/dashboard`. → [app-shell.md](app-shell.md)
 - Focus map removed from queue chrome (`f8b0fce`).
 
-Leftovers (not fixed): catalog `readinessTone`; AGENT deep-link `/dashboard`; shell `useSearchParams` without layout Suspense; #24 `peer_quality:read` vs `!== SUPPORT_AGENT`; topbar pulse «Взять кейс» still links to `/reviews?status=unreviewed`.
+Leftovers (not fixed): catalog `readinessTone`; AGENT deep-link `/dashboard`; shell `useSearchParams` without layout Suspense; topbar pulse «Взять кейс» still impostor `/reviews?status=unreviewed` → #28.
 
 ---
 
