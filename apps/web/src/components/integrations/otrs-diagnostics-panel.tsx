@@ -1,22 +1,23 @@
 "use client";
 
-import { Activity, AlertTriangle, CheckCircle2, Play } from "lucide-react";
+import { Activity, AlertTriangle, Play } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ActionFlowGuard } from "@/components/action-flow-guard";
 import { actionFlowNavigation } from "@/lib/action-result-bridge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Table,
   TableBody,
@@ -26,7 +27,12 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { runOtrsDiagnosticsActionState, type OtrsDiagnosticsActionState } from "@/lib/integration-actions";
-import { cn } from "@/lib/utils";
+import {
+  diagnosticStatusLabel,
+  diagnosticStatusTone,
+  diagnosticStepLabel,
+  diagnosticsNotLiveCertificationFooter
+} from "@/lib/integrations/probe-honesty";
 
 const initialState: OtrsDiagnosticsActionState = null;
 
@@ -55,30 +61,6 @@ type OtrsDiagnosticsPanelProps = {
   integrationId: string;
   latestDiagnostic: DiagnosticRun;
 };
-
-function statusBadgeClass(status: string) {
-  if (["succeeded", "ok"].includes(status)) {
-    return "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300";
-  }
-
-  if (["failed", "error"].includes(status)) {
-    return "border-transparent bg-destructive/15 text-destructive";
-  }
-
-  return "";
-}
-
-function statusIcon(status: string) {
-  if (["succeeded", "ok"].includes(status)) {
-    return <CheckCircle2 size={16} className="text-emerald-600" aria-hidden="true" />;
-  }
-
-  if (["failed", "error"].includes(status)) {
-    return <AlertTriangle size={16} className="text-destructive" aria-hidden="true" />;
-  }
-
-  return <Activity size={16} className="text-muted-foreground" aria-hidden="true" />;
-}
 
 function formatDate(value: string | null | undefined) {
   return value
@@ -157,7 +139,7 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
           <Alert variant={state.ok ? "default" : "destructive"}>
             <AlertDescription>
               {state.message}
-              {state.status ? ` Статус: ${state.status}.` : ""}
+              {state.status ? ` Статус: ${diagnosticStatusLabel(state.status)}.` : ""}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -168,12 +150,12 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
               <Card size="sm">
                 <CardContent className="grid gap-1">
                   <p className="text-xs font-medium text-muted-foreground">Статус</p>
-                  <Badge
-                    variant={["succeeded", "ok"].includes(latestDiagnostic.status) ? "secondary" : "outline"}
-                    className={cn("font-normal", statusBadgeClass(latestDiagnostic.status))}
-                  >
-                    {latestDiagnostic.status}
-                  </Badge>
+                  <StatusBadge
+                    compact
+                    label="Статус"
+                    value={diagnosticStatusLabel(latestDiagnostic.status)}
+                    tone={diagnosticStatusTone(latestDiagnostic.status)}
+                  />
                 </CardContent>
               </Card>
               <Card size="sm">
@@ -204,19 +186,23 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
               <TableBody>
                 {latestDiagnostic.steps.map((step) => (
                   <TableRow key={step.id}>
-                    <TableCell className="font-mono text-xs">{step.key}</TableCell>
+                    <TableCell>{diagnosticStepLabel(step.key)}</TableCell>
                     <TableCell>
                       <span className="inline-flex items-center gap-2">
-                        {statusIcon(step.status)}
-                        <Badge
-                          variant={["succeeded", "ok"].includes(step.status) ? "secondary" : "outline"}
-                          className={cn("font-normal", statusBadgeClass(step.status))}
-                        >
-                          {step.status}
-                        </Badge>
+                        {["failed", "error"].includes(step.status) ? (
+                          <AlertTriangle size={16} className="text-destructive" aria-hidden="true" />
+                        ) : (
+                          <Activity size={16} className="text-muted-foreground" aria-hidden="true" />
+                        )}
+                        <StatusBadge
+                          compact
+                          label="Шаг"
+                          value={diagnosticStatusLabel(step.status)}
+                          tone={diagnosticStatusTone(step.status)}
+                        />
                       </span>
                     </TableCell>
-                    <TableCell>{step.durationMs} ms</TableCell>
+                    <TableCell>{step.durationMs} мс</TableCell>
                     <TableCell className="max-w-[280px] whitespace-normal">
                       {step.remediationHint ?? "Нет подсказки."}
                     </TableCell>
@@ -242,6 +228,9 @@ export function OtrsDiagnosticsPanel({ integrationId, latestDiagnostic }: OtrsDi
           </Alert>
         )}
       </CardContent>
+      <CardFooter className="border-t text-xs text-muted-foreground">
+        {diagnosticsNotLiveCertificationFooter}
+      </CardFooter>
     </Card>
   );
 }

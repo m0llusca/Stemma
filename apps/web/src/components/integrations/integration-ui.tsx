@@ -2,6 +2,11 @@ import type { ReactNode } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
+import {
+  certificationEvidenceEmptyText,
+  certificationEvidenceEnvGateLabel,
+  certificationEvidenceRunLabel
+} from "@/lib/integrations/probe-honesty";
 import { cn } from "@/lib/utils";
 
 export type CertificationEvidenceListItem = {
@@ -66,7 +71,7 @@ function evidenceResultLabel(value: string) {
 
 export function CertificationEvidenceList({
   evidence,
-  emptyText = "Evidence по этому источнику пока не записан."
+  emptyText = certificationEvidenceEmptyText
 }: {
   evidence: CertificationEvidenceListItem[];
   emptyText?: string;
@@ -86,15 +91,16 @@ export function CertificationEvidenceList({
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-muted-foreground"
             aria-hidden="true"
           >
-            E
+            Св
           </span>
           <span className="grid min-w-0 gap-0.5">
             <span className="text-sm font-semibold text-foreground">{evidenceResultLabel(item.result)}</span>
             <span className="text-xs text-muted-foreground">
-              {evidenceDate(item.recordedAt)} · run {item.runId.slice(0, 8)}
+              {evidenceDate(item.recordedAt)} · {certificationEvidenceRunLabel(item.runId)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {item.envGate} · {item.actor?.name ?? item.actor?.email ?? "актор не указан"}
+              {certificationEvidenceEnvGateLabel(item.envGate)} ·{" "}
+              {item.actor?.name ?? item.actor?.email ?? "инициатор не указан"}
             </span>
           </span>
         </div>

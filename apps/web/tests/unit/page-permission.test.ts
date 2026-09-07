@@ -6,16 +6,34 @@ const mocks = vi.hoisted(() => ({
   forbidden: vi.fn(() => {
     throw new Error("NEXT_HTTP_ERROR_FALLBACK;403");
   }),
+  unauthorized: vi.fn(() => {
+    throw new Error("NEXT_HTTP_ERROR_FALLBACK;401");
+  }),
+  getCurrentUser: vi.fn(),
   requireCurrentUserPermission: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
-  forbidden: mocks.forbidden
+  forbidden: mocks.forbidden,
+  unauthorized: mocks.unauthorized
 }));
 
-vi.mock("@/lib/current-user", () => ({
-  requireCurrentUserPermission: mocks.requireCurrentUserPermission
-}));
+vi.mock("@/lib/current-user", () => {
+  class AuthRequiredError extends Error {
+    constructor() {
+      super("Нет активной сессии. Войдите снова, чтобы продолжить.");
+      this.name = "AuthRequiredError";
+    }
+  }
+
+  return {
+    AuthRequiredError,
+    getCurrentUser: mocks.getCurrentUser,
+    requireCurrentUserPermission: mocks.requireCurrentUserPermission,
+    isAuthRequiredError: (error: unknown) =>
+      error instanceof AuthRequiredError || (error instanceof Error && error.name === "AuthRequiredError")
+  };
+});
 
 describe("requirePagePermission", () => {
   beforeEach(() => {
@@ -28,6 +46,17 @@ describe("requirePagePermission", () => {
     const { requirePagePermission } = await import("@/lib/page-permission");
 
     await expect(requirePagePermission("users:manage")).resolves.toEqual(user);
+    expect(mocks.forbidden).not.toHaveBeenCalled();
+    expect(mocks.unauthorized).not.toHaveBeenCalled();
+  });
+
+  it("maps AuthRequiredError to the Next.js unauthorized interrupt", async () => {
+    const { AuthRequiredError } = await import("@/lib/current-user");
+    mocks.requireCurrentUserPermission.mockRejectedValue(new AuthRequiredError());
+    const { requirePagePermission } = await import("@/lib/page-permission");
+
+    await expect(requirePagePermission("users:manage")).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;401");
+    expect(mocks.unauthorized).toHaveBeenCalledOnce();
     expect(mocks.forbidden).not.toHaveBeenCalled();
   });
 
@@ -52,6 +81,32 @@ describe("requirePagePermission", () => {
     const { requirePagePermission } = await import("@/lib/page-permission");
 
     await expect(requirePagePermission("users:manage")).rejects.toThrow("database password leaked");
+    expect(mocks.forbidden).not.toHaveBeenCalled();
+    expect(mocks.unauthorized).not.toHaveBeenCalled();
+  });
+});
+
+describe("requirePageUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the user when a session is valid", async () => {
+    const user = { id: "admin-1", role: "ADMIN" };
+    mocks.getCurrentUser.mockResolvedValue(user);
+    const { requirePageUser } = await import("@/lib/page-permission");
+
+    await expect(requirePageUser()).resolves.toEqual(user);
+    expect(mocks.unauthorized).not.toHaveBeenCalled();
+  });
+
+  it("maps AuthRequiredError to unauthorized, not forbidden", async () => {
+    const { AuthRequiredError } = await import("@/lib/current-user");
+    mocks.getCurrentUser.mockRejectedValue(new AuthRequiredError());
+    const { requirePageUser } = await import("@/lib/page-permission");
+
+    await expect(requirePageUser()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;401");
+    expect(mocks.unauthorized).toHaveBeenCalledOnce();
     expect(mocks.forbidden).not.toHaveBeenCalled();
   });
 });

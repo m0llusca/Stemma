@@ -1160,7 +1160,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
                           <TableHead>Источник</TableHead>
-                          <TableHead>Готовность</TableHead>
+                          <TableHead>Сертификация</TableHead>
                           <TableHead>Авторизация</TableHead>
                           <TableHead>Возможности</TableHead>
                         </TableRow>
@@ -1180,7 +1180,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                                 <ToneBadge
                                   tone={certificationTone(capability.certification.summary.status)}
-                                  title={`Готовность: ${capability.certification.summary.label}`}
+                                  title={`Сертификация: ${capability.certification.summary.label}`}
                                 >
                                   {capability.certification.summary.label}
                                 </ToneBadge>
@@ -1212,7 +1212,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             </>
           }
           evidence={
-            <EvidenceDrawer title="Свидетельства готовности">
+            <EvidenceDrawer title="Операционный срез">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1 rounded-lg border border-border p-3">
                   <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Источники</span>

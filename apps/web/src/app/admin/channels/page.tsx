@@ -33,6 +33,10 @@ import {
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { prisma } from "@/lib/db";
 import { messagingChannelTone } from "@/lib/integrations/connection-tone";
+import {
+  channelsEnabledWarningDescription,
+  channelsEnabledWarningTitle
+} from "@/lib/integrations/probe-honesty";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { maskSecret } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
@@ -213,13 +217,13 @@ async function AdminChannelsPageContent() {
                 <div className="grid gap-1">
                   <CardTitle id="channels-title">Исходящие каналы</CardTitle>
                   <CardDescription>
-                    Активных: {activeActionChannels} · настроено: {messagingChannels.length}
+                    Включены: {activeActionChannels} · настроено: {messagingChannels.length}
                   </CardDescription>
                 </div>
                 <CardAction>
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge tone={activeActionChannels > 0 ? messagingChannelTone("active") : "neutral"}>
-                      Активны {activeActionChannels}
+                      Включены {activeActionChannels}
                     </StatusBadge>
                     <AdminDialog
                       triggerLabel={
@@ -314,6 +318,12 @@ async function AdminChannelsPageContent() {
                   </AlertDescription>
                 </Alert>
               ) : null}
+
+              <Alert>
+                <AlertTriangle />
+                <AlertTitle>{channelsEnabledWarningTitle}</AlertTitle>
+                <AlertDescription>{channelsEnabledWarningDescription}</AlertDescription>
+              </Alert>
 
               {configuredDefinitions.length === 0 ? (
                 <EmptyState

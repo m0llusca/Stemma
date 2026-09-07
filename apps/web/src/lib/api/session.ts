@@ -2,7 +2,7 @@ import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api/response";
 import { permissionDeniedMessage, sessionRequiredMessage } from "@/lib/api/user-facing-errors";
 import { isPermissionDeniedError, type Permission } from "@/lib/auth/permissions";
-import { AuthRequiredError, DemoSettingsMutationError, assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
+import { DemoSettingsMutationError, assertCanPersistSettings, isAuthRequiredError, requireCurrentUserPermission } from "@/lib/current-user";
 
 type SessionApiResult =
   | {
@@ -84,7 +84,7 @@ export async function requireSessionApi(
 
     return { ok: true, user };
   } catch (error) {
-    if (error instanceof AuthRequiredError || (error instanceof Error && error.name === "AuthRequiredError")) {
+    if (isAuthRequiredError(error)) {
       return {
         ok: false,
         response: apiError("unauthorized", sessionRequiredMessage, 401, options.requestId)

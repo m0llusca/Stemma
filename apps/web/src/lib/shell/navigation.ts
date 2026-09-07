@@ -153,7 +153,7 @@ export function todayHrefForRole(role: RoleName, options?: { name?: string }) {
 /**
  * Top-nav areas a role can actually open: the same roles/permission gating as
  * the mode/destination model, so the bar never links to a page whose own guard
- * would invoke Next.js `forbidden()` instead of the generic error boundary.
+ * would invoke Next.js `forbidden()` / `unauthorized()` instead of the generic error boundary.
  */
 export function visibleTopNavAreas(role: RoleName, options?: VisibleTopNavOptions): ShellNavArea[] {
   return topNavAreas

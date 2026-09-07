@@ -1,9 +1,15 @@
 "use client";
 
 import { AlertCircle } from "lucide-react";
+import { UnauthorizedScreen } from "@/components/auth/unauthorized-screen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { sessionRequiredMessage } from "@/lib/api/user-facing-errors";
+
+function isSerializedAuthRequiredError(error: Error) {
+  return error.name === "AuthRequiredError" || error.message === sessionRequiredMessage;
+}
 
 export default function GlobalError({
   error,
@@ -12,6 +18,10 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  if (isSerializedAuthRequiredError(error)) {
+    return <UnauthorizedScreen />;
+  }
+
   return (
     <section className="mx-auto flex min-h-[50vh] max-w-lg items-center justify-center p-6">
       <Card className="w-full">

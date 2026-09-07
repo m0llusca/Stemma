@@ -1,6 +1,6 @@
 import { getPermissions } from "@/lib/auth/permissions";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
-import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
+import { getCurrentUser, isAuthRequiredError } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   try {
     user = await getCurrentUser();
   } catch (error) {
-    if (error instanceof AuthRequiredError || (error instanceof Error && error.name === "AuthRequiredError")) {
+    if (isAuthRequiredError(error)) {
       return apiError("unauthorized", error.message, 401, requestId);
     }
 
