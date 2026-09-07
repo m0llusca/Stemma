@@ -9,10 +9,9 @@ import {
   type ExecRiskHrefSet,
   type ExecRiskSignal
 } from "@/lib/dashboard/exec-risk-home";
-import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
 
 const triageTone = {
-  success: "success",
+  accent: "accent",
   warning: "warning",
   danger: "danger"
 } as const;
@@ -27,11 +26,6 @@ export function ExecRiskHome({
   inWorkCount: number;
 }) {
   const narrative = buildExecRiskNarrative(signal, hrefs);
-  const overdueTone = semanticStatusForMetric({ kind: "overdue_count", value: signal.overdueReviewCount });
-  const queueTone = semanticStatusForMetric({
-    kind: "queue_count",
-    value: signal.queuedCount + inWorkCount
-  });
   const NarrativeIcon =
     signal.overdueReviewCount > 0 ? Clock3 : signal.highRiskCount > 0 ? TriangleAlert : ClipboardCheck;
 
@@ -59,7 +53,7 @@ export function ExecRiskHome({
           href={hrefs.overdue}
           icon={Clock3}
           value={signal.overdueReviewCount}
-          tone={signal.overdueReviewCount > 0 ? "negative" : overdueTone.tone}
+          tone={signal.overdueReviewCount > 0 ? "negative" : "neutral"}
           label="Просрочено SLA"
           hint="открыть очередь с нарушенным сроком"
         />
@@ -75,7 +69,7 @@ export function ExecRiskHome({
           href={hrefs.queued}
           icon={ClipboardCheck}
           value={signal.queuedCount}
-          tone={queueTone.tone}
+          tone={signal.queuedCount > 0 ? "warning" : "neutral"}
           label="Очередь без старта"
           hint={inWorkCount > 0 ? `${inWorkCount} уже в работе` : "ещё не взяли в проверку"}
         />

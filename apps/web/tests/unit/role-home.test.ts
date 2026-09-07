@@ -62,6 +62,9 @@ describe("role-home", () => {
     expect(resolvePostLoginPath("/", { role: "TEAM_LEAD", name: "Игорь" })).toBe("/dashboard");
     expect(resolvePostLoginPath("/reviews", { role: "EXEC", name: "Наталья" })).toBe("/dashboard");
     expect(resolvePostLoginPath("/dashboard", { role: "EXEC", name: "Наталья" })).toBe("/dashboard");
+    expect(resolvePostLoginPath("/reviews?due=overdue", { role: "EXEC", name: "Наталья" })).toBe(
+      "/reviews?due=overdue"
+    );
     expect(
       resolvePostLoginPath("/reviews?status=unreviewed", { role: "QA_ANALYST", name: "Анна QA" })
     ).toBe("/reviews?status=unreviewed");

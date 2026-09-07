@@ -37,6 +37,9 @@ describe("ExecRiskHome", () => {
       />
     );
 
+    expect(screen.getByText("Нет сигналов за период")).toBeInTheDocument();
+    expect(screen.queryByText("В норме")).not.toBeInTheDocument();
+    expect(screen.queryByText("Критичных отклонений нет")).not.toBeInTheDocument();
     expect(screen.queryByText("Нагрузка проверяющих")).not.toBeInTheDocument();
     expect(screen.queryByText("Последняя активность")).not.toBeInTheDocument();
     expect(screen.queryByText("Ближайшее обучение")).not.toBeInTheDocument();

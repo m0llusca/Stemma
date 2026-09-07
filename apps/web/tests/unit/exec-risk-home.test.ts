@@ -33,9 +33,9 @@ describe("buildExecRiskNarrative", () => {
     expect(
       buildExecRiskNarrative({ overdueReviewCount: 0, highRiskCount: 0, queuedCount: 0 }, hrefs)
     ).toMatchObject({
-      title: "Критичных отклонений нет",
+      title: "Нет сигналов за период",
       primaryHref: hrefs.queued,
-      tone: "success"
+      tone: "accent"
     });
   });
 });

@@ -15,7 +15,7 @@ export type ExecRiskNarrative = {
   description: string;
   primaryHref: string;
   actionLabel: string;
-  tone: "success" | "warning" | "danger";
+  tone: "accent" | "warning" | "danger";
 };
 
 /**
@@ -57,10 +57,10 @@ export function buildExecRiskNarrative(
   }
 
   return {
-    title: "Критичных отклонений нет",
-    description: "SLA и высокий риск под контролем. Очередь можно открыть при необходимости.",
+    title: "Нет сигналов за период",
+    description: "В текущих срезах нет просроченного SLA и высокого риска — это не сертификат «всё в порядке». Откройте очередь, чтобы проверить объём.",
     primaryHref: hrefs.queued,
     actionLabel: "Открыть очередь",
-    tone: "success"
+    tone: "accent"
   };
 }
