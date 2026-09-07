@@ -23,7 +23,7 @@ If a metric needs domain-specific thresholds, add a helper near the metric domai
 
 - Dashboard focus and activity blocks use tones to distinguish healthy quality, risk, empty queues, and learning/system notices.
 - Review detail metadata chips use `StatusBadge` for review state, score, customer/source/team, due date, risk, appeal, and reanswer state.
-- Integrations use warning for token-only, limited, partial, or uncertified readiness, negative for disconnected or failed states, and **positive only after `live_certified`**. Operational `ready` / `active` is not green.
+- Connection and channel chips use warning for token-only, limited, partial, or uncertified readiness, negative for disconnected or failed states, and **positive only after `live_certified`**. Operational `ready` / `active` is not green. Catalog capability chips are a leftover — see Follow-up.
 - Admin system rows use neutral for not-yet-run jobs, info for planned work, warning for degraded queues, and negative for blocking failures.
 
 ## Rules

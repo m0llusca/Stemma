@@ -33,7 +33,7 @@ Three surfaces share **one path**: `takeNextReview` / `selectNextReviewConversat
 
 1. Queue **«Взять следующий»** → `takeNextReview` → hidden `queueHref` (current URL / saved view) → `filtersFromReviewsHref` → same selector
 2. Workbench **«Завершить и взять следующий»** (`intent=finalize_next`) → `finalizeReviewAndTakeNext` → `returnTo` → same parser and selector (excludes the case just finished)
-3. ⌘K **«Взять следующий»** (`actionId: take-next`) → `takeNextReview(takeNextFormDataFromLocation(pathname, search))` — same FormData `queueHref` as the queue button. Not a href.
+3. ⌘K **«Взять следующий кейс»** (`actionId: take-next`) → `takeNextReview(takeNextFormDataFromLocation(pathname, search))` — same FormData `queueHref` as the queue button. Not a href.
 
 **Killed:** ⌘K must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
 
@@ -59,7 +59,7 @@ Do not silently drop filters from take-next, and do not invent a second eligibil
 | «Следующий кейс» preview | Yes | First row of the filtered list |
 | Queue **«Взять следующий»** | **Yes** | `queueHref` → `filtersFromReviewsHref` → same selector |
 | Workbench **finalize_next** | **Yes** | `returnTo` → same parser and selector |
-| ⌘K **«Взять следующий»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
+| ⌘K **«Взять следующий кейс»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
 
 An operator on a narrow saved view sees case A as preview, presses Take next, and opens case A (or the next remaining row in that same filtered set). Landing on workspace priority outside the view is a bug.
 

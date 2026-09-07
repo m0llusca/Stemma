@@ -31,7 +31,7 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 
 `todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is.
 
-⌘K **«Взять следующий»** is an action, not a nav href. Same `takeNextReview` path as the queue button — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
+⌘K **«Взять следующий кейс»** is an action, not a nav href. Same `takeNextReview` path as the queue button — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
 
 ## Async Signals
 
