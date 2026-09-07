@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { freshDemoSeedAnchor } from "./prisma/demo-calendar";
 import { resolvePlaywrightTestDatabaseUrl } from "./playwright-database-guard";
 import { assertDemoAnchorIsFresh } from "./tests/e2e/helpers/demo-anchor-freshness";
 
@@ -7,12 +8,12 @@ import { assertDemoAnchorIsFresh } from "./tests/e2e/helpers/demo-anchor-freshne
 // validated URL and never falls back to a developer database.
 const testDatabaseUrl = resolvePlaywrightTestDatabaseUrl(process.env);
 process.env.DATABASE_URL = testDatabaseUrl;
-// Deterministic demo anchor: chart/evidence specs are certified against the
-// current seed anchor (see report-keyboard-evidence.spec.ts), and every seed run —
-// the webServer boot and each spec's beforeEach — inherits this process env.
-// Re-anchored 2026-09-03: the runtime dashboard/reports clock is real `now`, so
-// the anchor must stay within the rolling windows or demo-data-current fails stale.
-const demoSeedAnchor = "2026-09-03T09:00:00.000Z";
+// Deterministic-within-the-day demo anchor: chart/evidence specs inherit this
+// process env for the webServer boot and each spec. The runtime dashboard and
+// reports clocks are real `now`, so a hardcoded date falls out of the rolling
+// seven-day window (~a week later) and demo-data-current shows zeros without a
+// typecheck failure. Moscow noon (09:00Z) auto-shifts with the wall clock.
+const demoSeedAnchor = freshDemoSeedAnchor(new Date()).toISOString();
 process.env.DEMO_SEED_NOW = demoSeedAnchor;
 // Fail-fast on anchor rot: the seed clock is pinned for byte-stable screenshots
 // while the app renders rolling windows from the real clock, so a stale anchor

@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { freshDemoSeedAnchor } from "../../prisma/demo-calendar";
 import {
   assertDemoAnchorIsFresh,
   checkDemoAnchorFreshness
@@ -66,5 +69,33 @@ describe("demo seed anchor freshness", () => {
 
   it("stays silent when the anchor is fresh", () => {
     expect(() => assertDemoAnchorIsFresh(at("2026-08-14"), at("2026-08-14"))).not.toThrow();
+  });
+
+  it("stays fresh for today's wall clock", () => {
+    const now = new Date();
+    const anchor = freshDemoSeedAnchor(now);
+
+    expect(checkDemoAnchorFreshness(anchor, now)).toEqual({ fresh: true });
+    expect(() => assertDemoAnchorIsFresh(anchor, now)).not.toThrow();
+  });
+
+  it.each([
+    "2026-09-10T09:00:00.000Z",
+    "2026-09-21T12:00:00.000Z",
+    "2026-09-22T08:00:00.000Z",
+    "2026-12-31T23:00:00.000Z",
+    "2027-01-15T03:00:00.000Z"
+  ])("auto-shifts with the wall clock at %s", (iso) => {
+    const now = new Date(iso);
+    expect(checkDemoAnchorFreshness(freshDemoSeedAnchor(now), now)).toEqual({
+      fresh: true
+    });
+  });
+
+  it("does not pin a hardcoded DEMO_SEED_NOW date in playwright.config", () => {
+    const source = readFileSync(path.join(process.cwd(), "playwright.config.ts"), "utf8");
+
+    expect(source).toContain("freshDemoSeedAnchor");
+    expect(source).not.toMatch(/demoSeedAnchor = "\d{4}-\d{2}-\d{2}T/);
   });
 });
