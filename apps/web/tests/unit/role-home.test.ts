@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   analystMineOverdueHref,
   canAccessDashboard,
+  canSeeOpsQueuePulse,
+  canSeeReviewsQueueNav,
   dashboardSkeletonVariantForRole,
   DASHBOARD_ROLES,
   isGenericPostLoginPath,
@@ -53,6 +55,24 @@ describe("role-home", () => {
     expect(dashboardSkeletonVariantForRole("EXEC")).toBe("exec");
     expect(dashboardSkeletonVariantForRole("TEAM_LEAD")).toBe("dashboard");
     expect(dashboardSkeletonVariantForRole("ADMIN")).toBe("dashboard");
+  });
+
+  it("restricts Проверки nav to writer/dashboard roles, not reviews:read", () => {
+    expect(canSeeReviewsQueueNav("ADMIN")).toBe(true);
+    expect(canSeeReviewsQueueNav("TEAM_LEAD")).toBe(true);
+    expect(canSeeReviewsQueueNav("QA_ANALYST")).toBe(true);
+    expect(canSeeReviewsQueueNav("EXEC")).toBe(true);
+    expect(canSeeReviewsQueueNav("SUPPORT_AGENT")).toBe(false);
+    expect(canSeeReviewsQueueNav("VIEWER")).toBe(false);
+  });
+
+  it("hides ops pulse Очередь/Риск from agent and exec despite reviews:read", () => {
+    expect(canSeeOpsQueuePulse("ADMIN")).toBe(true);
+    expect(canSeeOpsQueuePulse("TEAM_LEAD")).toBe(true);
+    expect(canSeeOpsQueuePulse("QA_ANALYST")).toBe(true);
+    expect(canSeeOpsQueuePulse("SUPPORT_AGENT")).toBe(false);
+    expect(canSeeOpsQueuePulse("EXEC")).toBe(false);
+    expect(canSeeOpsQueuePulse("VIEWER")).toBe(false);
   });
 
   it("treats bare product roots as generic and keeps filtered deep links", () => {

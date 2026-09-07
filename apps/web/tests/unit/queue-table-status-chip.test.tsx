@@ -38,7 +38,7 @@ describe("QueueTable status chip", () => {
   it("renders the shared review-state chip, not a second qaStatus wording", () => {
     const row = conversation({ qaStatus: "ASSIGNED" });
 
-    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" />);
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
 
     const chip = screen.getByText(reviewStateLabels.assigned, { selector: ".chip" });
     expect(chip).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("QueueTable status chip", () => {
       }
     });
 
-    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" />);
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
 
     const chip = screen.getByText(pendingReopenLabel, { selector: ".chip" });
     expect(chip.textContent).toBe(resolveQueueStatusChip(row).label);
@@ -83,6 +83,7 @@ describe("QueueTable status chip", () => {
         qaAssignees={[]}
         returnTo="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue&channel=CHAT"
         resetHref="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+        canWriteReviews
       />
     );
 

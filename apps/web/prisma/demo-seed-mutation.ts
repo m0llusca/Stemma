@@ -316,6 +316,16 @@ export async function mutateDemoSeed(
     }
   });
 
+  const pendingViewer = await prisma.user.create({
+    data: {
+      id: "demo-user-viewer",
+      workspaceId: workspace.id,
+      email: "viewer@example.com",
+      name: "Гость",
+      role: "VIEWER"
+    }
+  });
+
   const supportOlga = await prisma.user.create({
     data: {
       id: "demo-operator-02",
@@ -432,6 +442,13 @@ export async function mutateDemoSeed(
         providerSubject: "demo-exec",
         email: execViewer.email,
         displayName: execViewer.name
+      },
+      {
+        userId: pendingViewer.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-viewer",
+        email: pendingViewer.email,
+        displayName: pendingViewer.name
       },
       {
         userId: supportOlga.id,

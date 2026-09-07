@@ -1,4 +1,5 @@
 import type { RoleName } from "@prisma/client";
+import { hasPermission } from "@/lib/auth/permissions";
 
 /**
  * Paths treated as "no explicit destination" after login / demo switch.
@@ -15,6 +16,8 @@ const GENERIC_LANDING_PATHNAMES = new Set([
 /**
  * Analyst inbox default: assigned to me AND overdue SLA.
  * Matches existing queue filter model (`qaAssignee` + `due=overdue`).
+ * This is «Сегодня» / role home. `/dashboard` stays in DASHBOARD_ROLES (URL
+ * residual) but is not a competing ⌘K «Пульс дня» entry — see navigation.ts.
  */
 export function analystMineOverdueHref(qaAssigneeName: string) {
   return `/reviews?qaAssignee=${encodeURIComponent(qaAssigneeName)}&due=overdue`;
@@ -56,6 +59,24 @@ export type DashboardSkeletonVariant = "dashboard" | "exec";
 /** Ops pulse is 4-KPI; EXEC live home is ExecRiskHome (3-KPI, no dual panels). */
 export function dashboardSkeletonVariantForRole(role: RoleName): DashboardSkeletonVariant {
   return role === "EXEC" ? "exec" : "dashboard";
+}
+
+/**
+ * Top-nav «Проверки». Writers and dashboard roles (ADMIN / TEAM_LEAD / QA_ANALYST / EXEC).
+ * SUPPORT_AGENT holds `reviews:read` for scoped deep links, but chrome must not
+ * sell the ops queue — their JTBD is self-review and coaching.
+ */
+export function canSeeReviewsQueueNav(role: RoleName) {
+  return canAccessDashboard(role);
+}
+
+/**
+ * Topbar pulse «Очередь» / «Риск». Review writers only.
+ * EXEC has `reviews:read` for SLA drill from ExecRiskHome, but docs say
+ * без ops-хрома — a permission gate alone would still sell the queue.
+ */
+export function canSeeOpsQueuePulse(role: RoleName) {
+  return hasPermission(role, "reviews:write");
 }
 
 /**

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const dashboardPage = readFileSync(join(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+const reviewsPage = readFileSync(join(process.cwd(), "src/app/reviews/page.tsx"), "utf8");
 const calibrationPage = readFileSync(join(process.cwd(), "src/app/calibration/page.tsx"), "utf8");
 const selfReviewPage = readFileSync(join(process.cwd(), "src/app/self-review/page.tsx"), "utf8");
 const coachingPage = readFileSync(join(process.cwd(), "src/app/coaching/page.tsx"), "utf8");
@@ -20,7 +21,9 @@ describe("dashboard page copy", () => {
 
   it("structures the triage headline as «label: value» with the item hint as description", () => {
     expect(dashboardPage).toContain("`${primaryFocus.label}: ${primaryFocus.value}`");
+    expect(dashboardPage).toContain("buildOpsEmptyTriage");
     expect(dashboardPage).not.toContain("primaryFocus.hint.toLocaleLowerCase");
+    expect(dashboardPage).not.toContain("Критичных отклонений нет");
   });
 
   it("renders the triage icon from the focus item instead of a hardcoded alert", () => {
@@ -68,12 +71,28 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).not.toContain('user.role !== "SUPPORT_AGENT"');
   });
 
+  it("does not use the unreviewed impostor as empty-triage primary", () => {
+    expect(dashboardPage).toContain("emptyTriagePrimary");
+    expect(dashboardPage).toContain("takeNextReview");
+    expect(dashboardPage).not.toContain('?? "/reviews?status=unreviewed"');
+    expect(dashboardPage).not.toContain('focusItems.length ? "Разобрать" : "Открыть очередь"');
+  });
+
   it("surfaces reviewer assignment workload for lead/admin", () => {
     expect(dashboardPage).toContain("loadReviewerWorkload");
     expect(dashboardPage).toContain("reviewerWorkloadHref");
     expect(dashboardPage).toContain("Нагрузка проверяющих");
     expect(dashboardPage).toContain('reviewerWorkloadHref(row.name, "QUEUED")');
     expect(dashboardPage).toContain('reviewerWorkloadHref(row.name, "IN_PROGRESS")');
+  });
+});
+
+describe("reviews page take-next copy", () => {
+  it("uses the shared Take-next verb and wires preview through queueHref, not a peek link", () => {
+    expect(reviewsPage).toContain("TAKE_NEXT_LABEL");
+    expect(reviewsPage).toContain("queueHref={data.currentHref}");
+    expect(reviewsPage).not.toContain("openHref=");
+    expect(reviewsPage).not.toContain("Открыть приоритетный кейс");
   });
 });
 
@@ -114,16 +133,19 @@ describe("calibration page copy", () => {
 });
 
 describe("self-review page copy", () => {
+  const selfReviewHonesty = readFileSync(join(process.cwd(), "src/lib/self-review/empty-honesty.ts"), "utf8");
+
   it("pluralizes the pending-response triage title for 1 / 2-4 / 5+", () => {
-    expect(selfReviewPage).toContain(
-      '`${russianPlural(pendingResponseCount, ["проверка ждёт", "проверки ждут", "проверок ждут"])} вашего ответа`'
+    expect(selfReviewHonesty).toContain(
+      '`${russianPlural(input.pendingInboxCount, ["проверка ждёт", "проверки ждут", "проверок ждут"])} вашего ответа`'
     );
-    expect(selfReviewPage).not.toContain('"проверка ждёт" : "проверок ждут"');
+    expect(selfReviewHonesty).not.toContain('"проверка ждёт" : "проверок ждут"');
+    expect(selfReviewPage).toContain("buildSelfReviewTriage");
   });
 
   it("pluralizes remaining learning tasks and the review count", () => {
-    expect(selfReviewPage).toContain(
-      '`Осталось закрыть ${russianPlural(assignments.length, ["учебную задачу", "учебные задачи", "учебных задач"])} после разбора.`'
+    expect(selfReviewHonesty).toContain(
+      '`Осталось закрыть ${russianPlural(openTrainingCount, ["учебную задачу", "учебные задачи", "учебных задач"])} после разбора.`'
     );
     expect(selfReviewPage).toContain("`${formatReviewCount(myReviewScores.length)} за период");
     expect(selfReviewPage).not.toContain("${assignments.length} учебных задач");
@@ -144,9 +166,11 @@ describe("self-review page copy", () => {
 
 describe("coaching page copy", () => {
   it("keeps the overdue KPI as a hint without a fake trend delta", () => {
+    const coachingHonesty = readFileSync(join(process.cwd(), "src/lib/coaching/empty-honesty.ts"), "utf8");
     expect(coachingPage).not.toContain('{ value: "в начале очереди", tone: "down" }');
     expect(coachingPage).not.toContain('{ value: "нет", tone: "neutral" }');
-    expect(coachingPage).toContain('"Поднимаются в начало очереди"');
+    expect(coachingPage).toContain("coachingOverdueKpiHint");
+    expect(coachingHonesty).toContain('"Поднимаются в начало очереди"');
   });
 
   it("uses a navigation landmark with aria-current instead of tab roles for view switching", () => {
