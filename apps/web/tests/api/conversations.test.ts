@@ -169,14 +169,15 @@ describe("custom conversation API", () => {
         workspaceId: "workspace-1",
         channel: "CHAT",
         tags: "refund,delivery",
-        samplingType: "DSAT",
+        // No matching SamplingRule → fail-closed OUT_OF_SAMPLE (ignore inbound DSAT)
+        samplingType: "OUT_OF_SAMPLE",
         csatBucket: "NEGATIVE",
         supportLine: "L1"
       }),
       update: expect.objectContaining({
         channel: "CHAT",
         tags: "refund,delivery",
-        samplingType: "DSAT",
+        samplingType: "OUT_OF_SAMPLE",
         csatBucket: "NEGATIVE",
         supportLine: "L1"
       })
@@ -277,7 +278,7 @@ describe("custom conversation API", () => {
         workspaceId: "workspace-1",
         channel: "EMAIL",
         customerName: "ava@example.com",
-        samplingType: "DSAT",
+        samplingType: "OUT_OF_SAMPLE",
         csatScore: 1,
         csatBucket: "NEGATIVE",
         supportLine: "2ЛП"
@@ -285,7 +286,7 @@ describe("custom conversation API", () => {
       update: expect.objectContaining({
         channel: "EMAIL",
         customerName: "ava@example.com",
-        samplingType: "DSAT",
+        samplingType: "OUT_OF_SAMPLE",
         csatScore: 1,
         csatBucket: "NEGATIVE",
         supportLine: "2ЛП"
@@ -384,7 +385,7 @@ describe("custom conversation API", () => {
         channel: "EMAIL",
         customerName: "Ava Customer",
         assigneeName: "Sam Agent",
-        samplingType: "RANDOM",
+        samplingType: "OUT_OF_SAMPLE",
         csatBucket: "NO_SCORE",
         supportLine: "1ЛП",
         teamName: "Refunds"
@@ -393,7 +394,7 @@ describe("custom conversation API", () => {
         channel: "EMAIL",
         customerName: "Ava Customer",
         assigneeName: "Sam Agent",
-        samplingType: "RANDOM",
+        samplingType: "OUT_OF_SAMPLE",
         csatBucket: "NO_SCORE",
         supportLine: "1ЛП",
         teamName: "Refunds"
