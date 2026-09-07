@@ -29,7 +29,7 @@ describe("queueHrefFromLocation", () => {
 });
 
 describe("takeNextFormDataFromLocation", () => {
-  it("submits the same queueHref field as the workbench button", () => {
+  it("submits the same queueHref field as the queue button, ⌘K, and pulse", () => {
     const formData = takeNextFormDataFromLocation("/reviews", "?due=overdue");
     expect(formData.get("queueHref")).toBe("/reviews?due=overdue");
   });

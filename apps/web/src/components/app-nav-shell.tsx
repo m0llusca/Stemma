@@ -198,19 +198,23 @@ export function AppNavShell({
     }
   }, [commandOpen]);
 
+  const runTakeNext = useCallback(() => {
+    const { pathname, search } = window.location;
+    void takeNextReview(takeNextFormDataFromLocation(pathname, search));
+  }, []);
+
   const runCommand = useCallback(
     (command: ShellCommandItem) => {
       setCommandOpen(false);
       if (command.actionId === "take-next") {
-        const { pathname, search } = window.location;
-        void takeNextReview(takeNextFormDataFromLocation(pathname, search));
+        runTakeNext();
         return;
       }
       if (command.href) {
         router.push(command.href);
       }
     },
-    [router]
+    [router, runTakeNext]
   );
 
   return (
@@ -397,13 +401,8 @@ export function AppNavShell({
                 ))}
                 {canTakeNextCase ? (
                   <DropdownMenuItem
-                    render={
-                      <Link
-                        href="/reviews?status=unreviewed"
-                        aria-label="Взять следующий кейс"
-                      />
-                    }
-                    nativeButton={false}
+                    aria-label="Взять следующий кейс"
+                    onClick={runTakeNext}
                   >
                     <ArrowRight />
                     <span>Взять следующий кейс</span>
@@ -431,18 +430,16 @@ export function AppNavShell({
             ))}
           </div>
           {canTakeNextCase ? (
-            <Link
-              href="/reviews?status=unreviewed"
-              data-slot="button"
+            <Button
+              type="button"
+              size="sm"
               aria-label="Взять следующий кейс"
-              className={cn(
-                buttonVariants({ size: "sm" }),
-                "hidden shrink-0 sm:inline-flex"
-              )}
+              className="hidden shrink-0 sm:inline-flex"
+              onClick={runTakeNext}
             >
               <span className="hidden xl:inline">Взять кейс</span>
               <ArrowRight data-icon="inline-end" />
-            </Link>
+            </Button>
           ) : null}
         </div>
 
