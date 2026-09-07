@@ -32,10 +32,10 @@ async function expectReaderSavedViews(page: Page) {
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
   await openQuickViews(page);
 
-  const overdue = page.getByRole("link", { name: "Просрочено" });
+  const overdue = page.getByRole("link", { name: "Просрочено", exact: true });
   await expect(overdue).toBeVisible();
   await overdue.click();
-  await expect(page).toHaveURL(/\/reviews\?due=overdue/);
+  await expect(page).toHaveURL(/\/reviews\?due=overdue$/);
 
   await openQuickViews(page);
   await page.getByRole("button", { name: /Ещё/ }).click();
@@ -58,12 +58,12 @@ test("QA_ANALYST can apply views and sees create chrome", async ({ browser }) =>
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
   await openQuickViews(page);
 
-  await expect(page.getByRole("link", { name: "Просрочено" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Просрочено", exact: true })).toBeVisible();
   await expect(page.getByLabel("Сохранить текущий вид")).toBeVisible();
   await expect(page.getByRole("button", { name: "Сохранить" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Просрочено" }).click();
-  await expect(page).toHaveURL(/due=overdue/);
+  await page.getByRole("link", { name: "Просрочено", exact: true }).click();
+  await expect(page).toHaveURL(/\/reviews\?due=overdue$/);
 
   await context.close();
 });
