@@ -27,7 +27,6 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
         type="button"
         size="xs"
         variant="outline"
-        className="coaching-pin-add"
         onClick={() => setOpen(true)}
       >
         + Заметка к сообщению
@@ -38,7 +37,7 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
   return (
     <form
       ref={formRef}
-      className="coaching-pin-composer flex flex-col gap-2"
+      className="flex flex-col gap-2"
       action={async (formData) => {
         await createCoachingPin(formData);
         formRef.current?.reset();
@@ -54,7 +53,7 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
         <Textarea
           id={`coaching-pin-body-${messageId}`}
           name="body"
-          className="coaching-pin-composer__input min-h-16 text-sm"
+          className="min-h-16 text-sm"
           rows={2}
           maxLength={2000}
           required
@@ -62,7 +61,7 @@ export function CoachingPinComposer({ conversationId, messageId }: { conversatio
           placeholder="Что обсудить по этому сообщению на калибровке?"
         />
       </Field>
-      <div className="coaching-pin-composer__actions flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SubmitButton />
         <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
           Отмена

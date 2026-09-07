@@ -116,7 +116,9 @@ for (const scenario of detailCases) {
     const detail = masterDetail.locator(".master-detail__detail");
     const dialogPane = list.locator('[data-slot="review-dialog-pane"]');
     const scorePane = detail.locator('[data-slot="review-score-pane"]');
-    const timeline = dialogPane.locator(".review-conversation-panel");
+    const timeline = dialogPane.locator('[data-slot="card"]').filter({
+      has: dialogPane.getByRole("heading", { name: "Таймлайн диалога" })
+    });
     const toggle = page.getByRole("group", { name: "Переключение панели" });
     const dialogButton = toggle.getByRole("button", { name: "Диалог" });
     const scoreButton = toggle.getByRole("button", { name: "Оценка" });

@@ -74,14 +74,14 @@ export function ConversationTimeline({
   }
 
   return (
-    <Card className="review-conversation-panel overflow-clip py-0">
-      <CardHeader className="review-conversation-panel__header flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border bg-muted/30 px-4 py-3">
+    <Card className="overflow-clip py-0">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border bg-muted/30 px-4 py-3">
         <CardTitle className="text-base">Таймлайн диалога</CardTitle>
         <Badge variant="secondary" className="font-normal tabular-nums">
           {formatMessageCount(messages.length)}
         </Badge>
       </CardHeader>
-      <CardContent className="review-conversation-panel__body space-y-0 px-5 py-2">
+      <CardContent className="space-y-0 px-5 py-2">
         {messages.map((message, index) => {
           const isHighlighted = highlightedMessages.has(message.id);
           const messagePins = pinsByMessage.get(message.id) ?? [];
@@ -96,18 +96,16 @@ export function ConversationTimeline({
                 data-slot="conversation-message"
                 data-party={message.participantType}
                 className={cn(
-                  "group/message conversation-message grid min-w-0 scroll-mt-20 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3 py-4",
-                  "[&.conversation-message--evidence-flash]:rounded-lg [&.conversation-message--evidence-flash]:bg-primary/10 [&.conversation-message--evidence-flash]:ring-2 [&.conversation-message--evidence-flash]:ring-primary/40",
-                  "motion-safe:[&.conversation-message--evidence-flash]:animate-pulse motion-reduce:[&.conversation-message--evidence-flash]:animate-none motion-reduce:[&.conversation-message--evidence-flash]:bg-primary/15",
-                  isAgent && "conversation-message--agent",
-                  isHighlighted &&
-                    "conversation-message--selected -mx-3 rounded-lg bg-primary/5 px-3 ring-1 ring-primary/20"
+                  "group/message grid min-w-0 scroll-mt-20 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3 py-4",
+                  "data-[evidence-flash]:rounded-lg data-[evidence-flash]:bg-primary/10 data-[evidence-flash]:ring-2 data-[evidence-flash]:ring-primary/40",
+                  "motion-safe:data-[evidence-flash]:animate-pulse motion-reduce:data-[evidence-flash]:animate-none motion-reduce:data-[evidence-flash]:bg-primary/15",
+                  isHighlighted && "-mx-3 rounded-lg bg-primary/5 px-3 ring-1 ring-primary/20"
                 )}
               >
                 <span
                   data-slot="conversation-message-avatar"
                   className={cn(
-                    "conversation-message__avatar inline-flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                    "inline-flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
                     "group-data-[party=CUSTOMER]/message:border-border group-data-[party=CUSTOMER]/message:bg-muted group-data-[party=CUSTOMER]/message:text-muted-foreground",
                     "group-data-[party=HUMAN_AGENT]/message:border-primary/30 group-data-[party=HUMAN_AGENT]/message:bg-primary/10 group-data-[party=HUMAN_AGENT]/message:text-primary",
                     "group-data-[party=AI_AGENT]/message:border-(--ai-border) group-data-[party=AI_AGENT]/message:bg-(--ai-soft) group-data-[party=AI_AGENT]/message:text-(--ai-ink)",
@@ -119,13 +117,16 @@ export function ConversationTimeline({
                 </span>
                 <div
                   data-slot="conversation-message-content"
-                  className="conversation-message__content min-w-0 space-y-2"
+                  className="min-w-0 space-y-2"
                 >
-                  <div className="conversation-message__header flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="conversation-message__author min-w-0 break-words font-semibold">
+                  <div
+                    data-slot="conversation-message-header"
+                    className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+                  >
+                    <span className="min-w-0 break-words font-semibold">
                       {message.authorName}
                     </span>
-                    <span className="conversation-message__role rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
                       {participantLabels[message.participantType]}
                     </span>
                     {isAiAuthored ? <Chip tone="ai">ИИ</Chip> : null}
@@ -140,9 +141,9 @@ export function ConversationTimeline({
                       </Badge>
                     ) : null}
                     {message.isPrivate ? <Badge variant="outline">Приватно</Badge> : null}
-                    <div className="message-toolbar ml-auto flex flex-wrap items-center gap-2">
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
                       <time
-                        className="conversation-message__time whitespace-nowrap font-mono text-xs text-muted-foreground tabular-nums"
+                        className="whitespace-nowrap font-mono text-xs text-muted-foreground tabular-nums"
                         dateTime={message.sentAt.toISOString()}
                       >
                         {formatTimestamp(message.sentAt)}
@@ -152,26 +153,27 @@ export function ConversationTimeline({
                   </div>
 
                   <div
+                    data-slot="conversation-message-surface"
+                    data-variant={isAgent ? "bubble" : "plain"}
                     className={cn(
                       "min-w-0 space-y-2",
                       isAgent &&
-                        "conversation-message__bubble max-w-prose rounded-lg border p-3 group-data-[party=HUMAN_AGENT]/message:border-border group-data-[party=HUMAN_AGENT]/message:bg-card group-data-[party=AI_AGENT]/message:border-(--ai-border) group-data-[party=AI_AGENT]/message:bg-(--ai-soft)",
-                      !isAgent && "conversation-message__plain"
+                        "max-w-prose rounded-lg border p-3 group-data-[party=HUMAN_AGENT]/message:border-border group-data-[party=HUMAN_AGENT]/message:bg-card group-data-[party=AI_AGENT]/message:border-(--ai-border) group-data-[party=AI_AGENT]/message:bg-(--ai-soft)"
                     )}
                   >
                     {isAiAuthored ? (
-                      <p className="conversation-message__ai-rationale flex min-w-0 flex-wrap items-baseline gap-1.5 break-words text-xs text-muted-foreground">
+                      <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 break-words text-xs text-muted-foreground">
                         <Chip tone="ai">ИИ</Chip>
                         Ответ подготовлен с подсказкой ИИ — проверьте формулировку перед зачётом.
                       </p>
                     ) : null}
-                    <p className="conversation-message__body max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                    <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
                       {message.body}
                     </p>
                   </div>
 
                   {messagePins.length > 0 ? (
-                    <ul className="coaching-pins mt-2 flex flex-col gap-2">
+                    <ul className="mt-2 flex flex-col gap-2">
                       {messagePins.map((pin) => {
                         const isResolved = pin.resolvedAt !== null;
                         const canMutate = canManagePins || pin.author.id === currentUserId;
@@ -180,29 +182,29 @@ export function ConversationTimeline({
                           <li
                             key={pin.id}
                             className={cn(
-                              "coaching-pin rounded-lg border border-border bg-muted/40 p-3",
-                              isResolved && "coaching-pin--resolved opacity-80"
+                              "rounded-lg border border-border bg-muted/40 p-3",
+                              isResolved && "opacity-80"
                             )}
                           >
-                            <div className="coaching-pin__head flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              <span className="coaching-pin__author min-w-0 break-words font-medium text-foreground">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="min-w-0 break-words font-medium text-foreground">
                                 {pin.author.name}
                               </span>
-                              <span className="coaching-pin__role">{roleLabels[pin.author.role]}</span>
-                              <time className="coaching-pin__time" dateTime={pin.createdAt.toISOString()}>
+                              <span>{roleLabels[pin.author.role]}</span>
+                              <time dateTime={pin.createdAt.toISOString()}>
                                 {pin.createdAt.toLocaleDateString("ru-RU")}
                               </time>
                               {isResolved ? (
-                                <Badge variant="secondary" className="coaching-pin__status">
+                                <Badge variant="secondary">
                                   Закрыта
                                 </Badge>
                               ) : null}
                             </div>
-                            <p className="coaching-pin__body mt-1.5 whitespace-pre-wrap break-words text-sm text-foreground">
+                            <p className="mt-1.5 whitespace-pre-wrap break-words text-sm text-foreground">
                               {pin.body}
                             </p>
                             {canMutate ? (
-                              <div className="coaching-pin__actions mt-2 flex flex-wrap gap-2">
+                              <div className="mt-2 flex flex-wrap gap-2">
                                 <form action={toggleCoachingPinResolved}>
                                   <input type="hidden" name="pinId" value={pin.id} />
                                   <Button type="submit" size="xs" variant="outline">

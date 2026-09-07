@@ -4,8 +4,9 @@ import type { MouseEvent } from "react";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-/** How long the target message keeps the transient highlight class. */
+/** How long the target message keeps the transient highlight attribute. */
 const HIGHLIGHT_MS = 1200;
+const EVIDENCE_FLASH_ATTR = "data-evidence-flash";
 
 type EvidenceJumpLinkProps = {
   /** Transcript message id the evidence points at (matches `msg-${id}`). */
@@ -31,9 +32,7 @@ export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJu
       if (highlightTimerRef.current !== null) {
         window.clearTimeout(highlightTimerRef.current);
       }
-      highlightedTargetRef.current?.classList.remove(
-        "conversation-message--evidence-flash"
-      );
+      highlightedTargetRef.current?.removeAttribute(EVIDENCE_FLASH_ATTR);
     };
   }, []);
 
@@ -60,17 +59,15 @@ export function EvidenceJumpLink({ messageId, timeLabel, className }: EvidenceJu
       window.clearTimeout(highlightTimerRef.current);
     }
     if (highlightedTargetRef.current !== target) {
-      highlightedTargetRef.current?.classList.remove(
-        "conversation-message--evidence-flash"
-      );
+      highlightedTargetRef.current?.removeAttribute(EVIDENCE_FLASH_ATTR);
     }
 
-    // Static class feedback remains visible when animation is reduced.
-    target.classList.remove("conversation-message--evidence-flash");
-    target.classList.add("conversation-message--evidence-flash");
+    // Attribute-driven feedback remains visible when animation is reduced.
+    target.removeAttribute(EVIDENCE_FLASH_ATTR);
+    target.setAttribute(EVIDENCE_FLASH_ATTR, "");
     highlightedTargetRef.current = target;
     highlightTimerRef.current = window.setTimeout(() => {
-      target.classList.remove("conversation-message--evidence-flash");
+      target.removeAttribute(EVIDENCE_FLASH_ATTR);
       highlightTimerRef.current = null;
       highlightedTargetRef.current = null;
     }, HIGHLIGHT_MS);

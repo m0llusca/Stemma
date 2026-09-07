@@ -30,6 +30,22 @@ const queueSurfaceFiles = [
   "src/components/review/queue-command-bar-state.tsx"
 ] as const;
 
+const reviewDetailCoachingSurfaceFiles = [
+  "src/components/review/conversation-timeline.tsx",
+  "src/components/review/coaching-pin-composer.tsx",
+  "src/components/review/review-panel.tsx",
+  "src/components/review/evidence-jump-link.tsx",
+  "src/app/reviews/[conversationId]/page.tsx",
+  "src/app/coaching/page.tsx",
+  "src/app/coaching/coaching-plan-theme-field.tsx",
+  "src/app/coaching/coaching-view-nav-link.tsx",
+  "src/app/coaching/toast-action-form.tsx",
+  "src/components/coaching/knowledge-category-fields.tsx"
+] as const;
+
+const reviewDetailBemPrefix =
+  /(?:conversation-message|coaching-pin(?:-composer)?|step-header|review-conversation-panel)(?:__|--)/;
+
 describe("shadcn UI composition primitives", () => {
   it("renders EmptyState with a title", () => {
     render(<EmptyState title="Нет данных" description="Попробуйте изменить фильтры" />);
@@ -175,6 +191,29 @@ describe("shadcn UI composition primitives", () => {
       expect(source, rel).not.toMatch(/queue-[a-z0-9-]*__/);
       expect(source, rel).not.toMatch(/className="queue-/);
       expect(source, rel).not.toMatch(/className=\{cn\([^)]*["'`]queue-/);
+    }
+  });
+
+  it("keeps review-detail and coaching surfaces free of leftover BEM class names", () => {
+    for (const rel of reviewDetailCoachingSurfaceFiles) {
+      const source = readFileSync(join(process.cwd(), rel), "utf8");
+      expect(source, rel).not.toMatch(reviewDetailBemPrefix);
+      expect(source, rel).not.toMatch(
+        /className="(?:conversation-message|coaching-pin|step-header|review-conversation-panel)/
+      );
+      expect(source, rel).not.toMatch(
+        /className=\{cn\([^)]*["'`](?:conversation-message|coaching-pin|step-header|review-conversation-panel)/
+      );
+    }
+
+    for (const rel of [
+      "src/components/review/conversation-timeline.tsx",
+      "src/components/review/coaching-pin-composer.tsx",
+      "src/components/review/review-panel.tsx",
+      "src/components/review/evidence-jump-link.tsx"
+    ] as const) {
+      const source = readFileSync(join(process.cwd(), rel), "utf8");
+      expect(source, rel).not.toMatch(/[a-z0-9-]+__[a-z0-9-]+/);
     }
   });
 
