@@ -88,7 +88,10 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Проверки",
     description: "Единый список диалогов для проверки и triage.",
     icon: "review",
-    permission: "reviews:read"
+    // SUPPORT_AGENT holds reviews:read for scoped deep links, but top-nav
+    // «Проверки» sells the ops queue. Restrict to writer/dashboard roles.
+    permission: "reviews:read",
+    roles: [...DASHBOARD_ROLES]
   },
   {
     id: "calibration",
