@@ -1,3 +1,4 @@
+import { redactJobPayload } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
@@ -47,7 +48,7 @@ export async function GET(request: Request, context: { params: Promise<{ jobId: 
       priority: job.priority,
       attempts: job.attempts,
       maxAttempts: job.maxAttempts,
-      payload: parseJson(job.payloadJson),
+      payload: redactJobPayload(job.payloadJson),
       result: parseJson(job.resultJson),
       errorMessage: job.errorMessage,
       runAfter: job.runAfter.toISOString(),

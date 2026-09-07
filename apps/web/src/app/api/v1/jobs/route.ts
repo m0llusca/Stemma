@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { auditLog } from "@/lib/audit";
+import { auditLog, redactJobPayload } from "@/lib/audit";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       maxAttempts: job.maxAttempts,
       runAfter: job.runAfter.toISOString(),
       errorMessage: job.errorMessage,
-      payload: JSON.parse(job.payloadJson),
+      payload: redactJobPayload(job.payloadJson),
       result: JSON.parse(job.resultJson),
       events: job.events.map((event) => ({
         level: event.level,

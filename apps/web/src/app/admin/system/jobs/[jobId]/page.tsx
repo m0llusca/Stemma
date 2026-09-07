@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminEyebrow } from "@/lib/admin-sections";
+import { redactJobPayload } from "@/lib/audit";
 import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
@@ -75,24 +76,31 @@ function parseJson(value: string) {
   }
 }
 
-/** Пустая строка, `null`, `{}` или `[]` — показывать нечего, вместо голого JSON выводим EmptyState. */
-function isEmptyJson(value: string) {
-  const trimmed = value.trim();
+function formatJsonValue(value: unknown) {
+  return JSON.stringify(value, null, 2);
+}
 
-  if (!trimmed) {
+/** Пустая строка, `null`, `{}` или `[]` — показывать нечего, вместо голого JSON выводим EmptyState. */
+function isEmptyJsonValue(value: unknown) {
+  if (value == null) {
     return true;
   }
 
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (parsed == null) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
       return true;
     }
 
-    return typeof parsed === "object" && Object.keys(parsed as object).length === 0;
-  } catch {
-    return false;
+    try {
+      return isEmptyJsonValue(JSON.parse(trimmed));
+    } catch {
+      return false;
+    }
   }
+
+  return typeof value === "object" && Object.keys(value as object).length === 0;
 }
 
 export default function JobDetailsPage({ params, searchParams }: JobDetailsPageProps) {
@@ -132,6 +140,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
   }
 
   const jobStatus = backendJobStatusView(job.status);
+  const redactedPayload = redactJobPayload(job.payloadJson);
 
   return (
     <PageShell
@@ -271,7 +280,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
                 <CardDescription>Техническое тело задачи для отладки обработчика.</CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
-                {isEmptyJson(job.payloadJson) ? (
+                {isEmptyJsonValue(redactedPayload) ? (
                   <EmptyState
                     size="inline"
                     icon={<Braces size={20} aria-hidden="true" />}
@@ -280,7 +289,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
                   />
                 ) : (
                   <pre className="max-h-[520px] overflow-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-xs leading-5 text-foreground">
-                    {parseJson(job.payloadJson)}
+                    {formatJsonValue(redactedPayload)}
                   </pre>
                 )}
               </CardContent>
@@ -294,7 +303,7 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
                 <CardDescription>Ответ обработчика после выполнения задачи.</CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
-                {isEmptyJson(job.resultJson) ? (
+                {isEmptyJsonValue(job.resultJson) ? (
                   <EmptyState
                     size="inline"
                     icon={<Braces size={20} aria-hidden="true" />}
