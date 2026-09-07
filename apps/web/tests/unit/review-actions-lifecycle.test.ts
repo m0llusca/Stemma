@@ -81,10 +81,6 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/review/queue-href-filters", () => ({
-  filtersFromReviewsHref: vi.fn(() => undefined)
-}));
-
 vi.mock("@/lib/queue-view-actions", () => ({
   selectNextReviewConversationId: mocks.selectNextReviewConversationId
 }));
@@ -365,6 +361,28 @@ describe("review action lifecycle guards", () => {
       undefined
     );
     expect(mocks.redirect).toHaveBeenCalledWith("/reviews/conversation-next?saved=final");
+  });
+
+  it("passes returnTo queue filters into take-next after finalize", async () => {
+    const { finalizeReviewAndTakeNext } = await import("@/lib/review-actions");
+    const { filtersFromReviewsHref } = await import("@/lib/review/queue-href-filters");
+    mocks.selectNextReviewConversationId.mockResolvedValue("conversation-next");
+
+    const formData = baseFinalizeForm();
+    formData.set("returnTo", "/reviews?due=overdue&process=ai_exception");
+
+    await finalizeReviewAndTakeNext(formData);
+
+    const filters = filtersFromReviewsHref("/reviews?due=overdue&process=ai_exception");
+    expect(filters).toEqual(expect.objectContaining({ due: "overdue", process: "ai_exception" }));
+    expect(mocks.selectNextReviewConversationId).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "workspace-1" }),
+      "conversation-1",
+      filters
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/reviews/conversation-next?saved=final&returnTo=%2Freviews%3Fdue%3Doverdue%26process%3Dai_exception"
+    );
   });
 
   it("refuses to finalize when every criterion is N/A (zero applicable weight)", async () => {
