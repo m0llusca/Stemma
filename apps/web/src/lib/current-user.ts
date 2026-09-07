@@ -212,7 +212,3 @@ export function canConsumeTraining(role: RoleName) {
 export function canAccessTraining(role: RoleName) {
   return canManageTraining(role) || canConsumeTraining(role);
 }
-
-export function canViewAdmin(role: RoleName) {
-  return role === "ADMIN" || role === "TEAM_LEAD";
-}

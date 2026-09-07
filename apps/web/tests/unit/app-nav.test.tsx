@@ -110,6 +110,7 @@ describe("app nav", () => {
     expect(within(areaNav).getByRole("link", { name: /Проверки/ }).getAttribute("href")).toBe(
       "/reviews"
     );
+    expect(within(areaNav).getByRole("link", { name: /Настройки/ }).getAttribute("href")).toBe("/admin");
   });
 
   it("keeps lead Сегодня and the brand mark on the dashboard pulse", async () => {

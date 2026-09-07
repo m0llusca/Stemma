@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleName } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import { canAccessAdminHub } from "@/lib/admin-access";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
@@ -51,9 +52,6 @@ export type AdminSubnavGroup = {
   label: string;
   items: AdminSubnavItem[];
 };
-
-/** Permission guarding the `/admin` overview link (its page requires `audit:read`). */
-export const adminOverviewPermission: Permission = "audit:read";
 
 /**
  * Группы сбалансированы по смыслу (3/3/3/4), а метка честно описывает
@@ -142,7 +140,7 @@ export function AdminSubnav({
 }) {
   const pathname = usePathname() ?? "/admin";
   const groups = filterAdminSubnavGroups(adminSubnavGroups, role);
-  const showOverview = hasPermission(role, adminOverviewPermission);
+  const showOverview = canAccessAdminHub(role);
   const overviewActive = pathname === "/admin";
 
   return (

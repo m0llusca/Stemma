@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  adminSubnavGroups,
-  adminOverviewPermission,
-  filterAdminSubnavGroups
-} from "@/components/admin/admin-subnav";
+import { adminSubnavGroups, filterAdminSubnavGroups } from "@/components/admin/admin-subnav";
+import { adminHubPermissions, canAccessAdminHub } from "@/lib/admin-access";
 import { adminSectionTitles } from "@/lib/admin-sections";
 
 const allItems = adminSubnavGroups.flatMap((group) => group.items);
@@ -64,8 +61,15 @@ describe("admin subnav configuration", () => {
     });
   });
 
-  it("guards the overview link with the audit:read permission", () => {
-    expect(adminOverviewPermission).toBe("audit:read");
+  it("keeps hub permissions in lockstep with every rail item permission", () => {
+    const railPermissions = [
+      ...new Set(
+        allItems
+          .map((item) => item.permission)
+          .filter((permission): permission is NonNullable<typeof permission> => permission !== undefined)
+      )
+    ].sort();
+    expect([...adminHubPermissions].sort()).toEqual(railPermissions);
   });
 });
 
@@ -117,6 +121,22 @@ describe("filterAdminSubnavGroups", () => {
     for (const group of filtered) {
       expect(group.items.length).toBeGreaterThan(0);
     }
+  });
+
+  it("shows a QA analyst only report-schedules and keeps the overview home", () => {
+    const filtered = filterAdminSubnavGroups(adminSubnavGroups, "QA_ANALYST");
+    const visibleHrefs = filtered.flatMap((group) => group.items.map((item) => item.href));
+
+    expect(canAccessAdminHub("QA_ANALYST")).toBe(true);
+    expect(visibleHrefs).toEqual(["/admin/report-schedules"]);
+    expect(filtered.map((group) => group.id)).toEqual(["data-flows"]);
+  });
+
+  it("hides the admin hub from roles without any admin-section permission", () => {
+    expect(canAccessAdminHub("SUPPORT_AGENT")).toBe(false);
+    expect(canAccessAdminHub("EXEC")).toBe(false);
+    expect(canAccessAdminHub("VIEWER")).toBe(false);
+    expect(filterAdminSubnavGroups(adminSubnavGroups, "EXEC")).toEqual([]);
   });
 
   it("keeps an item with no declared permission visible to everyone", () => {

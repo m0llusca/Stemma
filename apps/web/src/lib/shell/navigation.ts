@@ -1,4 +1,5 @@
 import type { RoleName } from "@prisma/client";
+import { adminHubPermissions } from "@/lib/admin-access";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import { DASHBOARD_ROLES, roleHomePath } from "@/lib/auth/role-home";
@@ -121,8 +122,8 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Настройки",
     description: "Формы оценки, доступы, интеграции и система.",
     icon: "settings",
-    // /admin гейтится audit:read — из ролей с настройками это ADMIN и TEAM_LEAD.
-    roles: ["ADMIN", "TEAM_LEAD"]
+    // /admin — дом админ-IA для любой роли, у которой есть хотя бы один раздел.
+    permissionsAny: [...adminHubPermissions]
   }
 ];
 
@@ -349,9 +350,9 @@ const modeDefinitions: ModeDefinition[] = [
         label: adminSectionTitles["/admin/report-schedules"],
         description: "Регулярная рассылка отчётов: периодичность, получатели и форматы.",
         aliases: ["расписания", "report schedules", "отчеты по расписанию", "планировщик"],
-        // Страница гейтится reports:manage; точка входа в /admin индексе
-        // требует audit:read, а область «Настройки» ограничена ADMIN/TEAM_LEAD.
-        // Destination совпадает с page gate (ADMIN, TEAM_LEAD, QA_ANALYST).
+        // Страница и карточка обзора гейтятся reports:manage. Роли с этим
+        // правом (ADMIN, TEAM_LEAD, QA_ANALYST) входят в админ-IA через
+        // Settings / /admin, а не остаются с сиротским ⌘K-URL.
         permission: "reports:manage"
       },
       {
@@ -412,7 +413,7 @@ const modeDefinitions: ModeDefinition[] = [
         label: adminSectionTitles["/admin"],
         description: "Что настроено, что требует внимания, куда идти дальше.",
         aliases: ["настройки", "admin", "система", "сводка"],
-        roles: ["ADMIN", "TEAM_LEAD"]
+        permissionsAny: [...adminHubPermissions]
       },
       {
         href: "/admin/integrations",
