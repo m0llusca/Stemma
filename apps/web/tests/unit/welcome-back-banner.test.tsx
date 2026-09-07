@@ -39,11 +39,15 @@ describe("WelcomeBackBanner", () => {
     storage.set(LAST_VISIT_STORAGE_KEY, stale);
 
     render(
-      <WelcomeBackBanner resetHref={analystResetHref} foreignViewName="Критические за период" />
+      <WelcomeBackBanner
+        resetHref={analystResetHref}
+        trap={{ kind: "workspace", name: "Критические за период" }}
+      />
     );
 
     const region = await screen.findByRole("region", { name: "С возвращением" });
     expect(region).toBeInTheDocument();
+    expect(region).toHaveAttribute("data-trap-kind", "workspace");
     expect(region).toHaveTextContent("Критические за период");
 
     const reset = screen.getByRole("link", { name: "Сбросить к очереди дня" });
@@ -55,5 +59,25 @@ describe("WelcomeBackBanner", () => {
     expect(screen.queryByRole("region", { name: "С возвращением" })).not.toBeInTheDocument();
     expect(storage.get(LAST_VISIT_STORAGE_KEY)).toBeTruthy();
     expect(storage.get(LAST_VISIT_STORAGE_KEY)).not.toBe(stale);
+  });
+
+  it("names a private saved view and describes ad-hoc filters that are not role-home", async () => {
+    const stale = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
+    storage.set(LAST_VISIT_STORAGE_KEY, stale);
+
+    const { rerender } = render(
+      <WelcomeBackBanner resetHref={analystResetHref} trap={{ kind: "private", name: "Мой чат" }} />
+    );
+
+    const named = await screen.findByRole("region", { name: "С возвращением" });
+    expect(named).toHaveAttribute("data-trap-kind", "private");
+    expect(named).toHaveTextContent("сохранённый вид «Мой чат»");
+
+    rerender(<WelcomeBackBanner resetHref={analystResetHref} trap={{ kind: "adhoc" }} />);
+
+    const adhoc = await screen.findByRole("region", { name: "С возвращением" });
+    expect(adhoc).toHaveAttribute("data-trap-kind", "adhoc");
+    expect(adhoc).toHaveTextContent("текущие фильтры не совпадают с очередью дня");
+    expect(adhoc).not.toHaveTextContent("общий вид");
   });
 });

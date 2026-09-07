@@ -6,7 +6,13 @@ import { X } from "lucide-react";
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { LAST_VISIT_STORAGE_KEY, parseLastVisit, shouldShowWelcomeBack } from "@/lib/guidance/visit-memory";
+import {
+  LAST_VISIT_STORAGE_KEY,
+  parseLastVisit,
+  shouldShowWelcomeBack,
+  welcomeBackTrapCopy,
+  type QueueFilterTrap
+} from "@/lib/guidance/visit-memory";
 import { cn } from "@/lib/utils";
 
 export const WELCOME_BACK_RESET_LABEL = "Сбросить к очереди дня";
@@ -16,12 +22,12 @@ type WelcomeBackBannerProps = {
   /** When true, skip touching lastVisit on mount (tests). */
   deferTouch?: boolean;
   /**
-   * Role-home queue reset from `queueFilterResetHref` — Analyst mine+overdue,
-   * other queue roles `/reviews`. Never a hardcoded leftover saved view.
+   * Surface-specific role-home reset (`welcomeBackResetHref`). Reviews: Analyst
+   * mine+overdue / other queue roles `/reviews`. Dashboard: `roleHomePath`.
    */
   resetHref: string;
-  /** Shared workspace view currently open — copy names the trap. */
-  foreignViewName?: string;
+  /** Off-role-home filters — named saved view or honest ad-hoc copy. */
+  trap?: QueueFilterTrap;
 };
 
 function readLastVisit(): Date | null {
@@ -48,7 +54,7 @@ export function WelcomeBackBanner({
   className,
   deferTouch = false,
   resetHref,
-  foreignViewName
+  trap
 }: WelcomeBackBannerProps) {
   const [visible, setVisible] = useState(false);
 
@@ -78,6 +84,7 @@ export function WelcomeBackBanner({
       role="region"
       aria-label="С возвращением"
       data-slot="welcome-back-banner"
+      data-trap-kind={trap?.kind}
       className={cn("border-primary/30 bg-primary/5 text-foreground", className)}
     >
       <AlertAction>
@@ -86,11 +93,7 @@ export function WelcomeBackBanner({
         </Button>
       </AlertAction>
       <AlertTitle className="mb-0 text-sm">С возвращением</AlertTitle>
-      <AlertDescription>
-        {foreignViewName
-          ? `Давно не заходили — сейчас открыт общий вид «${foreignViewName}». Можно вернуться к очереди дня без ловушки чужих фильтров.`
-          : "Давно не заходили — сохранённые фильтры могли устареть. Можно сбросить очередь к виду роли без ловушки старых параметров."}
-      </AlertDescription>
+      <AlertDescription>{welcomeBackTrapCopy(trap)}</AlertDescription>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Link
           href={resetHref}

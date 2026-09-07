@@ -42,6 +42,20 @@ export function isDay1TourDismissed(value: string | null | undefined): boolean {
   return value === "1";
 }
 
+/** Client-only: true when localStorage lastVisit is past the absence threshold. */
+export function welcomeBackWouldShowFromStorage(now = new Date()): boolean {
+  try {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    const lastVisit = parseLastVisit(window.localStorage.getItem(LAST_VISIT_STORAGE_KEY));
+    return shouldShowWelcomeBack(now, lastVisit);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Compare queue hrefs without page/empty/saved noise so a shared view still
  * matches after Take-next empty flash or pagination.
@@ -78,15 +92,22 @@ export type WorkspaceQueueViewRef = {
   scope: string;
 };
 
+export type QueueFilterTrapKind = "workspace" | "private" | "adhoc";
+
+export type QueueFilterTrap = {
+  kind: QueueFilterTrapKind;
+  name?: string;
+};
+
 /**
- * True when the open queue URL is a workspace (shared) saved view that is not
- * the role-home reset target. First paint must not treat that as the inbox.
+ * Any open queue URL that is not the role-home reset — workspace, private, or
+ * ad-hoc filters. First paint must not treat that as the inbox.
  */
-export function findForeignWorkspaceQueueView(
+export function findQueueFilterTrap(
   currentHref: string,
   resetHref: string,
   savedViews: readonly WorkspaceQueueViewRef[]
-): WorkspaceQueueViewRef | undefined {
+): QueueFilterTrap | undefined {
   const current = canonicalizeQueueViewHref(currentHref);
   const reset = canonicalizeQueueViewHref(resetHref);
 
@@ -94,8 +115,36 @@ export function findForeignWorkspaceQueueView(
     return undefined;
   }
 
+  const match = savedViews.find((view) => canonicalizeQueueViewHref(view.href) === current);
+  if (!match) {
+    return { kind: "adhoc" };
+  }
+
+  return {
+    kind: match.scope === "workspace" ? "workspace" : "private",
+    name: match.name
+  };
+}
+
+/**
+ * True when the open queue URL is a workspace (shared) saved view that is not
+ * the role-home reset target.
+ */
+export function findForeignWorkspaceQueueView(
+  currentHref: string,
+  resetHref: string,
+  savedViews: readonly WorkspaceQueueViewRef[]
+): WorkspaceQueueViewRef | undefined {
+  const trap = findQueueFilterTrap(currentHref, resetHref, savedViews);
+  if (trap?.kind !== "workspace" || !trap.name) {
+    return undefined;
+  }
+
   return savedViews.find(
-    (view) => view.scope === "workspace" && canonicalizeQueueViewHref(view.href) === current
+    (view) =>
+      view.scope === "workspace" &&
+      view.name === trap.name &&
+      canonicalizeQueueViewHref(view.href) === canonicalizeQueueViewHref(currentHref)
   );
 }
 
@@ -104,5 +153,21 @@ export function isForeignWorkspaceQueueView(
   resetHref: string,
   savedViews: readonly WorkspaceQueueViewRef[]
 ): boolean {
-  return Boolean(findForeignWorkspaceQueueView(currentHref, resetHref, savedViews));
+  return findQueueFilterTrap(currentHref, resetHref, savedViews)?.kind === "workspace";
+}
+
+export function welcomeBackTrapCopy(trap?: QueueFilterTrap): string {
+  if (trap?.kind === "workspace" && trap.name) {
+    return `Давно не заходили — сейчас открыт общий вид «${trap.name}». Можно вернуться к очереди дня без ловушки чужих фильтров.`;
+  }
+
+  if (trap?.kind === "private" && trap.name) {
+    return `Давно не заходили — сейчас открыт сохранённый вид «${trap.name}». Можно вернуться к очереди дня без ловушки старых фильтров.`;
+  }
+
+  if (trap) {
+    return "Давно не заходили — текущие фильтры не совпадают с очередью дня. Можно сбросить к виду роли без ловушки старых параметров.";
+  }
+
+  return "Давно не заходили — сохранённые фильтры могли устареть. Можно сбросить очередь к виду роли без ловушки старых параметров.";
 }

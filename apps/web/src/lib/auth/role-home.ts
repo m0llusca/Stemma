@@ -116,6 +116,25 @@ export function queueFilterResetHref(role: RoleName, options?: { name?: string }
   return "/reviews";
 }
 
+export type WelcomeBackSurface = "reviews" | "dashboard";
+
+/**
+ * Welcome-back reset target. Reviews uses the queue inbox helper (Analyst
+ * mine+overdue, others `/reviews`). Dashboard uses role-home so Lead/Admin/Exec
+ * return to `/dashboard`, not the unfiltered queue.
+ */
+export function welcomeBackResetHref(
+  surface: WelcomeBackSurface,
+  role: RoleName,
+  options?: { name?: string }
+) {
+  if (surface === "dashboard") {
+    return roleHomePath(role, options);
+  }
+
+  return queueFilterResetHref(role, options);
+}
+
 export function resolvePostLoginPath(returnTo: string | null | undefined, user: { role: RoleName; name: string }) {
   // VIEWER has no product permissions — never honor deep-link returnTo into deny pages.
   if (user.role === "VIEWER") {

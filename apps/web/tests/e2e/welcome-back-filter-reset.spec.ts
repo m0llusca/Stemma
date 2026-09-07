@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { LAST_VISIT_STORAGE_KEY } from "@/lib/guidance/visit-memory";
-import { findSeededDemoAnalyst, signInE2EUser } from "./helpers/auth";
+import { findSeededDemoAnalyst, findSeededDemoLead, signInE2EUser } from "./helpers/auth";
 
 test.setTimeout(120_000);
 test.use({ actionTimeout: 15_000 });
@@ -20,13 +20,11 @@ function analystResetHref(name: string) {
 
 async function openQueue(page: Page, path = "/reviews") {
   await page.goto(path);
-  // DOM h1 — getByRole misses the title while the exact-filter Sheet is open
-  // (active filters set defaultOpen, which marks the page inert).
-  await expect(page.locator("h1")).toHaveText("Очередь проверок", { timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible({ timeout: 15_000 });
 }
 
-async function seedStaleLastVisit(page: Page) {
-  await page.evaluate((key) => {
+async function seedStaleLastVisitBeforeNavigation(page: Page) {
+  await page.addInitScript((key) => {
     window.localStorage.setItem(key, new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString());
   }, LAST_VISIT_STORAGE_KEY);
 }
@@ -67,27 +65,26 @@ test("day-1 glossary is a single SLA/OTRS hint, not a tour", async ({ page, cont
   await expect(page.getByRole("button", { name: /что такое otrs/i })).toBeVisible();
 });
 
-test("welcome-back reset leaves a shared workspace view for analyst role-home", async ({ page, context }) => {
+test("welcome-back reset is one click when active filters would open the sheet", async ({
+  page,
+  context
+}) => {
   const analyst = await findSeededDemoAnalyst();
   await signInE2EUser(context, analyst, "playwright-welcome-back-reset");
+  await seedStaleLastVisitBeforeNavigation(page);
 
   await openQueue(page, "/reviews?process=critical");
   await expect(page).toHaveURL(/process=critical/);
-
-  await seedStaleLastVisit(page);
-  await page.reload();
-  await expect(page.locator("h1")).toHaveText("Очередь проверок", { timeout: 15_000 });
+  await expect(page.locator('[data-slot="sheet-overlay"]')).toHaveCount(0);
 
   const banner = page.getByRole("region", { name: "С возвращением" });
   await expect(banner).toBeVisible();
+  await expect(banner).toHaveAttribute("data-trap-kind", "workspace");
   await expect(banner).toContainText("Критические за период");
   await expect(page.getByRole("region", { name: "Подсказки очереди" })).toHaveCount(0);
 
   const reset = banner.getByRole("link", { name: "Сбросить к очереди дня" });
   await expect(reset).toHaveAttribute("href", analystResetHref(analyst.name));
-  // Active filters open the exact-filter Sheet; dismiss it so the reset is clickable.
-  await page.keyboard.press("Escape");
-  await expect(page.locator('[data-slot="sheet-overlay"]')).toHaveCount(0);
   await reset.click();
 
   await expect(page).toHaveURL((url) => {
@@ -99,4 +96,51 @@ test("welcome-back reset leaves a shared workspace view for analyst role-home", 
     );
   });
   await expect(page.getByRole("region", { name: "С возвращением" })).toHaveCount(0);
+});
+
+test("welcome-back names ad-hoc filters that are not role-home", async ({ page, context }) => {
+  const analyst = await findSeededDemoAnalyst();
+  await signInE2EUser(context, analyst, "playwright-welcome-back-adhoc");
+  await seedStaleLastVisitBeforeNavigation(page);
+
+  await openQueue(page, "/reviews?channel=CHAT");
+  await expect(page).toHaveURL(/channel=CHAT/);
+  await expect(page.locator('[data-slot="sheet-overlay"]')).toHaveCount(0);
+
+  const banner = page.getByRole("region", { name: "С возвращением" });
+  await expect(banner).toBeVisible();
+  await expect(banner).toHaveAttribute("data-trap-kind", "adhoc");
+  await expect(banner).toContainText("текущие фильтры не совпадают с очередью дня");
+  await expect(banner).not.toContainText("общий вид");
+
+  const reset = banner.getByRole("link", { name: "Сбросить к очереди дня" });
+  await expect(reset).toHaveAttribute("href", analystResetHref(analyst.name));
+  await reset.click();
+
+  await expect(page).toHaveURL((url) => {
+    return (
+      url.pathname === "/reviews" &&
+      url.searchParams.get("qaAssignee") === analyst.name &&
+      url.searchParams.get("due") === "overdue" &&
+      !url.searchParams.has("channel")
+    );
+  });
+});
+
+test("lead dashboard welcome-back reset goes to role-home /dashboard", async ({ page, context }) => {
+  const lead = await findSeededDemoLead();
+  await signInE2EUser(context, lead, "playwright-welcome-back-lead-dashboard");
+  await seedStaleLastVisitBeforeNavigation(page);
+
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Сегодня" })).toBeVisible({ timeout: 15_000 });
+
+  const banner = page.getByRole("region", { name: "С возвращением" });
+  await expect(banner).toBeVisible();
+  const reset = banner.getByRole("link", { name: "Сбросить к очереди дня" });
+  await expect(reset).toHaveAttribute("href", "/dashboard");
+  await expect(reset).not.toHaveAttribute("href", "/reviews");
+  await reset.click();
+
+  await expect(page).toHaveURL((url) => url.pathname === "/dashboard" && url.search === "");
 });

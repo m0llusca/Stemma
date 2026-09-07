@@ -8,10 +8,8 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import {
   DAY1_TOUR_DISMISS_STORAGE_KEY,
-  LAST_VISIT_STORAGE_KEY,
   isDay1TourDismissed,
-  parseLastVisit,
-  shouldShowWelcomeBack
+  welcomeBackWouldShowFromStorage
 } from "@/lib/guidance/visit-memory";
 import { cn } from "@/lib/utils";
 
@@ -35,15 +33,6 @@ function writeDismissed() {
   }
 }
 
-function welcomeBackWouldShow(): boolean {
-  try {
-    const lastVisit = parseLastVisit(window.localStorage.getItem(LAST_VISIT_STORAGE_KEY));
-    return shouldShowWelcomeBack(new Date(), lastVisit);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Day-1 SLA/OTRS glossary — one dismissible hint, not a stepped tour.
  * Skipped while welcome-back is eligible so returners are not double-nudged.
@@ -54,7 +43,7 @@ export function QueueDay1Tour({ className }: QueueDay1TourProps) {
 
   useEffect(() => {
     const alreadyDismissed = readDismissed();
-    const skipForWelcomeBack = welcomeBackWouldShow();
+    const skipForWelcomeBack = welcomeBackWouldShowFromStorage();
     setDismissed(alreadyDismissed || skipForWelcomeBack);
     setReady(true);
   }, []);
