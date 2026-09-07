@@ -194,6 +194,22 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   const ticketId = otrsFixtureTicketIds[0];
   const expectedSubject = `Fixture ticket ${ticketId}`;
 
+  // Demo seed's catch-all random rule is 10% and uses ignored `channels` JSON, so
+  // fixture ticket 101 is sampled-out → OUT_OF_SAMPLE, which the DB check rejects.
+  // Selected cockpit import is an explicit QA pick; pin a 100% OTRS rule so the
+  // ticket lands in the review queue without changing product sampling.
+  await prisma.samplingRule.create({
+    data: {
+      workspaceId: seededDemoWorkspaceId,
+      name: "E2E OTRS selected import",
+      type: "manual",
+      conditionsJson: JSON.stringify({ externalSource: "otrs" }),
+      targetPercent: 100,
+      priority: 1,
+      isActive: true
+    }
+  });
+
   await page.goto("/admin/integrations/new");
   await expect(page.getByRole("heading", { name: "Подключение источника" })).toBeVisible();
   await page.getByRole("radio", { name: /OTRS Community Edition 6/ }).click();
@@ -253,7 +269,24 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
 
   await runIntegrationsQueueFromOverview(page);
 
+  const importJob = await prisma.backendJob.findFirst({
+    where: { type: "INTEGRATION_IMPORT" },
+    orderBy: { createdAt: "desc" },
+    select: { status: true, resultJson: true, startedAt: true, finishedAt: true, errorMessage: true }
+  });
+  expect(importJob?.status, importJob?.errorMessage ?? "INTEGRATION_IMPORT missing").toBe("SUCCEEDED");
+  const importResult = JSON.parse(importJob?.resultJson ?? "{}") as {
+    importedCount?: number;
+    errorCount?: number;
+  };
+  expect(importResult).toMatchObject({ importedCount: 1, errorCount: 0 });
+  const importDurationMs =
+    importJob?.startedAt && importJob.finishedAt
+      ? importJob.finishedAt.getTime() - importJob.startedAt.getTime()
+      : Number.NaN;
+  expect(importDurationMs, `INTEGRATION_IMPORT hung (${importDurationMs}ms)`).toBeLessThan(15_000);
+
   await page.goto(`/reviews?source=otrs&q=${ticketId}`);
-  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("link", { name: expectedSubject })).toBeVisible();
 });
