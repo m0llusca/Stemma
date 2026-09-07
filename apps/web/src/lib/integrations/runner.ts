@@ -492,14 +492,24 @@ export async function runSelectedOtrsImportConnector(input: {
     source: integration.source
   });
 
-  const result = await prisma.$transaction(async (tx) => {
-    await input.beforeWrite?.(tx);
-
-    return importSelectedOtrsRunItems({
-      ...input,
-      db: tx,
-      onItemProgress: input.onItemProgress
+  // Ownership check is a short transaction so UPDATE backendJob commits before
+  // the item loop. Do not wrap importSelectedOtrsRunItems: onItemProgress
+  // renews the same backendJob row via the global prisma client, and nesting
+  // that inside this transaction deadlocks (TX holds the row lock; heartbeat
+  // waits on it). TicketGet is not on this path — selected import uses stored
+  // preview JSON. Finalize stays a short tx in importSelectedOtrsRunItems.
+  if (input.beforeWrite) {
+    await prisma.$transaction(async (tx) => {
+      await input.beforeWrite?.(tx);
     });
+  }
+
+  const result = await importSelectedOtrsRunItems({
+    workspaceId: input.workspaceId,
+    integrationId: input.integrationId,
+    integrationRunId: input.integrationRunId,
+    selectedItemIds: input.selectedItemIds,
+    onItemProgress: input.onItemProgress
   });
 
   return {

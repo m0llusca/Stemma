@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   loadHelpdeskAdapterConversations: vi.fn(),
   loadDataSourceAdapterConversations: vi.fn(),
+  importSelectedOtrsRunItems: vi.fn(),
   prisma: {
     $transaction: vi.fn(),
     integration: {
@@ -44,6 +45,10 @@ vi.mock("@/lib/integrations/helpdesk-adapters/service", () => ({
 
 vi.mock("@/lib/integrations/data-source-adapters/service", () => ({
   loadDataSourceAdapterConversations: mocks.loadDataSourceAdapterConversations
+}));
+
+vi.mock("@/lib/integrations/otrs-family/import-plan", () => ({
+  importSelectedOtrsRunItems: mocks.importSelectedOtrsRunItems
 }));
 
 const now = new Date("2026-05-09T08:00:00.000Z");
@@ -503,5 +508,163 @@ describe("integration connector run ledger", () => {
 
     expect(events).toEqual(["fetch", "transaction", "guard", "conversation-write"]);
     expect(beforeWrite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("selected OTRS import connector", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(liveEvidence);
+    mocks.prisma.integration.findFirst.mockResolvedValue(
+      integration({
+        source: "otrs",
+        type: "otrs_family",
+        displayName: "OTRS CE 6"
+      })
+    );
+    mocks.importSelectedOtrsRunItems.mockResolvedValue({
+      importedCount: 1,
+      errorCount: 0
+    });
+  });
+
+  it("does not wrap selected-import work in an interactive transaction", async () => {
+    const { runSelectedOtrsImportConnector } = await import("@/lib/integrations/runner");
+
+    await expect(
+      runSelectedOtrsImportConnector({
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        selectedItemIds: ["item-1"]
+      })
+    ).resolves.toEqual({
+      operation: "otrs_selected_import",
+      importedCount: 1,
+      errorCount: 0
+    });
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.importSelectedOtrsRunItems).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      onItemProgress: undefined
+    });
+  });
+
+  it("runs the write guard in a short transaction that finishes before import work", async () => {
+    const events: string[] = [];
+    const tx = fakeClient();
+    mocks.prisma.$transaction.mockImplementation(async (callback) => {
+      events.push("transaction-start");
+      const result = await callback(tx);
+      events.push("transaction-end");
+      return result;
+    });
+    mocks.importSelectedOtrsRunItems.mockImplementation(async () => {
+      events.push("import");
+      return { importedCount: 1, errorCount: 0 };
+    });
+    const onItemProgress = vi.fn();
+    const beforeWrite = vi.fn(async (client) => {
+      expect(client).toBe(tx);
+      events.push("guard");
+    });
+    const { runSelectedOtrsImportConnector } = await import("@/lib/integrations/runner");
+
+    await runSelectedOtrsImportConnector({
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      beforeWrite,
+      onItemProgress
+    });
+
+    expect(events).toEqual(["transaction-start", "guard", "transaction-end", "import"]);
+    expect(beforeWrite).toHaveBeenCalledTimes(1);
+    expect(mocks.importSelectedOtrsRunItems).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      onItemProgress
+    });
+  });
+
+  it("commits the backendJob lock check before per-item heartbeats on prisma", async () => {
+    const events: string[] = [];
+    let backendJobLockedByOpenTx = false;
+    const tx = {
+      backendJob: {
+        updateMany: vi.fn(async () => {
+          backendJobLockedByOpenTx = true;
+          events.push("tx-lock-backend-job");
+          return { count: 1 };
+        })
+      }
+    };
+    const prismaJobClient = {
+      updateMany: vi.fn(async (_args: { where: { id: string }; data: { lockedAt: Date } }) => {
+        if (backendJobLockedByOpenTx) {
+          throw new Error("lock wait timeout on backendJob");
+        }
+        events.push("prisma-renew-backend-job");
+        return { count: 1 };
+      })
+    };
+    mocks.prisma.$transaction.mockImplementation(async (callback) => {
+      events.push("transaction-start");
+      const result = await callback(tx);
+      backendJobLockedByOpenTx = false;
+      events.push("transaction-end");
+      return result;
+    });
+    mocks.importSelectedOtrsRunItems.mockImplementation(async ({ onItemProgress }) => {
+      events.push("import-start");
+      await onItemProgress?.();
+      await onItemProgress?.();
+      events.push("import-end");
+      return { importedCount: 2, errorCount: 0 };
+    });
+    const { runSelectedOtrsImportConnector } = await import("@/lib/integrations/runner");
+
+    await expect(
+      runSelectedOtrsImportConnector({
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        selectedItemIds: ["item-1", "item-2"],
+        beforeWrite: async (client) => {
+          await client.backendJob.updateMany({
+            where: { id: "job-1" },
+            data: { lockedAt: now }
+          });
+        },
+        onItemProgress: async () => {
+          await prismaJobClient.updateMany({
+            where: { id: "job-1" },
+            data: { lockedAt: now }
+          });
+        }
+      })
+    ).resolves.toEqual({
+      operation: "otrs_selected_import",
+      importedCount: 2,
+      errorCount: 0
+    });
+
+    expect(events).toEqual([
+      "transaction-start",
+      "tx-lock-backend-job",
+      "transaction-end",
+      "import-start",
+      "prisma-renew-backend-job",
+      "prisma-renew-backend-job",
+      "import-end"
+    ]);
+    expect(prismaJobClient.updateMany).toHaveBeenCalledTimes(2);
   });
 });
