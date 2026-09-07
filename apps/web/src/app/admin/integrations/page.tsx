@@ -39,7 +39,16 @@ import { certificationDisplayTone, isLiveCertified } from "@/lib/certification/s
 
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
-import { catalogReadinessTone, integrationConnectionTone } from "@/lib/integrations/connection-tone";
+import {
+  accessPipelineStageTone,
+  catalogReadinessTone,
+  certificationPipelineStageTone,
+  diagnosticsPipelineStageTone,
+  importPipelineStageTone,
+  integrationConnectionTone,
+  integrationPriorityTone,
+  monitoringPipelineStageTone
+} from "@/lib/integrations/connection-tone";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
@@ -523,12 +532,6 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
   const failedDiagnostics = diagnosticRuns.filter((run) => ["failed", "error"].includes(run.status)).length;
   const activeJobs = recentIntegrationJobs.filter((job) => ["QUEUED", "RUNNING"].includes(job.status)).length;
   const lastImportRun = recentRuns.find((run) => !run.dryRun);
-  const configuredSources = integrations.filter((integration) => Boolean(integration.baseUrl?.trim())).length;
-  const credentialedSources = integrations.filter((integration) => {
-    const capability = getIntegrationCapability(integration.source, integration.type);
-
-    return hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
-  }).length;
   const certifiedSources = integrations.filter((integration) => {
     const capability = getIntegrationCapability(integration.source, integration.type);
 
@@ -539,44 +542,86 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
   const monitoredSources = activeSources.filter((integration) =>
     Boolean(integration.lastImportAt || integration.lastDryRunAt || integration.diagnosticRuns.length > 0 || integration.runs.length > 0)
   ).length;
+  const accessReadySources = integrations.filter((integration) => {
+    const capability = getIntegrationCapability(integration.source, integration.type);
+    const needsBaseUrl = capability.type !== "custom_api" && capability.type !== "webhook_bridge";
+    const hasBaseUrl = Boolean(integration.baseUrl?.trim());
+
+    return (!needsBaseUrl || hasBaseUrl) && hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
+  }).length;
+  const priorityTone = integrationPriorityTone({
+    failedDiagnostics,
+    activeSourceCount: activeSources.length,
+    activeJobCount: activeJobs,
+    certifiedCount: certifiedSources,
+    integrationCount: integrations.length
+  });
   const readinessStages = [
     {
       label: "Доступы",
-      value: `${configuredSources}/${integrations.length}`,
+      value: `${accessReadySources}/${integrations.length}`,
       detail:
-        configuredSources === 0
+        integrations.length === 0
           ? "Источники еще не настроены."
-          : credentialedSources === configuredSources
-            ? "Адреса и секреты заполнены для настроенных источников."
-            : `${russianPlural(credentialedSources, ["источник", "источника", "источников"])} с полным набором секретов.`,
-      tone: configuredSources > 0 && configuredSources === credentialedSources ? "ok" : "warn"
+          : accessReadySources === integrations.length
+            ? "Адреса и секреты заполнены для всех источников."
+            : `${russianPlural(accessReadySources, ["источник", "источника", "источников"])} с полным набором доступов.`,
+      tone: accessPipelineStageTone({
+        integrationCount: integrations.length,
+        accessReadyCount: accessReadySources
+      })
     },
     {
       label: "Диагностика",
-      value: `${successfulDiagnostics}/${diagnosticRuns.length}`,
+      value: `${successfulDiagnostics}/${integrations.length}`,
       detail:
         failedDiagnostics > 0
           ? `${russianPlural(failedDiagnostics, ["диагностика требует", "диагностики требуют", "диагностик требуют"])} внимания.`
-          : "Ошибок в последнем срезе нет.",
-      tone: failedDiagnostics > 0 ? "error" : diagnosticRuns.length > 0 ? "ok" : "neutral"
+          : successfulDiagnostics === integrations.length && integrations.length > 0
+            ? "Все источники прошли последнюю диагностику."
+            : diagnosticRuns.length === 0
+              ? "Диагностика еще не запускалась."
+              : "Покрытие диагностики неполное — зелёный только когда проверены все источники.",
+      tone: diagnosticsPipelineStageTone({
+        integrationCount: integrations.length,
+        successfulDiagnostics,
+        failedDiagnostics
+      })
     },
     {
       label: "Сертификация",
       value: `${certifiedSources}/${integrations.length}`,
       detail: "Профиль коннектора и свидетельства готовности.",
-      tone: certifiedSources === integrations.length && integrations.length > 0 ? "ok" : "warn"
+      tone: certificationPipelineStageTone({
+        integrationCount: integrations.length,
+        certifiedCount: certifiedSources
+      })
     },
     {
       label: "Импорт",
       value: lastImportRun ? String(lastImportRun.importedCount) : "Нет",
       detail: lastImportRun ? `Последний импорт · ${russianPlural(importRuns.length, ["запуск", "запуска", "запусков"])}` : "Реальный импорт еще не запускался.",
-      tone: lastImportRun ? "ok" : activeSources.length > 0 ? "warn" : "neutral"
+      tone: importPipelineStageTone({
+        hasImport: Boolean(lastImportRun),
+        activeSourceCount: activeSources.length
+      })
     },
     {
       label: "Мониторинг",
       value: `${monitoredSources}/${activeSources.length}`,
-      detail: activeJobs > 0 ? `${russianPlural(activeJobs, ["задача", "задачи", "задач"])} в очереди или исполнении.` : "Фоновых задач сейчас нет.",
-      tone: activeJobs > 0 ? "warn" : activeSources.length > 0 ? "ok" : "neutral"
+      detail:
+        activeJobs > 0
+          ? `${russianPlural(activeJobs, ["задача", "задачи", "задач"])} в очереди или исполнении.`
+          : monitoredSources === activeSources.length && activeSources.length > 0
+            ? "У всех активных источников есть сигнал мониторинга."
+            : activeSources.length === 0
+              ? "Фоновых задач сейчас нет."
+              : "Не все активные источники имеют сигнал мониторинга.",
+      tone: monitoringPipelineStageTone({
+        activeSourceCount: activeSources.length,
+        monitoredSourceCount: monitoredSources,
+        activeJobCount: activeJobs
+      })
     }
   ];
   const integrationSetupHint = activeSources.length > 0 ? null : getSettingCoachmark("integrations");
@@ -587,7 +632,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
           description: "Есть источники с ошибками диагностики. Откройте журнал и восстановите доступы до следующего импорта.",
           label: "Открыть журнал",
           href: integrationSectionHref("activity"),
-          tone: "negative" as const
+          tone: priorityTone
         }
       : activeSources.length === 0
         ? {
@@ -595,7 +640,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
             description: "Без источника обращения не попадут в очередь QA. Начните с мастера и не отмечайте готовность к боевому режиму без сертификации.",
             label: "Новый источник",
             href: "/admin/integrations/new",
-            tone: "warning" as const
+            tone: priorityTone
           }
         : activeJobs > 0
           ? {
@@ -603,15 +648,23 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
               description: "Импорт уже в очереди или выполняется. Сначала проверьте состояние задач обработчика.",
               label: "Открыть журнал",
               href: integrationSectionHref("activity"),
-              tone: "info" as const
+              tone: priorityTone
             }
-          : {
-              title: "Проверить свидетельства готовности",
-              description: "Источники настроены. Сверьте сертификацию, доступы и последний импорт перед расширением каталога.",
-              label: "Открыть источники",
-              href: integrationSectionHref("sources"),
-              tone: "positive" as const
-            };
+          : certifiedSources < integrations.length
+            ? {
+                title: "Закрыть живую сертификацию",
+                description: "Источники настроены, но live cert ещё не покрывает контур. Не расширяйте каталог, пока сертификация не честная.",
+                label: "Открыть источники",
+                href: integrationSectionHref("sources"),
+                tone: priorityTone
+              }
+            : {
+                title: "Проверить свидетельства готовности",
+                description: "Живая сертификация покрывает все источники. Сверьте доступы и последний импорт перед расширением каталога.",
+                label: "Открыть источники",
+                href: integrationSectionHref("sources"),
+                tone: priorityTone
+              };
 
   return (
     <PageShell
