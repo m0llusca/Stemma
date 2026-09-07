@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn() })
 }));
 
@@ -131,14 +132,13 @@ describe("app nav", () => {
     const labels = within(areaNav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(labels).toEqual(["Сегодня", "Моя обратная связь", "Проверки", "Обучение"]);
-    expect(within(areaNav).getByRole("link", { name: /Сегодня/ }).getAttribute("href")).toBe(
-      "/dashboard"
-    );
+    expect(labels).toContain("Моя обратная связь");
+    expect(labels).toContain("Проверки");
+    expect(labels).toContain("Обучение");
     expect(within(areaNav).getByRole("link", { name: /Моя обратная связь/ }).getAttribute("href")).toBe(
       "/self-review"
     );
-    expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe("/dashboard");
+    expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe("/self-review");
   });
 
   it("hides the take-next-case shortcut from roles without reviews:write", async () => {

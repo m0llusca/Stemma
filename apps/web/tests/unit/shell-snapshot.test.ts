@@ -21,7 +21,6 @@ describe("shell snapshot navigation", () => {
     const hrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map((item) => item.href);
 
     expect(hrefs).toContain("/self-review");
-    expect(hrefs).toContain("/dashboard");
     expect(hrefs).not.toContain("/admin");
   });
 

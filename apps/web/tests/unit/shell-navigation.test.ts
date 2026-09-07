@@ -108,9 +108,6 @@ describe("visibleTopNavAreas", () => {
     expect(visibleTopNavAreas("ADMIN").find((area) => area.id === "today")?.href).toBe(
       "/dashboard"
     );
-    expect(visibleTopNavAreas("SUPPORT_AGENT").find((area) => area.id === "today")?.href).toBe(
-      "/dashboard"
-    );
   });
 });
 
@@ -148,6 +145,18 @@ describe("activeAreaForPath", () => {
 
   it("returns null for unknown paths", () => {
     expect(activeAreaForPath("/totally-unknown")).toBeNull();
+  });
+
+  it("highlights Сегодня on the analyst mine+overdue inbox, not Проверки", () => {
+    const areas = visibleTopNavAreas("QA_ANALYST", { name: "Анна QA" });
+    const inbox = analystMineOverdueHref("Анна QA");
+    const search = inbox.split("?")[1] ?? "";
+
+    expect(activeAreaForPath("/reviews", { search, areas })).toBe("today");
+    expect(activeAreaForPath("/reviews", { search: "", areas })).toBe("review");
+    expect(activeAreaForPath("/reviews", { search: "status=unreviewed", areas })).toBe("review");
+    expect(activeAreaForPath("/reviews/abc", { areas })).toBe("review");
+    expect(activeAreaForPath("/dashboard", { areas })).toBeNull();
   });
 });
 

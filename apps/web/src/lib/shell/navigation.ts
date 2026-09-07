@@ -168,15 +168,63 @@ export function isActivePath(pathname: string, href: string) {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
+export type ActiveAreaOptions = {
+  /** Query string with or without a leading `?`. */
+  search?: string;
+  /** Role-adjusted areas. Defaults to the static `topNavAreas` catalog. */
+  areas?: readonly ShellNavArea[];
+};
+
+function hrefParts(href: string) {
+  const [pathname = href, query = ""] = href.split("?");
+  return { pathname, query };
+}
+
+function searchParamsEqual(left: string, right: string) {
+  const first = new URLSearchParams(left);
+  const second = new URLSearchParams(right);
+  const firstKeys = [...first.keys()].sort();
+  const secondKeys = [...second.keys()].sort();
+
+  if (firstKeys.length !== secondKeys.length) {
+    return false;
+  }
+
+  return firstKeys.every((key, index) => key === secondKeys[index] && first.get(key) === second.get(key));
+}
+
 /**
- * Resolve the active top-nav area for a pathname using a longest-prefix match.
- * Paths without a matching area resolve to `null` (no area highlighted)
- * rather than falling back to a default.
+ * Resolve the active top-nav area. Query-bearing homes (Analyst inbox) win only
+ * on an exact search match so `/reviews` siblings still highlight «Проверки».
+ * Path-only areas keep longest-prefix matching. Unknown paths return `null`.
  */
-export function activeAreaForPath(pathname: string): ShellNavAreaId | null {
+export function activeAreaForPath(pathname: string, options?: ActiveAreaOptions): ShellNavAreaId | null {
+  const areas = options?.areas ?? topNavAreas;
+  const search = (options?.search ?? "").replace(/^\?/, "");
+
+  const exact = areas.find((area) => {
+    const { pathname: hrefPath, query: hrefQuery } = hrefParts(area.href);
+    if (hrefPath !== pathname) {
+      return false;
+    }
+
+    if (!hrefQuery) {
+      return search === "";
+    }
+
+    return searchParamsEqual(hrefQuery, search);
+  });
+
+  if (exact) {
+    return exact.id;
+  }
+
   return (
-    topNavAreas
-      .filter((area) => isActivePath(pathname, area.href))
+    areas
+      .filter((area) => {
+        const { query } = hrefParts(area.href);
+        return !query && isActivePath(pathname, area.href);
+      })
       .sort((first, second) => second.href.length - first.href.length)[0]?.id ?? null
   );
 }

@@ -2,16 +2,19 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppNavShell } from "@/components/app-nav-shell";
+import { analystMineOverdueHref } from "@/lib/auth/role-home";
 import { buildShellNavigation, visibleTopNavAreas } from "@/lib/shell/navigation";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/reviews",
+  search: "",
   routerPush: vi.fn(),
   switchCurrentUser: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
+  useSearchParams: () => new URLSearchParams(mocks.search),
   useRouter: () => ({ push: mocks.routerPush })
 }));
 
@@ -48,6 +51,7 @@ function areaNav() {
 describe("app nav shell", () => {
   beforeEach(() => {
     mocks.pathname = "/reviews";
+    mocks.search = "";
     mocks.routerPush.mockClear();
   });
 
@@ -68,6 +72,25 @@ describe("app nav shell", () => {
     expect(
       screen.getByRole("banner", { name: "Глобальная навигация" })
     ).toHaveAttribute("data-slot", "app-nav");
+  });
+
+  it("highlights Сегодня on the analyst mine+overdue inbox, not Проверки", () => {
+    const inbox = analystMineOverdueHref("Анна QA");
+    mocks.pathname = "/reviews";
+    mocks.search = inbox.split("?")[1] ?? "";
+    const areas = visibleTopNavAreas("QA_ANALYST", { name: "Анна QA" });
+
+    render(<AppNavShell {...baseProps} areas={areas} />);
+
+    expect(within(areaNav()).getByRole("link", { name: /Сегодня/ }).getAttribute("aria-current")).toBe(
+      "page"
+    );
+    expect(within(areaNav()).getByRole("link", { name: /Проверки/ }).getAttribute("aria-current")).toBeNull();
+    expect(
+      within(areaNav())
+        .getAllByRole("link")
+        .filter((link) => link.getAttribute("aria-current") === "page")
+    ).toHaveLength(1);
   });
 
   it("marks the active product area with aria-current via longest-prefix match", () => {
