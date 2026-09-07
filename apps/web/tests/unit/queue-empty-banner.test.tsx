@@ -28,15 +28,28 @@ describe("QueueEmptyBanner", () => {
 
   it("scopes copy and offers reset / unfiltered take-next when filters emptied the view", () => {
     window.history.replaceState(window.history.state, "", "/reviews?due=overdue&empty=1");
-    render(<QueueEmptyBanner hasActiveFilters />);
+    render(
+      <QueueEmptyBanner
+        hasActiveFilters
+        resetHref="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+        canWriteReviews
+      />
+    );
 
     expect(screen.getByRole("status")).toHaveTextContent(QUEUE_EMPTY_BANNER_FILTERED);
     expect(screen.getByRole("button", { name: QUEUE_EMPTY_RESET_FILTERS_LABEL }).closest("a")).toHaveAttribute(
       "href",
-      "/reviews"
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
     );
     expect(screen.getByRole("button", { name: QUEUE_EMPTY_TAKE_UNFILTERED_LABEL })).toBeInTheDocument();
     expect(screen.queryByText(QUEUE_EMPTY_BANNER_GLOBAL)).not.toBeInTheDocument();
+  });
+
+  it("hides unfiltered take-next when the viewer cannot write reviews", () => {
+    render(<QueueEmptyBanner hasActiveFilters canWriteReviews={false} />);
+
+    expect(screen.getByRole("button", { name: QUEUE_EMPTY_RESET_FILTERS_LABEL })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: QUEUE_EMPTY_TAKE_UNFILTERED_LABEL })).not.toBeInTheDocument();
   });
 
   it("dismisses and strips empty from the URL", () => {
@@ -46,5 +59,13 @@ describe("QueueEmptyBanner", () => {
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(new URL(window.location.href).searchParams.has("empty")).toBe(false);
+  });
+
+  it("gives the dismiss control a 44px hit target instead of icon-xs", () => {
+    render(<QueueEmptyBanner />);
+
+    const dismiss = screen.getByRole("button", { name: "Скрыть уведомление" });
+    expect(dismiss.className).toContain("size-11");
+    expect(dismiss.className).not.toMatch(/size-\[var\(--control-height-xs\)\]/);
   });
 });

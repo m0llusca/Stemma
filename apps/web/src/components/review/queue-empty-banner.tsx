@@ -14,6 +14,10 @@ import {
 
 type QueueEmptyBannerProps = {
   hasActiveFilters?: boolean;
+  /** Inbox home after reset. Analyst keeps mine+overdue; others go to `/reviews`. */
+  resetHref?: string;
+  /** reviews:write — hide unfiltered take-next for EXEC / SUPPORT_AGENT. */
+  canWriteReviews?: boolean;
 };
 
 /**
@@ -22,7 +26,11 @@ type QueueEmptyBannerProps = {
  * view-scoped copy and recovery CTAs — the workspace may still have work
  * outside the chips. Dismissing also strips `empty` from the URL.
  */
-export function QueueEmptyBanner({ hasActiveFilters = false }: QueueEmptyBannerProps) {
+export function QueueEmptyBanner({
+  hasActiveFilters = false,
+  resetHref = "/reviews",
+  canWriteReviews = false
+}: QueueEmptyBannerProps) {
   const [visible, setVisible] = useState(true);
 
   // Defensive: if the page ever renders this with the param already gone, hide.
@@ -57,18 +65,27 @@ export function QueueEmptyBanner({ hasActiveFilters = false }: QueueEmptyBannerP
       <AlertDescription>{queueEmptyBannerMessage(hasActiveFilters)}</AlertDescription>
       {hasActiveFilters ? (
         <div className="col-start-2 mt-1 flex flex-wrap items-center gap-2">
-          <Button render={<Link href="/reviews" />} nativeButton={false} variant="outline" size="sm">
+          <Button render={<Link href={resetHref} />} nativeButton={false} variant="outline" size="sm">
             {QUEUE_EMPTY_RESET_FILTERS_LABEL}
           </Button>
-          <form action={takeNextReview}>
-            <Button type="submit" variant="outline" size="sm">
-              {QUEUE_EMPTY_TAKE_UNFILTERED_LABEL}
-            </Button>
-          </form>
+          {canWriteReviews ? (
+            <form action={takeNextReview}>
+              <Button type="submit" variant="outline" size="sm">
+                {QUEUE_EMPTY_TAKE_UNFILTERED_LABEL}
+              </Button>
+            </form>
+          ) : null}
         </div>
       ) : null}
       <AlertAction>
-        <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть уведомление">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11"
+          onClick={dismiss}
+          aria-label="Скрыть уведомление"
+        >
           <X size={16} aria-hidden="true" />
         </Button>
       </AlertAction>
