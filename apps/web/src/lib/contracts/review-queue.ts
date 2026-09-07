@@ -112,4 +112,6 @@ export type ReviewQueuePageData = {
   filterOptions: ReviewQueueFilterOptionsDto;
   qaAssignees: ReviewQueueAssigneeDto[];
   savedViews: ReviewQueueSavedViewDto[];
+  /** Same reviews:write gate as the topbar `canTakeNextCase` pulse. */
+  canWriteReviews: boolean;
 };

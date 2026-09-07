@@ -1,3 +1,4 @@
+import { hasPermission } from "@/lib/auth/permissions";
 import type { ReviewQueuePageData } from "@/lib/contracts/review-queue";
 import { prisma } from "@/lib/db";
 import {
@@ -82,6 +83,7 @@ export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams)
     summary,
     filterOptions,
     qaAssignees,
-    savedViews
+    savedViews,
+    canWriteReviews: hasPermission(user.role, "reviews:write")
   };
 }

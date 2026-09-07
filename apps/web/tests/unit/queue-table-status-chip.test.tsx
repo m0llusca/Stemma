@@ -38,7 +38,7 @@ describe("QueueTable status chip", () => {
   it("renders the shared review-state chip, not a second qaStatus wording", () => {
     const row = conversation({ qaStatus: "ASSIGNED" });
 
-    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" />);
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
 
     const chip = screen.getByText(reviewStateLabels.assigned, { selector: ".chip" });
     expect(chip).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("QueueTable status chip", () => {
       }
     });
 
-    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" />);
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
 
     const chip = screen.getByText(pendingReopenLabel, { selector: ".chip" });
     expect(chip.textContent).toBe(resolveQueueStatusChip(row).label);
