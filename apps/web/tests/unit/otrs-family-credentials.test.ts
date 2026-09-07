@@ -1,6 +1,6 @@
 import type { IntegrationCredential } from "@prisma/client";
 import { createHash } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decryptSecret } from "@/lib/secrets";
 import {
   applyCaBundleCredentialReference,
@@ -11,6 +11,14 @@ import {
   summarizeIntegrationSecretSlots,
   upsertIntegrationSecretSlot
 } from "@/lib/integrations/otrs-family/credentials";
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const now = new Date("2026-05-07T10:00:00.000Z");
 const caPemWithWindowsLines = "  -----BEGIN CERTIFICATE-----\r\nMIIFakeCertificate==\r\n-----END CERTIFICATE-----  \r\n";

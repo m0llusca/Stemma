@@ -54,7 +54,7 @@ function allowedBaseUrlProtocols(source: string, type: string) {
   return ["http:", "https:"];
 }
 
-function validateIncomingBaseUrl(rawBaseUrl: string | undefined, source: string, type: string) {
+async function validateIncomingBaseUrl(rawBaseUrl: string | undefined, source: string, type: string) {
   const baseUrl = rawBaseUrl?.trim();
 
   if (!baseUrl) {
@@ -78,7 +78,7 @@ function validateIncomingBaseUrl(rawBaseUrl: string | undefined, source: string,
   }
 
   try {
-    assertPublicBaseUrl(url);
+    await assertPublicBaseUrl(url);
   } catch (error) {
     return error instanceof Error ? error.message : "Base URL указывает на запрещённый адрес сети.";
   }
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
     return apiError("conflict", message, 409, requestId);
   }
 
-  const baseUrlValidationError = validateIncomingBaseUrl(parsed.data.baseUrl, parsed.data.source, integrationType);
+  const baseUrlValidationError = await validateIncomingBaseUrl(parsed.data.baseUrl, parsed.data.source, integrationType);
 
   if (baseUrlValidationError) {
     return apiError("bad_request", baseUrlValidationError, 400, requestId);

@@ -1,6 +1,18 @@
+import dns from "node:dns/promises";
+
 const PRIVATE_BASE_URL_MESSAGE =
   "Base URL указывает на локальный или приватный адрес сети — такие адреса запрещены для защиты от SSRF. " +
   "Для on-prem развёртываний в частной сети установите переменную окружения QC_ALLOW_PRIVATE_BASE_URLS=1.";
+
+const DNS_RESOLUTION_MESSAGE =
+  "Не удалось разрешить DNS-имя Base URL — адрес отклонён для защиты от SSRF. " +
+  "Для on-prem развёртываний в частной сети установите переменную окружения QC_ALLOW_PRIVATE_BASE_URLS=1.";
+
+export type PublicBaseUrlResolution = {
+  url: URL;
+  /** Resolved A/AAAA addresses after validation (empty when private URLs are allowed). */
+  addresses: string[];
+};
 
 function privateBaseUrlsAllowed() {
   return process.env.QC_ALLOW_PRIVATE_BASE_URLS === "1";
@@ -139,14 +151,24 @@ function isPrivateIpv6(words: number[]) {
   return false;
 }
 
-/**
- * Запрещает Base URL, указывающие на локальные и приватные адреса сети (защита от SSRF).
- *
- * Проверяются только литеральные IP-адреса и hostname — DNS-резолюция намеренно не выполняется,
- * поэтому DNS-rebinding (публичное имя, резолвящееся в приватный адрес) этой проверкой не закрывается.
- * Для on-prem установок в частной сети проверку можно отключить целиком
- * переменной окружения QC_ALLOW_PRIVATE_BASE_URLS=1.
- */
+function isBlockedIpAddress(address: string): boolean {
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+  const octets = parseIpv4(normalized);
+
+  if (octets) {
+    return isPrivateIpv4(octets);
+  }
+
+  const words = parseIpv6(normalized);
+
+  if (words) {
+    return isPrivateIpv6(words);
+  }
+
+  // Неразборчивый адрес — fail-closed.
+  return true;
+}
+
 /**
  * Для непрозрачных схем (grpc:, grpcs:) WHATWG-парсер не канонизирует хост, поэтому
  * сокращённые формы IPv4 (127.1, 0x7f000001, 2130706433) обошли бы проверку диапазонов.
@@ -162,13 +184,7 @@ function canonicalHostname(rawHostname: string): string {
   }
 }
 
-export function assertPublicBaseUrl(url: URL): void {
-  if (privateBaseUrlsAllowed()) {
-    return;
-  }
-
-  const hostname = canonicalHostname(url.hostname);
-
+function assertHostnameNotPrivate(hostname: string): void {
   if (hostname === "localhost" || hostname.endsWith(".localhost")) {
     throw new Error(PRIVATE_BASE_URL_MESSAGE);
   }
@@ -188,4 +204,77 @@ export function assertPublicBaseUrl(url: URL): void {
   if (octets && isPrivateIpv4(octets)) {
     throw new Error(PRIVATE_BASE_URL_MESSAGE);
   }
+}
+
+function isIpLiteralHostname(hostname: string): boolean {
+  if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    return parseIpv6(hostname.slice(1, -1)) !== null;
+  }
+
+  return parseIpv4(hostname) !== null;
+}
+
+async function resolveHostnameAddresses(hostname: string): Promise<string[]> {
+  try {
+    const records = await dns.lookup(hostname, { all: true, verbatim: true });
+    return records.map((record) => record.address);
+  } catch {
+    // Fallback: gather A + AAAA independently (some environments restrict lookup({ all })).
+    const addresses: string[] = [];
+    const [v4, v6] = await Promise.allSettled([dns.resolve4(hostname), dns.resolve6(hostname)]);
+
+    if (v4.status === "fulfilled") {
+      addresses.push(...v4.value);
+    }
+
+    if (v6.status === "fulfilled") {
+      addresses.push(...v6.value);
+    }
+
+    if (addresses.length === 0) {
+      throw new Error(DNS_RESOLUTION_MESSAGE);
+    }
+
+    return addresses;
+  }
+}
+
+/**
+ * Запрещает Base URL, указывающие на локальные и приватные адреса сети (защита от SSRF).
+ *
+ * Проверяются литеральные IP, hostname (localhost) и DNS-резолюция имени: если имя
+ * резолвится в приватный / link-local / metadata-адрес, URL отклоняется (DNS rebinding).
+ * Для on-prem установок в частной сети проверку можно отключить целиком
+ * переменной окружения QC_ALLOW_PRIVATE_BASE_URLS=1.
+ */
+export async function resolvePublicBaseUrl(url: URL): Promise<PublicBaseUrlResolution> {
+  if (privateBaseUrlsAllowed()) {
+    return { url, addresses: [] };
+  }
+
+  const hostname = canonicalHostname(url.hostname);
+  assertHostnameNotPrivate(hostname);
+
+  if (isIpLiteralHostname(hostname)) {
+    const address = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
+    return { url, addresses: [address] };
+  }
+
+  const addresses = await resolveHostnameAddresses(hostname);
+
+  if (addresses.length === 0) {
+    throw new Error(DNS_RESOLUTION_MESSAGE);
+  }
+
+  for (const address of addresses) {
+    if (isBlockedIpAddress(address)) {
+      throw new Error(PRIVATE_BASE_URL_MESSAGE);
+    }
+  }
+
+  return { url, addresses };
+}
+
+export async function assertPublicBaseUrl(url: URL): Promise<void> {
+  await resolvePublicBaseUrl(url);
 }

@@ -1,6 +1,6 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HelpdeskAdapterError } from "@/lib/integrations/helpdesk-adapters/errors";
 import { createHelpdeskHttpClient, redactHelpdeskDiagnostic } from "@/lib/integrations/helpdesk-adapters/http";
 
@@ -31,6 +31,14 @@ async function close(server: http.Server) {
 }
 
 describe("helpdesk adapter HTTP boundary", () => {
+  beforeEach(() => {
+    // Local loopback fixture servers need the on-prem SSRF escape hatch.
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   it("parses JSON and records safe diagnostics", async () => {
     const client = createHelpdeskHttpClient({
       transport: async (request) => ({

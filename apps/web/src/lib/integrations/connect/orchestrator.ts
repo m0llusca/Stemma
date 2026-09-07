@@ -55,7 +55,7 @@ export async function runConnectPipeline(input: RunConnectPipelineInput): Promis
     if (!baseUrl) {
       throw new Error("Не указан адрес источника.");
     }
-    assertPublicBaseUrl(new URL(baseUrl));
+    await assertPublicBaseUrl(new URL(baseUrl));
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Адрес источника отклонён.";
     steps.push({

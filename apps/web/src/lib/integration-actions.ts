@@ -165,7 +165,7 @@ function baseUrlProtocolMessage(allowedProtocols: readonly string[]) {
     : "Base URL должен начинаться с http:// или https://.";
 }
 
-function validateBaseUrl(baseUrl: string, mode: string, source: string) {
+async function validateBaseUrl(baseUrl: string, mode: string, source: string) {
   if (!baseUrl && mode !== "custom_api") {
     throw new Error("Укажите Base URL источника.");
   }
@@ -188,7 +188,7 @@ function validateBaseUrl(baseUrl: string, mode: string, source: string) {
     throw new Error(baseUrlProtocolMessage(allowedProtocols));
   }
 
-  assertPublicBaseUrl(url);
+  await assertPublicBaseUrl(url);
 
   return url.toString().replace(/\/$/, "");
 }
@@ -197,12 +197,12 @@ function assertSupportedSourceMode(source: string, mode: string) {
   assertIntegrationSourceContractSupported({ source, type: mode });
 }
 
-function readIntegrationSetup(formData: FormData) {
+async function readIntegrationSetup(formData: FormData) {
   const source = stringField(formData, "source") || "unknown";
   const sourceLabel = stringField(formData, "sourceLabel") || source;
   const mode = stringField(formData, "mode") || "unknown";
   assertSupportedSourceMode(source, mode);
-  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), mode, source);
+  const baseUrl = await validateBaseUrl(stringField(formData, "baseUrl"), mode, source);
   const maxTickets = numberField(formData, "maxTickets", 100);
   const batchSize = numberField(formData, "batchSize", 25);
   const dateRangeDays = numberField(formData, "dateRangeDays", 30);
@@ -268,7 +268,7 @@ function readIntegrationSetup(formData: FormData) {
   };
 }
 
-function assertSupportedSetupContract(setup: ReturnType<typeof readIntegrationSetup>) {
+function assertSupportedSetupContract(setup: Awaited<ReturnType<typeof readIntegrationSetup>>) {
   assertSupportedSourceMode(setup.source, setup.mode);
 }
 
@@ -291,10 +291,10 @@ const otrsSourceSchema = z
   .max(80)
   .regex(/^[a-z0-9_-]+$/);
 
-function readOtrsIntegrationSetup(formData: FormData) {
+async function readOtrsIntegrationSetup(formData: FormData) {
   const source = otrsSourceSchema.parse(stringField(formData, "source") || "otrs");
   const displayName = stringField(formData, "displayName") || stringField(formData, "sourceLabel") || "OTRS";
-  const baseUrl = validateBaseUrl(stringField(formData, "baseUrl"), "otrs_family", source);
+  const baseUrl = await validateBaseUrl(stringField(formData, "baseUrl"), "otrs_family", source);
   const product = stringField(formData, "product") || "otrs_ce_6";
   const userLogin = stringField(formData, "userLogin");
   const password = stringField(formData, "password");
@@ -338,7 +338,7 @@ function readOtrsIntegrationSetup(formData: FormData) {
 }
 
 function mergeExistingCaBundleReference(
-  config: ReturnType<typeof readOtrsIntegrationSetup>["config"],
+  config: Awaited<ReturnType<typeof readOtrsIntegrationSetup>>["config"],
   existingConfigJson: string | undefined,
   existingCaBundleSlot: { id: string; fingerprint: string | null } | undefined
 ) {
@@ -377,7 +377,7 @@ function mergeExistingCaBundleReference(
 async function upsertIntegrationSetup(
   tx: Prisma.TransactionClient,
   workspaceId: string,
-  setup: ReturnType<typeof readIntegrationSetup>,
+  setup: Awaited<ReturnType<typeof readIntegrationSetup>>,
   status: string,
   dates: { lastDryRunAt?: Date; lastImportAt?: Date } = {}
 ) {
@@ -459,7 +459,7 @@ async function upsertIntegrationSetup(
   return integration;
 }
 
-function setupCredentialSecretKind(setup: Pick<ReturnType<typeof readIntegrationSetup>, "mode" | "source">) {
+function setupCredentialSecretKind(setup: Pick<Awaited<ReturnType<typeof readIntegrationSetup>>, "mode" | "source">) {
   const source = setup.source.trim().toLowerCase();
 
   if (setup.mode === "data_source") {
@@ -476,7 +476,7 @@ function setupCredentialSecretKind(setup: Pick<ReturnType<typeof readIntegration
 async function assertSetupRequiredSecretSlots(
   tx: Prisma.TransactionClient,
   integrationId: string,
-  setup: ReturnType<typeof readIntegrationSetup>
+  setup: Awaited<ReturnType<typeof readIntegrationSetup>>
 ) {
   const requiredKind = setupCredentialSecretKind(setup);
 
@@ -513,7 +513,7 @@ async function lockSetupRunClaim(
 export async function saveIntegrationConfiguration(formData: FormData) {
   const user = await requireIntegrationSettingsUser();
 
-  const setup = readIntegrationSetup(formData);
+  const setup = await readIntegrationSetup(formData);
   assertSupportedSetupContract(setup);
   const integration = await prisma.$transaction(async (tx) => {
     const existing = await tx.integration.findUnique({
@@ -571,7 +571,7 @@ type RecordedIntegrationDryRun = {
 export async function recordIntegrationDryRun(formData: FormData): Promise<RecordedIntegrationDryRun> {
   const user = await requireIntegrationSettingsUser();
 
-  const setup = readIntegrationSetup(formData);
+  const setup = await readIntegrationSetup(formData);
   assertSupportedSetupContract(setup);
   const runStatus = setup.dryRun ? "dry_run_queued" : "queued";
   const queuedAction = setup.dryRun ? "integration.dry_run_queued" : "integration.import_queued";
@@ -725,7 +725,7 @@ export async function recordIntegrationDryRunFromInput(input: IntegrationSetupIn
 export async function saveOtrsIntegrationConfiguration(formData: FormData) {
   const user = await requireIntegrationSettingsUser();
 
-  const setup = readOtrsIntegrationSetup(formData);
+  const setup = await readOtrsIntegrationSetup(formData);
   const integration = await prisma.$transaction(async (tx) => {
     const existing = await tx.integration.findUnique({
       where: {

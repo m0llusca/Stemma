@@ -95,7 +95,7 @@ export async function saveMessagingChannel(
 
   if (webhookUrl) {
     try {
-      assertPublicBaseUrl(new URL(webhookUrl));
+      await assertPublicBaseUrl(new URL(webhookUrl));
     } catch (error) {
       return {
         status: "error",

@@ -3,6 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import { HelpdeskAdapterError } from "@/lib/integrations/helpdesk-adapters/errors";
 import type { HelpdeskAdapterOperation, PhaseBHelpdeskSource } from "@/lib/integrations/helpdesk-adapters/types";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 
 type TransportRequest = {
   source: PhaseBHelpdeskSource;
@@ -74,7 +75,12 @@ export function createHelpdeskHttpClient(input: { transport?: HelpdeskTransport 
           code: timedOut ? "timeout" : "network_error",
           source: request.source,
           operation: request.operation,
-          safeMessage: timedOut ? "Источник не ответил за отведенное время." : "Не удалось выполнить запрос к источнику.",
+          safeMessage: timedOut
+            ? "Источник не ответил за отведенное время."
+            : error instanceof Error &&
+                /приватный адрес сети|QC_ALLOW_PRIVATE_BASE_URLS|Не удалось разрешить DNS-имя/.test(error.message)
+              ? error.message
+              : "Не удалось выполнить запрос к источнику.",
           diagnostic: redactHelpdeskDiagnostic({ error: serializeError(error), request })
         });
       });
@@ -250,82 +256,86 @@ function isResponseTooLargeError(error: unknown): error is ResponseTooLargeTrans
 }
 
 function nodeTransport(request: TransportRequest): Promise<TransportResponse> {
-  return new Promise((resolve, reject) => {
-    const url = new URL(request.url);
-    const client = url.protocol === "https:" ? https : http;
-    let settled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+  return (async () => {
+    await assertPublicBaseUrl(new URL(request.url));
 
-    const settle = (callback: () => void) => {
-      if (settled) {
-        return;
-      }
+    return new Promise<TransportResponse>((resolve, reject) => {
+      const url = new URL(request.url);
+      const client = url.protocol === "https:" ? https : http;
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
 
-      settled = true;
-      if (timer) {
-        clearTimeout(timer);
-      }
-      callback();
-    };
+      const settle = (callback: () => void) => {
+        if (settled) {
+          return;
+        }
 
-    const req = client.request(
-      {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port,
-        path: `${url.pathname}${url.search}`,
-        method: request.method,
-        headers: request.headers
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        let responseBytes = 0;
+        settled = true;
+        if (timer) {
+          clearTimeout(timer);
+        }
+        callback();
+      };
 
-        response.on("data", (chunk) => {
-          const buffer = Buffer.from(chunk);
-          responseBytes += buffer.byteLength;
+      const req = client.request(
+        {
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port,
+          path: `${url.pathname}${url.search}`,
+          method: request.method,
+          headers: request.headers
+        },
+        (response) => {
+          const chunks: Buffer[] = [];
+          let responseBytes = 0;
 
-          if (responseBytes > request.maxResponseBytes) {
-            const error = new ResponseTooLargeTransportError(response.statusCode ?? 0, responseBytes);
+          response.on("data", (chunk) => {
+            const buffer = Buffer.from(chunk);
+            responseBytes += buffer.byteLength;
+
+            if (responseBytes > request.maxResponseBytes) {
+              const error = new ResponseTooLargeTransportError(response.statusCode ?? 0, responseBytes);
+              settle(() => reject(error));
+              response.destroy(error);
+              req.destroy(error);
+              return;
+            }
+
+            chunks.push(buffer);
+          });
+          response.on("end", () => {
+            settle(() =>
+              resolve({
+                statusCode: response.statusCode ?? 0,
+                headers: response.headers as Record<string, string | string[] | undefined>,
+                body: Buffer.concat(chunks)
+              })
+            );
+          });
+          response.on("error", (error) => {
             settle(() => reject(error));
-            response.destroy(error);
-            req.destroy(error);
-            return;
-          }
+          });
+          response.on("close", () => {
+            if (!response.readableEnded) {
+              settle(() => reject(new Error("Response stream closed before completion.")));
+            }
+          });
+        }
+      );
+      timer = setTimeout(() => {
+        req.destroy(new Error(timeoutErrorMessage));
+      }, request.timeoutMs);
 
-          chunks.push(buffer);
-        });
-        response.on("end", () => {
-          settle(() =>
-            resolve({
-              statusCode: response.statusCode ?? 0,
-              headers: response.headers as Record<string, string | string[] | undefined>,
-              body: Buffer.concat(chunks)
-            })
-          );
-        });
-        response.on("error", (error) => {
-          settle(() => reject(error));
-        });
-        response.on("close", () => {
-          if (!response.readableEnded) {
-            settle(() => reject(new Error("Response stream closed before completion.")));
-          }
-        });
+      req.on("error", (error) => {
+        settle(() => reject(error));
+      });
+
+      if (request.body) {
+        req.write(request.body);
       }
-    );
-    timer = setTimeout(() => {
-      req.destroy(new Error(timeoutErrorMessage));
-    }, request.timeoutMs);
 
-    req.on("error", (error) => {
-      settle(() => reject(error));
+      req.end();
     });
-
-    if (request.body) {
-      req.write(request.body);
-    }
-
-    req.end();
-  });
+  })();
 }

@@ -1,8 +1,16 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHelpdeskAdapter } from "@/lib/integrations/helpdesk-adapters";
 import { normalizeNativeHelpdeskPayload } from "@/lib/normalizers/native-helpdesk";
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 type RecordedRequest = {
   pathname: string;

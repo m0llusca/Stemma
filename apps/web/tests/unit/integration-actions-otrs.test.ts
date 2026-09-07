@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const prisma = {
@@ -131,6 +131,7 @@ function baseSetupForm(source: string, mode: string) {
 describe("OTRS integration actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.$executeRawUnsafe.mockResolvedValue(0);
     mocks.getCurrentUser.mockResolvedValue(authorizedUser());
@@ -174,6 +175,10 @@ describe("OTRS integration actions", () => {
       { jobId: "job-1", status: "SUCCEEDED" },
       { jobId: "job-2", status: "FAILED" }
     ]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("saves OTRS setup as typed config and secret slots", async () => {

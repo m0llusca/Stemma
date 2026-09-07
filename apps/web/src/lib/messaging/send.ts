@@ -154,7 +154,7 @@ export async function sendToChannel(
   }
 
   try {
-    assertPublicBaseUrl(new URL(webhookUrl));
+    await assertPublicBaseUrl(new URL(webhookUrl));
   } catch (error) {
     return {
       ok: false,

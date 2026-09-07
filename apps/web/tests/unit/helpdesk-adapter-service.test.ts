@@ -1,11 +1,19 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHelpdeskAdapter } from "@/lib/integrations/helpdesk-adapters";
 import { loadHelpdeskAdapterConversations } from "@/lib/integrations/helpdesk-adapters/service";
 import { encryptSecret } from "@/lib/secrets";
 import { customConversationSchema } from "@/lib/validation/custom-api";
 import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const now = new Date("2026-05-09T08:00:00.000Z");
 
