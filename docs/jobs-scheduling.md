@@ -8,7 +8,8 @@ production.
 
 `runDueBackendJobs()` claims and runs due jobs of every type:
 
-- `INTEGRATION_IMPORT`, `WEBHOOK_INGEST`, `DIRECTORY_SYNC`, `RETENTION_CLEANUP`
+- `INTEGRATION_IMPORT` — includes OTRS selected import (`otrs_selected_import`). Lock TX, heartbeats, and crash/resume: [otrs-selected-import.md](otrs-selected-import.md).
+- `WEBHOOK_INGEST`, `DIRECTORY_SYNC`, `RETENTION_CLEANUP`
 - `REPORT_EXPORT` — on-demand and recurring (see schedules below)
 - `AI_SCORE` — per-conversation AI quality scoring (provider per workspace; deterministic fallback)
 - `MESSAGING_DELIVERY` — webhook notification delivery
