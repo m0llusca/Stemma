@@ -16,10 +16,10 @@ import {
 
 /**
  * Server actions for recurring report exports (Workstream A2). All actions are
- * gated behind the same `reports:read` permission used by the report export
- * routes (see app/reports/export/route.ts) plus the demo-settings guard the
- * rest of /admin uses (assertCanPersistSettings). The on-demand worker
- * materializes due schedules into REPORT_EXPORT jobs — see report-schedule.ts.
+ * gated behind `reports:manage` (not one-shot `reports:read` export routes)
+ * plus the demo-settings guard the rest of /admin uses
+ * (assertCanPersistSettings). The on-demand worker materializes due schedules
+ * into REPORT_EXPORT jobs — see report-schedule.ts.
  */
 
 const REPORT_SCHEDULES_PATH = "/admin/report-schedules";
@@ -71,7 +71,7 @@ export async function createReportSchedule(
   _previousState: ReportScheduleActionState,
   formData: FormData
 ): Promise<ReportScheduleActionState> {
-  const user = await requireCurrentUserPermission("reports:read");
+  const user = await requireCurrentUserPermission("reports:manage");
   await assertCanPersistSettings(user);
 
   const name = stringField(formData, "name");
@@ -123,7 +123,7 @@ export async function createReportSchedule(
 }
 
 export async function setReportScheduleActive(formData: FormData) {
-  const user = await requireCurrentUserPermission("reports:read");
+  const user = await requireCurrentUserPermission("reports:manage");
   await assertCanPersistSettings(user);
 
   const scheduleId = stringField(formData, "scheduleId");
@@ -155,7 +155,7 @@ export async function setReportScheduleActive(formData: FormData) {
 }
 
 export async function deleteReportSchedule(formData: FormData) {
-  const user = await requireCurrentUserPermission("reports:read");
+  const user = await requireCurrentUserPermission("reports:manage");
   await assertCanPersistSettings(user);
 
   const scheduleId = stringField(formData, "scheduleId");

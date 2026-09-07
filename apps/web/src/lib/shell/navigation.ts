@@ -237,9 +237,9 @@ const modeDefinitions: ModeDefinition[] = [
         label: adminSectionTitles["/admin/report-schedules"],
         description: "Регулярная рассылка отчётов: периодичность, получатели и форматы.",
         aliases: ["расписания", "report schedules", "отчеты по расписанию", "планировщик"],
-        // Страница гейтится reports:read, но точка входа скрыта: /admin индекс
+        // Страница гейтится reports:manage; точка входа в /admin индексе
         // требует audit:read, а область «Настройки» ограничена ADMIN/TEAM_LEAD.
-        // Отдаём её всем, у кого reports:manage (ADMIN, TEAM_LEAD, QA_ANALYST).
+        // Destination совпадает с page gate (ADMIN, TEAM_LEAD, QA_ANALYST).
         permission: "reports:manage"
       },
       {

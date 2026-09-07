@@ -187,10 +187,10 @@ describe("buildShellNavigation gating gaps", () => {
   });
 
   it("surfaces the report-schedules destination for everyone holding reports:manage", () => {
-    // /admin/report-schedules гейтится reports:read, но точка входа скрыта:
-    // /admin индекс требует audit:read, а область «Настройки» ограничена
-    // ADMIN/TEAM_LEAD. Добавляем destination по reports:manage, чтобы его
-    // получили ADMIN, TEAM_LEAD и QA_ANALYST.
+    // /admin/report-schedules гейтится reports:manage; точка входа в /admin
+    // индексе требует audit:read, а область «Настройки» ограничена
+    // ADMIN/TEAM_LEAD. Destination по reports:manage получают ADMIN,
+    // TEAM_LEAD и QA_ANALYST.
     for (const role of ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] as const) {
       const hrefs = buildShellNavigation({ role }).commandItems.map((item) => item.href);
       expect(hrefs).toContain("/admin/report-schedules");

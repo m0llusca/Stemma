@@ -25,9 +25,9 @@ describe("admin subnav configuration", () => {
     }
   });
 
-  it("includes the report-schedules section gated by reports:read", () => {
+  it("includes the report-schedules section gated by reports:manage", () => {
     const item = allItems.find((entry) => entry.href === "/admin/report-schedules");
-    expect(item?.permission).toBe("reports:read");
+    expect(item?.permission).toBe("reports:manage");
   });
 
   it("keeps groups balanced instead of a catch-all bucket", () => {
@@ -60,7 +60,7 @@ describe("admin subnav configuration", () => {
       "/admin/appearance": "appearance:manage",
       "/admin/localization": "appearance:manage",
       "/admin/audit": "audit:read",
-      "/admin/report-schedules": "reports:read"
+      "/admin/report-schedules": "reports:manage"
     });
   });
 
@@ -84,7 +84,7 @@ describe("filterAdminSubnavGroups", () => {
     const filtered = filterAdminSubnavGroups(adminSubnavGroups, "TEAM_LEAD");
     const visibleHrefs = filtered.flatMap((group) => group.items.map((item) => item.href));
 
-    // Has scorecards:manage, sampling:manage, audit:read, reports:read.
+    // Has scorecards:manage, sampling:manage, audit:read, reports:manage.
     expect(visibleHrefs).toEqual(
       expect.arrayContaining(["/admin/scorecards", "/admin/sampling", "/admin/audit", "/admin/report-schedules"])
     );
@@ -110,7 +110,7 @@ describe("filterAdminSubnavGroups", () => {
     // "identity" group is users/access/tokens — none of which a TEAM_LEAD can
     // reach, so the whole group disappears.
     expect(filtered.some((group) => group.id === "identity")).toBe(false);
-    // "data-flows" survives thanks to report-schedules (reports:read).
+    // "data-flows" survives thanks to report-schedules (reports:manage).
     const dataFlows = filtered.find((group) => group.id === "data-flows");
     expect(dataFlows?.items.map((item) => item.href)).toEqual(["/admin/report-schedules"]);
     // Every surviving group keeps at least one item.

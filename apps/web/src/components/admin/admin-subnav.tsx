@@ -85,7 +85,7 @@ export const adminSubnavGroups: AdminSubnavGroup[] = [
     items: [
       { href: "/admin/integrations", label: adminSectionTitles["/admin/integrations"], icon: Plug, permission: "integrations:manage" },
       { href: "/admin/channels", label: adminSectionTitles["/admin/channels"], icon: Send, permission: "backend_jobs:manage" },
-      { href: "/admin/report-schedules", label: adminSectionTitles["/admin/report-schedules"], icon: CalendarClock, permission: "reports:read" }
+      { href: "/admin/report-schedules", label: adminSectionTitles["/admin/report-schedules"], icon: CalendarClock, permission: "reports:manage" }
     ]
   },
   {

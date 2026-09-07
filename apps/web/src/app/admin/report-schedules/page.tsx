@@ -79,7 +79,7 @@ async function ReportSchedulesPageContent({ searchParams }: ReportSchedulesPageP
   // Единый deep-link паттерн админки: ?section=create открывает окно создания.
   const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
   const createDialogOpen = sectionParam?.trim() === "create";
-  const user = await requireCurrentUserPermission("reports:read");
+  const user = await requireCurrentUserPermission("reports:manage");
   const schedules = await prisma.reportSchedule.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ isActive: "desc" }, { nextRunAt: "asc" }, { createdAt: "desc" }]

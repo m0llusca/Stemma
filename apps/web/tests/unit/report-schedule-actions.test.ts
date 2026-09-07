@@ -58,12 +58,12 @@ describe("createReportSchedule", () => {
     return formData;
   }
 
-  it("gates on the reports:read permission and the demo settings guard", async () => {
+  it("gates on the reports:manage permission and the demo settings guard", async () => {
     const { createReportSchedule } = await import("@/lib/report-schedule-actions");
 
     await createReportSchedule({ status: "idle" }, buildFormData());
 
-    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reports:read");
+    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reports:manage");
     expect(mocks.assertCanPersistSettings).toHaveBeenCalledWith(adminUser());
   });
 
@@ -141,6 +141,18 @@ describe("setReportScheduleActive", () => {
     mocks.prisma.reportSchedule.updateMany.mockResolvedValue({ count: 1 });
   });
 
+  it("gates on the reports:manage permission", async () => {
+    const { setReportScheduleActive } = await import("@/lib/report-schedule-actions");
+
+    const formData = new FormData();
+    formData.set("scheduleId", "sched-1");
+    formData.set("isActive", "false");
+
+    await setReportScheduleActive(formData);
+
+    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reports:manage");
+  });
+
   it("scopes the toggle to the caller's workspace", async () => {
     const { setReportScheduleActive } = await import("@/lib/report-schedule-actions");
 
@@ -164,6 +176,17 @@ describe("deleteReportSchedule", () => {
     mocks.requireCurrentUserPermission.mockResolvedValue(adminUser());
     mocks.assertCanPersistSettings.mockResolvedValue(undefined);
     mocks.prisma.reportSchedule.deleteMany.mockResolvedValue({ count: 1 });
+  });
+
+  it("gates on the reports:manage permission", async () => {
+    const { deleteReportSchedule } = await import("@/lib/report-schedule-actions");
+
+    const formData = new FormData();
+    formData.set("scheduleId", "sched-1");
+
+    await deleteReportSchedule(formData);
+
+    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reports:manage");
   });
 
   it("scopes the delete to the caller's workspace", async () => {
