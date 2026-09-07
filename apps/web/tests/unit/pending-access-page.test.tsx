@@ -51,7 +51,8 @@ describe("pending-access holding state", () => {
     expect(screen.getByText(/права на продукт пока не назначены/)).not.toBeNull();
     expect(screen.getByText("viewer@example.com")).not.toBeNull();
     expect(screen.getByText("Без доступа")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Выйти" }).getAttribute("href")).toBe("/auth/logout");
+    const logout = screen.getByRole("button", { name: "Выйти" });
+    expect(logout.getAttribute("href")).toBe("/auth/logout");
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Командная палитра|⌘K|Поиск/i })).toBeNull();
   });
