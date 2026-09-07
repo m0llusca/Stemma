@@ -405,6 +405,30 @@ describe("user actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
   });
 
+  it("switches a demo viewer onto the pending-access holding state", async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "demo-user-viewer",
+      workspaceId: "demo-workspace",
+      role: "VIEWER",
+      name: "Гость"
+    });
+    const { switchCurrentUser } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("userId", "demo-user-viewer");
+    formData.set("returnTo", "/dashboard");
+
+    await expect(switchCurrentUser(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/pending-access");
+    expect(mocks.prisma.user.findFirst).toHaveBeenCalledWith({
+      where: demoUserByIdWhere("demo-user-viewer"),
+      select: { id: true, workspaceId: true, role: true, name: true }
+    });
+    expect(mocks.createAuthSession).toHaveBeenCalledWith({
+      providerId: "demo-provider",
+      userAgent: "vitest-agent",
+      userId: "demo-user-viewer"
+    });
+  });
+
   it("switches a demo QA analyst onto the mine+overdue queue from the shell default", async () => {
     mocks.prisma.user.findFirst.mockResolvedValue({
       id: "demo-analyst",

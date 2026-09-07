@@ -36,6 +36,13 @@ export async function AppNav() {
     return null;
   }
 
+  // VIEWER has no product areas or ⌘K destinations. Full chrome over
+  // `/auth/pending-access` reads as a broken empty shell, not a holding state.
+  // The page already shows identity + logout.
+  if (snapshot.user.role === "VIEWER") {
+    return null;
+  }
+
   const [pulseItems, demoSwitcher] = await Promise.all([
     getNavPulseItems(snapshot.user),
     isDemoAuthEnabled() ? getDemoSwitcher(snapshot.user) : Promise.resolve(null)
