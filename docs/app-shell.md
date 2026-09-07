@@ -34,6 +34,16 @@ Authenticated pages should expose a route-level `loading.tsx` when page data can
 
 Inside a page, wrap expensive content in `Suspense` with the same skeleton style. Skeletons should preserve approximate layout size so quick view toggles and filter changes do not produce large blank gaps.
 
+## Page permission denials
+
+A signed-in user without the page permission sees **«Недостаточно прав»** (`forbidden.tsx`), not the generic **«Что-то пошло не так»** (`error.tsx`). SUPPORT_AGENT on `/admin/*` is the usual case; any role missing the gate behaves the same.
+
+Gate RSC pages with `requirePagePermission` / `denyPageAccess` (`apps/web/src/lib/page-permission.ts`). They catch the deny and call Next.js `forbidden()`. That needs `experimental.authInterrupts: true` in `apps/web/next.config.ts`. Without the flag, `forbidden()` / `forbidden.tsx` do not work (undefined or wrong 403 UI).
+
+API routes and server actions keep `requireCurrentUserPermission` (403 JSON or throw). Mutation deny UX is unchanged.
+
+Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status.
+
 ## Runtime Import Guard
 
 Enqueue-only routes must stay enqueue-only. They may import small queue enqueue helpers, but must not import LDAP clients, worker runners, connector side-effect runtimes, or other heavy modules through shared action files.
@@ -43,7 +53,7 @@ When adding or changing an enqueue route, keep validation and enqueue code in a 
 ## Adding An Authenticated Route
 
 1. Create the App Router page under `apps/web/src/app`.
-2. Require the existing authenticated user/workspace path used by neighboring routes.
+2. Gate the page with `requirePagePermission` (or `denyPageAccess` for a custom role check). Do not call `requireCurrentUserPermission` from `page.tsx` — that throws into `error.tsx`.
 3. Add `loading.tsx` with `PageSkeleton` if page-specific data can wait.
 4. Keep shell-level data out of the page loader; use `getShellSnapshot()` only from shell components.
 5. Add a shell nav item only if the route is top-level navigation, and set the allowed roles explicitly.
