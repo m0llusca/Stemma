@@ -18,6 +18,8 @@ export type QueueNextCasePreviewProps = {
   statusConversation: ReviewStatusChipConversation;
   /** Expanded context: score, priority reason, signal grid. */
   children: ReactNode;
+  /** Page owns eligibility (`reviews:write`). Preview never posts Take-next without it. */
+  canTakeNext?: boolean;
 };
 
 /**
@@ -30,7 +32,8 @@ export function QueueNextCasePreview({
   description,
   queueHref,
   statusConversation,
-  children
+  children,
+  canTakeNext = true
 }: QueueNextCasePreviewProps) {
   return (
     <Card className="h-full gap-0 overflow-clip py-0" data-slot="queue-next-case-preview">
@@ -54,13 +57,15 @@ export function QueueNextCasePreview({
             <ReviewStatusChip conversation={statusConversation} />
             <CardDescription className="m-0">{description}</CardDescription>
           </div>
-          <form action={takeNextReview} className="mt-1">
-            <input type="hidden" name="queueHref" value={queueHref} />
-            <Button type="submit" className="w-full">
-              {TAKE_NEXT_LABEL}
-              <ArrowRight size={15} aria-hidden="true" data-icon="inline-end" />
-            </Button>
-          </form>
+          {canTakeNext ? (
+            <form action={takeNextReview} className="mt-1">
+              <input type="hidden" name="queueHref" value={queueHref} />
+              <Button type="submit" className="w-full">
+                {TAKE_NEXT_LABEL}
+                <ArrowRight size={15} aria-hidden="true" data-icon="inline-end" />
+              </Button>
+            </form>
+          ) : null}
         </CardHeader>
 
         <CollapsibleContent keepMounted={false} className="min-w-0 data-closed:hidden">

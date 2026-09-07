@@ -82,6 +82,23 @@ it("shows the queue status chip, not a second qaStatus wording, while collapsed"
   expect(screen.getByText(reviewStateLabels.assigned).className).toMatch(/chip/);
 });
 
+it("omits Take-next when the page says the viewer cannot write reviews", () => {
+  render(
+    <QueueNextCasePreview
+      subject="Просроченный чат"
+      description="Клиент · оператор"
+      queueHref="/reviews"
+      statusConversation={assignedConversation}
+      canTakeNext={false}
+    >
+      <p>Почему первый: SLA</p>
+    </QueueNextCasePreview>
+  );
+
+  expect(screen.queryByRole("button", { name: TAKE_NEXT_LABEL })).toBeNull();
+  expect(screen.getByText("Следующий кейс")).toBeInTheDocument();
+});
+
 it("uses the pending-reopen chip instead of finalized qaStatus wording", () => {
   render(
     <QueueNextCasePreview
