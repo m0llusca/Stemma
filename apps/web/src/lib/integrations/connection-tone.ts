@@ -190,8 +190,8 @@ export function adminHubAccessTone(input: {
 }
 
 /**
- * Hub channels: same bar as channel chips — active is not ok without live cert.
- * Map the shared StatusTone onto the hub card scale.
+ * Hub outgoing-notifications card: same bar as channel chips — enabled is not
+ * ok without live cert. Map the shared StatusTone onto the hub card scale.
  */
 export function adminHubChannelsTone(
   activeChannelCount: number,

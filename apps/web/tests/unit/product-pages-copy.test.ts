@@ -96,6 +96,14 @@ describe("reviews page take-next copy", () => {
     expect(reviewsPage).not.toContain("openHref=");
     expect(reviewsPage).not.toContain("Открыть приоритетный кейс");
   });
+
+  it("names or honestly describes filters that are not the role-home reset", () => {
+    expect(reviewsPage).toContain(
+      "findQueueFilterTrap(data.currentHref, data.filterResetHref, data.savedViews)"
+    );
+    expect(reviewsPage).toContain("resetHref={data.filterResetHref}");
+    expect(reviewsPage).not.toContain("foreignViewName");
+  });
 });
 
 describe("calibration page copy", () => {

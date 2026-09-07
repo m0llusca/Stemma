@@ -228,8 +228,8 @@ export function QueueFilters({
             <FieldLabel htmlFor="queue-filter-source" className="inline-flex items-center gap-1">
               Источник
               <HelpTooltip
-                label={QUEUE_GLOSSARY.source.label}
-                content={QUEUE_GLOSSARY.source.content}
+                label={QUEUE_GLOSSARY.otrs.label}
+                content={QUEUE_GLOSSARY.otrs.content}
                 placement="top-start"
               />
             </FieldLabel>

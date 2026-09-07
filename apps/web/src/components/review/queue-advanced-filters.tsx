@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { ReactNode } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { QUEUE_GLOSSARY } from "@/components/guidance/queue-glossary";
+import { welcomeBackWouldShowFromStorage } from "@/lib/guidance/visit-memory";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
@@ -57,9 +58,17 @@ export function QueueAdvancedFilters({
   formId,
   parameterCount
 }: QueueAdvancedFiltersProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   const titleId = useId();
   const counterLabel = activeCount > 0 ? `${activeCount} применено` : formatParameterCount(parameterCount);
+
+  useEffect(() => {
+    // Welcome-back CTA lives in the page tree. An auto-open Sheet marks that
+    // tree inert — keep the drawer closed so «Сбросить к очереди дня» is one click.
+    if (defaultOpen && !welcomeBackWouldShowFromStorage()) {
+      setOpen(true);
+    }
+  }, [defaultOpen]);
 
   function relayFormEvent() {
     const form = document.getElementById(formId);

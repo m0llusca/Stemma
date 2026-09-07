@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activateWithoutProbeCopy,
   adapterOperationalProfileTitle,
   adapterOperationalStepsLabel,
   adapterProfileStep,
@@ -7,11 +8,20 @@ import {
   certificationEvidenceEmptyText,
   certificationEvidenceEnvGateLabel,
   certificationEvidenceRunLabel,
+  channelsIaDistinction,
+  channelsPageDescription,
+  channelsSectionCardTitle,
+  claimLiveWithoutCertCopy,
+  connectPersistedNotLiveCopy,
   diagnosticStatusLabel,
   diagnosticStatusTone,
   diagnosticStepLabel,
   diagnosticsNotLiveCertificationFooter,
+  probeBeforePersistCopy,
+  probeBeforeSaveGate,
   probeStepStatusView,
+  saveActionSuccessTone,
+  saveDoesNotCertifyCopy,
   stepBadgeLabel
 } from "@/lib/integrations/probe-honesty";
 
@@ -81,5 +91,56 @@ describe("certification evidence copy", () => {
     ).toBe("Защищённый live-контур");
     expect(certificationEvidenceEnvGateLabel("VITEST_INCLUDE_LIVE=1")).toBe("Флаг окружения");
     expect(certificationEvidenceEnvGateLabel("HELPDESK_LIVE_SMOKE=1")).toBe("Флаг live-проверки");
+  });
+});
+
+describe("probe-before-save gate", () => {
+  it("blocks a live-ready claim without live cert", () => {
+    expect(probeBeforeSaveGate("claim_live")).toEqual({
+      action: "block",
+      tone: "negative",
+      message: claimLiveWithoutCertCopy
+    });
+    expect(probeBeforeSaveGate("claim_live", { probeSucceeded: true })).toMatchObject({
+      action: "block",
+      tone: "negative"
+    });
+    expect(probeBeforeSaveGate("claim_live", { liveCertified: true }).action).toBe("allow");
+    expect(probeBeforeSaveGate("claim_live", { liveCertified: true }).tone).toBe("positive");
+  });
+
+  it("warns fail-closed when activate or config save implies readiness without cert", () => {
+    expect(probeBeforeSaveGate("activate")).toEqual({
+      action: "warn",
+      tone: "warning",
+      message: activateWithoutProbeCopy
+    });
+    expect(probeBeforeSaveGate("activate", { probeSucceeded: true }).action).toBe("warn");
+    expect(probeBeforeSaveGate("activate", { probeSucceeded: true }).tone).not.toBe("positive");
+    expect(probeBeforeSaveGate("config_only")).toEqual({
+      action: "warn",
+      tone: "warning",
+      message: saveDoesNotCertifyCopy
+    });
+    expect(probeBeforeSaveGate("activate", { liveCertified: true }).tone).toBe("positive");
+  });
+
+  it("never paints save success green without live cert", () => {
+    expect(saveActionSuccessTone(false)).toBe("warning");
+    expect(saveActionSuccessTone(false)).not.toBe("positive");
+    expect(saveActionSuccessTone(true)).toBe("positive");
+    expect(probeBeforeSaveGate("config_only").tone).not.toBe("positive");
+    expect(probeBeforePersistCopy).toMatch(/probe/i);
+    expect(connectPersistedNotLiveCopy).toMatch(/не production-ready/i);
+  });
+});
+
+describe("channels IA vs integrations/SSO", () => {
+  it("names the page outgoing notifications, not a generic Channels/SSO surface", () => {
+    expect(channelsSectionCardTitle).toBe("Исходящие уведомления");
+    expect(channelsPageDescription).toMatch(/не интеграции/i);
+    expect(channelsPageDescription).toMatch(/не SSO/i);
+    expect(channelsIaDistinction).toMatch(/Интеграции — входящие источники/);
+    expect(channelsIaDistinction).toMatch(/Доступ — SSO/);
   });
 });

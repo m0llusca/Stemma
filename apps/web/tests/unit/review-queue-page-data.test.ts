@@ -77,4 +77,33 @@ describe("getReviewQueuePageData write gate", () => {
     expect(mocks.requirePagePermission).toHaveBeenCalledWith("reviews:read");
     expect(data.canWriteReviews).toBe(canWrite);
   });
+
+  it("keeps currentHref on the request URL and does not apply a workspace saved view", async () => {
+    mocks.requirePagePermission.mockResolvedValue(user("QA_ANALYST"));
+    mocks.prisma.savedQueueView.findMany.mockResolvedValue([
+      {
+        id: "ws-critical",
+        name: "Критические за период",
+        href: "/reviews?process=critical",
+        scope: "workspace"
+      }
+    ]);
+    const { getReviewQueuePageData } = await import("@/lib/review-queue-page-data");
+
+    const bare = await getReviewQueuePageData({});
+    expect(bare.currentHref).toBe("/reviews");
+    expect(bare.filterResetHref).toBe("/reviews?qaAssignee=QA_ANALYST&due=overdue");
+    expect(bare.savedViews).toEqual([
+      {
+        id: "ws-critical",
+        name: "Критические за период",
+        href: "/reviews?process=critical",
+        scope: "workspace"
+      }
+    ]);
+
+    const deep = await getReviewQueuePageData({ process: "critical" });
+    expect(deep.currentHref).toBe("/reviews?process=critical");
+    expect(deep.filterResetHref).toBe("/reviews?qaAssignee=QA_ANALYST&due=overdue");
+  });
 });

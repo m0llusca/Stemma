@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("QueueFilters", () => {
-  it("exposes QA status as a visible exact filter and gives queue search a unique label", () => {
+  it("exposes QA status as a visible exact filter and gives queue search a unique label", async () => {
     render(
       <QueueFilters
         filters={{ status: "all", qaStatus: "QUEUED" }}
@@ -44,10 +44,10 @@ describe("QueueFilters", () => {
     expect(screen.getByText("Статус проверки: В очереди")).toBeInTheDocument();
     expect(screen.getByText("Сбросить фильтры").closest("a")).toHaveAttribute("href", "/reviews");
     expect(screen.getByText(/Применено фильтров: 1\. Найдено обращений: 12\./)).toBeInTheDocument();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /что такое источник/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /что такое otrs/i })).toBeInTheDocument();
   });
 
   it("shows the Итог chip with reviewed/unreviewed words, not status-chip words", () => {
