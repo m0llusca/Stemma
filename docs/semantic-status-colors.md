@@ -23,13 +23,20 @@ If a metric needs domain-specific thresholds, add a helper near the metric domai
 
 - Dashboard focus and activity blocks use tones to distinguish healthy quality, risk, empty queues, and learning/system notices.
 - Review detail metadata chips use `StatusBadge` for review state, score, customer/source/team, due date, risk, appeal, and reanswer state.
-- Integrations use warning for token-only, limited, partial, or uncertified readiness, negative for disconnected or failed states, and positive only for genuinely healthy/certified states.
+- Connection and channel chips use warning for token-only, limited, partial, or uncertified readiness, negative for disconnected or failed states, and **positive only after `live_certified`**. Operational `ready` / `active` is not green. Catalog capability chips are a leftover — see Follow-up.
 - Admin system rows use neutral for not-yet-run jobs, info for planned work, warning for degraded queues, and negative for blocking failures.
 
 ## Rules
 
 - Green/`positive` must mean good. Do not use it for active deadlines, in-progress work, or merely enabled settings.
+- Connection and channel chips (`integrationConnectionTone` / `messagingChannelTone` in `apps/web/src/lib/integrations/connection-tone.ts`): green only when `certificationDisplayTone` is positive — that is **`live_certified`**. `ready` and `active` without live cert are `warning`. Error → `negative`, disabled → `warning`, queued → `info`.
 - Use `warning` for active deadlines that are approaching. Use `negative` for overdue deadlines.
 - Use `neutral` for unknown, missing, disabled, or no-run-yet states unless the absence is itself a risk.
 - Use `info` for explanatory or planned states that are neither good nor bad.
 - Keep chip typography and alignment on shared components so label and value text stay centered consistently.
+
+See [integration-install-contracts.md](integration-install-contracts.md).
+
+## Follow-up (not fixed)
+
+Catalog capability chips still use local `readinessTone` (`apps/web/src/app/admin/integrations/page.tsx`). `production_slice` is green without a live-cert check. Connection/channel chips are fail-closed; the catalog row is not.

@@ -41,6 +41,14 @@ Token-only and limited sources must not be marketed or labeled as one-click inst
 - Do not infer `live-certified` from docs or stubs. It requires real live credentials and recorded certification evidence.
 - Keep adapter behavior in adapter modules; keep install readiness in the contract registry.
 
+## Connection / channel chips
+
+Admin connection and messaging-channel badges use `integrationConnectionTone` / `messagingChannelTone` (`apps/web/src/lib/integrations/connection-tone.ts`). Green only when certification is `live_certified`. Operational `ready` / `active` is warning, not green.
+
+See [semantic-status-colors.md](semantic-status-colors.md).
+
+**Follow-up (not fixed):** catalog capability chips still use local `readinessTone`. `production_slice` can be green without live cert.
+
 ## Source Documentation Gate
 
 Before changing adapter runtime behavior, the implementer must check the current official vendor documentation. Use Context7 first when it has official coverage. If Context7 does not return a useful official source, use the vendor's official developer documentation directly and record the `checkedAt` date in the source contract.

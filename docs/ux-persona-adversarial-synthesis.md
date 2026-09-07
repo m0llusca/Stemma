@@ -2,7 +2,17 @@
 
 **Дата:** 2026-09-04  
 **Вход:** 20 persona-интервью + UI map (`/dashboard`, `/reviews`, `/reviews/[id]`, `/self-review`, `/calibration`, `/coaching`, `/reports`, `/admin/*`)  
-**Статус:** decision document — без реализации кода
+**Статус:** decision document. P0 swarm on `master` (`f8b0fce`…`5b8fff7`) shipped the contracts below — this file stays the verdict, not the runtime spec.
+
+**Shipped (verify in code, not here):**
+
+- Take next = one path (queue / `finalize_next` / ⌘K). No ⌘K impostor `/reviews?status=unreviewed`. → [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md)
+- Status chip = `reviewStateLabels` on queue + next-case preview. → same contract
+- Connection/channel green only after `live_certified`. → [semantic-status-colors.md](semantic-status-colors.md)
+- Role homes: Analyst «Сегодня» = Мои+просрочено; Agent brand → `/self-review`; Lead «Сегодня» = `/dashboard`. → [app-shell.md](app-shell.md)
+- Focus map removed from queue chrome (`f8b0fce`).
+
+Leftovers (not fixed): catalog `readinessTone`; AGENT deep-link `/dashboard`; shell `useSearchParams` without layout Suspense; topbar pulse «Взять кейс» still impostor `/reviews?status=unreviewed` → #28.
 
 ---
 
