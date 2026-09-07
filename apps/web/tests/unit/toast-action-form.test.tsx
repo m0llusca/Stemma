@@ -57,7 +57,7 @@ describe("ToastActionForm", () => {
     expect(document.querySelector('[data-sonner-toast][data-type="success"]')).not.toBeNull();
   });
 
-  it("renders an inline error and raises no toast on failure", async () => {
+  it("renders an inline error and an honest error toast on failure", async () => {
     const action = async (): Promise<FeedbackActionState> => ({
       ok: false,
       message: "Нет прав на работу с обратной связью."
@@ -73,5 +73,7 @@ describe("ToastActionForm", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("Нет прав на работу с обратной связью.");
     });
     expect(document.querySelector('[data-sonner-toast][data-type="success"]')).toBeNull();
+    expect(document.querySelector('[data-sonner-toast][data-type="error"]')).not.toBeNull();
+    expect(screen.getAllByText("Нет прав на работу с обратной связью.").length).toBeGreaterThan(1);
   });
 });

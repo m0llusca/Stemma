@@ -77,7 +77,7 @@
 ## 5. North-star IA (по одной фразе)
 
 - **Queue:** «Inbox просроченного и моего — строки, скучные фильтры, Take next; chrome не конкурирует с делом.»
-- **Agent feedback:** «Спокойная личная оценка: цитата → вывод балла → как исправить → апелляция; без публичного позора.»
+- **Agent feedback:** «Спокойная личная оценка: цитата → вывод балла → как исправить → апелляция; без публичного позора.» Locked contract: [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md).
 - **Admin:** «Интеграции и доступ fail-closed: probe, evidence, secret refs; зелёный = сертифицировано, иначе warning/neutral.»
 
 ---

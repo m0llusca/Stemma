@@ -163,6 +163,9 @@ describe("self-review page copy", () => {
     expect(selfReviewPage).toContain("На что обратить внимание");
     expect(selfReviewPage).toContain("AgentCriterionFeedbackList");
     expect(selfReviewPage).toContain("Оспорить оценку");
+    expect(selfReviewPage).toContain("canAgentOpenAppeal");
+    expect(selfReviewPage).not.toContain("вы провалили");
+    expect(selfReviewPage).not.toContain("лидерборд");
   });
 });
 

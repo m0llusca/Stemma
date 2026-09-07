@@ -10,6 +10,7 @@
 | [i18n.md](i18n.md) | Localization |
 | [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage; appearance «Применено»; cert ≠ step |
 | [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next / SavedViews write-gate + status chip (locked) |
+| [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) | Agent feedback trust pack: quote → impact → how-to-fix → appeal (locked) |
 | [competitive-qa-interconnections.md](competitive-qa-interconnections.md) | Competitor QA interconnection matrix + Stemma P0–P2 status map |
 | [cross-feature-interconnections.md](cross-feature-interconnections.md) | This-wave wiring summary (coaching/AI/reports/self-review loops) |
 | [business-logic-adversarial-audit.md](business-logic-adversarial-audit.md) | Adversarial business-logic audit + P0/P1 fix status |

@@ -36,11 +36,25 @@ export function ToastActionForm({
   const [state, formAction] = useActionState(action, initialState);
   const toast = useToast();
   const lastNonceRef = useRef<number | null>(null);
+  const lastErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (state && state.ok && state.nonce !== lastNonceRef.current) {
-      lastNonceRef.current = state.nonce;
-      toast.success(state.toast);
+    if (!state) {
+      return;
+    }
+
+    if (state.ok) {
+      if (state.nonce !== lastNonceRef.current) {
+        lastNonceRef.current = state.nonce;
+        lastErrorRef.current = null;
+        toast.success(state.toast);
+      }
+      return;
+    }
+
+    if (state.message !== lastErrorRef.current) {
+      lastErrorRef.current = state.message;
+      toast.error(state.message);
     }
   }, [state, toast]);
 
