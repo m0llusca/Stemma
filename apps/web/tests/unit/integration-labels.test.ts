@@ -170,7 +170,7 @@ describe("admin list columns and copy wiring", () => {
   });
 
   it("keeps list/detail pre-cert wording aligned with the connect wizard", () => {
-    expect(connectWizard).toContain("Зелёный production-ready — только после живой сертификации");
+    expect(connectWizard).toContain("probeBeforePersistCopy");
     expect(connectWizard).toContain("Живая сертификация — отдельный шаг с evidence");
     expect(integrationsPage).toContain("capabilityReadinessLabel");
     expect(integrationDetailPage).toContain("readinessActionLabel");

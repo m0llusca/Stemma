@@ -8,7 +8,7 @@
 | [integration-install-contracts.md](integration-install-contracts.md) | Install / capability contracts |
 | [app-shell.md](app-shell.md) | App shell; role homes; take-next / SavedViews write-gate; empty-triage + KPI drill honesty; page permission / forbidden UX |
 | [i18n.md](i18n.md) | Localization |
-| [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage; appearance «Применено»; cert ≠ step |
+| [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage; appearance «Применено»; cert ≠ step; probe-before-save |
 | [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next / SavedViews write-gate + status chip (locked) |
 | [competitive-qa-interconnections.md](competitive-qa-interconnections.md) | Competitor QA interconnection matrix + Stemma P0–P2 status map |
 | [cross-feature-interconnections.md](cross-feature-interconnections.md) | This-wave wiring summary (coaching/AI/reports/self-review loops) |
