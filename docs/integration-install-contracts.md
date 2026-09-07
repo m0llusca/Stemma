@@ -43,7 +43,7 @@ Token-only and limited sources must not be marketed or labeled as one-click inst
 
 ## Connection / channel chips
 
-Admin connection, messaging-channel, and catalog-readiness badges use `integrationConnectionTone` / `messagingChannelTone` / `catalogReadinessTone` (`apps/web/src/lib/integrations/connection-tone.ts`). Green only when certification is `live_certified`. Operational `ready` / `active` and catalog `production_slice` are warning without live cert. The integrations `certifiedSources` stage counts only `live_certified`.
+Admin connection, messaging-channel, and catalog-readiness badges use `integrationConnectionTone` / `messagingChannelTone` / `catalogReadinessTone` (`apps/web/src/lib/integrations/connection-tone.ts`). Green only when certification is `live_certified`. Operational `ready` / `active` and catalog `production_slice` are warning without live cert. The integrations `certifiedSources` stage counts only `live_certified`. Admin hub cards and pipeline stages use the same module (`adminHub*`, `*PipelineStageTone`): no green without live cert or full stage coverage; appearance stays neutral. QA hub overview must not inherit a cert-green «Настройки в рабочем состоянии».
 
 See [semantic-status-colors.md](semantic-status-colors.md).
 

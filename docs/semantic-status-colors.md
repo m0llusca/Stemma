@@ -24,12 +24,16 @@ If a metric needs domain-specific thresholds, add a helper near the metric domai
 - Dashboard focus and activity blocks use tones to distinguish healthy quality, risk, empty queues, and learning/system notices.
 - Review detail metadata chips use `StatusBadge` for review state, score, customer/source/team, due date, risk, appeal, and reanswer state.
 - Connection, channel, and catalog readiness chips use warning for token-only, limited, partial, or uncertified readiness, negative for disconnected or failed states, and **positive only after `live_certified`**. Operational `ready` / `active` and catalog `production_slice` are not green without live cert.
+- Admin hub cards and integrations pipeline stages use the same honesty bar: green/`ok` only from `live_certified` or full stage coverage — never from “sources exist” / “no errors in this slice”. Appearance is always `neutral` (a setting, not health).
 - Admin system rows use neutral for not-yet-run jobs, info for planned work, warning for degraded queues, and negative for blocking failures.
 
 ## Rules
 
 - Green/`positive` must mean good. Do not use it for active deadlines, in-progress work, or merely enabled settings.
 - Connection, channel, and catalog chips (`integrationConnectionTone` / `messagingChannelTone` / `catalogReadinessTone` in `apps/web/src/lib/integrations/connection-tone.ts`): green only when `isLiveCertified` / `certificationDisplayTone` is positive — that is **`live_certified`**. `ready`, `active`, and catalog `production_slice` without live cert are `warning`. Error → `negative`, disabled → `warning`, queued → `info`. Catalog `certifiedSources` counts only `live_certified`.
+- Admin hub (`adminHub*` in the same module, `/admin`): integrations `ok` only when every listed source is `live_certified`; access `ok` only with Phase D live SSO and no provider warnings; channels use the same bar as channel chips (active is not `ok` without live cert). `adminHubAppearanceTone()` is always `neutral`.
+- Integrations pipeline (`*PipelineStageTone` on `/admin/integrations`): `ok` only on full coverage for that stage (every source has access / successful diagnostic / `live_certified`; import ran; every active source is monitored). A configured subset or “no failures in the last slice” is `warn` / `neutral`, not green.
+- Hub overview (`adminHubOverviewTone`): `success` + **«Настройки в рабочем состоянии»** only when the role can open cert-health sections (`canSeeCertHealth`, ADMIN today) and there is no setup gap. QA (and any role without integrations/access) gets `accent` + **«Доступные разделы»** — do not inherit a cert-green strip. `canAccessAdminHub` unlocks Settings → `/admin`; QA’s honest home there is report schedules.
 - Use `warning` for active deadlines that are approaching. Use `negative` for overdue deadlines.
 - Use `neutral` for unknown, missing, disabled, or no-run-yet states unless the absence is itself a risk.
 - Use `info` for explanatory or planned states that are neither good nor bad.
