@@ -28,3 +28,11 @@ export function integrationConnectionTone(
 
   return "neutral";
 }
+
+/** Same honesty gate as connection chips: no green without live_certified. */
+export function messagingChannelTone(
+  status: string,
+  certificationStatus?: string | null
+): StatusTone {
+  return integrationConnectionTone(status, certificationStatus);
+}
