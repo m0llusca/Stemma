@@ -8,7 +8,6 @@ import { PageSkeleton } from "@/components/loading-states";
 import { createLocalUser, updateUserAccess } from "@/lib/admin-user-actions";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { getPermissions, type Permission } from "@/lib/auth/permissions";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +39,7 @@ import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -215,7 +215,7 @@ export default function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
 
 async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
   const params = await searchParams;
-  const currentUser = await requireCurrentUserPermission("users:manage");
+  const currentUser = await requirePagePermission("users:manage");
   const [users, activeSessionRows] = await Promise.all([
     prisma.user.findMany({
       where: { workspaceId: currentUser.workspaceId },

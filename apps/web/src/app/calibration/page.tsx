@@ -43,12 +43,13 @@ import {
   listLowAgreementCalibrationItems,
   type ReviewerQualityCalibrationItemInput
 } from "@/lib/calibration/reviewer-quality";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { CALIBRATION_APPEAL_SIGNAL_ACTION, reviewEventActionLabel } from "@/lib/review-events";
 import { reportReviewRangeHref, russianPlural } from "@/lib/reports/report-format";
 import { formatQualityScore } from "@/lib/score-display";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +143,7 @@ export default function CalibrationPage({ searchParams }: CalibrationPageProps) 
 }
 
 async function CalibrationPageContent({ searchParams }: CalibrationPageProps) {
-  const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("calibration:manage"), searchParams]);
+  const [user, rawSearchParams] = await Promise.all([requirePagePermission("calibration:manage"), searchParams]);
   const selectedSessionId = firstParam(rawSearchParams.session);
   const openNewSession = firstParam(rawSearchParams.new) === "1";
   const volumePeriodEnd = new Date();

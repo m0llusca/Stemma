@@ -35,11 +35,12 @@ import {
 } from "@/components/ui/table";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { criterionKindLabels } from "@/lib/labels";
 import { russianPlural } from "@/lib/reports/report-format";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +101,7 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
   const createDialogOpen = requestedSection === "create";
   const activeSection = createDialogOpen ? "overview" : requestedSection;
   const isEditingActiveScorecard = activeSection === "overview" && firstParam(params.edit) === "1";
-  const user = await requireCurrentUserPermission("scorecards:manage");
+  const user = await requirePagePermission("scorecards:manage");
   const activeScorecard = await prisma.scorecard.findFirst({
     where: {
       workspaceId: user.workspaceId,

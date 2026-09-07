@@ -121,7 +121,7 @@ export const topNavAreas: ShellNavArea[] = [
 /**
  * Top-nav areas a role can actually open: the same roles/permission gating as
  * the mode/destination model, so the bar never links to a page whose own guard
- * would throw «Недостаточно прав».
+ * would invoke Next.js `forbidden()` instead of the generic error boundary.
  */
 export function visibleTopNavAreas(role: RoleName): ShellNavArea[] {
   return topNavAreas.filter((area) => canSeeDefinition(role, area));

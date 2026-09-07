@@ -11,7 +11,7 @@ import { TriageStrip } from "@/components/ui/triage-strip";
 import { PageSkeleton } from "@/components/loading-states";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { russianPlural } from "@/lib/reports/report-format";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
@@ -19,6 +19,7 @@ import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
 import { loadWorkspaceAiCredentials } from "@/lib/ai-quality/credentials";
 import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export default function AdminHomePage() {
 }
 
 async function AdminHomePageContent() {
-  const user = await requireCurrentUserPermission("audit:read");
+  const user = await requirePagePermission("audit:read");
   const [
     workspace,
     activeScorecard,

@@ -49,8 +49,7 @@ import {
   canManageTraining,
   canResolveAppeal,
   canSaveReviewDraft,
-  canSelfReview,
-  requireCurrentUserPermission
+  canSelfReview
 } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
@@ -80,6 +79,7 @@ import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/r
 import { formatQualityScore } from "@/lib/score-display";
 import { toneForScore, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -215,7 +215,7 @@ export default function ReviewDetailPage({ params, searchParams }: ReviewDetailP
 }
 
 export async function ReviewDetailPageContent({ params, searchParams }: ReviewDetailPageProps) {
-  const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, requireCurrentUserPermission("reviews:read")]);
+  const [{ conversationId }, rawSearchParams, user] = await Promise.all([params, searchParams, requirePagePermission("reviews:read")]);
   const now = new Date();
   const requestedReviewSource = singleParam(rawSearchParams.reviewSource);
   const reviewSource =

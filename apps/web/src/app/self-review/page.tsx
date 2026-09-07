@@ -29,7 +29,7 @@ import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip"
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { updateReviewFeedbackState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import {
   appealStatusLabels,
@@ -40,6 +40,7 @@ import {
 import { criterionEarnedPercent } from "@/lib/reports/report-aggregation";
 import { formatReviewCount, russianPlural } from "@/lib/reports/report-format";
 import { clampQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,7 @@ export default function SelfReviewPage() {
 }
 
 async function SelfReviewPageContent() {
-  const user = await requireCurrentUserPermission("feedback:acknowledge");
+  const user = await requirePagePermission("feedback:acknowledge");
   const scopedToAgent = user.role === "SUPPORT_AGENT";
   const [conversations, assignments] = await Promise.all([
     prisma.conversation.findMany({

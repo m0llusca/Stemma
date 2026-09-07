@@ -80,6 +80,21 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
   VIEWER: []
 };
 
+export class PermissionDeniedError extends Error {
+  constructor(message = permissionDeniedMessage) {
+    super(message);
+    this.name = "PermissionDeniedError";
+  }
+}
+
+export function isPermissionDeniedError(error: unknown): error is PermissionDeniedError {
+  return (
+    error instanceof PermissionDeniedError ||
+    (error instanceof Error &&
+      (error.name === "PermissionDeniedError" || error.message === permissionDeniedMessage))
+  );
+}
+
 export function hasPermission(role: RoleName, permission: Permission) {
   return rolePermissions[role].includes(permission);
 }
@@ -90,6 +105,6 @@ export function getPermissions(role: RoleName) {
 
 export function requirePermission(user: AuthUser, permission: Permission) {
   if (!hasPermission(user.role, permission)) {
-    throw new Error(permissionDeniedMessage);
+    throw new PermissionDeniedError();
   }
 }

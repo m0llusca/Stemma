@@ -7,11 +7,12 @@ import { AdminFrame } from "@/components/admin/admin-frame";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { resolveUiAppearance } from "@/lib/ui-theme";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default function AdminAppearancePage() {
 }
 
 async function AdminAppearancePageContent() {
-  const user = await requireCurrentUserPermission("appearance:manage");
+  const user = await requirePagePermission("appearance:manage");
   const workspace = await prisma.workspace.findUnique({
     where: { id: user.workspaceId },
     select: {

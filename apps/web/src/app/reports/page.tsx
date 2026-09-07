@@ -49,7 +49,7 @@ import {
 } from "@/components/reports/report-panels";
 import { PrimaryScorePanel } from "@/components/reports/report-score-panel";
 import { BreakdownTable, QuotaTable } from "@/components/reports/report-tables";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import {
   appealStatusLabels,
@@ -137,6 +137,7 @@ import {
   loadFinalizedReviews,
   reviewWhere
 } from "@/lib/reports/report-page-data";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +162,7 @@ export default function ReportsPage({ searchParams }: ReportsPageProps) {
 
 async function ReportsPageContent({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
-  const user = await requireCurrentUserPermission("reports:read");
+  const user = await requirePagePermission("reports:read");
   const filterCatalog = await loadReportFilterCatalog(user.workspaceId);
   const analysisState = parseReportAnalysisState(params, filterCatalog);
   const canonicalReportHref = serializeReportAnalysisState(analysisState);

@@ -24,10 +24,11 @@ import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { channelLabels, csatBucketLabels } from "@/lib/labels";
 import { createSamplingRule, updateSamplingRule, updateSamplingRuleStatus } from "@/lib/quality-actions";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,7 @@ async function SamplingRulesPageContent({ searchParams }: SamplingRulesPageProps
   const params = await searchParams;
   // Deep-link ?section=create (или ?new=1) открывает окно создания поверх списка правил.
   const createDialogOpen = createDialogRequested(params);
-  const user = await requireCurrentUserPermission("sampling:manage");
+  const user = await requirePagePermission("sampling:manage");
   const rules = await prisma.samplingRule.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ isActive: "desc" }, { priority: "asc" }, { createdAt: "desc" }]

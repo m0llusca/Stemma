@@ -35,10 +35,11 @@ import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin
 import { allowedApiScopes } from "@/lib/api-token-service";
 import { revokeApiTokenById } from "@/lib/api-token-actions";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
-import { isDemoAuthEnabled, requireCurrentUserPermission } from "@/lib/current-user";
+import { isDemoAuthEnabled } from "@/lib/current-user";
 import { apiTokenPlaceholder, demoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -124,7 +125,7 @@ export async function AdminTokensPageContent({ searchParams }: AdminTokensPagePr
   // Deep-link ?section=create открывает окно создания поверх списка ключей.
   const createDialogOpen = requestedSection === "create";
   const activeSection: TokensSection = createDialogOpen ? "tokens" : requestedSection;
-  const user = await requireCurrentUserPermission("api_tokens:manage");
+  const user = await requirePagePermission("api_tokens:manage");
   const apiTokens = await prisma.apiToken.findMany({
     where: {
       workspaceId: user.workspaceId

@@ -85,11 +85,14 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
 
   await page.goto("/admin/users");
-  await expect(page.getByText("Что-то пошло не так", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Недостаточно прав" })).toBeVisible();
+  await expect(page.getByText("Недостаточно прав для выполнения операции.")).toBeVisible();
+  await expect(page.getByText("Что-то пошло не так", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Пользователи" })).toHaveCount(0);
 
   await page.goto("/admin/scorecards");
-  await expect(page.getByText("Что-то пошло не так", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Недостаточно прав" })).toBeVisible();
+  await expect(page.getByText("Что-то пошло не так", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Новая версия" })).toHaveCount(0);
   await context.close();
 });

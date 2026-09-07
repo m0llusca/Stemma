@@ -40,7 +40,7 @@ export type AdminSubnavItem = {
   match?: string[];
   /**
    * Permission that guards the item's target page (the one its `page.tsx`
-   * enforces via `requireCurrentUserPermission`). Items without a declared
+   * enforces via `requirePagePermission`). Items without a declared
    * permission are always visible.
    */
   permission?: Permission;

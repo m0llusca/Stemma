@@ -31,11 +31,12 @@ import {
   MessagingChannelStatusToggle
 } from "@/components/admin/messaging-channel-form";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { maskSecret } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -167,7 +168,7 @@ export default function AdminChannelsPage() {
 }
 
 async function AdminChannelsPageContent() {
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const user = await requirePagePermission("backend_jobs:manage");
   const [messagingChannels, queuedDeliveries, failedDeliveries, deliveredDeliveries, recentDeliveries] = await Promise.all([
     prisma.messagingChannel.findMany({
       where: { workspaceId: user.workspaceId },
