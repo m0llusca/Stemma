@@ -318,7 +318,7 @@ async function AdminChannelsPageContent() {
                   <AlertTriangle />
                   <AlertTitle>Доставка уведомлений деградировала</AlertTitle>
                   <AlertDescription>
-                    Проверьте последний error у канала и scope токена перед повторной отправкой.
+                    Проверьте последний error у уведомления и scope токена перед повторной отправкой.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -402,7 +402,7 @@ async function AdminChannelsPageContent() {
                                   rel="noreferrer"
                                   className="text-sm text-primary underline-offset-4 hover:underline"
                                 >
-                                  Документация канала
+                                  Документация уведомления
                                 </a>
                               </p>
                             </div>

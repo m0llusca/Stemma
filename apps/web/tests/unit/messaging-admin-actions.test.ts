@@ -174,7 +174,7 @@ describe("messaging channel admin actions", () => {
     formData.set("kind", "slack");
     formData.set("status", "draft");
 
-    await setMessagingChannelStatus(formData);
+    const state = await setMessagingChannelStatus({ status: "idle" }, formData);
 
     expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("backend_jobs:manage");
     expect(mocks.assertCanPersistSettings).toHaveBeenCalled();
@@ -182,7 +182,34 @@ describe("messaging channel admin actions", () => {
       where: { workspaceId_kind: { workspaceId: "workspace-1", kind: "slack" } },
       data: { status: "draft" }
     });
+    expect(state.status).toBe("success");
+    expect(state.tone).toBe("neutral");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/channels");
+  });
+
+  it("warns fail-closed when the status toggle enables delivery without a probe", async () => {
+    mocks.channelUpdate.mockResolvedValue({
+      id: "channel-1",
+      kind: "slack",
+      status: "active"
+    });
+    const { setMessagingChannelStatus } = await import("@/lib/messaging-actions");
+    const { activateWithoutProbeCopy } = await import("@/lib/integrations/probe-honesty");
+    const formData = new FormData();
+    formData.set("kind", "slack");
+    formData.set("status", "active");
+
+    const state = await setMessagingChannelStatus({ status: "idle" }, formData);
+
+    expect(mocks.channelUpdate).toHaveBeenCalledWith({
+      where: { workspaceId_kind: { workspaceId: "workspace-1", kind: "slack" } },
+      data: { status: "active" }
+    });
+    expect(state.status).toBe("success");
+    expect(state.tone).toBe("warning");
+    expect(state.message).toContain(activateWithoutProbeCopy);
+    expect(state.message).not.toMatch(/сертификац\w+ пройден/i);
+    expect(state.message).not.toMatch(/live-ready/i);
   });
 
   it("rejects an unknown status in setMessagingChannelStatus", async () => {
@@ -191,7 +218,7 @@ describe("messaging channel admin actions", () => {
     formData.set("kind", "slack");
     formData.set("status", "deleted");
 
-    await expect(setMessagingChannelStatus(formData)).rejects.toThrow();
+    await expect(setMessagingChannelStatus({ status: "idle" }, formData)).rejects.toThrow();
     expect(mocks.channelUpdate).not.toHaveBeenCalled();
   });
 
@@ -201,7 +228,7 @@ describe("messaging channel admin actions", () => {
     formData.set("kind", "carrier-pigeon");
     formData.set("status", "active");
 
-    await expect(setMessagingChannelStatus(formData)).rejects.toThrow();
+    await expect(setMessagingChannelStatus({ status: "idle" }, formData)).rejects.toThrow();
     expect(mocks.channelUpdate).not.toHaveBeenCalled();
   });
 });

@@ -115,6 +115,8 @@ describe("probe-before-save action wiring", () => {
   it("gates messaging and integration saves through probeBeforeSaveGate", () => {
     expect(messagingActions).toContain("probeBeforeSaveGate");
     expect(messagingActions).toContain('status === "active" ? "activate" : "config_only"');
+    expect(messagingActions).toContain('probeBeforeSaveGate("activate")');
+    expect(messagingActions).toContain("setMessagingChannelStatus");
     expect(messagingActions).not.toContain("Канал сохранен и активирован.");
     expect(integrationActions).toContain("probeBeforeSaveGate");
     expect(integrationActions).not.toContain("Источник появился в списке подключений.");

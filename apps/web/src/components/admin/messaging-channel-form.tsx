@@ -31,9 +31,8 @@ function SaveChannelSubmitButton() {
 }
 
 /**
- * Переключатель active/draft: тот же server action, что и раньше у кнопки
- * «Активировать» / «В черновик». После submit страница revalidate'ится и
- * checked обновится с сервера.
+ * Переключатель active/draft. Включение идёт через probeBeforeSaveGate("activate")
+ * и не претендует на live cert. После submit страница revalidate'ится.
  */
 export function MessagingChannelStatusToggle({
   kind,
@@ -43,20 +42,29 @@ export function MessagingChannelStatusToggle({
   isActive: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [state, formAction] = useActionState(setMessagingChannelStatus, initialState);
 
   return (
-    <form ref={formRef} action={setMessagingChannelStatus} className="flex items-center gap-2">
-      <input type="hidden" name="kind" value={kind} />
-      <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
-      <Switch
-        checked={isActive}
-        size="sm"
-        aria-label={isActive ? "Перевести уведомление в черновик" : "Включить уведомление для доставки"}
-        onCheckedChange={() => {
-          formRef.current?.requestSubmit();
-        }}
-      />
-      <span className="text-sm text-muted-foreground">{isActive ? "Включён" : "Черновик"}</span>
+    <form ref={formRef} action={formAction} className="grid gap-1">
+      <div className="flex items-center gap-2">
+        <input type="hidden" name="kind" value={kind} />
+        <input type="hidden" name="status" value={isActive ? "draft" : "active"} />
+        <Switch
+          checked={isActive}
+          size="sm"
+          aria-label={isActive ? "Перевести уведомление в черновик" : "Включить уведомление для доставки"}
+          onCheckedChange={() => {
+            formRef.current?.requestSubmit();
+          }}
+        />
+        <span className="text-sm text-muted-foreground">{isActive ? "Включён" : "Черновик"}</span>
+      </div>
+      {state.status === "success" && state.message ? (
+        <span className={cn("max-w-56 text-xs font-medium", statusToneClass(state.tone ?? "warning"))}>
+          {state.message}
+        </span>
+      ) : null}
+      {state.status === "error" && state.message ? <FieldError>{state.message}</FieldError> : null}
     </form>
   );
 }
@@ -122,10 +130,10 @@ export function MessagingChannelForm({
       </FieldGroup>
 
       {/*
-        Единственный контрол активации канала — MessagingChannelStatusToggle
-        в списке каналов (setMessagingChannelStatus). Скрытое поле передает
+        Единственный контрол включения — MessagingChannelStatusToggle
+        в списке уведомлений (setMessagingChannelStatus). Скрытое поле передаёт
         текущий статус, потому что saveMessagingChannel трактует отсутствующий
-        status как "draft" и сохранение молча деактивировало бы канал.
+        status как "draft" и сохранение молча выключило бы доставку.
       */}
       <input type="hidden" name="status" value={isActive ? "active" : "draft"} />
 

@@ -67,7 +67,7 @@ export async function saveMessagingChannel(
   if (!isKnownChannelKind(kind)) {
     return {
       status: "error",
-      message: "Неизвестный тип канала.",
+      message: "Неизвестный тип уведомления.",
       kind
     };
   }
@@ -83,7 +83,7 @@ export async function saveMessagingChannel(
   if (status === "active" && !webhookUrl) {
     return {
       status: "error",
-      message: "Укажите webhook URL, чтобы активировать канал.",
+      message: "Укажите webhook URL, чтобы включить уведомление.",
       kind
     };
   }
@@ -172,13 +172,16 @@ export async function saveMessagingChannel(
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "Не удалось сохранить канал.",
+      message: error instanceof Error ? error.message : "Не удалось сохранить уведомление.",
       kind
     };
   }
 }
 
-export async function setMessagingChannelStatus(formData: FormData) {
+export async function setMessagingChannelStatus(
+  _previousState: SaveMessagingChannelState,
+  formData: FormData
+): Promise<SaveMessagingChannelState> {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
   await assertCanPersistSettings(user);
 
@@ -186,11 +189,11 @@ export async function setMessagingChannelStatus(formData: FormData) {
   const requestedStatus = stringField(formData, "status");
 
   if (!isKnownChannelKind(kind)) {
-    throw new Error("Неизвестный тип канала.");
+    throw new Error("Неизвестный тип уведомления.");
   }
 
   if (!isChannelStatus(requestedStatus)) {
-    throw new Error("Недопустимый статус канала.");
+    throw new Error("Недопустимый статус уведомления.");
   }
 
   const channel = await prisma.messagingChannel.update({
@@ -219,4 +222,21 @@ export async function setMessagingChannelStatus(formData: FormData) {
 
   revalidatePath("/admin/channels");
   revalidatePath("/admin");
+
+  if (requestedStatus === "active") {
+    const decision = probeBeforeSaveGate("activate");
+    return {
+      status: "success",
+      message: `Уведомление включено для доставки. ${decision.message}`,
+      kind,
+      tone: decision.tone
+    };
+  }
+
+  return {
+    status: "success",
+    message: "Уведомление переведено в черновик.",
+    kind,
+    tone: "neutral"
+  };
 }
