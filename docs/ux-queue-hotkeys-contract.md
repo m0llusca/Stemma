@@ -29,10 +29,13 @@ Modifiers: plain `meta` / `ctrl` / `alt` chords other than `Cmd/Ctrl+Enter` are 
 
 ## Take next eligibility
 
-Two surfaces share **priority + filter scope** via `selectNextReviewConversationId` in `apps/web/src/lib/queue-view-actions.ts`. Base eligibility is `nextReviewWhere` / `nextReviewOrderBy` (`apps/web/src/lib/review/next-review-query.ts`). Active view filters are AND-ed on top through `buildReviewQueueWhere`.
+Three surfaces share **one path**: `takeNextReview` / `selectNextReviewConversationId` (`apps/web/src/lib/queue-view-actions.ts`). Base eligibility is `nextReviewWhere` / `nextReviewOrderBy` (`apps/web/src/lib/review/next-review-query.ts`). Active view filters are AND-ed on top through `buildReviewQueueWhere`.
 
-1. Queue **«Взять следующий»** → `takeNextReview` → `queueHref` → `filtersFromReviewsHref` → same selector
+1. Queue **«Взять следующий»** → `takeNextReview` → hidden `queueHref` (current URL / saved view) → `filtersFromReviewsHref` → same selector
 2. Workbench **«Завершить и взять следующий»** (`intent=finalize_next`) → `finalizeReviewAndTakeNext` → `returnTo` → same parser and selector (excludes the case just finished)
+3. ⌘K **«Взять следующий»** (`actionId: take-next`) → `takeNextReview(takeNextFormDataFromLocation(pathname, search))` — same FormData `queueHref` as the queue button. Not a href.
+
+**Killed:** ⌘K must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
 
 **Always (workspace / role / sampling):**
 
@@ -54,7 +57,9 @@ Do not silently drop filters from take-next, and do not invent a second eligibil
 | --- | --- | --- |
 | Queue table rows | Yes | URL / saved view query |
 | «Следующий кейс» preview | Yes | First row of the filtered list |
-| **«Взять следующий»** / **finalize_next** | **Yes** | `nextReviewWhere` AND `buildReviewQueueWhere(filtersFromReviewsHref(queueHref \| returnTo))` |
+| Queue **«Взять следующий»** | **Yes** | `queueHref` → `filtersFromReviewsHref` → same selector |
+| Workbench **finalize_next** | **Yes** | `returnTo` → same parser and selector |
+| ⌘K **«Взять следующий»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
 
 An operator on a narrow saved view sees case A as preview, presses Take next, and opens case A (or the next remaining row in that same filtered set). Landing on workspace priority outside the view is a bug.
 
@@ -65,6 +70,25 @@ An operator on a narrow saved view sees case A as preview, presses Take next, an
 - Collapsed chrome keeps identity + **«Открыть приоритетный кейс»** CTA
 - Expand reveals priority rationale and signal context
 - Page action **«Взять следующий»** remains available regardless of preview expand state
+- Status chip: same `ReviewStatusChip` as the queue row (see below)
+
+## Status chip = one dictionary
+
+Queue table and next-case preview share **`reviewStateLabels`** via `resolveQueueStatusChip` / `ReviewStatusChip`.
+
+| State | Label |
+| --- | --- |
+| queued | В очереди |
+| assigned | Назначена |
+| in_progress | В работе |
+| finalized | Завершена |
+| reopened | На пересмотре |
+
+Pending reopen overrides the label to **«Ожидает подтверждения»** (warning).
+
+`qaStatusLabels` is an alias of this dictionary (`qaStatusToReviewState` → `reviewStateLabels`). Do not invent a second gender/wording set for `qaStatus` vs `reviewState`.
+
+Filter/bulk dropdowns may still bind the `QaStatus` enum; the visible words stay `reviewStateLabels`.
 
 ## Ownership
 
@@ -74,5 +98,14 @@ An operator on a narrow saved view sees case A as preview, presses Take next, an
 | DOM wiring | `apps/web/src/components/review/review-keyboard.tsx` |
 | Take-next query | `apps/web/src/lib/review/next-review-query.ts` |
 | Take-next actions | `apps/web/src/lib/queue-view-actions.ts`, `apps/web/src/lib/review-actions.ts` |
+| `queueHref` / ⌘K FormData | `apps/web/src/lib/review/queue-href-filters.ts` |
+| ⌘K wiring | `apps/web/src/lib/shell/navigation.ts` (`take-next` action), `apps/web/src/components/app-nav-shell.tsx` |
+| Status chip | `apps/web/src/lib/review-state.ts`, `apps/web/src/components/review/review-status-chip.tsx` |
 | Preview UI | `apps/web/src/components/review/queue-next-case-preview.tsx` |
-| Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
+| Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `queue-table-status-chip.test.tsx`, `review-status-chip.test.ts`, `queue-href-filters.test.ts`, `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
+
+Related: [app-shell.md](app-shell.md) (role homes, ⌘K), [ux-persona-adversarial-synthesis.md](ux-persona-adversarial-synthesis.md).
+
+## Follow-up (not fixed)
+
+Topbar pulse **«Взять кейс»** still links to `/reviews?status=unreviewed`. That is not the take-next path. ⌘K is fixed; pulse chrome is leftover.
