@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { findLatestReopenedAt, recordReviewEvent, reviewEventActionLabel } from "@/lib/review-events";
+import {
+  findLatestReopenedAt,
+  findPendingFinalizedReopenRequest,
+  recordReviewEvent,
+  reviewEventActionLabel
+} from "@/lib/review-events";
 
 describe("review event recorder", () => {
   it("localizes seeded and workflow event actions", () => {
     expect(reviewEventActionLabel("qa.reopened")).toBe("Проверка возвращена в работу");
+    expect(reviewEventActionLabel("qa.reopen_requested")).toBe("Запрошено переоткрытие проверки");
     expect(reviewEventActionLabel("conversation.workflow_updated")).toBe("Маршрут проверки обновлен");
     expect(reviewEventActionLabel("calibration.appeal_signal")).toBe("Сигнал калибровки по апелляции");
     expect(reviewEventActionLabel("review.feedback.appeal_corrected")).toBe("Апелляция скорректирована");
@@ -71,5 +77,44 @@ describe("review event recorder", () => {
     };
 
     await expect(findLatestReopenedAt(client, "workspace-1", "conversation-1")).resolves.toBeNull();
+  });
+
+  it("returns a pending reopen request newer than the last applied reopen", async () => {
+    const requestedAt = new Date("2026-09-07T12:00:00.000Z");
+    const client = {
+      reviewEvent: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            actorId: "manager-1",
+            metadata: JSON.stringify({ reason: "Калибровка", requestedById: "manager-1" }),
+            createdAt: requestedAt
+          })
+          .mockResolvedValueOnce({ createdAt: new Date("2026-09-01T12:00:00.000Z") })
+      }
+    };
+
+    await expect(findPendingFinalizedReopenRequest(client, "workspace-1", "conversation-1")).resolves.toEqual({
+      reason: "Калибровка",
+      requestedById: "manager-1",
+      requestedAt
+    });
+  });
+
+  it("ignores reopen requests that were already confirmed", async () => {
+    const client = {
+      reviewEvent: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            actorId: "manager-1",
+            metadata: JSON.stringify({ reason: "Калибровка", requestedById: "manager-1" }),
+            createdAt: new Date("2026-09-01T12:00:00.000Z")
+          })
+          .mockResolvedValueOnce({ createdAt: new Date("2026-09-07T12:00:00.000Z") })
+      }
+    };
+
+    await expect(findPendingFinalizedReopenRequest(client, "workspace-1", "conversation-1")).resolves.toBeNull();
   });
 });

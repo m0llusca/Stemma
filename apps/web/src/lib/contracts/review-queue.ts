@@ -81,6 +81,13 @@ export type ReviewQueueConversationDto = {
   riskHint: string | null;
   priorityRank: number;
   priorityReason: string;
+  /** Present when FINALIZED and a dual-control reopen request awaits confirmation. */
+  pendingReopen: {
+    reason: string;
+    requestedById: string;
+    requestedByName: string | null;
+    requestedAt: string;
+  } | null;
   reviews: ReviewQueueReviewDto[];
 };
 

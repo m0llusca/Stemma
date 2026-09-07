@@ -13,6 +13,7 @@ import type {
 } from "@/lib/contracts/review-queue";
 import { aiExceptionDraftWhere } from "@/lib/ai-quality/exceptions";
 import { prisma } from "@/lib/db";
+import { findPendingFinalizedReopenRequestsByConversationIds } from "@/lib/review-events";
 import { qaScoreBandWhere } from "@/lib/reports/report-aggregation";
 import { outOfSampleSamplingType } from "@/lib/sampling-engine";
 
@@ -413,6 +414,24 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
     orderBy: { openedAt: "desc" }
   });
 
+  const finalizedIds = conversations.filter((conversation) => conversation.qaStatus === "FINALIZED").map((conversation) => conversation.id);
+  const pendingByConversationId = await findPendingFinalizedReopenRequestsByConversationIds(prisma, workspaceId, finalizedIds);
+  const requesterIds = [...new Set([...pendingByConversationId.values()].map((pending) => pending.requestedById))];
+  const requesters =
+    requesterIds.length > 0
+      ? await prisma.user.findMany({
+          where: {
+            workspaceId,
+            id: { in: requesterIds }
+          },
+          select: {
+            id: true,
+            name: true
+          }
+        })
+      : [];
+  const requesterNameById = new Map(requesters.map((user) => [user.id, user.name]));
+
   return conversations
     .map((conversation) => {
       const reviews = currentCycleReviewsForQaStatus(conversation.qaStatus, conversation.reviews);
@@ -425,6 +444,7 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
         riskHint: conversation.riskHint,
         reviews
       });
+      const pending = conversation.qaStatus === "FINALIZED" ? (pendingByConversationId.get(conversation.id) ?? null) : null;
 
       return {
         id: conversation.id,
@@ -444,6 +464,14 @@ export async function getReviewQueue(workspaceId: string, filters: ReviewQueueFi
         riskHint: conversation.riskHint,
         priorityRank: priority.rank,
         priorityReason: priority.reason,
+        pendingReopen: pending
+          ? {
+              reason: pending.reason,
+              requestedById: pending.requestedById,
+              requestedByName: requesterNameById.get(pending.requestedById) ?? null,
+              requestedAt: pending.requestedAt.toISOString()
+            }
+          : null,
         reviews,
         openedAt: conversation.openedAt
       };

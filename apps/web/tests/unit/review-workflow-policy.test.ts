@@ -2,6 +2,7 @@ import type { QaStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
   QaWorkflowTransitionError,
+  assertCanConfirmFinalizedReopen,
   assertFinalizedReopenReason,
   assertHumanReviewFinalizeTransition,
   assertQaWorkflowTransition,
@@ -127,6 +128,37 @@ describe("QA workflow transition policy", () => {
 
     expect(isFinalizedReopenTransition("FINALIZED", "REOPENED")).toBe(true);
     expect(isFinalizedReopenTransition("IN_PROGRESS", "REOPENED")).toBe(false);
+  });
+
+  it("requires a distinct confirmer for a pending finalized reopen request", () => {
+    expect(() =>
+      assertCanConfirmFinalizedReopen({
+        confirmerId: "manager-1",
+        pending: null
+      })
+    ).toThrow("Нет ожидающего запроса на переоткрытие.");
+
+    expect(() =>
+      assertCanConfirmFinalizedReopen({
+        confirmerId: "manager-1",
+        pending: {
+          reason: "Калибровка",
+          requestedById: "manager-1",
+          requestedAt: new Date("2026-09-07T10:00:00.000Z")
+        }
+      })
+    ).toThrow("Подтвердить переоткрытие должен другой сотрудник.");
+
+    expect(() =>
+      assertCanConfirmFinalizedReopen({
+        confirmerId: "manager-2",
+        pending: {
+          reason: "Калибровка",
+          requestedById: "manager-1",
+          requestedAt: new Date("2026-09-07T10:00:00.000Z")
+        }
+      })
+    ).not.toThrow();
   });
 
   it("accepts only current-cycle finalized HUMAN reviews as FINALIZED evidence", () => {

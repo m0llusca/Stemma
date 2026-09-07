@@ -71,7 +71,7 @@ export function assertHumanReviewFinalizeTransition(input: { fromStatus: QaStatu
   });
 }
 
-/** FINALIZED → REOPENED requires a non-empty audited reason (Wave 3.2 Option A). */
+/** FINALIZED → REOPENED requires a non-empty audited reason (Wave 3.2). */
 export function isFinalizedReopenTransition(fromStatus: QaStatus, toStatus: QaStatus) {
   return fromStatus === "FINALIZED" && toStatus === "REOPENED";
 }
@@ -89,6 +89,29 @@ export function assertFinalizedReopenReason(input: {
     throw new QaWorkflowTransitionError("Укажите причину переоткрытия завершенной проверки.");
   }
 }
+
+/** Pending FINALIZED reopen request awaiting a second distinct confirmer (Option B). */
+export type PendingFinalizedReopenRequest = {
+  reason: string;
+  requestedById: string;
+  requestedAt: Date;
+};
+
+export function assertCanConfirmFinalizedReopen(input: {
+  confirmerId: string;
+  pending: PendingFinalizedReopenRequest | null;
+}) {
+  if (!input.pending) {
+    throw new QaWorkflowTransitionError("Нет ожидающего запроса на переоткрытие.");
+  }
+
+  if (!input.confirmerId || input.confirmerId === input.pending.requestedById) {
+    throw new QaWorkflowTransitionError("Подтвердить переоткрытие должен другой сотрудник.");
+  }
+}
+
+/** FormData `workflowAction` value for the second-person FINALIZED reopen confirm. */
+export const CONFIRM_REOPEN_WORKFLOW_ACTION = "confirm_reopen";
 
 export function assertConditionalWorkflowWrite(count: number) {
   if (count !== 1) {

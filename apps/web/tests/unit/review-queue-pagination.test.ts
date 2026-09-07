@@ -25,6 +25,7 @@ function conversation(id: string): ReviewQueueConversationDto {
     riskHint: null,
     priorityRank: 36,
     priorityReason: "Ожидает проверки",
+    pendingReopen: null,
     reviews: []
   };
 }

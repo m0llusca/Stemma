@@ -28,6 +28,8 @@ function renderOpenPanel() {
     <WorkflowManagementPanel
       conversation={conversation}
       assignees={assignees}
+      currentUserId="qa-1"
+      pendingReopen={null}
     />
   );
   fireEvent.click(

@@ -32,6 +32,7 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
+import { CONFIRM_REOPEN_WORKFLOW_ACTION } from "@/lib/review-workflow-policy";
 import { formatQualityScore } from "@/lib/score-display";
 import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 import { cn } from "@/lib/utils";
@@ -113,9 +114,18 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   <NativeSelectOption value="">Не менять</NativeSelectOption>
                   {Object.entries(qaStatusLabels).map(([status, label]) => (
                     <NativeSelectOption key={status} value={status}>
-                      {label}
+                      {status === "REOPENED" ? `${label} (запросить)` : label}
                     </NativeSelectOption>
                   ))}
+                </NativeSelect>
+              </Field>
+              <Field className="queue-bulk-actions__field min-w-[200px]">
+                <FieldLabel htmlFor="bulk-workflowAction">Действие с переоткрытием</FieldLabel>
+                <NativeSelect id="bulk-workflowAction" name="workflowAction" defaultValue="" className="w-full">
+                  <NativeSelectOption value="">Обычное обновление / запрос</NativeSelectOption>
+                  <NativeSelectOption value={CONFIRM_REOPEN_WORKFLOW_ACTION}>
+                    Подтвердить переоткрытие (второй сотрудник)
+                  </NativeSelectOption>
                 </NativeSelect>
               </Field>
               <Field className="queue-bulk-actions__field min-w-[160px]">
@@ -139,17 +149,21 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   id="bulk-reopen-reason"
                   name="reason"
                   rows={1}
-                  placeholder="Обязательно для FINALIZED → REOPENED"
+                  placeholder="Обязательно для запроса FINALIZED → переоткрытие"
                 />
               </Field>
               <ValidatedSubmitButton
                 minCheckedNames={["conversationId"]}
-                requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt"]}
+                requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt", "workflowAction"]}
                 className={cn(buttonVariants(), "queue-bulk-actions__submit")}
               >
                 Обновить
               </ValidatedSubmitButton>
             </div>
+            <p className="border-t border-border bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
+              Завершенные проверки: статус «На пересмотре» создаёт запрос. Подтверждение — отдельным действием другого
+              сотрудника.
+            </p>
           </CollapsibleContent>
         </Collapsible>
 
@@ -207,8 +221,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               // One chip = one source of truth for review status (qa/review state).
               // Overdue, critical, reanswer, and appeal stay in meta / date column —
               // not as a second competing "status" chip.
-              const statusChipTone: ChipTone = reviewStateTone(reviewState);
-              const statusChipLabel = reviewStateLabels[reviewState];
+              const statusChipTone: ChipTone = conversation.pendingReopen ? "warning" : reviewStateTone(reviewState);
+              const statusChipLabel = conversation.pendingReopen
+                ? "Ожидает подтверждения"
+                : reviewStateLabels[reviewState];
 
               const signalItems = [
                 hasCritical ? "критическая ошибка" : null,
@@ -220,7 +236,10 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                 samplingIsSignal(conversation.samplingType)
                   ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType
                   : null,
-                conversation.riskHint ? "риск" : null
+                conversation.riskHint ? "риск" : null,
+                conversation.pendingReopen
+                  ? `запрос переоткрытия: ${conversation.pendingReopen.requestedByName ?? "сотрудник"}`
+                  : null
               ].filter((signal): signal is string => Boolean(signal));
 
               return (
@@ -262,6 +281,11 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                         {externalSourceLabel(conversation.externalSource)}
                         {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
                       </span>
+                      {conversation.pendingReopen ? (
+                        <span className="queue-row__meta text-xs text-amber-700 dark:text-amber-400">
+                          Причина запроса: {conversation.pendingReopen.reason}
+                        </span>
+                      ) : null}
                     </div>
                   </TableCell>
 

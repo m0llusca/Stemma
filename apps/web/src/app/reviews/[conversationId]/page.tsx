@@ -70,7 +70,7 @@ import {
 import { russianPlural } from "@/lib/reports/report-format";
 import { computeBatchProgress, formatBatchProgress } from "@/lib/review/batch-progress";
 import { nextReviewOrderBy, nextReviewWhere } from "@/lib/review/next-review-query";
-import { reviewEventActionLabel } from "@/lib/review-events";
+import { findPendingFinalizedReopenRequest, reviewEventActionLabel } from "@/lib/review-events";
 import {
   parseConversationScorePrediction,
   type CriterionPrediction
@@ -258,7 +258,8 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
     aiDraftTotalCount,
     pendingAiDraftCount,
     queueConversations,
-    latestScoreDraft
+    latestScoreDraft,
+    pendingReopenRequest
   ] = await Promise.all([
     getConversationForReview(user.workspaceId, conversationId, supportAgentScope),
     canEvaluateReviewPermission ? getActiveScorecard(user.workspaceId) : Promise.resolve(null),
@@ -345,12 +346,37 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
           orderBy: [{ createdAt: "desc" }],
           select: { suggestedValueJson: true }
         })
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    canManageWorkflow ? findPendingFinalizedReopenRequest(prisma, user.workspaceId, conversationId) : Promise.resolve(null)
   ]);
 
   if (!conversation) {
     notFound();
   }
+
+  const activePendingReopenRequest =
+    conversation.qaStatus === "FINALIZED" ? pendingReopenRequest : null;
+  const pendingReopenRequester =
+    activePendingReopenRequest != null
+      ? await prisma.user.findFirst({
+          where: {
+            workspaceId: user.workspaceId,
+            id: activePendingReopenRequest.requestedById
+          },
+          select: {
+            id: true,
+            name: true
+          }
+        })
+      : null;
+  const pendingFinalizedReopen = activePendingReopenRequest
+    ? {
+        reason: activePendingReopenRequest.reason,
+        requestedById: activePendingReopenRequest.requestedById,
+        requestedByName: pendingReopenRequester?.name ?? null,
+        requestedAt: activePendingReopenRequest.requestedAt
+      }
+    : null;
 
   const batchProgress = computeBatchProgress(
     conversation.id,
@@ -1217,7 +1243,14 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
 
       {detailPane}
 
-      {canManageWorkflow ? <WorkflowManagementPanel conversation={conversation} assignees={qaAssignees} /> : null}
+      {canManageWorkflow ? (
+        <WorkflowManagementPanel
+          conversation={conversation}
+          assignees={qaAssignees}
+          currentUserId={user.id}
+          pendingReopen={pendingFinalizedReopen}
+        />
+      ) : null}
     </PageShell>
   );
 }

@@ -64,9 +64,9 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
   };
 });
 
-function managerUser() {
+function managerUser(id = "manager-1") {
   return {
-    id: "manager-1",
+    id,
     workspaceId: "workspace-1",
     role: "QA_ANALYST",
     name: "Менеджер"
@@ -210,7 +210,7 @@ describe("review workflow actions", () => {
     );
   });
 
-  it("accepts FINALIZED → REOPENED with a reason and audits it", async () => {
+  it("requests FINALIZED reopen without changing qaStatus yet", async () => {
     const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
     mocks.tx.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
@@ -218,6 +218,88 @@ describe("review workflow actions", () => {
     });
     const formData = workflowForm("REOPENED");
     formData.set("reason", "Калибровка: ошибка критерия");
+
+    await updateConversationWorkflow(formData);
+
+    expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "conversation-1",
+          workspaceId: "workspace-1",
+          qaStatus: "FINALIZED"
+        },
+        data: expect.not.objectContaining({
+          qaStatus: "REOPENED"
+        })
+      })
+    );
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "qa.reopen_requested",
+        targetId: "conversation-1",
+        metadata: expect.objectContaining({
+          qaStatus: "FINALIZED",
+          reason: "Калибровка: ошибка критерия",
+          requestedById: "manager-1"
+        })
+      }),
+      mocks.tx
+    );
+    expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
+      mocks.tx,
+      expect.objectContaining({
+        action: "qa.reopen_requested",
+        fromStatus: "FINALIZED",
+        toStatus: "FINALIZED",
+        metadata: expect.objectContaining({
+          reason: "Калибровка: ошибка критерия",
+          requestedById: "manager-1"
+        })
+      })
+    );
+  });
+
+  it("accepts comment FormData as the reopen request reason", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    const formData = workflowForm("REOPENED");
+    formData.set("comment", "Апелляция подтверждена");
+
+    await updateConversationWorkflow(formData);
+
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "qa.reopen_requested",
+        metadata: expect.objectContaining({
+          reason: "Апелляция подтверждена"
+        })
+      }),
+      mocks.tx
+    );
+  });
+
+  it("confirms a pending reopen request by a distinct actor", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    const { CONFIRM_REOPEN_WORKFLOW_ACTION } = await import("@/lib/review-workflow-policy");
+    mocks.getCurrentUser.mockResolvedValue(managerUser("manager-2"));
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    mocks.tx.reviewEvent.findFirst
+      .mockResolvedValueOnce({
+        actorId: "manager-1",
+        metadata: JSON.stringify({ reason: "Калибровка", requestedById: "manager-1" }),
+        createdAt: new Date("2026-09-07T10:00:00.000Z")
+      })
+      .mockResolvedValueOnce(null);
+
+    const formData = new FormData();
+    formData.set("conversationId", "conversation-1");
+    formData.set("workflowAction", CONFIRM_REOPEN_WORKFLOW_ACTION);
 
     await updateConversationWorkflow(formData);
 
@@ -236,10 +318,10 @@ describe("review workflow actions", () => {
     expect(mocks.auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "qa.reopened",
-        targetId: "conversation-1",
         metadata: expect.objectContaining({
-          qaStatus: "REOPENED",
-          reason: "Калибровка: ошибка критерия"
+          reason: "Калибровка",
+          requestedById: "manager-1",
+          confirmedById: "manager-2"
         })
       }),
       mocks.tx
@@ -251,31 +333,56 @@ describe("review workflow actions", () => {
         fromStatus: "FINALIZED",
         toStatus: "REOPENED",
         metadata: expect.objectContaining({
-          reason: "Калибровка: ошибка критерия"
+          reason: "Калибровка",
+          requestedById: "manager-1",
+          confirmedById: "manager-2"
         })
       })
     );
   });
 
-  it("accepts comment FormData as the reopen reason", async () => {
+  it("rejects self-confirmation of a pending reopen request", async () => {
     const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    const { CONFIRM_REOPEN_WORKFLOW_ACTION } = await import("@/lib/review-workflow-policy");
     mocks.tx.conversation.findFirst.mockResolvedValue({
       id: "conversation-1",
       qaStatus: "FINALIZED"
     });
-    const formData = workflowForm("REOPENED");
-    formData.set("comment", "Апелляция подтверждена");
+    mocks.tx.reviewEvent.findFirst
+      .mockResolvedValueOnce({
+        actorId: "manager-1",
+        metadata: JSON.stringify({ reason: "Калибровка", requestedById: "manager-1" }),
+        createdAt: new Date("2026-09-07T10:00:00.000Z")
+      })
+      .mockResolvedValueOnce(null);
 
-    await updateConversationWorkflow(formData);
+    const formData = new FormData();
+    formData.set("conversationId", "conversation-1");
+    formData.set("workflowAction", CONFIRM_REOPEN_WORKFLOW_ACTION);
 
-    expect(mocks.auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          reason: "Апелляция подтверждена"
-        })
-      }),
-      mocks.tx
+    await expect(updateConversationWorkflow(formData)).rejects.toThrow(
+      "Подтвердить переоткрытие должен другой сотрудник."
     );
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects confirm_reopen when no pending request exists", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    const { CONFIRM_REOPEN_WORKFLOW_ACTION } = await import("@/lib/review-workflow-policy");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    mocks.tx.reviewEvent.findFirst.mockResolvedValue(null);
+
+    const formData = new FormData();
+    formData.set("conversationId", "conversation-1");
+    formData.set("workflowAction", CONFIRM_REOPEN_WORKFLOW_ACTION);
+
+    await expect(updateConversationWorkflow(formData)).rejects.toThrow(
+      "Нет ожидающего запроса на переоткрытие."
+    );
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
   });
 
   it("rejects bulk FINALIZED → REOPENED without a reason", async () => {

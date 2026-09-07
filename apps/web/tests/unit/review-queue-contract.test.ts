@@ -6,6 +6,12 @@ const mocks = vi.hoisted(() => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
       count: vi.fn()
+    },
+    reviewEvent: {
+      findMany: vi.fn()
+    },
+    user: {
+      findMany: vi.fn()
     }
   }
 }));
@@ -17,6 +23,8 @@ vi.mock("@/lib/db", () => ({
 describe("review queue frontend/backend contract", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.prisma.reviewEvent.findMany.mockResolvedValue([]);
+    mocks.prisma.user.findMany.mockResolvedValue([]);
   });
 
   it("maps backend queue rows into compact UI DTOs", async () => {
@@ -87,6 +95,7 @@ describe("review queue frontend/backend contract", () => {
         riskHint: "VIP client",
         priorityRank: 10,
         priorityReason: "Завершено",
+        pendingReopen: null,
         reviews: [
           {
             id: "review-1",
