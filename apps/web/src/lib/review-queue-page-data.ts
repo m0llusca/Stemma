@@ -1,5 +1,4 @@
 import type { ReviewQueuePageData } from "@/lib/contracts/review-queue";
-import { requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import {
   getReviewQueue,
@@ -8,6 +7,7 @@ import {
   parseReviewQueueFilters,
   type ReviewQueueSearchParams
 } from "@/lib/review-repository";
+import { requirePagePermission } from "@/lib/page-permission";
 
 function reviewQueueHref(params: ReviewQueueSearchParams) {
   const urlSearchParams = new URLSearchParams();
@@ -28,7 +28,7 @@ function reviewQueueHref(params: ReviewQueueSearchParams) {
 }
 
 export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams): Promise<ReviewQueuePageData> {
-  const user = await requireCurrentUserPermission("reviews:read");
+  const user = await requirePagePermission("reviews:read");
   const filters = parseReviewQueueFilters(rawParams);
   // Scope operators by their unique assigneeId, never the non-unique display
   // name. The id-keyed scope is the authoritative fail-closed pin applied to

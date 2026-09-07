@@ -13,9 +13,10 @@ import {
   rollbackTranslationAction,
   saveTranslationDraftAction
 } from "@/lib/i18n/actions";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { russianPlural } from "@/lib/reports/report-format";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default function AdminLocalizationPage() {
 }
 
 async function AdminLocalizationPageContent() {
-  const user = await requireCurrentUserPermission("appearance:manage");
+  const user = await requirePagePermission("appearance:manage");
   const [workspace, locales, translationKeys] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },

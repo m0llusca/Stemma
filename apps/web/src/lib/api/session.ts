@@ -1,7 +1,7 @@
 import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api/response";
 import { permissionDeniedMessage, sessionRequiredMessage } from "@/lib/api/user-facing-errors";
-import type { Permission } from "@/lib/auth/permissions";
+import { isPermissionDeniedError, type Permission } from "@/lib/auth/permissions";
 import { AuthRequiredError, DemoSettingsMutationError, assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 
 type SessionApiResult =
@@ -91,7 +91,7 @@ export async function requireSessionApi(
       };
     }
 
-    if (error instanceof Error && error.message === permissionDeniedMessage) {
+    if (isPermissionDeniedError(error)) {
       return {
         ok: false,
         response: apiError("forbidden", permissionDeniedMessage, 403, options.requestId)

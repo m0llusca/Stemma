@@ -32,10 +32,11 @@ import {
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminEyebrow } from "@/lib/admin-sections";
 import { redactJobPayload } from "@/lib/audit";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { backendJobStatusView, backendJobTypeLabel, queueNameLabel } from "@/lib/operational-status";
 import { cancelQueuedBackendJob, runQueuedBackendJobs } from "@/lib/system-actions";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -114,7 +115,7 @@ export default function JobDetailsPage({ params, searchParams }: JobDetailsPageP
 async function JobDetailsPageContent({ params, searchParams }: JobDetailsPageProps) {
   const search = await searchParams;
   const activeSection = jobDetailsSectionParam(search.section);
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const user = await requirePagePermission("backend_jobs:manage");
   const { jobId } = await params;
   const jobDetailsSectionHref = (section: JobDetailsSection) => `/admin/system/jobs/${jobId}?section=${section}`;
   const job = await prisma.backendJob.findFirst({

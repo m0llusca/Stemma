@@ -11,7 +11,7 @@ import { adminEyebrow } from "@/lib/admin-sections";
 import { listConnectionProfiles } from "@/lib/integrations/connect/profiles";
 import { connectionSourceLabel } from "@/lib/integrations/connect/source-labels";
 import { getIntegrationInstallContract } from "@/lib/integrations/install-contracts/registry";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export default function NewIntegrationPage() {
 }
 
 async function NewIntegrationPageContent() {
-  await requireCurrentUserPermission("integrations:manage");
+  await requirePagePermission("integrations:manage");
 
   // Реестр профилей серверный (тянет адаптеры/prisma) — на клиент уходят только
   // сериализуемые метаданные.

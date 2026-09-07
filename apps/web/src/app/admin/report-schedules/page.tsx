@@ -27,7 +27,7 @@ import {
 import { AdminDialog } from "@/components/admin/admin-dialog";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { deleteReportSchedule, setReportScheduleActive } from "@/lib/report-schedule-actions";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
@@ -37,6 +37,7 @@ import {
   REPORT_SCHEDULE_PERIOD_PRESETS
 } from "@/lib/report-schedule";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,7 @@ async function ReportSchedulesPageContent({ searchParams }: ReportSchedulesPageP
   // Единый deep-link паттерн админки: ?section=create открывает окно создания.
   const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
   const createDialogOpen = sectionParam?.trim() === "create";
-  const user = await requireCurrentUserPermission("reports:manage");
+  const user = await requirePagePermission("reports:manage");
   const schedules = await prisma.reportSchedule.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ isActive: "desc" }, { nextRunAt: "asc" }, { createdAt: "desc" }]

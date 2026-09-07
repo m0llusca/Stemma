@@ -51,13 +51,14 @@ import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { sanitizeProviderConfigForDisplay } from "@/lib/auth/provider-config-validation";
 import { buildEntraAuthorizationMetadata, getDirectoryIntegrationGuidance } from "@/lib/auth/providers";
 import { buildSamlServiceProviderUrls } from "@/lib/auth/saml";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { roleLabels } from "@/lib/labels";
 import { resolvePublicOrigin } from "@/lib/public-origin";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -383,7 +384,7 @@ export default function AdminAccessPage({ searchParams }: AccessPageProps) {
 
 async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
   const params = await searchParams;
-  const user = await requireCurrentUserPermission("auth_providers:manage");
+  const user = await requirePagePermission("auth_providers:manage");
   const [providers, sessions] = await Promise.all([
     prisma.identityProvider.findMany({
       where: { workspaceId: user.workspaceId },

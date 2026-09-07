@@ -44,7 +44,7 @@ import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
 import { certificationDisplayTone } from "@/lib/certification/status";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
@@ -52,6 +52,7 @@ import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
 import { queueDirectorySync } from "@/lib/system-enqueue-actions";
 import { queueRetentionCleanup, runQueuedBackendJobs } from "@/lib/system-actions";
 import type { StatusTone } from "@/lib/ui/status-tone";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -269,7 +270,7 @@ export default function AdminSystemPage({ searchParams }: AdminSystemPageProps) 
 async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   const params = await searchParams;
   const activeSection = systemSectionParam(params.section);
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const user = await requirePagePermission("backend_jobs:manage");
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24);
   const weekAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7);

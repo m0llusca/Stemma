@@ -40,7 +40,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { adminEyebrow } from "@/lib/admin-sections";
 import { certificationDisplayTone } from "@/lib/certification/status";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { capabilityMatrixFromContract } from "@/lib/integrations/connect/capability-probe-display";
@@ -50,6 +50,7 @@ import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunOperationalStepState, integrationRunStatusView } from "@/lib/operational-status";
 import type { StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -763,7 +764,7 @@ export default function IntegrationDetailsPage({ params, searchParams }: Integra
 
 async function IntegrationDetailsPageContent({ params, searchParams }: IntegrationDetailsPageProps) {
   const search = await searchParams;
-  const user = await requireCurrentUserPermission("integrations:manage");
+  const user = await requirePagePermission("integrations:manage");
   const { integrationId } = await params;
   const activeSection = integrationDetailsSectionParam(search.section);
   const integrationDetailsSectionHref = (section: IntegrationDetailsSection) => `/admin/integrations/${integrationId}?section=${section}`;

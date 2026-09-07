@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AiProviderKeyExtraField } from "@/components/admin/ai-provider-key-form";
 import { AiScoringEnginePanel, type AiProviderConfig } from "@/components/admin/ai-scoring-engine-panel";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/lib/ai-quality/credentials";
 import { statusSurfaceClass, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ export default function AdminAiScoringPage() {
 }
 
 async function AdminAiScoringPageContent() {
-  const user = await requireCurrentUserPermission("backend_jobs:manage");
+  const user = await requirePagePermission("backend_jobs:manage");
   const [workspaceSettings, credentials, views] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },

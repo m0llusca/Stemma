@@ -16,7 +16,7 @@ import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
@@ -27,6 +27,7 @@ import { formatQualityScore, qualityScoreDelta, qualityScorePointWord } from "@/
 import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
 import { statusToneClass, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 function countDelta(value: number): OperationKpiDelta {
   return {
@@ -110,7 +111,7 @@ export default function DashboardPage() {
 }
 
 async function DashboardPageContent() {
-  const user = await requireCurrentUserPermission("reviews:read");
+  const user = await requirePagePermission("reviews:read");
   const now = new Date();
   const thisWeekStart = daysAgo(6, now);
   const previousWeekStart = daysAgo(13, now);

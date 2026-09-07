@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPermissions, hasPermission, requirePermission } from "@/lib/auth/permissions";
+import { getPermissions, hasPermission, PermissionDeniedError, requirePermission } from "@/lib/auth/permissions";
 
 describe("auth permissions", () => {
   it("allows admins to manage backend jobs and auth providers", () => {
@@ -43,6 +43,18 @@ describe("auth permissions", () => {
   });
 
   it("throws a Russian authorization error for forbidden operations", () => {
+    expect(() =>
+      requirePermission(
+        {
+          id: "user-1",
+          workspaceId: "workspace-1",
+          email: "agent@example.com",
+          name: "Оператор",
+          role: "SUPPORT_AGENT"
+        },
+        "scorecards:manage"
+      )
+    ).toThrow(PermissionDeniedError);
     expect(() =>
       requirePermission(
         {

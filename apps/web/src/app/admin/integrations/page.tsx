@@ -36,7 +36,7 @@ import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
 import { certificationDisplayTone } from "@/lib/certification/status";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
@@ -45,6 +45,7 @@ import { backendJobStatusView, integrationRunStatusView } from "@/lib/operationa
 import { russianPlural } from "@/lib/reports/report-format";
 import { statusSurfaceClass, toneForCount, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -374,7 +375,7 @@ export default function AdminIntegrationsPage({ searchParams }: AdminIntegration
 async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsPageProps) {
   const params = await searchParams;
   const activeSection = integrationSectionParam(params.section);
-  const user = await requireCurrentUserPermission("integrations:manage");
+  const user = await requirePagePermission("integrations:manage");
   const [integrations, recentRuns, recentIntegrationJobs] = await Promise.all([
     prisma.integration.findMany({
       where: {

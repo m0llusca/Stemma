@@ -36,8 +36,9 @@ import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { AutoSubmitFilterForm } from "@/components/ui/auto-submit-filter-form";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+
 import { prisma } from "@/lib/db";
+import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 const pageSize = 20;
@@ -239,7 +240,7 @@ export default function AdminAuditPage({ searchParams }: AuditPageProps) {
 async function AdminAuditPageContent({ searchParams }: AuditPageProps) {
   const params = await searchParams;
   const activeSection = auditSectionParam(params.section);
-  const user = await requireCurrentUserPermission("audit:read");
+  const user = await requirePagePermission("audit:read");
   const action = firstParam(params.action);
   const targetType = firstParam(params.targetType);
   const start = parseDateFilter(params.start);
