@@ -46,6 +46,14 @@ const reviewDetailCoachingSurfaceFiles = [
 const reviewDetailBemPrefix =
   /(?:conversation-message|coaching-pin(?:-composer)?|step-header|review-conversation-panel)(?:__|--)/;
 
+const remainingBemSurfaceFiles = [
+  "src/components/ui/master-detail.tsx",
+  "src/app/dashboard/page.tsx",
+  "src/app/reviews/[conversationId]/page.tsx"
+] as const;
+
+const remainingBemPrefix = /(?:master-detail|dashboard-(?:focus|agent|activity)-row)__/;
+
 describe("shadcn UI composition primitives", () => {
   it("renders EmptyState with a title", () => {
     render(<EmptyState title="Нет данных" description="Попробуйте изменить фильтры" />);
@@ -215,6 +223,20 @@ describe("shadcn UI composition primitives", () => {
       const source = readFileSync(join(process.cwd(), rel), "utf8");
       expect(source, rel).not.toMatch(/[a-z0-9-]+__[a-z0-9-]+/);
     }
+  });
+
+  it("keeps master-detail and dashboard row surfaces free of leftover BEM class names", () => {
+    for (const rel of remainingBemSurfaceFiles) {
+      const source = readFileSync(join(process.cwd(), rel), "utf8");
+      expect(source, rel).not.toMatch(remainingBemPrefix);
+      expect(source, rel).not.toMatch(/className="(?:master-detail__|dashboard-(?:focus|agent|activity)-row__)/);
+      expect(source, rel).not.toMatch(
+        /className=\{cn\([^)]*["'`](?:master-detail__|dashboard-(?:focus|agent|activity)-row__)/
+      );
+    }
+
+    const masterDetailSource = readFileSync(join(process.cwd(), "src/components/ui/master-detail.tsx"), "utf8");
+    expect(masterDetailSource).not.toMatch(/[a-z0-9-]+__[a-z0-9-]+/);
   });
 
   it("keeps the dashboard shell flat, removes decorative eyebrow copy, and uses two-to-one desktop pairs", () => {

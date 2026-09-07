@@ -111,9 +111,9 @@ for (const scenario of detailCases) {
     await page.goto(`/reviews/${seededMessage.conversationId}`);
 
     const workspace = page.locator("#review-workspace");
-    const masterDetail = workspace.locator(".master-detail");
-    const list = masterDetail.locator(".master-detail__list");
-    const detail = masterDetail.locator(".master-detail__detail");
+    const masterDetail = workspace.locator('[data-slot="master-detail"]');
+    const list = masterDetail.locator('[data-slot="master-detail-list"]');
+    const detail = masterDetail.locator('[data-slot="master-detail-detail"]');
     const dialogPane = list.locator('[data-slot="review-dialog-pane"]');
     const scorePane = detail.locator('[data-slot="review-score-pane"]');
     const timeline = dialogPane.locator('[data-slot="card"]').filter({
@@ -149,8 +149,8 @@ for (const scenario of detailCases) {
       await expect(detail).toBeVisible();
       await expect(dialogPane).toBeHidden();
       await expect(scorePane).toBeVisible();
-      await expect(masterDetail.locator(".master-detail__list")).toHaveCount(1);
-      await expect(masterDetail.locator(".master-detail__detail")).toHaveCount(1);
+      await expect(masterDetail.locator('[data-slot="master-detail-list"]')).toHaveCount(1);
+      await expect(masterDetail.locator('[data-slot="master-detail-detail"]')).toHaveCount(1);
     } else {
       await expect(toggle).toBeHidden();
       await expect(list).toBeVisible();
