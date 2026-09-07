@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AppNavShell } from "@/components/app-nav-shell";
 import { hasPermission } from "@/lib/auth/permissions";
 import { roleHomePath } from "@/lib/auth/role-home";
@@ -6,6 +7,21 @@ import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { visibleTopNavAreas } from "@/lib/shell/navigation";
 import { roleLabels } from "@/lib/labels";
+
+/**
+ * Header-height placeholder while `useSearchParams` resolves inside AppNavShell.
+ * Keeps layout.tsx statically renderable and avoids a CLS jump on Analyst inbox.
+ */
+function AppNavFallback() {
+  return (
+    <header
+      className="sticky top-0 z-20 min-h-14 border-b border-border bg-background"
+      aria-busy="true"
+      aria-label="Глобальная навигация"
+      data-slot="app-nav"
+    />
+  );
+}
 
 export async function AppNav() {
   const snapshot = await getShellSnapshot().catch((error: unknown) => {
@@ -26,16 +42,18 @@ export async function AppNav() {
   ]);
 
   return (
-    <AppNavShell
-      navigation={snapshot.navigation}
-      areas={visibleTopNavAreas(snapshot.user.role, { name: snapshot.user.name })}
-      homeHref={roleHomePath(snapshot.user.role, { name: snapshot.user.name })}
-      canTakeNextCase={hasPermission(snapshot.user.role, "reviews:write")}
-      pulseItems={pulseItems}
-      user={{ name: snapshot.user.name, email: snapshot.user.email }}
-      demoSwitcher={demoSwitcher}
-      branding={snapshot.branding}
-    />
+    <Suspense fallback={<AppNavFallback />}>
+      <AppNavShell
+        navigation={snapshot.navigation}
+        areas={visibleTopNavAreas(snapshot.user.role, { name: snapshot.user.name })}
+        homeHref={roleHomePath(snapshot.user.role, { name: snapshot.user.name })}
+        canTakeNextCase={hasPermission(snapshot.user.role, "reviews:write")}
+        pulseItems={pulseItems}
+        user={{ name: snapshot.user.name, email: snapshot.user.email }}
+        demoSwitcher={demoSwitcher}
+        branding={snapshot.branding}
+      />
+    </Suspense>
   );
 }
 

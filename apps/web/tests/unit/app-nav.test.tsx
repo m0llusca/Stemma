@@ -1,3 +1,4 @@
+import { isValidElement, Suspense, type ReactElement } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -72,6 +73,18 @@ describe("app nav", () => {
       .getAllByRole("link")
       .map((link) => link.textContent);
     expect(labels).toEqual(["Сегодня", "Проверки", "Калибровка", "Обучение", "Аналитика", "Настройки"]);
+  });
+
+  it("wraps the search-params-backed shell in a Suspense boundary", async () => {
+    const { AppNav } = await import("@/components/app-nav");
+    const tree = await AppNav();
+
+    expect(isValidElement(tree) && tree.type === Suspense).toBe(true);
+    const fallback = isValidElement(tree)
+      ? (tree.props as { fallback?: ReactElement<{ "aria-label"?: string; "data-slot"?: string }> }).fallback
+      : undefined;
+    expect(fallback?.props["aria-label"]).toBe("Глобальная навигация");
+    expect(fallback?.props["data-slot"]).toBe("app-nav");
   });
 
   it("points Сегодня and the brand mark at the mine+overdue inbox for a QA analyst", async () => {
