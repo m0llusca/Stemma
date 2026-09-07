@@ -158,8 +158,8 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("surfaces coaching pulse only for a support agent, not ops queue", async () => {
@@ -178,8 +178,8 @@ describe("app nav", () => {
     expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
     expect(within(pulse!).getByRole("link", { name: /Обучение/ })).not.toBeNull();
     // reviews:write отсутствует у SUPPORT_AGENT — быстрое действие скрыто.
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();
     expect(mocks.prisma.trainingAssignment.count).toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe("app nav", () => {
     expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();
   });
@@ -225,8 +225,8 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.getByRole("button", { name: "Взять следующий кейс" })).not.toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Взять следующий" })).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {

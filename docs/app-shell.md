@@ -34,7 +34,11 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 
 Top-nav **«Проверки»** is writer/dashboard roles (`DASHBOARD_ROLES` / `canSeeReviewsQueueNav`), not any `reviews:read`. Ops pulse **«Очередь»** / **«Риск»** is `reviews:write` only (`canSeeOpsQueuePulse`). SUPPORT_AGENT and EXEC both hold `reviews:read`; chrome must not sell the ops queue. Agent keeps coaching pulse. EXEC risk signals stay on `ExecRiskHome`, not the topbar.
 
-⌘K **«Взять следующий кейс»** and the topbar pulse **«Взять кейс»** are actions, not nav hrefs. Same `takeNextReview` path as the queue button — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
+⌘K, pulse, queue page, and next-case preview share one Take verb: **«Взять следующий»**. They are actions, not nav hrefs. Same `takeNextReview` path — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
+
+### Analyst dual-home residual
+
+Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K no longer lists **«Пульс дня»** → `/dashboard` for this role (it competed with Сегодня). Residual: `QA_ANALYST` remains in `DASHBOARD_ROLES`, so `/dashboard` still opens by URL; empty triage there sends the analyst back to role home (`Открыть сегодня`), not Take-next copy on an unreviewed filter.
 
 ## Async Signals
 

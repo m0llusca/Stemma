@@ -28,7 +28,7 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import { takeNextReview } from "@/lib/queue-view-actions";
-import type { ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
+import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
 import {
   paginateReviewQueue,
@@ -44,10 +44,6 @@ export const dynamic = "force-dynamic";
 type ReviewsPageProps = {
   searchParams: Promise<ReviewQueueSearchParams>;
 };
-
-function queuePreviewHref(conversation: ReviewQueueConversationDto, returnTo: string) {
-  return `/reviews/${conversation.id}?returnTo=${encodeURIComponent(returnTo)}`;
-}
 
 // Build a queue href for a given page while preserving every other active
 // search param (filters, saved view, etc.). Page 1 drops the param entirely so
@@ -152,8 +148,9 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       <QueueNextCasePreview
         subject={queuePreview.subject}
         description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"}`}
-        openHref={queuePreviewHref(queuePreview, data.currentHref)}
+        queueHref={data.currentHref}
         statusConversation={queuePreview}
+        canTakeNext={data.canWriteReviews}
       >
         <StatKpi
           label="Оценка"
@@ -205,7 +202,7 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
             <input type="hidden" name="queueHref" value={data.currentHref} />
             <Button type="submit">
               <ArrowRight size={16} aria-hidden="true" data-icon="inline-start" />
-              Взять следующий
+              {TAKE_NEXT_LABEL}
             </Button>
           </form>
         ) : undefined

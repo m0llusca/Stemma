@@ -54,7 +54,11 @@ export function PageShell({
             <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
           ) : null}
         </div>
-        {actions != null ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions != null ? (
+          <div data-slot="page-shell-actions" className="flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        ) : null}
       </header>
 
       {tabs && tabs.length > 0 ? (

@@ -109,7 +109,7 @@ describe("reviews page write gate", () => {
     const { ReviewsPageContent } = await import("@/app/reviews/page");
     render(await ReviewsPageContent({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByRole("button", { name: "Взять следующий" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Взять следующий" }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Массовые действия")).toBeInTheDocument();
     expect(screen.getByTestId("queue-day1-tour")).toBeInTheDocument();
     expect(screen.getByText(/массовые действия/)).toBeInTheDocument();

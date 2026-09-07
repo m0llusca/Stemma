@@ -346,13 +346,13 @@ for (const width of shellViewportWidths) {
       await expect(pulseTrigger).toBeVisible();
       await pulseTrigger.click();
       const pulseMenu = page.getByRole("menu", { name: "Рабочий пульс" });
-      for (const label of [/^Очередь:/, /^Риск:/, /^Обучение:/, /^Взять следующий кейс$/]) {
+      for (const label of [/^Очередь:/, /^Риск:/, /^Обучение:/, /^Взять следующий$/]) {
         await expect(pulseMenu.getByRole("menuitem", { name: label })).toBeVisible();
       }
       await page.keyboard.press("Escape");
     } else {
       await expect(globalNav.getByRole("link", { name: /^Очередь:/ })).toBeVisible();
-      await expect(globalNav.getByRole("button", { name: "Взять следующий кейс" })).toBeVisible();
+      await expect(globalNav.getByRole("button", { name: "Взять следующий" })).toBeVisible();
     }
 
     await expectNoDocumentOverflow(page);

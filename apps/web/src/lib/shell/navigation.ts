@@ -2,6 +2,7 @@ import type { RoleName } from "@prisma/client";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import { DASHBOARD_ROLES, roleHomePath } from "@/lib/auth/role-home";
+import { TAKE_NEXT_ALIASES, TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 
 export type ShellNavIcon = "today" | "work" | "quality" | "team" | "system";
 export type ShellNavModeId = "today" | "work" | "quality" | "team" | "system";
@@ -480,9 +481,9 @@ const actionDefinitions: Array<
 > = [
   {
     actionId: "take-next",
-    label: "Взять следующий кейс",
-    description: "Открыть следующий кейс по текущим фильтрам очереди — тот же путь, что кнопка «Взять следующий».",
-    aliases: ["следующий кейс", "начать проверку", "next case", "next review", "проверить"],
+    label: TAKE_NEXT_LABEL,
+    description: "Взять следующий кейс по текущим фильтрам очереди — тот же путь, что кнопка на странице очереди.",
+    aliases: [...TAKE_NEXT_ALIASES],
     modeId: "work",
     modeLabel: "Работа",
     kind: "action",
@@ -552,9 +553,12 @@ export function buildShellNavigation({
     .filter((mode) => canSeeDefinition(role, mode))
     .map((mode) => {
       const destinations = mode.destinations.filter((destination) => canSeeDefinition(role, destination));
+      // Analyst «Сегодня» is inbox only. Do not also list «Пульс дня» → /dashboard
+      // in ⌘K — that was a competing third home next to Сегодня / Проверки.
+      // Residual: QA_ANALYST stays in DASHBOARD_ROLES, so /dashboard still opens.
       const todayDestinations =
         mode.id === "today" && role === "QA_ANALYST"
-          ? [analystInboxDestination(name), ...destinations]
+          ? [analystInboxDestination(name)]
           : destinations;
       const href = todayDestinations[0]?.href ?? "/dashboard";
 
