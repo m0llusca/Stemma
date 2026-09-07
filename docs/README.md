@@ -6,7 +6,7 @@
 | [otrs-selected-import.md](otrs-selected-import.md) | Cockpit selected OTRS import: lock TX, heartbeats, crash/resume |
 | [jobs-scheduling.md](jobs-scheduling.md) | Background jobs |
 | [integration-install-contracts.md](integration-install-contracts.md) | Install / capability contracts |
-| [app-shell.md](app-shell.md) | App shell notes |
+| [app-shell.md](app-shell.md) | App shell; page permission / forbidden UX |
 | [i18n.md](i18n.md) | Localization |
 | [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics |
 | [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next contract (locked) |
