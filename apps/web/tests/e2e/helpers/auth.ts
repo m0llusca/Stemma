@@ -22,6 +22,7 @@ export async function findSeededDemoAdmin() {
 
 export const seededDemoAnalystEmail = "qa@example.com";
 export const seededDemoAgentEmail = "ivan@example.com";
+export const seededDemoExecEmail = "exec@example.com";
 export const seededDemoViewerEmail = "viewer@example.com";
 
 export const localQaAdmin = {
@@ -49,6 +50,13 @@ export async function findSeededDemoViewer() {
   return prisma.user.findFirstOrThrow({
     where: { email: seededDemoViewerEmail, role: "VIEWER", workspaceId: seededDemoWorkspaceId },
     select: { id: true, workspaceId: true, name: true, email: true }
+  });
+}
+
+export async function findSeededDemoExec() {
+  return prisma.user.findFirstOrThrow({
+    where: { email: seededDemoExecEmail, role: "EXEC", workspaceId: seededDemoWorkspaceId },
+    select: { id: true, workspaceId: true, name: true }
   });
 }
 

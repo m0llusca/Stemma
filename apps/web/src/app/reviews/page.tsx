@@ -227,6 +227,7 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
             currentAssigneeName={data.currentAssigneeName}
             currentHref={data.currentHref}
             savedViews={data.savedViews}
+            canWriteReviews={data.canWriteReviews}
           />
         }
       >

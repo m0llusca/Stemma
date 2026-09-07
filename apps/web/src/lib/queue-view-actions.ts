@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ReviewQueueFilters } from "@/lib/contracts/review-queue";
-import { canManageReviewWorkflow, getCurrentUser, requireCurrentUserPermission } from "@/lib/current-user";
+import { canManageReviewWorkflow, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { nextReviewOrderBy, nextReviewWhere, type NextReviewUser } from "@/lib/review/next-review-query";
 import { filtersFromReviewsHref, safeReviewsHref } from "@/lib/review/queue-href-filters";
@@ -20,8 +20,10 @@ function emptyQueueRedirect(queueHref: string | undefined): never {
   redirect(`${base}${sep}empty=1`);
 }
 
+// Same reviews:write honesty as takeNextReview — readers may apply existing
+// views, but create/rename/delete must not be a session-only mutate.
 export async function createSavedQueueView(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("reviews:write");
   const name = stringField(formData, "name");
   const href = safeReviewsHref(stringField(formData, "href"));
   const scope = stringField(formData, "scope") === "workspace" ? "workspace" : "private";
@@ -50,7 +52,7 @@ export async function createSavedQueueView(formData: FormData) {
 }
 
 export async function deleteSavedQueueView(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUserPermission("reviews:write");
   const id = stringField(formData, "id");
 
   if (!id) {
