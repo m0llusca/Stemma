@@ -1,27 +1,27 @@
 # Stemma
 
-**Язык:** [English](README.md) | **Русский**
+**Язык:** [English](README.md) · Русский
 
-**Omnichannel QA Hub** для контроля качества поддержки — ревью, scorecards, интеграции, сигналы коучинга и доказательства сертификации.
+Stemma — хаб контроля качества поддержки. Забирает диалоги из хелпдесков и источников данных, оценивает их по чек-листам, помогает коучить операторов и хранит, что именно вы сертифицировали.
 
-Интерфейс продукта на русском (`КК поддержки`). Стек: Next.js App Router, React 19, Prisma / PostgreSQL, Vitest, Playwright, shadcn/ui.
+Интерфейс на русском (`КК поддержки`). Стек: Next.js, React 19, Prisma, PostgreSQL.
 
 Репозиторий: [github.com/m0llusca/Stemma](https://github.com/m0llusca/Stemma)
 
-## Возможности
+## Что умеет
 
-- Ревью качества и scorecards (балльная оценка)
-- Адаптеры импорта из helpdesk / CRM (Zendesk, Freshdesk, Intercom, HubSpot, Jira, Salesforce, ServiceNow, Dynamics, OTRS/Znuny/OTOBO)
-- Импорт из источников данных (YDB со static / IAM token / ключами сервисного аккаунта Yandex Cloud, YTsaurus)
-- Корпоративная идентичность (OIDC, SAML, LDAPS) и ссылки на секреты
-- Cockpit интеграций с готовностью к сертификации и gated live smoke
+- Ревью и чек-листы (балльная оценка)
+- Импорт из Zendesk, Freshdesk, Intercom, HubSpot, Jira, Salesforce, ServiceNow, Dynamics, OTRS / Znuny / OTOBO
+- Импорт из YDB и YTsaurus (статический ключ, IAM-токен или сервисный аккаунт Yandex Cloud)
+- Вход через OIDC, SAML, LDAPS; секреты — через зашифрованные ссылки
+- Панель интеграций: проверка готовности и живые smoke-тесты по явному флагу
 - Админка: пользователи, права, внешний вид, интеграции
-- Воркер фоновых задач (`npm run jobs:run`)
+- Фоновые задачи: `npm run jobs:run`
 
-## Требования
+## Что нужно
 
-- Node.js **22+** (в CI используется 22; локально 20.19+ может подойти для YDB SDK)
-- Docker (PostgreSQL через Compose)
+- Node.js 22+ (как в CI; локально для YDB часто хватает 20.19+)
+- Docker
 - npm
 
 ## Быстрый старт
@@ -30,10 +30,8 @@
 git clone https://github.com/m0llusca/Stemma.git
 cd Stemma
 
-# База данных
 docker compose up -d postgres
 
-# Приложение
 cd apps/web
 cp .env.example .env
 npm install
@@ -42,64 +40,58 @@ npm run db:seed
 npm run dev
 ```
 
-Откройте [http://localhost:3000](http://localhost:3000). Локальная авторизация по умолчанию берётся из demo seed (см. вывод seed / документацию).
+Откройте [http://localhost:3000](http://localhost:3000). Демо-пользователи создаются сидом — email смотрите в выводе `db:seed`.
 
-PostgreSQL слушает **localhost:55432** (`qc_app` / `qc_app` / база `qc_app`).
+Postgres: `localhost:55432`, логин / пароль / база — `qc_app`.
 
-## Скрипты (`apps/web`)
+## Команды (`apps/web`)
 
-| Команда | Назначение |
+| Команда | Зачем |
 | --- | --- |
-| `npm run dev` | Dev-сервер Next.js |
-| `npm run build` / `npm start` | Production-сборка |
+| `npm run dev` | Локальный сервер |
+| `npm run build` · `npm start` | Прод-сборка и запуск |
 | `npm run typecheck` | Prisma generate + TypeScript |
-| `npm test` | Unit / API тесты (Vitest) |
-| `npm run test:integration` | Интеграционные тесты с БД |
+| `npm test` | Юнит- и API-тесты |
+| `npm run test:integration` | Тесты на Postgres |
 | `npm run test:e2e` | Playwright |
-| `npm run db:deploy` / `db:seed` | Миграции + demo seed |
-| `npm run jobs:run` | Обработка фоновых задач |
-| `npm run test:otrs:live` | Gated live smoke для OTRS |
-| `npm run test:live:data-source` | Gated live smoke для YDB / YTsaurus |
+| `npm run db:deploy` · `db:seed` | Миграции и демо-данные |
+| `npm run jobs:run` | Обработать очередь задач |
+| `npm run test:otrs:live` | Живой smoke OTRS (по флагу) |
+| `npm run test:live:data-source` | Живой smoke YDB / YTsaurus (по флагу) |
 
-Live-наборы остаются **fail-closed**: нужны явные `*_LIVE_SMOKE=1` и credentials. См. `docs/otrs-live-smoke.md` и `apps/web/tests/live/`.
+Живые smoke по умолчанию выключены: нужны `*_LIVE_SMOKE=1` и настоящие учётные данные. Подробности: `docs/otrs-live-smoke.md`, `apps/web/tests/live/`.
 
-## Структура проекта
+## Структура
 
 ```
 Stemma/
-├── apps/web/          # Next.js-приложение, Prisma, тесты
-├── compose.yaml       # Локальный PostgreSQL
-├── docs/              # Операционные заметки, планы, спецификации
-└── .github/workflows/ # CI + защищённые live smoke workflows
+├── apps/web/           # Приложение, Prisma, тесты
+├── compose.yaml        # Локальный Postgres
+├── docs/               # Операционка и спецификации
+└── .github/workflows/  # CI и защищённые live smoke
 ```
 
-## Конфигурация
+## Настройка
 
 Скопируйте `apps/web/.env.example` → `apps/web/.env`. Минимум:
 
-- `DATABASE_URL` — строка подключения Prisma
-- `QC_PUBLIC_ORIGIN` / `QC_PUBLIC_ORIGIN_ALLOWLIST` — публичный origin для auth / ссылок
+- `DATABASE_URL` — строка подключения к Postgres
+- `QC_PUBLIC_ORIGIN` и `QC_PUBLIC_ORIGIN_ALLOWLIST` — публичный URL для входа и ссылок
 
-Секреты интеграций должны использовать зашифрованные payload'ы `v1:` или ссылки `env:` (см. `apps/web/src/lib/auth/secret-refs.ts`). Не коммитьте `.env` и ключи сервисных аккаунтов.
+Секреты интеграций храните как шифротекст `v1:` или ссылку `env:` (`apps/web/src/lib/auth/secret-refs.ts`). Файл `.env` и ключи сервисных аккаунтов в git не кладите.
 
 ## Документация
 
 - [OTRS live smoke](docs/otrs-live-smoke.md)
-- [Планирование jobs](docs/jobs-scheduling.md)
+- [Расписание задач](docs/jobs-scheduling.md)
 - [Контракты установки интеграций](docs/integration-install-contracts.md)
 - [Операции](docs/operations/)
-- Планы дизайна / реализации в `docs/superpowers/`
+- Черновики дизайна: `docs/superpowers/`
 
-## Заметки для разработки
+UI-кит: shadcn/ui (Base UI, `base-nova`) — `docs/memory/shadcn-ui-knowledge.md`. Заметки для агентов: `AGENTS.md`.
 
-- UI-система: **shadcn/ui** (Base UI, `base-nova`) — см. `docs/memory/shadcn-ui-knowledge.md`
-- Подсказки для агентов в этом репозитории: `AGENTS.md`
-- Graphify / Lazyweb / личные research-дампы остаются в gitignore
+## Лицензия и безопасность
 
-## Лицензия
+MIT — [LICENSE](LICENSE).
 
-MIT — см. [LICENSE](LICENSE).
-
-## Безопасность
-
-Уязвимости сообщайте приватно — см. [SECURITY.md](SECURITY.md).
+Уязвимости сообщайте приватно — [SECURITY.md](SECURITY.md).

@@ -1,27 +1,27 @@
 # Stemma
 
-**Language / Язык:** **English** | [Русский](README.ru.md)
+**Language:** English · [Русский](README.ru.md)
 
-**Omnichannel QA Hub** for support quality control — reviews, scorecards, integrations, coaching signals, and certification evidence.
+Stemma is a QA hub for support teams. Import conversations from helpdesks and data sources, score them, coach agents, and keep an audit trail of what you certified.
 
-Product UI is Russian (`КК поддержки`). Stack: Next.js App Router, React 19, Prisma / PostgreSQL, Vitest, Playwright, shadcn/ui.
+UI is in Russian (`КК поддержки`). Stack: Next.js, React 19, Prisma, PostgreSQL.
 
-Repository: [github.com/m0llusca/Stemma](https://github.com/m0llusca/Stemma)
+Repo: [github.com/m0llusca/Stemma](https://github.com/m0llusca/Stemma)
 
-## Features
+## What it does
 
-- Quality reviews and scorecards (points-based scoring)
-- Helpdesk / CRM import adapters (Zendesk, Freshdesk, Intercom, HubSpot, Jira, Salesforce, ServiceNow, Dynamics, OTRS/Znuny/OTOBO)
-- Data-source import (YDB with static / IAM token / Yandex Cloud service-account keys, YTsaurus)
-- Enterprise identity hooks (OIDC, SAML, LDAPS) and secret references
-- Integration cockpit with certification readiness and gated live smoke
+- Reviews and scorecards (points)
+- Import from Zendesk, Freshdesk, Intercom, HubSpot, Jira, Salesforce, ServiceNow, Dynamics, OTRS / Znuny / OTOBO
+- Import from YDB and YTsaurus (static key, IAM token, or Yandex Cloud service account)
+- Sign-in via OIDC, SAML, LDAPS; secrets via encrypted refs
+- Integration cockpit: readiness checks and gated live smoke
 - Admin: users, permissions, appearance, integrations
-- Background jobs worker (`npm run jobs:run`)
+- Background jobs: `npm run jobs:run`
 
 ## Requirements
 
-- Node.js **22+** (CI uses 22; local 20.19+ may work for YDB SDK)
-- Docker (PostgreSQL via Compose)
+- Node.js 22+ (what CI uses; 20.19+ may work locally for YDB)
+- Docker
 - npm
 
 ## Quick start
@@ -30,10 +30,8 @@ Repository: [github.com/m0llusca/Stemma](https://github.com/m0llusca/Stemma)
 git clone https://github.com/m0llusca/Stemma.git
 cd Stemma
 
-# Database
 docker compose up -d postgres
 
-# App
 cd apps/web
 cp .env.example .env
 npm install
@@ -42,64 +40,58 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Default local auth comes from the demo seed (see seed output / docs).
+Open [http://localhost:3000](http://localhost:3000). Demo users come from the seed — check the seed output for emails.
 
-PostgreSQL listens on **localhost:55432** (`qc_app` / `qc_app` / database `qc_app`).
+Postgres: `localhost:55432`, user/password/db `qc_app`.
 
-## Scripts (`apps/web`)
+## Commands (`apps/web`)
 
-| Command | Purpose |
+| Command | What it does |
 | --- | --- |
-| `npm run dev` | Next.js dev server |
-| `npm run build` / `npm start` | Production build |
+| `npm run dev` | Dev server |
+| `npm run build` · `npm start` | Production |
 | `npm run typecheck` | Prisma generate + TypeScript |
-| `npm test` | Unit / API Vitest |
-| `npm run test:integration` | DB-backed integration tests |
+| `npm test` | Unit and API tests |
+| `npm run test:integration` | Tests against Postgres |
 | `npm run test:e2e` | Playwright |
-| `npm run db:deploy` / `db:seed` | Migrate + demo seed |
-| `npm run jobs:run` | Process background jobs |
-| `npm run test:otrs:live` | Gated OTRS live smoke |
-| `npm run test:live:data-source` | Gated YDB / YTsaurus live smoke |
+| `npm run db:deploy` · `db:seed` | Migrations and demo data |
+| `npm run jobs:run` | Drain the job queue |
+| `npm run test:otrs:live` | OTRS live smoke (opt-in) |
+| `npm run test:live:data-source` | YDB / YTsaurus live smoke (opt-in) |
 
-Live suites stay **fail-closed**: they require explicit `*_LIVE_SMOKE=1` and credentials. See `docs/otrs-live-smoke.md` and `apps/web/tests/live/`.
+Live smoke stays off until you set `*_LIVE_SMOKE=1` and real credentials. Details: `docs/otrs-live-smoke.md`, `apps/web/tests/live/`.
 
-## Project layout
+## Layout
 
 ```
 Stemma/
-├── apps/web/          # Next.js app, Prisma, tests
-├── compose.yaml       # Local PostgreSQL
-├── docs/              # Operations notes, plans, specs
-└── .github/workflows/ # CI + protected live smoke workflows
+├── apps/web/           # App, Prisma, tests
+├── compose.yaml        # Local Postgres
+├── docs/               # Ops notes and specs
+└── .github/workflows/  # CI and protected live smoke
 ```
 
-## Configuration
+## Config
 
-Copy `apps/web/.env.example` → `apps/web/.env`. Minimum:
+Copy `apps/web/.env.example` → `apps/web/.env`. You need at least:
 
-- `DATABASE_URL` — Prisma connection string
-- `QC_PUBLIC_ORIGIN` / `QC_PUBLIC_ORIGIN_ALLOWLIST` — public origin for auth / links
+- `DATABASE_URL` — Postgres connection string
+- `QC_PUBLIC_ORIGIN` and `QC_PUBLIC_ORIGIN_ALLOWLIST` — public URL for auth and links
 
-Secrets for integrations should use encrypted `v1:` payloads or `env:` references (see `apps/web/src/lib/auth/secret-refs.ts`). Do not commit `.env` or service-account keys.
+Store integration secrets as `v1:` ciphertext or `env:` refs (`apps/web/src/lib/auth/secret-refs.ts`). Do not commit `.env` or service-account keys.
 
-## Documentation
+## Docs
 
 - [OTRS live smoke](docs/otrs-live-smoke.md)
-- [Jobs scheduling](docs/jobs-scheduling.md)
+- [Job scheduling](docs/jobs-scheduling.md)
 - [Integration install contracts](docs/integration-install-contracts.md)
 - [Operations](docs/operations/)
-- Design / implementation plans under `docs/superpowers/`
+- Design notes: `docs/superpowers/`
 
-## Development notes
+UI kit: shadcn/ui (Base UI, `base-nova`) — `docs/memory/shadcn-ui-knowledge.md`. Agent notes: `AGENTS.md`.
 
-- UI system: **shadcn/ui** (Base UI, `base-nova`) — see `docs/memory/shadcn-ui-knowledge.md`
-- Agent guidance for this repo: `AGENTS.md`
-- Graphify / Lazyweb / personal research dumps stay gitignored
+## License and security
 
-## License
+MIT — [LICENSE](LICENSE).
 
-MIT — see [LICENSE](LICENSE).
-
-## Security
-
-Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
+Report vulnerabilities in private — [SECURITY.md](SECURITY.md).
