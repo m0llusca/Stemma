@@ -27,7 +27,6 @@ import {
   csatBucketLabels,
   externalSourceLabel,
   formatMessageCount,
-  qaStatusLabels,
   samplingTypeLabels
 } from "@/lib/labels";
 import { takeNextReview } from "@/lib/queue-view-actions";
@@ -39,7 +38,7 @@ import {
   reviewQueueDefaultPageSize,
   type ReviewQueueSearchParams
 } from "@/lib/review-repository";
-import { resolveReviewState, reviewStateLabels } from "@/lib/review-state";
+import { resolveQueueStatusChip } from "@/lib/review-state";
 import { formatQualityScore } from "@/lib/score-display";
 
 export const dynamic = "force-dynamic";
@@ -156,13 +155,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
     (review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN"
   );
   const queuePreviewDraft = queuePreview?.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
-  const queuePreviewState = queuePreview
-    ? resolveReviewState({
-        qaStatus: queuePreview.qaStatus,
-        hasDraftReview: Boolean(queuePreviewDraft),
-        hasFinalizedReview: Boolean(queuePreviewFinalized)
-      })
-    : null;
+  const queuePreviewChip = queuePreview ? resolveQueueStatusChip(queuePreview) : null;
   const queuePreviewDueAt = queuePreview?.reviewDueAt ? new Date(queuePreview.reviewDueAt) : null;
   const queuePreviewOverdue =
     Boolean(queuePreviewDueAt && queuePreviewDueAt.getTime() < Date.now()) && queuePreview?.qaStatus !== "FINALIZED";
@@ -203,16 +196,17 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       ]
     : [];
   const queuePreviewCard =
-    queuePreview && queuePreviewState ? (
+    queuePreview && queuePreviewChip ? (
       <QueueNextCasePreview
         subject={queuePreview.subject}
-        description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"} · ${qaStatusLabels[queuePreview.qaStatus]}`}
+        description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"}`}
         openHref={queuePreviewHref(queuePreview, data.currentHref)}
+        statusConversation={queuePreview}
       >
         <StatKpi
           label="Оценка"
           value={formatQualityScore(queuePreviewFinalized?.totalScore, queuePreviewDraft ? "Черновик" : "—")}
-          hint={reviewStateLabels[queuePreviewState]}
+          hint={queuePreviewChip.label}
         />
 
         <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">

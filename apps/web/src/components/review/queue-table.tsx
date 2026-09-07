@@ -1,9 +1,9 @@
 import { Inbox } from "lucide-react";
 import Link from "next/link";
+import { ReviewStatusChip } from "@/components/review/review-status-chip";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Chip, type ChipTone } from "@/components/ui/chip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -34,7 +34,6 @@ import {
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
 import { CONFIRM_REOPEN_WORKFLOW_ACTION } from "@/lib/review-workflow-policy";
 import { formatQualityScore } from "@/lib/score-display";
-import { resolveReviewState, reviewStateLabels, type ReviewState } from "@/lib/review-state";
 import { cn } from "@/lib/utils";
 
 type QueueTableProps = {
@@ -42,17 +41,6 @@ type QueueTableProps = {
   qaAssignees: ReviewQueueAssigneeDto[];
   returnTo: string;
 };
-
-/**
- * Status of the review state, mapped to the single colored chip on each row.
- * Color is rationed: only the highest-priority signal per row earns a hue, and
- * "finalized" stays neutral (done is not an alert), per the clean-product ramp.
- */
-function reviewStateTone(state: ReviewState): ChipTone {
-  if (state === "reopened") return "warning";
-  if (state === "assigned" || state === "in_progress") return "accent";
-  return "neutral";
-}
 
 function samplingIsSignal(samplingType: string) {
   return samplingType === "DSAT" || samplingType === "LEAD_SIGNAL" || samplingType === "LOW_SCORE";
@@ -198,11 +186,6 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
               const isOverdue =
                 reviewDueAt !== null && reviewDueAt < new Date() && conversation.qaStatus !== "FINALIZED";
-              const reviewState = resolveReviewState({
-                qaStatus: conversation.qaStatus,
-                hasDraftReview: Boolean(draftReview),
-                hasFinalizedReview: Boolean(latestFinalizedReview)
-              });
               const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
               const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
               const hasCritical = Boolean(latestFinalizedReview?.criticalError);
@@ -217,14 +200,6 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                 : conversation.qaStatus === "FINALIZED"
                   ? "закрыто"
                   : "не задан";
-
-              // One chip = one source of truth for review status (qa/review state).
-              // Overdue, critical, reanswer, and appeal stay in meta / date column —
-              // not as a second competing "status" chip.
-              const statusChipTone: ChipTone = conversation.pendingReopen ? "warning" : reviewStateTone(reviewState);
-              const statusChipLabel = conversation.pendingReopen
-                ? "Ожидает подтверждения"
-                : reviewStateLabels[reviewState];
 
               const signalItems = [
                 hasCritical ? "критическая ошибка" : null,
@@ -263,7 +238,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   </TableCell>
 
                   <TableCell>
-                    <Chip tone={statusChipTone}>{statusChipLabel}</Chip>
+                    <ReviewStatusChip conversation={conversation} />
                   </TableCell>
 
                   <TableCell className="max-w-[420px] whitespace-normal">
