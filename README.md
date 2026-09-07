@@ -86,7 +86,6 @@ Store integration secrets as `v1:` ciphertext or `env:` refs (`apps/web/src/lib/
 - [Job scheduling](docs/jobs-scheduling.md)
 - [Integration install contracts](docs/integration-install-contracts.md)
 - [Operations](docs/operations/)
-- Design notes: `docs/superpowers/`
 
 UI kit: shadcn/ui (Base UI, `base-nova`) — `docs/memory/shadcn-ui-knowledge.md`. Agent notes: `AGENTS.md`.
 

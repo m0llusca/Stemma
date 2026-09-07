@@ -13,7 +13,6 @@
 | [cross-feature-interconnections.md](cross-feature-interconnections.md) | This-wave wiring summary (coaching/AI/reports/self-review loops) |
 | [business-logic-adversarial-audit.md](business-logic-adversarial-audit.md) | Adversarial business-logic audit + P0/P1 fix status |
 | [operations/](operations/) | Ops runbooks (incl. Prisma upgrade notes) |
-| [superpowers/](superpowers/) | Design specs and implementation plans |
 | [memory/](memory/) | Session write-ups (shadcn rewrite, etc.) |
 
 Start with the root [README](../README.md) for clone / run instructions.

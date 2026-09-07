@@ -86,7 +86,6 @@ Stemma/
 - [Расписание задач](docs/jobs-scheduling.md)
 - [Контракты установки интеграций](docs/integration-install-contracts.md)
 - [Операции](docs/operations/)
-- Черновики дизайна: `docs/superpowers/`
 
 UI-кит: shadcn/ui (Base UI, `base-nova`) — `docs/memory/shadcn-ui-knowledge.md`. Заметки для агентов: `AGENTS.md`.
 

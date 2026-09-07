@@ -11,6 +11,7 @@ test-results/
 .env
 .env.local
 .superpowers/
+docs/superpowers/
 .worktrees/
 apps/web/next-env.d.ts
 .vite/
