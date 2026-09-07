@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PermissionDeniedError } from "@/lib/auth/permissions";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
@@ -63,6 +64,7 @@ describe("queue view actions", () => {
 
     await expect(createSavedQueueView(formData)).rejects.toThrow("NEXT_REDIRECT:/reviews");
 
+    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reviews:write");
     expect(mocks.prisma.savedQueueView.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         href: "/reviews",
@@ -92,6 +94,7 @@ describe("queue view actions", () => {
 
     await deleteSavedQueueView(formData);
 
+    expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reviews:write");
     expect(mocks.prisma.savedQueueView.deleteMany).toHaveBeenCalledWith({
       where: {
         id: "workspace-view",
@@ -100,6 +103,38 @@ describe("queue view actions", () => {
       }
     });
   });
+
+  it.each(["SUPPORT_AGENT", "EXEC", "VIEWER"] as const)(
+    "refuses to create a saved view for %s without reviews:write",
+    async () => {
+      mocks.requireCurrentUserPermission.mockRejectedValue(new PermissionDeniedError());
+      const { createSavedQueueView } = await import("@/lib/queue-view-actions");
+      const formData = new FormData();
+      formData.set("name", "Чужой вид");
+      formData.set("href", "/reviews?due=overdue");
+
+      await expect(createSavedQueueView(formData)).rejects.toThrow(PermissionDeniedError);
+
+      expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reviews:write");
+      expect(mocks.prisma.savedQueueView.create).not.toHaveBeenCalled();
+      expect(mocks.redirect).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["SUPPORT_AGENT", "EXEC", "VIEWER"] as const)(
+    "refuses to delete a saved view for %s without reviews:write",
+    async () => {
+      mocks.requireCurrentUserPermission.mockRejectedValue(new PermissionDeniedError());
+      const { deleteSavedQueueView } = await import("@/lib/queue-view-actions");
+      const formData = new FormData();
+      formData.set("id", "workspace-view");
+
+      await expect(deleteSavedQueueView(formData)).rejects.toThrow(PermissionDeniedError);
+
+      expect(mocks.requireCurrentUserPermission).toHaveBeenCalledWith("reviews:write");
+      expect(mocks.prisma.savedQueueView.deleteMany).not.toHaveBeenCalled();
+    }
+  );
 
   it("opens the most urgent unreviewed conversation by SLA order", async () => {
     mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-7" });

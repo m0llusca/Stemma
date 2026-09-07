@@ -66,7 +66,8 @@ describe("getReviewQueuePageData write gate", () => {
     ["TEAM_LEAD", true],
     ["ADMIN", true],
     ["EXEC", false],
-    ["SUPPORT_AGENT", false]
+    ["SUPPORT_AGENT", false],
+    ["VIEWER", false]
   ] as const)("maps %s to canWriteReviews=%s", async (role, canWrite) => {
     mocks.requirePagePermission.mockResolvedValue(user(role));
     const { getReviewQueuePageData } = await import("@/lib/review-queue-page-data");

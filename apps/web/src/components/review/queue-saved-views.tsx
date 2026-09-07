@@ -28,11 +28,14 @@ const VISIBLE_VIEW_LIMIT = 8;
 export function QueueSavedViews({
   currentAssigneeName,
   currentHref,
-  savedViews = []
+  savedViews = [],
+  canWriteReviews
 }: {
   currentAssigneeName: string;
   currentHref: string;
   savedViews?: Array<{ id: string; name: string; href: string; scope: string }>;
+  /** Same reviews:write gate as Take-next — readers may apply views, not mutate them. */
+  canWriteReviews: boolean;
 }) {
   const views: SavedView[] = [
     { label: "Все", href: "/reviews", tone: "neutral" },
@@ -90,7 +93,7 @@ export function QueueSavedViews({
                 <Link href={view.href}>
                   <Chip tone={isActive ? "accent" : view.tone}>{view.label}</Chip>
                 </Link>
-                {view.id ? (
+                {canWriteReviews && view.id ? (
                   <form action={deleteSavedQueueView}>
                     <input type="hidden" name="id" value={view.id} />
                     <Button
@@ -134,25 +137,29 @@ export function QueueSavedViews({
           ) : null}
         </div>
 
-        <Separator />
+        {canWriteReviews ? (
+          <>
+            <Separator />
 
-        <form action={createSavedQueueView} className="grid min-w-0 gap-2 bg-muted/40 p-4">
-          <input type="hidden" name="href" value={currentHref} />
-          <Field className="min-w-0">
-            <FieldLabel htmlFor="saved-view-name">Сохранить текущий вид</FieldLabel>
-            <Input id="saved-view-name" name="name" required placeholder="Например, 2ЛП критические" />
-          </Field>
-          <Field className="min-w-0">
-            <FieldLabel htmlFor="saved-view-scope">Доступ</FieldLabel>
-            <NativeSelect id="saved-view-scope" name="scope" defaultValue="private" className="w-full">
-              <NativeSelectOption value="private">Только мне</NativeSelectOption>
-              <NativeSelectOption value="workspace">Всем</NativeSelectOption>
-            </NativeSelect>
-          </Field>
-          <ValidatedSubmitButton className={cn(buttonVariants({ variant: "outline" }), "justify-self-start")}>
-            Сохранить
-          </ValidatedSubmitButton>
-        </form>
+            <form action={createSavedQueueView} className="grid min-w-0 gap-2 bg-muted/40 p-4">
+              <input type="hidden" name="href" value={currentHref} />
+              <Field className="min-w-0">
+                <FieldLabel htmlFor="saved-view-name">Сохранить текущий вид</FieldLabel>
+                <Input id="saved-view-name" name="name" required placeholder="Например, 2ЛП критические" />
+              </Field>
+              <Field className="min-w-0">
+                <FieldLabel htmlFor="saved-view-scope">Доступ</FieldLabel>
+                <NativeSelect id="saved-view-scope" name="scope" defaultValue="private" className="w-full">
+                  <NativeSelectOption value="private">Только мне</NativeSelectOption>
+                  <NativeSelectOption value="workspace">Всем</NativeSelectOption>
+                </NativeSelect>
+              </Field>
+              <ValidatedSubmitButton className={cn(buttonVariants({ variant: "outline" }), "justify-self-start")}>
+                Сохранить
+              </ValidatedSubmitButton>
+            </form>
+          </>
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   );

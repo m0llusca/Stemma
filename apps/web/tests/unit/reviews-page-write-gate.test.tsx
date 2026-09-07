@@ -33,7 +33,12 @@ vi.mock("@/components/review/queue-filters", () => ({
 }));
 
 vi.mock("@/components/review/queue-saved-views", () => ({
-  QueueSavedViews: () => <div>Виды</div>
+  QueueSavedViews: ({ canWriteReviews }: { canWriteReviews?: boolean }) => (
+    <div>
+      Виды
+      {canWriteReviews ? <div>Сохранить текущий вид</div> : null}
+    </div>
+  )
 }));
 
 function pageData(overrides: Partial<ReviewQueuePageData> = {}): ReviewQueuePageData {
@@ -111,6 +116,7 @@ describe("reviews page write gate", () => {
     render(await ReviewsPageContent({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getAllByRole("button", { name: "Взять следующий" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Сохранить текущий вид")).toBeInTheDocument();
     expect(screen.getByText("Массовые действия")).toBeInTheDocument();
     expect(screen.getByTestId("queue-day1-tour")).toBeInTheDocument();
     expect(screen.getByText(/массовые действия/)).toBeInTheDocument();
@@ -122,6 +128,7 @@ describe("reviews page write gate", () => {
     render(await ReviewsPageContent({ searchParams: Promise.resolve({}) }));
 
     expect(screen.queryByRole("button", { name: "Взять следующий" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Сохранить текущий вид")).not.toBeInTheDocument();
     expect(screen.queryByText("Массовые действия")).not.toBeInTheDocument();
     expect(screen.queryByTestId("queue-day1-tour")).not.toBeInTheDocument();
     expect(screen.getByText(/Просмотр очереди: обращения и фильтры/)).toBeInTheDocument();
