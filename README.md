@@ -1,5 +1,7 @@
 # Stemma
 
+**Language / Язык:** **English** | [Русский](README.ru.md)
+
 **Omnichannel QA Hub** for support quality control — reviews, scorecards, integrations, coaching signals, and certification evidence.
 
 Product UI is Russian (`КК поддержки`). Stack: Next.js App Router, React 19, Prisma / PostgreSQL, Vitest, Playwright, shadcn/ui.
