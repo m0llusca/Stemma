@@ -57,7 +57,15 @@ export async function mutateDemoSeed(
   await prisma.translationAudit.deleteMany({ where: { workspaceId } });
   await prisma.translationValue.deleteMany({ where: { workspaceId } });
   await prisma.locale.deleteMany({ where: { workspaceId } });
-  await prisma.auditLog.deleteMany({ where: { workspaceId } });
+  // AuditLog is append-only in product (migration 20260907094600). Demo reseed is the
+  // documented local/test reset path, so briefly lift the delete trigger inside this
+  // already-guarded seed transaction — never from application request handlers.
+  await prisma.$executeRawUnsafe('ALTER TABLE "AuditLog" DISABLE TRIGGER audit_log_forbid_delete');
+  try {
+    await prisma.auditLog.deleteMany({ where: { workspaceId } });
+  } finally {
+    await prisma.$executeRawUnsafe('ALTER TABLE "AuditLog" ENABLE TRIGGER audit_log_forbid_delete');
+  }
   await prisma.reportSnapshot.deleteMany({ where: { workspaceId } });
   await prisma.idempotencyKey.deleteMany({ where: { workspaceId } });
   await prisma.backendJobEvent.deleteMany({ where: { job: { workspaceId } } });
