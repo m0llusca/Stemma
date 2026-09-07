@@ -115,8 +115,9 @@ async function DashboardPageContent() {
   const thisWeekStart = daysAgo(6, now);
   const previousWeekStart = daysAgo(13, now);
   const thirtyDaysStart = daysAgo(29, now);
-  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { conversation: { assigneeName: user.name } } : {};
-  const conversationScope = user.role === "SUPPORT_AGENT" ? { assigneeName: user.name } : {};
+  // Scope operators by unique assigneeId (never the non-unique display name).
+  const supportAgentScope = user.role === "SUPPORT_AGENT" ? { conversation: { assigneeId: user.id } } : {};
+  const conversationScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {};
 
   const [
     checkedThisWeek,
@@ -226,7 +227,7 @@ async function DashboardPageContent() {
     prisma.reviewEvent.findMany({
       where: {
         workspaceId: user.workspaceId,
-        ...(user.role === "SUPPORT_AGENT" ? { review: { conversation: { assigneeName: user.name } } } : {})
+        ...(user.role === "SUPPORT_AGENT" ? { review: { conversation: { assigneeId: user.id } } } : {})
       },
       include: {
         actor: { select: { name: true } },
