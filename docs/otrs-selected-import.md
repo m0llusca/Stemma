@@ -13,12 +13,12 @@ Then the worker:
 1. Claims the job and renews the `backendJob` lock on the global `prisma` client.
 2. Opens a **short** transaction: ownership check (`assertCurrentJobLock`, no renew in that TX) → **commit**.
 3. Runs `importSelectedOtrsRunItems` **outside** that transaction, still on global `prisma`.
-4. Finalizes `IntegrationRun` in a later short transaction.
+4. If reclaimable rows were processed, finalizes `IntegrationRun` in a short transaction.
 5. Marks the job `SUCCEEDED` in another short transaction.
 
 Do not wrap step 3 in the ownership TX. That TX holds the `backendJob` row; per-item heartbeats update the same row and would wait on it until lock timeout (self-deadlock). That bug is fixed.
 
-Code: `runSelectedOtrsImportJob` in `apps/web/src/lib/jobs/queue.ts`, `runSelectedOtrsImportConnector` in `apps/web/src/lib/integrations/runner.ts`.
+Code: `runSelectedOtrsImportJob` in `apps/web/src/lib/jobs/queue.ts`, `runSelectedOtrsImportConnector` in `apps/web/src/lib/integrations/runner.ts`, `importSelectedOtrsRunItems` in `apps/web/src/lib/integrations/otrs-family/import-plan.ts` (claim/resume and early-return).
 
 ## Heartbeats
 
@@ -41,9 +41,13 @@ TicketGet is not on this path. Preview (`createOtrsPreviewItems`), diagnostics, 
 
 ## Crash residual
 
-If the process dies mid-import, conversations already upserted stay in the workspace. `IntegrationRun` may still be `queued` or `retry_scheduled` until a later attempt finalizes it. There is no all-or-nothing rollback.
+Conversations already upserted survive a crash. There is no rollback.
 
-Resume is the **same** `INTEGRATION_IMPORT` job after stale recovery or retry. Remaining `previewed` / `selected` / `importing` rows are claimed again. A second cockpit enqueue still requires a `previewed` run and `previewed` items — a `queued`, `retry_scheduled`, or `failed` run is rejected. After a terminal job failure, start a new preview.
+Resume is the same `INTEGRATION_IMPORT` job after stale recovery or retry. It calls `finalizeImportRun` only when reclaimable rows remain (`previewed` / `selected` / `importing`).
+
+If every selected id is already `imported`, `importSelectedOtrsRunItems` returns success and skips `finalizeImportRun`. The job can be `SUCCEEDED` while `IntegrationRun` stays `queued` or `retry_scheduled`.
+
+A second cockpit enqueue still needs a `previewed` run and `previewed` items. After a terminal job failure, start a new preview.
 
 ## What did not change
 
