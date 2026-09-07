@@ -208,3 +208,21 @@ export function adminHubChannelsTone(
 export function adminHubAppearanceTone(): AdminHubTone {
   return "neutral";
 }
+
+export type AdminHubOverviewTone = "warning" | "success" | "accent";
+
+/**
+ * Hub banner: success only for roles that can open cert-health sections.
+ * QA (and any role without integrations/access) must not inherit a cert-green
+ * “всё готово” strip from sections they cannot open (#79 merge).
+ */
+export function adminHubOverviewTone(input: {
+  hasSetupGap: boolean;
+  canSeeCertHealth: boolean;
+}): AdminHubOverviewTone {
+  if (input.hasSetupGap) {
+    return "warning";
+  }
+
+  return input.canSeeCertHealth ? "success" : "accent";
+}

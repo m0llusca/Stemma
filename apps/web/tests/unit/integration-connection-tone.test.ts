@@ -9,6 +9,7 @@ import {
   adminHubAppearanceTone,
   adminHubChannelsTone,
   adminHubIntegrationsTone,
+  adminHubOverviewTone,
   catalogReadinessTone,
   certificationPipelineStageTone,
   diagnosticsPipelineStageTone,
@@ -308,6 +309,13 @@ describe("admin hub honesty tones", () => {
   it("treats appearance as a setting, not health", () => {
     expect(adminHubAppearanceTone()).toBe("neutral");
   });
+
+  it("does not paint the hub overview success for roles that cannot open cert-health sections", () => {
+    expect(adminHubOverviewTone({ hasSetupGap: false, canSeeCertHealth: false })).toBe("accent");
+    expect(adminHubOverviewTone({ hasSetupGap: false, canSeeCertHealth: false })).not.toBe("success");
+    expect(adminHubOverviewTone({ hasSetupGap: true, canSeeCertHealth: false })).toBe("warning");
+    expect(adminHubOverviewTone({ hasSetupGap: false, canSeeCertHealth: true })).toBe("success");
+  });
 });
 
 describe("admin hub and pipeline wiring", () => {
@@ -336,6 +344,8 @@ describe("admin hub and pipeline wiring", () => {
     expect(adminHubPage).toContain("adminHubAccessTone(");
     expect(adminHubPage).toContain("adminHubChannelsTone(");
     expect(adminHubPage).toContain("adminHubAppearanceTone()");
+    expect(adminHubPage).toContain("adminHubOverviewTone(");
+    expect(adminHubPage).not.toContain("tone={primarySetupCoachmark || attentionCount > 0 ? \"warning\" : \"success\"}");
     expect(adminHubPage).toContain("isLiveCertified(");
     expect(adminHubPage).toContain("getPhaseDReadinessReport(");
     expect(adminHubPage).toContain("Нет live SSO");

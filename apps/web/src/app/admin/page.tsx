@@ -22,7 +22,8 @@ import {
   adminHubAccessTone,
   adminHubAppearanceTone,
   adminHubChannelsTone,
-  adminHubIntegrationsTone
+  adminHubIntegrationsTone,
+  adminHubOverviewTone
 } from "@/lib/integrations/connection-tone";
 import { requirePagePermission } from "@/lib/page-permission";
 import { russianPlural } from "@/lib/reports/report-format";
@@ -323,16 +324,25 @@ async function AdminHomePageContent() {
     { active: apiTokens === 0, roles: ["ADMIN"] as RoleName[] }
   ].filter((blocker) => blocker.active && canSee(user.role, blocker.roles));
   const attentionCount = attentionBlockers.length;
+  const canSeeCertHealth = canSee(user.role, ["ADMIN"]);
+  const overviewTone = adminHubOverviewTone({
+    hasSetupGap: Boolean(primarySetupCoachmark || attentionCount > 0),
+    canSeeCertHealth
+  });
   const priorityTitle = primarySetupCoachmark
     ? primarySetupCoachmark.title
     : attentionCount > 0
       ? "Продолжить настройку"
-      : "Настройки в рабочем состоянии";
+      : canSeeCertHealth
+        ? "Настройки в рабочем состоянии"
+        : "Доступные разделы";
   const priorityBody = primarySetupCoachmark
     ? primarySetupCoachmark.body
     : attentionCount > 0
       ? "Сначала закрывайте блокеры, которые мешают проверкам и импорту."
-      : "Можно переходить к методологии, источникам или журналу действий.";
+      : canSeeCertHealth
+        ? "Можно переходить к методологии, источникам или журналу действий."
+        : "Открыты только разделы, к которым есть доступ. Статус живой сертификации здесь не показывается.";
 
   return (
     <PageShell
@@ -357,7 +367,7 @@ async function AdminHomePageContent() {
     >
       <AdminFrame>
         <TriageStrip
-          tone={primarySetupCoachmark || attentionCount > 0 ? "warning" : "success"}
+          tone={overviewTone}
           icon={<Sparkles size={18} aria-hidden="true" />}
           title={priorityTitle}
           description={priorityBody}
