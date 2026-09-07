@@ -1,4 +1,5 @@
 import type { RoleName } from "@prisma/client";
+import { hasPermission } from "@/lib/auth/permissions";
 
 /**
  * Paths treated as "no explicit destination" after login / demo switch.
@@ -49,6 +50,24 @@ export const DASHBOARD_ROLES = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "EXEC"] as c
 
 export function canAccessDashboard(role: RoleName) {
   return (DASHBOARD_ROLES as readonly RoleName[]).includes(role);
+}
+
+/**
+ * Top-nav «Проверки». Writers and dashboard roles (ADMIN / TEAM_LEAD / QA_ANALYST / EXEC).
+ * SUPPORT_AGENT holds `reviews:read` for scoped deep links, but chrome must not
+ * sell the ops queue — their JTBD is self-review and coaching.
+ */
+export function canSeeReviewsQueueNav(role: RoleName) {
+  return canAccessDashboard(role);
+}
+
+/**
+ * Topbar pulse «Очередь» / «Риск». Review writers only.
+ * EXEC has `reviews:read` for SLA drill from ExecRiskHome, but docs say
+ * без ops-хрома — a permission gate alone would still sell the queue.
+ */
+export function canSeeOpsQueuePulse(role: RoleName) {
+  return hasPermission(role, "reviews:write");
 }
 
 /**
