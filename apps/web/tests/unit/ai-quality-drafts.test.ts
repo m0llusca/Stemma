@@ -149,7 +149,7 @@ describe("AI Quality Ops drafts", () => {
     });
 
     expect(draftUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "draft-1", status: "draft" },
+      where: { id: "draft-1", workspaceId: "workspace-1", status: "draft" },
       data: {
         status: "changed",
         finalizedById: "user-1",

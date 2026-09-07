@@ -62,7 +62,7 @@ export async function decideAiQualityDraft(input: DecideAiQualityDraftInput) {
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.aiQualityDraft.updateMany({
-      where: { id: input.draftId, status: "draft" },
+      where: { id: input.draftId, workspaceId: input.workspaceId, status: "draft" },
       data: {
         status: input.decision,
         finalizedById: actorId,
