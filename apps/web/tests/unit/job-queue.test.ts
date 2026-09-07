@@ -34,6 +34,12 @@ const mocks = vi.hoisted(() => ({
     apiRateLimit: {
       deleteMany: vi.fn()
     },
+    ssoRequestState: {
+      deleteMany: vi.fn()
+    },
+    webhookIngestEvent: {
+      updateMany: vi.fn()
+    },
     reportSnapshot: {
       create: vi.fn()
     },
@@ -1194,6 +1200,8 @@ describe("backend job queue", () => {
     mocks.prisma.authSession.updateMany.mockResolvedValue({ count: 2 });
     mocks.prisma.idempotencyKey.deleteMany.mockResolvedValue({ count: 3 });
     mocks.prisma.apiRateLimit.deleteMany.mockResolvedValue({ count: 4 });
+    mocks.prisma.ssoRequestState.deleteMany.mockResolvedValue({ count: 5 });
+    mocks.prisma.webhookIngestEvent.updateMany.mockResolvedValue({ count: 6 });
     mocks.prisma.backendJobEvent.create.mockResolvedValue({});
 
     await runDueBackendJobs({ workerId: "worker-a", queueName: "maintenance", workspaceId: "workspace-1", limit: 1 });
@@ -1224,6 +1232,53 @@ describe("backend job queue", () => {
         }
       }
     });
+    expect(mocks.prisma.ssoRequestState.deleteMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        expiresAt: {
+          lt: expect.any(Date)
+        }
+      }
+    });
+    expect(mocks.prisma.webhookIngestEvent.updateMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1",
+        receivedAt: {
+          lt: expect.any(Date)
+        },
+        NOT: {
+          payloadJson: "{}"
+        }
+      },
+      data: { payloadJson: "{}" }
+    });
+    expect(mocks.prisma.backendJob.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId: "workspace-1",
+          status: {
+            in: ["SUCCEEDED", "FAILED"]
+          },
+          finishedAt: {
+            lt: expect.any(Date)
+          },
+          NOT: {
+            payloadJson: "{}"
+          }
+        },
+        data: { payloadJson: "{}" }
+      })
+    );
+
+    const webhookCutoff = mocks.prisma.webhookIngestEvent.updateMany.mock.calls[0][0].where.receivedAt.lt as Date;
+    const jobPayloadCutoff = (
+      mocks.prisma.backendJob.updateMany.mock.calls.find(
+        (call) => call[0]?.data?.payloadJson === "{}" && call[0]?.where?.status?.in
+      )?.[0].where.finishedAt.lt as Date
+    );
+    const rateLimitCutoff = mocks.prisma.apiRateLimit.deleteMany.mock.calls[0][0].where.windowStart.lt as Date;
+    expect(rateLimitCutoff.getTime() - webhookCutoff.getTime()).toBe(23 * 24 * 60 * 60 * 1000);
+    expect(rateLimitCutoff.getTime() - jobPayloadCutoff.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
   it("keeps old INTEGRATION_IMPORT payloads on the legacy connector runner", async () => {

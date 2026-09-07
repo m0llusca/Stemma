@@ -66,6 +66,8 @@ type JobClient = Pick<
   | "authSession"
   | "idempotencyKey"
   | "apiRateLimit"
+  | "ssoRequestState"
+  | "webhookIngestEvent"
   | "reportSnapshot"
   | "auditLog"
 >;
@@ -673,47 +675,97 @@ async function runRetentionCleanupJob(client: JobClient, job: BackendJob) {
   const lockState = await assertCurrentJobLock(client, job);
 
   const now = new Date();
-  const rateLimitCutoff = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7);
-  const [sessions, idempotencyKeys, rateLimits] = await Promise.all([
-    client.authSession.updateMany({
-      where: {
-        workspaceId: job.workspaceId,
-        status: "ACTIVE",
-        expiresAt: {
-          lt: now
+  const dayMs = 1000 * 60 * 60 * 24;
+  const rateLimitCutoff = new Date(now.getTime() - dayMs * 7);
+  const webhookPayloadCutoff = new Date(now.getTime() - dayMs * 30);
+  const backendJobPayloadCutoff = new Date(now.getTime() - dayMs * 14);
+  const emptyPayloadJson = "{}";
+
+  const [sessions, idempotencyKeys, rateLimits, ssoRequestStates, webhookIngestEvents, backendJobPayloads] =
+    await Promise.all([
+      client.authSession.updateMany({
+        where: {
+          workspaceId: job.workspaceId,
+          status: "ACTIVE",
+          expiresAt: {
+            lt: now
+          }
+        },
+        data: { status: "EXPIRED" }
+      }),
+      client.idempotencyKey.deleteMany({
+        where: {
+          workspaceId: job.workspaceId,
+          expiresAt: {
+            lt: now
+          }
         }
-      },
-      data: { status: "EXPIRED" }
-    }),
-    client.idempotencyKey.deleteMany({
-      where: {
-        workspaceId: job.workspaceId,
-        expiresAt: {
-          lt: now
+      }),
+      client.apiRateLimit.deleteMany({
+        where: {
+          workspaceId: job.workspaceId,
+          windowStart: {
+            lt: rateLimitCutoff
+          }
         }
-      }
-    }),
-    client.apiRateLimit.deleteMany({
-      where: {
-        workspaceId: job.workspaceId,
-        windowStart: {
-          lt: rateLimitCutoff
+      }),
+      // SsoRequestState has expiresAt — delete expired rows (typically ≤24h TTL).
+      client.ssoRequestState.deleteMany({
+        where: {
+          workspaceId: job.workspaceId,
+          expiresAt: {
+            lt: now
+          }
         }
-      }
-    })
-  ]);
+      }),
+      // Keep audit rows; scrub raw webhook payloads older than 30 days.
+      client.webhookIngestEvent.updateMany({
+        where: {
+          workspaceId: job.workspaceId,
+          receivedAt: {
+            lt: webhookPayloadCutoff
+          },
+          NOT: {
+            payloadJson: emptyPayloadJson
+          }
+        },
+        data: { payloadJson: emptyPayloadJson }
+      }),
+      // Keep terminal job rows; scrub payloads older than 14 days.
+      client.backendJob.updateMany({
+        where: {
+          workspaceId: job.workspaceId,
+          status: {
+            in: ["SUCCEEDED", "FAILED"]
+          },
+          finishedAt: {
+            lt: backendJobPayloadCutoff
+          },
+          NOT: {
+            payloadJson: emptyPayloadJson
+          }
+        },
+        data: { payloadJson: emptyPayloadJson }
+      })
+    ]);
 
   await recordJobEvent(client, job.id, "info", "Очистка устаревших backend-записей выполнена.", {
     sessions: sessions.count,
     idempotencyKeys: idempotencyKeys.count,
-    rateLimits: rateLimits.count
+    rateLimits: rateLimits.count,
+    ssoRequestStates: ssoRequestStates.count,
+    webhookIngestEvents: webhookIngestEvents.count,
+    backendJobPayloads: backendJobPayloads.count
   });
 
   return {
     result: {
       expiredSessions: sessions.count,
       deletedIdempotencyKeys: idempotencyKeys.count,
-      deletedRateLimitBuckets: rateLimits.count
+      deletedRateLimitBuckets: rateLimits.count,
+      deletedSsoRequestStates: ssoRequestStates.count,
+      scrubbedWebhookIngestPayloads: webhookIngestEvents.count,
+      scrubbedBackendJobPayloads: backendJobPayloads.count
     },
     lockState
   };
