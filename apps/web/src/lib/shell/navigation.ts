@@ -23,10 +23,14 @@ export type ShellNavMode = {
   destinations: ShellNavDestination[];
 };
 
-export type ShellCommandItem = ShellNavDestination & {
+export type ShellCommandActionId = "take-next";
+
+export type ShellCommandItem = Omit<ShellNavDestination, "href"> & {
+  href?: string;
   modeId: ShellNavModeId;
   modeLabel: string;
   kind: "mode" | "destination" | "action";
+  actionId?: ShellCommandActionId;
 };
 
 export type ShellNavigation = {
@@ -64,7 +68,10 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Сегодня",
     description: "Пульс дня и следующий управленческий фокус.",
     icon: "today",
-    permission: "reviews:read"
+    // Ops pulse is for reviewers and leads. SUPPORT_AGENT home is calm
+    // self-review — «Сегодня»→/dashboard must not be a primary agent path.
+    permission: "reviews:read",
+    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
   },
   {
     id: "feedback",
@@ -261,14 +268,17 @@ const modeDefinitions: ModeDefinition[] = [
     icon: "today",
     // /dashboard гейтится reviews:read — зеркалим гвард на уровне мода, чтобы
     // роли без права (VIEWER) не получали командных ссылок в никуда.
+    // SUPPORT_AGENT also has reviews:read, but ops «Сегодня» is not their home.
     permission: "reviews:read",
+    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"],
     destinations: [
       {
         href: "/dashboard",
         label: "Пульс дня",
         description: "Очередь, риск, обучение и последние изменения в одном входном экране.",
         aliases: ["дашборд", "dashboard", "обзор", "пульс"],
-        permission: "reviews:read"
+        permission: "reviews:read",
+        roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
       }
     ]
   },
@@ -450,24 +460,22 @@ const modeDefinitions: ModeDefinition[] = [
 ];
 
 /**
- * Action-type command items turn the ⌘K palette into a real fast path: instead
- * of only jumping to a section, these run the most common manager moves with the
- * exact filters used elsewhere in the product (queue triage, SLA, quarterly
- * analytics, coaching). Routes/filters mirror real links so a click lands on the
- * same filtered view the rest of the app produces.
+ * Action-type command items turn the ⌘K palette into a real fast path.
+ * Navigation actions use real product routes/filters. `take-next` is not a
+ * href — it runs the same `takeNextReview` path as the queue button.
  */
 const actionDefinitions: Array<
   ShellCommandItem & { permission?: Permission; permissionsAny?: Permission[]; roles?: RoleName[] }
 > = [
   {
-    href: "/reviews?status=unreviewed",
+    actionId: "take-next",
     label: "Взять следующий кейс",
-    description: "Открыть очередь с непроверенными диалогами.",
+    description: "Открыть следующий кейс по текущим фильтрам очереди — тот же путь, что кнопка «Взять следующий».",
     aliases: ["следующий кейс", "начать проверку", "next case", "next review", "проверить"],
     modeId: "work",
     modeLabel: "Работа",
     kind: "action",
-    permission: "reviews:read",
+    permission: "reviews:write",
     roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
   },
   {

@@ -34,6 +34,20 @@ describe("nextReviewWhere", () => {
     });
   });
 
+  it("is the base eligibility only — URL filters are not in nextReviewWhere", () => {
+    const where = nextReviewWhere({
+      id: "qa-1",
+      name: "Аналитик",
+      workspaceId: "workspace-1",
+      role: "QA_ANALYST"
+    });
+
+    expect(where).not.toHaveProperty("reviewDueAt");
+    expect(where).not.toHaveProperty("process");
+    expect(where).not.toHaveProperty("riskLevel");
+    expect(Object.keys(where).sort()).toEqual(["qaStatus", "samplingType", "workspaceId"]);
+  });
+
   it("excludes unmatched sampling (OUT_OF_SAMPLE) from take-next", () => {
     const where = nextReviewWhere({
       id: "qa-1",

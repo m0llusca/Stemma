@@ -132,13 +132,12 @@ describe("app nav", () => {
     const labels = within(areaNav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(labels).toContain("Моя обратная связь");
-    expect(labels).toContain("Проверки");
-    expect(labels).toContain("Обучение");
+    expect(labels).toEqual(["Моя обратная связь", "Проверки", "Обучение"]);
     expect(within(areaNav).getByRole("link", { name: /Моя обратная связь/ }).getAttribute("href")).toBe(
       "/self-review"
     );
     expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe("/self-review");
+    expect(screen.queryByRole("link", { name: "Сегодня" })).toBeNull();
   });
 
   it("hides the take-next-case shortcut from roles without reviews:write", async () => {

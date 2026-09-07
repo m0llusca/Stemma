@@ -61,6 +61,14 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).toContain('"Риск и апелляции"');
   });
 
+  it("hides peer score rows from SUPPORT_AGENT without TEAM_LEAD+ADMIN-only gating", () => {
+    // Issue #16: agents must not see peer operator score rows.
+    // Issue #18 owns TEAM_LEAD+ADMIN-only leaderboard/avg — keep QA_ANALYST visible here.
+    expect(dashboardPage).toContain("showPeerScoreRows");
+    expect(dashboardPage).toContain('user.role !== "SUPPORT_AGENT"');
+    expect(dashboardPage).not.toContain("showPeerScoreRows = isLeadDashboard");
+  });
+
   it("surfaces reviewer assignment workload for lead/admin", () => {
     expect(dashboardPage).toContain("loadReviewerWorkload");
     expect(dashboardPage).toContain("reviewerWorkloadHref");

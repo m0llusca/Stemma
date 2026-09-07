@@ -29,6 +29,8 @@ import {
   resolveWorkspaceBranding,
   type WorkspaceBranding
 } from "@/lib/ui-branding";
+import { takeNextReview } from "@/lib/queue-view-actions";
+import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +82,7 @@ type AppNavShellProps = {
   } | null;
   branding?: WorkspaceBranding;
   areas?: ShellNavArea[];
-  /** Role home from `roleHomePath` — never hardcode `/dashboard` per role. */
+  /** Role home from `roleHomePath` — never hardcode `/dashboard` (SUPPORT_AGENT stays off ops pulse). */
   homeHref?: string;
   /** Гейт быстрого действия «Взять кейс»: false для ролей без reviews:write. */
   canTakeNextCase?: boolean;
@@ -143,8 +145,12 @@ export function AppNavShell({
   );
   const activeArea = areas.find((area) => area.id === activeAreaId);
   const visibleCommands = useMemo(
-    () => navigation.commandItems.filter((command) => commandMatches(command, query)).slice(0, 9),
-    [navigation.commandItems, query]
+    () =>
+      navigation.commandItems
+        .filter((command) => canTakeNextCase || command.actionId !== "take-next")
+        .filter((command) => commandMatches(command, query))
+        .slice(0, 9),
+    [navigation.commandItems, query, canTakeNextCase]
   );
   const demoUserName =
     demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ??
@@ -193,9 +199,16 @@ export function AppNavShell({
   }, [commandOpen]);
 
   const runCommand = useCallback(
-    (href: string) => {
+    (command: ShellCommandItem) => {
       setCommandOpen(false);
-      router.push(href);
+      if (command.actionId === "take-next") {
+        const { pathname, search } = window.location;
+        void takeNextReview(takeNextFormDataFromLocation(pathname, search));
+        return;
+      }
+      if (command.href) {
+        router.push(command.href);
+      }
     },
     [router]
   );
@@ -546,9 +559,9 @@ export function AppNavShell({
             <CommandGroup>
               {visibleCommands.map((command) => (
                 <CommandItem
-                  key={`${command.kind}:${command.href}:${command.label}`}
+                  key={`${command.kind}:${command.actionId ?? command.href}:${command.label}`}
                   value={`${command.label} ${command.description} ${command.modeLabel} ${command.aliases.join(" ")}`}
-                  onSelect={() => runCommand(command.href)}
+                  onSelect={() => runCommand(command)}
                   className="items-start py-2"
                 >
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
