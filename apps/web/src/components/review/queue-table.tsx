@@ -31,6 +31,11 @@ import {
   reanswerStatusLabels,
   samplingTypeLabels
 } from "@/lib/labels";
+import {
+  QUEUE_EMPTY_RESET_FILTERS_LABEL,
+  queueTableEmptyCopy
+} from "@/lib/review/queue-empty-copy";
+import { filtersFromReviewsHref } from "@/lib/review/queue-href-filters";
 import { bulkUpdateReviewQueue } from "@/lib/review-workflow-actions";
 import { CONFIRM_REOPEN_WORKFLOW_ACTION } from "@/lib/review-workflow-policy";
 import { formatQualityScore } from "@/lib/score-display";
@@ -237,17 +242,22 @@ export function QueueTable({
   canWriteReviews
 }: QueueTableProps) {
   if (conversations.length === 0) {
+    const hasActiveFilters = Boolean(filtersFromReviewsHref(returnTo));
+    const emptyCopy = queueTableEmptyCopy(hasActiveFilters);
+
     return (
       <Card className="overflow-clip">
         <CardContent>
           <EmptyState
             icon={<Inbox size={26} aria-hidden="true" />}
-            title="Очередь пуста"
-            description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
+            title={emptyCopy.title}
+            description={emptyCopy.description}
             action={
-              <Button render={<Link href={resetHref} />} nativeButton={false}>
-                Сбросить фильтры
-              </Button>
+              hasActiveFilters ? (
+                <Button render={<Link href={resetHref} />} nativeButton={false}>
+                  {QUEUE_EMPTY_RESET_FILTERS_LABEL}
+                </Button>
+              ) : undefined
             }
           />
         </CardContent>

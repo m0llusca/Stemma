@@ -1,18 +1,36 @@
 "use client";
 
 import { Inbox, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { takeNextReview } from "@/lib/queue-view-actions";
+import {
+  QUEUE_EMPTY_RESET_FILTERS_LABEL,
+  QUEUE_EMPTY_TAKE_UNFILTERED_LABEL,
+  queueEmptyBannerMessage
+} from "@/lib/review/queue-empty-copy";
+
+type QueueEmptyBannerProps = {
+  hasActiveFilters?: boolean;
+  /** Inbox home after reset. Analyst keeps mine+overdue; others go to `/reviews`. */
+  resetHref?: string;
+  /** reviews:write — hide unfiltered take-next for EXEC / SUPPORT_AGENT. */
+  canWriteReviews?: boolean;
+};
 
 /**
- * Brief, dismissible "queue is empty" banner shown when `takeNext` (or
- * "завершить и взять следующий") finds nothing left to grade and redirects to
- * `/reviews?empty=1`. Rendered only when the param is present; the reviewer can
- * dismiss it, and dismissing also strips `empty` from the URL so a refresh does
- * not bring the banner back.
+ * Brief, dismissible banner after `takeNext` / finalize-and-take-next finds
+ * nothing in the current view and redirects with `empty=1`. Filtered views use
+ * view-scoped copy and recovery CTAs — the workspace may still have work
+ * outside the chips. Dismissing also strips `empty` from the URL.
  */
-export function QueueEmptyBanner() {
+export function QueueEmptyBanner({
+  hasActiveFilters = false,
+  resetHref = "/reviews",
+  canWriteReviews = false
+}: QueueEmptyBannerProps) {
   const [visible, setVisible] = useState(true);
 
   // Defensive: if the page ever renders this with the param already gone, hide.
@@ -42,11 +60,23 @@ export function QueueEmptyBanner() {
   }
 
   return (
-    <Alert role="status" className="flex items-center gap-3">
+    <Alert role="status">
       <Inbox size={18} aria-hidden="true" />
-      <AlertDescription className="flex-1">
-        Свободных обращений в очереди нет.
-      </AlertDescription>
+      <AlertDescription>{queueEmptyBannerMessage(hasActiveFilters)}</AlertDescription>
+      {hasActiveFilters ? (
+        <div className="col-start-2 mt-1 flex flex-wrap items-center gap-2">
+          <Button render={<Link href={resetHref} />} nativeButton={false} variant="outline" size="sm">
+            {QUEUE_EMPTY_RESET_FILTERS_LABEL}
+          </Button>
+          {canWriteReviews ? (
+            <form action={takeNextReview}>
+              <Button type="submit" variant="outline" size="sm">
+                {QUEUE_EMPTY_TAKE_UNFILTERED_LABEL}
+              </Button>
+            </form>
+          ) : null}
+        </div>
+      ) : null}
       <AlertAction>
         <Button
           type="button"
