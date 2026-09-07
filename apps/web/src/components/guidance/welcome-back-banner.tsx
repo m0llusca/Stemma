@@ -8,16 +8,26 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/u
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   LAST_VISIT_STORAGE_KEY,
-  SAFE_QUEUE_VIEW_HREF,
   parseLastVisit,
-  shouldShowWelcomeBack
+  shouldShowWelcomeBack,
+  welcomeBackTrapCopy,
+  type QueueFilterTrap
 } from "@/lib/guidance/visit-memory";
 import { cn } from "@/lib/utils";
+
+export const WELCOME_BACK_RESET_LABEL = "Сбросить к очереди дня";
 
 type WelcomeBackBannerProps = {
   className?: string;
   /** When true, skip touching lastVisit on mount (tests). */
   deferTouch?: boolean;
+  /**
+   * Surface-specific role-home reset (`welcomeBackResetHref`). Reviews: Analyst
+   * mine+overdue / other queue roles `/reviews`. Dashboard: `roleHomePath`.
+   */
+  resetHref: string;
+  /** Off-role-home filters — named saved view or honest ad-hoc copy. */
+  trap?: QueueFilterTrap;
 };
 
 function readLastVisit(): Date | null {
@@ -38,9 +48,14 @@ function writeLastVisit(now: Date) {
 
 /**
  * Gentle banner after ~30 days away. Does not block Take next —
- * sits as a dismissible alert with a safe filter-reset CTA.
+ * sits as a dismissible alert with a role-home filter-reset CTA.
  */
-export function WelcomeBackBanner({ className, deferTouch = false }: WelcomeBackBannerProps) {
+export function WelcomeBackBanner({
+  className,
+  deferTouch = false,
+  resetHref,
+  trap
+}: WelcomeBackBannerProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -69,6 +84,7 @@ export function WelcomeBackBanner({ className, deferTouch = false }: WelcomeBack
       role="region"
       aria-label="С возвращением"
       data-slot="welcome-back-banner"
+      data-trap-kind={trap?.kind}
       className={cn("border-primary/30 bg-primary/5 text-foreground", className)}
     >
       <AlertAction>
@@ -77,17 +93,14 @@ export function WelcomeBackBanner({ className, deferTouch = false }: WelcomeBack
         </Button>
       </AlertAction>
       <AlertTitle className="mb-0 text-sm">С возвращением</AlertTitle>
-      <AlertDescription>
-        Давно не заходили — сохранённые фильтры могли устареть. Можно сбросить очередь к безопасному виду без
-        ловушки старых параметров.
-      </AlertDescription>
+      <AlertDescription>{welcomeBackTrapCopy(trap)}</AlertDescription>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Link
-          href={SAFE_QUEUE_VIEW_HREF}
+          href={resetHref}
           className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit")}
           onClick={dismiss}
         >
-          Сбросить к безопасному виду
+          {WELCOME_BACK_RESET_LABEL}
         </Link>
         <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
           Оставить как есть

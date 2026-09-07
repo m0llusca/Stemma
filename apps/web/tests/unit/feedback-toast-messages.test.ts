@@ -8,7 +8,9 @@ import {
 describe("feedbackToastMessage", () => {
   it("returns a distinct confirmation for each feedback transition", () => {
     expect(feedbackToastMessage("acknowledged")).toBe("Оценка принята.");
-    expect(feedbackToastMessage("appeal_opened")).toBe("Апелляция открыта.");
+    expect(feedbackToastMessage("appeal_opened")).toBe(
+      "Апелляция подана. Руководитель рассмотрит её в течение 2 дней. Статус сотрудника не меняется."
+    );
     expect(feedbackToastMessage("appeal_confirmed")).toBe("Оценка подтверждена.");
     expect(feedbackToastMessage("appeal_corrected")).toBe("Оценка скорректирована.");
     expect(feedbackToastMessage("reanswer_requested")).toBe("Запрошен переответ клиенту.");

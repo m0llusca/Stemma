@@ -509,7 +509,14 @@ export function OtrsConnectionForm({ integration, config, userLogin, credentials
           <div className="flex flex-wrap items-center gap-3">
             <SubmitButton />
             {state ? (
-              <Alert variant={state.ok ? "default" : "destructive"} className="w-fit py-1.5">
+              <Alert
+                variant={state.ok ? "default" : "destructive"}
+                className={
+                  state.ok
+                    ? "w-fit border-amber-500/40 bg-amber-500/10 py-1.5 text-amber-800 dark:text-amber-300"
+                    : "w-fit py-1.5"
+                }
+              >
                 <AlertDescription>{state.message}</AlertDescription>
               </Alert>
             ) : null}

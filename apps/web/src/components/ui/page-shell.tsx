@@ -74,7 +74,7 @@ export function PageShell({
               prefetch={tab.prefetch}
               onClick={() => scheduleNavigationCommitFallback(tab.href)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium transition-[color,background-color,border-color] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-standard)]",
+                "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium transition-[color,background-color,border-color] duration-[var(--motion-duration-spring-glide)] ease-[var(--motion-ease-spring-glide)]",
                 tab.active
                   ? "border-b-2 border-primary text-foreground"
                   : "text-muted-foreground hover:text-foreground"

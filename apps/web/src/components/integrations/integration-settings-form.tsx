@@ -217,7 +217,14 @@ export function IntegrationSettingsForm({ integration }: { integration: Integrat
       </div>
 
       {state ? (
-        <Alert variant={state.ok ? "default" : "destructive"}>
+        <Alert
+          variant={state.ok ? "default" : "destructive"}
+          className={
+            state.ok
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+              : undefined
+          }
+        >
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       ) : null}

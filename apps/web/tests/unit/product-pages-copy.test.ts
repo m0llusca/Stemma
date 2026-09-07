@@ -96,6 +96,14 @@ describe("reviews page take-next copy", () => {
     expect(reviewsPage).not.toContain("openHref=");
     expect(reviewsPage).not.toContain("Открыть приоритетный кейс");
   });
+
+  it("names or honestly describes filters that are not the role-home reset", () => {
+    expect(reviewsPage).toContain(
+      "findQueueFilterTrap(data.currentHref, data.filterResetHref, data.savedViews)"
+    );
+    expect(reviewsPage).toContain("resetHref={data.filterResetHref}");
+    expect(reviewsPage).not.toContain("foreignViewName");
+  });
 });
 
 describe("calibration page copy", () => {
@@ -163,6 +171,9 @@ describe("self-review page copy", () => {
     expect(selfReviewPage).toContain("На что обратить внимание");
     expect(selfReviewPage).toContain("AgentCriterionFeedbackList");
     expect(selfReviewPage).toContain("Оспорить оценку");
+    expect(selfReviewPage).toContain("canAgentOpenAppeal");
+    expect(selfReviewPage).not.toContain("вы провалили");
+    expect(selfReviewPage).not.toContain("лидерборд");
   });
 });
 

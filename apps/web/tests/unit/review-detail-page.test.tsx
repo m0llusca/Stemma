@@ -80,7 +80,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/feedback-actions", () => ({
   createTrainingAssignmentFromReview: vi.fn(),
-  updateReviewFeedback: vi.fn()
+  updateReviewFeedback: vi.fn(),
+  updateReviewFeedbackState: vi.fn()
 }));
 
 vi.mock("@/lib/coaching-action-actions", () => ({

@@ -49,7 +49,7 @@ List/detail copy uses the same honesty bar (`capabilityReadinessLabel`, `readine
 
 See [semantic-status-colors.md](semantic-status-colors.md).
 
-Probe/OTRS copy: cert badge **«Сертификация»**, operational step **«Шаг»** — do not reuse **«Готовность»** for both. Adapter detail panel title: **«Операционный профиль»** (steps: **«Операционные шаги»**). OTRS diagnostics footer: **«Диагностика ≠ живая сертификация»** (`apps/web/src/lib/integrations/probe-honesty.ts`).
+Probe/OTRS copy: cert badge **«Сертификация»**, operational step **«Шаг»** — do not reuse **«Готовность»** for both. Adapter detail panel title: **«Операционный профиль»** (steps: **«Операционные шаги»**). OTRS diagnostics footer: **«Диагностика ≠ живая сертификация»** (`apps/web/src/lib/integrations/probe-honesty.ts`). Save/connect uses `probeBeforeSaveGate`: block a live-ready claim without `live_certified`; warn fail-closed on activate/config. `/admin/channels` is outgoing notifications, not source integrations or SSO.
 
 ## Source Documentation Gate
 

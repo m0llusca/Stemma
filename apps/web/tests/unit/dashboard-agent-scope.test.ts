@@ -29,6 +29,12 @@ describe("dashboard page agent scope", () => {
     );
   });
 
+  it("resets Lead/Admin welcome-back to role-home, not the reviews inbox", () => {
+    expect(source).toContain('welcomeBackResetHref("dashboard", user.role, { name: user.name })');
+    expect(source).not.toContain("queueFilterResetHref(");
+    expect(source).not.toContain("resetHref={queueFilterResetHref");
+  });
+
   it("does not authorize SUPPORT_AGENT metrics by assigneeName: user.name", () => {
     expect(source).not.toMatch(/assigneeName:\s*user\.name/);
   });

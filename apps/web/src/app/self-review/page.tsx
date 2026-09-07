@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpenCheck, MessageSquareText, ShieldQuestion } from "lucide-react";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
+import { AgentAppealForm } from "@/components/feedback/agent-appeal-form";
 import { AgentCriterionFeedbackList } from "@/components/feedback/agent-criterion-feedback-list";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,21 +15,21 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Label } from "@/components/ui/label";
 import { PageShell } from "@/components/ui/page-shell";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { updateReviewFeedbackState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
+import {
+  agentAppealDisabledReason,
+  agentAppealNextSteps,
+  canAgentOpenAppeal,
+  toAgentAppealPhase
+} from "@/lib/feedback/agent-appeal";
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
+import { coachingPlanFocusHref } from "@/lib/coaching-follow-up";
 import { buildSelfReviewTriage, trainingAssignmentEmptyCopy } from "@/lib/self-review/empty-honesty";
 
 import { prisma } from "@/lib/db";
@@ -195,11 +196,27 @@ async function SelfReviewPageContent() {
       return null;
     }
 
-    const deductionItems = toAgentCriterionFeedbackItems(review.scores);
+    const deductionItems = toAgentCriterionFeedbackItems(review.scores, {
+      trainingAssignments: (review.trainingAssignments ?? []).map((assignment) => ({
+        title: assignment.title,
+        coachingPlanId: assignment.coachingPlan?.id
+      })),
+      coachingActions: findings
+        .map((finding) => finding.coachingAction)
+        .filter((action): action is NonNullable<typeof action> => Boolean(action))
+        .map((action) => ({ action: action.action }))
+    });
+    const appealAvailability = {
+      appealStatus: review.appealStatus,
+      feedbackStatus: review.feedbackStatus
+    };
+    const appealPhase = toAgentAppealPhase(review.appealStatus);
+    const appealAllowed = canAgentOpenAppeal(appealAvailability);
+    const appealDisabledReason = agentAppealDisabledReason(appealAvailability);
     const feedbackClosed = review.feedbackStatus === "acknowledged" || review.feedbackStatus === "corrected";
     const hasOpenAppeal = review.appealStatus === "open";
     const canAcknowledge = !feedbackClosed && !hasOpenAppeal;
-    const canOpenAppeal = !feedbackClosed && review.appealStatus === "none";
+    const canOpenAppeal = appealAllowed;
     const canCompleteReanswer = review.needsReanswer && review.reanswerStatus === "requested";
     const needsReviewLink =
       hasOpenAppeal ||
@@ -258,7 +275,18 @@ async function SelfReviewPageContent() {
             </div>
           ) : null}
           {deductionItems.length > 0 ? (
-            <AgentCriterionFeedbackList items={deductionItems} conversationId={conversation.id} dense />
+            <AgentCriterionFeedbackList
+              items={deductionItems}
+              conversationId={conversation.id}
+              dense
+              appeal={{
+                reviewId: review.id,
+                allowed: appealAllowed,
+                disabledReason: appealDisabledReason,
+                phase: appealPhase,
+                dueAt: review.appealDueAt
+              }}
+            />
           ) : null}
           {review.instructionLinks?.trim() ? (
             <div className="text-sm">
@@ -321,7 +349,16 @@ async function SelfReviewPageContent() {
               <p className="font-medium uppercase tracking-wide text-muted-foreground">Учебные задачи</p>
               {review.trainingAssignments.map((assignment) => (
                 <p key={assignment.id} className="text-foreground">
-                  {assignment.title}
+                  <Link
+                    href={
+                      assignment.coachingPlan
+                        ? coachingPlanFocusHref({ planId: assignment.coachingPlan.id })
+                        : "/coaching"
+                    }
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {assignment.title}
+                  </Link>
                   {assignment.coachingPlan ? ` · план «${assignment.coachingPlan.title}»` : ""}
                   {assignment.dueAt ? ` · до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : ""}
                 </p>
@@ -340,35 +377,22 @@ async function SelfReviewPageContent() {
                   <Button type="submit">Принять оценку</Button>
                 </ToastActionForm>
               ) : null}
-              {canOpenAppeal ? (
-                <Collapsible className="min-w-[min(100%,16rem)] flex-1 rounded-lg border border-border bg-background data-open:bg-muted/30">
-                  <CollapsibleTrigger className="w-full cursor-pointer px-3 py-2 text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    Оспорить оценку
-                  </CollapsibleTrigger>
-                  <CollapsibleContent keepMounted>
-                    <ToastActionForm action={updateReviewFeedbackState} className="flex flex-col gap-2 border-t border-border p-3">
-                      <input type="hidden" name="reviewId" value={review.id} />
-                      <input type="hidden" name="action" value="appeal_opened" />
-                      <p className="text-xs text-muted-foreground">
-                        Апелляция — рабочий разбор спорного пункта. Укажите критерий или фрагмент диалога; статус сотрудника не меняется.
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor={`appeal-comment-${review.id}`}>Обоснование</Label>
-                        <Textarea
-                          id={`appeal-comment-${review.id}`}
-                          name="comment"
-                          rows={2}
-                          required
-                          placeholder="С каким пунктом не согласны и почему — со ссылкой на цитату, если есть."
-                        />
-                      </div>
-                      <Button type="submit" variant="outline" size="sm">
-                        Открыть апелляцию
-                      </Button>
-                    </ToastActionForm>
-                  </CollapsibleContent>
-                </Collapsible>
+              {mode === "action" && appealPhase !== "none" ? (
+                <p className="basis-full text-xs text-muted-foreground">
+                  {agentAppealNextSteps({ phase: appealPhase, dueAt: review.appealDueAt })}
+                </p>
               ) : null}
+              <div className="min-w-[min(100%,16rem)] flex-1">
+                <AgentAppealForm
+                  reviewId={review.id}
+                  allowed={canOpenAppeal}
+                  disabledReason={appealDisabledReason}
+                  phase={appealPhase}
+                  dueAt={review.appealDueAt}
+                  triggerLabel="Оспорить оценку"
+                  formIdPrefix={`footer-${review.id}`}
+                />
+              </div>
               {canCompleteReanswer ? (
                 <ToastActionForm action={updateReviewFeedbackState} className="inline-flex">
                   <input type="hidden" name="reviewId" value={review.id} />
@@ -599,6 +623,23 @@ async function SelfReviewPageContent() {
                       {assignment.dueAt ? `до ${assignment.dueAt.toLocaleDateString("ru-RU")}` : "без срока"}
                       {assignment.review?.conversation ? ` · ${assignment.review.conversation.externalId}` : ""}
                     </span>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        render={
+                          <Link
+                            href={
+                              assignment.review?.conversation
+                                ? `/reviews/${assignment.review.conversation.id}`
+                                : "/coaching"
+                            }
+                          />
+                        }
+                        nativeButton={false}
+                        variant="outline"
+                        size="sm"
+                      >
+                        К замечанию
+                      </Button>
                     <ToastActionForm action={updateTrainingAssignmentStatusState}>
                       <input type="hidden" name="id" value={assignment.id} />
                       <input type="hidden" name="status" value="done" />
@@ -606,6 +647,7 @@ async function SelfReviewPageContent() {
                         Закрыть задачу
                       </Button>
                     </ToastActionForm>
+                    </div>
                   </CardContent>
                 </Card>
               ))
