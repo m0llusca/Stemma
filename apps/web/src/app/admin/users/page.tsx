@@ -49,7 +49,7 @@ type AdminUsersPageProps = {
 
 type UsersSection = "directory" | "create" | "roles";
 
-const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"];
 
 const roleSelectItems = Object.fromEntries(roles.map((role) => [role, roleLabels[role]])) as Record<
   RoleName,

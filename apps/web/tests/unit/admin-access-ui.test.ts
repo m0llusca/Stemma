@@ -6,7 +6,7 @@ const accessPage = readFileSync(join(process.cwd(), "src/app/admin/access/page.t
 
 describe("admin access UI", () => {
   it("offers VIEWER in the group mapping role select options", () => {
-    expect(accessPage).toContain('const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"]');
+    expect(accessPage).toContain('const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"]');
   });
 
   it("treats SAML as an interactive SSO provider with honest setup guidance", () => {

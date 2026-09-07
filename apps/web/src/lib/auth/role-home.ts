@@ -40,11 +40,12 @@ export function isGenericPostLoginPath(path: string) {
 }
 
 /**
- * Roles that may open the ops pulse at `/dashboard`.
+ * Roles that may open `/dashboard`.
  * SUPPORT_AGENT holds `reviews:read` (so a permission gate alone is not enough)
  * but their product home is `/self-review`. VIEWER has neither.
+ * EXEC lands on the same route with a risk-only chrome (ops pulse hidden).
  */
-export const DASHBOARD_ROLES = ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] as const satisfies readonly RoleName[];
+export const DASHBOARD_ROLES = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "EXEC"] as const satisfies readonly RoleName[];
 
 export function canAccessDashboard(role: RoleName) {
   return (DASHBOARD_ROLES as readonly RoleName[]).includes(role);
@@ -62,6 +63,7 @@ export function roleHomePath(role: RoleName, options?: { name?: string }) {
     }
     case "TEAM_LEAD":
     case "ADMIN":
+    case "EXEC":
       return "/dashboard";
     case "SUPPORT_AGENT":
       return "/self-review";

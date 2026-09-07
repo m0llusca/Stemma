@@ -90,6 +90,14 @@ describe("auth provider helpers", () => {
     ).resolves.toBe("VIEWER");
   });
 
+  it("resolves EXEC from app roles", async () => {
+    await expect(
+      resolveRoleFromExternalClaims("workspace-1", "provider-1", {
+        appRoles: ["QC.Exec"]
+      })
+    ).resolves.toBe("EXEC");
+  });
+
   it("prefers provider-scoped mappings over global fallback mappings", async () => {
     mocks.prisma.groupRoleMapping.findMany.mockResolvedValueOnce([
       { id: "z", providerId: null, externalGroupId: "Support_Agents", role: "ADMIN", priority: 1 },

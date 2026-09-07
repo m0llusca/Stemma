@@ -38,7 +38,7 @@ type UserRow = {
   workspaceId: string;
   email: string;
   name: string | null;
-  role: "ADMIN" | "TEAM_LEAD" | "QA_ANALYST" | "SUPPORT_AGENT" | "VIEWER";
+  role: "ADMIN" | "TEAM_LEAD" | "QA_ANALYST" | "SUPPORT_AGENT" | "EXEC" | "VIEWER";
   lifecycleStatus: "ACTIVE" | "SUSPENDED" | "DEPROVISIONED";
 };
 

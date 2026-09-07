@@ -15,6 +15,7 @@ describe("auth permissions", () => {
     expect(hasPermission("TEAM_LEAD", "reports:manage")).toBe(true);
     expect(hasPermission("QA_ANALYST", "reports:manage")).toBe(true);
     expect(hasPermission("SUPPORT_AGENT", "reports:manage")).toBe(false);
+    expect(hasPermission("EXEC", "reports:manage")).toBe(false);
     expect(hasPermission("VIEWER", "reports:manage")).toBe(false);
   });
 
@@ -23,13 +24,22 @@ describe("auth permissions", () => {
     expect(hasPermission("TEAM_LEAD", "training:manage")).toBe(true);
     expect(hasPermission("QA_ANALYST", "training:manage")).toBe(true);
     expect(hasPermission("SUPPORT_AGENT", "training:manage")).toBe(false);
+    expect(hasPermission("EXEC", "training:manage")).toBe(false);
     expect(hasPermission("VIEWER", "training:manage")).toBe(false);
 
     expect(hasPermission("SUPPORT_AGENT", "training:consume")).toBe(true);
     expect(hasPermission("ADMIN", "training:consume")).toBe(false);
     expect(hasPermission("TEAM_LEAD", "training:consume")).toBe(false);
     expect(hasPermission("QA_ANALYST", "training:consume")).toBe(false);
+    expect(hasPermission("EXEC", "training:consume")).toBe(false);
     expect(hasPermission("VIEWER", "training:consume")).toBe(false);
+  });
+
+  it("gives exec read-only risk surfaces without write or vanity peer ranks", () => {
+    expect(getPermissions("EXEC")).toEqual(["reviews:read", "reports:read"]);
+    expect(hasPermission("EXEC", "reviews:write")).toBe(false);
+    expect(hasPermission("EXEC", "peer_quality:read")).toBe(false);
+    expect(hasPermission("EXEC", "audit:read")).toBe(false);
   });
 
   it("allows support agents to read their scoped review queue plus self-review, feedback and training consume", () => {
@@ -49,6 +59,7 @@ describe("auth permissions", () => {
     ["TEAM_LEAD", true],
     ["QA_ANALYST", false],
     ["SUPPORT_AGENT", false],
+    ["EXEC", false],
     ["VIEWER", false]
   ] as const satisfies ReadonlyArray<readonly [RoleName, boolean]>)(
     "gates peer leaderboard and avg to TEAM_LEAD+ADMIN (%s → %s)",

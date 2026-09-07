@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
 
+import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
 import { prisma } from "@/lib/db";
@@ -115,6 +116,7 @@ async function DashboardPageContent() {
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { conversation: { assigneeId: user.id } } : {};
   const conversationScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {};
   const canViewPeerQualityMetrics = canViewPeerQuality(user.role);
+  const isExecDashboard = user.role === "EXEC";
 
   const [
     checkedThisWeek,
@@ -201,28 +203,32 @@ async function DashboardPageContent() {
           orderBy: { finalizedAt: "asc" }
         })
       : Promise.resolve([]),
-    prisma.reviewEvent.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        ...(user.role === "SUPPORT_AGENT" ? { review: { conversation: { assigneeId: user.id } } } : {})
-      },
-      include: {
-        actor: { select: { name: true } },
-        review: { select: { totalScore: true, conversation: { select: { subject: true, externalId: true } } } }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 6
-    }),
-    prisma.trainingAssignment.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        status: { not: "done" },
-        ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
-      },
-      include: { review: { include: { conversation: true } } },
-      orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
-      take: 3
-    }),
+    isExecDashboard
+      ? Promise.resolve([])
+      : prisma.reviewEvent.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            ...(user.role === "SUPPORT_AGENT" ? { review: { conversation: { assigneeId: user.id } } } : {})
+          },
+          include: {
+            actor: { select: { name: true } },
+            review: { select: { totalScore: true, conversation: { select: { subject: true, externalId: true } } } }
+          },
+          orderBy: { createdAt: "desc" },
+          take: 6
+        }),
+    isExecDashboard
+      ? Promise.resolve([])
+      : prisma.trainingAssignment.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            status: { not: "done" },
+            ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
+          },
+          include: { review: { include: { conversation: true } } },
+          orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+          take: 3
+        }),
     // Peer leaderboard / avg — TEAM_LEAD+ADMIN only (`peer_quality:read`). #22's
     // `role !== SUPPORT_AGENT` would still show QA peer rows and break #18.
     canViewPeerQualityMetrics
@@ -247,6 +253,23 @@ async function DashboardPageContent() {
       ? loadReviewerWorkload(user.workspaceId, prisma)
       : Promise.resolve([])
   ]);
+
+  const thirtyDayHighRiskHref = reportReviewRangeHref(thirtyDaysStart, now, {
+    riskLevel: "HIGH_OR_CRITICAL"
+  });
+  if (isExecDashboard) {
+    return (
+      <ExecRiskHome
+        signal={{ overdueReviewCount, highRiskCount, queuedCount }}
+        hrefs={{
+          overdue: "/reviews?due=overdue",
+          highRisk: thirtyDayHighRiskHref,
+          queued: "/reviews?qaStatus=QUEUED"
+        }}
+        inWorkCount={inWorkCount}
+      />
+    );
+  }
 
   const checkedDelta = checkedThisWeek - checkedPreviousWeek;
   const weekDays = Array.from({ length: 7 }, (_, index) => daysAgo(6 - index, now));
@@ -278,9 +301,6 @@ async function DashboardPageContent() {
   // KPI / sparkline / leaderboard drill-downs share the same queue filter contract
   // as /reviews (finalizedFrom/To, riskLevel, assignee, appealStatus).
   const weekReviewedHref = reportReviewRangeHref(thisWeekStart, now);
-  const thirtyDayHighRiskHref = reportReviewRangeHref(thirtyDaysStart, now, {
-    riskLevel: "HIGH_OR_CRITICAL"
-  });
   const focusItemCandidates: Array<FocusItem | null> = [
     overdueReviewCount > 0
       ? {

@@ -9,7 +9,7 @@
 - Take next = one path (queue / `finalize_next` / ⌘K / pulse «Взять кейс»). No impostor `/reviews?status=unreviewed`. → [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md)
 - Status chip = `reviewStateLabels` on queue + next-case preview. → same contract
 - Connection/channel/catalog green only after `live_certified`. → [semantic-status-colors.md](semantic-status-colors.md)
-- Role homes: Analyst «Сегодня» = Мои+просрочено; Agent brand → `/self-review`; Lead «Сегодня» = `/dashboard`. → [app-shell.md](app-shell.md)
+- Role homes: Analyst «Сегодня» = Мои+просрочено; Agent brand → `/self-review`; Lead «Сегодня» = `/dashboard`; Exec «Сегодня» = risk/SLA on `/dashboard` (ops chrome hidden). → [app-shell.md](app-shell.md)
 - Focus map removed from queue chrome (`f8b0fce`).
 
 ---

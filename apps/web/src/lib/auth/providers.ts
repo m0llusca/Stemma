@@ -30,7 +30,7 @@ type GroupRoleMappingCandidate = {
 type IdentityPolicyClient = Pick<Prisma.TransactionClient, "groupRoleMapping" | "userIdentityGroup">;
 type IdentityPolicyRefreshClient = IdentityPolicyClient & Pick<Prisma.TransactionClient, "user">;
 
-const roleOrder: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+const roleOrder: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"];
 const attributeKeys = {
   supportLine: ["supportLine", "support_line", "department", "extensionAttribute1"],
   teamName: ["teamName", "team_name", "team", "division", "extensionAttribute2"]
@@ -43,6 +43,7 @@ function roleFromAppRole(value: string): RoleName | null {
   if (normalized === "TEAM_LEAD" || normalized === "QC_TEAM_LEAD") return "TEAM_LEAD";
   if (normalized === "QA_ANALYST" || normalized === "QC_ANALYST") return "QA_ANALYST";
   if (normalized === "SUPPORT_AGENT") return "SUPPORT_AGENT";
+  if (normalized === "EXEC" || normalized === "QC_EXEC" || normalized === "EXECUTIVE") return "EXEC";
   if (normalized === "VIEWER" || normalized === "QC_VIEWER") return "VIEWER";
   return null;
 }
