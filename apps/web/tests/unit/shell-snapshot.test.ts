@@ -76,6 +76,26 @@ describe("shell snapshot navigation", () => {
     expect(snapshot.navigation.commandItems.some((item) => item.href === "/self-review")).toBe(false);
   });
 
+  it("points analyst shell commands at the mine+overdue inbox before the pulse", async () => {
+    mocks.getCurrentUser.mockResolvedValue({
+      id: "analyst-1",
+      workspaceId: "workspace-1",
+      email: "qa@example.com",
+      name: "Анна QA",
+      role: "QA_ANALYST",
+      workspace: {}
+    });
+
+    const snapshot = await getShellSnapshot();
+    const today = snapshot.navigation.modes.find((mode) => mode.id === "today");
+
+    expect(today?.href).toBe("/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue");
+    expect(today?.destinations.map((destination) => destination.href)).toEqual([
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue",
+      "/dashboard"
+    ]);
+  });
+
   it("keeps shell snapshot imports away from heavy runtime boundaries", () => {
     const source = readFileSync(resolve(process.cwd(), "src/lib/shell/snapshot.ts"), "utf8");
     const importLines = source.match(/^import\s.+from\s+["'].+["'];$/gm)?.join("\n") ?? "";

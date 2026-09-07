@@ -1,6 +1,7 @@
 import type { RoleName } from "@prisma/client";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
+import { roleHomePath } from "@/lib/auth/role-home";
 
 export type ShellNavIcon = "today" | "work" | "quality" | "team" | "system";
 export type ShellNavModeId = "today" | "work" | "quality" | "team" | "system";
@@ -125,13 +126,43 @@ export const topNavAreas: ShellNavArea[] = [
   }
 ];
 
+export type VisibleTopNavOptions = {
+  name?: string;
+};
+
+const analystTodayDescription = "Мои проверки с нарушенным сроком — очередь дня.";
+
+/**
+ * Analyst «Сегодня» is the mine+overdue inbox, not the lead pulse on `/dashboard`.
+ * Other roles keep the static today href (`/dashboard`).
+ */
+export function todayHrefForRole(role: RoleName, options?: { name?: string }) {
+  if (role === "QA_ANALYST") {
+    return roleHomePath(role, { name: options?.name });
+  }
+
+  return "/dashboard";
+}
+
 /**
  * Top-nav areas a role can actually open: the same roles/permission gating as
  * the mode/destination model, so the bar never links to a page whose own guard
  * would invoke Next.js `forbidden()` instead of the generic error boundary.
  */
-export function visibleTopNavAreas(role: RoleName): ShellNavArea[] {
-  return topNavAreas.filter((area) => canSeeDefinition(role, area));
+export function visibleTopNavAreas(role: RoleName, options?: VisibleTopNavOptions): ShellNavArea[] {
+  return topNavAreas
+    .filter((area) => canSeeDefinition(role, area))
+    .map((area) => {
+      if (area.id !== "today" || role !== "QA_ANALYST") {
+        return area;
+      }
+
+      return {
+        ...area,
+        href: todayHrefForRole(role, options),
+        description: analystTodayDescription
+      };
+    });
 }
 
 /**
@@ -144,15 +175,63 @@ export function isActivePath(pathname: string, href: string) {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
+export type ActiveAreaOptions = {
+  /** Query string with or without a leading `?`. */
+  search?: string;
+  /** Role-adjusted areas. Defaults to the static `topNavAreas` catalog. */
+  areas?: readonly ShellNavArea[];
+};
+
+function hrefParts(href: string) {
+  const [pathname = href, query = ""] = href.split("?");
+  return { pathname, query };
+}
+
+function searchParamsEqual(left: string, right: string) {
+  const first = new URLSearchParams(left);
+  const second = new URLSearchParams(right);
+  const firstKeys = [...first.keys()].sort();
+  const secondKeys = [...second.keys()].sort();
+
+  if (firstKeys.length !== secondKeys.length) {
+    return false;
+  }
+
+  return firstKeys.every((key, index) => key === secondKeys[index] && first.get(key) === second.get(key));
+}
+
 /**
- * Resolve the active top-nav area for a pathname using a longest-prefix match.
- * Paths without a matching area resolve to `null` (no area highlighted)
- * rather than falling back to a default.
+ * Resolve the active top-nav area. Query-bearing homes (Analyst inbox) win only
+ * on an exact search match so `/reviews` siblings still highlight «Проверки».
+ * Path-only areas keep longest-prefix matching. Unknown paths return `null`.
  */
-export function activeAreaForPath(pathname: string): ShellNavAreaId | null {
+export function activeAreaForPath(pathname: string, options?: ActiveAreaOptions): ShellNavAreaId | null {
+  const areas = options?.areas ?? topNavAreas;
+  const search = (options?.search ?? "").replace(/^\?/, "");
+
+  const exact = areas.find((area) => {
+    const { pathname: hrefPath, query: hrefQuery } = hrefParts(area.href);
+    if (hrefPath !== pathname) {
+      return false;
+    }
+
+    if (!hrefQuery) {
+      return search === "";
+    }
+
+    return searchParamsEqual(hrefQuery, search);
+  });
+
+  if (exact) {
+    return exact.id;
+  }
+
   return (
-    topNavAreas
-      .filter((area) => isActivePath(pathname, area.href))
+    areas
+      .filter((area) => {
+        const { query } = hrefParts(area.href);
+        return !query && isActivePath(pathname, area.href);
+      })
       .sort((first, second) => second.href.length - first.href.length)[0]?.id ?? null
   );
 }
@@ -162,6 +241,16 @@ type DestinationDefinition = ShellNavDestination & {
   permission?: Permission;
   permissionsAny?: Permission[];
 };
+
+function analystInboxDestination(name?: string): DestinationDefinition {
+  return {
+    href: roleHomePath("QA_ANALYST", { name }),
+    label: "Мои + просрочено",
+    description: "Назначенные мне проверки с нарушенным сроком.",
+    aliases: ["мои", "просрочено", "inbox", "очередь дня", "сегодня"],
+    permission: "reviews:read"
+  };
+}
 
 type ModeDefinition = Omit<ShellNavMode, "href" | "destinations"> & {
   roles?: RoleName[];
@@ -441,21 +530,32 @@ function canSeeDefinition(
   return true;
 }
 
-export function buildShellNavigation({ role }: { role: RoleName }): ShellNavigation {
+export function buildShellNavigation({
+  role,
+  name
+}: {
+  role: RoleName;
+  name?: string;
+}): ShellNavigation {
   const modes = modeDefinitions
     .filter((mode) => canSeeDefinition(role, mode))
     .map((mode) => {
       const destinations = mode.destinations.filter((destination) => canSeeDefinition(role, destination));
-      const href = destinations[0]?.href ?? "/dashboard";
+      const todayDestinations =
+        mode.id === "today" && role === "QA_ANALYST"
+          ? [analystInboxDestination(name), ...destinations]
+          : destinations;
+      const href = todayDestinations[0]?.href ?? "/dashboard";
 
       return {
         id: mode.id,
         href,
         label: mode.label,
         compactLabel: mode.compactLabel,
-        description: mode.description,
+        description:
+          role === "QA_ANALYST" && mode.id === "today" ? analystTodayDescription : mode.description,
         icon: mode.icon,
-        destinations
+        destinations: todayDestinations
       } satisfies ShellNavMode;
     })
     .filter((mode) => mode.destinations.length > 0);

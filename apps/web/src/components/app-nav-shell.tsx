@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   ArrowRight,
@@ -82,7 +82,7 @@ type AppNavShellProps = {
   } | null;
   branding?: WorkspaceBranding;
   areas?: ShellNavArea[];
-  /** Role home — brand mark must not send SUPPORT_AGENT to ops /dashboard. */
+  /** Role home from `roleHomePath` — never hardcode `/dashboard` (SUPPORT_AGENT stays off ops pulse). */
   homeHref?: string;
   /** Гейт быстрого действия «Взять кейс»: false для ролей без reviews:write. */
   canTakeNextCase?: boolean;
@@ -132,12 +132,17 @@ export function AppNavShell({
   canTakeNextCase = true
 }: AppNavShellProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
-  const activeAreaId = useMemo(() => activeAreaForPath(pathname), [pathname]);
+  const search = searchParams.toString();
+  const activeAreaId = useMemo(
+    () => activeAreaForPath(pathname, { search, areas }),
+    [pathname, search, areas]
+  );
   const activeArea = areas.find((area) => area.id === activeAreaId);
   const visibleCommands = useMemo(
     () =>

@@ -30,6 +30,6 @@ export async function getShellSnapshot(): Promise<ShellSnapshot> {
       role: user.role
     },
     branding: resolveWorkspaceBranding(user.workspace),
-    navigation: buildShellNavigation({ role: user.role })
+    navigation: buildShellNavigation({ role: user.role, name: user.name })
   };
 }

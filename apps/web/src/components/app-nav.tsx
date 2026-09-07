@@ -28,7 +28,7 @@ export async function AppNav() {
   return (
     <AppNavShell
       navigation={snapshot.navigation}
-      areas={visibleTopNavAreas(snapshot.user.role)}
+      areas={visibleTopNavAreas(snapshot.user.role, { name: snapshot.user.name })}
       homeHref={roleHomePath(snapshot.user.role, { name: snapshot.user.name })}
       canTakeNextCase={hasPermission(snapshot.user.role, "reviews:write")}
       pulseItems={pulseItems}
