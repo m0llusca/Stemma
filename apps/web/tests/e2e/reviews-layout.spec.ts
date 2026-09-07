@@ -80,12 +80,13 @@ for (const scenario of queueCases) {
     await page.goto("/reviews");
 
     const workspace = page.locator('[data-slot="review-queue-workspace"]');
-    const focus = page.getByRole("region", { name: "Где смотреть в очереди сейчас" });
     const list = page.locator('[data-slot="review-queue-list"]');
     const preview = page.locator('[data-slot="review-queue-preview"]');
 
     await expect(workspace).toBeVisible();
-    await expect(focus).toBeVisible();
+    await expect(page.getByRole("region", { name: "Где смотреть в очереди сейчас" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Взять следующий" })).toBeVisible();
+    await expect(page.getByLabel("Фильтры и виды очереди")).toBeVisible();
     const [listBox, previewBox] = await Promise.all([rect(list), rect(preview)]);
     expect(Math.abs(listBox.y - previewBox.y) < 8).toBe(scenario.sideBySide);
     await expectNoDocumentOverflow(page);
