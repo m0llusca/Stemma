@@ -19,6 +19,17 @@ const dashboardSource = readFileSync(
   "utf8"
 );
 
+const queueSurfaceFiles = [
+  "src/components/review/queue-table.tsx",
+  "src/components/review/queue-filters.tsx",
+  "src/components/review/queue-advanced-filters.tsx",
+  "src/components/review/queue-saved-views.tsx",
+  "src/components/review/queue-empty-banner.tsx",
+  "src/components/review/queue-workspace.tsx",
+  "src/components/review/queue-next-case-preview.tsx",
+  "src/components/review/queue-command-bar-state.tsx"
+] as const;
+
 describe("shadcn UI composition primitives", () => {
   it("renders EmptyState with a title", () => {
     render(<EmptyState title="Нет данных" description="Попробуйте изменить фильтры" />);
@@ -156,6 +167,15 @@ describe("shadcn UI composition primitives", () => {
     render(<CardTitle aria-level={3}>Подраздел</CardTitle>);
 
     expect(screen.getByRole("heading", { level: 3, name: "Подраздел" })).toBeInTheDocument();
+  });
+
+  it("keeps review queue surfaces free of leftover BEM class names", () => {
+    for (const rel of queueSurfaceFiles) {
+      const source = readFileSync(join(process.cwd(), rel), "utf8");
+      expect(source, rel).not.toMatch(/queue-[a-z0-9-]*__/);
+      expect(source, rel).not.toMatch(/className="queue-/);
+      expect(source, rel).not.toMatch(/className=\{cn\([^)]*["'`]queue-/);
+    }
   });
 
   it("keeps the dashboard shell flat, removes decorative eyebrow copy, and uses two-to-one desktop pairs", () => {

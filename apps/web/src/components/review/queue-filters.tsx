@@ -134,7 +134,7 @@ export function QueueFilters({
     <AutoSubmitFilterForm
       id={queueFiltersFormId}
       action="/reviews"
-      className="queue-filterbar border-t border-border"
+      className="border-t border-border"
     >
       <div
         className="sr-only"
@@ -145,7 +145,7 @@ export function QueueFilters({
         {liveAnnouncement}
       </div>
 
-      <div className="queue-filterbar__primary grid grid-cols-1 items-end gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)] xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_max-content_max-content]">
+      <div className="grid grid-cols-1 items-end gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)] xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_max-content_max-content]">
         <Field className="min-w-0">
           <FieldLabel htmlFor="queue-filter-q">Поиск</FieldLabel>
           <Input
@@ -175,7 +175,7 @@ export function QueueFilters({
           defaultOpen={hasAdvancedFilters}
           formId={queueFiltersFormId}
           actions={
-            <div className="queue-filterbar__actions flex min-w-0 flex-nowrap items-end justify-start gap-2 sm:col-span-2 sm:justify-end xl:col-span-1">
+            <div className="flex min-w-0 flex-nowrap items-end justify-start gap-2 sm:col-span-2 sm:justify-end xl:col-span-1">
               <Button
                 render={<Link href="/reviews" title="Вернуть очередь без фильтров" />}
                 nativeButton={false}
@@ -416,7 +416,7 @@ export function QueueFilters({
       {activeFilters.length > 0 ? (
         <>
           <Separator />
-          <div className="queue-filterbar__active flex flex-wrap items-center gap-1.5 bg-muted/40 px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-1.5 bg-muted/40 px-4 py-2.5">
             {activeFilters.map((filter) => (
               <Chip key={`${filter.label}:${filter.value}`} tone="accent">
                 {filter.label}: {filter.value}

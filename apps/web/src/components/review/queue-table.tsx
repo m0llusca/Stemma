@@ -63,7 +63,7 @@ function initials(name: string) {
 export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
   if (conversations.length === 0) {
     return (
-      <Card className="queue-empty-state overflow-clip">
+      <Card className="overflow-clip">
         <CardContent>
           <EmptyState
             icon={<Inbox size={26} aria-hidden="true" />}
@@ -81,22 +81,22 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
   }
 
   return (
-    <form action={bulkUpdateReviewQueue} className="queue-board overflow-clip">
+    <form action={bulkUpdateReviewQueue} className="overflow-clip">
       <input type="hidden" name="returnTo" value={returnTo} />
 
       <Card className="gap-0 overflow-clip py-0">
-        <Collapsible className="queue-bulk-actions">
-          <CollapsibleTrigger className="queue-bulk-actions__summary group flex w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-4 py-3 text-left">
+        <Collapsible>
+          <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-4 py-3 text-left">
             <span className="text-sm font-semibold text-foreground">Массовые действия</span>
-            <span className="queue-filterbar__summary-action inline-flex items-center gap-2">
-              <span className="queue-filterbar__summary-closed group-data-[panel-open]:hidden">Раскрыть</span>
-              <span className="queue-filterbar__summary-open hidden group-data-[panel-open]:inline">Скрыть</span>
-              <span className="queue-bulk-actions__count text-muted-foreground">{conversations.length}</span>
+            <span className="inline-flex items-center gap-2">
+              <span className="group-data-[panel-open]:hidden">Раскрыть</span>
+              <span className="hidden group-data-[panel-open]:inline">Скрыть</span>
+              <span className="text-muted-foreground">{conversations.length}</span>
             </span>
           </CollapsibleTrigger>
-          <CollapsibleContent keepMounted className="queue-bulk-actions__body">
+          <CollapsibleContent keepMounted>
             <div className="flex flex-wrap items-end gap-3 border-t border-border bg-muted/30 px-4 py-3">
-              <Field className="queue-bulk-actions__field min-w-[160px]">
+              <Field className="min-w-[160px]">
                 <FieldLabel htmlFor="bulk-qaStatus">Статус проверки</FieldLabel>
                 <NativeSelect id="bulk-qaStatus" name="qaStatus" defaultValue="" className="w-full">
                   <NativeSelectOption value="">Не менять</NativeSelectOption>
@@ -107,7 +107,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   ))}
                 </NativeSelect>
               </Field>
-              <Field className="queue-bulk-actions__field min-w-[200px]">
+              <Field className="min-w-[200px]">
                 <FieldLabel htmlFor="bulk-workflowAction">Действие с переоткрытием</FieldLabel>
                 <NativeSelect id="bulk-workflowAction" name="workflowAction" defaultValue="" className="w-full">
                   <NativeSelectOption value="">Обычное обновление / запрос</NativeSelectOption>
@@ -116,7 +116,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   </NativeSelectOption>
                 </NativeSelect>
               </Field>
-              <Field className="queue-bulk-actions__field min-w-[160px]">
+              <Field className="min-w-[160px]">
                 <FieldLabel htmlFor="bulk-qaAssigneeId">Проверяющий</FieldLabel>
                 <NativeSelect id="bulk-qaAssigneeId" name="qaAssigneeId" defaultValue="" className="w-full">
                   <NativeSelectOption value="">Не менять</NativeSelectOption>
@@ -127,11 +127,11 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                   ))}
                 </NativeSelect>
               </Field>
-              <Field className="queue-bulk-actions__field min-w-[160px]">
+              <Field className="min-w-[160px]">
                 <FieldLabel htmlFor="bulk-reviewDueAt">Срок</FieldLabel>
                 <Input id="bulk-reviewDueAt" name="reviewDueAt" type="date" />
               </Field>
-              <Field className="queue-bulk-actions__field min-w-[220px] flex-1">
+              <Field className="min-w-[220px] flex-1">
                 <FieldLabel htmlFor="bulk-reopen-reason">Причина переоткрытия</FieldLabel>
                 <Textarea
                   id="bulk-reopen-reason"
@@ -143,7 +143,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               <ValidatedSubmitButton
                 minCheckedNames={["conversationId"]}
                 requireAnyValueNames={["qaStatus", "qaAssigneeId", "reviewDueAt", "workflowAction"]}
-                className={cn(buttonVariants(), "queue-bulk-actions__submit")}
+                className={buttonVariants()}
               >
                 Обновить
               </ValidatedSubmitButton>
@@ -157,7 +157,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
 
         <Separator />
 
-        <Table className="queue-list">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">
@@ -218,19 +218,18 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               ].filter((signal): signal is string => Boolean(signal));
 
               return (
-                <TableRow key={conversation.id} className="queue-row">
+                <TableRow key={conversation.id}>
                   <TableCell>
                     <Checkbox
                       name="conversationId"
                       value={conversation.id}
                       aria-label={`Выбрать ${conversation.subject}`}
-                      className="queue-row__checkbox"
                     />
                   </TableCell>
 
                   <TableCell>
                     <span
-                      className="queue-row__avatar inline-flex size-7 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+                      className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
                       aria-hidden="true"
                     >
                       {initials(conversation.assigneeName ?? conversation.customerName)}
@@ -245,19 +244,19 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <Link
                         href={`/reviews/${conversation.id}`}
-                        className="queue-row__title font-medium text-foreground hover:underline"
+                        className="font-medium text-foreground hover:underline"
                       >
                         {conversation.subject}
                       </Link>
-                      <span className="queue-row__reason text-xs text-muted-foreground">{conversation.priorityReason}</span>
-                      <span className="queue-row__meta text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">{conversation.priorityReason}</span>
+                      <span className="text-xs text-muted-foreground">
                         {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
                         {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
                         {externalSourceLabel(conversation.externalSource)}
                         {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
                       </span>
                       {conversation.pendingReopen ? (
-                        <span className="queue-row__meta text-xs text-amber-700 dark:text-amber-400">
+                        <span className="text-xs text-amber-700 dark:text-amber-400">
                           Причина запроса: {conversation.pendingReopen.reason}
                         </span>
                       ) : null}
@@ -285,7 +284,6 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
                       nativeButton={false}
                       variant="outline"
                       size="sm"
-                      className="queue-row__open"
                     >
                       Открыть
                     </Button>

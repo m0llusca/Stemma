@@ -70,7 +70,7 @@ export function QueueAdvancedFilters({
 
   return (
     <>
-      <div className="queue-filterbar__advanced flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-1">
+      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-1">
         <div className="flex min-w-0 flex-wrap items-center gap-1">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
@@ -78,19 +78,19 @@ export function QueueAdvancedFilters({
                 <Button
                   type="button"
                   variant="outline"
-                  className="queue-filterbar__advanced-button w-full min-w-[196px] justify-start whitespace-nowrap sm:w-auto"
+                  className="w-full min-w-[196px] justify-start whitespace-nowrap sm:w-auto"
                 />
               }
             >
               <SlidersHorizontal size={16} aria-hidden="true" data-icon="inline-start" />
               <span>Точные фильтры</span>
-              <Chip tone="neutral" className="queue-filterbar__advanced-count ml-1">
+              <Chip tone="neutral" className="ml-1">
                 {counterLabel}
               </Chip>
             </SheetTrigger>
             <SheetContent
               side="right"
-              className="queue-filterbar__advanced-sheet gap-0 data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-md max-sm:data-[side=right]:inset-y-0"
+              className="gap-0 data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-md max-sm:data-[side=right]:inset-y-0"
               aria-labelledby={titleId}
               onChange={(event) => {
                 const target = event.target;
@@ -123,7 +123,7 @@ export function QueueAdvancedFilters({
                 </SheetDescription>
               </SheetHeader>
               <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-                <div className="queue-filterbar__advanced-grid grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                   {children}
                 </div>
               </div>

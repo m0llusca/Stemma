@@ -299,5 +299,5 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
     await exactFilters.getByRole("button", { name: "Закрыть" }).click();
     await expect(exactFilters).toBeHidden();
   }
-  await expect(page.locator("tr.queue-row", { hasText: expectedSubject })).toBeVisible();
+  await expect(page.locator('[data-slot="table-row"]', { hasText: expectedSubject })).toBeVisible();
 });
