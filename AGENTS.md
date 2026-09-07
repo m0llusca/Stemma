@@ -4,6 +4,7 @@
 - Install: `npm install` in `apps/web`
 - Local Postgres: Docker Compose (`compose.yaml`) → `localhost:55432`
 - Primary commands: `npm run dev`, `npm run test`, `npm run test:e2e`, `npm run typecheck`
+- Playwright verify DB (demo-seed freshness, fail-closed bypass): `docs/e2e-verify-database.md`
 
 ## Graphify
 

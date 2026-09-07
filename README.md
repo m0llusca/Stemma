@@ -83,6 +83,7 @@ Store integration secrets as `v1:` ciphertext or `env:` refs (`apps/web/src/lib/
 ## Docs
 
 - [OTRS live smoke](docs/otrs-live-smoke.md)
+- [Playwright verify database](docs/e2e-verify-database.md)
 - [Job scheduling](docs/jobs-scheduling.md)
 - [Integration install contracts](docs/integration-install-contracts.md)
 - [Operations](docs/operations/)
