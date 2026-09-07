@@ -2,10 +2,12 @@ import type { QaStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
   QaWorkflowTransitionError,
+  assertFinalizedReopenReason,
   assertHumanReviewFinalizeTransition,
   assertQaWorkflowTransition,
   hasCurrentCycleFinalizedReview,
-  isCurrentCycleFinalizedReview
+  isCurrentCycleFinalizedReview,
+  isFinalizedReopenTransition
 } from "@/lib/review-workflow-policy";
 
 const allowedTransitions: Array<[QaStatus, QaStatus]> = [
@@ -88,6 +90,43 @@ describe("QA workflow transition policy", () => {
     );
 
     expect(() => assertHumanReviewFinalizeTransition({ fromStatus: "REOPENED" })).not.toThrow();
+  });
+
+  it("requires a non-empty reason for FINALIZED → REOPENED", () => {
+    expect(() =>
+      assertFinalizedReopenReason({
+        fromStatus: "FINALIZED",
+        toStatus: "REOPENED",
+        reason: ""
+      })
+    ).toThrow("Укажите причину переоткрытия завершенной проверки.");
+
+    expect(() =>
+      assertFinalizedReopenReason({
+        fromStatus: "FINALIZED",
+        toStatus: "REOPENED",
+        reason: "   "
+      })
+    ).toThrow(QaWorkflowTransitionError);
+
+    expect(() =>
+      assertFinalizedReopenReason({
+        fromStatus: "FINALIZED",
+        toStatus: "REOPENED",
+        reason: "Ошибка калибровки"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      assertFinalizedReopenReason({
+        fromStatus: "IN_PROGRESS",
+        toStatus: "REOPENED",
+        reason: ""
+      })
+    ).not.toThrow();
+
+    expect(isFinalizedReopenTransition("FINALIZED", "REOPENED")).toBe(true);
+    expect(isFinalizedReopenTransition("IN_PROGRESS", "REOPENED")).toBe(false);
   });
 
   it("accepts only current-cycle finalized HUMAN reviews as FINALIZED evidence", () => {

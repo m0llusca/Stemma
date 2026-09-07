@@ -179,4 +179,117 @@ describe("review workflow actions", () => {
       })
     );
   });
+
+  it("rejects FINALIZED → REOPENED without a reason", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+
+    await expect(updateConversationWorkflow(workflowForm("REOPENED"))).rejects.toThrow(
+      "Укажите причину переоткрытия завершенной проверки."
+    );
+
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
+    expect(mocks.auditLog).not.toHaveBeenCalled();
+    expect(mocks.recordReviewEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects FINALIZED → REOPENED when reason is only whitespace", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    const formData = workflowForm("REOPENED");
+    formData.set("reason", "   ");
+
+    await expect(updateConversationWorkflow(formData)).rejects.toThrow(
+      "Укажите причину переоткрытия завершенной проверки."
+    );
+  });
+
+  it("accepts FINALIZED → REOPENED with a reason and audits it", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    const formData = workflowForm("REOPENED");
+    formData.set("reason", "Калибровка: ошибка критерия");
+
+    await updateConversationWorkflow(formData);
+
+    expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "conversation-1",
+          workspaceId: "workspace-1",
+          qaStatus: "FINALIZED"
+        },
+        data: expect.objectContaining({
+          qaStatus: "REOPENED"
+        })
+      })
+    );
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "qa.reopened",
+        targetId: "conversation-1",
+        metadata: expect.objectContaining({
+          qaStatus: "REOPENED",
+          reason: "Калибровка: ошибка критерия"
+        })
+      }),
+      mocks.tx
+    );
+    expect(mocks.recordReviewEvent).toHaveBeenCalledWith(
+      mocks.tx,
+      expect.objectContaining({
+        action: "qa.reopened",
+        fromStatus: "FINALIZED",
+        toStatus: "REOPENED",
+        metadata: expect.objectContaining({
+          reason: "Калибровка: ошибка критерия"
+        })
+      })
+    );
+  });
+
+  it("accepts comment FormData as the reopen reason", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    const formData = workflowForm("REOPENED");
+    formData.set("comment", "Апелляция подтверждена");
+
+    await updateConversationWorkflow(formData);
+
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          reason: "Апелляция подтверждена"
+        })
+      }),
+      mocks.tx
+    );
+  });
+
+  it("rejects bulk FINALIZED → REOPENED without a reason", async () => {
+    const { bulkUpdateReviewQueue } = await import("@/lib/review-workflow-actions");
+    mocks.prisma.conversation.findMany.mockResolvedValue([{ id: "conversation-1", qaStatus: "FINALIZED" }]);
+    mocks.tx.conversation.findMany.mockResolvedValue([{ id: "conversation-1", qaStatus: "FINALIZED" }]);
+    const formData = new FormData();
+    formData.append("conversationId", "conversation-1");
+    formData.set("qaStatus", "REOPENED");
+
+    await expect(bulkUpdateReviewQueue(formData)).rejects.toThrow(
+      "Укажите причину переоткрытия завершенной проверки."
+    );
+
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
+  });
 });

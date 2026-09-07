@@ -10,7 +10,9 @@ import { prisma } from "@/lib/db";
 import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
   assertConditionalWorkflowWrite,
+  assertFinalizedReopenReason,
   assertQaWorkflowTransition,
+  isFinalizedReopenTransition,
   qaWorkflowStatuses
 } from "@/lib/review-workflow-policy";
 
@@ -22,6 +24,11 @@ function stringField(formData: FormData, key: string) {
 function optionalStringField(formData: FormData, key: string) {
   const value = stringField(formData, key);
   return value ? value : undefined;
+}
+
+/** Accepts either `reason` or `comment` FormData for FINALIZED→REOPENED audit. */
+function reopenReasonField(formData: FormData) {
+  return optionalStringField(formData, "reason") ?? optionalStringField(formData, "comment");
 }
 
 function statusField(formData: FormData): QaStatus {
@@ -63,6 +70,7 @@ export async function updateConversationWorkflow(formData: FormData) {
   const qaStatus = statusField(formData);
   const qaAssigneeId = optionalStringField(formData, "qaAssigneeId");
   const reviewDueAt = optionalStringField(formData, "reviewDueAt");
+  const reopenReason = reopenReasonField(formData);
 
   if (!conversationId) {
     throw new Error("Диалог не найден.");
@@ -112,6 +120,14 @@ export async function updateConversationWorkflow(formData: FormData) {
       toStatus: qaStatus,
       hasFinalizedReview
     });
+    assertFinalizedReopenReason({
+      fromStatus: conversation.qaStatus,
+      toStatus: qaStatus,
+      reason: reopenReason
+    });
+
+    const isReopen = isFinalizedReopenTransition(conversation.qaStatus, qaStatus);
+    const reopenMetadata = isReopen && reopenReason ? { reason: reopenReason } : {};
 
     const updateResult = await tx.conversation.updateMany({
       where: {
@@ -132,13 +148,14 @@ export async function updateConversationWorkflow(formData: FormData) {
       {
         workspaceId: user.workspaceId,
         actorId: user.id,
-        action: "conversation.workflow_updated",
+        action: isReopen ? "qa.reopened" : "conversation.workflow_updated",
         targetType: "conversation",
         targetId: conversationId,
         metadata: {
           qaStatus,
           qaAssigneeId: qaAssignee?.id,
-          reviewDueAt
+          reviewDueAt,
+          ...reopenMetadata
         }
       },
       tx
@@ -148,12 +165,13 @@ export async function updateConversationWorkflow(formData: FormData) {
       workspaceId: user.workspaceId,
       conversationId,
       actorId: user.id,
-      action: "conversation.workflow_updated",
+      action: isReopen ? "qa.reopened" : "conversation.workflow_updated",
       fromStatus: conversation.qaStatus,
       toStatus: qaStatus,
       metadata: {
         qaAssigneeId: qaAssignee?.id,
-        reviewDueAt
+        reviewDueAt,
+        ...reopenMetadata
       }
     });
   });
@@ -177,6 +195,7 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
   const qaStatusValue = optionalStringField(formData, "qaStatus");
   const qaAssigneeId = optionalStringField(formData, "qaAssigneeId");
   const reviewDueAt = optionalStringField(formData, "reviewDueAt");
+  const reopenReason = reopenReasonField(formData);
   const returnTo = sanitizeReturnTo(stringField(formData, "returnTo") || "/reviews");
 
   if (conversationIds.length === 0) {
@@ -275,6 +294,11 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
           toStatus: qaStatus,
           hasFinalizedReview
         });
+        assertFinalizedReopenReason({
+          fromStatus: conversation.qaStatus,
+          toStatus: qaStatus,
+          reason: reopenReason
+        });
       }
 
       const updateResult = await tx.conversation.updateMany({
@@ -288,11 +312,18 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
       assertConditionalWorkflowWrite(updateResult.count);
     }
 
+    const reopenedIds = qaStatus
+      ? currentConversations
+          .filter((conversation) => isFinalizedReopenTransition(conversation.qaStatus, qaStatus))
+          .map((conversation) => conversation.id)
+      : [];
+    const reopenMetadata = reopenedIds.length > 0 && reopenReason ? { reason: reopenReason } : {};
+
     await auditLog(
       {
         workspaceId: user.workspaceId,
         actorId: user.id,
-        action: "conversation.bulk_workflow_updated",
+        action: reopenedIds.length > 0 ? "qa.reopened" : "conversation.bulk_workflow_updated",
         targetType: "conversation",
         targetId: "bulk",
         metadata: {
@@ -300,7 +331,9 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
           conversationIds: currentConversations.map((conversation) => conversation.id),
           qaStatus,
           qaAssigneeId: qaAssignee?.id,
-          reviewDueAt
+          reviewDueAt,
+          ...(reopenedIds.length > 0 ? { reopenedConversationIds: reopenedIds } : {}),
+          ...reopenMetadata
         }
       },
       tx
@@ -308,16 +341,18 @@ export async function bulkUpdateReviewQueue(formData: FormData) {
 
     if (qaStatus) {
       for (const conversation of currentConversations.filter((item) => item.qaStatus !== qaStatus)) {
+        const isReopen = isFinalizedReopenTransition(conversation.qaStatus, qaStatus);
         await recordReviewEvent(tx, {
           workspaceId: user.workspaceId,
           conversationId: conversation.id,
           actorId: user.id,
-          action: "conversation.bulk_workflow_updated",
+          action: isReopen ? "qa.reopened" : "conversation.bulk_workflow_updated",
           fromStatus: conversation.qaStatus,
           toStatus: qaStatus,
           metadata: {
             qaAssigneeId: qaAssignee?.id,
-            reviewDueAt
+            reviewDueAt,
+            ...(isReopen && reopenReason ? { reason: reopenReason } : {})
           }
         });
       }

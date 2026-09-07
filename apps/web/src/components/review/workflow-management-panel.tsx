@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import { qaStatusLabels, roleLabels } from "@/lib/labels";
 import { updateConversationWorkflow } from "@/lib/review-workflow-actions";
 
@@ -118,6 +119,17 @@ export function WorkflowManagementPanel({ conversation, assignees }: WorkflowMan
                   Обновить
                 </Button>
               </div>
+
+              <Field className="md:col-span-4">
+                <FieldLabel htmlFor="workflow-reopen-reason">Причина переоткрытия</FieldLabel>
+                <Textarea
+                  id="workflow-reopen-reason"
+                  name="reason"
+                  rows={2}
+                  placeholder="Обязательно при возврате завершенной проверки в работу"
+                  className="w-full"
+                />
+              </Field>
             </form>
           </CardContent>
         </Card>

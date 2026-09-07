@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
 import type { ReviewQueueAssigneeDto, ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import {
@@ -131,6 +132,15 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
               <Field className="queue-bulk-actions__field min-w-[160px]">
                 <FieldLabel htmlFor="bulk-reviewDueAt">Срок</FieldLabel>
                 <Input id="bulk-reviewDueAt" name="reviewDueAt" type="date" />
+              </Field>
+              <Field className="queue-bulk-actions__field min-w-[220px] flex-1">
+                <FieldLabel htmlFor="bulk-reopen-reason">Причина переоткрытия</FieldLabel>
+                <Textarea
+                  id="bulk-reopen-reason"
+                  name="reason"
+                  rows={1}
+                  placeholder="Обязательно для FINALIZED → REOPENED"
+                />
               </Field>
               <ValidatedSubmitButton
                 minCheckedNames={["conversationId"]}

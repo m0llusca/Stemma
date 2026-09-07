@@ -71,6 +71,25 @@ export function assertHumanReviewFinalizeTransition(input: { fromStatus: QaStatu
   });
 }
 
+/** FINALIZED → REOPENED requires a non-empty audited reason (Wave 3.2 Option A). */
+export function isFinalizedReopenTransition(fromStatus: QaStatus, toStatus: QaStatus) {
+  return fromStatus === "FINALIZED" && toStatus === "REOPENED";
+}
+
+export function assertFinalizedReopenReason(input: {
+  fromStatus: QaStatus;
+  toStatus: QaStatus;
+  reason?: string | null;
+}) {
+  if (!isFinalizedReopenTransition(input.fromStatus, input.toStatus)) {
+    return;
+  }
+
+  if (!input.reason?.trim()) {
+    throw new QaWorkflowTransitionError("Укажите причину переоткрытия завершенной проверки.");
+  }
+}
+
 export function assertConditionalWorkflowWrite(count: number) {
   if (count !== 1) {
     throw new QaWorkflowTransitionError("Статус проверки изменился. Обновите страницу и повторите действие.");
