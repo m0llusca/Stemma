@@ -15,6 +15,8 @@ const GENERIC_LANDING_PATHNAMES = new Set([
 /**
  * Analyst inbox default: assigned to me AND overdue SLA.
  * Matches existing queue filter model (`qaAssignee` + `due=overdue`).
+ * This is «Сегодня» / role home. `/dashboard` stays in DASHBOARD_ROLES (URL
+ * residual) but is not a competing ⌘K «Пульс дня» entry — see navigation.ts.
  */
 export function analystMineOverdueHref(qaAssigneeName: string) {
   return `/reviews?qaAssignee=${encodeURIComponent(qaAssigneeName)}&due=overdue`;

@@ -1,17 +1,19 @@
 "use client";
 
 import { ArrowRight, ChevronDown } from "lucide-react";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { ReviewStatusChip, type ReviewStatusChipConversation } from "@/components/review/review-status-chip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { takeNextReview } from "@/lib/queue-view-actions";
+import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 
 export type QueueNextCasePreviewProps = {
   subject: string;
   description: string;
-  openHref: string;
+  /** Current queue URL / saved view — same `queueHref` the page Take-next form posts. */
+  queueHref: string;
   /** Same status chip as the queue row — one vocabulary / one source of truth. */
   statusConversation: ReviewStatusChipConversation;
   /** Expanded context: score, priority reason, signal grid. */
@@ -20,13 +22,13 @@ export type QueueNextCasePreviewProps = {
 
 /**
  * «Следующий кейс» preview — collapsed by default (contract:
- * docs/ux-queue-hotkeys-contract.md). Power users keep the open CTA; expand for
- * priority / signal context. Does not own Take-next eligibility.
+ * docs/ux-queue-hotkeys-contract.md). Primary CTA is Take next (`takeNextReview`),
+ * not a nav-only peek. Does not own Take-next eligibility.
  */
 export function QueueNextCasePreview({
   subject,
   description,
-  openHref,
+  queueHref,
   statusConversation,
   children
 }: QueueNextCasePreviewProps) {
@@ -52,14 +54,13 @@ export function QueueNextCasePreview({
             <ReviewStatusChip conversation={statusConversation} />
             <CardDescription className="m-0">{description}</CardDescription>
           </div>
-          <Button
-            render={<Link href={openHref} />}
-            nativeButton={false}
-            className="mt-1 w-full"
-          >
-            Открыть приоритетный кейс
-            <ArrowRight size={15} aria-hidden="true" data-icon="inline-end" />
-          </Button>
+          <form action={takeNextReview} className="mt-1">
+            <input type="hidden" name="queueHref" value={queueHref} />
+            <Button type="submit" className="w-full">
+              {TAKE_NEXT_LABEL}
+              <ArrowRight size={15} aria-hidden="true" data-icon="inline-end" />
+            </Button>
+          </form>
         </CardHeader>
 
         <CollapsibleContent keepMounted={false} className="min-w-0 data-closed:hidden">

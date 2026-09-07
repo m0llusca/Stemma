@@ -157,8 +157,8 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("surfaces the queue and coaching pulse links for a support agent", async () => {
@@ -176,8 +176,8 @@ describe("app nav", () => {
     expect(within(pulse!).getByRole("link", { name: /Очередь/ })).not.toBeNull();
     expect(within(pulse!).getByRole("link", { name: /Обучение/ })).not.toBeNull();
     // reviews:write отсутствует у SUPPORT_AGENT — быстрое действие скрыто.
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("keeps exec on risk pulse without take-next or training chrome", async () => {
@@ -198,7 +198,7 @@ describe("app nav", () => {
     expect(within(pulse!).getByRole("link", { name: /Очередь/ })).not.toBeNull();
     expect(within(pulse!).getByRole("link", { name: /Риск/ })).not.toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
   });
 
   it("hides every pulse link and the take-next-case shortcut from a viewer", async () => {
@@ -217,9 +217,9 @@ describe("app nav", () => {
     expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
-    // …ни быстрое действие «Взять следующий кейс».
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    // …ни быстрое действие «Взять следующий».
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("keeps the take-next-case shortcut for reviewers", async () => {
@@ -227,8 +227,8 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.getByRole("button", { name: "Взять следующий кейс" })).not.toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Взять следующий" })).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {

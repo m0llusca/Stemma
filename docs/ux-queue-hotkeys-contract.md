@@ -33,8 +33,9 @@ Four surfaces share **one path**: `takeNextReview` / `selectNextReviewConversati
 
 1. Queue **«Взять следующий»** → `takeNextReview` → hidden `queueHref` (current URL / saved view) → `filtersFromReviewsHref` → same selector
 2. Workbench **«Завершить и взять следующий»** (`intent=finalize_next`) → `finalizeReviewAndTakeNext` → `returnTo` → same parser and selector (excludes the case just finished)
-3. ⌘K **«Взять следующий кейс»** (`actionId: take-next`) → `takeNextReview(takeNextFormDataFromLocation(pathname, search))` — same FormData `queueHref` as the queue button. Not a href.
-4. Topbar pulse **«Взять кейс»** (desktop button + mobile menu) → the same `runTakeNext` → `takeNextReview(takeNextFormDataFromLocation(pathname, search))`. Not a href.
+3. ⌘K **«Взять следующий»** (`actionId: take-next`) → `takeNextReview(takeNextFormDataFromLocation(pathname, search))` — same FormData `queueHref` as the queue button. Not a href.
+4. Topbar pulse **«Взять следующий»** (desktop button + mobile menu) → the same `runTakeNext` → `takeNextReview(takeNextFormDataFromLocation(pathname, search))`. Not a href.
+5. Next-case preview **«Взять следующий»** → the same `takeNextReview` form with the page `queueHref`. Not a nav-only peek.
 
 **Killed:** ⌘K and pulse must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
 
@@ -60,8 +61,9 @@ Do not silently drop filters from take-next, and do not invent a second eligibil
 | «Следующий кейс» preview | Yes | First row of the filtered list |
 | Queue **«Взять следующий»** | **Yes** | `queueHref` → `filtersFromReviewsHref` → same selector |
 | Workbench **finalize_next** | **Yes** | `returnTo` → same parser and selector |
-| ⌘K **«Взять следующий кейс»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
-| Pulse **«Взять кейс»** | **Yes** | same `runTakeNext` as ⌘K |
+| ⌘K **«Взять следующий»** | **Yes** | `takeNextFormDataFromLocation` → same `queueHref` / `takeNextReview` |
+| Pulse **«Взять следующий»** | **Yes** | same `runTakeNext` as ⌘K |
+| Next-case preview **«Взять следующий»** | **Yes** | page `queueHref` → same `takeNextReview` form |
 
 An operator on a narrow saved view sees case A as preview, presses Take next, and opens case A (or the next remaining row in that same filtered set). Landing on workspace priority outside the view is a bug.
 
@@ -69,7 +71,7 @@ An operator on a narrow saved view sees case A as preview, presses Take next, an
 
 - Label: **«Следующий кейс»**
 - **Collapsed by default** (adversarial verdict: do not remove — collapse)
-- Collapsed chrome keeps identity + **«Открыть приоритетный кейс»** CTA
+- Collapsed chrome keeps identity + **«Взять следующий»** CTA (`takeNextReview`, same path as the page action)
 - Expand reveals priority rationale and signal context
 - Page action **«Взять следующий»** remains available regardless of preview expand state
 - Status chip: same `ReviewStatusChip` as the queue row (see below)

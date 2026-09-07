@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const dashboardPage = readFileSync(join(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+const reviewsPage = readFileSync(join(process.cwd(), "src/app/reviews/page.tsx"), "utf8");
 const calibrationPage = readFileSync(join(process.cwd(), "src/app/calibration/page.tsx"), "utf8");
 const selfReviewPage = readFileSync(join(process.cwd(), "src/app/self-review/page.tsx"), "utf8");
 const coachingPage = readFileSync(join(process.cwd(), "src/app/coaching/page.tsx"), "utf8");
@@ -66,12 +67,28 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).not.toContain('user.role !== "SUPPORT_AGENT"');
   });
 
+  it("does not use the unreviewed impostor as empty-triage primary", () => {
+    expect(dashboardPage).toContain("emptyTriagePrimary");
+    expect(dashboardPage).toContain("takeNextReview");
+    expect(dashboardPage).not.toContain('?? "/reviews?status=unreviewed"');
+    expect(dashboardPage).not.toContain('focusItems.length ? "Разобрать" : "Открыть очередь"');
+  });
+
   it("surfaces reviewer assignment workload for lead/admin", () => {
     expect(dashboardPage).toContain("loadReviewerWorkload");
     expect(dashboardPage).toContain("reviewerWorkloadHref");
     expect(dashboardPage).toContain("Нагрузка проверяющих");
     expect(dashboardPage).toContain('reviewerWorkloadHref(row.name, "QUEUED")');
     expect(dashboardPage).toContain('reviewerWorkloadHref(row.name, "IN_PROGRESS")');
+  });
+});
+
+describe("reviews page take-next copy", () => {
+  it("uses the shared Take-next verb and wires preview through queueHref, not a peek link", () => {
+    expect(reviewsPage).toContain("TAKE_NEXT_LABEL");
+    expect(reviewsPage).toContain("queueHref={data.currentHref}");
+    expect(reviewsPage).not.toContain("openHref=");
+    expect(reviewsPage).not.toContain("Открыть приоритетный кейс");
   });
 });
 
