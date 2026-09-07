@@ -1,5 +1,6 @@
+import type { RoleName } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { getPermissions, hasPermission, PermissionDeniedError, requirePermission } from "@/lib/auth/permissions";
+import { canViewPeerQuality, getPermissions, hasPermission, PermissionDeniedError, requirePermission } from "@/lib/auth/permissions";
 
 describe("auth permissions", () => {
   it("allows admins to manage backend jobs and auth providers", () => {
@@ -40,7 +41,22 @@ describe("auth permissions", () => {
     ]);
     expect(hasPermission("SUPPORT_AGENT", "integrations:manage")).toBe(false);
     expect(hasPermission("SUPPORT_AGENT", "reports:read")).toBe(false);
+    expect(hasPermission("SUPPORT_AGENT", "peer_quality:read")).toBe(false);
   });
+
+  it.each([
+    ["ADMIN", true],
+    ["TEAM_LEAD", true],
+    ["QA_ANALYST", false],
+    ["SUPPORT_AGENT", false],
+    ["VIEWER", false]
+  ] as const satisfies ReadonlyArray<readonly [RoleName, boolean]>)(
+    "gates peer leaderboard and avg to TEAM_LEAD+ADMIN (%s → %s)",
+    (role, allowed) => {
+      expect(hasPermission(role, "peer_quality:read")).toBe(allowed);
+      expect(canViewPeerQuality(role)).toBe(allowed);
+    }
+  );
 
   it("throws a Russian authorization error for forbidden operations", () => {
     expect(() =>

@@ -27,10 +27,13 @@ describe("dashboard page agent scope", () => {
     expect(source).not.toMatch(/assigneeName:\s*user\.name/);
   });
 
-  it("hides peer score rows from SUPPORT_AGENT and does not load the leaderboard query", () => {
-    expect(source).toContain("showPeerScoreRows");
-    expect(source).toContain('user.role !== "SUPPORT_AGENT"');
-    expect(source).toContain('user.role === "SUPPORT_AGENT"\n      ? Promise.resolve([])');
-    expect(source).toContain("{showPeerScoreRows ? (");
+  it("does not load peer leaderboard or avg reviews unless canViewPeerQuality", () => {
+    expect(source).toContain("const canViewPeerQualityMetrics = canViewPeerQuality(user.role)");
+    expect(source).toMatch(/canViewPeerQualityMetrics\s*\?\s*prisma\.review\.findMany/);
+    expect(source).toContain("canViewPeerQualityMetrics ? computeAgentLeaderboard(agentReviews, 5) : []");
+    expect(source).toContain("{canViewPeerQualityMetrics ? (");
+    expect(source).not.toContain('label="Средний балл"');
+    expect(source).not.toContain("showPeerScoreRows");
+    expect(source).not.toContain('user.role !== "SUPPORT_AGENT"');
   });
 });

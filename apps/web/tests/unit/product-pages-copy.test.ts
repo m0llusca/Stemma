@@ -9,14 +9,13 @@ const coachingPage = readFileSync(join(process.cwd(), "src/app/coaching/page.tsx
 const coachingViewNavLink = readFileSync(join(process.cwd(), "src/app/coaching/coaching-view-nav-link.tsx"), "utf8");
 
 describe("dashboard page copy", () => {
-  it("pluralizes the average score unit instead of a static «баллов»", () => {
-    expect(dashboardPage).toContain("qualityScorePointWord(currentAverage)");
-    expect(dashboardPage).not.toContain('unit={currentAverage == null ? undefined : "баллов"}');
-  });
-
-  it("uses the full «insufficient data» comparison hint", () => {
-    expect(dashboardPage).toContain('"Недостаточно данных для сравнения"');
-    expect(dashboardPage).not.toContain('"Недостаточно сравнения"');
+  it("gates peer leaderboard and avg score surfaces behind canViewPeerQuality", () => {
+    expect(dashboardPage).toContain("canViewPeerQuality(user.role)");
+    expect(dashboardPage).toContain("canViewPeerQualityMetrics");
+    expect(dashboardPage).toContain("computeAgentLeaderboard(agentReviews, 5)");
+    expect(dashboardPage).not.toContain('label="Средний балл"');
+    expect(dashboardPage).not.toContain("qualityScorePointWord");
+    expect(dashboardPage).not.toContain("ScoreSparkline");
   });
 
   it("structures the triage headline as «label: value» with the item hint as description", () => {
@@ -61,12 +60,10 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).toContain('"Риск и апелляции"');
   });
 
-  it("hides peer score rows from SUPPORT_AGENT without TEAM_LEAD+ADMIN-only gating", () => {
-    // Issue #16: agents must not see peer operator score rows.
-    // Issue #18 owns TEAM_LEAD+ADMIN-only leaderboard/avg — keep QA_ANALYST visible here.
-    expect(dashboardPage).toContain("showPeerScoreRows");
-    expect(dashboardPage).toContain('user.role !== "SUPPORT_AGENT"');
-    expect(dashboardPage).not.toContain("showPeerScoreRows = isLeadDashboard");
+  it("does not use #22's SUPPORT_AGENT-only peer-row hide (QA must not see ranks)", () => {
+    expect(dashboardPage).toContain("canViewPeerQuality(user.role)");
+    expect(dashboardPage).not.toContain("showPeerScoreRows");
+    expect(dashboardPage).not.toContain('user.role !== "SUPPORT_AGENT"');
   });
 
   it("surfaces reviewer assignment workload for lead/admin", () => {

@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, Star, TrendingUp, TriangleAlert, Users } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, TrendingUp, TriangleAlert, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -12,22 +12,21 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
-import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
 
-import { hasPermission } from "@/lib/auth/permissions";
+import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { requirePagePermission } from "@/lib/page-permission";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
 import { formatReviewCount, reportReviewRangeHref } from "@/lib/reports/report-format";
 import { reviewEventActionLabel } from "@/lib/review-events";
 import { loadReviewerWorkload, reviewerWorkloadHref } from "@/lib/reviewer-workload";
-import { formatQualityScore, qualityScoreDelta, qualityScorePointWord } from "@/lib/score-display";
+import { formatQualityScore } from "@/lib/score-display";
 import { semanticStatusForMetric } from "@/lib/ui/semantic-status";
 import { statusToneClass, type StatusTone } from "@/lib/ui/status-tone";
 import { cn } from "@/lib/utils";
-import { requirePagePermission } from "@/lib/page-permission";
 
 function countDelta(value: number): OperationKpiDelta {
   return {
@@ -35,18 +34,6 @@ function countDelta(value: number): OperationKpiDelta {
     direction: value > 0 ? "up" : value < 0 ? "down" : "flat",
     tone: "neutral"
   };
-}
-
-function scoreDeltaTone(value: number): NonNullable<OperationKpiDelta["tone"]> {
-  if (value > 0) {
-    return "success";
-  }
-
-  if (value < 0) {
-    return "danger";
-  }
-
-  return "neutral";
 }
 
 const triageToneForStatusTone: Record<StatusTone, "accent" | "success" | "warning" | "danger"> = {
@@ -119,12 +106,11 @@ async function DashboardPageContent() {
   // Scope operators by unique assigneeId (never the non-unique display name).
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { conversation: { assigneeId: user.id } } : {};
   const conversationScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {};
+  const canViewPeerQualityMetrics = canViewPeerQuality(user.role);
 
   const [
     checkedThisWeek,
     checkedPreviousWeek,
-    currentScore,
-    previousScore,
     queuedCount,
     inWorkCount,
     highRiskCount,
@@ -154,26 +140,6 @@ async function DashboardPageContent() {
         finalizedAt: { gte: previousWeekStart, lt: thisWeekStart },
         ...supportAgentScope
       }
-    }),
-    prisma.review.aggregate({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { gte: thisWeekStart, lte: now },
-        ...supportAgentScope
-      },
-      _avg: { totalScore: true }
-    }),
-    prisma.review.aggregate({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { gte: previousWeekStart, lt: thisWeekStart },
-        ...supportAgentScope
-      },
-      _avg: { totalScore: true }
     }),
     prisma.conversation.count({
       where: { workspaceId: user.workspaceId, qaStatus: "QUEUED", ...conversationScope }
@@ -214,17 +180,19 @@ async function DashboardPageContent() {
         ...conversationScope
       }
     }),
-    prisma.review.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { gte: thisWeekStart, lte: now },
-        ...supportAgentScope
-      },
-      select: { finalizedAt: true, totalScore: true },
-      orderBy: { finalizedAt: "asc" }
-    }),
+    canViewPeerQualityMetrics
+      ? prisma.review.findMany({
+          where: {
+            workspaceId: user.workspaceId,
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            finalizedAt: { gte: thisWeekStart, lte: now },
+            ...supportAgentScope
+          },
+          select: { finalizedAt: true, totalScore: true },
+          orderBy: { finalizedAt: "asc" }
+        })
+      : Promise.resolve([]),
     prisma.reviewEvent.findMany({
       where: {
         workspaceId: user.workspaceId,
@@ -247,11 +215,10 @@ async function DashboardPageContent() {
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 3
     }),
-    // Peer score rows are ops chrome. SUPPORT_AGENT must not see them (#16).
-    // TEAM_LEAD+ADMIN-only leaderboard/avg gating is issue #18.
-    user.role === "SUPPORT_AGENT"
-      ? Promise.resolve([])
-      : prisma.review.findMany({
+    // Peer leaderboard / avg — TEAM_LEAD+ADMIN only (`peer_quality:read`). #22's
+    // `role !== SUPPORT_AGENT` would still show QA peer rows and break #18.
+    canViewPeerQualityMetrics
+      ? prisma.review.findMany({
           where: {
             workspaceId: user.workspaceId,
             status: "FINALIZED",
@@ -266,38 +233,39 @@ async function DashboardPageContent() {
             conversation: { select: { assigneeName: true } },
             findings: { select: { riskLevel: true } }
           }
-        }),
+        })
+      : Promise.resolve([]),
     user.role === "TEAM_LEAD" || user.role === "ADMIN"
       ? loadReviewerWorkload(user.workspaceId, prisma)
       : Promise.resolve([])
   ]);
 
-  const currentAverage = currentScore._avg.totalScore ?? null;
-  const previousAverage = previousScore._avg.totalScore ?? null;
-  const scoreDelta = qualityScoreDelta(currentAverage, previousAverage);
   const checkedDelta = checkedThisWeek - checkedPreviousWeek;
   const weekDays = Array.from({ length: 7 }, (_, index) => daysAgo(6 - index, now));
-  const dailyCounts = weekDays.map((day) => {
-    const nextDay = new Date(day.getTime() + dayMs);
-    const dayReviews = dailyReviews.filter((review) => {
-      const finalizedAt = review.finalizedAt?.getTime() ?? 0;
-      return finalizedAt >= day.getTime() && finalizedAt < nextDay.getTime();
-    });
-    const avgScore = dayReviews.length ? dayReviews.reduce((sum, review) => sum + review.totalScore, 0) / dayReviews.length : null;
+  const dailyCounts = canViewPeerQualityMetrics
+    ? weekDays.map((day) => {
+        const nextDay = new Date(day.getTime() + dayMs);
+        const dayReviews = dailyReviews.filter((review) => {
+          const finalizedAt = review.finalizedAt?.getTime() ?? 0;
+          return finalizedAt >= day.getTime() && finalizedAt < nextDay.getTime();
+        });
+        const avgScore = dayReviews.length
+          ? dayReviews.reduce((sum, review) => sum + review.totalScore, 0) / dayReviews.length
+          : null;
 
-    return {
-      date: day,
-      count: dayReviews.length,
-      average: avgScore
-    };
-  });
+        return {
+          date: day,
+          count: dayReviews.length,
+          average: avgScore
+        };
+      })
+    : [];
   // Agent leaderboard reduction lives in a unit-tested pure helper so the math
   // (averages, risk/appeal load, ordering) is verifiable and not re-derived here.
-  const agentRows = computeAgentLeaderboard(agentReviews, 5);
+  const agentRows = canViewPeerQualityMetrics ? computeAgentLeaderboard(agentReviews, 5) : [];
   const canReadAudit = hasPermission(user.role, "audit:read");
   const canReadReports = hasPermission(user.role, "reports:read");
   const isLeadDashboard = user.role === "TEAM_LEAD" || user.role === "ADMIN";
-  const showPeerScoreRows = user.role !== "SUPPORT_AGENT";
   const totalQueueCount = queuedCount + inWorkCount;
   // KPI / sparkline / leaderboard drill-downs share the same queue filter contract
   // as /reviews (finalizedFrom/To, riskLevel, assignee, appealStatus).
@@ -354,16 +322,12 @@ async function DashboardPageContent() {
   const secondaryFocusItems = focusItems.slice(1);
   const primaryFocusHref = primaryFocus?.href ?? "/reviews?status=unreviewed";
   const checkedStatus = semanticStatusForMetric({ kind: "completed_count", value: checkedThisWeek });
-  const scoreStatus = semanticStatusForMetric({ kind: "average_score", value: currentAverage });
   const queueStatus = semanticStatusForMetric({ kind: "queue_count", value: totalQueueCount });
   const trainingStatus = semanticStatusForMetric(
     overdueTrainingCount > 0
       ? { kind: "overdue_count", value: overdueTrainingCount }
       : { kind: "learning_count", value: activeTrainingCount }
   );
-  const scoreSparkPoints = dailyCounts
-    .filter((item) => item.average != null)
-    .map((item) => item.average as number);
   const trendPoints: ChartDatum[] = dailyCounts
     .filter((item) => item.average != null)
     .map((item) => ({
@@ -461,25 +425,6 @@ async function DashboardPageContent() {
               hint="к прошлой неделе"
             />
             <OperationKpiCard
-              href={weekReviewedHref}
-              icon={Star}
-              value={currentAverage == null ? "—" : Math.round(currentAverage)}
-              unit={currentAverage == null ? undefined : qualityScorePointWord(currentAverage)}
-              tone={scoreStatus.tone}
-              delta={
-                scoreDelta == null
-                  ? undefined
-                  : {
-                      value: Math.abs(scoreDelta),
-                      direction: scoreDelta > 0 ? "up" : scoreDelta < 0 ? "down" : "flat",
-                      tone: scoreDeltaTone(scoreDelta)
-                    }
-              }
-              label="Средний балл"
-              hint={scoreDelta == null ? "Недостаточно данных для сравнения" : "к прошлой неделе"}
-              trend={scoreSparkPoints.length >= 2 ? <ScoreSparkline points={scoreSparkPoints} /> : undefined}
-            />
-            <OperationKpiCard
               href={overdueReviewCount > 0 ? "/reviews?due=overdue" : "/reviews?status=unreviewed"}
               icon={Clock3}
               value={totalQueueCount}
@@ -508,11 +453,12 @@ async function DashboardPageContent() {
         className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
         aria-label="Операционные детали"
       >
+        {canViewPeerQualityMetrics ? (
         <Card className="min-h-[260px]">
           <CardHeader className="border-b pb-(--card-spacing)">
             <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <TrendingUp size={14} aria-hidden="true" />
-              {isLeadDashboard ? "Качество команды · 7 дней" : "Качество за 7 дней"}
+              Качество команды · 7 дней
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-(--card-spacing)">
@@ -530,6 +476,7 @@ async function DashboardPageContent() {
             )}
           </CardContent>
         </Card>
+        ) : null}
 
         <div className="grid min-w-0 content-start gap-3">
           {isLeadDashboard ? (
@@ -685,7 +632,7 @@ async function DashboardPageContent() {
           data-slot="dashboard-secondary-grid"
           className="col-span-full grid items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
         >
-          {showPeerScoreRows ? (
+          {canViewPeerQualityMetrics ? (
           <Card>
             <CardHeader className="border-b pb-(--card-spacing)">
               <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">

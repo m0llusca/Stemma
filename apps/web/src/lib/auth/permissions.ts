@@ -11,6 +11,7 @@ export type Permission =
   | "calibration:manage"
   | "reports:read"
   | "reports:manage"
+  | "peer_quality:read"
   | "scorecards:manage"
   | "sampling:manage"
   | "integrations:manage"
@@ -37,6 +38,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "calibration:manage",
     "reports:read",
     "reports:manage",
+    "peer_quality:read",
     "scorecards:manage",
     "sampling:manage",
     "integrations:manage",
@@ -59,6 +61,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "calibration:manage",
     "reports:read",
     "reports:manage",
+    "peer_quality:read",
     "scorecards:manage",
     "sampling:manage",
     "audit:read",
@@ -97,6 +100,11 @@ export function isPermissionDeniedError(error: unknown): error is PermissionDeni
 
 export function hasPermission(role: RoleName, permission: Permission) {
   return rolePermissions[role].includes(permission);
+}
+
+/** Peer leaderboard and vanity avg — TEAM_LEAD / ADMIN only (no public ranks for agents). */
+export function canViewPeerQuality(role: RoleName) {
+  return hasPermission(role, "peer_quality:read");
 }
 
 export function getPermissions(role: RoleName) {
