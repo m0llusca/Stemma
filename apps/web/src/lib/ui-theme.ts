@@ -133,19 +133,19 @@ export const uiThemeOptions = [
 export const uiDensityOptions = [
   {
     id: "compact",
-    label: "Compact",
+    label: "Плотный",
     description: "Больше строк и данных на экране.",
     preview: "Плотно"
   },
   {
     id: "comfortable",
-    label: "Comfortable",
+    label: "Комфортный",
     description: "Баланс плотности и читаемости.",
     preview: "Стандарт"
   },
   {
     id: "spacious",
-    label: "Spacious",
+    label: "Просторный",
     description: "Больше воздуха для презентационного режима.",
     preview: "Свободно"
   }
@@ -154,19 +154,19 @@ export const uiDensityOptions = [
 export const uiCornersOptions = [
   {
     id: "sharp",
-    label: "Sharp",
+    label: "Острые",
     description: "Более строгие углы для dense UI.",
     previewRadius: "6px"
   },
   {
     id: "medium",
-    label: "Medium",
+    label: "Средние",
     description: "Базовый радиус интерфейса.",
     previewRadius: "10px"
   },
   {
     id: "soft",
-    label: "Soft",
+    label: "Мягкие",
     description: "Более мягкие панели и контролы.",
     previewRadius: "18px"
   }
@@ -175,12 +175,12 @@ export const uiCornersOptions = [
 export const uiContrastOptions = [
   {
     id: "standard",
-    label: "Standard",
+    label: "Стандартный",
     description: "Обычная контрастность для ежедневной работы."
   },
   {
     id: "high",
-    label: "High",
+    label: "Высокий",
     description: "Сильнее границы, текст и интерактивные состояния."
   }
 ] as const;

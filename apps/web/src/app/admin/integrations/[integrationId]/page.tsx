@@ -39,7 +39,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { adminEyebrow } from "@/lib/admin-sections";
-import { certificationDisplayTone } from "@/lib/certification/status";
+import { certificationDisplayTone, certificationGateNameLabels } from "@/lib/certification/status";
 
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
@@ -345,10 +345,10 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
     }
   ];
   const gates = [
-    { label: "Документация", value: capability.certification.gates.docs },
-    { label: "Контракт", value: capability.certification.gates.contract },
-    { label: "Stub", value: capability.certification.gates.stub },
-    { label: "Live", value: capability.certification.gates.live }
+    { label: certificationGateNameLabels.docs, value: capability.certification.gates.docs },
+    { label: certificationGateNameLabels.contract, value: capability.certification.gates.contract },
+    { label: certificationGateNameLabels.stub, value: capability.certification.gates.stub },
+    { label: certificationGateNameLabels.live, value: capability.certification.gates.live }
   ];
   const contractMatrix = capabilityMatrixFromContract({
     operations: capability.operations,

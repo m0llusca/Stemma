@@ -1,17 +1,13 @@
-import { CheckCircle2 } from "lucide-react";
 import { Suspense } from "react";
 import { AppearanceSettingsForm } from "@/components/admin/appearance-settings-form";
 import { PageSkeleton } from "@/components/loading-states";
 import { PageShell } from "@/components/ui/page-shell";
 import { AdminFrame } from "@/components/admin/admin-frame";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 
 import { prisma } from "@/lib/db";
-import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { resolveUiAppearance } from "@/lib/ui-theme";
-import { cn } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
@@ -54,24 +50,10 @@ async function AdminAppearancePageContent() {
     >
       <AdminFrame>
         <Card aria-labelledby="appearance-settings-title">
-          <CardHeader className="border-b">
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Рабочее пространство</p>
-                <CardTitle id="appearance-settings-title">{workspace?.name ?? "Рабочее пространство"}</CardTitle>
-                <CardDescription>
-                  Палитра управляет навигацией, кнопками, поверхностями, границами и статусами без ручной правки CSS.
-                </CardDescription>
-              </div>
-              <Badge variant="outline" className={cn("shrink-0 border-transparent", statusSurfaceClass("positive"))}>
-                <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
-                Готово
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <AppearanceSettingsForm initialAppearance={appearance} />
-          </CardContent>
+          <AppearanceSettingsForm
+            workspaceName={workspace?.name ?? "Рабочее пространство"}
+            initialAppearance={appearance}
+          />
         </Card>
       </AdminFrame>
     </PageShell>

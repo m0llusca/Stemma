@@ -27,6 +27,13 @@ export type CertificationSummary = {
   productionReady: boolean;
 };
 
+export const certificationGateNameLabels = {
+  docs: "Документация",
+  contract: "Контракт",
+  stub: "Заглушка",
+  live: "Live / Боевая"
+} as const;
+
 export const certificationStatusLabels: Record<CertificationStatus, string> = {
   docs_checked: "Документация проверена",
   contract_certified: "Контрактные тесты пройдены",
