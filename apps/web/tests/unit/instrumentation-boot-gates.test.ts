@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertProductionBootEnv } from "@/instrumentation";
 
+const LOCAL_VERIFY_DATABASE_URL =
+  "postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public";
+const LOCAL_DEVELOPER_DATABASE_URL =
+  "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public";
+const REMOTE_DATABASE_URL =
+  "postgresql://qc_app:qc_app@prod.example.com:5432/qc_app_demo_verify?schema=public";
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -27,10 +34,8 @@ describe("assertProductionBootEnv", () => {
     vi.stubEnv("AUTH_SECRET", "prod-secret");
     vi.stubEnv("QC_SECRET_KEY", "prod-crypto-key");
     vi.stubEnv("QC_DEMO_AUTH", "enabled");
-    vi.stubEnv(
-      "TEST_DATABASE_URL",
-      "postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public"
-    );
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
     expect(() => assertProductionBootEnv()).not.toThrow();
   });
 
@@ -39,10 +44,28 @@ describe("assertProductionBootEnv", () => {
     vi.stubEnv("AUTH_SECRET", "prod-secret");
     vi.stubEnv("QC_SECRET_KEY", "prod-crypto-key");
     vi.stubEnv("QC_DEMO_AUTH", "enabled");
-    vi.stubEnv(
-      "TEST_DATABASE_URL",
-      "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public"
-    );
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_DEVELOPER_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", LOCAL_DEVELOPER_DATABASE_URL);
+    expect(() => assertProductionBootEnv()).toThrow(/QC_DEMO_AUTH/);
+  });
+
+  it("refuses demo auth when TEST_DATABASE_URL is verify but DATABASE_URL is not", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AUTH_SECRET", "prod-secret");
+    vi.stubEnv("QC_SECRET_KEY", "prod-crypto-key");
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", LOCAL_DEVELOPER_DATABASE_URL);
+    expect(() => assertProductionBootEnv()).toThrow(/QC_DEMO_AUTH/);
+  });
+
+  it("refuses demo auth when TEST_DATABASE_URL is verify but DATABASE_URL is remote", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AUTH_SECRET", "prod-secret");
+    vi.stubEnv("QC_SECRET_KEY", "prod-crypto-key");
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", REMOTE_DATABASE_URL);
     expect(() => assertProductionBootEnv()).toThrow(/QC_DEMO_AUTH/);
   });
 

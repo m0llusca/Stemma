@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const prisma = {
@@ -44,12 +44,21 @@ const liveEvidence = {
   integrationId: "integration-1"
 };
 
+const LOCAL_VERIFY_DATABASE_URL =
+  "postgresql://qc_app:qc_app@localhost:55432/qc_app_demo_verify?schema=public";
+const LOCAL_DEVELOPER_DATABASE_URL =
+  "postgresql://qc_app:qc_app@localhost:55432/qc_app?schema=public";
+
 describe("integration import service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.TEST_DATABASE_URL;
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(liveEvidence);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("queues an integration import job for the current workspace", async () => {
@@ -396,6 +405,73 @@ describe("integration import service", () => {
 
   it("rejects production import without protected live certification evidence", async () => {
     const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        dryRun: false
+      })
+    ).rejects.toThrow("Импорт в production недоступен без живой сертификации с evidence.");
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("skips live-cert when both DATABASE_URL and TEST_DATABASE_URL are the local verify database", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
+    mocks.prisma.integration.findFirst.mockResolvedValue({
+      id: "integration-1",
+      workspaceId: "workspace-1",
+      source: "zendesk",
+      type: "native_helpdesk",
+      status: "ready",
+      importLimit: 25,
+      credentials: [{ kind: "auth_password" }]
+    });
+    mocks.prisma.integration.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.integrationRun.create.mockResolvedValue({
+      id: "run-1",
+      status: "queued",
+      requestedLimit: 25,
+      dryRun: false
+    });
+    mocks.prisma.backendJob.create.mockResolvedValue({
+      id: "job-1",
+      status: "QUEUED"
+    });
+
+    await expect(
+      queueIntegrationImportJob({
+        workspaceId: "workspace-1",
+        actorId: "user-1",
+        integrationId: "integration-1",
+        dryRun: false
+      })
+    ).resolves.toMatchObject({
+      run: { id: "run-1", status: "queued" }
+    });
+
+    expect(mocks.prisma.certificationEvidence.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("does not skip live-cert when TEST_DATABASE_URL is verify but DATABASE_URL is not", async () => {
+    const { queueIntegrationImportJob } = await import("@/lib/integration-import-service");
+    vi.stubEnv("TEST_DATABASE_URL", LOCAL_VERIFY_DATABASE_URL);
+    vi.stubEnv("DATABASE_URL", LOCAL_DEVELOPER_DATABASE_URL);
     mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(null);
     mocks.prisma.integration.findFirst.mockResolvedValue({
       id: "integration-1",
