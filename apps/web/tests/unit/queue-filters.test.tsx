@@ -47,7 +47,7 @@ describe("QueueFilters", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /что такое источник/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /что такое otrs/i })).toBeInTheDocument();
   });
 
   it("shows the Итог chip with reviewed/unreviewed words, not status-chip words", () => {

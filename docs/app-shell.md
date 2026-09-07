@@ -46,6 +46,10 @@ Ops KPI drills (`opsQueueKpiHref`) never use that impostor: overdue → `/review
 
 Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K no longer lists **«Пульс дня»** → `/dashboard` for this role (it competed with Сегодня). Residual: `QA_ANALYST` remains in `DASHBOARD_ROLES`, so `/dashboard` still opens by URL.
 
+### Welcome-back + filter reset
+
+After a long absence, `WelcomeBackBanner` offers an explicit reset to `queueFilterResetHref` (Analyst mine+overdue; other queue roles `/reviews`). Day-1 is a single SLA/OTRS glossary hint (`QueueDay1Tour`), not a multi-step tour. Queue href is the request URL only — never restore a last-used or workspace saved view on first paint. Shared views stay opt-in chips; a matching workspace view is named in the welcome-back copy so the trap is visible.
+
 ## Async Signals
 
 Sidebar and topbar counters or alerts should be non-blocking. Load them in isolated async signal components so the shell can render if a count, health probe, or optional widget fails. Signal failures should degrade to neutral copy or be omitted; they should not block the page shell.

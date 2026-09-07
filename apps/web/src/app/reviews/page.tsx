@@ -27,6 +27,7 @@ import {
   formatMessageCount,
   samplingTypeLabels
 } from "@/lib/labels";
+import { findForeignWorkspaceQueueView } from "@/lib/guidance/visit-memory";
 import { takeNextReview } from "@/lib/queue-view-actions";
 import { hasActiveQueueFilters } from "@/lib/review/queue-href-filters";
 import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
@@ -210,7 +211,12 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       }
     >
       <ReviewSavedToast marker={savedMarker} />
-      <WelcomeBackBanner />
+      <WelcomeBackBanner
+        resetHref={data.filterResetHref}
+        foreignViewName={
+          findForeignWorkspaceQueueView(data.currentHref, data.filterResetHref, data.savedViews)?.name
+        }
+      />
       {data.canWriteReviews ? <QueueDay1Tour /> : null}
       {queueEmpty ? (
         <QueueEmptyBanner
