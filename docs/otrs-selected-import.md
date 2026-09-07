@@ -13,7 +13,7 @@ Then the worker:
 1. Claims the job and renews the `backendJob` lock on the global `prisma` client.
 2. Opens a **short** transaction: ownership check (`assertCurrentJobLock`, no renew in that TX) → **commit**.
 3. Runs `importSelectedOtrsRunItems` **outside** that transaction, still on global `prisma`.
-4. If reclaimable rows were processed, finalizes `IntegrationRun` in a short transaction.
+4. Finalizes `IntegrationRun` in a short transaction, including the all-already-imported early path.
 5. Marks the job `SUCCEEDED` in another short transaction.
 
 Do not wrap step 3 in the ownership TX. That TX holds the `backendJob` row; per-item heartbeats update the same row and would wait on it until lock timeout (self-deadlock). That bug is fixed.
@@ -43,9 +43,7 @@ TicketGet is not on this path. Preview (`createOtrsPreviewItems`), diagnostics, 
 
 Conversations already upserted survive a crash. There is no rollback.
 
-Resume is the same `INTEGRATION_IMPORT` job after stale recovery or retry. It calls `finalizeImportRun` only when reclaimable rows remain (`previewed` / `selected` / `importing`).
-
-If every selected id is already `imported`, `importSelectedOtrsRunItems` returns success and skips `finalizeImportRun`. The job can be `SUCCEEDED` while `IntegrationRun` stays `queued` or `retry_scheduled`.
+Resume is the same `INTEGRATION_IMPORT` job after stale recovery or retry. It calls `finalizeImportRun` after reclaimable rows are processed, and also when every selected id is already `imported` but the run is still non-terminal (`queued` / `retry_scheduled`). An already-`imported` run is left unchanged.
 
 A second cockpit enqueue still needs a `previewed` run and `previewed` items. After a terminal job failure, start a new preview.
 
@@ -64,4 +62,4 @@ npm run test:e2e -- tests/e2e/otrs-integration-cockpit.spec.ts
 
 The chromium spec creates a preview, queues selected import, drains `integrations`, and asserts job type `INTEGRATION_IMPORT` is `SUCCEEDED` with `importedCount: 1` (spec bound: under 15s).
 
-Unit coverage for the TX split and heartbeat-after-commit order: `apps/web/tests/unit/integration-runner-ledger.test.ts` (“selected OTRS import connector”). Claim/resume: `apps/web/tests/unit/otrs-family-import-plan.test.ts`.
+Unit coverage for the TX split and heartbeat-after-commit order: `apps/web/tests/unit/integration-runner-ledger.test.ts` (“selected OTRS import connector”). Claim/resume and all-already-imported finalize: `apps/web/tests/unit/otrs-family-import-plan.test.ts`.

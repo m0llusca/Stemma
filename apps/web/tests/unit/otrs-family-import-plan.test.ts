@@ -1371,6 +1371,124 @@ describe("OTRS-family preview/import planning", () => {
     });
   });
 
+  it.each(["queued", "retry_scheduled"] as const)(
+    "finalizes a %s run when all selected items are already imported",
+    async (runStatus) => {
+      const { db, state } = createFakeDb();
+      const importer = vi.fn();
+      state.runs.push({
+        id: "run-1",
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        source: "otrs",
+        mode: "manual_ticket_ids",
+        status: runStatus,
+        dryRun: false,
+        importedCount: 0
+      });
+      state.items.push({
+        id: "item-1",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "601",
+        status: "imported",
+        conversationId: "conversation-601",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("601"))
+      });
+
+      const result = await importSelectedOtrsRunItems({
+        db,
+        workspaceId: "workspace-1",
+        integrationId: "integration-1",
+        integrationRunId: "run-1",
+        selectedItemIds: ["item-1"],
+        importer
+      });
+
+      expect(importer).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        importedCount: 1,
+        errorCount: 0
+      });
+      expect(state.runs[0]).toMatchObject({
+        status: "imported",
+        dryRun: false,
+        importedCount: 1,
+        errorCount: 0,
+        errorMessage: null,
+        finishedAt: expect.any(Date)
+      });
+      expect(db.$transaction).toHaveBeenCalledTimes(1);
+      expect(state.integrationUpdates[0]).toMatchObject({
+        status: "active",
+        lastError: null,
+        lastImportAt: expect.any(Date),
+        lastSyncedAt: expect.any(Date),
+        syncCursor: "601"
+      });
+    }
+  );
+
+  it("finalizes when concurrent claims lose and selected rows are already imported", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "queued",
+      dryRun: false
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "701",
+      status: "selected",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("701"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      importer,
+      onItemProgress: async () => {
+        const row = state.items.find((item) => item.id === "item-1");
+        if (row) {
+          row.status = "imported";
+          row.conversationId = "conversation-701";
+        }
+      }
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 0
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "imported",
+      importedCount: 1,
+      errorCount: 0,
+      finishedAt: expect.any(Date)
+    });
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(state.integrationUpdates[0]).toMatchObject({
+      status: "active",
+      lastError: null,
+      syncCursor: "701"
+    });
+  });
+
   it("idempotent re-entry does not clobber an already-imported run with no_selection", async () => {
     const { db, state } = createFakeDb();
     state.runs.push({
@@ -1412,6 +1530,7 @@ describe("OTRS-family preview/import planning", () => {
       importedCount: 1
     });
     expect(state.integrationUpdates).toEqual([]);
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 
   it("all-failed selected import does not advance integration sync state", async () => {
