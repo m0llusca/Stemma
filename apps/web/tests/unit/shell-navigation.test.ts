@@ -135,10 +135,15 @@ describe("command palette action items", () => {
     (item) => item.kind === "action"
   );
 
-  it("exposes the fast-path actions with their real routes", () => {
-    const byHref = Object.fromEntries(actionItems.map((item) => [item.href, item]));
+  it("exposes take-next as an action, not an impostor unreviewed URL", () => {
+    const takeNext = actionItems.find((item) => item.actionId === "take-next");
+    expect(takeNext?.label).toBe("Взять следующий кейс");
+    expect(takeNext?.href).toBeUndefined();
+    expect(actionItems.map((item) => item.href)).not.toContain("/reviews?status=unreviewed");
 
-    expect(byHref["/reviews?status=unreviewed"]?.label).toBe("Взять следующий кейс");
+    const byHref = Object.fromEntries(
+      actionItems.filter((item) => item.href).map((item) => [item.href, item])
+    );
     expect(byHref["/reviews?due=overdue"]?.label).toBe("Открыть просроченные SLA");
     expect(byHref["/reports?period=quarter-current"]?.label).toBe("Открыть аналитику за квартал");
     expect(byHref["/coaching"]?.label).toBe("Перейти к обучению");
@@ -150,7 +155,7 @@ describe("command palette action items", () => {
   });
 
   it("filters action items by alias, label and description", () => {
-    const nextCase = actionItems.find((item) => item.href === "/reviews?status=unreviewed");
+    const nextCase = actionItems.find((item) => item.actionId === "take-next");
     expect(nextCase).toBeDefined();
 
     // alias "следующий кейс" / label "Взять следующий кейс" both contain "след".
@@ -167,8 +172,9 @@ describe("command palette action items", () => {
       (item) => item.kind === "action"
     );
 
-    // The queue/SLA/analytics actions are role-gated to ADMIN/TEAM_LEAD/QA_ANALYST (or reports:read),
-    // so a support agent never sees them even though it holds reviews:read.
+    // Take-next needs reviews:write; SLA/analytics stay role-gated. A support
+    // agent never sees them even though it holds reviews:read.
+    expect(agentActions.some((item) => item.actionId === "take-next")).toBe(false);
     const agentHrefs = agentActions.map((item) => item.href);
     expect(agentHrefs).not.toContain("/reviews?status=unreviewed");
     expect(agentHrefs).not.toContain("/reviews?due=overdue");

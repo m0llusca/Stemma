@@ -20,6 +20,37 @@ export function safeReviewsHref(value: string) {
 }
 
 /**
+ * Queue href the workbench button would pass as `queueHref`.
+ * - `/reviews` (+ search) → that URL (active chips / saved view)
+ * - `/reviews/:id?returnTo=` → sanitized returnTo
+ * - anywhere else → undefined (unfiltered SLA take-next, not a fake status URL)
+ */
+export function queueHrefFromLocation(pathname: string, search = ""): string | undefined {
+  const query = search.startsWith("?") || search === "" ? search : `?${search}`;
+
+  if (pathname === "/reviews") {
+    return `${pathname}${query}`;
+  }
+
+  if (pathname.startsWith("/reviews/")) {
+    const returnTo = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query).get("returnTo");
+    return returnTo ? safeReviewsHref(returnTo) : undefined;
+  }
+
+  return undefined;
+}
+
+/** Same FormData the queue «Взять следующий» button submits. */
+export function takeNextFormDataFromLocation(pathname: string, search = ""): FormData {
+  const formData = new FormData();
+  const queueHref = queueHrefFromLocation(pathname, search);
+  if (queueHref) {
+    formData.set("queueHref", queueHref);
+  }
+  return formData;
+}
+
+/**
  * Extract queue filters from a safe `/reviews?...` href (queue form or
  * workbench returnTo). Returns undefined when there is no meaningful filter set
  * so take-next keeps the unfiltered SLA order.
