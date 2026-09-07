@@ -492,14 +492,23 @@ export async function runSelectedOtrsImportConnector(input: {
     source: integration.source
   });
 
-  const result = await prisma.$transaction(async (tx) => {
-    await input.beforeWrite?.(tx);
-
-    return importSelectedOtrsRunItems({
-      ...input,
-      db: tx,
-      onItemProgress: input.onItemProgress
+  // Keep the job-lock ownership check in a short transaction. Do not hold an
+  // interactive transaction across selected-import work: item claims, conversation
+  // writes, and onItemProgress lock heartbeats (global prisma) must commit on
+  // their own. importSelectedOtrsRunItems already finalizes run + integration
+  // in a short transaction.
+  if (input.beforeWrite) {
+    await prisma.$transaction(async (tx) => {
+      await input.beforeWrite?.(tx);
     });
+  }
+
+  const result = await importSelectedOtrsRunItems({
+    workspaceId: input.workspaceId,
+    integrationId: input.integrationId,
+    integrationRunId: input.integrationRunId,
+    selectedItemIds: input.selectedItemIds,
+    onItemProgress: input.onItemProgress
   });
 
   return {
