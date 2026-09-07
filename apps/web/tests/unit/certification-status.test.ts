@@ -3,6 +3,7 @@ import {
   certificationDisplayTone,
   certificationStatusLabels,
   certificationStatusTone,
+  isLiveCertified,
   summarizeCertification
 } from "@/lib/certification/status";
 
@@ -100,5 +101,9 @@ describe("certification status registry", () => {
     expect(certificationDisplayTone("live_certified")).toBe("positive");
     expect(certificationDisplayTone("stub_certified")).toBe("info");
     expect(certificationDisplayTone("ready_for_live_certification")).toBe("warning");
+    expect(isLiveCertified("live_certified")).toBe(true);
+    expect(isLiveCertified("stub_certified")).toBe(false);
+    expect(isLiveCertified("docs_checked")).toBe(false);
+    expect(isLiveCertified("contract_certified")).toBe(false);
   });
 });
