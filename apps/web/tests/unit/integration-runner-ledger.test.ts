@@ -607,7 +607,7 @@ describe("selected OTRS import connector", () => {
       }
     };
     const prismaJobClient = {
-      updateMany: vi.fn(async () => {
+      updateMany: vi.fn(async (_args: { where: { id: string }; data: { lockedAt: Date } }) => {
         if (backendJobLockedByOpenTx) {
           throw new Error("lock wait timeout on backendJob");
         }
