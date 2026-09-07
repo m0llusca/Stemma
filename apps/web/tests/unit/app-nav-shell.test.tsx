@@ -235,18 +235,20 @@ describe("app nav shell", () => {
   it("hides every take-next surface when the reviewer cannot write reviews", () => {
     render(<AppNavShell {...baseProps} canTakeNextCase={false} />);
 
-    fireEvent.keyDown(window, { key: "k", metaKey: true });
-    const input = screen.getByPlaceholderText(/Найти раздел/);
-    fireEvent.change(input, { target: { value: "следующий кейс" } });
-    expect(screen.queryByRole("option", { name: /Взять следующий кейс/ })).toBeNull();
+    // Pulse chrome first — opening ⌘K inerts the rest of the page.
     expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-
     fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
     expect(
       within(screen.getByRole("menu", { name: "Рабочий пульс" })).queryByRole("menuitem", {
         name: "Взять следующий кейс"
       })
     ).toBeNull();
+    fireEvent.keyDown(screen.getByRole("menu", { name: "Рабочий пульс" }), { key: "Escape" });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = screen.getByPlaceholderText(/Найти раздел/);
+    fireEvent.change(input, { target: { value: "следующий кейс" } });
+    expect(screen.queryByRole("option", { name: /Взять следующий кейс/ })).toBeNull();
   });
 
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {
