@@ -78,6 +78,29 @@ describe("app nav shell", () => {
     expect(globalNav.className).not.toContain("bg-background/90");
   });
 
+  it("does not paint the risk pulse as destructive when the count is 0", () => {
+    render(
+      <AppNavShell
+        {...baseProps}
+        pulseItems={[
+          { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 0 },
+          {
+            href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+            label: "Риск",
+            value: 0,
+            tone: "neutral"
+          }
+        ]}
+      />
+    );
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    const risk = within(pulse!).getByRole("link", { name: "Риск: 0" });
+    expect(risk.querySelector('[class*="bg-destructive"]')).toBeNull();
+  });
+
   it("exposes the app-nav focus-ring contract hook on the global navigation", () => {
     // P4: globals.css scopes a full-strength token ring to
     // [data-slot="app-nav"] :focus-visible.

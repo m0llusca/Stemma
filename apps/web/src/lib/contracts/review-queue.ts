@@ -106,6 +106,8 @@ export type ReviewQueueSavedViewDto = {
 export type ReviewQueuePageData = {
   filters: ReviewQueueFilters;
   currentHref: string;
+  /** «Сбросить фильтры» — Analyst role home, otherwise the unfiltered queue. */
+  filterResetHref: string;
   currentAssigneeName: string;
   conversations: ReviewQueueConversationDto[];
   summary: ReviewQueueSummaryDto;

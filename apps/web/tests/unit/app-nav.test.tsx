@@ -259,6 +259,33 @@ describe("app nav", () => {
     expect(screen.getByRole("combobox", { name: "Демо-пользователь" })).not.toBeNull();
   });
 
+  it("keeps the risk pulse badge neutral when the count is 0", async () => {
+    mocks.prisma.review.count.mockResolvedValue(0);
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    const risk = within(pulse!).getByRole("link", { name: "Риск: 0" });
+    expect(risk.querySelector('[class*="bg-destructive"]')).toBeNull();
+    expect(risk.querySelector('[class*="text-destructive"]')).toBeNull();
+  });
+
+  it("marks the risk pulse destructive only when the count is above 0", async () => {
+    mocks.prisma.review.count.mockResolvedValue(3);
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    const risk = within(pulse!).getByRole("link", { name: "Риск: 3" });
+    expect(risk.querySelector('[class*="bg-destructive"]')).not.toBeNull();
+  });
+
   it("queries the work-pulse counters for the global nav", async () => {
     const { AppNav } = await import("@/components/app-nav");
 

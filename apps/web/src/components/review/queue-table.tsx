@@ -40,6 +40,8 @@ type QueueTableProps = {
   conversations: ReviewQueueConversationDto[];
   qaAssignees: ReviewQueueAssigneeDto[];
   returnTo: string;
+  /** Inbox home after reset. Analyst keeps mine+overdue; others go to `/reviews`. */
+  resetHref?: string;
 };
 
 function samplingIsSignal(samplingType: string) {
@@ -60,7 +62,7 @@ function initials(name: string) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("ru-RU");
 }
 
-export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
+export function QueueTable({ conversations, qaAssignees, returnTo, resetHref = "/reviews" }: QueueTableProps) {
   if (conversations.length === 0) {
     return (
       <Card className="overflow-clip">
@@ -70,7 +72,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             title="Очередь пуста"
             description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
             action={
-              <Button render={<Link href="/reviews" />} nativeButton={false}>
+              <Button render={<Link href={resetHref} />} nativeButton={false}>
                 Сбросить фильтры
               </Button>
             }

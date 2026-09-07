@@ -228,6 +228,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           supportLines={data.filterOptions.supportLines}
           teamNames={data.filterOptions.teamNames}
           resultCount={filteredCount}
+          resetHref={data.filterResetHref}
         />
       </QueueWorkspace.CommandBar>
 
@@ -237,7 +238,12 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
         previewLabel="Предпросмотр следующего обращения"
       >
         <div className="flex min-w-0 flex-col gap-3">
-          <QueueTable conversations={queuePage.items} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
+          <QueueTable
+            conversations={queuePage.items}
+            qaAssignees={data.qaAssignees}
+            returnTo={data.currentHref}
+            resetHref={data.filterResetHref}
+          />
           {queuePage.pageCount > 1 ? (
             <Pagination className="mx-0 w-full flex-wrap justify-between gap-3" aria-label="Страницы очереди">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground" aria-live="polite">

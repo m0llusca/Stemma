@@ -1,3 +1,4 @@
+import { queueFilterResetHref } from "@/lib/auth/role-home";
 import type { ReviewQueuePageData } from "@/lib/contracts/review-queue";
 import { prisma } from "@/lib/db";
 import {
@@ -77,6 +78,7 @@ export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams)
   return {
     filters,
     currentHref,
+    filterResetHref: queueFilterResetHref(user.role, { name: user.name }),
     currentAssigneeName: user.name,
     conversations,
     summary,

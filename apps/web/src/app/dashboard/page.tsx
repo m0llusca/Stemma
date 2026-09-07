@@ -20,6 +20,7 @@ import { TriageStrip } from "@/components/ui/triage-strip";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
+import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/page-permission";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
@@ -92,9 +93,11 @@ type FocusItem = {
   hint: string;
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const skeletonVariant = await resolveDashboardSkeletonVariant();
+
   return (
-    <Suspense fallback={<PageSkeleton variant="dashboard" label="Загрузка дашборда" />}>
+    <Suspense fallback={<PageSkeleton variant={skeletonVariant} label="Загрузка дашборда" />}>
       <DashboardPageContent />
     </Suspense>
   );
@@ -379,7 +382,7 @@ async function DashboardPageContent() {
       title="Сегодня"
       description={
         isLeadDashboard
-          ? "Риск и просроченный SLA за 30 секунд — с переходом в очередь. Ops-лента и суета фильтров скрыты."
+          ? "Риск и просроченный SLA за 30 секунд — с переходом в очередь. Нагрузка проверяющих, обучение и фокус остаются на экране."
           : "Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
       }
     >

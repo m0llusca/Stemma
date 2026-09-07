@@ -51,6 +51,13 @@ export function canAccessDashboard(role: RoleName) {
   return (DASHBOARD_ROLES as readonly RoleName[]).includes(role);
 }
 
+export type DashboardSkeletonVariant = "dashboard" | "exec";
+
+/** Ops pulse is 4-KPI; EXEC live home is ExecRiskHome (3-KPI, no dual panels). */
+export function dashboardSkeletonVariantForRole(role: RoleName): DashboardSkeletonVariant {
+  return role === "EXEC" ? "exec" : "dashboard";
+}
+
 /**
  * Role-gated product home after login when the caller did not request a specific page.
  * VIEWER lands on `/auth/pending-access` (no product permissions) instead of a deny page.
@@ -74,6 +81,18 @@ export function roleHomePath(role: RoleName, options?: { name?: string }) {
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Inbox «Сбросить фильтры» target. Analyst home is mine+overdue — a bare
+ * `/reviews` reset would wipe that inbox. Other roles reset to the unfiltered queue.
+ */
+export function queueFilterResetHref(role: RoleName, options?: { name?: string }) {
+  if (role === "QA_ANALYST") {
+    return roleHomePath(role, options);
+  }
+
+  return "/reviews";
 }
 
 export function resolvePostLoginPath(returnTo: string | null | undefined, user: { role: RoleName; name: string }) {
