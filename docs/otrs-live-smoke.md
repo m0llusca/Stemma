@@ -113,7 +113,7 @@ npm run test:e2e
 npm run build
 ```
 
-The database and Playwright E2E steps require local Docker/Postgres availability. If Docker is not running, `npm run db:up` fails before Postgres starts and Playwright cannot start its configured `npm run db:deploy && npm run db:seed && npm run dev` web server.
+The database and Playwright E2E steps require local Docker/Postgres availability. If Docker is not running, `npm run db:up` fails before Postgres starts and Playwright cannot start its configured `npm run db:deploy && npm run db:seed && npm run start` web server. Demo-seed freshness and the verify-DB bypass: [e2e-verify-database.md](e2e-verify-database.md).
 
 ## CI Safety
 

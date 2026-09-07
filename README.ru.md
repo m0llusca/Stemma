@@ -83,6 +83,7 @@ Stemma/
 ## Документация
 
 - [OTRS live smoke](docs/otrs-live-smoke.md)
+- [Playwright verify DB](docs/e2e-verify-database.md)
 - [Расписание задач](docs/jobs-scheduling.md)
 - [Контракты установки интеграций](docs/integration-install-contracts.md)
 - [Операции](docs/operations/)
