@@ -7,7 +7,8 @@ import { buildShellNavigation, visibleTopNavAreas } from "@/lib/shell/navigation
 const mocks = vi.hoisted(() => ({
   pathname: "/reviews",
   routerPush: vi.fn(),
-  switchCurrentUser: vi.fn()
+  switchCurrentUser: vi.fn(),
+  takeNextReview: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -17,6 +18,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/user-actions", () => ({
   switchCurrentUser: mocks.switchCurrentUser
+}));
+
+vi.mock("@/lib/queue-view-actions", () => ({
+  takeNextReview: mocks.takeNextReview
 }));
 
 // Base UI dialog / cmdk rely on APIs missing from jsdom.
@@ -49,6 +54,8 @@ describe("app nav shell", () => {
   beforeEach(() => {
     mocks.pathname = "/reviews";
     mocks.routerPush.mockClear();
+    mocks.takeNextReview.mockClear();
+    window.history.replaceState(null, "", "/reviews");
   });
 
   it("keeps the global navigation surface flat and opaque", () => {
@@ -127,6 +134,54 @@ describe("app nav shell", () => {
 
     fireEvent.click(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("runs take-next through takeNextReview with the current queue filters", () => {
+    // Tester on a saved/filtered queue (due + process) — not the unreviewed impostor.
+    window.history.replaceState(null, "", "/reviews?due=overdue&process=ai_exception");
+    render(<AppNavShell {...baseProps} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
+    const input = screen.getByPlaceholderText(/Найти раздел/);
+    fireEvent.change(input, { target: { value: "следующий кейс" } });
+    const options = within(dialog).getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toContain("Взять следующий кейс");
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(mocks.takeNextReview).toHaveBeenCalledTimes(1);
+    const formData = mocks.takeNextReview.mock.calls[0]?.[0] as FormData;
+    expect(formData.get("queueHref")).toBe("/reviews?due=overdue&process=ai_exception");
+    expect(mocks.routerPush).not.toHaveBeenCalled();
+    expect(mocks.routerPush).not.toHaveBeenCalledWith("/reviews?status=unreviewed");
+    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+  });
+
+  it("does not substitute /reviews?status=unreviewed when take-next runs off the queue", () => {
+    window.history.replaceState(null, "", "/dashboard");
+    mocks.pathname = "/dashboard";
+    render(<AppNavShell {...baseProps} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = screen.getByPlaceholderText(/Найти раздел/);
+    fireEvent.change(input, { target: { value: "следующий кейс" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(mocks.takeNextReview).toHaveBeenCalledTimes(1);
+    const formData = mocks.takeNextReview.mock.calls[0]?.[0] as FormData;
+    expect(formData.get("queueHref")).toBeNull();
+    expect(mocks.routerPush).not.toHaveBeenCalledWith("/reviews?status=unreviewed");
+  });
+
+  it("hides the take-next command when the reviewer cannot write reviews", () => {
+    render(<AppNavShell {...baseProps} canTakeNextCase={false} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = screen.getByPlaceholderText(/Найти раздел/);
+    fireEvent.change(input, { target: { value: "следующий кейс" } });
+    expect(screen.queryByRole("option", { name: /Взять следующий кейс/ })).toBeNull();
   });
 
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {
