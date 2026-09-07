@@ -25,10 +25,11 @@ import { PageShell } from "@/components/ui/page-shell";
 import { ScoreSparkline } from "@/components/ui/score-sparkline";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { TriageStrip, type TriageStripTone } from "@/components/ui/triage-strip";
+import { TriageStrip } from "@/components/ui/triage-strip";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { updateReviewFeedbackState, updateTrainingAssignmentStatusState } from "@/lib/feedback-actions";
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
+import { buildSelfReviewTriage, trainingAssignmentEmptyCopy } from "@/lib/self-review/empty-honesty";
 
 import { prisma } from "@/lib/db";
 import {
@@ -38,7 +39,7 @@ import {
   riskLevelLabels
 } from "@/lib/labels";
 import { criterionEarnedPercent } from "@/lib/reports/report-aggregation";
-import { formatReviewCount, russianPlural } from "@/lib/reports/report-format";
+import { formatReviewCount } from "@/lib/reports/report-format";
 import { clampQualityScore, formatQualityScoreDelta } from "@/lib/score-display";
 import { requirePagePermission } from "@/lib/page-permission";
 
@@ -67,7 +68,7 @@ export default function SelfReviewPage() {
 async function SelfReviewPageContent() {
   const user = await requirePagePermission("feedback:acknowledge");
   const scopedToAgent = user.role === "SUPPORT_AGENT";
-  const [conversations, assignments] = await Promise.all([
+  const [conversations, assignments, assignedTrainingCount] = await Promise.all([
     prisma.conversation.findMany({
       where: {
         workspaceId: user.workspaceId,
@@ -123,6 +124,12 @@ async function SelfReviewPageContent() {
       },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 6
+    }),
+    prisma.trainingAssignment.count({
+      where: {
+        workspaceId: user.workspaceId,
+        assigneeId: scopedToAgent ? user.id : undefined
+      }
     })
   ]);
   // Personal score trend: the agent's finalized review scores oldest -> newest.
@@ -388,17 +395,19 @@ async function SelfReviewPageContent() {
   const periodDelta = recentAverage != null && earlierAverage != null ? Math.round(recentAverage - earlierAverage) : null;
 
   const pendingResponseCount = actionConversations.length;
-  const triageTone: TriageStripTone = nextConversation ? (appealCount > 0 ? "warning" : "accent") : "success";
-  const triageTitle = nextConversation
-    ? `${russianPlural(pendingResponseCount, ["проверка ждёт", "проверки ждут", "проверок ждут"])} вашего ответа`
-    : "Срочных ответов нет";
-  const triageDescription = nextConversation
-    ? appealCount > 0
-      ? `Среди них ${appealCount} с открытой апелляцией. Примите оценку или оспорьте конкретный пункт с обоснованием.`
-      : "Примите оценку, если замечания понятны; спорный пункт можно оспорить."
-    : assignments.length > 0
-      ? `Осталось закрыть ${russianPlural(assignments.length, ["учебную задачу", "учебные задачи", "учебных задач"])} после разбора.`
-      : "Новые финальные проверки и апелляции появятся здесь первыми.";
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const overdueTrainingCount = assignments.filter(
+    (assignment) => assignment.dueAt != null && assignment.dueAt.getTime() < startOfToday.getTime()
+  ).length;
+  const triage = buildSelfReviewTriage({
+    pendingInboxCount: pendingResponseCount,
+    appealCount,
+    openTrainingCount: assignments.length,
+    overdueTrainingCount,
+    inboxHref: nextConversation ? `/reviews/${nextConversation.id}` : null
+  });
+  const trainingEmpty = trainingAssignmentEmptyCopy(assignedTrainingCount > 0);
 
   const hasCriteriaPanel = strengthCriteria.length > 0 || focusCriteria.length > 0;
 
@@ -438,14 +447,22 @@ async function SelfReviewPageContent() {
       description="Рабочее место оператора: разобрать замечания по цитатам, принять оценку или открыть апелляцию и закрыть учебные задачи."
     >
       <TriageStrip
-        tone={triageTone}
-        icon={appealCount > 0 ? <ShieldQuestion size={18} aria-hidden="true" /> : <MessageSquareText size={18} aria-hidden="true" />}
-        title={triageTitle}
-        description={triageDescription}
+        tone={triage.tone}
+        icon={
+          appealCount > 0 ? (
+            <ShieldQuestion size={18} aria-hidden="true" />
+          ) : assignments.length > 0 && !nextConversation ? (
+            <BookOpenCheck size={18} aria-hidden="true" />
+          ) : (
+            <MessageSquareText size={18} aria-hidden="true" />
+          )
+        }
+        title={triage.title}
+        description={triage.description}
         action={
-          nextConversation ? (
-            <Button render={<Link href={`/reviews/${nextConversation.id}`} />} nativeButton={false}>
-              Ответить сейчас
+          triage.action ? (
+            <Button render={<Link href={triage.action.href} />} nativeButton={false}>
+              {triage.action.label}
               <ArrowRight data-icon="inline-end" aria-hidden="true" />
             </Button>
           ) : undefined
@@ -596,8 +613,8 @@ async function SelfReviewPageContent() {
               <EmptyState
                 size="inline"
                 icon={<BookOpenCheck size={20} aria-hidden="true" />}
-                title="Задач нет"
-                description="Все разборы закрыты."
+                title={trainingEmpty.title}
+                description={trainingEmpty.description}
               />
             )}
           </CardContent>

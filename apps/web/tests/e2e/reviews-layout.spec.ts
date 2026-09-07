@@ -85,7 +85,12 @@ for (const scenario of queueCases) {
 
     await expect(workspace).toBeVisible();
     await expect(page.getByRole("region", { name: "Где смотреть в очереди сейчас" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Взять следующий" })).toBeVisible();
+    await expect(
+      page.locator('[data-slot="page-shell-actions"]').getByRole("button", { name: "Взять следующий" })
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-slot="queue-next-case-preview"]').getByRole("button", { name: "Взять следующий" })
+    ).toBeVisible();
     await expect(page.getByLabel("Фильтры и виды очереди")).toBeVisible();
     const [listBox, previewBox] = await Promise.all([rect(list), rect(preview)]);
     expect(Math.abs(listBox.y - previewBox.y) < 8).toBe(scenario.sideBySide);

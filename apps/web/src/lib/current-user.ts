@@ -142,10 +142,7 @@ export async function assertCanPersistSettings(user: { id: string }) {
 export async function getWorkspaceUsers(workspaceId: string) {
   return prisma.user.findMany({
     where: {
-      workspaceId,
-      role: {
-        not: "VIEWER"
-      }
+      workspaceId
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {

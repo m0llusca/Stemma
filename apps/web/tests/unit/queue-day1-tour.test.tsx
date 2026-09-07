@@ -31,6 +31,7 @@ describe("QueueDay1Tour", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Далее" }));
     expect(await screen.findByRole("region", { name: /Обзор очереди, шаг 3/ })).toBeInTheDocument();
+    expect(screen.getByText(/ещё не проверена или проверка завершена/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Понятно" }));
     expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();

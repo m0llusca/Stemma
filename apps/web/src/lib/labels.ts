@@ -132,10 +132,15 @@ export function conversationStatusLabel(status: string) {
   return labels[status] ?? status;
 }
 
+/**
+ * Binary reviewed/unreviewed slice for the queue «Итог» filter.
+ * Must not reuse reviewStateLabels chip words («В очереди» / «Завершена») —
+ * those belong to «Статус проверки» via qaStatusLabels.
+ */
 export const reviewQueueStatusLabels = {
   all: "Все",
-  unreviewed: "В очереди",
-  reviewed: "Завершена"
+  unreviewed: "Ещё не проверена",
+  reviewed: "Проверка завершена"
 } as const;
 
 export const samplingTypeLabels: Record<string, string> = {
