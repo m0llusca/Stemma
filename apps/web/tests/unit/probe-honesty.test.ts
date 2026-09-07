@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  adapterOperationalProfileTitle,
+  adapterOperationalStepsLabel,
   adapterProfileStep,
   certificationBadgeLabel,
   certificationEvidenceEmptyText,
@@ -18,6 +20,13 @@ describe("probe honesty copy", () => {
     expect(certificationBadgeLabel).toBe("Сертификация");
     expect(stepBadgeLabel).toBe("Шаг");
     expect(certificationBadgeLabel).not.toBe(stepBadgeLabel);
+  });
+
+  it("titles the adapter panel as operational profile/steps, not readiness", () => {
+    expect(adapterOperationalProfileTitle).toBe("Операционный профиль");
+    expect(adapterOperationalStepsLabel).toBe("Операционные шаги");
+    expect(adapterOperationalProfileTitle).not.toMatch(/Готовность/);
+    expect(adapterOperationalStepsLabel).not.toMatch(/Готовность/);
   });
 
   it("marks an incomplete profile as waiting with «Нужен адрес», not «Активно»", () => {

@@ -18,9 +18,13 @@ describe("admin probe honesty wiring", () => {
   it("splits adapter cert and step badges and does not mark an empty profile as active", () => {
     expect(integrationDetailPage).toContain("certificationBadgeLabel");
     expect(integrationDetailPage).toContain("stepBadgeLabel");
+    expect(integrationDetailPage).toContain("adapterOperationalProfileTitle");
+    expect(integrationDetailPage).toContain("adapterOperationalStepsLabel");
     expect(integrationDetailPage).toContain("adapterProfileStep(hasBaseUrl)");
     expect(integrationDetailPage).not.toContain('state: hasBaseUrl ? "ready" : "active"');
     expect(integrationDetailPage).not.toContain('label="Готовность"');
+    expect(integrationDetailPage).not.toContain("Готовность адаптера");
+    expect(integrationDetailPage).not.toContain("Маршрут готовности");
   });
 
   it("titles the integrations evidence drawer as an operational slice", () => {

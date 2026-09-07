@@ -155,7 +155,7 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   await page.getByRole("link", { name: "Znuny / OTRS / OTOBO" }).first().click();
   await expect(page).toHaveURL(/\/admin\/integrations\/(?!new$)[^/]+$/);
   await expect(page.getByRole("heading", { name: "Znuny / OTRS / OTOBO" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Готовность адаптера" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Операционный профиль" })).toBeVisible();
   await page.getByRole("tab", { name: "Операции" }).click();
   await expect(page.getByRole("heading", { name: "Чек-лист WebService" })).toBeVisible();
   const settingsPanel = page.getByRole("region", { name: "Настройка подключения" });
