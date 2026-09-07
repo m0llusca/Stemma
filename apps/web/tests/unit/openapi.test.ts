@@ -22,7 +22,7 @@ describe("openapi contract", () => {
       }
     });
     expect(document.paths["/health"].get.security).toEqual([]);
-    expect(document.paths["/openapi"].get.security).toEqual([]);
+    expect(document.paths["/openapi"].get.security).toEqual([{ sessionCookie: [] }]);
     expect(document.paths["/readiness"].get.responses["200"].content["application/json"].schema).toEqual({
       $ref: "#/components/schemas/ReadinessResponse"
     });

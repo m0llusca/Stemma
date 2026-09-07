@@ -32,10 +32,11 @@ export function buildOpenApiDocument() {
       },
       "/openapi": {
         get: {
-          security: noSecurity,
-          summary: "OpenAPI document for the public and admin API surface",
+          security: sessionSecurity,
+          summary: "OpenAPI document (public in development; session + backend_jobs:manage in production)",
           responses: {
-            "200": { description: "OpenAPI 3.1 документ" }
+            "200": { description: "OpenAPI 3.1 документ" },
+            "404": { description: "Не найдено в production без прав управления" }
           }
         }
       },
