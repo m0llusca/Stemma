@@ -8,6 +8,7 @@ import type {
   ReviewStatus,
   RiskLevel
 } from "@prisma/client";
+import { integrationOpsStatusLabel } from "@/lib/integrations/labels";
 import { qaStatusToReviewState, reviewStateLabels } from "@/lib/review-state";
 
 export const channelLabels: Record<ConversationChannel, string> = {
@@ -86,17 +87,8 @@ export function formatMessageCount(count: number) {
   return `${count} сообщений`;
 }
 
-export function integrationStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    planned: "Запланировано",
-    ready: "Готова к подключению",
-    active: "Активна",
-    queued: "В очереди",
-    paused: "На паузе",
-    error: "Ошибка"
-  };
-
-  return labels[status] ?? status;
+export function integrationStatusLabel(status: string, certificationStatus?: string | null) {
+  return integrationOpsStatusLabel(status, certificationStatus);
 }
 
 export function externalSourceLabel(source: string) {

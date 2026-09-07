@@ -44,6 +44,7 @@ import { certificationDisplayTone } from "@/lib/certification/status";
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { capabilityMatrixFromContract } from "@/lib/integrations/connect/capability-probe-display";
+import { diagnosticReadinessHint, readinessActionLabel } from "@/lib/integrations/labels";
 import { parseOtrsConnectorConfig, redactOtrsConfigForUi } from "@/lib/integrations/otrs-family/config";
 import { summarizeIntegrationSecretSlots } from "@/lib/integrations/otrs-family/credentials";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
@@ -165,10 +166,6 @@ function hasRequiredCredentialSlots(
   requiredSecrets: string[]
 ) {
   return requiredSecrets.every((secret) => credentials.some((credential) => credential.kind === secret));
-}
-
-function readinessActionLabel(hasBaseUrl: boolean, hasRequiredSecrets: boolean) {
-  return hasBaseUrl && hasRequiredSecrets ? "Готово к живой сертификации" : "Ожидает доступы";
 }
 
 function certificationTone(status: string): StatusTone {
@@ -399,7 +396,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
             </p>
             <p className="mt-1 break-words text-sm text-muted-foreground">
               {hasBaseUrl && hasRequiredSecrets
-                ? "Можно переходить к диагностике, предпросмотру и свидетельствам боевого режима без раскрытия секретов."
+                ? "Можно переходить к диагностике, предпросмотру и свидетельствам сертификации без раскрытия секретов."
                 : "Сначала закройте профиль и обязательные секреты, затем запускайте диагностику и preview."}
             </p>
           </div>
@@ -530,7 +527,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
             <span>
               {readinessActionLabel(hasBaseUrl, hasRequiredSecrets)}.
               {hasRunnableDiagnostics
-                ? " Можно запускать безопасную диагностику из панели операций."
+                ? ` ${diagnosticReadinessHint(true)} из панели операций.`
                 : canRunDiagnostics
                   ? " Условия выполнены, но действие диагностики для этого адаптера пока не подключено."
                   : " Действие появится после адреса источника и обязательных секретов."}
@@ -691,7 +688,7 @@ function NonOtrsIntegrationSummary({
             <span className="flex min-w-0 flex-wrap items-center gap-2">
               <span>{externalSourceLabel(integration.source)}</span>
               <Badge variant="outline" className="font-normal">
-                {integrationStatusLabel(integration.status)}
+                {integrationStatusLabel(integration.status, capability.certification.summary.status)}
               </Badge>
             </span>
           </IntegrationFact>
@@ -701,8 +698,8 @@ function NonOtrsIntegrationSummary({
           </IntegrationFact>
           <IntegrationFact label="Диагностика">
             {canRunDiagnostics
-              ? "Условия для диагностики выполнены; действие диагностики для этого адаптера пока не подключено."
-              : "Диагностика ожидает адрес источника и обязательные секреты."}
+              ? `${readinessActionLabel(hasBaseUrl, hasRequiredSecrets)}. ${diagnosticReadinessHint(true)}. Действие диагностики для этого адаптера пока не подключено.`
+              : `${readinessActionLabel(hasBaseUrl, hasRequiredSecrets)}. Действие появится после адреса источника и обязательных секретов.`}
           </IntegrationFact>
         </div>
       </section>
@@ -821,12 +818,14 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
   }
   const latestRun = integration.runs[0];
   const credentialSummaries = summarizeIntegrationSecretSlots(integration.credentials);
+  const capability = getIntegrationCapability(integration.source, integration.type);
+  const opsStatusLabel = integrationStatusLabel(integration.status, capability.certification.summary.status);
 
   return (
     <PageShell
       eyebrow={adminEyebrow}
       title={integration.displayName}
-      description={`${externalSourceLabel(integration.source)} · ${integrationTypeLabel(integration.type)} · ${integrationStatusLabel(integration.status)} · последний запуск ${formatDate(latestRun?.startedAt)}`}
+      description={`${externalSourceLabel(integration.source)} · ${integrationTypeLabel(integration.type)} · ${opsStatusLabel} · последний запуск ${formatDate(latestRun?.startedAt)}`}
     >
       <AdminFrame>
       <AdminSectionTabs
@@ -896,7 +895,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
           <CardContent className="grid min-w-0 items-start gap-4 pt-(--card-spacing) xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
             <div className="grid min-w-0 rounded-lg border border-border px-3">
               <IntegrationFact label="Статус интеграции">
-                {integrationStatusLabel(integration.status)}
+                {opsStatusLabel}
               </IntegrationFact>
               <IntegrationFact label="Последние запуски">
                 Пробный запуск: {formatDate(integration.lastDryRunAt)} · импорт:{" "}
