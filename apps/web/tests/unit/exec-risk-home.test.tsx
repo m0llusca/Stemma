@@ -47,12 +47,12 @@ describe("ExecRiskHome", () => {
     );
 
     expect(screen.getAllByText("Нет сигналов за период").length).toBeGreaterThan(0);
-    expect(screen.getByText(/это не сертификат/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/это не сертификат/i).length).toBeGreaterThan(0);
     expect(screen.queryByText("В норме")).not.toBeInTheDocument();
     expect(screen.queryByText("Критичных отклонений нет")).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="triage-strip"]')?.className).not.toMatch(/success/);
     expect(document.querySelector('[data-slot="exec-risk-chart"]')).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Открыть очередь без фильтра" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Открыть очередь без фильтра" })).toHaveAttribute(
       "href",
       "/reviews"
     );

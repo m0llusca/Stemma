@@ -110,7 +110,7 @@ function kpiInput(input: ExecRiskChartHrefInput) {
  * Chart / tile drill for one exec risk bar.
  * Overdue and queued reuse `opsQueueKpiMetricHref` (same contract as ops KPI).
  * High risk uses the existing 30-day findings href when the count is live;
- * a zero bar falls back to the role-home queue reset — never `status=unreviewed`.
+ * a zero bar falls back to the role-home queue reset — never the unreviewed impostor.
  */
 export function execRiskChartBarHref(
   key: ExecRiskChartKey,
