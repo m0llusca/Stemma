@@ -45,11 +45,13 @@ export type ExecRiskNarrative = {
 
 /**
  * 30-second exec story: SLA first, then high-risk findings, then unstarted queue.
- * Every narrative points at a filtered queue — never a vanity chart.
+ * Live signals drill into a filtered queue. All-zero uses the same role-home
+ * reset as the chart EmptyState — never a QUEUED dump of an empty slice.
  */
 export function buildExecRiskNarrative(
   signal: ExecRiskSignal,
-  hrefs: ExecRiskHrefSet
+  hrefs: ExecRiskHrefSet,
+  options: { role?: RoleName; name?: string } = {}
 ): ExecRiskNarrative {
   if (signal.overdueReviewCount > 0) {
     return {
@@ -84,7 +86,7 @@ export function buildExecRiskNarrative(
   return {
     title: "Нет сигналов за период",
     description: "В текущих срезах нет просроченного SLA и высокого риска — это не сертификат «всё в порядке». Откройте очередь, чтобы проверить объём.",
-    primaryHref: hrefs.queued,
+    primaryHref: queueFilterResetHref(options.role ?? "EXEC", { name: options.name }),
     actionLabel: "Открыть очередь",
     tone: "accent"
   };

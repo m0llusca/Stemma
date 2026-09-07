@@ -52,10 +52,12 @@ describe("ExecRiskHome", () => {
     expect(screen.queryByText("Критичных отклонений нет")).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="triage-strip"]')?.className).not.toMatch(/success/);
     expect(document.querySelector('[data-slot="exec-risk-chart"]')).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Открыть очередь без фильтра" })).toHaveAttribute(
-      "href",
-      "/reviews"
-    );
+    const triagePrimary = screen.getByRole("button", { name: /^Открыть очередь$/ });
+    const chartReset = screen.getByRole("button", { name: /^Открыть очередь без фильтра$/ });
+    expect(triagePrimary).toHaveAttribute("href", "/reviews");
+    expect(chartReset).toHaveAttribute("href", "/reviews");
+    expect(triagePrimary.getAttribute("href")).toBe(chartReset.getAttribute("href"));
+    expect(triagePrimary).not.toHaveAttribute("href", hrefs.queued);
     expect(screen.queryByText("Нагрузка проверяющих")).not.toBeInTheDocument();
     expect(screen.queryByText("Последняя активность")).not.toBeInTheDocument();
     expect(screen.queryByText("Ближайшее обучение")).not.toBeInTheDocument();

@@ -38,12 +38,35 @@ describe("buildExecRiskNarrative", () => {
       tone: "warning"
     });
     expect(
-      buildExecRiskNarrative({ overdueReviewCount: 0, highRiskCount: 0, queuedCount: 0 }, hrefs)
+      buildExecRiskNarrative({ overdueReviewCount: 0, highRiskCount: 0, queuedCount: 0 }, hrefs, {
+        role: "EXEC"
+      })
     ).toMatchObject({
       title: "Нет сигналов за период",
-      primaryHref: hrefs.queued,
+      primaryHref: queueFilterResetHref("EXEC"),
       tone: "accent"
     });
+  });
+
+  it("locks all-zero TriageStrip primary to the same reset as the chart EmptyState", () => {
+    const zero = { overdueReviewCount: 0, highRiskCount: 0, queuedCount: 0 };
+    const role = "EXEC" as const;
+    const narrative = buildExecRiskNarrative(zero, hrefs, { role });
+    const chart = buildExecRiskChartModel({ signal: zero, hrefs, role });
+
+    expect(chart.empty).toBe(true);
+    if (!chart.empty) {
+      throw new Error("expected an empty chart model");
+    }
+
+    expect(narrative.primaryHref).toBe(chart.resetHref);
+    expect(narrative.primaryHref).toBe(queueFilterResetHref(role));
+    expect(narrative.primaryHref).toBe(
+      opsQueueKpiHref({ overdueReviewCount: 0, queuedCount: 0, role })
+    );
+    expect(narrative.primaryHref).toBe("/reviews");
+    expect(narrative.primaryHref).not.toBe(hrefs.queued);
+    expect(narrative.primaryHref).not.toBe(EMPTY_TRIAGE_IMPOSTOR_HREF);
   });
 });
 

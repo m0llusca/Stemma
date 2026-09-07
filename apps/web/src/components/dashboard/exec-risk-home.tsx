@@ -51,7 +51,7 @@ export function ExecRiskHome({
   name?: string;
 }) {
   const chartInput = { signal, hrefs, role, name };
-  const narrative = buildExecRiskNarrative(signal, hrefs);
+  const narrative = buildExecRiskNarrative(signal, hrefs, { role, name });
   const chart = buildExecRiskChartModel(chartInput);
   const NarrativeIcon =
     signal.overdueReviewCount > 0 ? Clock3 : signal.highRiskCount > 0 ? TriangleAlert : ClipboardCheck;
