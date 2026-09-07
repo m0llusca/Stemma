@@ -29,31 +29,34 @@ Modifiers: plain `meta` / `ctrl` / `alt` chords other than `Cmd/Ctrl+Enter` are 
 
 ## Take next eligibility
 
-Two related surfaces share **priority order** via `nextReviewOrderBy` / `nextReviewWhere` in `apps/web/src/lib/review/next-review-query.ts`:
+Two surfaces share **priority + filter scope** via `selectNextReviewConversationId` in `apps/web/src/lib/queue-view-actions.ts`. Base eligibility is `nextReviewWhere` / `nextReviewOrderBy` (`apps/web/src/lib/review/next-review-query.ts`). Active view filters are AND-ed on top through `buildReviewQueueWhere`.
 
-1. Queue action **«Взять следующий»** → `takeNextReview` → `selectNextReviewConversationId`
-2. Workbench **«Завершить и взять следующий»** → `finalizeReviewAndTakeNext` → same selector (excluding the case just finished)
+1. Queue **«Взять следующий»** → `takeNextReview` → `queueHref` → `filtersFromReviewsHref` → same selector
+2. Workbench **«Завершить и взять следующий»** (`intent=finalize_next`) → `finalizeReviewAndTakeNext` → `returnTo` → same parser and selector (excludes the case just finished)
 
-**Scope today (do not silently widen/narrow):**
+**Always (workspace / role / sampling):**
 
 - same workspace
 - `qaStatus` not `FINALIZED`
-- support agents: only conversations assigned to them (`assigneeName`)
+- `samplingType` not `OUT_OF_SAMPLE`
+- support agents: only conversations assigned to them (`assigneeId`)
 - order: `reviewDueAt` asc (nulls last), then `openedAt` desc
 
-**Queue URL filters** (status, risk, due, assignee chips, saved views, …) shape the **list** and the **«Следующий кейс»** preview (`conversations[0]` of the filtered set). They do **not** rewrite `takeNextReview` eligibility. Aligning Take next with active filters is a separate, explicit change — not a silent patch inside this contract.
+**Active view (URL / saved view):** same filter set as the queue list and **«Следующий кейс»** preview (`conversations[0]` of that set). Status, risk, due, assignee, process, and the rest of `ReviewQueueFilters` apply. Saved views are hrefs — the stored `/reviews?…` query is the filter set. No active filter → base `nextReviewWhere` only (unfiltered SLA order).
 
-## Known limitation: Take next ≠ URL filters
+Do not silently drop filters from take-next, and do not invent a second eligibility path.
 
-**Status:** accepted mismatch (do not “fix” silently).
+## Take next = URL / saved-view filters
+
+**Status:** contract. List, preview, and take-next share one filter set.
 
 | Surface | Driven by filters? | Driven by |
 | --- | --- | --- |
 | Queue table rows | Yes | URL / saved view query |
 | «Следующий кейс» preview | Yes | First row of the filtered list |
-| **«Взять следующий»** / **finalize_next** | **No** | `nextReviewWhere` / `nextReviewOrderBy` only |
+| **«Взять следующий»** / **finalize_next** | **Yes** | `nextReviewWhere` AND `buildReviewQueueWhere(filtersFromReviewsHref(queueHref \| returnTo))` |
 
-Operators with a narrow saved view can see case A as preview, press Take next, and land on case B (workspace priority outside the view). That is intentional until product explicitly decides to bind Take next to the active filter set — and ships that as a named change with tests, not a quiet eligibility tweak.
+An operator on a narrow saved view sees case A as preview, presses Take next, and opens case A (or the next remaining row in that same filtered set). Landing on workspace priority outside the view is a bug.
 
 ## Next-case preview
 
@@ -72,4 +75,4 @@ Operators with a narrow saved view can see case A as preview, press Take next, a
 | Take-next query | `apps/web/src/lib/review/next-review-query.ts` |
 | Take-next actions | `apps/web/src/lib/queue-view-actions.ts`, `apps/web/src/lib/review-actions.ts` |
 | Preview UI | `apps/web/src/components/review/queue-next-case-preview.tsx` |
-| Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx` |
+| Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
