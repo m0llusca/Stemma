@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  filtersFromReviewsHref,
+  hasActiveQueueFilters,
   queueHrefFromLocation,
   takeNextFormDataFromLocation
 } from "@/lib/review/queue-href-filters";
+import { parseReviewQueueFilters } from "@/lib/review-repository";
 
 describe("queueHrefFromLocation", () => {
   it("keeps the active queue URL including filters", () => {
@@ -37,5 +40,21 @@ describe("takeNextFormDataFromLocation", () => {
   it("omits queueHref when there is no active queue view", () => {
     const formData = takeNextFormDataFromLocation("/dashboard");
     expect(formData.get("queueHref")).toBeNull();
+  });
+});
+
+describe("hasActiveQueueFilters", () => {
+  it("ignores empty/page/saved markers so a take-next redirect is not a filter", () => {
+    expect(hasActiveQueueFilters(parseReviewQueueFilters({ empty: "1", page: "2", saved: "final" }))).toBe(
+      false
+    );
+    expect(filtersFromReviewsHref("/reviews?empty=1&saved=final")).toBeUndefined();
+  });
+
+  it("treats a chip on the take-next empty redirect as an active view", () => {
+    expect(hasActiveQueueFilters(parseReviewQueueFilters({ due: "overdue", empty: "1" }))).toBe(true);
+    expect(filtersFromReviewsHref("/reviews?due=overdue&empty=1")).toEqual(
+      expect.objectContaining({ due: "overdue" })
+    );
   });
 });

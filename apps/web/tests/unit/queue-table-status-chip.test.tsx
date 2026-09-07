@@ -3,6 +3,13 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { QueueTable } from "@/components/review/queue-table";
 import type { ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
+import {
+  QUEUE_EMPTY_RESET_FILTERS_LABEL,
+  QUEUE_TABLE_EMPTY_FILTERED_DESCRIPTION,
+  QUEUE_TABLE_EMPTY_FILTERED_TITLE,
+  QUEUE_TABLE_EMPTY_GLOBAL_DESCRIPTION,
+  QUEUE_TABLE_EMPTY_GLOBAL_TITLE
+} from "@/lib/review/queue-empty-copy";
 import { pendingReopenLabel, resolveQueueStatusChip, reviewStateLabels } from "@/lib/review-state";
 
 vi.mock("@/lib/review-workflow-actions", () => ({
@@ -74,5 +81,28 @@ describe("QueueTable status chip", () => {
     const chip = screen.getByText(pendingReopenLabel, { selector: ".chip" });
     expect(chip.textContent).toBe(resolveQueueStatusChip(row).label);
     expect(screen.queryByText("Завершено")).not.toBeInTheDocument();
+  });
+});
+
+describe("QueueTable empty state", () => {
+  it("uses the import story when the workspace queue is truly empty", () => {
+    render(<QueueTable conversations={[]} qaAssignees={[]} returnTo="/reviews?empty=1" />);
+
+    expect(screen.getByText(QUEUE_TABLE_EMPTY_GLOBAL_TITLE)).toBeInTheDocument();
+    expect(screen.getByText(QUEUE_TABLE_EMPTY_GLOBAL_DESCRIPTION)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: QUEUE_EMPTY_RESET_FILTERS_LABEL })).not.toBeInTheDocument();
+    expect(screen.queryByText(QUEUE_TABLE_EMPTY_FILTERED_TITLE)).not.toBeInTheDocument();
+  });
+
+  it("scopes copy and offers reset when chips emptied the current view", () => {
+    render(<QueueTable conversations={[]} qaAssignees={[]} returnTo="/reviews?due=overdue&empty=1" />);
+
+    expect(screen.getByText(QUEUE_TABLE_EMPTY_FILTERED_TITLE)).toBeInTheDocument();
+    expect(screen.getByText(QUEUE_TABLE_EMPTY_FILTERED_DESCRIPTION)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: QUEUE_EMPTY_RESET_FILTERS_LABEL }).closest("a")).toHaveAttribute(
+      "href",
+      "/reviews"
+    );
+    expect(screen.queryByText(QUEUE_TABLE_EMPTY_GLOBAL_DESCRIPTION)).not.toBeInTheDocument();
   });
 });

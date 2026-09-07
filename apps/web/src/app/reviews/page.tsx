@@ -28,6 +28,7 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import { takeNextReview } from "@/lib/queue-view-actions";
+import { hasActiveQueueFilters } from "@/lib/review/queue-href-filters";
 import type { ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
 import {
@@ -208,7 +209,7 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       <ReviewSavedToast marker={savedMarker} />
       <WelcomeBackBanner />
       <QueueDay1Tour />
-      {queueEmpty ? <QueueEmptyBanner /> : null}
+      {queueEmpty ? <QueueEmptyBanner hasActiveFilters={hasActiveQueueFilters(data.filters)} /> : null}
 
       <QueueWorkspace.CommandBar
         aria-label="Фильтры и виды очереди"

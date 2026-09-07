@@ -273,4 +273,15 @@ describe("queue view actions", () => {
 
     expect(mocks.redirect).toHaveBeenCalledWith("/reviews?empty=1");
   });
+
+  it("keeps active filters on the empty-queue redirect so the banner can scope copy", async () => {
+    mocks.prisma.conversation.findFirst.mockResolvedValue(null);
+    const { takeNextReview } = await import("@/lib/queue-view-actions");
+    const formData = new FormData();
+    formData.set("queueHref", "/reviews?due=overdue");
+
+    await expect(takeNextReview(formData)).rejects.toThrow("NEXT_REDIRECT:/reviews?due=overdue&empty=1");
+
+    expect(mocks.redirect).toHaveBeenCalledWith("/reviews?due=overdue&empty=1");
+  });
 });
