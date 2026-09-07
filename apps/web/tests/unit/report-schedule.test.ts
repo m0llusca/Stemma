@@ -155,7 +155,8 @@ describe("enqueueDueReportSchedules", () => {
     expect(result.enqueuedCount).toBe(0);
   });
 
-  it("tolerates malformed filtersJson by enqueuing empty filters", async () => {
+  it("skips enqueue and deactivates schedule when filtersJson is invalid", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const client = buildClient([
       {
         id: "sched-2",
@@ -170,11 +171,88 @@ describe("enqueueDueReportSchedules", () => {
       }
     ]);
 
-    await enqueueDueReportSchedules(now, client as never);
+    const result = await enqueueDueReportSchedules(now, client as never);
 
-    const [jobInput] = mocks.enqueueBackendJob.mock.calls[0];
-    expect(jobInput.payload.filters).toEqual({});
+    expect(mocks.enqueueBackendJob).not.toHaveBeenCalled();
     expect(client.reportSchedule.updateMany).toHaveBeenCalled();
+    expect(client.reportSchedule.update).toHaveBeenCalledWith({
+      where: { id: "sched-2" },
+      data: { isActive: false }
+    });
+    expect(result.enqueuedCount).toBe(0);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[report-schedule] skip enqueue for sched-2")
+    );
+    errorSpy.mockRestore();
+  });
+
+  it("skips enqueue for non-object filtersJson without widening to {}", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const client = buildClient([
+      {
+        id: "sched-array",
+        workspaceId: "workspace-1",
+        name: "Массив вместо объекта",
+        periodPreset: "last_7_days",
+        exportFormat: "xlsx",
+        cadence: "weekly",
+        filtersJson: "[1,2]",
+        createdById: "user-1",
+        nextRunAt: now
+      }
+    ]);
+
+    const result = await enqueueDueReportSchedules(now, client as never);
+
+    expect(mocks.enqueueBackendJob).not.toHaveBeenCalled();
+    expect(client.reportSchedule.update).toHaveBeenCalledWith({
+      where: { id: "sched-array" },
+      data: { isActive: false }
+    });
+    expect(result.enqueuedCount).toBe(0);
+    errorSpy.mockRestore();
+  });
+
+  it("continues other schedules after a filtersJson failure", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const client = buildClient([
+      {
+        id: "sched-bad",
+        workspaceId: "workspace-1",
+        name: "Битый",
+        periodPreset: "last_7_days",
+        exportFormat: "csv",
+        cadence: "daily",
+        filtersJson: "null",
+        createdById: null,
+        nextRunAt: now
+      },
+      {
+        id: "sched-good",
+        workspaceId: "workspace-1",
+        name: "Нормальный",
+        periodPreset: "last_7_days",
+        exportFormat: "xlsx",
+        cadence: "weekly",
+        filtersJson: JSON.stringify({ supportLine: "L1" }),
+        createdById: "user-1",
+        nextRunAt: now
+      }
+    ]);
+
+    const result = await enqueueDueReportSchedules(now, client as never);
+
+    expect(mocks.enqueueBackendJob).toHaveBeenCalledTimes(1);
+    expect(mocks.enqueueBackendJob.mock.calls[0][0].payload).toMatchObject({
+      name: "Нормальный",
+      filters: { supportLine: "L1" }
+    });
+    expect(client.reportSchedule.update).toHaveBeenCalledWith({
+      where: { id: "sched-bad" },
+      data: { isActive: false }
+    });
+    expect(result.enqueuedCount).toBe(1);
+    errorSpy.mockRestore();
   });
 
   it("skips enqueue when another worker already claimed the due slot", async () => {

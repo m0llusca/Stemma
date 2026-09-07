@@ -99,13 +99,23 @@ export function computeInitialNextRun(cadence: string, now: Date): Date {
   return advanceNextRun(cadence, now);
 }
 
+/**
+ * Fail-closed filters parse: only a plain JSON object is accepted. Invalid JSON,
+ * arrays, null, and primitives throw — never silently widen to {}.
+ */
 function parseFiltersJson(filtersJson: string): Record<string, unknown> {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(filtersJson);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    parsed = JSON.parse(filtersJson);
   } catch {
-    return {};
+    throw new Error("filtersJson must be valid JSON object");
   }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("filtersJson must be a JSON object");
+  }
+
+  return parsed as Record<string, unknown>;
 }
 
 type DueScheduleRow = {
@@ -157,6 +167,23 @@ export async function enqueueDueReportSchedules(now: Date, client: ReportSchedul
       continue;
     }
 
+    let filters: Record<string, unknown>;
+    try {
+      filters = parseFiltersJson(schedule.filtersJson);
+    } catch (error) {
+      // nextRunAt already advanced by CAS — no tight retry. Deactivate so the
+      // broken filtersJson cannot keep producing empty/wrong exports.
+      const reason = error instanceof Error ? error.message : "invalid filtersJson";
+      console.error(
+        `[report-schedule] skip enqueue for ${schedule.id}: ${reason}; deactivating schedule`
+      );
+      await client.reportSchedule.update({
+        where: { id: schedule.id },
+        data: { isActive: false }
+      });
+      continue;
+    }
+
     const { start, end } = resolvePeriodPreset(schedule.periodPreset, now);
 
     await enqueueBackendJob(
@@ -170,7 +197,7 @@ export async function enqueueDueReportSchedules(now: Date, client: ReportSchedul
           name: schedule.name,
           periodStart: start.toISOString(),
           periodEnd: end.toISOString(),
-          filters: parseFiltersJson(schedule.filtersJson),
+          filters,
           format: schedule.exportFormat,
           reportScheduleId: schedule.id
         }
