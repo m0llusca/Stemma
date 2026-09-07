@@ -57,6 +57,8 @@ describe("dashboard page copy", () => {
   it("tones lead/admin dashboard toward risk/SLA and hides activity ops chrome", () => {
     expect(dashboardPage).toContain('user.role === "TEAM_LEAD" || user.role === "ADMIN"');
     expect(dashboardPage).toContain("Риск и просроченный SLA за 30 секунд");
+    expect(dashboardPage).not.toContain("Ops-лента и суета фильтров скрыты");
+    expect(dashboardPage).toContain("Нагрузка проверяющих, обучение и фокус остаются на экране");
     expect(dashboardPage).toContain("isLeadDashboard ? null : (");
     expect(dashboardPage).toContain("EvidenceDrawer");
     expect(dashboardPage).toContain('"Высокий риск"');

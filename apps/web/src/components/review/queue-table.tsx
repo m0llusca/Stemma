@@ -40,6 +40,8 @@ type QueueTableProps = {
   conversations: ReviewQueueConversationDto[];
   qaAssignees: ReviewQueueAssigneeDto[];
   returnTo: string;
+  /** Inbox home after reset. Analyst keeps mine+overdue; others go to `/reviews`. */
+  resetHref?: string;
   /** reviews:write — hide bulk chrome and row checkboxes for EXEC / SUPPORT_AGENT. */
   canWriteReviews: boolean;
 };
@@ -227,7 +229,13 @@ function QueueConversationsTable({
   );
 }
 
-export function QueueTable({ conversations, qaAssignees, returnTo, canWriteReviews }: QueueTableProps) {
+export function QueueTable({
+  conversations,
+  qaAssignees,
+  returnTo,
+  resetHref = "/reviews",
+  canWriteReviews
+}: QueueTableProps) {
   if (conversations.length === 0) {
     return (
       <Card className="overflow-clip">
@@ -237,7 +245,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo, canWriteRevie
             title="Очередь пуста"
             description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
             action={
-              <Button render={<Link href="/reviews" />} nativeButton={false}>
+              <Button render={<Link href={resetHref} />} nativeButton={false}>
                 Сбросить фильтры
               </Button>
             }

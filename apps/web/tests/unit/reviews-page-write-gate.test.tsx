@@ -40,6 +40,7 @@ function pageData(overrides: Partial<ReviewQueuePageData> = {}): ReviewQueuePage
   return {
     filters: { status: "all" },
     currentHref: "/reviews",
+    filterResetHref: "/reviews",
     currentAssigneeName: "Мария",
     conversations: [
       {

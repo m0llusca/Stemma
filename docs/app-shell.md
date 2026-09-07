@@ -4,7 +4,7 @@ Authenticated Stemma routes should render a lightweight shell before expensive p
 
 ## Shell Snapshot
 
-`apps/web/src/lib/shell/snapshot.ts` exposes `getShellSnapshot()` and `buildShellNavItems()`.
+`apps/web/src/lib/shell/snapshot.ts` exposes `getShellSnapshot()`. Navigation is built by `buildShellNavigation` and `visibleTopNavAreas` (`apps/web/src/lib/shell/navigation.ts`).
 
 The snapshot is intentionally small:
 
@@ -48,7 +48,8 @@ Sidebar and topbar counters or alerts should be non-blocking. Load them in isola
 
 Authenticated pages should expose a route-level `loading.tsx` when page data can wait. Use `PageSkeleton` from `apps/web/src/components/loading-states.tsx` with the closest variant:
 
-- `dashboard`
+- `dashboard` (ops pulse: 4 KPI + dual panels)
+- `exec` (ExecRiskHome: 3 KPI, no ops dual panels)
 - `workspace`
 - `detail`
 - `reports`

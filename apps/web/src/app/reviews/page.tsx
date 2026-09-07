@@ -231,6 +231,7 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
           supportLines={data.filterOptions.supportLines}
           teamNames={data.filterOptions.teamNames}
           resultCount={filteredCount}
+          resetHref={data.filterResetHref}
         />
       </QueueWorkspace.CommandBar>
 
@@ -244,6 +245,7 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
             conversations={queuePage.items}
             qaAssignees={data.qaAssignees}
             returnTo={data.currentHref}
+            resetHref={data.filterResetHref}
             canWriteReviews={data.canWriteReviews}
           />
           {queuePage.pageCount > 1 ? (

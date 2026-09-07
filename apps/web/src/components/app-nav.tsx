@@ -113,7 +113,12 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
   const items: PulseItem[] = [];
   if (canSeeOpsPulse) {
     items.push({ href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: queuedCount });
-    items.push({ href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: highRiskCount, tone: "risk" });
+    items.push({
+      href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+      label: "Риск",
+      value: highRiskCount,
+      tone: highRiskCount > 0 ? "risk" : "neutral"
+    });
   }
   if (canAccessTraining) {
     items.push({ href: "/coaching", label: "Обучение", value: trainingCount, tone: trainingCount > 0 ? "warning" : "neutral" });
