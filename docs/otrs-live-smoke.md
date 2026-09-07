@@ -76,7 +76,11 @@ npm run test:otrs:live
 
 ## Selected Import Smoke
 
-Selected import is opt-in and persists the normalized preview into the configured workspace. It requires `OTRS_LIVE_IMPORT=1`, `DATABASE_URL`, and `OTRS_LIVE_WORKSPACE_ID`.
+This harness TicketGets, then persists the normalized ticket. That is not the cockpit job.
+
+Cockpit selected import queues `INTEGRATION_IMPORT` / `otrs_selected_import` and reads stored preview JSON. Lock TX, heartbeats, crash/resume: [otrs-selected-import.md](otrs-selected-import.md).
+
+Live-smoke persist is opt-in: `OTRS_LIVE_IMPORT=1`, `DATABASE_URL`, and `OTRS_LIVE_WORKSPACE_ID`.
 
 ```bash
 cd apps/web

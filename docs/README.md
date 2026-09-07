@@ -3,6 +3,7 @@
 | Doc | Description |
 | --- | --- |
 | [otrs-live-smoke.md](otrs-live-smoke.md) | Gated OTRS / Znuny live smoke harness |
+| [otrs-selected-import.md](otrs-selected-import.md) | Cockpit selected OTRS import: lock TX, heartbeats, crash/resume |
 | [jobs-scheduling.md](jobs-scheduling.md) | Background jobs |
 | [integration-install-contracts.md](integration-install-contracts.md) | Install / capability contracts |
 | [app-shell.md](app-shell.md) | App shell notes |
