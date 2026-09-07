@@ -4,14 +4,25 @@ import { describe, expect, it } from "vitest";
 import { certificationDisplayTone, isLiveCertified } from "@/lib/certification/status";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import {
+  accessPipelineStageTone,
+  adminHubAccessTone,
+  adminHubAppearanceTone,
+  adminHubChannelsTone,
+  adminHubIntegrationsTone,
   catalogReadinessTone,
+  certificationPipelineStageTone,
+  diagnosticsPipelineStageTone,
+  importPipelineStageTone,
   integrationConnectionTone,
-  messagingChannelTone
+  integrationPriorityTone,
+  messagingChannelTone,
+  monitoringPipelineStageTone
 } from "@/lib/integrations/connection-tone";
 
 const integrationsPage = readFileSync(join(process.cwd(), "src/app/admin/integrations/page.tsx"), "utf8");
 const systemPage = readFileSync(join(process.cwd(), "src/app/admin/system/page.tsx"), "utf8");
 const channelsPage = readFileSync(join(process.cwd(), "src/app/admin/channels/page.tsx"), "utf8");
+const adminHubPage = readFileSync(join(process.cwd(), "src/app/admin/page.tsx"), "utf8");
 
 describe("integration connection tone", () => {
   it("does not paint ready or active as success without live cert", () => {
@@ -141,5 +152,192 @@ describe("admin catalog chip wiring", () => {
       '["live_certified", "docs_checked", "contract_certified", "stub_certified"]'
     );
     expect(integrationsPage).toContain("isLiveCertified(capability.certification.summary.status)");
+  });
+});
+
+describe("integration priority tone", () => {
+  it("does not default to positive when sources exist without live-cert coverage", () => {
+    expect(
+      integrationPriorityTone({
+        failedDiagnostics: 0,
+        activeSourceCount: 3,
+        activeJobCount: 0,
+        certifiedCount: 0,
+        integrationCount: 3
+      })
+    ).toBe("warning");
+    expect(
+      integrationPriorityTone({
+        failedDiagnostics: 0,
+        activeSourceCount: 3,
+        activeJobCount: 0,
+        certifiedCount: 2,
+        integrationCount: 3
+      })
+    ).not.toBe("positive");
+  });
+
+  it("stays info while jobs run and negative when diagnostics failed", () => {
+    expect(
+      integrationPriorityTone({
+        failedDiagnostics: 0,
+        activeSourceCount: 2,
+        activeJobCount: 1,
+        certifiedCount: 2,
+        integrationCount: 2
+      })
+    ).toBe("info");
+    expect(
+      integrationPriorityTone({
+        failedDiagnostics: 1,
+        activeSourceCount: 2,
+        activeJobCount: 0,
+        certifiedCount: 2,
+        integrationCount: 2
+      })
+    ).toBe("negative");
+  });
+
+  it("is positive only after honest live-cert coverage", () => {
+    expect(
+      integrationPriorityTone({
+        failedDiagnostics: 0,
+        activeSourceCount: 2,
+        activeJobCount: 0,
+        certifiedCount: 2,
+        integrationCount: 2
+      })
+    ).toBe("positive");
+  });
+});
+
+describe("integration pipeline stage tones", () => {
+  it("does not green Доступы when only a configured subset is credentialed", () => {
+    expect(accessPipelineStageTone({ integrationCount: 3, accessReadyCount: 2 })).toBe("warn");
+    expect(accessPipelineStageTone({ integrationCount: 2, accessReadyCount: 2 })).toBe("ok");
+    expect(accessPipelineStageTone({ integrationCount: 0, accessReadyCount: 0 })).toBe("warn");
+  });
+
+  it("does not green Диагностика on a partial last slice without failures", () => {
+    expect(
+      diagnosticsPipelineStageTone({
+        integrationCount: 3,
+        successfulDiagnostics: 1,
+        failedDiagnostics: 0
+      })
+    ).toBe("warn");
+    expect(
+      diagnosticsPipelineStageTone({
+        integrationCount: 3,
+        successfulDiagnostics: 3,
+        failedDiagnostics: 0
+      })
+    ).toBe("ok");
+    expect(
+      diagnosticsPipelineStageTone({
+        integrationCount: 3,
+        successfulDiagnostics: 2,
+        failedDiagnostics: 1
+      })
+    ).toBe("error");
+    expect(
+      diagnosticsPipelineStageTone({
+        integrationCount: 0,
+        successfulDiagnostics: 0,
+        failedDiagnostics: 0
+      })
+    ).toBe("neutral");
+  });
+
+  it("does not green Мониторинг just because active sources exist", () => {
+    expect(
+      monitoringPipelineStageTone({
+        activeSourceCount: 2,
+        monitoredSourceCount: 0,
+        activeJobCount: 0
+      })
+    ).toBe("warn");
+    expect(
+      monitoringPipelineStageTone({
+        activeSourceCount: 2,
+        monitoredSourceCount: 2,
+        activeJobCount: 1
+      })
+    ).toBe("warn");
+    expect(
+      monitoringPipelineStageTone({
+        activeSourceCount: 2,
+        monitoredSourceCount: 2,
+        activeJobCount: 0
+      })
+    ).toBe("ok");
+  });
+
+  it("greens Сертификация only for full live-cert coverage", () => {
+    expect(certificationPipelineStageTone({ integrationCount: 2, certifiedCount: 0 })).toBe("warn");
+    expect(certificationPipelineStageTone({ integrationCount: 2, certifiedCount: 2 })).toBe("ok");
+  });
+
+  it("greens Импорт only after a real import", () => {
+    expect(importPipelineStageTone({ hasImport: false, activeSourceCount: 2 })).toBe("warn");
+    expect(importPipelineStageTone({ hasImport: true, activeSourceCount: 2 })).toBe("ok");
+  });
+});
+
+describe("admin hub honesty tones", () => {
+  it("does not paint integrations ok from source count alone", () => {
+    expect(adminHubIntegrationsTone({ integrationCount: 3, liveCertifiedCount: 0 })).toBe("warn");
+    expect(adminHubIntegrationsTone({ integrationCount: 3, liveCertifiedCount: 2 })).toBe("warn");
+    expect(adminHubIntegrationsTone({ integrationCount: 0, liveCertifiedCount: 0 })).toBe("neutral");
+    expect(adminHubIntegrationsTone({ integrationCount: 2, liveCertifiedCount: 2 })).toBe("ok");
+  });
+
+  it("keeps access on warning until live SSO evidence exists", () => {
+    expect(adminHubAccessTone({ liveSsoCount: 0, providerWarningCount: 0 })).toBe("warn");
+    expect(adminHubAccessTone({ liveSsoCount: 1, providerWarningCount: 1 })).toBe("warn");
+    expect(adminHubAccessTone({ liveSsoCount: 1, providerWarningCount: 0 })).toBe("ok");
+  });
+
+  it("does not paint channels ok from active count without live cert", () => {
+    expect(adminHubChannelsTone(2)).toBe("warn");
+    expect(adminHubChannelsTone(2, "stub_certified")).toBe("warn");
+    expect(adminHubChannelsTone(2, "live_certified")).toBe("ok");
+    expect(adminHubChannelsTone(0)).toBe("neutral");
+  });
+
+  it("treats appearance as a setting, not health", () => {
+    expect(adminHubAppearanceTone()).toBe("neutral");
+  });
+});
+
+describe("admin hub and pipeline wiring", () => {
+  it("does not default the integrations priority panel to positive", () => {
+    expect(integrationsPage).not.toContain('tone: "positive" as const');
+    expect(integrationsPage).toContain("integrationPriorityTone(");
+    expect(integrationsPage).toContain("certifiedSources < integrations.length");
+  });
+
+  it("wires pipeline stages through coverage helpers instead of last-slice greens", () => {
+    expect(integrationsPage).not.toContain("configuredSources > 0 && configuredSources === credentialedSources ? \"ok\"");
+    expect(integrationsPage).not.toContain("diagnosticRuns.length > 0 ? \"ok\"");
+    expect(integrationsPage).not.toContain("activeSources.length > 0 ? \"ok\"");
+    expect(integrationsPage).toContain("accessPipelineStageTone(");
+    expect(integrationsPage).toContain("diagnosticsPipelineStageTone(");
+    expect(integrationsPage).toContain("monitoringPipelineStageTone(");
+    expect(integrationsPage).toContain("certificationPipelineStageTone(");
+  });
+
+  it("does not green hub integrations, access, channels, or appearance without honest evidence", () => {
+    expect(adminHubPage).not.toContain('tone: integrations > 0 ? "ok" : "neutral"');
+    expect(adminHubPage).not.toContain('tone: providerWarnings > 0 ? "warn" : "ok"');
+    expect(adminHubPage).not.toContain('tone: messagingActiveChannels > 0 ? "ok" : "neutral"');
+    expect(adminHubPage).not.toContain('metric: providerWarnings > 0 ? `${providerWarnings} требуют настройки` : "Готово"');
+    expect(adminHubPage).toContain("adminHubIntegrationsTone(");
+    expect(adminHubPage).toContain("adminHubAccessTone(");
+    expect(adminHubPage).toContain("adminHubChannelsTone(");
+    expect(adminHubPage).toContain("adminHubAppearanceTone()");
+    expect(adminHubPage).toContain("isLiveCertified(");
+    expect(adminHubPage).toContain("getPhaseDReadinessReport(");
+    expect(adminHubPage).toContain("Нет live SSO");
   });
 });

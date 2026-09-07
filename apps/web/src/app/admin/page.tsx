@@ -12,14 +12,23 @@ import { PageSkeleton } from "@/components/loading-states";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getMissingSettingsCoachmarks, type SettingCoachmarkId } from "@/lib/admin-setup-guidance";
 
-import { prisma } from "@/lib/db";
-import { russianPlural } from "@/lib/reports/report-format";
-import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { resolveAiScoringProviderName } from "@/lib/ai-quality/scoring";
 import { loadWorkspaceAiCredentials } from "@/lib/ai-quality/credentials";
-import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
-import { cn } from "@/lib/utils";
+import { getPhaseDReadinessReport } from "@/lib/certification/readiness-report";
+import { isLiveCertified } from "@/lib/certification/status";
+import { prisma } from "@/lib/db";
+import { getIntegrationCapability } from "@/lib/integrations/capabilities";
+import {
+  adminHubAccessTone,
+  adminHubAppearanceTone,
+  adminHubChannelsTone,
+  adminHubIntegrationsTone
+} from "@/lib/integrations/connection-tone";
 import { requirePagePermission } from "@/lib/page-permission";
+import { russianPlural } from "@/lib/reports/report-format";
+import { getUiDensityOption, getUiThemeOption } from "@/lib/ui-theme";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +85,8 @@ async function AdminHomePageContent() {
     apiTokens,
     reportSchedules,
     messagingActiveChannels,
-    aiCredentials
+    aiCredentials,
+    phaseDReport
   ] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
@@ -89,8 +99,9 @@ async function AdminHomePageContent() {
     prisma.samplingRule.count({
       where: { workspaceId: user.workspaceId, isActive: true }
     }),
-    prisma.integration.count({
-      where: { workspaceId: user.workspaceId, status: { in: ["active", "ready", "queued"] } }
+    prisma.integration.findMany({
+      where: { workspaceId: user.workspaceId, status: { in: ["active", "ready", "queued"] } },
+      select: { source: true, type: true }
     }),
     prisma.user.count({
       where: { workspaceId: user.workspaceId }
@@ -130,8 +141,14 @@ async function AdminHomePageContent() {
     prisma.messagingChannel.count({
       where: { workspaceId: user.workspaceId, status: "active" }
     }),
-    loadWorkspaceAiCredentials(user.workspaceId)
+    loadWorkspaceAiCredentials(user.workspaceId),
+    getPhaseDReadinessReport(user.workspaceId)
   ]);
+  const integrationCount = integrations.length;
+  const liveCertifiedIntegrations = integrations.filter((integration) =>
+    isLiveCertified(getIntegrationCapability(integration.source, integration.type).certification.summary.status)
+  ).length;
+  const liveSsoCount = phaseDReport.identityProviders.filter((provider) => isLiveCertified(provider.status)).length;
   const currentTheme = getUiThemeOption(workspace?.uiTheme);
   const currentDensity = getUiDensityOption(workspace?.uiDensity);
   const activeScoringProvider = resolveAiScoringProviderName(workspace?.aiScoringProvider ?? "auto", aiCredentials);
@@ -155,8 +172,8 @@ async function AdminHomePageContent() {
   const setupCoachmarks = getMissingSettingsCoachmarks({
     activeScorecardVersion: activeScorecard?.version ?? null,
     activeSamplingRules,
-    integrationCount: integrations,
-    activeIntegrationCount: integrations,
+    integrationCount,
+    activeIntegrationCount: integrationCount,
     nonDemoProviderCount: activeProviders + providerWarnings,
     activeProviderCount: activeProviders,
     activeGroupMappings,
@@ -196,16 +213,32 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/integrations"],
       icon: Plug,
       roles: ["ADMIN"],
-      metric: russianPlural(integrations, ["источник", "источника", "источников"]),
-      tone: integrations > 0 ? "ok" : "neutral"
+      metric:
+        integrationCount === 0
+          ? russianPlural(0, ["источник", "источника", "источников"])
+          : liveCertifiedIntegrations === integrationCount
+            ? russianPlural(integrationCount, ["источник", "источника", "источников"])
+            : `${liveCertifiedIntegrations} из ${integrationCount} с live cert`,
+      tone: adminHubIntegrationsTone({
+        integrationCount,
+        liveCertifiedCount: liveCertifiedIntegrations
+      })
     },
     {
       href: "/admin/access",
       title: adminSectionTitles["/admin/access"],
       icon: ShieldCheck,
       roles: ["ADMIN"],
-      metric: providerWarnings > 0 ? `${providerWarnings} требуют настройки` : "Готово",
-      tone: providerWarnings > 0 ? "warn" : "ok"
+      metric:
+        liveSsoCount > 0 && providerWarnings === 0
+          ? "Готово"
+          : liveSsoCount > 0
+            ? `${providerWarnings} требуют настройки`
+            : "Нет live SSO",
+      tone: adminHubAccessTone({
+        liveSsoCount,
+        providerWarningCount: providerWarnings
+      })
     },
     {
       href: "/admin/channels",
@@ -213,7 +246,7 @@ async function AdminHomePageContent() {
       icon: Send,
       roles: ["ADMIN"],
       metric: russianPlural(messagingActiveChannels, ["активный канал", "активных канала", "активных каналов"]),
-      tone: messagingActiveChannels > 0 ? "ok" : "neutral"
+      tone: adminHubChannelsTone(messagingActiveChannels)
     },
     {
       href: "/admin/users",
@@ -245,7 +278,7 @@ async function AdminHomePageContent() {
       icon: Palette,
       roles: ["ADMIN"],
       metric: `${currentTheme.label}, ${currentDensity.label}`,
-      tone: "ok"
+      tone: adminHubAppearanceTone()
     },
     {
       href: "/admin/localization",
@@ -286,7 +319,7 @@ async function AdminHomePageContent() {
     { active: providerWarnings > 0, roles: ["ADMIN"] as RoleName[] },
     { active: !activeScorecard, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
     { active: activeSamplingRules === 0, roles: ["ADMIN", "TEAM_LEAD"] as RoleName[] },
-    { active: integrations === 0, roles: ["ADMIN"] as RoleName[] },
+    { active: integrationCount === 0, roles: ["ADMIN"] as RoleName[] },
     { active: apiTokens === 0, roles: ["ADMIN"] as RoleName[] }
   ].filter((blocker) => blocker.active && canSee(user.role, blocker.roles));
   const attentionCount = attentionBlockers.length;
