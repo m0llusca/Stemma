@@ -61,7 +61,8 @@ describe("admin connection chip wiring", () => {
   it("does not green connection chips from ready|active alone", () => {
     expect(integrationsPage).not.toContain('if (status === "active" || status === "ready") return "positive"');
     expect(systemPage).not.toContain('if (status === "active" || status === "ready") return "positive"');
-    expect(integrationsPage).toContain('import { integrationConnectionTone } from "@/lib/integrations/connection-tone"');
+    expect(integrationsPage).toContain('from "@/lib/integrations/connection-tone"');
+    expect(integrationsPage).toContain("catalogReadinessTone");
     expect(systemPage).toContain('import { integrationConnectionTone } from "@/lib/integrations/connection-tone"');
     expect(integrationsPage).toContain("integrationConnectionTone(");
     expect(systemPage).toContain("integrationConnectionTone(");
