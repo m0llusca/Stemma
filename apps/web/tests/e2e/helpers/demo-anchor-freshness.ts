@@ -1,12 +1,12 @@
 import { createDemoCalendar } from "../../../prisma/demo-calendar";
 
 /**
- * The e2e suite seeds the verify database at a pinned `DEMO_SEED_NOW` anchor so
- * screenshots and date labels stay byte-stable, while the running app computes
- * its rolling windows and 22-21 report periods from the real wall clock. Those
- * two clocks agree only while the anchor stays inside today's windows; once the
- * anchor falls out, unrelated-looking specs start failing (zero weekly activity,
- * a report heading for the wrong period) minutes into a full run.
+ * The e2e suite seeds the verify database at `DEMO_SEED_NOW` (Moscow noon of
+ * today, see `freshDemoSeedAnchor`) so date labels stay stable within a day,
+ * while the running app computes rolling windows and 22-21 report periods from
+ * the real wall clock. Those two clocks agree only while the anchor stays
+ * inside today's windows; a hardcoded date that falls out turns into zero
+ * weekly activity and the wrong report heading, minutes into a full run.
  *
  * This guard turns that silent rot into one immediate, actionable failure.
  */
@@ -77,7 +77,8 @@ export function assertDemoAnchorIsFresh(anchor: Date, now: Date): void {
   throw new Error(
     [
       `Stale DEMO_SEED_NOW anchor: ${result.reason}.`,
-      "Re-anchor the e2e clock in apps/web/playwright.config.ts to a recent instant,",
+      "freshDemoSeedAnchor() in apps/web/playwright.config.ts should track today;",
+      "if you overrode DEMO_SEED_NOW, pick a same-day 09:00Z instant,",
       "then regenerate the visual baselines (`npx playwright test --project=chromium",
       "tests/e2e/appearance-visual.spec.ts --update-snapshots`) and re-run the suite."
     ].join(" ")

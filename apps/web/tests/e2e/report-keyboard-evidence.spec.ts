@@ -4,7 +4,8 @@ import { findSeededDemoAdmin, signInE2EUser } from "./helpers/auth";
 // Task 10 keyboard/evidence certification (brief section 9.2).
 //
 // Deterministic demo data is required: the web server must run against the
-// dedicated verify database seeded with DEMO_SEED_NOW=2026-09-03T09:00:00.000Z,
+// dedicated verify database seeded with a fresh DEMO_SEED_NOW (Moscow noon of
+// today from playwright.config.ts / freshDemoSeedAnchor),
 // which guarantees a non-empty vk-current quality trend and movement factors.
 //
 // Certified contracts exercised here (Task 5/6/7/8):

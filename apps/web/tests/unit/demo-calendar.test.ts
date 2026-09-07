@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createDemoCalendar,
   daysFrom,
+  freshDemoSeedAnchor,
   resolveDemoSeedNow
 } from "../../prisma/demo-calendar";
 
@@ -100,6 +101,23 @@ describe("createDemoCalendar", () => {
     expect(daysFrom(calendar, 1).toISOString()).toBe("2027-01-01T21:00:00.000Z");
     expect(daysFrom(calendar, -31, { hour: 8, minute: 15, second: 30 }).toISOString()).toBe(
       "2026-12-01T05:15:30.000Z"
+    );
+  });
+});
+
+describe("freshDemoSeedAnchor", () => {
+  it("pins Moscow noon of the current Moscow day as a strict UTC instant", () => {
+    expect(freshDemoSeedAnchor(new Date("2026-09-07T09:24:00.000Z")).toISOString()).toBe(
+      "2026-09-07T09:00:00.000Z"
+    );
+    expect(freshDemoSeedAnchor(new Date("2026-09-06T21:30:00.000Z")).toISOString()).toBe(
+      "2026-09-07T09:00:00.000Z"
+    );
+  });
+
+  it("keeps UTC and Moscow on the same calendar day across a year rollover", () => {
+    expect(freshDemoSeedAnchor(new Date("2026-12-31T12:00:00.000Z")).toISOString()).toBe(
+      "2026-12-31T09:00:00.000Z"
     );
   });
 });

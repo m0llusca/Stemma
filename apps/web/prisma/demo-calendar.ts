@@ -91,6 +91,18 @@ function createMoscowVkPeriod(now: Date): ReportPeriod {
   };
 }
 
+/**
+ * Moscow noon of `now`'s Moscow calendar day, as a strict UTC instant.
+ * 12:00 Europe/Moscow is always `…T09:00:00.000Z`, so the UTC date and the
+ * Moscow date stay on the same calendar day (see demo-anchor-freshness tests).
+ *
+ * Playwright uses this instead of a hardcoded DEMO_SEED_NOW so the seed stays
+ * inside the app's real-clock rolling seven-day window and 22–21 period.
+ */
+export function freshDemoSeedAnchor(now: Date): Date {
+  return atMoscowDayOffset(now, 0, { hour: 12 });
+}
+
 export function resolveDemoSeedNow(env: NodeJS.ProcessEnv): Date {
   const configuredNow = env.DEMO_SEED_NOW;
 
