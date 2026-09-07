@@ -21,8 +21,12 @@ import { recordReviewEvent, CALIBRATION_APPEAL_SIGNAL_ACTION } from "@/lib/revie
 import { trainingAssignmentDefaultsFromFinding } from "@/lib/coaching-follow-up";
 import { assertFeedbackTransition, reviewFeedbackTransitionStatuses } from "@/lib/review-lifecycle";
 
-/** Appeal resolve / reanswer request — manager workflow only; agents must not self-close. */
+/** Appeal resolve / reanswer request — TEAM_LEAD / ADMIN only; agents and QA must not self-close. */
 const managerOnlyFeedbackActions = new Set(["appeal_confirmed", "appeal_corrected", "reanswer_requested"]);
+
+function canResolveAppeal(role: string) {
+  return role === "TEAM_LEAD" || role === "ADMIN";
+}
 
 /**
  * Result of a feedback/coaching server action consumed via `useActionState`.
@@ -97,7 +101,10 @@ export async function updateReviewFeedback(formData: FormData) {
   const action = stringField(formData, "action");
   const comment = stringField(formData, "comment");
 
-  if (managerOnlyFeedbackActions.has(action) && !canManageReviewWorkflow(user.role)) {
+  if (
+    managerOnlyFeedbackActions.has(action) &&
+    (!canManageReviewWorkflow(user.role) || !canResolveAppeal(user.role))
+  ) {
     throw new Error("Нет прав на решение по апелляции.");
   }
 

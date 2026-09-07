@@ -167,7 +167,7 @@ describe("feedback action scope enforcement", () => {
     expect(mocks.tx.review.update).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks a support agent from confirming their own appeal (manager-only)", async () => {
+  it("blocks a support agent from confirming their own appeal (TEAM_LEAD/ADMIN only)", async () => {
     const { updateReviewFeedback } = await import("@/lib/feedback-actions");
     mocks.prisma.review.findFirst.mockResolvedValue(
       reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
@@ -180,7 +180,7 @@ describe("feedback action scope enforcement", () => {
     expect(mocks.tx.review.update).not.toHaveBeenCalled();
   });
 
-  it("blocks a support agent from correcting their own appeal (manager-only)", async () => {
+  it("blocks a support agent from correcting their own appeal (TEAM_LEAD/ADMIN only)", async () => {
     const { updateReviewFeedback } = await import("@/lib/feedback-actions");
     mocks.prisma.review.findFirst.mockResolvedValue(
       reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
@@ -193,7 +193,39 @@ describe("feedback action scope enforcement", () => {
     expect(mocks.tx.review.update).not.toHaveBeenCalled();
   });
 
-  it("opens an appeal confirmation as a calibration signal for managers", async () => {
+  it("blocks a QA analyst from resolving an appeal despite workflow:manage", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "qa-1", role: "QA_ANALYST", name: "Проверяющий" }));
+    mocks.canManageReviewWorkflow.mockReturnValue(true);
+    mocks.prisma.review.findFirst.mockResolvedValue(
+      reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
+    );
+
+    for (const action of ["appeal_confirmed", "appeal_corrected", "reanswer_requested"] as const) {
+      mocks.tx.review.update.mockClear();
+      const formData = new FormData();
+      formData.set("reviewId", "review-1");
+      formData.set("action", action);
+
+      await expect(updateReviewFeedback(formData)).rejects.toThrow("Нет прав на решение по апелляции.");
+      expect(mocks.tx.review.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it("allows a QA analyst to acknowledge feedback on other paths", async () => {
+    const { updateReviewFeedback } = await import("@/lib/feedback-actions");
+    mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "qa-1", role: "QA_ANALYST", name: "Проверяющий" }));
+    mocks.canManageReviewWorkflow.mockReturnValue(true);
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+    formData.set("action", "acknowledged");
+
+    await updateReviewFeedback(formData);
+
+    expect(mocks.tx.review.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens an appeal confirmation as a calibration signal for TEAM_LEAD", async () => {
     const { updateReviewFeedback } = await import("@/lib/feedback-actions");
     const { CALIBRATION_APPEAL_SIGNAL_ACTION } = await import("@/lib/review-events");
     mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "lead-1", role: "TEAM_LEAD", name: "Тимлид" }));
@@ -239,10 +271,10 @@ describe("feedback action scope enforcement", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/calibration");
   });
 
-  it("opens an appeal correction as a calibration signal for managers", async () => {
+  it("opens an appeal correction as a calibration signal for ADMIN", async () => {
     const { updateReviewFeedback } = await import("@/lib/feedback-actions");
     const { CALIBRATION_APPEAL_SIGNAL_ACTION } = await import("@/lib/review-events");
-    mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "lead-1", role: "TEAM_LEAD", name: "Тимлид" }));
+    mocks.getCurrentUser.mockResolvedValue(agentUser({ id: "admin-1", role: "ADMIN", name: "Админ" }));
     mocks.canManageReviewWorkflow.mockReturnValue(true);
     mocks.prisma.review.findFirst.mockResolvedValue(
       reviewRecord({ feedbackStatus: "appeal", appealStatus: "open" })
