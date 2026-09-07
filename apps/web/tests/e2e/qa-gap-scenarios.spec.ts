@@ -115,7 +115,7 @@ test("non-demo admin creates an API token and a new scorecard version", async ({
   await page.getByRole("button", { name: "Новая версия" }).click();
   const scorecardDialog = page.getByRole("dialog", { name: "Новая версия формы оценки" });
   await expect(scorecardDialog).toBeVisible();
-  await scorecardDialog.getByLabel("Название").fill("E2E методика gap");
+  await scorecardDialog.locator("#scorecard-name").fill("E2E методика gap");
   await scorecardDialog.getByRole("button", { name: "Создать новую версию" }).click();
   await expect(page.getByRole("dialog", { name: "Новая версия формы оценки" })).toHaveCount(0);
   await expect(page.getByText("E2E методика gap")).toBeVisible();

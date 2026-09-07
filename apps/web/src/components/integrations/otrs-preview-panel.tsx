@@ -106,11 +106,14 @@ function formatDate(value: string | null | undefined) {
 
 export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPreviewPanelProps) {
   const flashKey = `otrs-preview-result:${integrationId}`;
+  const importFlashKey = `otrs-import-result:${integrationId}`;
   const [actionPreviewState, previewAction] = useActionState(createOtrsPreviewActionState, initialPreviewState);
   const [actionImportState, importAction] = useActionState(queueSelectedOtrsImportActionState, initialImportState);
   // Bridged results feed the alerts when the client router drops the action
   // commit; a successful preview reloads the page so the new run's items
   // render from the server, with the flash keeping the message across it.
+  // Import revalidatePath remounts this panel, so the same flash keeps the
+  // queue-ack visible after the server payload lands.
   const [bridgedPreviewState, setBridgedPreviewState] = useState<OtrsPreviewActionState>(null);
   const [bridgedImportState, setBridgedImportState] = useState<IntegrationImportActionState>(null);
   const previewState = bridgedPreviewState ?? actionPreviewState;
@@ -128,6 +131,18 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
       }
     }
   }, [flashKey]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(importFlashKey);
+    if (raw) {
+      sessionStorage.removeItem(importFlashKey);
+      try {
+        setBridgedImportState(JSON.parse(raw) as IntegrationImportActionState);
+      } catch {
+        // A malformed flash entry is simply dropped.
+      }
+    }
+  }, [importFlashKey]);
 
   const handlePreviewResult = (value: unknown) => {
     const result = value as OtrsPreviewActionState;
@@ -205,7 +220,9 @@ export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPrevie
             <ActionFlowGuard
               onResult={(value) => {
                 const result = value as IntegrationImportActionState;
-                if (result) setBridgedImportState(result);
+                if (!result) return;
+                sessionStorage.setItem(importFlashKey, JSON.stringify(result));
+                setBridgedImportState(result);
               }}
             />
             <input type="hidden" name="integrationId" value={integrationId} />
