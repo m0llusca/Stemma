@@ -40,6 +40,10 @@ Terminate TLS at a reverse proxy (or the platform) and prefer security headers (
 
 Public webhook ingest (`/api/v1/webhooks/...`) is a separate trust tier from live-certified integration imports: it requires HMAC, workspace header, and per-endpoint rate limits, but not live-cert evidence. Treat leaked webhook secrets as write access to that workspace.
 
+## AuditLog (append-only)
+
+`"AuditLog"` is append-only in PostgreSQL: INSERT is allowed; UPDATE and DELETE raise an exception (DB trigger). App-layer deletes cannot bypass this. Legal retention purge requires DBA export-then-break-glass (export rows, temporarily drop the forbid triggers, delete under dual control, restore triggers). See migration `20260907094600_audit_log_append_only`.
+
 ## Secrets and live environments
 
 - Never commit `.env`, service-account JSON keys, OAuth tokens, or production URLs with credentials.
