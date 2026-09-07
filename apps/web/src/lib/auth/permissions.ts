@@ -18,6 +18,7 @@ export type Permission =
   | "appearance:manage"
   | "api_tokens:manage"
   | "audit:read"
+  | "training:consume"
   | "training:manage"
   | "backend_jobs:manage"
   | "auth_providers:manage"
@@ -75,7 +76,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "reports:manage",
     "training:manage"
   ],
-  SUPPORT_AGENT: ["reviews:read", "feedback:acknowledge", "self_review:write", "training:manage"],
+  SUPPORT_AGENT: ["reviews:read", "feedback:acknowledge", "self_review:write", "training:consume"],
   VIEWER: []
 };
 

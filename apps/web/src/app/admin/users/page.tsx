@@ -78,7 +78,8 @@ const permissionLabels: Record<Permission, string> = {
   "appearance:manage": "Внешний вид",
   "api_tokens:manage": "API-ключи",
   "audit:read": "Журнал действий",
-  "training:manage": "Обучение",
+  "training:consume": "Просмотр обучения",
+  "training:manage": "Управление обучением",
   "backend_jobs:manage": "Системные задачи",
   "auth_providers:manage": "SSO и группы",
   "privacy:manage": "Приватность"
@@ -100,7 +101,7 @@ const permissionGroups: Array<{ title: string; description: string; permissions:
   {
     title: "Методология QA",
     description: "Формы оценки, выборки, калибровки и обучение.",
-    permissions: ["scorecards:manage", "sampling:manage", "calibration:manage", "training:manage"]
+    permissions: ["scorecards:manage", "sampling:manage", "calibration:manage", "training:consume", "training:manage"]
   },
   {
     title: "Аналитика",

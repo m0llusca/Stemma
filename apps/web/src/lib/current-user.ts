@@ -199,6 +199,15 @@ export function canManageTraining(role: RoleName) {
   return hasPermission(role, "training:manage");
 }
 
+export function canConsumeTraining(role: RoleName) {
+  return hasPermission(role, "training:consume");
+}
+
+/** Coaching page entry: managers (manage) or agents (consume). Mutations stay manage-only. */
+export function canAccessTraining(role: RoleName) {
+  return canManageTraining(role) || canConsumeTraining(role);
+}
+
 export function canViewAdmin(role: RoleName) {
   return role === "ADMIN" || role === "TEAM_LEAD";
 }

@@ -5,6 +5,11 @@ import { join } from "node:path";
 describe("coaching page agent score scope", () => {
   const source = readFileSync(join(process.cwd(), "src/app/coaching/page.tsx"), "utf8");
 
+  it("allows entry with training:manage or training:consume via canAccessTraining", () => {
+    expect(source).toContain("canAccessTraining");
+    expect(source).not.toContain('requireCurrentUserPermission("training:manage")');
+  });
+
   it("scopes finalized score history to the support agent's own assigneeId", () => {
     expect(source).toContain("isSupportAgent ? { conversation: { assigneeId: user.id } }");
     expect(source).toContain("Ваш средний балл");

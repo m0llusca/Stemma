@@ -17,8 +17,27 @@ describe("auth permissions", () => {
     expect(hasPermission("VIEWER", "reports:manage")).toBe(false);
   });
 
-  it("allows support agents to read their scoped review queue plus self-review, feedback and training", () => {
-    expect(getPermissions("SUPPORT_AGENT")).toEqual(["reviews:read", "feedback:acknowledge", "self_review:write", "training:manage"]);
+  it("splits training:consume for agents from training:manage for operators", () => {
+    expect(hasPermission("ADMIN", "training:manage")).toBe(true);
+    expect(hasPermission("TEAM_LEAD", "training:manage")).toBe(true);
+    expect(hasPermission("QA_ANALYST", "training:manage")).toBe(true);
+    expect(hasPermission("SUPPORT_AGENT", "training:manage")).toBe(false);
+    expect(hasPermission("VIEWER", "training:manage")).toBe(false);
+
+    expect(hasPermission("SUPPORT_AGENT", "training:consume")).toBe(true);
+    expect(hasPermission("ADMIN", "training:consume")).toBe(false);
+    expect(hasPermission("TEAM_LEAD", "training:consume")).toBe(false);
+    expect(hasPermission("QA_ANALYST", "training:consume")).toBe(false);
+    expect(hasPermission("VIEWER", "training:consume")).toBe(false);
+  });
+
+  it("allows support agents to read their scoped review queue plus self-review, feedback and training consume", () => {
+    expect(getPermissions("SUPPORT_AGENT")).toEqual([
+      "reviews:read",
+      "feedback:acknowledge",
+      "self_review:write",
+      "training:consume"
+    ]);
     expect(hasPermission("SUPPORT_AGENT", "integrations:manage")).toBe(false);
     expect(hasPermission("SUPPORT_AGENT", "reports:read")).toBe(false);
   });

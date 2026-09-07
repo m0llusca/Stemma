@@ -45,7 +45,8 @@ import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/co
 import { listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
-import { requireCurrentUserPermission } from "@/lib/current-user";
+import { permissionDeniedMessage } from "@/lib/api/user-facing-errors";
+import { canAccessTraining, getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { riskLevelLabels } from "@/lib/labels";
 import { formatReviewCount } from "@/lib/reports/report-format";
@@ -197,7 +198,10 @@ export default function CoachingPage({ searchParams }: CoachingPageProps) {
 }
 
 async function CoachingPageContent({ searchParams }: CoachingPageProps) {
-  const [user, rawSearchParams] = await Promise.all([requireCurrentUserPermission("training:manage"), searchParams]);
+  const [user, rawSearchParams] = await Promise.all([getCurrentUser(), searchParams]);
+  if (!canAccessTraining(user.role)) {
+    throw new Error(permissionDeniedMessage);
+  }
   const now = new Date();
   const view = selectedView(rawSearchParams.view);
   const q = cleanParam(rawSearchParams.q);
