@@ -49,6 +49,13 @@ import {
   integrationPriorityTone,
   monitoringPipelineStageTone
 } from "@/lib/integrations/connection-tone";
+import {
+  capabilityReadinessLabel,
+  compactCertificationLabel,
+  integrationListCertificationColumn,
+  integrationListConnectionColumn,
+  readinessActionLabel
+} from "@/lib/integrations/labels";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
@@ -201,16 +208,6 @@ function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone 
   return "neutral";
 }
 
-function capabilityReadinessLabel(value: string) {
-  const labels: Record<string, string> = {
-    production_slice: "Готово к эксплуатации",
-    adapter_ready: "Адаптер готов",
-    roadmap: "В плане"
-  };
-
-  return labels[value] ?? value;
-}
-
 function capabilityTypeLabel(value: string) {
   const labels: Record<string, string> = {
     otrs_family: "Семейство OTRS",
@@ -252,20 +249,6 @@ function authModeLabel(value: string) {
   };
 
   return labels[value] ?? value;
-}
-
-function compactCertificationLabel(value: string) {
-  const labels: Record<string, string> = {
-    "Готово к живой сертификации": "Готово к проверке",
-    "Живая сертификация пройдена": "Проверка пройдена",
-    "Не готово к промышленной эксплуатации": "Не готово"
-  };
-
-  return labels[value] ?? value;
-}
-
-function compactReadinessActionLabel(input: { hasBaseUrl: boolean; hasRequiredSecrets: boolean }) {
-  return input.hasBaseUrl && input.hasRequiredSecrets ? "Доступы есть" : "Нужны доступы";
 }
 
 function hasRequiredCredentialSlots(
@@ -748,7 +731,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       <CertificationHelpTooltip />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Состояние подключений, сертификация, доступы и последний импорт по каждому источнику.
+                      Статус подключения, сертификация, доступы и последний импорт по каждому источнику.
                     </p>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-4">
@@ -766,11 +749,12 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                       />
                     ) : null}
                     {integrations.length > 0 ? (
-                      <Table className="min-w-[960px]">
+                      <Table className="min-w-[1100px]">
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
                             <TableHead className="min-w-[230px]">Источник</TableHead>
-                            <TableHead className="min-w-[160px]">Состояние подключения</TableHead>
+                            <TableHead className="min-w-[150px]">{integrationListConnectionColumn}</TableHead>
+                            <TableHead className="min-w-[170px]">{integrationListCertificationColumn}</TableHead>
                             <TableHead className="min-w-[150px]">Импорт</TableHead>
                             <TableHead className="min-w-[200px]">Активность</TableHead>
                             <TableHead className="w-[132px] text-right">Действия</TableHead>
@@ -795,6 +779,8 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                             );
                             const canQueueImport = canQueueIntegrationImport(capability);
                             const latestActivityStatus = latestRunStatus ?? latestJobStatus ?? latestDiagnosticStatus;
+                            const certificationStatus = capability.certification.summary.status;
+                            const opsStatusLabel = integrationStatusLabel(integration.status, certificationStatus);
 
                             return (
                               <TableRow key={integration.id} className="align-top">
@@ -804,27 +790,28 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                                     name={integration.displayName}
                                     href={`/admin/integrations/${integration.id}`}
                                     meta={capabilityTypeLabel(integration.type)}
-                                    status={
-                                      <ToneBadge
-                                        tone={integrationConnectionTone(integration.status, capability.certification.summary.status)}
-                                        title={`Статус: ${integrationStatusLabel(integration.status)}`}
-                                      >
-                                        {integrationStatusLabel(integration.status)}
-                                      </ToneBadge>
-                                    }
                                   />
+                                </TableCell>
+                                <TableCell className="whitespace-normal">
+                                  <ToneBadge
+                                    tone={integrationConnectionTone(integration.status, certificationStatus)}
+                                    title={`${integrationListConnectionColumn}: ${opsStatusLabel}`}
+                                  >
+                                    {opsStatusLabel}
+                                  </ToneBadge>
                                 </TableCell>
                                 <TableCell className="whitespace-normal">
                                   <div className="grid gap-1.5">
                                     <ToneBadge
-                                      tone={certificationTone(capability.certification.summary.status)}
+                                      tone={certificationTone(certificationStatus)}
                                       className="justify-self-start"
+                                      title={`${integrationListCertificationColumn}: ${capability.certification.summary.label}`}
                                     >
                                       {compactCertificationLabel(capability.certification.summary.label)}
                                     </ToneBadge>
                                     <span className="text-xs text-muted-foreground">
-                                      {compactReadinessActionLabel({ hasBaseUrl, hasRequiredSecrets })} ·{" "}
-                                      {capabilityReadinessLabel(capability.readiness)}
+                                      {readinessActionLabel(hasBaseUrl, hasRequiredSecrets)} ·{" "}
+                                      {capabilityReadinessLabel(capability.readiness, certificationStatus)}
                                     </span>
                                   </div>
                                 </TableCell>
@@ -1199,9 +1186,9 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                                 </ToneBadge>
                                 <ToneBadge
                                   tone={catalogReadinessTone(capability.readiness, capability.certification.summary.status)}
-                                  title={`Этап: ${capabilityReadinessLabel(capability.readiness)}`}
+                                  title={`Этап: ${capabilityReadinessLabel(capability.readiness, capability.certification.summary.status)}`}
                                 >
-                                  {capabilityReadinessLabel(capability.readiness)}
+                                  {capabilityReadinessLabel(capability.readiness, capability.certification.summary.status)}
                                 </ToneBadge>
                               </div>
                             </TableCell>

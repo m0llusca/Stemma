@@ -885,7 +885,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                                 )}
                                 size="sm"
                               >
-                                {integrationStatusLabel(integration.status)}
+                                {integrationStatusLabel(integration.status, capability.certification.summary.status)}
                               </StatusBadge>
                             </div>
                           );

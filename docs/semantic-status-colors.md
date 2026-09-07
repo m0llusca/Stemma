@@ -24,6 +24,7 @@ If a metric needs domain-specific thresholds, add a helper near the metric domai
 - Dashboard focus and activity blocks use tones to distinguish healthy quality, risk, empty queues, and learning/system notices.
 - Review detail metadata chips use `StatusBadge` for review state, score, customer/source/team, due date, risk, appeal, and reanswer state.
 - Connection, channel, and catalog readiness chips use warning for token-only, limited, partial, or uncertified readiness, negative for disconnected or failed states, and **positive only after `live_certified`**. Operational `ready` / `active` and catalog `production_slice` are not green without live cert.
+- Admin integrations list keeps **«Статус подключения»** (ops) and **«Сертификация»** (cert) as separate columns. Ops copy is «Включена» / «Настроена» until live cert; catalog `production_slice` is «Срез для внедрения», never «Готово к эксплуатации», without `live_certified`. Compact cert labels keep Живая/Live (do not collapse to «Проверка пройдена»). URL+secrets is «Доступы заполнены», not live-cert ready.
 - Admin hub cards and integrations pipeline stages use the same honesty bar: green/`ok` only from `live_certified` or full stage coverage — never from “sources exist” / “no errors in this slice”. Appearance is always `neutral` (a setting, not health).
 - Admin system rows use neutral for not-yet-run jobs, info for planned work, warning for degraded queues, and negative for blocking failures.
 
