@@ -85,11 +85,11 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
 
   await page.goto("/admin/users");
-  await expect(page.getByRole("alert")).toContainText("Что-то пошло не так");
+  await expect(page.getByText("Что-то пошло не так", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Пользователи" })).toHaveCount(0);
 
   await page.goto("/admin/scorecards");
-  await expect(page.getByRole("alert")).toContainText("Что-то пошло не так");
+  await expect(page.getByText("Что-то пошло не так", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Новая версия" })).toHaveCount(0);
   await context.close();
 });
@@ -102,7 +102,7 @@ test("non-demo admin creates an API token and a new scorecard version", async ({
 
   await page.goto("/admin/tokens");
   await expect(page.getByRole("heading", { level: 1, name: "API-доступ" })).toBeVisible();
-  await page.getByRole("button", { name: "Новый ключ" }).click();
+  await page.locator('[data-slot="dialog-trigger"]').filter({ hasText: "Новый ключ" }).click();
   const tokenDialog = page.getByRole("dialog", { name: "Новый ключ" });
   await expect(tokenDialog).toBeVisible();
   await tokenDialog.getByLabel("Название").fill("E2E gap token");

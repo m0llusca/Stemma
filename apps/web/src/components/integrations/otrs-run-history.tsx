@@ -85,7 +85,7 @@ type OtrsRunHistoryProps = {
 };
 
 function formatDate(value: Date | null | undefined) {
-  return value ? value.toLocaleString("ru-RU") : "Нет данных";
+  return value ? value.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" }) : "Нет данных";
 }
 
 export function OtrsRunHistory({ runs, jobsByRunId }: OtrsRunHistoryProps) {

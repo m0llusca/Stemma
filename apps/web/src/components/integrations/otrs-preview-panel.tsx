@@ -99,7 +99,9 @@ function ImportSelectedButton({ disabled = false }: { disabled?: boolean }) {
 }
 
 function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString("ru-RU") : "Нет данных";
+  return value
+    ? new Date(value).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })
+    : "Нет данных";
 }
 
 export function OtrsPreviewPanel({ integrationId, latestPreviewRun }: OtrsPreviewPanelProps) {
