@@ -104,6 +104,6 @@ Filter/bulk dropdowns may still bind the `QaStatus` enum; the visible words stay
 | ⌘K + pulse wiring | `apps/web/src/lib/shell/navigation.ts` (`take-next` action), `apps/web/src/components/app-nav-shell.tsx` (`runTakeNext`) |
 | Status chip | `apps/web/src/lib/review-state.ts`, `apps/web/src/components/review/review-status-chip.tsx` |
 | Preview UI | `apps/web/src/components/review/queue-next-case-preview.tsx` |
-| Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `queue-table-status-chip.test.tsx`, `review-status-chip.test.ts`, `queue-href-filters.test.ts`, `app-nav-shell.test.tsx` (pulse + �-status-chip.test.tsx`, `review-status-chip.test.ts`, `queue-href-filters.test.ts`, `app-nav-shell.test.tsx` (pulse + ⌘K + same FormData), `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
+| Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `queue-table-status-chip.test.tsx`, `review-status-chip.test.ts`, `queue-href-filters.test.ts`, `app-nav-shell.test.tsx` (pulse + ⌘K + same FormData), `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
 
 Related: [app-shell.md](app-shell.md) (role homes, ⌘K), [ux-persona-adversarial-synthesis.md](ux-persona-adversarial-synthesis.md).
