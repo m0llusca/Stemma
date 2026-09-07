@@ -1,4 +1,5 @@
 import type { RoleName } from "@prisma/client";
+import { hasPermission } from "@/lib/auth/permissions";
 
 /**
  * Paths treated as "no explicit destination" after login / demo switch.
@@ -15,6 +16,8 @@ const GENERIC_LANDING_PATHNAMES = new Set([
 /**
  * Analyst inbox default: assigned to me AND overdue SLA.
  * Matches existing queue filter model (`qaAssignee` + `due=overdue`).
+ * This is «Сегодня» / role home. `/dashboard` stays in DASHBOARD_ROLES (URL
+ * residual) but is not a competing ⌘K «Пульс дня» entry — see navigation.ts.
  */
 export function analystMineOverdueHref(qaAssigneeName: string) {
   return `/reviews?qaAssignee=${encodeURIComponent(qaAssigneeName)}&due=overdue`;
@@ -51,6 +54,31 @@ export function canAccessDashboard(role: RoleName) {
   return (DASHBOARD_ROLES as readonly RoleName[]).includes(role);
 }
 
+export type DashboardSkeletonVariant = "dashboard" | "exec";
+
+/** Ops pulse is 4-KPI; EXEC live home is ExecRiskHome (3-KPI, no dual panels). */
+export function dashboardSkeletonVariantForRole(role: RoleName): DashboardSkeletonVariant {
+  return role === "EXEC" ? "exec" : "dashboard";
+}
+
+/**
+ * Top-nav «Проверки». Writers and dashboard roles (ADMIN / TEAM_LEAD / QA_ANALYST / EXEC).
+ * SUPPORT_AGENT holds `reviews:read` for scoped deep links, but chrome must not
+ * sell the ops queue — their JTBD is self-review and coaching.
+ */
+export function canSeeReviewsQueueNav(role: RoleName) {
+  return canAccessDashboard(role);
+}
+
+/**
+ * Topbar pulse «Очередь» / «Риск». Review writers only.
+ * EXEC has `reviews:read` for SLA drill from ExecRiskHome, but docs say
+ * без ops-хрома — a permission gate alone would still sell the queue.
+ */
+export function canSeeOpsQueuePulse(role: RoleName) {
+  return hasPermission(role, "reviews:write");
+}
+
 /**
  * Role-gated product home after login when the caller did not request a specific page.
  * VIEWER lands on `/auth/pending-access` (no product permissions) instead of a deny page.
@@ -74,6 +102,18 @@ export function roleHomePath(role: RoleName, options?: { name?: string }) {
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Inbox «Сбросить фильтры» target. Analyst home is mine+overdue — a bare
+ * `/reviews` reset would wipe that inbox. Other roles reset to the unfiltered queue.
+ */
+export function queueFilterResetHref(role: RoleName, options?: { name?: string }) {
+  if (role === "QA_ANALYST") {
+    return roleHomePath(role, options);
+  }
+
+  return "/reviews";
 }
 
 export function resolvePostLoginPath(returnTo: string | null | undefined, user: { role: RoleName; name: string }) {

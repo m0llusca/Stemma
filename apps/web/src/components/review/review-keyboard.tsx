@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { announceToLiveRegion, focusFirstInvalidControl } from "@/lib/form-validity";
+import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
 import {
   initialReviewKeyboardState,
   isEditableTarget,
@@ -78,6 +80,7 @@ function isCriterionOpen(card: HTMLElement): boolean {
 
 export function ReviewKeyboard() {
   const stateRef = useRef(initialReviewKeyboardState);
+  const liveRef = useRef<HTMLDivElement>(null);
   const [legendVisible, setLegendVisible] = useState(false);
   const legendVisibleRef = useRef(legendVisible);
   legendVisibleRef.current = legendVisible;
@@ -175,11 +178,18 @@ export function ReviewKeyboard() {
           ? form.querySelector<HTMLButtonElement>(FINALIZE_NEXT_SELECTOR)
           : null) ?? root!.querySelector<HTMLButtonElement>(FINALIZE_NEXT_SELECTOR);
 
-      if (!button || button.disabled) {
+      if (button && !button.disabled) {
+        button.click();
         return;
       }
 
-      button.click();
+      if (form instanceof HTMLFormElement) {
+        focusFirstInvalidControl(form);
+      }
+
+      if (liveRef.current) {
+        announceToLiveRegion(liveRef.current, REVIEW_FINALIZE_BLOCKED_HINT);
+      }
     }
 
     function onKeyDown(event: KeyboardEvent) {
@@ -254,37 +264,44 @@ export function ReviewKeyboard() {
     };
   }, []);
 
-  if (!legendVisible) {
-    return null;
-  }
-
   return (
-    <p
-      className="flex flex-wrap items-center gap-1.5 border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground"
-      role="status"
-    >
-      <KbdGroup>
-        <Kbd>J</Kbd>
-        <Kbd>K</Kbd>
-      </KbdGroup>
-      <span>— переход между критериями ·</span>
-      <Kbd>1</Kbd>
-      <span>зачёт ·</span>
-      <Kbd>2</Kbd>
-      <span>частично ·</span>
-      <Kbd>3</Kbd>
-      <span>незачёт ·</span>
-      <Kbd>Enter</Kbd>
-      <span>— раскрыть ·</span>
-      <Kbd>Esc</Kbd>
-      <span>— свернуть ·</span>
-      <KbdGroup>
-        <Kbd>⌘</Kbd>
-        <Kbd>Enter</Kbd>
-      </KbdGroup>
-      <span>— завершить и взять следующий ·</span>
-      <Kbd>?</Kbd>
-      <span>— скрыть подсказку</span>
-    </p>
+    <>
+      <div
+        ref={liveRef}
+        className="sr-only"
+        aria-live="assertive"
+        aria-atomic="true"
+        data-review-finalize-live=""
+      />
+      {legendVisible ? (
+        <p
+          className="flex flex-wrap items-center gap-1.5 border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground"
+          role="status"
+        >
+          <KbdGroup>
+            <Kbd>J</Kbd>
+            <Kbd>K</Kbd>
+          </KbdGroup>
+          <span>— переход между критериями ·</span>
+          <Kbd>1</Kbd>
+          <span>зачёт ·</span>
+          <Kbd>2</Kbd>
+          <span>частично ·</span>
+          <Kbd>3</Kbd>
+          <span>незачёт ·</span>
+          <Kbd>Enter</Kbd>
+          <span>— раскрыть ·</span>
+          <Kbd>Esc</Kbd>
+          <span>— свернуть ·</span>
+          <KbdGroup>
+            <Kbd>⌘</Kbd>
+            <Kbd>Enter</Kbd>
+          </KbdGroup>
+          <span>— завершить и взять следующий ·</span>
+          <Kbd>?</Kbd>
+          <span>— скрыть подсказку</span>
+        </p>
+      ) : null}
+    </>
   );
 }

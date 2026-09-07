@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QaStatus } from "@prisma/client";
-import { qaStatusLabels } from "@/lib/labels";
+import { qaStatusLabels, reviewQueueStatusLabels } from "@/lib/labels";
 import {
   pendingReopenLabel,
   qaStatusToReviewState,
@@ -22,6 +22,17 @@ describe("status vocabulary", () => {
     expect(qaStatusLabels.FINALIZED).toBe("Завершена");
     expect(qaStatusLabels.ASSIGNED).not.toBe("Назначено");
     expect(qaStatusLabels.FINALIZED).not.toBe("Завершено");
+  });
+
+  it("keeps queue «Итог» words off the status-chip dictionary", () => {
+    const chipWords = new Set(Object.values(reviewStateLabels));
+
+    expect(reviewQueueStatusLabels.unreviewed).toBe("Ещё не проверена");
+    expect(reviewQueueStatusLabels.reviewed).toBe("Проверка завершена");
+    expect(chipWords.has(reviewQueueStatusLabels.unreviewed)).toBe(false);
+    expect(chipWords.has(reviewQueueStatusLabels.reviewed)).toBe(false);
+    expect(reviewQueueStatusLabels.unreviewed).not.toBe(reviewStateLabels.queued);
+    expect(reviewQueueStatusLabels.reviewed).not.toBe(reviewStateLabels.finalized);
   });
 });
 

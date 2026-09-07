@@ -95,7 +95,12 @@ test("completes the seeded refund request review workflow", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible();
   await expect(page.getByText(/^Найдено \d+ из \d+/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Где смотреть в очереди сейчас" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Взять следующий" })).toBeVisible();
+  await expect(
+    page.locator('[data-slot="page-shell-actions"]').getByRole("button", { name: "Взять следующий" })
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-slot="queue-next-case-preview"]').getByRole("button", { name: "Взять следующий" })
+  ).toBeVisible();
   await expect(page.getByLabel("Фильтры и виды очереди")).toBeVisible();
   await expect(page.getByLabel("Предпросмотр следующего обращения")).toBeVisible();
 

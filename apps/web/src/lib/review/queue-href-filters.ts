@@ -40,7 +40,7 @@ export function queueHrefFromLocation(pathname: string, search = ""): string | u
   return undefined;
 }
 
-/** Same FormData the queue «Взять следующий» button, ⌘K, and pulse «Взять кейс» submit. */
+/** Same FormData the queue / pulse / ⌘K / preview «Взять следующий» submit. */
 export function takeNextFormDataFromLocation(pathname: string, search = ""): FormData {
   const formData = new FormData();
   const queueHref = queueHrefFromLocation(pathname, search);
@@ -48,6 +48,35 @@ export function takeNextFormDataFromLocation(pathname: string, search = ""): For
     formData.set("queueHref", queueHref);
   }
   return formData;
+}
+
+/** True when the parsed queue view has a chip or search constraint — not just `empty`/`page`/`saved`. */
+export function hasActiveQueueFilters(filters: ReviewQueueFilters): boolean {
+  return (
+    Boolean(filters.q) ||
+    filters.status !== "all" ||
+    Boolean(filters.channel) ||
+    Boolean(filters.qaStatus) ||
+    Boolean(filters.source) ||
+    Boolean(filters.assignee) ||
+    Boolean(filters.qaAssignee) ||
+    Boolean(filters.samplingType) ||
+    Boolean(filters.csatBucket) ||
+    Boolean(filters.qaScoreBand) ||
+    Boolean(filters.supportLine) ||
+    Boolean(filters.teamName) ||
+    Boolean(filters.process) ||
+    Boolean(filters.due) ||
+    Boolean(filters.riskLevel) ||
+    Boolean(filters.coachingStatus) ||
+    Boolean(filters.findingCategory) ||
+    Boolean(filters.criticalCategory) ||
+    Boolean(filters.feedbackStatus) ||
+    Boolean(filters.appealStatus) ||
+    Boolean(filters.reanswerStatus) ||
+    Boolean(filters.finalizedFrom) ||
+    Boolean(filters.finalizedTo)
+  );
 }
 
 /**
@@ -77,32 +106,7 @@ export function filtersFromReviewsHref(href: string | undefined): ReviewQueueFil
       }
     });
     const filters = parseReviewQueueFilters(searchParams);
-    const hasActiveFilter =
-      Boolean(filters.q) ||
-      filters.status !== "all" ||
-      Boolean(filters.channel) ||
-      Boolean(filters.qaStatus) ||
-      Boolean(filters.source) ||
-      Boolean(filters.assignee) ||
-      Boolean(filters.qaAssignee) ||
-      Boolean(filters.samplingType) ||
-      Boolean(filters.csatBucket) ||
-      Boolean(filters.qaScoreBand) ||
-      Boolean(filters.supportLine) ||
-      Boolean(filters.teamName) ||
-      Boolean(filters.process) ||
-      Boolean(filters.due) ||
-      Boolean(filters.riskLevel) ||
-      Boolean(filters.coachingStatus) ||
-      Boolean(filters.findingCategory) ||
-      Boolean(filters.criticalCategory) ||
-      Boolean(filters.feedbackStatus) ||
-      Boolean(filters.appealStatus) ||
-      Boolean(filters.reanswerStatus) ||
-      Boolean(filters.finalizedFrom) ||
-      Boolean(filters.finalizedTo);
-
-    return hasActiveFilter ? filters : undefined;
+    return hasActiveQueueFilters(filters) ? filters : undefined;
   } catch {
     return undefined;
   }

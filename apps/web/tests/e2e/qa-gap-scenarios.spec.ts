@@ -6,6 +6,7 @@ import {
   findSeededDemoAdmin,
   findSeededDemoAgent,
   findSeededDemoAnalyst,
+  findSeededDemoViewer,
   localQaAdmin,
   signInE2EUser
 } from "./helpers/auth";
@@ -75,6 +76,27 @@ test("dual-control reopen requires a second workflow manager", async ({ browser 
   await confirmerContext.close();
 });
 
+test("VIEWER lands on pending-access without empty AppNav chrome", async ({ browser }) => {
+  const viewer = await findSeededDemoViewer();
+  const context = await browser.newContext();
+  await signInE2EUser(context, viewer, "playwright-viewer-pending-access");
+  const page = await context.newPage();
+
+  await page.goto("/auth/pending-access");
+  await expect(page).toHaveURL(/\/auth\/pending-access$/);
+  await expect(page.getByText("Доступ ещё не выдан")).toBeVisible();
+  await expect(page.getByText(viewer.email)).toBeVisible();
+  await expect(page.getByText("Без доступа")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Основные разделы" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Поиск или команда" })).toHaveCount(0);
+  await expect(page.getByLabel("Глобальная навигация")).toHaveCount(0);
+
+  await page.goto("/auth/login");
+  await expect(page).toHaveURL(/\/auth\/pending-access$/);
+  await context.close();
+});
+
 test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", async ({ browser }) => {
   const agent = await findSeededDemoAgent();
   const context = await browser.newContext();
@@ -88,14 +110,22 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   const areaMenuTrigger = page.getByRole("button", { name: "Разделы" });
   if (await areaNav.isVisible()) {
     await expect(areaNav.getByRole("link", { name: "Сегодня" })).toHaveCount(0);
+    await expect(areaNav.getByRole("link", { name: "Проверки" })).toHaveCount(0);
     await expect(areaNav.getByRole("link", { name: "Моя обратная связь" })).toBeVisible();
+    await expect(areaNav.getByRole("link", { name: "Обучение" })).toBeVisible();
   } else {
     await areaMenuTrigger.click();
     const areaMenu = page.getByRole("menu");
     await expect(areaMenu.getByRole("menuitem", { name: "Сегодня" })).toHaveCount(0);
+    await expect(areaMenu.getByRole("menuitem", { name: /Проверки/ })).toHaveCount(0);
     await expect(areaMenu.getByRole("menuitem", { name: /Моя обратная связь/ })).toBeVisible();
+    await expect(areaMenu.getByRole("menuitem", { name: /Обучение/ })).toBeVisible();
     await page.keyboard.press("Escape");
   }
+
+  const pulseSurfaces = page.getByLabel("Рабочий пульс");
+  await expect(pulseSurfaces.getByRole("link", { name: /^Очередь:/ })).toHaveCount(0);
+  await expect(pulseSurfaces.getByRole("link", { name: /^Риск:/ })).toHaveCount(0);
 
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/self-review$/);
@@ -114,6 +144,47 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   await expect(page.getByRole("alert").filter({ hasText: "Недостаточно прав" })).toBeVisible();
   await expect(page.getByText("Что-то пошло не так", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Новая версия" })).toHaveCount(0);
+  await context.close();
+});
+
+test("QA_ANALYST has Settings home into report-schedules, not an orphan admin page", async ({
+  browser
+}) => {
+  const analyst = await findSeededDemoAnalyst();
+  const context = await browser.newContext();
+  await signInE2EUser(context, analyst, "playwright-qa-admin-hub");
+  const page = await context.newPage();
+
+  await page.goto("/reviews");
+  const areaNav = page.getByRole("navigation", { name: "Основные разделы" });
+  const areaMenuTrigger = page.getByRole("button", { name: "Разделы" });
+  if (await areaNav.isVisible()) {
+    await expect(areaNav.getByRole("link", { name: /Настройки/ })).toBeVisible();
+    await areaNav.getByRole("link", { name: /Настройки/ }).click();
+  } else {
+    await areaMenuTrigger.click();
+    const areaMenu = page.getByRole("menu");
+    await expect(areaMenu.getByRole("menuitem", { name: /Настройки/ })).toBeVisible();
+    await areaMenu.getByRole("menuitem", { name: /Настройки/ }).click();
+  }
+
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole("heading", { name: "Обзор настроек" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Расписания отчетов/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Формы оценки/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Пользователи и роли/ })).toHaveCount(0);
+
+  await page.getByRole("link", { name: /Расписания отчетов/ }).first().click();
+  await expect(page).toHaveURL(/\/admin\/report-schedules/);
+  await expect(page.getByRole("heading", { name: "Расписания отчетов" })).toBeVisible();
+
+  if (await areaNav.isVisible()) {
+    await expect(areaNav.getByRole("link", { name: /Настройки/ })).toHaveAttribute("aria-current", "page");
+  }
+
+  await page.goto("/admin/users");
+  await expect(page.getByRole("alert").filter({ hasText: "Недостаточно прав" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Пользователи" })).toHaveCount(0);
   await context.close();
 });
 

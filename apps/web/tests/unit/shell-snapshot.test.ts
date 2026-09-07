@@ -91,9 +91,10 @@ describe("shell snapshot navigation", () => {
 
     expect(today?.href).toBe("/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue");
     expect(today?.destinations.map((destination) => destination.href)).toEqual([
-      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue",
-      "/dashboard"
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
     ]);
+    expect(snapshot.navigation.commandItems.some((item) => item.label === "Пульс дня")).toBe(false);
+    expect(snapshot.navigation.commandItems.some((item) => item.href === "/dashboard")).toBe(false);
   });
 
   it("keeps shell snapshot imports away from heavy runtime boundaries", () => {

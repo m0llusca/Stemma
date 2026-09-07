@@ -49,11 +49,10 @@ describe("topNavAreas", () => {
 
 describe("visibleTopNavAreas", () => {
   it("gives a support agent only the areas its permissions can open", () => {
-    // Калибровка (calibration:manage), Аналитика (reports:read) и Настройки
-    // недоступны роли SUPPORT_AGENT — их страницы бросают "Недостаточно прав".
+    // Калибровка / Аналитика / Настройки недоступны. «Проверки» тоже скрыта:
+    // reviews:read есть, но chrome не должен продавать ops-очередь.
     expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).toEqual([
       "feedback",
-      "review",
       "coaching"
     ]);
   });
@@ -77,14 +76,16 @@ describe("visibleTopNavAreas", () => {
     ]);
   });
 
-  it("hides settings from QA analysts because /admin requires audit:read", () => {
+  it("gives QA analysts Settings because reports:manage unlocks the admin hub", () => {
     expect(visibleTopNavAreas("QA_ANALYST").map((area) => area.id)).toEqual([
       "today",
       "review",
       "calibration",
       "coaching",
-      "analytics"
+      "analytics",
+      "settings"
     ]);
+    expect(visibleTopNavAreas("QA_ANALYST").find((area) => area.id === "settings")?.href).toBe("/admin");
   });
 
   it("gives exec Сегодня, queue and analytics without ops chrome", () => {
@@ -152,6 +153,9 @@ describe("activeAreaForPath", () => {
   it("maps admin paths to the settings area", () => {
     expect(activeAreaForPath("/admin")).toBe("settings");
     expect(activeAreaForPath("/admin/integrations")).toBe("settings");
+    expect(
+      activeAreaForPath("/admin/report-schedules", { areas: visibleTopNavAreas("QA_ANALYST") })
+    ).toBe("settings");
   });
 
   it("returns null for unknown paths", () => {
@@ -178,7 +182,7 @@ describe("command palette action items", () => {
 
   it("exposes take-next as an action, not an impostor unreviewed URL", () => {
     const takeNext = actionItems.find((item) => item.actionId === "take-next");
-    expect(takeNext?.label).toBe("Взять следующий кейс");
+    expect(takeNext?.label).toBe("Взять следующий");
     expect(takeNext?.href).toBeUndefined();
     expect(actionItems.map((item) => item.href)).not.toContain("/reviews?status=unreviewed");
 
@@ -199,7 +203,7 @@ describe("command palette action items", () => {
     const nextCase = actionItems.find((item) => item.actionId === "take-next");
     expect(nextCase).toBeDefined();
 
-    // alias "следующий кейс" / label "Взять следующий кейс" both contain "след".
+    // alias "следующий кейс" / label "Взять следующий" both contain "след".
     expect(commandMatches(nextCase!, "след")).toBe(true);
     // description-based match ("Текущий квартал" analytics action mentions риск).
     const quarter = actionItems.find((item) => item.href === "/reports?period=quarter-current");
@@ -233,14 +237,12 @@ describe("buildShellNavigation gating gaps", () => {
     expect(navigation.modes).toEqual([]);
   });
 
-  it("surfaces the report-schedules destination for everyone holding reports:manage", () => {
-    // /admin/report-schedules гейтится reports:manage; точка входа в /admin
-    // индексе требует audit:read, а область «Настройки» ограничена
-    // ADMIN/TEAM_LEAD. Destination по reports:manage получают ADMIN,
-    // TEAM_LEAD и QA_ANALYST.
+  it("surfaces the report-schedules destination and /admin home for reports:manage", () => {
+    // reports:manage открывает и страницу расписаний, и дом админ-IA (/admin).
     for (const role of ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] as const) {
       const hrefs = buildShellNavigation({ role }).commandItems.map((item) => item.href);
       expect(hrefs).toContain("/admin/report-schedules");
+      expect(hrefs).toContain("/admin");
     }
   });
 
@@ -281,13 +283,26 @@ describe("buildShellNavigation gating gaps", () => {
 
   it("hides ops Сегодня/dashboard from SUPPORT_AGENT nav and command palette", () => {
     expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).not.toContain("today");
+    expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).not.toContain("review");
     const agentHrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map(
       (item) => item.href
     );
     expect(agentHrefs).not.toContain("/dashboard");
+    expect(agentHrefs).not.toContain("/reviews");
     expect(agentHrefs).toContain("/self-review");
+    expect(agentHrefs).toContain("/coaching");
     expect(buildShellNavigation({ role: "SUPPORT_AGENT" }).modes.map((mode) => mode.id)).not.toContain(
       "today"
+    );
+  });
+
+  it("gives QA an admin hub home in the system mode", () => {
+    const navigation = buildShellNavigation({ role: "QA_ANALYST" });
+    const system = navigation.modes.find((mode) => mode.id === "system");
+
+    expect(system?.destinations.map((destination) => destination.href)).toEqual(["/admin"]);
+    expect(navigation.commandItems.some((item) => item.href === "/admin" && item.label === "Обзор настроек")).toBe(
+      true
     );
   });
 
@@ -303,24 +318,26 @@ describe("buildShellNavigation gating gaps", () => {
     );
   });
 
-  it("makes analyst Сегодня the inbox home and keeps dashboard as a secondary pulse", () => {
+  it("makes analyst Сегодня the inbox home and demotes ⌘K Пульс дня", () => {
     const navigation = buildShellNavigation({ role: "QA_ANALYST", name: "Анна QA" });
     const today = navigation.modes.find((mode) => mode.id === "today");
     const inbox = analystMineOverdueHref("Анна QA");
 
     expect(today?.href).toBe(inbox);
-    expect(today?.destinations.map((destination) => destination.href)).toEqual([
-      inbox,
-      "/dashboard"
-    ]);
+    expect(today?.destinations.map((destination) => destination.href)).toEqual([inbox]);
     expect(navigation.commandItems.some((item) => item.href === inbox && item.label === "Сегодня")).toBe(
       true
     );
+    expect(navigation.commandItems.some((item) => item.label === "Пульс дня")).toBe(false);
+    expect(navigation.commandItems.some((item) => item.href === "/dashboard")).toBe(false);
 
     const leadToday = buildShellNavigation({ role: "TEAM_LEAD" }).modes.find(
       (mode) => mode.id === "today"
     );
     expect(leadToday?.href).toBe("/dashboard");
     expect(leadToday?.destinations.map((destination) => destination.href)).toEqual(["/dashboard"]);
+    expect(
+      buildShellNavigation({ role: "TEAM_LEAD" }).commandItems.some((item) => item.label === "Пульс дня")
+    ).toBe(true);
   });
 });

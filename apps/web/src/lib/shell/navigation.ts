@@ -1,7 +1,9 @@
 import type { RoleName } from "@prisma/client";
+import { adminHubPermissions } from "@/lib/admin-access";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import { DASHBOARD_ROLES, roleHomePath } from "@/lib/auth/role-home";
+import { TAKE_NEXT_ALIASES, TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 
 export type ShellNavIcon = "today" | "work" | "quality" | "team" | "system";
 export type ShellNavModeId = "today" | "work" | "quality" | "team" | "system";
@@ -88,7 +90,10 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Проверки",
     description: "Единый список диалогов для проверки и triage.",
     icon: "review",
-    permission: "reviews:read"
+    // SUPPORT_AGENT holds reviews:read for scoped deep links, but top-nav
+    // «Проверки» sells the ops queue. Restrict to writer/dashboard roles.
+    permission: "reviews:read",
+    roles: [...DASHBOARD_ROLES]
   },
   {
     id: "calibration",
@@ -121,8 +126,8 @@ export const topNavAreas: ShellNavArea[] = [
     label: "Настройки",
     description: "Формы оценки, доступы, интеграции и система.",
     icon: "settings",
-    // /admin гейтится audit:read — из ролей с настройками это ADMIN и TEAM_LEAD.
-    roles: ["ADMIN", "TEAM_LEAD"]
+    // /admin — дом админ-IA для любой роли, у которой есть хотя бы один раздел.
+    permissionsAny: [...adminHubPermissions]
   }
 ];
 
@@ -349,9 +354,9 @@ const modeDefinitions: ModeDefinition[] = [
         label: adminSectionTitles["/admin/report-schedules"],
         description: "Регулярная рассылка отчётов: периодичность, получатели и форматы.",
         aliases: ["расписания", "report schedules", "отчеты по расписанию", "планировщик"],
-        // Страница гейтится reports:manage; точка входа в /admin индексе
-        // требует audit:read, а область «Настройки» ограничена ADMIN/TEAM_LEAD.
-        // Destination совпадает с page gate (ADMIN, TEAM_LEAD, QA_ANALYST).
+        // Страница и карточка обзора гейтятся reports:manage. Роли с этим
+        // правом (ADMIN, TEAM_LEAD, QA_ANALYST) входят в админ-IA через
+        // Settings / /admin, а не остаются с сиротским ⌘K-URL.
         permission: "reports:manage"
       },
       {
@@ -412,7 +417,7 @@ const modeDefinitions: ModeDefinition[] = [
         label: adminSectionTitles["/admin"],
         description: "Что настроено, что требует внимания, куда идти дальше.",
         aliases: ["настройки", "admin", "система", "сводка"],
-        roles: ["ADMIN", "TEAM_LEAD"]
+        permissionsAny: [...adminHubPermissions]
       },
       {
         href: "/admin/integrations",
@@ -477,9 +482,9 @@ const actionDefinitions: Array<
 > = [
   {
     actionId: "take-next",
-    label: "Взять следующий кейс",
-    description: "Открыть следующий кейс по текущим фильтрам очереди — тот же путь, что кнопка «Взять следующий».",
-    aliases: ["следующий кейс", "начать проверку", "next case", "next review", "проверить"],
+    label: TAKE_NEXT_LABEL,
+    description: "Взять следующий кейс по текущим фильтрам очереди — тот же путь, что кнопка на странице очереди.",
+    aliases: [...TAKE_NEXT_ALIASES],
     modeId: "work",
     modeLabel: "Работа",
     kind: "action",
@@ -549,9 +554,12 @@ export function buildShellNavigation({
     .filter((mode) => canSeeDefinition(role, mode))
     .map((mode) => {
       const destinations = mode.destinations.filter((destination) => canSeeDefinition(role, destination));
+      // Analyst «Сегодня» is inbox only. Do not also list «Пульс дня» → /dashboard
+      // in ⌘K — that was a competing third home next to Сегодня / Проверки.
+      // Residual: QA_ANALYST stays in DASHBOARD_ROLES, so /dashboard still opens.
       const todayDestinations =
         mode.id === "today" && role === "QA_ANALYST"
-          ? [analystInboxDestination(name), ...destinations]
+          ? [analystInboxDestination(name)]
           : destinations;
       const href = todayDestinations[0]?.href ?? "/dashboard";
 

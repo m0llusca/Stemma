@@ -142,10 +142,7 @@ export async function assertCanPersistSettings(user: { id: string }) {
 export async function getWorkspaceUsers(workspaceId: string) {
   return prisma.user.findMany({
     where: {
-      workspaceId,
-      role: {
-        not: "VIEWER"
-      }
+      workspaceId
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
@@ -211,8 +208,4 @@ export function canConsumeTraining(role: RoleName) {
 /** Coaching page entry: managers (manage) or agents (consume). Mutations stay manage-only. */
 export function canAccessTraining(role: RoleName) {
   return canManageTraining(role) || canConsumeTraining(role);
-}
-
-export function canViewAdmin(role: RoleName) {
-  return role === "ADMIN" || role === "TEAM_LEAD";
 }

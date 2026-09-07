@@ -78,6 +78,29 @@ describe("app nav shell", () => {
     expect(globalNav.className).not.toContain("bg-background/90");
   });
 
+  it("does not paint the risk pulse as destructive when the count is 0", () => {
+    render(
+      <AppNavShell
+        {...baseProps}
+        pulseItems={[
+          { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 0 },
+          {
+            href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+            label: "Риск",
+            value: 0,
+            tone: "neutral"
+          }
+        ]}
+      />
+    );
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    const risk = within(pulse!).getByRole("link", { name: "Риск: 0" });
+    expect(risk.querySelector('[class*="bg-destructive"]')).toBeNull();
+  });
+
   it("exposes the app-nav focus-ring contract hook on the global navigation", () => {
     // P4: globals.css scopes a full-strength token ring to
     // [data-slot="app-nav"] :focus-visible.
@@ -135,6 +158,20 @@ describe("app nav shell", () => {
     expect(active[0]?.textContent).toContain("Настройки");
   });
 
+  it("highlights Settings for a QA analyst on report-schedules", () => {
+    mocks.pathname = "/admin/report-schedules";
+    const areas = visibleTopNavAreas("QA_ANALYST", { name: "Анна QA" });
+
+    render(<AppNavShell {...baseProps} areas={areas} />);
+
+    expect(within(areaNav()).getByRole("link", { name: /Настройки/ }).getAttribute("href")).toBe(
+      "/admin"
+    );
+    expect(within(areaNav()).getByRole("link", { name: /Настройки/ }).getAttribute("aria-current")).toBe(
+      "page"
+    );
+  });
+
   it("opens the command palette with the ⌘K keybinding and filters items", () => {
     render(<AppNavShell {...baseProps} />);
 
@@ -173,7 +210,7 @@ describe("app nav shell", () => {
     expect(mocks.routerPush).not.toHaveBeenCalled();
     expect(mocks.routerPush).not.toHaveBeenCalledWith("/reviews?status=unreviewed");
     expect(
-      screen.queryByRole("link", { name: "Взять следующий кейс" })
+      screen.queryByRole("link", { name: "Взять следующий" })
     ).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
   }
@@ -185,7 +222,7 @@ describe("app nav shell", () => {
     fireEvent.change(input, { target: { value: "следующий кейс" } });
     const options = within(dialog).getAllByRole("option");
     expect(options).toHaveLength(1);
-    expect(options[0]?.textContent).toContain("Взять следующий кейс");
+    expect(options[0]?.textContent).toContain("Взять следующий");
     fireEvent.keyDown(input, { key: "Enter" });
   }
 
@@ -195,8 +232,8 @@ describe("app nav shell", () => {
       run: () => runCommandTakeNext()
     },
     {
-      surface: "pulse «Взять кейс»",
-      run: () => fireEvent.click(screen.getByRole("button", { name: "Взять следующий кейс" }))
+      surface: "pulse «Взять следующий»",
+      run: () => fireEvent.click(screen.getByRole("button", { name: "Взять следующий" }))
     },
     {
       surface: "pulse menu",
@@ -204,7 +241,7 @@ describe("app nav shell", () => {
         fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
         fireEvent.click(
           within(screen.getByRole("menu", { name: "Рабочий пульс" })).getByRole("menuitem", {
-            name: "Взять следующий кейс"
+            name: "Взять следующий"
           })
         );
       }
@@ -227,7 +264,7 @@ describe("app nav shell", () => {
     mocks.pathname = "/dashboard";
     render(<AppNavShell {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Взять следующий кейс" }));
+    fireEvent.click(screen.getByRole("button", { name: "Взять следующий" }));
 
     expectTakeNextFormData(null);
   });
@@ -236,11 +273,11 @@ describe("app nav shell", () => {
     render(<AppNavShell {...baseProps} canTakeNextCase={false} />);
 
     // Pulse chrome first — opening ⌘K inerts the rest of the page.
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
     expect(
       within(screen.getByRole("menu", { name: "Рабочий пульс" })).queryByRole("menuitem", {
-        name: "Взять следующий кейс"
+        name: "Взять следующий"
       })
     ).toBeNull();
     fireEvent.keyDown(screen.getByRole("menu", { name: "Рабочий пульс" }), { key: "Escape" });
@@ -248,7 +285,7 @@ describe("app nav shell", () => {
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const input = screen.getByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "следующий кейс" } });
-    expect(screen.queryByRole("option", { name: /Взять следующий кейс/ })).toBeNull();
+    expect(screen.queryByRole("option", { name: /Взять следующий/ })).toBeNull();
   });
 
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {
@@ -322,7 +359,7 @@ describe("app nav shell", () => {
     expect(within(menu).getByRole("menuitem", { name: "Очередь: 4" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Риск: 1" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Обучение: 0" })).toBeInTheDocument();
-    expect(within(menu).getByRole("menuitem", { name: "Взять следующий кейс" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Взять следующий" })).toBeInTheDocument();
   });
 
   it("uses 44px-capable shadcn targets for the logo and direct navigation actions", () => {
@@ -335,7 +372,7 @@ describe("app nav shell", () => {
     for (const link of within(areaNav()).getAllByRole("link")) {
       expect(link).toHaveAttribute("data-slot", "button");
     }
-    expect(screen.getByRole("button", { name: "Взять следующий кейс" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Взять следующий" })).toHaveAttribute(
       "data-slot",
       "button"
     );

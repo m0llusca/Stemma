@@ -1,9 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
+/** Demo-linked identities, including VIEWER for pending-access QA. */
 export const demoLoginUserWhere = {
-  role: {
-    not: "VIEWER"
-  },
   externalIdentities: {
     some: {
       provider: {
