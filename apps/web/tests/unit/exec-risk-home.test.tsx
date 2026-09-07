@@ -21,7 +21,7 @@ describe("ExecRiskHome", () => {
 
     expect(screen.getByText("Риск")).toBeInTheDocument();
     expect(screen.getByText(/операционный хром скрыт/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Разобрать/ })).toHaveAttribute("href", hrefs.overdue);
+    expect(screen.getByRole("button", { name: /Разобрать/ })).toHaveAttribute("href", hrefs.overdue);
 
     expect(screen.getByRole("link", { name: /Просрочено SLA/ })).toHaveAttribute("href", hrefs.overdue);
     expect(screen.getByRole("link", { name: /Высокий риск/ })).toHaveAttribute("href", hrefs.highRisk);
