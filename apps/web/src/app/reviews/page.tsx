@@ -28,7 +28,7 @@ import {
   samplingTypeLabels
 } from "@/lib/labels";
 import { takeNextReview } from "@/lib/queue-view-actions";
-import type { ReviewQueueConversationDto } from "@/lib/contracts/review-queue";
+import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import { getReviewQueuePageData } from "@/lib/review-queue-page-data";
 import {
   paginateReviewQueue,
@@ -44,10 +44,6 @@ export const dynamic = "force-dynamic";
 type ReviewsPageProps = {
   searchParams: Promise<ReviewQueueSearchParams>;
 };
-
-function queuePreviewHref(conversation: ReviewQueueConversationDto, returnTo: string) {
-  return `/reviews/${conversation.id}?returnTo=${encodeURIComponent(returnTo)}`;
-}
 
 // Build a queue href for a given page while preserving every other active
 // search param (filters, saved view, etc.). Page 1 drops the param entirely so
@@ -88,7 +84,7 @@ function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
+export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
   const rawParams = await searchParams;
   const queueEmpty = firstParam(rawParams.empty) === "1";
   const savedMarker = firstParam(rawParams.saved);
@@ -152,8 +148,9 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
       <QueueNextCasePreview
         subject={queuePreview.subject}
         description={`${queuePreview.customerName} · ${queuePreview.assigneeName ?? "оператор не назначен"}`}
-        openHref={queuePreviewHref(queuePreview, data.currentHref)}
+        queueHref={data.currentHref}
         statusConversation={queuePreview}
+        canTakeNext={data.canWriteReviews}
       >
         <StatKpi
           label="Оценка"
@@ -194,20 +191,26 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
 
   return (
     <QueueWorkspace
-      description={`Найдено ${filteredCount} из ${total}. Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия.`}
+      description={
+        data.canWriteReviews
+          ? `Найдено ${filteredCount} из ${total}. Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия.`
+          : `Найдено ${filteredCount} из ${total}. Просмотр очереди: обращения и фильтры.`
+      }
       actions={
-        <form action={takeNextReview}>
-          <input type="hidden" name="queueHref" value={data.currentHref} />
-          <Button type="submit">
-            <ArrowRight size={16} aria-hidden="true" data-icon="inline-start" />
-            Взять следующий
-          </Button>
-        </form>
+        data.canWriteReviews ? (
+          <form action={takeNextReview}>
+            <input type="hidden" name="queueHref" value={data.currentHref} />
+            <Button type="submit">
+              <ArrowRight size={16} aria-hidden="true" data-icon="inline-start" />
+              {TAKE_NEXT_LABEL}
+            </Button>
+          </form>
+        ) : undefined
       }
     >
       <ReviewSavedToast marker={savedMarker} />
       <WelcomeBackBanner />
-      <QueueDay1Tour />
+      {data.canWriteReviews ? <QueueDay1Tour /> : null}
       {queueEmpty ? <QueueEmptyBanner /> : null}
 
       <QueueWorkspace.CommandBar
@@ -237,7 +240,12 @@ async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
         previewLabel="Предпросмотр следующего обращения"
       >
         <div className="flex min-w-0 flex-col gap-3">
-          <QueueTable conversations={queuePage.items} qaAssignees={data.qaAssignees} returnTo={data.currentHref} />
+          <QueueTable
+            conversations={queuePage.items}
+            qaAssignees={data.qaAssignees}
+            returnTo={data.currentHref}
+            canWriteReviews={data.canWriteReviews}
+          />
           {queuePage.pageCount > 1 ? (
             <Pagination className="mx-0 w-full flex-wrap justify-between gap-3" aria-label="Страницы очереди">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground" aria-live="polite">
