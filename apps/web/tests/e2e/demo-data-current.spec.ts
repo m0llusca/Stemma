@@ -120,8 +120,8 @@ test("review queue exposes every active state and mixed SLA dates", async ({ pag
     // portaled panel markup outside the command-bar region still matches.
     await expect(page.locator("#queue-filter-qaStatus")).toHaveValue(queueCase.status);
 
-    // Prefer DOM row class: cold Chromium a11y trees sometimes omit name/text on role=row.
-    const scenarioRow = page.locator("tr.queue-row", { hasText: queueCase.subject });
+    // Prefer table-row slot: cold Chromium a11y trees sometimes omit name/text on role=row.
+    const scenarioRow = page.locator('[data-slot="table-row"]', { hasText: queueCase.subject });
     await expect(scenarioRow).toBeVisible({ timeout: 15_000 });
     // Due cell is "DD.MM.YYYY" + "— просрочено" siblings; exact text match on a leaf fails.
     await expect(scenarioRow).toContainText(queueCase.dueDate);

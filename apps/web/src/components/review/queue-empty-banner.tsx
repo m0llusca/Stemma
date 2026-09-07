@@ -42,9 +42,9 @@ export function QueueEmptyBanner() {
   }
 
   return (
-    <Alert role="status" className="queue-empty-banner flex items-center gap-3">
+    <Alert role="status" className="flex items-center gap-3">
       <Inbox size={18} aria-hidden="true" />
-      <AlertDescription className="queue-empty-banner__text flex-1">
+      <AlertDescription className="flex-1">
         Свободных обращений в очереди нет.
       </AlertDescription>
       <AlertAction>

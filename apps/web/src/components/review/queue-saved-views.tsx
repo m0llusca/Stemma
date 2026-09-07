@@ -70,18 +70,18 @@ export function QueueSavedViews({
           <h2 className="text-sm font-semibold text-foreground">Быстрые виды</h2>
           <p className="mt-1 truncate text-sm text-muted-foreground">{currentView?.label ?? "Текущий фильтр"}</p>
         </div>
-        <span className="queue-filterbar__summary-action inline-flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-semibold text-foreground group-data-open:border-primary/40 group-data-open:bg-primary/10 group-data-open:text-primary">
-          <span className="queue-filterbar__summary-closed group-data-open:hidden">Раскрыть</span>
-          <span className="queue-filterbar__summary-open hidden group-data-open:inline">Скрыть</span>
+        <span className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-semibold text-foreground group-data-open:border-primary/40 group-data-open:bg-primary/10 group-data-open:text-primary">
+          <span className="group-data-open:hidden">Раскрыть</span>
+          <span className="hidden group-data-open:inline">Скрыть</span>
           <ChevronDown
-            className="queue-filterbar__chevron size-4 transition-transform group-data-open:rotate-180"
+            className="size-4 transition-transform group-data-open:rotate-180"
             aria-hidden="true"
           />
         </span>
       </CollapsibleTrigger>
 
       <CollapsibleContent className="min-w-0 border-t border-border">
-        <div className="signal-row flex flex-wrap items-center gap-1.5 px-4 py-3" aria-label="Быстрые представления очереди">
+        <div className="flex flex-wrap items-center gap-1.5 px-4 py-3" aria-label="Быстрые представления очереди">
           {visibleViews.map((view, index) => {
             const isActive = currentHref === view.href;
 
