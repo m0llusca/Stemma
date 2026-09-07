@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { analystMineOverdueHref } from "@/lib/auth/role-home";
 import {
   activeAreaForPath,
   buildShellNavigation,
+  todayHrefForRole,
   topNavAreas,
   visibleTopNavAreas,
   type ShellCommandItem
@@ -90,6 +92,25 @@ describe("visibleTopNavAreas", () => {
     // VIEWER не имеет ни одного права → ни одна область топ-навигации не должна
     // вести на страницу, чей собственный гвард бросит «Недостаточно прав».
     expect(visibleTopNavAreas("VIEWER").map((area) => area.id)).toEqual([]);
+  });
+
+  it("points analyst Сегодня at the mine+overdue inbox and keeps lead pulse on dashboard", () => {
+    const analystToday = visibleTopNavAreas("QA_ANALYST", { name: "Анна QA" }).find(
+      (area) => area.id === "today"
+    );
+    expect(analystToday?.href).toBe(analystMineOverdueHref("Анна QA"));
+    expect(todayHrefForRole("QA_ANALYST", { name: "Анна QA" })).toBe(
+      analystMineOverdueHref("Анна QA")
+    );
+    expect(visibleTopNavAreas("TEAM_LEAD").find((area) => area.id === "today")?.href).toBe(
+      "/dashboard"
+    );
+    expect(visibleTopNavAreas("ADMIN").find((area) => area.id === "today")?.href).toBe(
+      "/dashboard"
+    );
+    expect(visibleTopNavAreas("SUPPORT_AGENT").find((area) => area.id === "today")?.href).toBe(
+      "/dashboard"
+    );
   });
 });
 
@@ -227,5 +248,26 @@ describe("buildShellNavigation gating gaps", () => {
     expect(reportSchedules!.aliases).toEqual(
       expect.arrayContaining(["расписания", "report schedules"])
     );
+  });
+
+  it("makes analyst Сегодня the inbox home and keeps dashboard as a secondary pulse", () => {
+    const navigation = buildShellNavigation({ role: "QA_ANALYST", name: "Анна QA" });
+    const today = navigation.modes.find((mode) => mode.id === "today");
+    const inbox = analystMineOverdueHref("Анна QA");
+
+    expect(today?.href).toBe(inbox);
+    expect(today?.destinations.map((destination) => destination.href)).toEqual([
+      inbox,
+      "/dashboard"
+    ]);
+    expect(navigation.commandItems.some((item) => item.href === inbox && item.label === "Сегодня")).toBe(
+      true
+    );
+
+    const leadToday = buildShellNavigation({ role: "TEAM_LEAD" }).modes.find(
+      (mode) => mode.id === "today"
+    );
+    expect(leadToday?.href).toBe("/dashboard");
+    expect(leadToday?.destinations.map((destination) => destination.href)).toEqual(["/dashboard"]);
   });
 });

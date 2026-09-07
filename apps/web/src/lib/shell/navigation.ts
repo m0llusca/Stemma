@@ -1,6 +1,7 @@
 import type { RoleName } from "@prisma/client";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
+import { roleHomePath } from "@/lib/auth/role-home";
 
 export type ShellNavIcon = "today" | "work" | "quality" | "team" | "system";
 export type ShellNavModeId = "today" | "work" | "quality" | "team" | "system";
@@ -118,13 +119,43 @@ export const topNavAreas: ShellNavArea[] = [
   }
 ];
 
+export type VisibleTopNavOptions = {
+  name?: string;
+};
+
+const analystTodayDescription = "Мои проверки с нарушенным сроком — очередь дня.";
+
+/**
+ * Analyst «Сегодня» is the mine+overdue inbox, not the lead pulse on `/dashboard`.
+ * Other roles keep the static today href (`/dashboard`).
+ */
+export function todayHrefForRole(role: RoleName, options?: { name?: string }) {
+  if (role === "QA_ANALYST") {
+    return roleHomePath(role, { name: options?.name });
+  }
+
+  return "/dashboard";
+}
+
 /**
  * Top-nav areas a role can actually open: the same roles/permission gating as
  * the mode/destination model, so the bar never links to a page whose own guard
  * would invoke Next.js `forbidden()` instead of the generic error boundary.
  */
-export function visibleTopNavAreas(role: RoleName): ShellNavArea[] {
-  return topNavAreas.filter((area) => canSeeDefinition(role, area));
+export function visibleTopNavAreas(role: RoleName, options?: VisibleTopNavOptions): ShellNavArea[] {
+  return topNavAreas
+    .filter((area) => canSeeDefinition(role, area))
+    .map((area) => {
+      if (area.id !== "today" || role !== "QA_ANALYST") {
+        return area;
+      }
+
+      return {
+        ...area,
+        href: todayHrefForRole(role, options),
+        description: analystTodayDescription
+      };
+    });
 }
 
 /**
@@ -155,6 +186,16 @@ type DestinationDefinition = ShellNavDestination & {
   permission?: Permission;
   permissionsAny?: Permission[];
 };
+
+function analystInboxDestination(name?: string): DestinationDefinition {
+  return {
+    href: roleHomePath("QA_ANALYST", { name }),
+    label: "Мои + просрочено",
+    description: "Назначенные мне проверки с нарушенным сроком.",
+    aliases: ["мои", "просрочено", "inbox", "очередь дня", "сегодня"],
+    permission: "reviews:read"
+  };
+}
 
 type ModeDefinition = Omit<ShellNavMode, "href" | "destinations"> & {
   roles?: RoleName[];
@@ -433,21 +474,32 @@ function canSeeDefinition(
   return true;
 }
 
-export function buildShellNavigation({ role }: { role: RoleName }): ShellNavigation {
+export function buildShellNavigation({
+  role,
+  name
+}: {
+  role: RoleName;
+  name?: string;
+}): ShellNavigation {
   const modes = modeDefinitions
     .filter((mode) => canSeeDefinition(role, mode))
     .map((mode) => {
       const destinations = mode.destinations.filter((destination) => canSeeDefinition(role, destination));
-      const href = destinations[0]?.href ?? "/dashboard";
+      const todayDestinations =
+        mode.id === "today" && role === "QA_ANALYST"
+          ? [analystInboxDestination(name), ...destinations]
+          : destinations;
+      const href = todayDestinations[0]?.href ?? "/dashboard";
 
       return {
         id: mode.id,
         href,
         label: mode.label,
         compactLabel: mode.compactLabel,
-        description: mode.description,
+        description:
+          role === "QA_ANALYST" && mode.id === "today" ? analystTodayDescription : mode.description,
         icon: mode.icon,
-        destinations
+        destinations: todayDestinations
       } satisfies ShellNavMode;
     })
     .filter((mode) => mode.destinations.length > 0);

@@ -206,6 +206,7 @@ describe("app nav shell", () => {
     render(<AppNavShell {...baseProps} />);
 
     const logo = screen.getByRole("link", { name: "КК поддержки" });
+    expect(logo.getAttribute("href")).toBe("/dashboard");
     expect(logo.className).toContain("size-11");
 
     for (const link of within(areaNav()).getAllByRole("link")) {
@@ -331,6 +332,19 @@ describe("app nav shell", () => {
     fireEvent.click(analyticsLink);
     expect(screen.queryByRole("menu")).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("sends the brand mark to the role home instead of a hard-coded dashboard", () => {
+    render(
+      <AppNavShell
+        {...baseProps}
+        homeHref="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe(
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
   });
 
   it("renders the demo switcher form bound to the switch action when provided", () => {

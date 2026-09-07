@@ -73,6 +73,54 @@ describe("app nav", () => {
     expect(labels).toEqual(["Сегодня", "Проверки", "Калибровка", "Обучение", "Аналитика", "Настройки"]);
   });
 
+  it("points Сегодня and the brand mark at the mine+overdue inbox for a QA analyst", async () => {
+    mockCurrentUser("QA_ANALYST");
+    mocks.getCurrentUser.mockResolvedValue({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      role: "QA_ANALYST",
+      name: "Анна QA",
+      email: "qa@example.com",
+      workspace: {}
+    });
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const areaNav = screen.getByRole("navigation", { name: "Основные разделы" });
+    const today = within(areaNav).getByRole("link", { name: /Сегодня/ });
+    expect(today.getAttribute("href")).toBe(
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
+    expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe(
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
+    expect(within(areaNav).getByRole("link", { name: /Проверки/ }).getAttribute("href")).toBe(
+      "/reviews"
+    );
+  });
+
+  it("keeps lead Сегодня and the brand mark on the dashboard pulse", async () => {
+    mockCurrentUser("TEAM_LEAD");
+    mocks.getCurrentUser.mockResolvedValue({
+      id: "user-1",
+      workspaceId: "workspace-1",
+      role: "TEAM_LEAD",
+      name: "Игорь",
+      email: "lead@example.com",
+      workspace: {}
+    });
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const areaNav = screen.getByRole("navigation", { name: "Основные разделы" });
+    expect(within(areaNav).getByRole("link", { name: /Сегодня/ }).getAttribute("href")).toBe(
+      "/dashboard"
+    );
+    expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe("/dashboard");
+  });
+
   it("shows a support agent only permitted areas including its feedback page", async () => {
     mockCurrentUser("SUPPORT_AGENT");
     const { AppNav } = await import("@/components/app-nav");
@@ -84,6 +132,13 @@ describe("app nav", () => {
       .getAllByRole("link")
       .map((link) => link.textContent);
     expect(labels).toEqual(["Сегодня", "Моя обратная связь", "Проверки", "Обучение"]);
+    expect(within(areaNav).getByRole("link", { name: /Сегодня/ }).getAttribute("href")).toBe(
+      "/dashboard"
+    );
+    expect(within(areaNav).getByRole("link", { name: /Моя обратная связь/ }).getAttribute("href")).toBe(
+      "/self-review"
+    );
+    expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe("/dashboard");
   });
 
   it("hides the take-next-case shortcut from roles without reviews:write", async () => {

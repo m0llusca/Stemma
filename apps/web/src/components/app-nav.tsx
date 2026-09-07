@@ -1,5 +1,6 @@
 import { AppNavShell } from "@/components/app-nav-shell";
 import { hasPermission } from "@/lib/auth/permissions";
+import { roleHomePath } from "@/lib/auth/role-home";
 import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
@@ -27,7 +28,12 @@ export async function AppNav() {
   return (
     <AppNavShell
       navigation={snapshot.navigation}
-      areas={visibleTopNavAreas(snapshot.user.role)}
+      areas={visibleTopNavAreas(snapshot.user.role, { name: snapshot.user.name })}
+      homeHref={
+        snapshot.user.role === "QA_ANALYST"
+          ? roleHomePath(snapshot.user.role, { name: snapshot.user.name })
+          : "/dashboard"
+      }
       canTakeNextCase={hasPermission(snapshot.user.role, "reviews:write")}
       pulseItems={pulseItems}
       user={{ name: snapshot.user.name, email: snapshot.user.email }}
