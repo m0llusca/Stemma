@@ -46,6 +46,8 @@ import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certif
 import { certificationDisplayTone } from "@/lib/certification/status";
 
 import { prisma } from "@/lib/db";
+import { getIntegrationCapability } from "@/lib/integrations/capabilities";
+import { integrationConnectionTone } from "@/lib/integrations/connection-tone";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
@@ -112,14 +114,6 @@ function providerTone(status: string): StatusTone {
   if (status === "active") return "positive";
   if (status === "draft") return "info";
   if (status === "disabled") return "warning";
-  return "neutral";
-}
-
-function integrationTone(status: string): StatusTone {
-  if (status === "error") return "negative";
-  if (status === "disabled") return "warning";
-  if (status === "active" || status === "ready") return "positive";
-  if (status === "queued") return "info";
   return "neutral";
 }
 
@@ -864,26 +858,38 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       />
                     ) : (
                       <div className="flex flex-col">
-                        {integrations.map((integration) => (
-                          <div
-                            key={integration.id}
-                            className="flex flex-col gap-2 border-b border-border py-3 last:border-b-0 sm:flex-row sm:items-start sm:justify-between"
-                          >
-                            <div className="flex min-w-0 flex-col gap-1">
-                              <span className="text-sm font-medium text-foreground">{integration.displayName}</span>
-                              <p className="text-xs tabular-nums text-muted-foreground">
-                                {externalSourceLabel(integration.source)} · лимит: {integration.importLimit} · батч:{" "}
-                                {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
-                              </p>
-                              {integration.lastError ? (
-                                <p className="text-xs font-medium text-destructive">{integration.lastError}</p>
-                              ) : null}
+                        {integrations.map((integration) => {
+                          const capability = getIntegrationCapability(integration.source, integration.type);
+
+                          return (
+                            <div
+                              key={integration.id}
+                              className="flex flex-col gap-2 border-b border-border py-3 last:border-b-0 sm:flex-row sm:items-start sm:justify-between"
+                            >
+                              <div className="flex min-w-0 flex-col gap-1">
+                                <span className="text-sm font-medium text-foreground">{integration.displayName}</span>
+                                <p className="text-xs tabular-nums text-muted-foreground">
+                                  {externalSourceLabel(integration.source)} · лимит: {integration.importLimit} · батч:{" "}
+                                  {integration.batchSize} · последний импорт: {formatDate(integration.lastImportAt)}
+                                </p>
+                                {integration.lastError ? (
+                                  <p className="text-xs font-medium text-destructive">{integration.lastError}</p>
+                                ) : null}
+                              </div>
+                              <StatusBadge
+                                tone={badgeTone(
+                                  integrationConnectionTone(
+                                    integration.status,
+                                    capability.certification.summary.status
+                                  )
+                                )}
+                                size="sm"
+                              >
+                                {integrationStatusLabel(integration.status)}
+                              </StatusBadge>
                             </div>
-                            <StatusBadge tone={badgeTone(integrationTone(integration.status))} size="sm">
-                              {integrationStatusLabel(integration.status)}
-                            </StatusBadge>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </section>
