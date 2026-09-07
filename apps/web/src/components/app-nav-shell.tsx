@@ -31,6 +31,7 @@ import {
 } from "@/lib/ui-branding";
 import { takeNextReview } from "@/lib/queue-view-actions";
 import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
+import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +85,7 @@ type AppNavShellProps = {
   areas?: ShellNavArea[];
   /** Role home from `roleHomePath` — never hardcode `/dashboard` (SUPPORT_AGENT stays off ops pulse). */
   homeHref?: string;
-  /** Гейт быстрого действия «Взять кейс»: false для ролей без reviews:write. */
+  /** Гейт быстрого действия «Взять следующий»: false для ролей без reviews:write. */
   canTakeNextCase?: boolean;
 };
 
@@ -401,11 +402,11 @@ export function AppNavShell({
                 ))}
                 {canTakeNextCase ? (
                   <DropdownMenuItem
-                    aria-label="Взять следующий кейс"
+                    aria-label={TAKE_NEXT_LABEL}
                     onClick={runTakeNext}
                   >
                     <ArrowRight />
-                    <span>Взять следующий кейс</span>
+                    <span>{TAKE_NEXT_LABEL}</span>
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuGroup>
@@ -433,11 +434,11 @@ export function AppNavShell({
             <Button
               type="button"
               size="sm"
-              aria-label="Взять следующий кейс"
+              aria-label={TAKE_NEXT_LABEL}
               className="hidden shrink-0 sm:inline-flex"
               onClick={runTakeNext}
             >
-              <span className="hidden xl:inline">Взять кейс</span>
+              <span className="hidden xl:inline">{TAKE_NEXT_LABEL}</span>
               <ArrowRight data-icon="inline-end" />
             </Button>
           ) : null}

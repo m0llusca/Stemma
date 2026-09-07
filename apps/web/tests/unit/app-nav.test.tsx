@@ -143,12 +143,13 @@ describe("app nav", () => {
     const labels = within(areaNav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(labels).toEqual(["Моя обратная связь", "Проверки", "Обучение"]);
+    expect(labels).toEqual(["Моя обратная связь", "Обучение"]);
     expect(within(areaNav).getByRole("link", { name: /Моя обратная связь/ }).getAttribute("href")).toBe(
       "/self-review"
     );
     expect(screen.getByRole("link", { name: "КК поддержки" }).getAttribute("href")).toBe("/self-review");
     expect(screen.queryByRole("link", { name: "Сегодня" })).toBeNull();
+    expect(within(areaNav).queryByRole("link", { name: /Проверки/ })).toBeNull();
   });
 
   it("hides the take-next-case shortcut from roles without reviews:write", async () => {
@@ -157,11 +158,11 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
-  it("surfaces the queue and coaching pulse links for a support agent", async () => {
+  it("surfaces coaching pulse only for a support agent, not ops queue", async () => {
     mockCurrentUser("SUPPORT_AGENT");
     const { AppNav } = await import("@/components/app-nav");
 
@@ -173,11 +174,15 @@ describe("app nav", () => {
     expect(pulseSurfaces).toHaveLength(2);
     const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
     expect(pulse).toBeDefined();
-    expect(within(pulse!).getByRole("link", { name: /Очередь/ })).not.toBeNull();
+    expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
+    expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
     expect(within(pulse!).getByRole("link", { name: /Обучение/ })).not.toBeNull();
     // reviews:write отсутствует у SUPPORT_AGENT — быстрое действие скрыто.
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).toHaveBeenCalled();
   });
 
   it("keeps exec on risk pulse without take-next or training chrome", async () => {
@@ -195,31 +200,24 @@ describe("app nav", () => {
     const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
     const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
     expect(pulse).toBeDefined();
-    expect(within(pulse!).getByRole("link", { name: /Очередь/ })).not.toBeNull();
-    expect(within(pulse!).getByRole("link", { name: /Риск/ })).not.toBeNull();
-    expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-  });
-
-  it("hides every pulse link and the take-next-case shortcut from a viewer", async () => {
-    mockCurrentUser("VIEWER");
-    const { AppNav } = await import("@/components/app-nav");
-
-    render(await AppNav());
-
-    // Имя «Рабочий пульс» делят два элемента: компактная мобильная кнопка меню
-    // и десктоп-контейнер ссылок — отсутствие ссылок проверяем в контейнере.
-    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
-    expect(pulseSurfaces).toHaveLength(2);
-    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
-    expect(pulse).toBeDefined();
-    // VIEWER без прав не должен видеть счётчики очереди/риска/обучения…
+    // EXEC has reviews:read, but ops pulse still sells the queue. Risk lives on ExecRiskHome.
     expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
     expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
-    // …ни быстрое действие «Взять следующий кейс».
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+  });
+
+  it("renders no workspace chrome for a viewer holding state", async () => {
+    mockCurrentUser("VIEWER");
+    const { AppNav } = await import("@/components/app-nav");
+
+    expect(await AppNav()).toBeNull();
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+    expect(mocks.getWorkspaceUsers).not.toHaveBeenCalled();
   });
 
   it("keeps the take-next-case shortcut for reviewers", async () => {
@@ -227,8 +225,8 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    expect(screen.getByRole("button", { name: "Взять следующий кейс" })).not.toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Взять следующий" })).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "Взять следующий" })).toBeNull();
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {
@@ -257,6 +255,33 @@ describe("app nav", () => {
 
     expect(await screen.findByRole("button", { name: "Сменить" })).not.toBeNull();
     expect(screen.getByRole("combobox", { name: "Демо-пользователь" })).not.toBeNull();
+  });
+
+  it("keeps the risk pulse badge neutral when the count is 0", async () => {
+    mocks.prisma.review.count.mockResolvedValue(0);
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    const risk = within(pulse!).getByRole("link", { name: "Риск: 0" });
+    expect(risk.querySelector('[class*="bg-destructive"]')).toBeNull();
+    expect(risk.querySelector('[class*="text-destructive"]')).toBeNull();
+  });
+
+  it("marks the risk pulse destructive only when the count is above 0", async () => {
+    mocks.prisma.review.count.mockResolvedValue(3);
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    const risk = within(pulse!).getByRole("link", { name: "Риск: 3" });
+    expect(risk.querySelector('[class*="bg-destructive"]')).not.toBeNull();
   });
 
   it("queries the work-pulse counters for the global nav", async () => {

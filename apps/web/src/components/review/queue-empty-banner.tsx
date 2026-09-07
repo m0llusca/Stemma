@@ -48,7 +48,14 @@ export function QueueEmptyBanner() {
         Свободных обращений в очереди нет.
       </AlertDescription>
       <AlertAction>
-        <Button type="button" variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Скрыть уведомление">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11"
+          onClick={dismiss}
+          aria-label="Скрыть уведомление"
+        >
           <X size={16} aria-hidden="true" />
         </Button>
       </AlertAction>

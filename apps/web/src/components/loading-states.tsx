@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-type PageSkeletonVariant = "admin" | "dashboard" | "detail" | "reports" | "workspace";
+type PageSkeletonVariant = "admin" | "dashboard" | "detail" | "exec" | "reports" | "workspace";
 
 type PageSkeletonProps = {
   label?: string;
@@ -94,6 +94,30 @@ function PanelCard({
 }
 
 export function PageSkeleton({ label = "Loading page", variant = "workspace" }: PageSkeletonProps) {
+  if (variant === "exec") {
+    return (
+      <Shell label={label}>
+        <HeaderSkeleton titleWidth="w-32" subtitleWidth="w-full max-w-lg" actionWidth="w-40" />
+
+        <Skeleton className="h-16 w-full" />
+
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-hidden="true">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Card key={index}>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      </Shell>
+    );
+  }
+
   if (variant === "dashboard") {
     return (
       <Shell label={label}>

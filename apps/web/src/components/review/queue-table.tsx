@@ -40,6 +40,10 @@ type QueueTableProps = {
   conversations: ReviewQueueConversationDto[];
   qaAssignees: ReviewQueueAssigneeDto[];
   returnTo: string;
+  /** Inbox home after reset. Analyst keeps mine+overdue; others go to `/reviews`. */
+  resetHref?: string;
+  /** reviews:write — hide bulk chrome and row checkboxes for EXEC / SUPPORT_AGENT. */
+  canWriteReviews: boolean;
 };
 
 function samplingIsSignal(samplingType: string) {
@@ -60,7 +64,178 @@ function initials(name: string) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toLocaleUpperCase("ru-RU");
 }
 
-export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableProps) {
+function QueueTableRows({
+  conversations,
+  canWriteReviews
+}: {
+  conversations: ReviewQueueConversationDto[];
+  canWriteReviews: boolean;
+}) {
+  return (
+    <>
+      {conversations.map((conversation) => {
+        const latestFinalizedReview =
+          conversation.qaStatus === "FINALIZED"
+            ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
+            : undefined;
+        const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
+        const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
+        const isOverdue =
+          reviewDueAt !== null && reviewDueAt < new Date() && conversation.qaStatus !== "FINALIZED";
+        const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
+        const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
+        const hasCritical = Boolean(latestFinalizedReview?.criticalError);
+        const appealLabel = latestFinalizedReview
+          ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
+          : "";
+        const reanswerLabel = latestFinalizedReview
+          ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
+          : "Переответ";
+        const dueLabel = reviewDueAt
+          ? reviewDueAt.toLocaleDateString("ru-RU")
+          : conversation.qaStatus === "FINALIZED"
+            ? "закрыто"
+            : "не задан";
+
+        const signalItems = [
+          hasCritical ? "критическая ошибка" : null,
+          hasReanswer ? reanswerLabel : null,
+          hasAppeal ? `апелляция: ${appealLabel}` : null,
+          conversation.csatBucket === "NEGATIVE"
+            ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
+            : null,
+          samplingIsSignal(conversation.samplingType)
+            ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType
+            : null,
+          conversation.riskHint ? "риск" : null,
+          conversation.pendingReopen
+            ? `запрос переоткрытия: ${conversation.pendingReopen.requestedByName ?? "сотрудник"}`
+            : null
+        ].filter((signal): signal is string => Boolean(signal));
+
+        return (
+          <TableRow key={conversation.id}>
+            {canWriteReviews ? (
+              <TableCell>
+                <Checkbox
+                  name="conversationId"
+                  value={conversation.id}
+                  aria-label={`Выбрать ${conversation.subject}`}
+                />
+              </TableCell>
+            ) : null}
+
+            <TableCell>
+              <span
+                className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+                aria-hidden="true"
+              >
+                {initials(conversation.assigneeName ?? conversation.customerName)}
+              </span>
+            </TableCell>
+
+            <TableCell>
+              <ReviewStatusChip conversation={conversation} />
+            </TableCell>
+
+            <TableCell className="max-w-[420px] whitespace-normal">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <Link
+                  href={`/reviews/${conversation.id}`}
+                  className="font-medium text-foreground hover:underline"
+                >
+                  {conversation.subject}
+                </Link>
+                <span className="text-xs text-muted-foreground">{conversation.priorityReason}</span>
+                <span className="text-xs text-muted-foreground">
+                  {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
+                  {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
+                  {externalSourceLabel(conversation.externalSource)}
+                  {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
+                </span>
+                {conversation.pendingReopen ? (
+                  <span className="text-xs text-amber-700 dark:text-amber-400">
+                    Причина запроса: {conversation.pendingReopen.reason}
+                  </span>
+                ) : null}
+              </div>
+            </TableCell>
+
+            <TableCell className="whitespace-normal">
+              <span className="text-sm text-foreground">{conversation.qaAssigneeName ?? "Не назначен"}</span>
+            </TableCell>
+
+            <TableCell className={cn("whitespace-normal", isOverdue && "text-destructive")}>
+              <span className="text-sm font-medium tabular-nums">
+                {dueLabel}
+                {isOverdue ? <span className="sr-only"> — просрочено</span> : null}
+              </span>
+            </TableCell>
+
+            <TableCell className="text-right font-medium tabular-nums">
+              {formatQualityScore(latestFinalizedReview?.totalScore, draftReview ? "Черновик" : "—")}
+            </TableCell>
+
+            <TableCell>
+              <Button
+                render={<Link href={`/reviews/${conversation.id}`} />}
+                nativeButton={false}
+                variant="outline"
+                size="sm"
+              >
+                Открыть
+              </Button>
+            </TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+function QueueConversationsTable({
+  conversations,
+  canWriteReviews
+}: {
+  conversations: ReviewQueueConversationDto[];
+  canWriteReviews: boolean;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {canWriteReviews ? (
+            <TableHead className="w-10">
+              <span className="sr-only">Выбор</span>
+            </TableHead>
+          ) : null}
+          <TableHead className="w-10">
+            <span className="sr-only">Оператор</span>
+          </TableHead>
+          <TableHead className="w-[140px]">Статус проверки</TableHead>
+          <TableHead>Обращение</TableHead>
+          <TableHead className="w-[140px]">Проверяющий</TableHead>
+          <TableHead className="w-[100px]">Срок</TableHead>
+          <TableHead className="w-[80px] text-right">Оценка</TableHead>
+          <TableHead className="w-[96px]">
+            <span className="sr-only">Действие</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <QueueTableRows conversations={conversations} canWriteReviews={canWriteReviews} />
+      </TableBody>
+    </Table>
+  );
+}
+
+export function QueueTable({
+  conversations,
+  qaAssignees,
+  returnTo,
+  resetHref = "/reviews",
+  canWriteReviews
+}: QueueTableProps) {
   if (conversations.length === 0) {
     return (
       <Card className="overflow-clip">
@@ -70,13 +245,25 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
             title="Очередь пуста"
             description="Новые диалоги появятся после импорта, API-загрузки или изменения фильтров отбора."
             action={
-              <Button render={<Link href="/reviews" />} nativeButton={false}>
+              <Button render={<Link href={resetHref} />} nativeButton={false}>
                 Сбросить фильтры
               </Button>
             }
           />
         </CardContent>
       </Card>
+    );
+  }
+
+  const table = (
+    <QueueConversationsTable conversations={conversations} canWriteReviews={canWriteReviews} />
+  );
+
+  if (!canWriteReviews) {
+    return (
+      <div className="overflow-clip">
+        <Card className="gap-0 overflow-clip py-0">{table}</Card>
+      </div>
     );
   }
 
@@ -157,142 +344,7 @@ export function QueueTable({ conversations, qaAssignees, returnTo }: QueueTableP
 
         <Separator />
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <span className="sr-only">Выбор</span>
-              </TableHead>
-              <TableHead className="w-10">
-                <span className="sr-only">Оператор</span>
-              </TableHead>
-              <TableHead className="w-[140px]">Статус проверки</TableHead>
-              <TableHead>Обращение</TableHead>
-              <TableHead className="w-[140px]">Проверяющий</TableHead>
-              <TableHead className="w-[100px]">Срок</TableHead>
-              <TableHead className="w-[80px] text-right">Оценка</TableHead>
-              <TableHead className="w-[96px]">
-                <span className="sr-only">Действие</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {conversations.map((conversation) => {
-              const latestFinalizedReview =
-                conversation.qaStatus === "FINALIZED"
-                  ? conversation.reviews.find((review) => review.status === "FINALIZED" && review.reviewSource === "HUMAN")
-                  : undefined;
-              const draftReview = conversation.reviews.find((review) => review.status === "DRAFT" && review.reviewSource === "HUMAN");
-              const reviewDueAt = conversation.reviewDueAt ? new Date(conversation.reviewDueAt) : null;
-              const isOverdue =
-                reviewDueAt !== null && reviewDueAt < new Date() && conversation.qaStatus !== "FINALIZED";
-              const hasAppeal = latestFinalizedReview?.appealStatus && latestFinalizedReview.appealStatus !== "none";
-              const hasReanswer = Boolean(latestFinalizedReview?.needsReanswer);
-              const hasCritical = Boolean(latestFinalizedReview?.criticalError);
-              const appealLabel = latestFinalizedReview
-                ? appealStatusLabels[latestFinalizedReview.appealStatus] ?? latestFinalizedReview.appealStatus
-                : "";
-              const reanswerLabel = latestFinalizedReview
-                ? reanswerStatusLabels[latestFinalizedReview.reanswerStatus] ?? "Переответ"
-                : "Переответ";
-              const dueLabel = reviewDueAt
-                ? reviewDueAt.toLocaleDateString("ru-RU")
-                : conversation.qaStatus === "FINALIZED"
-                  ? "закрыто"
-                  : "не задан";
-
-              const signalItems = [
-                hasCritical ? "критическая ошибка" : null,
-                hasReanswer ? reanswerLabel : null,
-                hasAppeal ? `апелляция: ${appealLabel}` : null,
-                conversation.csatBucket === "NEGATIVE"
-                  ? csatBucketLabels[conversation.csatBucket] ?? conversation.csatBucket
-                  : null,
-                samplingIsSignal(conversation.samplingType)
-                  ? samplingTypeLabels[conversation.samplingType] ?? conversation.samplingType
-                  : null,
-                conversation.riskHint ? "риск" : null,
-                conversation.pendingReopen
-                  ? `запрос переоткрытия: ${conversation.pendingReopen.requestedByName ?? "сотрудник"}`
-                  : null
-              ].filter((signal): signal is string => Boolean(signal));
-
-              return (
-                <TableRow key={conversation.id}>
-                  <TableCell>
-                    <Checkbox
-                      name="conversationId"
-                      value={conversation.id}
-                      aria-label={`Выбрать ${conversation.subject}`}
-                    />
-                  </TableCell>
-
-                  <TableCell>
-                    <span
-                      className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
-                      aria-hidden="true"
-                    >
-                      {initials(conversation.assigneeName ?? conversation.customerName)}
-                    </span>
-                  </TableCell>
-
-                  <TableCell>
-                    <ReviewStatusChip conversation={conversation} />
-                  </TableCell>
-
-                  <TableCell className="max-w-[420px] whitespace-normal">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <Link
-                        href={`/reviews/${conversation.id}`}
-                        className="font-medium text-foreground hover:underline"
-                      >
-                        {conversation.subject}
-                      </Link>
-                      <span className="text-xs text-muted-foreground">{conversation.priorityReason}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {conversation.customerName} · {conversation.assigneeName ?? "оператор не назначен"} ·{" "}
-                        {channelLabels[conversation.channel]} · {formatMessageCount(conversation.messageCount)} ·{" "}
-                        {externalSourceLabel(conversation.externalSource)}
-                        {signalItems.length > 0 ? ` · ${signalItems.join(", ")}` : ""}
-                      </span>
-                      {conversation.pendingReopen ? (
-                        <span className="text-xs text-amber-700 dark:text-amber-400">
-                          Причина запроса: {conversation.pendingReopen.reason}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="whitespace-normal">
-                    <span className="text-sm text-foreground">{conversation.qaAssigneeName ?? "Не назначен"}</span>
-                  </TableCell>
-
-                  <TableCell className={cn("whitespace-normal", isOverdue && "text-destructive")}>
-                    <span className="text-sm font-medium tabular-nums">
-                      {dueLabel}
-                      {isOverdue ? <span className="sr-only"> — просрочено</span> : null}
-                    </span>
-                  </TableCell>
-
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatQualityScore(latestFinalizedReview?.totalScore, draftReview ? "Черновик" : "—")}
-                  </TableCell>
-
-                  <TableCell>
-                    <Button
-                      render={<Link href={`/reviews/${conversation.id}`} />}
-                      nativeButton={false}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Открыть
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        {table}
       </Card>
     </form>
   );

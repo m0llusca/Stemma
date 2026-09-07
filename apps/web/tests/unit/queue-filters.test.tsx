@@ -66,6 +66,26 @@ describe("QueueFilters", () => {
     expect(screen.queryByText("Итог: В очереди")).not.toBeInTheDocument();
   });
 
+  it("resets analyst inbox filters to the mine+overdue role home", () => {
+    render(
+      <QueueFilters
+        filters={{ status: "all", qaAssignee: "Анна QA", due: "overdue", channel: "CHAT" }}
+        sources={[]}
+        assignees={[]}
+        qaAssignees={[]}
+        supportLines={[]}
+        teamNames={[]}
+        resetHref="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+      />
+    );
+
+    expect(screen.getByText("Сбросить фильтры").closest("a")).toHaveAttribute(
+      "href",
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
+    expect(screen.getByText("Сбросить фильтры").closest("a")).not.toHaveAttribute("href", "/reviews");
+  });
+
   it("synchronizes queue search with refreshed filters without Base UI ownership warnings", () => {
     const diagnostics: Array<{ message: string; ownerStack: string }> = [];
     const captureDiagnostic = (...args: unknown[]) => {
