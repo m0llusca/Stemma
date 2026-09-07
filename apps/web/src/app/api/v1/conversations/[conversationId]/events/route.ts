@@ -1,3 +1,4 @@
+import { assertAgentOwnsAssignee } from "@/lib/agent-scope";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
@@ -27,10 +28,17 @@ export async function GET(request: Request, context: { params: Promise<{ convers
       id: conversationId,
       workspaceId: user.workspaceId
     },
-    select: { id: true }
+    select: { id: true, assigneeId: true }
   });
 
   if (!conversation) {
+    return apiError("not_found", "Обращение не найдено.", 404);
+  }
+
+  try {
+    assertAgentOwnsAssignee(user, { assigneeId: conversation.assigneeId });
+  } catch {
+    // Same not_found as missing conversation to avoid an existence oracle for agents.
     return apiError("not_found", "Обращение не найдено.", 404);
   }
 

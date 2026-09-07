@@ -1,3 +1,4 @@
+import { assertAgentOwnsAssignee } from "@/lib/agent-scope";
 import { apiError, apiJson, requestIdFromHeaders } from "@/lib/api/response";
 import { requireSessionApi } from "@/lib/api/session";
 import { prisma } from "@/lib/db";
@@ -27,10 +28,22 @@ export async function GET(request: Request, context: { params: Promise<{ reviewI
       id: reviewId,
       workspaceId: user.workspaceId
     },
-    select: { id: true }
+    select: {
+      id: true,
+      conversation: {
+        select: { assigneeId: true }
+      }
+    }
   });
 
   if (!review) {
+    return apiError("not_found", "Проверка не найдена.", 404);
+  }
+
+  try {
+    assertAgentOwnsAssignee(user, { assigneeId: review.conversation.assigneeId });
+  } catch {
+    // Same not_found as missing review to avoid an existence oracle for agents.
     return apiError("not_found", "Проверка не найдена.", 404);
   }
 
