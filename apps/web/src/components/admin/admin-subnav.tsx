@@ -55,7 +55,7 @@ export type AdminSubnavGroup = {
 
 /**
  * Группы сбалансированы по смыслу (3/3/3/4), а метка честно описывает
- * содержимое: люди и доступ отдельно от потоков данных, платформа — отдельно.
+ * содержимое: люди и SSO отдельно от источников/уведомлений, платформа — отдельно.
  * Подписи пунктов берутся ТОЛЬКО из канонического словаря adminSectionTitles.
  */
 export const adminSubnavGroups: AdminSubnavGroup[] = [
@@ -79,7 +79,7 @@ export const adminSubnavGroups: AdminSubnavGroup[] = [
   },
   {
     id: "data-flows",
-    label: "Данные и каналы",
+    label: "Источники и уведомления",
     items: [
       { href: "/admin/integrations", label: adminSectionTitles["/admin/integrations"], icon: Plug, permission: "integrations:manage" },
       { href: "/admin/channels", label: adminSectionTitles["/admin/channels"], icon: Send, permission: "backend_jobs:manage" },

@@ -10,9 +10,104 @@ export const certificationEvidenceEmptyText =
 
 export const diagnosticsNotLiveCertificationFooter = "Диагностика ≠ живая сертификация";
 
-export const channelsEnabledWarningTitle = "Включённые каналы — не сертификация";
+export const channelsEnabledWarningTitle = "Включённые уведомления — не сертификация";
 export const channelsEnabledWarningDescription =
-  "Счётчик «Включены» показывает операционный статус доставки. Живая сертификация исходящих каналов ещё не подключена.";
+  "Счётчик «Включены» показывает операционный статус доставки. Живая сертификация исходящих уведомлений ещё не подключена.";
+
+export const channelsSectionCardTitle = "Исходящие уведомления";
+export const channelsPageDescription =
+  "Доставка оповещений в Slack, Teams, Telegram и WhatsApp. Это не интеграции источников и не SSO.";
+export const channelsIaDistinction =
+  "Интеграции — входящие источники. Доступ — SSO. Здесь только исходящие уведомления.";
+
+export const saveDoesNotCertifyCopy =
+  "Сохранение настроек ≠ живая сертификация. Зелёный статус — только после live cert с evidence.";
+export const activateWithoutProbeCopy =
+  "Включение без probe не подтверждает live-готовность. Доставка может идти, сертификация не пройдена.";
+export const claimLiveWithoutCertCopy =
+  "Нельзя сохранить как live-ready без живой сертификации и evidence.";
+export const connectPersistedNotLiveCopy =
+  "Проверка доступа прошла, источник записан. Это ещё не production-ready: зелёный статус — только после живой сертификации с evidence.";
+export const probeBeforePersistCopy =
+  "Stemma сначала проверит доступ (probe), и только при успехе сохранит источник. Зелёный production-ready — только после живой сертификации.";
+
+export type ProbeBeforeSaveIntent = "config_only" | "activate" | "claim_live";
+
+export type ProbeBeforeSaveEvidence = {
+  probeSucceeded?: boolean;
+  liveCertified?: boolean;
+};
+
+export type ProbeBeforeSaveDecision = {
+  action: "allow" | "warn" | "block";
+  tone: StatusTone;
+  message: string;
+};
+
+/**
+ * Action-level honesty gate. Labels can stay operational; the save/connect
+ * action must not claim live readiness without probe/cert evidence.
+ * claim_live without cert is blocked. activate/config_only warn fail-closed.
+ */
+export function probeBeforeSaveGate(
+  intent: ProbeBeforeSaveIntent,
+  evidence: ProbeBeforeSaveEvidence = {}
+): ProbeBeforeSaveDecision {
+  const liveCertified = Boolean(evidence.liveCertified);
+  const probeSucceeded = Boolean(evidence.probeSucceeded);
+
+  if (intent === "claim_live") {
+    if (liveCertified) {
+      return {
+        action: "allow",
+        tone: "positive",
+        message: "Живая сертификация подтверждена."
+      };
+    }
+
+    return {
+      action: "block",
+      tone: "negative",
+      message: claimLiveWithoutCertCopy
+    };
+  }
+
+  if (intent === "activate") {
+    if (liveCertified) {
+      return {
+        action: "allow",
+        tone: "positive",
+        message: "Включено. Живая сертификация подтверждена."
+      };
+    }
+
+    return {
+      action: "warn",
+      tone: "warning",
+      message: probeSucceeded
+        ? "Probe прошёл. Это ещё не живая сертификация — зелёный только после live cert."
+        : activateWithoutProbeCopy
+    };
+  }
+
+  if (liveCertified) {
+    return {
+      action: "allow",
+      tone: "info",
+      message: "Настройки сохранены. Сертификация уже есть — это не повторный live-прогон."
+    };
+  }
+
+  return {
+    action: "warn",
+    tone: "warning",
+    message: saveDoesNotCertifyCopy
+  };
+}
+
+export function saveActionSuccessTone(liveCertified: boolean): StatusTone {
+  return liveCertified ? "positive" : "warning";
+}
 
 export type ProbeStepState = "ready" | "active" | "waiting" | "blocked";
 

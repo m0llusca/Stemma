@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { probeBeforeSaveGate } from "@/lib/integrations/probe-honesty";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { assertPublicBaseUrl } from "@/lib/net-guard";
 import { encryptSecret } from "@/lib/secrets";
+import type { StatusTone } from "@/lib/ui/status-tone";
 
 /**
  * Admin surface for messaging channels (W6-C). Both actions are gated behind the
@@ -25,6 +27,7 @@ export type SaveMessagingChannelState = {
   status: "idle" | "success" | "error";
   message?: string;
   kind?: string;
+  tone?: StatusTone;
 };
 
 const MESSAGING_CHANNEL_STATUSES = ["active", "draft"] as const;
@@ -64,7 +67,7 @@ export async function saveMessagingChannel(
   if (!isKnownChannelKind(kind)) {
     return {
       status: "error",
-      message: "Неизвестный тип канала.",
+      message: "Неизвестный тип уведомления.",
       kind
     };
   }
@@ -80,7 +83,7 @@ export async function saveMessagingChannel(
   if (status === "active" && !webhookUrl) {
     return {
       status: "error",
-      message: "Укажите webhook URL, чтобы активировать канал.",
+      message: "Укажите webhook URL, чтобы включить уведомление.",
       kind
     };
   }
@@ -155,24 +158,30 @@ export async function saveMessagingChannel(
     revalidatePath("/admin/channels");
     revalidatePath("/admin");
 
+    const decision = probeBeforeSaveGate(status === "active" ? "activate" : "config_only");
+
     return {
       status: "success",
       message:
         status === "active"
-          ? "Канал сохранен и активирован."
-          : "Канал сохранен как черновик.",
-      kind
+          ? `Уведомление сохранено и включено для доставки. ${decision.message}`
+          : `Уведомление сохранено как черновик. ${decision.message}`,
+      kind,
+      tone: decision.tone
     };
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "Не удалось сохранить канал.",
+      message: error instanceof Error ? error.message : "Не удалось сохранить уведомление.",
       kind
     };
   }
 }
 
-export async function setMessagingChannelStatus(formData: FormData) {
+export async function setMessagingChannelStatus(
+  _previousState: SaveMessagingChannelState,
+  formData: FormData
+): Promise<SaveMessagingChannelState> {
   const user = await requireCurrentUserPermission("backend_jobs:manage");
   await assertCanPersistSettings(user);
 
@@ -180,11 +189,11 @@ export async function setMessagingChannelStatus(formData: FormData) {
   const requestedStatus = stringField(formData, "status");
 
   if (!isKnownChannelKind(kind)) {
-    throw new Error("Неизвестный тип канала.");
+    throw new Error("Неизвестный тип уведомления.");
   }
 
   if (!isChannelStatus(requestedStatus)) {
-    throw new Error("Недопустимый статус канала.");
+    throw new Error("Недопустимый статус уведомления.");
   }
 
   const channel = await prisma.messagingChannel.update({
@@ -213,4 +222,21 @@ export async function setMessagingChannelStatus(formData: FormData) {
 
   revalidatePath("/admin/channels");
   revalidatePath("/admin");
+
+  if (requestedStatus === "active") {
+    const decision = probeBeforeSaveGate("activate");
+    return {
+      status: "success",
+      message: `Уведомление включено для доставки. ${decision.message}`,
+      kind,
+      tone: decision.tone
+    };
+  }
+
+  return {
+    status: "success",
+    message: "Уведомление переведено в черновик.",
+    kind,
+    tone: "neutral"
+  };
 }
