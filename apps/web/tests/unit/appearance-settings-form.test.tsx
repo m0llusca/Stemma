@@ -75,7 +75,12 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise);
 
-    render(<AppearanceSettingsForm initialAppearance={initialAppearance()} />);
+    render(
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
+    );
     openThemeTab();
 
     fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
@@ -114,7 +119,12 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
       () => pendingAzure.promise
     );
 
-    render(<AppearanceSettingsForm initialAppearance={initialAppearance()} />);
+    render(
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
+    );
     openThemeTab();
 
     fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
@@ -149,7 +159,12 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
       .mockImplementationOnce(() => staleAzure.promise)
       .mockImplementationOnce(() => winningGraphite.promise);
 
-    render(<AppearanceSettingsForm initialAppearance={initialAppearance()} />);
+    render(
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
+    );
     openThemeTab();
 
     fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
@@ -189,7 +204,10 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
       .mockImplementationOnce(() => rejectedGraphite.promise);
 
     const { unmount } = render(
-      <AppearanceSettingsForm initialAppearance={initialAppearance()} />
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
     );
     openThemeTab();
 
@@ -221,7 +239,10 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
     const rejected = deferred();
     mocks.updateWorkspaceAppearance.mockImplementationOnce(() => rejected.promise);
     const { unmount } = render(
-      <AppearanceSettingsForm initialAppearance={initialAppearance()} />
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
     );
     openThemeTab();
 
@@ -247,7 +268,10 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
 
   it("replaces rapid debounce timers and clears the pending save on unmount", () => {
     const { unmount } = render(
-      <AppearanceSettingsForm initialAppearance={initialAppearance()} />
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
     );
     openThemeTab();
     const frameworkTimerCount = vi.getTimerCount();
@@ -265,5 +289,30 @@ describe("AppearanceSettingsForm persistence reconciliation", () => {
       vi.advanceTimersByTime(500);
     });
     expect(mocks.updateWorkspaceAppearance).not.toHaveBeenCalled();
+  });
+
+  it("shows Применено on the header badge only after a confirmed save", async () => {
+    mocks.updateWorkspaceAppearance.mockResolvedValue(undefined);
+
+    render(
+      <AppearanceSettingsForm
+        workspaceName="Демо-пространство"
+        initialAppearance={initialAppearance()}
+      />
+    );
+
+    expect(screen.queryByText("Готово")).not.toBeInTheDocument();
+    expect(screen.queryByText("Применено")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveClass("invisible");
+
+    openThemeTab();
+    fireEvent.click(screen.getByRole("radio", { name: /Signal Blue/ }));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+    await flushAsyncWork();
+
+    expect(screen.getByRole("status")).toHaveTextContent("Применено");
+    expect(screen.getByRole("status")).not.toHaveClass("invisible");
   });
 });

@@ -165,7 +165,7 @@ test("appearance switches Graphite and Night Ops through the real mechanism", as
       )
       .toBe("ops");
     await expect(
-      page.getByRole("status").filter({ hasText: "Все изменения сохранены" })
+      page.getByRole("status").filter({ hasText: "Применено" })
     ).toBeVisible();
 
     // Сервер рендерит сохранённую тему на обычной странице.

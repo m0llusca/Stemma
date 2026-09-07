@@ -1,17 +1,39 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   certificationDisplayTone,
+  certificationGateNameLabels,
   certificationStatusLabels,
   certificationStatusTone,
   isLiveCertified,
   summarizeCertification
 } from "@/lib/certification/status";
 
+const integrationDetailPage = readFileSync(
+  join(process.cwd(), "src/app/admin/integrations/[integrationId]/page.tsx"),
+  "utf8"
+);
+
 describe("certification status registry", () => {
   it("exposes Russian labels for certification statuses", () => {
     expect(certificationStatusLabels.live_certified).toBe("Живая сертификация пройдена");
     expect(certificationStatusLabels.waiting_for_access).toBe("Ожидает доступы");
     expect(certificationStatusLabels.not_production_ready).toBe("Не готово к промышленной эксплуатации");
+  });
+
+  it("uses Russian primary names for detail certification gates", () => {
+    expect(certificationGateNameLabels).toEqual({
+      docs: "Документация",
+      contract: "Контракт",
+      stub: "Заглушка",
+      live: "Live / Боевая"
+    });
+    expect(certificationGateNameLabels.stub).not.toBe("Stub");
+    expect(certificationGateNameLabels.live).not.toBe("Live");
+    expect(integrationDetailPage).toContain("certificationGateNameLabels");
+    expect(integrationDetailPage).not.toContain('{ label: "Stub"');
+    expect(integrationDetailPage).not.toContain('{ label: "Live"');
   });
 
   it("summarizes gates that are ready for live certification", () => {

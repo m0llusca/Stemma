@@ -25,7 +25,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { getSettingCoachmark, hasAppearancePaletteOverrides } from "@/lib/admin-setup-guidance";
+import {
+  appearanceSaveStatusLabel,
+  appearanceSaveStatusTone,
+  appearanceSaveStatusVariant,
+  type AppearanceSaveState
+} from "@/lib/appearance-save-status";
 import { resolveUndoTarget } from "@/lib/appearance-undo";
+import { statusSurfaceClass } from "@/lib/ui/status-tone";
 import { syncUiAppearanceToDocument } from "@/lib/ui-theme-dom";
 import { updateWorkspaceAppearance } from "@/lib/ui-theme-actions";
 import {
@@ -46,10 +53,10 @@ import {
 type AppearanceState = UiAppearance;
 
 type AppearanceField = keyof AppearanceState;
-type SaveState = "idle" | "saving" | "saved" | "error";
 
 type AppearanceSettingsFormProps = {
   initialAppearance: AppearanceState;
+  workspaceName: string;
 };
 
 const appearanceFields = [
@@ -200,36 +207,11 @@ function appearancesEqual(left: AppearanceState, right: AppearanceState) {
   return appearanceFields.every((field) => left[field] === right[field]);
 }
 
-function saveStatusLabel(state: SaveState) {
-  if (state === "saving") {
-    return "Сохранение…";
-  }
-
-  if (state === "error") {
-    return "Ошибка сохранения — повторите";
-  }
-
-  // idle (ничего не менялось) и saved: все зафиксировано на сервере.
-  return "Все изменения сохранены";
-}
-
-function saveStatusVariant(state: SaveState): "secondary" | "outline" | "destructive" {
-  if (state === "error") {
-    return "destructive";
-  }
-
-  if (state === "saving") {
-    return "outline";
-  }
-
-  return "secondary";
-}
-
-export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettingsFormProps) {
+export function AppearanceSettingsForm({ initialAppearance, workspaceName }: AppearanceSettingsFormProps) {
   const router = useRouter();
   const [appearance, setAppearance] = useState<AppearanceState>(initialAppearance);
   const [logoError, setLogoError] = useState("");
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveState, setSaveState] = useState<AppearanceSaveState>("idle");
   const [, startTransition] = useTransition();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const latestAppearanceRef = useRef<AppearanceState>(initialAppearance);
@@ -481,9 +463,36 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
   const logoUrlValue = logoIsUploaded ? "" : appearance.brandLogoUrl;
   const brandLogoHint = appearance.brandLogoUrl ? null : getSettingCoachmark("brandLogo");
   const paletteHint = hasAppearancePaletteOverrides(appearance.uiPaletteOverridesJson) ? null : getSettingCoachmark("componentPalette");
+  const saveLabel = appearanceSaveStatusLabel(saveState);
+  const saveTone = appearanceSaveStatusTone(saveState);
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
+      <CardHeader className="border-b">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Рабочее пространство</p>
+            <CardTitle id="appearance-settings-title">{workspaceName}</CardTitle>
+            <CardDescription>
+              Палитра управляет навигацией, кнопками, поверхностями, границами и статусами без ручной правки CSS.
+            </CardDescription>
+          </div>
+          <Badge
+            variant={appearanceSaveStatusVariant(saveState)}
+            className={cn(
+              "shrink-0 border-transparent",
+              statusSurfaceClass(saveTone),
+              saveState === "idle" ? "invisible" : null
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            {saveLabel || "\u00a0"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <div className="flex flex-col gap-4">
       <Tabs defaultValue="branding" className="gap-4">
         <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="branding" className="gap-1.5">
@@ -1066,26 +1075,14 @@ export function AppearanceSettingsForm({ initialAppearance }: AppearanceSettings
         </TabsContent>
       </Tabs>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-        <Button type="button" variant="outline" size="sm" disabled={!undoTarget} onClick={handleUndo}>
-          <Undo2 data-icon="inline-start" aria-hidden="true" />
-          Отменить последнее изменение
-        </Button>
-        {/* Постоянно отрендеренный статус автосейва: меняется только текст,
-            aria-live="polite" озвучивает смену состояния. */}
-        <Badge
-          variant={saveStatusVariant(saveState)}
-          className={cn(
-            saveState === "saved" || saveState === "idle"
-              ? "border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
-              : null
-          )}
-          role="status"
-          aria-live="polite"
-        >
-          {saveStatusLabel(saveState)}
-        </Badge>
-      </div>
-    </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <Button type="button" variant="outline" size="sm" disabled={!undoTarget} onClick={handleUndo}>
+            <Undo2 data-icon="inline-start" aria-hidden="true" />
+            Отменить последнее изменение
+          </Button>
+        </div>
+        </div>
+      </CardContent>
+    </>
   );
 }

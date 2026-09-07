@@ -4,6 +4,9 @@ import {
   resolveUiAppearance,
   resolveWorkspaceBranding,
   serializeUiPaletteOverrides,
+  uiContrastOptions,
+  uiCornersOptions,
+  uiDensityOptions,
   uiPaletteOverridesToCssVariables,
   validateUiPaletteOverridesJson
 } from "@/lib/ui-theme";
@@ -68,5 +71,28 @@ describe("workspace appearance", () => {
     expect(serializeUiPaletteOverrides({ danger: "#b91c1c", buttonPrimaryBg: "#123456" })).toBe(
       '{"buttonPrimaryBg":"#123456","danger":"#b91c1c"}'
     );
+  });
+
+  it("uses Russian primary labels for density, corners, and contrast; English stays on the id", () => {
+    expect(uiDensityOptions.map((option) => ({ id: option.id, label: option.label }))).toEqual([
+      { id: "compact", label: "Плотный" },
+      { id: "comfortable", label: "Комфортный" },
+      { id: "spacious", label: "Просторный" }
+    ]);
+    expect(uiCornersOptions.map((option) => ({ id: option.id, label: option.label }))).toEqual([
+      { id: "sharp", label: "Острые" },
+      { id: "medium", label: "Средние" },
+      { id: "soft", label: "Мягкие" }
+    ]);
+    expect(uiContrastOptions.map((option) => ({ id: option.id, label: option.label }))).toEqual([
+      { id: "standard", label: "Стандартный" },
+      { id: "high", label: "Высокий" }
+    ]);
+
+    for (const option of [...uiDensityOptions, ...uiCornersOptions, ...uiContrastOptions]) {
+      expect(option.label).not.toBe(option.id);
+      expect(option.label).toMatch(/[А-Яа-яЁё]/);
+      expect(option.label).not.toMatch(/^[A-Za-z]+$/);
+    }
   });
 });
