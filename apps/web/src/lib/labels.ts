@@ -8,6 +8,7 @@ import type {
   ReviewStatus,
   RiskLevel
 } from "@prisma/client";
+import { qaStatusToReviewState, reviewStateLabels } from "@/lib/review-state";
 
 export const channelLabels: Record<ConversationChannel, string> = {
   CHAT: "Чат",
@@ -28,12 +29,13 @@ export const reviewStatusLabels: Record<ReviewStatus, string> = {
   FINALIZED: "Завершена"
 };
 
+/** Same dictionary as the queue/preview status chip — no second qaStatus wording. */
 export const qaStatusLabels: Record<QaStatus, string> = {
-  QUEUED: "В очереди",
-  ASSIGNED: "Назначено",
-  IN_PROGRESS: "В работе",
-  FINALIZED: "Завершено",
-  REOPENED: "На пересмотре"
+  QUEUED: reviewStateLabels[qaStatusToReviewState.QUEUED],
+  ASSIGNED: reviewStateLabels[qaStatusToReviewState.ASSIGNED],
+  IN_PROGRESS: reviewStateLabels[qaStatusToReviewState.IN_PROGRESS],
+  FINALIZED: reviewStateLabels[qaStatusToReviewState.FINALIZED],
+  REOPENED: reviewStateLabels[qaStatusToReviewState.REOPENED]
 };
 
 export const roleLabels: Record<RoleName, string> = {

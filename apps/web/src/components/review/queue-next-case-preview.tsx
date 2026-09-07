@@ -3,6 +3,7 @@
 import { ArrowRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ReviewStatusChip, type ReviewStatusChipConversation } from "@/components/review/review-status-chip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -11,6 +12,8 @@ export type QueueNextCasePreviewProps = {
   subject: string;
   description: string;
   openHref: string;
+  /** Same status chip as the queue row — one vocabulary / one source of truth. */
+  statusConversation: ReviewStatusChipConversation;
   /** Expanded context: score, priority reason, signal grid. */
   children: ReactNode;
 };
@@ -24,6 +27,7 @@ export function QueueNextCasePreview({
   subject,
   description,
   openHref,
+  statusConversation,
   children
 }: QueueNextCasePreviewProps) {
   return (
@@ -44,7 +48,10 @@ export function QueueNextCasePreview({
               <ChevronDown className="size-4" />
             </span>
           </CollapsibleTrigger>
-          <CardDescription>{description}</CardDescription>
+          <div className="flex flex-wrap items-center gap-2">
+            <ReviewStatusChip conversation={statusConversation} />
+            <CardDescription className="m-0">{description}</CardDescription>
+          </div>
           <Button
             render={<Link href={openHref} />}
             nativeButton={false}
