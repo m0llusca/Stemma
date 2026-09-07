@@ -22,6 +22,7 @@ import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
+import { opsQueueKpiHref } from "@/lib/dashboard/queue-kpi-href";
 import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/page-permission";
@@ -304,6 +305,12 @@ async function DashboardPageContent() {
   const canReadReports = hasPermission(user.role, "reports:read");
   const isLeadDashboard = user.role === "TEAM_LEAD" || user.role === "ADMIN";
   const totalQueueCount = queuedCount + inWorkCount;
+  const queueKpiHref = opsQueueKpiHref({
+    overdueReviewCount,
+    queuedCount,
+    role: user.role,
+    name: user.name
+  });
   // KPI / sparkline / leaderboard drill-downs share the same queue filter contract
   // as /reviews (finalizedFrom/To, riskLevel, assignee, appealStatus).
   const weekReviewedHref = reportReviewRangeHref(thisWeekStart, now);
@@ -429,7 +436,7 @@ async function DashboardPageContent() {
         {isLeadDashboard ? (
           <>
             <OperationKpiCard
-              href={overdueReviewCount > 0 ? "/reviews?due=overdue" : "/reviews?status=unreviewed"}
+              href={queueKpiHref}
               icon={Clock3}
               value={overdueReviewCount > 0 ? overdueReviewCount : totalQueueCount}
               tone={overdueReviewCount > 0 ? "negative" : queueStatus.tone}
@@ -478,7 +485,7 @@ async function DashboardPageContent() {
               hint="к прошлой неделе"
             />
             <OperationKpiCard
-              href={overdueReviewCount > 0 ? "/reviews?due=overdue" : "/reviews?status=unreviewed"}
+              href={queueKpiHref}
               icon={Clock3}
               value={totalQueueCount}
               tone={queueStatus.tone}

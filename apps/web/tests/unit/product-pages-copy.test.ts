@@ -71,9 +71,11 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).not.toContain('user.role !== "SUPPORT_AGENT"');
   });
 
-  it("does not use the unreviewed impostor as empty-triage primary", () => {
+  it("does not use the unreviewed impostor as empty-triage primary or KPI fallback", () => {
     expect(dashboardPage).toContain("emptyTriagePrimary");
     expect(dashboardPage).toContain("takeNextReview");
+    expect(dashboardPage).toContain("opsQueueKpiHref");
+    expect(dashboardPage).not.toContain("/reviews?status=unreviewed");
     expect(dashboardPage).not.toContain('?? "/reviews?status=unreviewed"');
     expect(dashboardPage).not.toContain('focusItems.length ? "Разобрать" : "Открыть очередь"');
   });

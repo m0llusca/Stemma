@@ -32,16 +32,15 @@ describe("buildReviewerWorkloadRows", () => {
 });
 
 describe("reviewerWorkloadHref", () => {
-  it("links open load via qaAssignee + unreviewed, or a single qaStatus", () => {
-    expect(reviewerWorkloadHref("Мария")).toBe(
-      "/reviews?qaAssignee=%D0%9C%D0%B0%D1%80%D0%B8%D1%8F&status=unreviewed"
-    );
+  it("links open load via qaAssignee, or a single qaStatus — never the unreviewed impostor", () => {
+    expect(reviewerWorkloadHref("Мария")).toBe("/reviews?qaAssignee=%D0%9C%D0%B0%D1%80%D0%B8%D1%8F");
     expect(reviewerWorkloadHref("Мария", "QUEUED")).toBe(
       "/reviews?qaAssignee=%D0%9C%D0%B0%D1%80%D0%B8%D1%8F&qaStatus=QUEUED"
     );
     expect(reviewerWorkloadHref("Мария", "IN_PROGRESS")).toBe(
       "/reviews?qaAssignee=%D0%9C%D0%B0%D1%80%D0%B8%D1%8F&qaStatus=IN_PROGRESS"
     );
+    expect(reviewerWorkloadHref("Мария")).not.toContain("status=unreviewed");
   });
 });
 
