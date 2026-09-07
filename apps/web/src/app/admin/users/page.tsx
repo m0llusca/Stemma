@@ -71,6 +71,7 @@ const permissionLabels: Record<Permission, string> = {
   "calibration:manage": "Калибровки",
   "reports:read": "Отчеты",
   "reports:manage": "Экспорт отчетов",
+  "peer_quality:read": "Рейтинг и средний балл команды",
   "scorecards:manage": "Формы оценки",
   "sampling:manage": "Выборки",
   "integrations:manage": "Интеграции",
@@ -106,7 +107,7 @@ const permissionGroups: Array<{ title: string; description: string; permissions:
   {
     title: "Аналитика",
     description: "Отчеты и чтение операционной истории.",
-    permissions: ["reports:read", "reports:manage", "audit:read"]
+    permissions: ["reports:read", "reports:manage", "peer_quality:read", "audit:read"]
   },
   {
     title: "Администрирование",
