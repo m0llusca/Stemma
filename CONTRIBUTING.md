@@ -22,7 +22,7 @@ For UI or DB-touching changes, also run the relevant Playwright / integration su
 - Match existing TypeScript / React / Prisma patterns in `apps/web`.
 - Product UI uses **shadcn/ui** primitives (`@/components/ui/*`); do not reintroduce legacy BEM dialogs.
 - Do not add speculative abstractions or compatibility shims — replace obsolete paths instead.
-- Do not commit secrets, local dumps (`graphify-out/`, `coiaf-rebuild/`), or binary research artifacts.
+- Do not commit secrets, Graphify output (`graphify-out/`, `GRAPH_REPORT.md`, generated graphify docs), `coiaf-rebuild/`, or binary research artifacts. Git ignores the Graphify paths.
 - Live-smoke and certification evidence changes must stay fail-closed (explicit env gates).
 
 ## Commit messages
