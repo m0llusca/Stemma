@@ -35,7 +35,10 @@ import { prisma } from "@/lib/db";
 import { messagingChannelTone } from "@/lib/integrations/connection-tone";
 import {
   channelsEnabledWarningDescription,
-  channelsEnabledWarningTitle
+  channelsEnabledWarningTitle,
+  channelsIaDistinction,
+  channelsPageDescription,
+  channelsSectionCardTitle
 } from "@/lib/integrations/probe-honesty";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { maskSecret } from "@/lib/secrets";
@@ -44,7 +47,7 @@ import { requirePagePermission } from "@/lib/page-permission";
 
 export const dynamic = "force-dynamic";
 
-/** Иконки каналов по kind — используются в списке и в диалоге «Добавить канал». */
+/** Иконки исходящих уведомлений по kind — список и диалог «Добавить уведомление». */
 const messagingChannelIcons: Record<string, LucideIcon> = {
   slack: Slack,
   teams: UsersRound,
@@ -62,7 +65,7 @@ function formatDate(value: Date | null | undefined) {
 
 function messagingChannelStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    active: "Активен",
+    active: "Включён",
     draft: "Черновик",
     disabled: "Отключен",
     error: "Ошибка"
@@ -199,7 +202,7 @@ async function AdminChannelsPageContent() {
   const activeActionChannels = messagingChannels.filter((channel) => channel.status === "active").length;
   const latestDeliveries = recentDeliveries.slice(0, 3);
   const registryDefinitions = Object.values(messagingChannelRegistry);
-  // В основном списке — только каналы с записью в БД (любой статус); остальные подключаются через «Добавить канал».
+  // В основном списке — только уведомления с записью в БД; остальные добавляются через «Добавить уведомление».
   const configuredDefinitions = registryDefinitions.filter((definition) => configuredChannelByKind.has(definition.kind));
   const unconfiguredDefinitions = registryDefinitions.filter((definition) => !configuredChannelByKind.has(definition.kind));
 
@@ -207,7 +210,7 @@ async function AdminChannelsPageContent() {
     <PageShell
       eyebrow={adminEyebrow}
       title={adminSectionTitles["/admin/channels"]}
-      description="Исходящие уведомления в Slack, Microsoft Teams, Telegram и WhatsApp: готовность каналов, защитные проверки и очередь доставок."
+      description={channelsPageDescription}
     >
       <AdminFrame>
         <div className="grid gap-6">
@@ -215,9 +218,10 @@ async function AdminChannelsPageContent() {
             <CardHeader className="border-b">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
-                  <CardTitle id="channels-title">Исходящие каналы</CardTitle>
+                  <CardTitle id="channels-title">{channelsSectionCardTitle}</CardTitle>
                   <CardDescription>
-                    Включены: {activeActionChannels} · настроено: {messagingChannels.length}
+                    {channelsIaDistinction} Включены: {activeActionChannels} · настроено:{" "}
+                    {messagingChannels.length}
                   </CardDescription>
                 </div>
                 <CardAction>
@@ -229,19 +233,19 @@ async function AdminChannelsPageContent() {
                       triggerLabel={
                         <>
                           <Plus size={16} aria-hidden="true" />
-                          Добавить канал
+                          Добавить уведомление
                         </>
                       }
                       triggerClassName={buttonVariants()}
-                      title="Добавить канал"
-                      description="Подключите Slack, Teams, Telegram или WhatsApp — уведомления начнут уходить после активации."
+                      title="Добавить уведомление"
+                      description="Настройте Slack, Teams, Telegram или WhatsApp. Включение включает доставку, но не живую сертификацию."
                     >
                       {unconfiguredDefinitions.length === 0 ? (
                         <EmptyState
                           size="inline"
                           icon={<Send size={20} aria-hidden="true" />}
-                          title="Все каналы подключены"
-                          description="Все доступные каналы уже настроены — управляйте ими в списке."
+                          title="Все уведомления настроены"
+                          description="Все доступные исходящие уведомления уже настроены — управляйте ими в списке."
                         />
                       ) : (
                         <div className="grid gap-4">
@@ -329,8 +333,8 @@ async function AdminChannelsPageContent() {
                 <EmptyState
                   size="inline"
                   icon={<Send size={20} aria-hidden="true" />}
-                  title="Исходящие каналы не подключены"
-                  description="Нажмите «Добавить канал» в шапке панели, чтобы подключить Slack, Teams, Telegram или WhatsApp."
+                  title="Исходящие уведомления не настроены"
+                  description="Нажмите «Добавить уведомление» в шапке панели, чтобы настроить Slack, Teams, Telegram или WhatsApp."
                 />
               ) : (
                 <div className="grid gap-2">
@@ -374,7 +378,7 @@ async function AdminChannelsPageContent() {
                           <AdminDialog
                             triggerLabel="Настроить"
                             triggerClassName={buttonVariants({ variant: "outline", size: "sm" })}
-                            title={`Канал: ${channelName}`}
+                            title={`Уведомление: ${channelName}`}
                           >
                             <div className="grid gap-3">
                               <MessagingChannelForm
@@ -427,13 +431,13 @@ async function AdminChannelsPageContent() {
                   size="inline"
                   icon={<Send size={20} aria-hidden="true" />}
                   title="Доставок пока нет"
-                  description="Сообщения появятся здесь после первой отправки по каналам уведомлений."
+                  description="Сообщения появятся здесь после первой отправки исходящих уведомлений."
                 />
               ) : (
                 <Table aria-labelledby="delivery-log-title">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Канал</TableHead>
+                      <TableHead>Уведомление</TableHead>
                       <TableHead>Событие</TableHead>
                       <TableHead>Получатель</TableHead>
                       <TableHead>Когда</TableHead>

@@ -40,8 +40,12 @@ import { cn } from "@/lib/utils";
 import { connectSourceAction, type ConnectJournalState } from "@/lib/connect-actions";
 import { capabilityMatrixFromConnectSteps } from "@/lib/integrations/connect/capability-probe-display";
 import { nextActionForConnectSteps } from "@/lib/integrations/connect/next-action";
-import type { IntegrationInstallState } from "@/lib/integrations/install-contracts/types";
 import type { ConnectStep, ConnectStepStatus, CredentialField } from "@/lib/integrations/connect/types";
+import {
+  connectPersistedNotLiveCopy,
+  probeBeforePersistCopy
+} from "@/lib/integrations/probe-honesty";
+import type { IntegrationInstallState } from "@/lib/integrations/install-contracts/types";
 
 export type ConnectSourceItem = {
   source: string;
@@ -295,8 +299,7 @@ export function ConnectSourceForm({
           Подключение источника
         </h2>
         <CardDescription>
-          Укажите адрес и доступы. Stemma сначала проверит доступ (probe), и только при успехе сохранит
-          источник. Зелёный production-ready — только после живой сертификации.
+          Укажите адрес и доступы. {probeBeforePersistCopy}
         </CardDescription>
       </CardHeader>
 
@@ -594,8 +597,7 @@ export function ConnectSourceForm({
                   Базовое подключение сохранено
                 </AlertTitle>
                 <AlertDescription className="text-amber-800 dark:text-amber-300">
-                  Проверка доступа прошла, источник записан. Это ещё не production-ready: зелёный
-                  статус — только после живой сертификации с evidence.
+                  {connectPersistedNotLiveCopy}
                 </AlertDescription>
               </Alert>
             ) : null}

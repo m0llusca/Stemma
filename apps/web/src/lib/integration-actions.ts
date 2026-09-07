@@ -20,6 +20,7 @@ import {
 import { parseOtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import { upsertIntegrationSecretSlot } from "@/lib/integrations/otrs-family/credentials";
 import { createOtrsPreview, runOtrsConnectorDiagnostics } from "@/lib/integrations/otrs-family/service";
+import { probeBeforeSaveGate } from "@/lib/integrations/probe-honesty";
 import { runDueBackendJobs } from "@/lib/jobs/queue";
 import { assertPublicBaseUrl } from "@/lib/net-guard";
 
@@ -978,9 +979,11 @@ export async function saveIntegrationConfigurationState(_state: IntegrationActio
   try {
     const result = await saveIntegrationConfiguration(formData);
 
+    const decision = probeBeforeSaveGate("config_only");
+
     return {
       ok: true,
-      message: "Настройка сохранена. Источник появился в списке подключений.",
+      message: `Настройки сохранены. ${decision.message}`,
       integrationId: result.integrationId
     };
   } catch (error) {
@@ -1018,9 +1021,11 @@ export async function saveOtrsIntegrationConfigurationState(
   try {
     const result = await saveOtrsIntegrationConfiguration(formData);
 
+    const decision = probeBeforeSaveGate("config_only");
+
     return {
       ok: true,
-      message: "Настройка OTRS сохранена.",
+      message: `Настройки OTRS сохранены. ${decision.message}`,
       integrationId: result.integrationId
     };
   } catch (error) {

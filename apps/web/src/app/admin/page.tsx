@@ -249,7 +249,11 @@ async function AdminHomePageContent() {
       title: adminSectionTitles["/admin/channels"],
       icon: Send,
       roles: ["ADMIN"],
-      metric: russianPlural(messagingActiveChannels, ["активный канал", "активных канала", "активных каналов"]),
+      metric: russianPlural(messagingActiveChannels, [
+        "включённое уведомление",
+        "включённых уведомления",
+        "включённых уведомлений"
+      ]),
       tone: adminHubChannelsTone(messagingActiveChannels)
     },
     {

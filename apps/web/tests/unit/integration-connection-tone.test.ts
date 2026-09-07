@@ -24,6 +24,16 @@ const integrationsPage = readFileSync(join(process.cwd(), "src/app/admin/integra
 const systemPage = readFileSync(join(process.cwd(), "src/app/admin/system/page.tsx"), "utf8");
 const channelsPage = readFileSync(join(process.cwd(), "src/app/admin/channels/page.tsx"), "utf8");
 const adminHubPage = readFileSync(join(process.cwd(), "src/app/admin/page.tsx"), "utf8");
+const messagingChannelForm = readFileSync(
+  join(process.cwd(), "src/components/admin/messaging-channel-form.tsx"),
+  "utf8"
+);
+const messagingActions = readFileSync(join(process.cwd(), "src/lib/messaging-actions.ts"), "utf8");
+const integrationActions = readFileSync(join(process.cwd(), "src/lib/integration-actions.ts"), "utf8");
+const connectWizard = readFileSync(
+  join(process.cwd(), "src/components/integrations/connect-source-form.tsx"),
+  "utf8"
+);
 
 describe("integration connection tone", () => {
   it("does not paint ready or active as success without live cert", () => {
@@ -91,6 +101,32 @@ describe("admin connection chip wiring", () => {
     expect(channelsPage).toContain("Включены {activeActionChannels}");
     expect(channelsPage).not.toContain("Активны {activeActionChannels}");
     expect(channelsPage).toContain("channelsEnabledWarningTitle");
+    expect(channelsPage).toContain("channelsSectionCardTitle");
+    expect(channelsPage).toContain("channelsPageDescription");
+    expect(channelsPage).toContain("channelsIaDistinction");
+    expect(channelsPage).not.toContain("готовность каналов");
+    expect(channelsPage).not.toContain("Исходящие каналы");
+    expect(adminHubPage).not.toContain("активный канал");
+    expect(adminHubPage).toContain("включённое уведомление");
+  });
+});
+
+describe("probe-before-save action wiring", () => {
+  it("gates messaging and integration saves through probeBeforeSaveGate", () => {
+    expect(messagingActions).toContain("probeBeforeSaveGate");
+    expect(messagingActions).toContain('status === "active" ? "activate" : "config_only"');
+    expect(messagingActions).not.toContain("Канал сохранен и активирован.");
+    expect(integrationActions).toContain("probeBeforeSaveGate");
+    expect(integrationActions).not.toContain("Источник появился в списке подключений.");
+    expect(connectWizard).toContain("probeBeforePersistCopy");
+    expect(connectWizard).toContain("connectPersistedNotLiveCopy");
+  });
+
+  it("does not paint channel save success emerald without live cert", () => {
+    expect(messagingChannelForm).not.toContain("text-emerald-700");
+    expect(messagingChannelForm).not.toContain("text-emerald-300");
+    expect(messagingChannelForm).toContain("statusToneClass");
+    expect(messagingChannelForm).toContain('state.tone ?? "warning"');
   });
 });
 

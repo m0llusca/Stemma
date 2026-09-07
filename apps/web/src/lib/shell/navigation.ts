@@ -409,7 +409,7 @@ const modeDefinitions: ModeDefinition[] = [
     id: "system",
     label: "Система",
     compactLabel: "Система",
-    description: "Интеграции, доступы, каналы, внешний вид и контроль платформы.",
+    description: "Интеграции, доступы, исходящие уведомления, внешний вид и контроль платформы.",
     icon: "system",
     destinations: [
       {
@@ -422,21 +422,28 @@ const modeDefinitions: ModeDefinition[] = [
       {
         href: "/admin/integrations",
         label: adminSectionTitles["/admin/integrations"],
-        description: "Helpdesk, API, вебхуки и статусы импортов.",
+        description: "Входящие источники: helpdesk, API, вебхуки и статусы импортов.",
         aliases: ["источники", "sources", "подключения"],
         permission: "integrations:manage"
       },
       {
         href: "/admin/access",
         label: "Доступ и SSO",
-        description: "Identity providers, группы, SCIM и политики доступа.",
+        description: "Identity providers, группы, SCIM и политики доступа — не исходящие уведомления.",
         aliases: ["sso", "entra", "active directory", "доступ"],
         permission: "auth_providers:manage"
       },
       {
+        href: "/admin/channels",
+        label: adminSectionTitles["/admin/channels"],
+        description: "Исходящие уведомления Slack/Teams/Telegram/WhatsApp. Не интеграции и не SSO.",
+        aliases: ["уведомления", "notifications", "slack", "teams", "каналы"],
+        permission: "backend_jobs:manage"
+      },
+      {
         href: "/admin/system",
         label: adminSectionTitles["/admin/system"],
-        description: "Фоновые задачи, каналы действий и готовность окружения.",
+        description: "Фоновые задачи, очереди действий и готовность окружения.",
         aliases: ["jobs", "операции", "очередь задач"],
         permission: "backend_jobs:manage"
       },

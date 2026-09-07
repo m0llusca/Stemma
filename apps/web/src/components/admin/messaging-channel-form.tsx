@@ -13,6 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { saveMessagingChannel, setMessagingChannelStatus, type SaveMessagingChannelState } from "@/lib/messaging-actions";
+import { statusToneClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 const initialState: SaveMessagingChannelState = {
   status: "idle"
@@ -49,12 +51,12 @@ export function MessagingChannelStatusToggle({
       <Switch
         checked={isActive}
         size="sm"
-        aria-label={isActive ? "Перевести канал в черновик" : "Активировать канал"}
+        aria-label={isActive ? "Перевести уведомление в черновик" : "Включить уведомление для доставки"}
         onCheckedChange={() => {
           formRef.current?.requestSubmit();
         }}
       />
-      <span className="text-sm text-muted-foreground">{isActive ? "Активен" : "Черновик"}</span>
+      <span className="text-sm text-muted-foreground">{isActive ? "Включён" : "Черновик"}</span>
     </form>
   );
 }
@@ -130,7 +132,9 @@ export function MessagingChannelForm({
       <div className="flex flex-wrap items-center gap-3">
         <SaveChannelSubmitButton />
         {state.status === "success" ? (
-          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{state.message}</span>
+          <span className={cn("text-sm font-medium", statusToneClass(state.tone ?? "warning"))}>
+            {state.message}
+          </span>
         ) : null}
         {state.status === "error" ? <FieldError>{state.message}</FieldError> : null}
       </div>

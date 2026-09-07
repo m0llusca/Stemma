@@ -106,7 +106,24 @@ describe("messaging channel admin actions", () => {
     expect(args.create.kind).toBe("slack");
 
     expect(state.status).toBe("success");
+    expect(state.tone).toBe("warning");
+    expect(state.message).toMatch(/не подтверждает live-готовность/i);
+    expect(state.message).not.toMatch(/сертификац\w+ пройден/i);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/channels");
+  });
+
+  it("warns that a draft save is not live certification", async () => {
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+
+    const state = await saveMessagingChannel(
+      { status: "idle" },
+      buildSaveForm({ status: "draft" })
+    );
+
+    expect(state.status).toBe("success");
+    expect(state.tone).toBe("warning");
+    expect(state.message).toMatch(/≠ живая сертификация/);
+    expect(state.message).not.toMatch(/активирован/i);
   });
 
   it("preserves an existing secretRef when no new token is provided", async () => {

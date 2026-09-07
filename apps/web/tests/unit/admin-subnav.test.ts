@@ -14,6 +14,9 @@ describe("admin subnav configuration", () => {
   it("exposes a dedicated messaging channels section", () => {
     const item = allItems.find((entry) => entry.href === "/admin/channels");
     expect(item?.label).toBe("Уведомления");
+    const dataFlows = adminSubnavGroups.find((group) => group.id === "data-flows");
+    expect(dataFlows?.label).toBe("Источники и уведомления");
+    expect(dataFlows?.label).not.toBe("Данные и каналы");
   });
 
   it("labels every rail item with the canonical section title", () => {
