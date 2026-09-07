@@ -19,8 +19,8 @@ describe("dashboard skeleton variant", () => {
     const execKpis = exec.container.querySelector("section");
 
     expect(execKpis?.className).toContain("sm:grid-cols-3");
-    expect(exec.container.querySelectorAll('[data-slot="card"]')).toHaveLength(3);
-    expect(exec.container.querySelectorAll("section")).toHaveLength(1);
+    expect(exec.container.querySelectorAll('[data-slot="card"]')).toHaveLength(4);
+    expect(exec.container.querySelectorAll("section")).toHaveLength(2);
 
     const ops = render(<PageSkeleton variant="dashboard" label="Загрузка дашборда" />);
     const opsKpis = ops.container.querySelector("section");

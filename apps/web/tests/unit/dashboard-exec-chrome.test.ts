@@ -10,9 +10,10 @@ describe("dashboard exec chrome", () => {
     expect(source).toContain('const isExecDashboard = user.role === "EXEC"');
     expect(source).toContain("if (isExecDashboard)");
     expect(source).toContain("<ExecRiskHome");
-    expect(source).toContain("overdue: \"/reviews?due=overdue\"");
-    expect(source).toContain("queued: \"/reviews?qaStatus=QUEUED\"");
+    expect(source).toContain("overdue: OVERDUE_SLA_HREF");
+    expect(source).toContain("queued: QUEUED_STATUS_HREF");
     expect(source).toContain("highRisk: thirtyDayHighRiskHref");
+    expect(source).toContain("role={user.role}");
   });
 
   it("picks the exec/risk skeleton instead of the ops 4-KPI dashboard flash", () => {
@@ -21,6 +22,25 @@ describe("dashboard exec chrome", () => {
     expect(loadingSource).toContain("resolveDashboardSkeletonVariant");
     expect(loadingSource).toContain("variant={variant}");
     expect(loadingSource).not.toContain('variant="dashboard"');
+  });
+
+  it("keeps the Recharts drill chart on ExecRiskHome only — Agent and VIEWER stay chartless", () => {
+    const execHome = readFileSync(join(process.cwd(), "src/components/dashboard/exec-risk-home.tsx"), "utf8");
+    const selfReview = readFileSync(join(process.cwd(), "src/app/self-review/page.tsx"), "utf8");
+    const pendingAccess = readFileSync(join(process.cwd(), "src/app/auth/pending-access/page.tsx"), "utf8");
+    const appNav = readFileSync(join(process.cwd(), "src/components/app-nav.tsx"), "utf8");
+
+    expect(execHome).toContain("exec-risk-chart.client");
+    expect(execHome).toContain('ssr: false');
+    expect(source).not.toContain("exec-risk-chart.client");
+    expect(selfReview).not.toContain("exec-risk-chart");
+    expect(selfReview).not.toContain("BarChart");
+    expect(selfReview).not.toContain("ChartContainer");
+    expect(pendingAccess).not.toContain("exec-risk-chart");
+    expect(pendingAccess).not.toContain("BarChart");
+    expect(pendingAccess).not.toContain("ChartContainer");
+    expect(appNav).not.toContain("exec-risk-chart");
+    expect(appNav).not.toContain("BarChart");
   });
 
   it("skips activity and training feeds for exec", () => {

@@ -5,6 +5,7 @@ import { analystMineOverdueHref, queueFilterResetHref } from "@/lib/auth/role-ho
 import { EMPTY_TRIAGE_IMPOSTOR_HREF } from "@/lib/dashboard/empty-triage";
 import {
   opsQueueKpiHref,
+  opsQueueKpiMetricHref,
   OVERDUE_SLA_HREF,
   QUEUED_STATUS_HREF
 } from "@/lib/dashboard/queue-kpi-href";
@@ -14,6 +15,7 @@ const srcRoot = join(process.cwd(), "src");
 const primaryKpiSources = [
   "app/dashboard/page.tsx",
   "components/dashboard/exec-risk-home.tsx",
+  "components/dashboard/exec-risk-chart.client.tsx",
   "lib/dashboard/exec-risk-home.ts",
   "lib/dashboard/queue-kpi-href.ts",
   "lib/reviewer-workload.ts"
@@ -71,6 +73,36 @@ describe("opsQueueKpiHref", () => {
         opsQueueKpiHref({ overdueReviewCount: 0, queuedCount: 0, role, name: "Анна QA" })
       ).not.toBe(EMPTY_TRIAGE_IMPOSTOR_HREF);
     }
+  });
+});
+
+describe("opsQueueKpiMetricHref", () => {
+  it("matches opsQueueKpiHref for the winning overdue / queued / zero cases", () => {
+    const overdueInput = {
+      overdueReviewCount: 3,
+      queuedCount: 8,
+      role: "EXEC" as const
+    };
+    expect(opsQueueKpiMetricHref("overdue", overdueInput)).toBe(opsQueueKpiHref(overdueInput));
+    expect(opsQueueKpiMetricHref("overdue", overdueInput)).toBe(OVERDUE_SLA_HREF);
+
+    const queuedInput = {
+      overdueReviewCount: 0,
+      queuedCount: 4,
+      role: "ADMIN" as const
+    };
+    expect(opsQueueKpiMetricHref("queued", queuedInput)).toBe(opsQueueKpiHref(queuedInput));
+    expect(opsQueueKpiMetricHref("queued", queuedInput)).toBe(QUEUED_STATUS_HREF);
+
+    const zeroInput = {
+      overdueReviewCount: 0,
+      queuedCount: 0,
+      role: "EXEC" as const
+    };
+    expect(opsQueueKpiMetricHref("overdue", zeroInput)).toBe(opsQueueKpiHref(zeroInput));
+    expect(opsQueueKpiMetricHref("queued", zeroInput)).toBe(opsQueueKpiHref(zeroInput));
+    expect(opsQueueKpiMetricHref("overdue", zeroInput)).toBe("/reviews");
+    expect(opsQueueKpiMetricHref("overdue", zeroInput)).not.toBe(EMPTY_TRIAGE_IMPOSTOR_HREF);
   });
 });
 
