@@ -140,6 +140,21 @@
     --motion-distance-enter: 0.25rem;
     --motion-scale-press: 0.985;
 
+    /* Kinetics spring catalog as tokens only (https://kinetics.colorion.co/#library).
+       Not an npm package. Beziers/durations copied; React demos are not. */
+    --motion-duration-spring: 400ms;
+    --motion-duration-spring-enter: 550ms;
+    --motion-duration-spring-panel: 450ms;
+    --motion-duration-spring-glide: 400ms;
+    --motion-duration-morph: 350ms;
+    --motion-duration-shimmer: 1.5s;
+    --motion-ease-spring-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --motion-ease-spring-toast: cubic-bezier(0.18, 1.25, 0.4, 1);
+    --motion-ease-spring-panel: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-spring-glide: cubic-bezier(0.65, 0, 0.35, 1);
+    --motion-scale-kpi-bump: 1.08;
+    --motion-distance-kpi-bump: 0.125rem;
+
     /* Domain bridges: aliases keep migrated screens on the shadcn contract. */
     --panel: var(--card);
     --panel-muted: var(--muted);
@@ -588,14 +603,13 @@
   }
 }
 
-@keyframes qc-skeleton-pulse {
-  0%,
-  100% {
-    opacity: 0.58;
+@keyframes qc-skeleton-shimmer {
+  0% {
+    background-position: 140% 0;
   }
 
-  50% {
-    opacity: 1;
+  100% {
+    background-position: -140% 0;
   }
 }
 
@@ -605,12 +619,53 @@
   }
 }
 
+@keyframes qc-kpi-bump {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(var(--motion-scale-kpi-bump))
+      translateY(calc(-1 * var(--motion-distance-kpi-bump)));
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
 [data-slot="skeleton"][data-qc-motion="static-loop"] {
-  animation: qc-skeleton-pulse 1.8s var(--motion-ease-standard) infinite;
+  background-color: var(--muted);
+  background-image: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    color-mix(in oklch, var(--muted) 52%, var(--card)) 42%,
+    var(--muted) 84%
+  );
+  background-size: 280% 100%;
+  animation: qc-skeleton-shimmer var(--motion-duration-shimmer) linear infinite;
 }
 
 [data-slot="skeleton"][data-qc-motion="none"] {
   animation: none;
+}
+
+/* Sonner stays the toast engine; spring tokens retune its --y enter/stack. */
+[data-sonner-toast].cn-toast {
+  transition-duration: var(--motion-duration-spring-enter),
+    var(--motion-duration-spring-enter), var(--motion-duration-spring-enter),
+    var(--motion-duration-fast);
+  transition-timing-function: var(--motion-ease-spring-toast),
+    var(--motion-ease-standard), var(--motion-ease-spring-panel), var(--motion-ease-standard);
+}
+
+[data-qc-motion="kpi-bump"] {
+  animation: qc-kpi-bump var(--motion-duration-spring) var(--motion-ease-spring-overshoot);
+}
+
+[data-slot="accordion-content"] {
+  animation-duration: var(--motion-duration-spring-panel);
+  animation-timing-function: var(--motion-ease-spring-panel);
 }
 
 [data-slot="spinner"][data-qc-motion="static-loop"] {
@@ -660,9 +715,17 @@
     --motion-duration-fast: 1ms;
     --motion-duration-standard: 1ms;
     --motion-duration-emphasis: 1ms;
+    --motion-duration-spring: 1ms;
+    --motion-duration-spring-enter: 1ms;
+    --motion-duration-spring-panel: 1ms;
+    --motion-duration-spring-glide: 1ms;
+    --motion-duration-morph: 1ms;
+    --motion-duration-shimmer: 1ms;
     --motion-distance-press: 0px;
     --motion-distance-enter: 0px;
+    --motion-distance-kpi-bump: 0px;
     --motion-scale-press: 1;
+    --motion-scale-kpi-bump: 1;
   }
 
   html {
@@ -679,8 +742,14 @@
   }
 
   [data-slot="skeleton"],
-  [data-slot="spinner"] {
+  [data-slot="spinner"],
+  [data-qc-motion="kpi-bump"],
+  [data-sonner-toast] {
     animation: none;
+  }
+
+  [data-slot="skeleton"] {
+    background-image: none;
   }
 }
 

@@ -61,6 +61,8 @@ export function OperationKpiCard({
             <Icon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
           </div>
           <CardTitle
+            key={String(value)}
+            data-qc-motion="kpi-bump"
             className={cn(
               "flex flex-wrap items-baseline gap-1.5 text-2xl font-semibold tabular-nums group-data-[size=sm]/card:text-2xl",
               isNegativeValue && "text-destructive"

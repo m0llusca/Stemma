@@ -6,7 +6,7 @@
 
 **Kill list:** vanity-график без drill в очередь; декоративное motion на очереди.
 
-Лицензия / копирование кода — отдельный аудит: [2026-07-28](memory/2026-07-28-kinetics-evilcharts-provenance-audit.md). Здесь — продуктовый fit. Код Kinetics не копируем.
+Лицензия / копирование кода — отдельный аудит: [2026-07-28](memory/2026-07-28-kinetics-evilcharts-provenance-audit.md). Здесь — продуктовый fit. React-демо Kinetics не копируем; в `globals.css` живут только опубликованные spring-токены (duration / cubic-bezier).
 
 ## Recharts
 
@@ -37,19 +37,25 @@
 
 Не npm-зависимость. Каталог spring CSS / React / prompt-паттернов.
 
-Взять **4–6** в токены / `globals.css` (+ `prefers-reduced-motion`):
-
-1. toast overshoot
-2. switch
-3. progress / elastic
-4. skeleton shimmer
-5. status pill
-6. accordion (admin)
-7. digit bump на KPI
-
 Слой motion поверх shadcn **base-nova**, не замена DS. В проекте уже `tw-animate-css` и sonner — вторую motion-систему не заводим.
 
-**Не брать:** magnetic cursor, liquid glass, trails, speed-dial, decorative dock.
+**Не брать:** magnetic cursor, liquid glass, trails, speed-dial, decorative dock, ripple theater, scramble/typewriter, pulse-badge spam — не на chrome очереди и не на спокойных Agent-поверхностях.
+
+### Adopted tokens (phase 2)
+
+Скопированы только spring-значения (duration / cubic-bezier) в `apps/web/src/app/globals.css`. React-демо Kinetics и пакет не ставим. Июльский provenance-аудит банил Shimmer Skeleton как чужой код; здесь — независимый token-backed shimmer на `--muted` / `--card`.
+
+| Pattern | Tokens | Surface |
+| --- | --- | --- |
+| Toast overshoot | `--motion-ease-spring-toast`, `--motion-duration-spring-enter` | sonner `[data-sonner-toast].cn-toast` |
+| Switch spring | `--motion-ease-spring-overshoot`, `--motion-duration-spring` | `Switch` thumb |
+| KPI / digit bump | `--motion-scale-kpi-bump`, `qc-kpi-bump` | `StatKpi`, report / ops KPI titles |
+| Skeleton shimmer | `--motion-duration-shimmer`, `qc-skeleton-shimmer` | `[data-slot="skeleton"][data-qc-motion="static-loop"]` |
+| Status pill morph | `--motion-duration-morph`, `--motion-ease-spring-gentle` | `Badge` / `Chip` / `StatusBadge` |
+| Admin accordion | `--motion-ease-spring-panel`, chevron overshoot | `Accordion` panel + trigger icon |
+| Tab-pill glide (optional) | `--motion-ease-spring-glide` | `TabsTrigger`, `PageShell` tabs |
+
+`prefers-reduced-motion: reduce` обнуляет duration-токены до `1ms`, гасит skeleton / KPI / toast animation и снимает shimmer `background-image`. Unit lock: `apps/web/tests/unit/ui-theme-contract.test.ts`.
 
 ## Кто видит графики
 
@@ -64,11 +70,11 @@
 ## Фазы
 
 1. Drill-chart spike на Exec (потом Lead) через текущие `Chart*`
-2. Kinetics: 4–6 токенов / паттернов
-3. Эта заметка — этот PR
+2. Kinetics: 4–6 токенов / паттернов — **сделано** (токены + wiring выше)
+3. Эта заметка — fit; таблица adopted tokens обновляется вместе с CSS
 
-## Тесты (когда пойдёт код)
+## Тесты
 
 - unit: click → тот же href, что `opsQueueKpiHref`
-- `prefers-reduced-motion`
+- Kinetics tokens + reduced-motion off: `apps/web/tests/unit/ui-theme-contract.test.ts`
 - Agent и VIEWER — без графиков

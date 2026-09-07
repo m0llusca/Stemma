@@ -51,4 +51,10 @@ describe("StatKpi", () => {
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
+
+  it("marks the numeric value for the KPI spring bump", () => {
+    render(<StatKpi label="Ожидают" value={12} />);
+
+    expect(screen.getByText("12")).toHaveAttribute("data-qc-motion", "kpi-bump");
+  });
 });
