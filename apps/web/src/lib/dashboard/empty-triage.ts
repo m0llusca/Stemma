@@ -35,7 +35,7 @@ export function emptyTriagePrimary(role: RoleName, options?: { name?: string }):
       kind: "href",
       href: roleHomePath(role, { name: options?.name }),
       label: "Открыть сегодня",
-      description: "Критичных отклонений нет — откройте очередь дня."
+      description: "Нет сигналов за период — откройте очередь дня."
     };
   }
 

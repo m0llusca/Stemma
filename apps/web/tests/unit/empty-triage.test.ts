@@ -21,7 +21,7 @@ describe("emptyTriagePrimary", () => {
       kind: "href",
       href: analystMineOverdueHref("Анна QA"),
       label: "Открыть сегодня",
-      description: "Критичных отклонений нет — откройте очередь дня."
+      description: "Нет сигналов за период — откройте очередь дня."
     });
     expect(action.kind === "href" ? action.href : "").not.toBe(EMPTY_TRIAGE_IMPOSTOR_HREF);
   });

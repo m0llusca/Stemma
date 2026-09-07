@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, TrendingUp, TriangleAlert, Users } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ClipboardCheck, Clock3, History, TrendingUp, TriangleAlert, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TriageStrip } from "@/components/ui/triage-strip";
 
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
+import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
@@ -351,6 +352,7 @@ async function DashboardPageContent() {
   const primaryFocus = focusItems[0];
   const secondaryFocusItems = focusItems.slice(1);
   const emptyTriage = emptyTriagePrimary(user.role, { name: user.name });
+  const emptyTriageCopy = buildOpsEmptyTriage();
   const primaryFocusHref = primaryFocus?.href;
   const checkedStatus = semanticStatusForMetric({ kind: "completed_count", value: checkedThisWeek });
   const queueStatus = semanticStatusForMetric({ kind: "queue_count", value: totalQueueCount });
@@ -370,8 +372,9 @@ async function DashboardPageContent() {
           ? reportReviewRangeHref(item.date, new Date(item.date.getTime() + dayMs - 1))
           : undefined
     }));
-  const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : "Критичных отклонений нет";
-  const triageDescription = focusItems.length ? primaryFocus.hint : emptyTriage.description;
+  const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : emptyTriageCopy.title;
+  const triageDescription = focusItems.length ? primaryFocus.hint : emptyTriageCopy.description;
+  const triageTone = focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : emptyTriageCopy.tone;
   const PrimaryFocusIcon = primaryFocus?.icon;
   const emptyTriageAction =
     emptyTriage.kind === "take-next" ? (
@@ -400,8 +403,8 @@ async function DashboardPageContent() {
     >
       <WelcomeBackBanner />
       <TriageStrip
-        tone={focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : "success"}
-        icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
+        tone={triageTone}
+        icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <ClipboardCheck size={18} aria-hidden="true" />}
         title={triageTitle}
         description={triageDescription}
         action={
