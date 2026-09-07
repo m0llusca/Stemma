@@ -53,5 +53,11 @@ describe("role-home", () => {
     expect(resolvePostLoginPath("/reviews", { role: "VIEWER", name: "Гость" })).toBe(
       "/auth/pending-access"
     );
+    expect(
+      resolvePostLoginPath("/reviews?status=unreviewed", { role: "VIEWER", name: "Гость" })
+    ).toBe("/auth/pending-access");
+    expect(resolvePostLoginPath("/dashboard", { role: "VIEWER", name: "Гость" })).toBe(
+      "/auth/pending-access"
+    );
   });
 });

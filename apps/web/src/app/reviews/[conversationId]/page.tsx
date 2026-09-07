@@ -47,6 +47,7 @@ import { isDeterministicAiModel } from "@/lib/ai-quality/draft-origin";
 import {
   canManageReviewWorkflow,
   canManageTraining,
+  canResolveAppeal,
   canSaveReviewDraft,
   canSelfReview,
   requireCurrentUserPermission
@@ -225,6 +226,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
   const canSaveHumanReviewDraft = canSaveReviewDraft(user.role);
   const canEvaluateReviewPermission = reviewSource === "SELF_REVIEW" ? canSelfReview(user.role) : canSaveHumanReviewDraft;
   const canManageWorkflow = canManageReviewWorkflow(user.role);
+  const canResolveAppeals = canResolveAppeal(user.role);
   const canCreateTrainingAssignment = canManageTraining(user.role) && user.role !== "SUPPORT_AGENT";
   // QA authors pins; agents may read open pins on their own conversations (self-feedback).
   const canSeeCoachingPins = canSaveHumanReviewDraft || user.role === "SUPPORT_AGENT";
@@ -1036,7 +1038,7 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               Руководитель должен принять решение и зафиксировать итог.
             </AlertDescription>
           </div>
-          {canManageWorkflow ? (
+          {canResolveAppeals ? (
             <div className="flex flex-wrap gap-2">
               <form action={updateReviewFeedback}>
                 <input type="hidden" name="reviewId" value={latestFinalizedReview.id} />

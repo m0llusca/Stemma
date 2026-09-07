@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     canAcknowledgeFeedback: vi.fn(),
     canManageReviewWorkflow: vi.fn(),
     canManageTraining: vi.fn(),
+    canResolveAppeal: vi.fn((role: string) => role === "TEAM_LEAD" || role === "ADMIN"),
     enqueueBackendJob: vi.fn(),
     getCurrentUser: vi.fn(),
     recordReviewEvent: vi.fn(),
@@ -54,6 +55,7 @@ vi.mock("@/lib/current-user", () => ({
   canAcknowledgeFeedback: mocks.canAcknowledgeFeedback,
   canManageReviewWorkflow: mocks.canManageReviewWorkflow,
   canManageTraining: mocks.canManageTraining,
+  canResolveAppeal: mocks.canResolveAppeal,
   getCurrentUser: mocks.getCurrentUser
 }));
 

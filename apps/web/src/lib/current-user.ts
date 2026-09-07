@@ -171,6 +171,11 @@ export function canManageReviewWorkflow(role: RoleName) {
   return hasPermission(role, "workflow:manage");
 }
 
+/** Appeal resolve / reanswer — TEAM_LEAD / ADMIN only (stricter than workflow:manage). */
+export function canResolveAppeal(role: RoleName) {
+  return role === "TEAM_LEAD" || role === "ADMIN";
+}
+
 export function canManageCalibration(role: RoleName) {
   return hasPermission(role, "calibration:manage");
 }

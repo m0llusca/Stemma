@@ -64,6 +64,11 @@ export function roleHomePath(role: RoleName, options?: { name?: string }) {
 }
 
 export function resolvePostLoginPath(returnTo: string | null | undefined, user: { role: RoleName; name: string }) {
+  // VIEWER has no product permissions — never honor deep-link returnTo into deny pages.
+  if (user.role === "VIEWER") {
+    return roleHomePath("VIEWER");
+  }
+
   const safe = sanitizeReturnTo(returnTo);
   if (isGenericPostLoginPath(safe)) {
     return roleHomePath(user.role, { name: user.name });

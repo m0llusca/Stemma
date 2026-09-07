@@ -7,6 +7,7 @@ import {
   canAcknowledgeFeedback,
   canManageReviewWorkflow,
   canManageTraining,
+  canResolveAppeal,
   getCurrentUser
 } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
@@ -23,10 +24,6 @@ import { assertFeedbackTransition, reviewFeedbackTransitionStatuses } from "@/li
 
 /** Appeal resolve / reanswer request — TEAM_LEAD / ADMIN only; agents and QA must not self-close. */
 const managerOnlyFeedbackActions = new Set(["appeal_confirmed", "appeal_corrected", "reanswer_requested"]);
-
-function canResolveAppeal(role: string) {
-  return role === "TEAM_LEAD" || role === "ADMIN";
-}
 
 /**
  * Result of a feedback/coaching server action consumed via `useActionState`.
