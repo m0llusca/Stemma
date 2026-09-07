@@ -287,6 +287,17 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
   expect(importDurationMs, `INTEGRATION_IMPORT hung (${importDurationMs}ms)`).toBeLessThan(15_000);
 
   await page.goto(`/reviews?source=otrs&q=${ticketId}`);
-  await expect(page.getByRole("heading", { name: "Очередь проверок" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("link", { name: expectedSubject })).toBeVisible();
+  await expect(page.locator('[data-slot="page-shell"] h1')).toHaveText("Очередь проверок", {
+    timeout: 15_000
+  });
+  const skipTour = page.getByRole("button", { name: "Пропустить" });
+  if (await skipTour.isVisible()) {
+    await skipTour.click();
+  }
+  const exactFilters = page.getByRole("dialog", { name: "Точные фильтры" });
+  if (await exactFilters.isVisible()) {
+    await exactFilters.getByRole("button", { name: "Закрыть" }).click();
+    await expect(exactFilters).toBeHidden();
+  }
+  await expect(page.locator("tr.queue-row", { hasText: expectedSubject })).toBeVisible();
 });
