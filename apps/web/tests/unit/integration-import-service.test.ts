@@ -47,6 +47,7 @@ const liveEvidence = {
 describe("integration import service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.TEST_DATABASE_URL;
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(liveEvidence);
   });
