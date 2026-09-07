@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { QueueFilters } from "@/components/review/queue-filters";
@@ -27,10 +27,16 @@ describe("QueueFilters", () => {
     expect(screen.getByLabelText("Поиск в очереди проверок")).toBeInTheDocument();
     const itog = screen.getByLabelText("Итог");
     expect(itog).toHaveValue("all");
-    expect(within(itog).getByRole("option", { name: "Ещё не проверена" })).toHaveValue("unreviewed");
-    expect(within(itog).getByRole("option", { name: "Проверка завершена" })).toHaveValue("reviewed");
-    expect(within(itog).queryByRole("option", { name: "В очереди" })).not.toBeInTheDocument();
-    expect(within(itog).queryByRole("option", { name: "Завершена" })).not.toBeInTheDocument();
+    expect(
+      Array.from(itog.querySelectorAll("option")).map((option) => ({
+        value: option.value,
+        label: option.textContent
+      }))
+    ).toEqual([
+      { value: "all", label: "Все" },
+      { value: "unreviewed", label: "Ещё не проверена" },
+      { value: "reviewed", label: "Проверка завершена" }
+    ]);
     expect(screen.getByRole("button", { name: /^точные фильтры/i, hidden: true })).toHaveTextContent(
       "1 применено"
     );
