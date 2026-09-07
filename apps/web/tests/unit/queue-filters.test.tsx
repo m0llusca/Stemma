@@ -25,7 +25,18 @@ describe("QueueFilters", () => {
     );
 
     expect(screen.getByLabelText("Поиск в очереди проверок")).toBeInTheDocument();
-    expect(screen.getByLabelText("Итог")).toHaveValue("all");
+    const itog = screen.getByLabelText("Итог");
+    expect(itog).toHaveValue("all");
+    expect(
+      Array.from(itog.querySelectorAll("option")).map((option) => ({
+        value: option.value,
+        label: option.textContent
+      }))
+    ).toEqual([
+      { value: "all", label: "Все" },
+      { value: "unreviewed", label: "Ещё не проверена" },
+      { value: "reviewed", label: "Проверка завершена" }
+    ]);
     expect(screen.getByRole("button", { name: /^точные фильтры/i, hidden: true })).toHaveTextContent(
       "1 применено"
     );
@@ -37,6 +48,22 @@ describe("QueueFilters", () => {
     expect(screen.getByText("Срок (SLA)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое sla/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /что такое источник/i })).toBeInTheDocument();
+  });
+
+  it("shows the Итог chip with reviewed/unreviewed words, not status-chip words", () => {
+    render(
+      <QueueFilters
+        filters={{ status: "unreviewed" }}
+        sources={[]}
+        assignees={[]}
+        qaAssignees={[]}
+        supportLines={[]}
+        teamNames={[]}
+      />
+    );
+
+    expect(screen.getByText("Итог: Ещё не проверена")).toBeInTheDocument();
+    expect(screen.queryByText("Итог: В очереди")).not.toBeInTheDocument();
   });
 
   it("resets analyst inbox filters to the mine+overdue role home", () => {

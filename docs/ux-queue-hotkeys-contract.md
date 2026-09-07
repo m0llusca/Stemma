@@ -94,6 +94,17 @@ Pending reopen overrides the label to **«Ожидает подтвержден�
 
 Filter/bulk dropdowns may still bind the `QaStatus` enum; the visible words stay `reviewStateLabels`.
 
+## Queue «Итог» filter = different slice
+
+`reviewQueueStatusLabels` is a binary reviewed / unreviewed filter, not the status chip. Do not reuse chip words here.
+
+| Filter value | Label |
+| --- | --- |
+| unreviewed | Ещё не проверена |
+| reviewed | Проверка завершена |
+
+Merging «Итог» into «Статус проверки» would drop the “any not-yet-finalized” vs exact `qaStatus` distinction.
+
 ## Ownership
 
 | Concern | Module |
