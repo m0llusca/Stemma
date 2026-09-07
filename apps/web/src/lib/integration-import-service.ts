@@ -38,7 +38,8 @@ export async function assertIntegrationLiveCertifiedForProductionImport(input: {
   client?: Pick<typeof prisma, "certificationEvidence">;
 }) {
   // Local Playwright verify DB is not a production deployment; next start still
-  // sets NODE_ENV=production. Keep the live-smoke gate for every other process.
+  // sets NODE_ENV=production. Bypass only when both TEST_DATABASE_URL and
+  // DATABASE_URL are that local verify DB — keep the live-smoke gate otherwise.
   if (isLocalPlaywrightVerifyDatabase()) {
     return;
   }
