@@ -177,8 +177,8 @@ describe("auth provider helpers", () => {
     ).resolves.toBe("QA_ANALYST");
   });
 
-  it("uses support agent as the least-privileged fallback role", async () => {
-    await expect(resolveRoleFromExternalClaims("workspace-1", "provider-1", {})).resolves.toBe("SUPPORT_AGENT");
+  it("uses viewer as the least-privileged fallback role", async () => {
+    await expect(resolveRoleFromExternalClaims("workspace-1", "provider-1", {})).resolves.toBe("VIEWER");
   });
 
   it("documents the preferred AD/Entra integration pattern", () => {

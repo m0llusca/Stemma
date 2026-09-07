@@ -125,7 +125,7 @@ export async function resolveIdentityPolicyFromExternalClaims(
 
   if (!claims.groups?.length) {
     return {
-      role: "SUPPORT_AGENT",
+      role: "VIEWER",
       roleSource: "fallback",
       ...attributes
     };
@@ -157,7 +157,7 @@ export async function resolveIdentityPolicyFromExternalClaims(
 
   if (!mapping) {
     return {
-      role: "SUPPORT_AGENT",
+      role: "VIEWER",
       roleSource: "fallback",
       ...attributes
     };
