@@ -8,10 +8,11 @@
 
 ## Graphify
 
-- Canonical map: repo-root `graphify-out/` (scan root `apps/web/src`)
-- **Before** architecture / “where is X” / multi-file work: `graphify query` / `path` / `explain`, or read `GRAPH_REPORT.md`
-- **After** code changes under `apps/web/src`: `graphify update apps/web/src` (sync nested `apps/web/src/graphify-out` → root `graphify-out/` if the CLI writes nested)
-- Cursor rule: `.cursor/rules/graphify.mdc`
+Local tool. Optional. Not in git.
+
+- You may query or update a local graph of `apps/web/src`.
+- Never commit `graphify-out/`, `GRAPH_REPORT.md`, or generated graphify docs. Git ignores them.
+- If the CLI writes under `apps/web/src/graphify-out/`, leave that dump on disk. Do not copy it into the repo.
 
 ## UI (shadcn)
 
