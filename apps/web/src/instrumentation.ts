@@ -5,6 +5,39 @@
  * Validates critical env vars early so the app fails fast with a clear
  * message instead of silently starting and then crashing on the login page.
  */
+
+/**
+ * Production fail-closed boot gates. Exported for unit tests; `register()`
+ * calls this after the DATABASE_URL check when running on the Node runtime.
+ */
+export function assertProductionBootEnv(): void {
+  if (process.env.NODE_ENV !== "production") {
+    return;
+  }
+
+  // In production the app must have a real secret; the codebase contains a
+  // hardcoded non-production fallback in src/auth/config.ts that must NOT be
+  // used in production.
+  if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
+    throw new Error(
+      "Приложение не запущено: в продакшн-окружении обязательно задать AUTH_SECRET " +
+        "(или NEXTAUTH_SECRET). Встроенный запасной секрет недопустим в продакшн."
+    );
+  }
+
+  if (process.env.QC_DEMO_AUTH === "enabled") {
+    throw new Error(
+      "Приложение не запущено: QC_DEMO_AUTH=enabled запрещён в production."
+    );
+  }
+
+  if (!process.env.QC_SECRET_KEY) {
+    throw new Error(
+      "Приложение не запущено: в production обязательно задать QC_SECRET_KEY."
+    );
+  }
+}
+
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
@@ -16,15 +49,5 @@ export async function register(): Promise<void> {
     );
   }
 
-  // In production the app must have a real secret; the codebase contains a
-  // hardcoded non-production fallback in src/auth/config.ts that must NOT be
-  // used in production.
-  if (process.env.NODE_ENV === "production") {
-    if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
-      throw new Error(
-        "Приложение не запущено: в продакшн-окружении обязательно задать AUTH_SECRET " +
-          "(или NEXTAUTH_SECRET). Встроенный запасной секрет недопустим в продакшн."
-      );
-    }
-  }
+  assertProductionBootEnv();
 }

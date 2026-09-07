@@ -1,3 +1,5 @@
+# Local development Postgres only — do not reuse for production.
+# Port is bound to localhost so the DB is not reachable from other hosts.
 services:
   postgres:
     image: postgres:16-alpine
@@ -6,7 +8,7 @@ services:
       POSTGRES_USER: qc_app
       POSTGRES_PASSWORD: qc_app
     ports:
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
     volumes:
       - qc_app_postgres_data:/var/lib/postgresql/data
     healthcheck:

@@ -18,6 +18,26 @@ Please include:
 
 You should receive an acknowledgement within a few days. Please give reasonable time for a fix before public disclosure.
 
+## Production required environment
+
+Set these before starting a production process (boot fails closed without them):
+
+- `DATABASE_URL`
+- `AUTH_SECRET` (or `NEXTAUTH_SECRET`)
+- `QC_SECRET_KEY` — encrypts integration/webhook/AI secret material at rest
+- `QC_PUBLIC_ORIGIN` / `QC_PUBLIC_ORIGIN_ALLOWLIST` — HTTPS public origin for auth callbacks
+
+**Forbidden in production:**
+
+- `QC_DEMO_AUTH=enabled` — process refuses to start
+- `ALLOW_SEED=1` / running `db:seed` against production
+- `QC_ALLOW_PRIVATE_BASE_URLS=1` on shared/multi-tenant SaaS
+- Live-smoke credentials (`*_LIVE_SMOKE`) against production or third-party systems you do not own
+
+`compose.yaml` is **local-only** (default `qc_app` password, localhost-bound port). Use managed Postgres with private networking and strong unique credentials in production.
+
+Terminate TLS at a reverse proxy (or the platform) and prefer security headers (CSP/HSTS/frame denial) at the app or ingress. See `apps/web/next.config.ts` when headers are configured.
+
 ## Secrets and live environments
 
 - Never commit `.env`, service-account JSON keys, OAuth tokens, or production URLs with credentials.
