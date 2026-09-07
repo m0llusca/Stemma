@@ -27,6 +27,13 @@ output/
 .playwright-cli/
 .claude/
 
-# Local tooling / unrelated asset dumps (never commit)
+# Graphify: local tool checkout, generated graph, and graphify-owned docs
+graphify/
+**/graphify/
 graphify-out/
+**/graphify-out/
+docs/graphify/
+.cursor/rules/graphify.mdc
+
+# Local tooling / unrelated asset dumps (never commit)
 coiaf-rebuild/
