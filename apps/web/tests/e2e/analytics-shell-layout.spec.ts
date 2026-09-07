@@ -352,7 +352,7 @@ for (const width of shellViewportWidths) {
       await page.keyboard.press("Escape");
     } else {
       await expect(globalNav.getByRole("link", { name: /^Очередь:/ })).toBeVisible();
-      await expect(globalNav.getByRole("link", { name: "Взять следующий кейс" })).toBeVisible();
+      await expect(globalNav.getByRole("button", { name: "Взять следующий кейс" })).toBeVisible();
     }
 
     await expectNoDocumentOverflow(page);

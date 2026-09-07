@@ -166,11 +166,19 @@ describe("app nav shell", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("runs take-next through takeNextReview with the current queue filters", () => {
-    // Tester on a saved/filtered queue (due + process) — not the unreviewed impostor.
-    window.history.replaceState(null, "", "/reviews?due=overdue&process=ai_exception");
-    render(<AppNavShell {...baseProps} />);
+  function expectTakeNextFormData(queueHref: string | null) {
+    expect(mocks.takeNextReview).toHaveBeenCalledTimes(1);
+    const formData = mocks.takeNextReview.mock.calls[0]?.[0] as FormData;
+    expect(formData.get("queueHref")).toBe(queueHref);
+    expect(mocks.routerPush).not.toHaveBeenCalled();
+    expect(mocks.routerPush).not.toHaveBeenCalledWith("/reviews?status=unreviewed");
+    expect(
+      screen.queryByRole("link", { name: "Взять следующий кейс" })
+    ).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
+  }
 
+  function runCommandTakeNext() {
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const dialog = screen.getByRole("dialog", { name: "Поиск и команды" });
     const input = screen.getByPlaceholderText(/Найти раздел/);
@@ -178,40 +186,67 @@ describe("app nav shell", () => {
     const options = within(dialog).getAllByRole("option");
     expect(options).toHaveLength(1);
     expect(options[0]?.textContent).toContain("Взять следующий кейс");
-
     fireEvent.keyDown(input, { key: "Enter" });
+  }
 
-    expect(mocks.takeNextReview).toHaveBeenCalledTimes(1);
-    const formData = mocks.takeNextReview.mock.calls[0]?.[0] as FormData;
-    expect(formData.get("queueHref")).toBe("/reviews?due=overdue&process=ai_exception");
-    expect(mocks.routerPush).not.toHaveBeenCalled();
-    expect(mocks.routerPush).not.toHaveBeenCalledWith("/reviews?status=unreviewed");
-    expect(screen.queryByRole("dialog", { name: "Поиск и команды" })).toBeNull();
-  });
+  it.each([
+    {
+      surface: "⌘K",
+      run: () => runCommandTakeNext()
+    },
+    {
+      surface: "pulse «Взять кейс»",
+      run: () => fireEvent.click(screen.getByRole("button", { name: "Взять следующий кейс" }))
+    },
+    {
+      surface: "pulse menu",
+      run: () => {
+        fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
+        fireEvent.click(
+          within(screen.getByRole("menu", { name: "Рабочий пульс" })).getByRole("menuitem", {
+            name: "Взять следующий кейс"
+          })
+        );
+      }
+    }
+  ] as const)(
+    "runs $surface through takeNextReview with the current queue filters",
+    ({ run }) => {
+      // Tester on a saved/filtered queue (due + process) — not the unreviewed impostor.
+      window.history.replaceState(null, "", "/reviews?due=overdue&process=ai_exception");
+      render(<AppNavShell {...baseProps} />);
+
+      run();
+
+      expectTakeNextFormData("/reviews?due=overdue&process=ai_exception");
+    }
+  );
 
   it("does not substitute /reviews?status=unreviewed when take-next runs off the queue", () => {
     window.history.replaceState(null, "", "/dashboard");
     mocks.pathname = "/dashboard";
     render(<AppNavShell {...baseProps} />);
 
-    fireEvent.keyDown(window, { key: "k", metaKey: true });
-    const input = screen.getByPlaceholderText(/Найти раздел/);
-    fireEvent.change(input, { target: { value: "следующий кейс" } });
-    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Взять следующий кейс" }));
 
-    expect(mocks.takeNextReview).toHaveBeenCalledTimes(1);
-    const formData = mocks.takeNextReview.mock.calls[0]?.[0] as FormData;
-    expect(formData.get("queueHref")).toBeNull();
-    expect(mocks.routerPush).not.toHaveBeenCalledWith("/reviews?status=unreviewed");
+    expectTakeNextFormData(null);
   });
 
-  it("hides the take-next command when the reviewer cannot write reviews", () => {
+  it("hides every take-next surface when the reviewer cannot write reviews", () => {
     render(<AppNavShell {...baseProps} canTakeNextCase={false} />);
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const input = screen.getByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "следующий кейс" } });
     expect(screen.queryByRole("option", { name: /Взять следующий кейс/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Рабочий пульс" }));
+    expect(
+      within(screen.getByRole("menu", { name: "Рабочий пульс" })).queryByRole("menuitem", {
+        name: "Взять следующий кейс"
+      })
+    ).toBeNull();
   });
 
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {
@@ -279,8 +314,9 @@ describe("app nav shell", () => {
       "/reviews?qaStatus=QUEUED",
       "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
       "/coaching",
-      "/reviews?status=unreviewed"
+      null
     ]);
+    expect(destinations).not.toContain("/reviews?status=unreviewed");
     expect(within(menu).getByRole("menuitem", { name: "Очередь: 4" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Риск: 1" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Обучение: 0" })).toBeInTheDocument();
@@ -297,7 +333,7 @@ describe("app nav shell", () => {
     for (const link of within(areaNav()).getAllByRole("link")) {
       expect(link).toHaveAttribute("data-slot", "button");
     }
-    expect(screen.getByRole("link", { name: "Взять следующий кейс" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Взять следующий кейс" })).toHaveAttribute(
       "data-slot",
       "button"
     );

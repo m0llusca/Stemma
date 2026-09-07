@@ -40,7 +40,7 @@ export function queueHrefFromLocation(pathname: string, search = ""): string | u
   return undefined;
 }
 
-/** Same FormData the queue «Взять следующий» button submits. */
+/** Same FormData the queue «Взять следующий» button, ⌘K, and pulse «Взять кейс» submit. */
 export function takeNextFormDataFromLocation(pathname: string, search = ""): FormData {
   const formData = new FormData();
   const queueHref = queueHrefFromLocation(pathname, search);
