@@ -48,6 +48,12 @@ describe("Phase D live smoke harness", () => {
     expect(playwrightConfig).toContain("reuseExistingServer: false");
   });
 
+  it("boots Playwright as next dev because production refuses QC_DEMO_AUTH", () => {
+    expect(playwrightConfig).toContain('QC_DEMO_AUTH: "enabled"');
+    expect(playwrightConfig).toContain("npm run dev -- --port 3000");
+    expect(playwrightConfig).not.toContain("npm run start -- --port 3000");
+  });
+
   it("includes data source live smoke in the Phase D live harness", () => {
     expect(packageJson.scripts["test:live:phase-d"]).toContain("tests/live/data-source-live-smoke.test.ts");
     expect(protectedLiveEnvGates).toContain("DATA_SOURCE_LIVE_SMOKE=1");

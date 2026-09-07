@@ -89,11 +89,10 @@ export default defineConfig({
     }
   ],
   webServer: {
-    // Production server: a production build (`npm run build`) MUST already exist
-    // (.next/BUILD_ID present) before Playwright starts — producing it is the
-    // caller's responsibility; this config never builds to keep the exclusive
-    // build ownership (Agent B) intact.
-    command: "npm run db:deploy && npm run db:seed && npm run start -- --port 3000",
+    // next start sets NODE_ENV=production; instrumentation then refuses
+    // QC_DEMO_AUTH=enabled (SECURITY.md). Chromium smoke needs demo login, so
+    // the harness boots `next dev`. `npm run build` stays a separate compile gate.
+    command: "npm run db:deploy && npm run db:seed && npm run dev -- --port 3000",
     env: webServerEnv,
     url: "http://localhost:3000",
     timeout: 120_000,
