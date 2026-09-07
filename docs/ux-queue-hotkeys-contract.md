@@ -29,7 +29,7 @@ Modifiers: plain `meta` / `ctrl` / `alt` chords other than `Cmd/Ctrl+Enter` are 
 
 ## Take next eligibility
 
-Four surfaces share **one path**: `takeNextReview` / `selectNextReviewConversationId` (`apps/web/src/lib/queue-view-actions.ts`). Base eligibility is `nextReviewWhere` / `nextReviewOrderBy` (`apps/web/src/lib/review/next-review-query.ts`). Active view filters are AND-ed on top through `buildReviewQueueWhere`.
+Five surfaces share **one path**: `takeNextReview` / `selectNextReviewConversationId` (`apps/web/src/lib/queue-view-actions.ts`). Base eligibility is `nextReviewWhere` / `nextReviewOrderBy` (`apps/web/src/lib/review/next-review-query.ts`). Active view filters are AND-ed on top through `buildReviewQueueWhere`.
 
 1. Queue **«Взять следующий»** → `takeNextReview` → hidden `queueHref` (current URL / saved view) → `filtersFromReviewsHref` → same selector
 2. Workbench **«Завершить и взять следующий»** (`intent=finalize_next`) → `finalizeReviewAndTakeNext` → `returnTo` → same parser and selector (excludes the case just finished)
@@ -38,6 +38,25 @@ Four surfaces share **one path**: `takeNextReview` / `selectNextReviewConversati
 5. Next-case preview **«Взять следующий»** → the same `takeNextReview` form with the page `queueHref`. Not a nav-only peek.
 
 **Killed:** ⌘K and pulse must not navigate to hardcoded `/reviews?status=unreviewed`. That URL is an impostor filter, not take-next.
+
+## Take next write-gate
+
+All take-next surfaces require `reviews:write`. UI flag: `canTakeNextCase` (shell) / `canWriteReviews` (queue). Readers (`EXEC`, `SUPPORT_AGENT`, `VIEWER`) must not see write CTAs.
+
+| Surface | Gate |
+| --- | --- |
+| Queue **«Взять следующий»** | `canWriteReviews` — omit the page action |
+| Pulse **«Взять следующий»** | `canTakeNextCase` — omit desktop + mobile |
+| ⌘K **«Взять следующий»** | drop `actionId: take-next` when `!canTakeNextCase` |
+| Next-case preview CTA | `canTakeNext` — identity stays; no submit |
+| Empty-queue **«Взять без фильтра»** | `canWriteReviews` |
+| Workbench **finalize_next** | scorecard panel only when `canSaveReviewDraft` (`reviews:write`) |
+
+`takeNextReview` is `requireCurrentUserPermission("reviews:write")`. A leaked CTA throws into `error.tsx`, not `forbidden.tsx`. Hide the control; do not let readers submit.
+
+Ops empty-triage on `/dashboard` (Lead/Admin) uses the same `takeNextReview` path. Analyst empty-triage is a role-home href (`Открыть сегодня`), not take-next. See [app-shell.md](app-shell.md).
+
+**Follow-up (not fixed):** `QueueSavedViews` create UI still renders for readers on `/reviews`. `createSavedQueueView` does not require `reviews:write`.
 
 **Always (workspace / role / sampling):**
 

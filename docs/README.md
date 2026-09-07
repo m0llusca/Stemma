@@ -6,10 +6,10 @@
 | [otrs-selected-import.md](otrs-selected-import.md) | Cockpit selected OTRS import: lock TX, heartbeats, crash/resume |
 | [jobs-scheduling.md](jobs-scheduling.md) | Background jobs |
 | [integration-install-contracts.md](integration-install-contracts.md) | Install / capability contracts |
-| [app-shell.md](app-shell.md) | App shell; role homes; page permission / forbidden UX |
+| [app-shell.md](app-shell.md) | App shell; role homes; take-next write-gate; empty-triage honesty; page permission / forbidden UX |
 | [i18n.md](i18n.md) | Localization |
-| [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection green = `live_certified` |
-| [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next + status chip (locked) |
+| [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage |
+| [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next write-gate + status chip (locked) |
 | [competitive-qa-interconnections.md](competitive-qa-interconnections.md) | Competitor QA interconnection matrix + Stemma P0–P2 status map |
 | [cross-feature-interconnections.md](cross-feature-interconnections.md) | This-wave wiring summary (coaching/AI/reports/self-review loops) |
 | [business-logic-adversarial-audit.md](business-logic-adversarial-audit.md) | Adversarial business-logic audit + P0/P1 fix status |
