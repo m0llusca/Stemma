@@ -58,6 +58,13 @@ describe("app nav shell", () => {
     window.history.replaceState(null, "", "/reviews");
   });
 
+  it("points the brand mark at the supplied role home instead of hardcoded dashboard", () => {
+    render(<AppNavShell {...baseProps} homeHref="/self-review" />);
+
+    const brand = screen.getByRole("link", { name: "КК поддержки" });
+    expect(brand.getAttribute("href")).toBe("/self-review");
+  });
+
   it("keeps the global navigation surface flat and opaque", () => {
     render(<AppNavShell {...baseProps} />);
 

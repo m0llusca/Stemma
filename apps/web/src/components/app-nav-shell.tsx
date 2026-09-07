@@ -82,6 +82,8 @@ type AppNavShellProps = {
   } | null;
   branding?: WorkspaceBranding;
   areas?: ShellNavArea[];
+  /** Role home — brand mark must not send SUPPORT_AGENT to ops /dashboard. */
+  homeHref?: string;
   /** Гейт быстрого действия «Взять кейс»: false для ролей без reviews:write. */
   canTakeNextCase?: boolean;
 };
@@ -126,6 +128,7 @@ export function AppNavShell({
   demoSwitcher,
   branding = defaultNavBranding,
   areas = topNavAreas,
+  homeHref = "/dashboard",
   canTakeNextCase = true
 }: AppNavShellProps) {
   const pathname = usePathname();
@@ -213,7 +216,7 @@ export function AppNavShell({
     >
       <div className="flex min-h-14 w-full min-w-0 items-center gap-3 px-4 md:px-6">
         <Link
-          href="/dashboard"
+          href={homeHref}
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label={activeBranding.brandLogoAlt}
         >
