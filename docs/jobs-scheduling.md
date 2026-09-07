@@ -33,34 +33,42 @@ processing, or via `--once` on a timer.
 
 ### 2. Authenticated HTTP (`POST /api/v1/jobs/run`)
 
-Workspace-scoped; requires an API token carrying the `backend_jobs:manage` permission.
-Body: `{ "limit"?: 1..20, "workerId"?: string }`. Use this from a platform scheduler
-(e.g. Vercel Cron) or an external cron host:
+Workspace-scoped. Auth is an **admin UI session** with the `backend_jobs:manage`
+permission (ADMIN role), plus same-origin CSRF checks (`Origin` / `Referer` must match
+the app origin). There is **no Bearer API-token path** for this endpoint today.
+
+Body: `{ "limit"?: 1..20, "workerId"?: string }`. Intended for interactive/admin use
+from the app (or a same-origin caller that already holds a session cookie), not for
+unattended platform cron with a static token.
 
 ```bash
+# Example: session cookie + CSRF-safe Origin from an authenticated browser/admin context
 curl -fsS -X POST https://<host>/api/v1/jobs/run \
-  -H "authorization: Bearer $QC_API_TOKEN" \
+  -H "cookie: qc_session=<session>" \
+  -H "origin: https://<host>" \
   -H "content-type: application/json" \
   -d '{"limit":20}'
 ```
 
+For unattended production drains, prefer the **CLI worker** below. A future machine-auth
+option (e.g. signed cron secret or scoped API token) may be added later; until then do
+not rely on Bearer tokens for `/jobs/run`.
+
 ## Cron examples
 
-System crontab (every 2 minutes, CLI `--once`):
+System crontab (every 2 minutes, CLI `--once`) — preferred for production:
 
 ```cron
 */2 * * * *  cd /srv/qc_app/apps/web && DATABASE_URL=... /usr/bin/npm run jobs:run -- --once >> /var/log/qc-jobs.log 2>&1
 ```
 
-Vercel Cron (`vercel.json`) hitting the HTTP endpoint (configure the token via env):
+A 1–5 minute CLI cadence keeps AI scoring, notification delivery, and scheduled exports
+responsive. The HTTP endpoint is per-workspace (session user’s workspace); the CLI loop
+covers all workspaces in one process.
 
-```json
-{ "crons": [{ "path": "/api/v1/jobs/run", "schedule": "*/2 * * * *" }] }
-```
-
-A 1–5 minute cadence keeps AI scoring, notification delivery, and scheduled exports
-responsive. The HTTP endpoint is per-workspace — schedule one call per workspace token;
-the CLI loop covers all workspaces in one process.
+> **Note:** Hitting `/api/v1/jobs/run` from Vercel Cron (or similar) will **not** work
+> without a browser session + CSRF-compliant Origin. Use `npm run jobs:run -- --once`
+> instead until machine auth exists.
 
 ## AI scoring provider keys
 
