@@ -161,6 +161,11 @@ function createFakeDb(existingExternalIds: string[] = []) {
         const row = state.runs.find((run) => run.id === where.id);
         Object.assign(row ?? {}, data);
         return row;
+      }),
+      updateMany: vi.fn(async ({ where, data }) => {
+        const rows = state.runs.filter((run) => matchesWhere(run, where));
+        rows.forEach((row) => Object.assign(row, data));
+        return { count: rows.length };
       })
     },
     integrationRunItem: {
@@ -172,7 +177,20 @@ function createFakeDb(existingExternalIds: string[] = []) {
         state.items.push(row);
         return row;
       }),
-      findMany: vi.fn(async ({ where }) => state.items.filter((item) => matchesWhere(item, where))),
+      findMany: vi.fn(async ({ where, orderBy }) => {
+        const rows = state.items.filter((item) => matchesWhere(item, where));
+
+        if (orderBy && typeof orderBy === "object" && "createdAt" in orderBy) {
+          const direction = orderBy.createdAt === "desc" ? -1 : 1;
+          rows.sort((left, right) => {
+            const leftTime = left.createdAt instanceof Date ? left.createdAt.getTime() : 0;
+            const rightTime = right.createdAt instanceof Date ? right.createdAt.getTime() : 0;
+            return (leftTime - rightTime) * direction;
+          });
+        }
+
+        return rows;
+      }),
       update: vi.fn(async ({ where, data }) => {
         const row = state.items.find((item) => item.id === where.id);
         Object.assign(row ?? {}, data);
@@ -393,6 +411,8 @@ describe("OTRS-family preview/import planning", () => {
             })
           })
         ]);
+
+        state.runs[0].status = "queued";
 
         const result = await importSelectedOtrsRunItems({
           db,
@@ -969,6 +989,7 @@ describe("OTRS-family preview/import planning", () => {
       integrationId: "integration-1",
       source: "otrs",
       mode: "manual_ticket_ids",
+      status: "queued",
       dryRun: true
     });
     state.items.push(
@@ -1102,6 +1123,7 @@ describe("OTRS-family preview/import planning", () => {
       integrationId: "integration-1",
       source: "otrs",
       mode: "manual_ticket_ids",
+      status: "queued",
       dryRun: true
     });
     state.items.push({
@@ -1153,6 +1175,7 @@ describe("OTRS-family preview/import planning", () => {
       integrationId: "integration-1",
       source: "otrs",
       mode: "manual_ticket_ids",
+      status: "queued",
       dryRun: true
     });
     state.items.push({
@@ -1238,6 +1261,7 @@ describe("OTRS-family preview/import planning", () => {
       integrationId: "integration-1",
       source: "otrs",
       mode: "manual_ticket_ids",
+      status: "queued",
       dryRun: true
     });
     state.items.push({
@@ -1295,6 +1319,7 @@ describe("OTRS-family preview/import planning", () => {
       integrationId: "integration-1",
       source: "otrs",
       mode: "manual_ticket_ids",
+      status: "queued",
       dryRun: true
     });
     state.items.push(
@@ -1541,6 +1566,7 @@ describe("OTRS-family preview/import planning", () => {
       integrationId: "integration-1",
       source: "otrs",
       mode: "manual_ticket_ids",
+      status: "queued",
       dryRun: true
     });
     state.items.push({
@@ -1585,6 +1611,426 @@ describe("OTRS-family preview/import planning", () => {
     expect(result).toEqual({
       importedCount: 0,
       errorCount: 1
+    });
+  });
+
+  it("already-done findMany uses createdAt order so syncCursor is the last successful externalId", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "queued",
+      dryRun: false
+    });
+    state.items.push(
+      {
+        id: "item-newer-first",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "202",
+        status: "imported",
+        createdAt: new Date("2026-04-25T12:00:00.000Z"),
+        conversationId: "conversation-202",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("202"))
+      },
+      {
+        id: "item-older-second",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "101",
+        status: "imported",
+        createdAt: new Date("2026-04-25T10:00:00.000Z"),
+        conversationId: "conversation-101",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("101"))
+      }
+    );
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-newer-first", "item-older-second"],
+      importer
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 2,
+      errorCount: 0
+    });
+    expect(db.integrationRunItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["imported", "failed", "cancelled"] }
+        }),
+        orderBy: { createdAt: "asc" }
+      })
+    );
+    expect(state.integrationUpdates[0]).toMatchObject({
+      syncCursor: "202"
+    });
+    expect(JSON.parse(String(state.runs[0].cursorJson))).toMatchObject({
+      cursor: "202"
+    });
+    expect(JSON.parse(String(state.runs[0].checkpointJson))).toMatchObject({
+      lastSuccessfulExternalId: "202"
+    });
+  });
+
+  it("already-done findMany keeps createdAt order after lost concurrent claims", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "queued",
+      dryRun: false
+    });
+    state.items.push(
+      {
+        id: "item-newer-first",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "802",
+        status: "selected",
+        createdAt: new Date("2026-04-25T12:00:00.000Z"),
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("802"))
+      },
+      {
+        id: "item-older-second",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "801",
+        status: "selected",
+        createdAt: new Date("2026-04-25T10:00:00.000Z"),
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("801"))
+      }
+    );
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-newer-first", "item-older-second"],
+      importer,
+      onItemProgress: async () => {
+        for (const item of state.items) {
+          item.status = "imported";
+          item.conversationId = `conversation-${item.externalId}`;
+        }
+      }
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 2,
+      errorCount: 0
+    });
+    expect(db.integrationRunItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["imported", "failed", "cancelled"] }
+        }),
+        orderBy: { createdAt: "asc" }
+      })
+    );
+    expect(state.integrationUpdates[0]).toMatchObject({
+      syncCursor: "802"
+    });
+  });
+
+  it("CAS finalize leaves a cancelled run unchanged after item work", async () => {
+    const { db, state } = createFakeDb();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "cancelled",
+      dryRun: false,
+      errorMessage: "Задача импорта отменена.",
+      importedCount: 0
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "901",
+      status: "previewed",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("901"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"]
+    });
+
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 0
+    });
+    expect(state.items[0]).toMatchObject({
+      status: "imported",
+      conversationId: "conversation-901"
+    });
+    expect(db.integrationRun.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "run-1",
+          workspaceId: "workspace-1",
+          status: { in: ["queued", "retry_scheduled"] }
+        }
+      })
+    );
+    expect(state.runs[0]).toMatchObject({
+      status: "cancelled",
+      errorMessage: "Задача импорта отменена.",
+      importedCount: 0
+    });
+    expect(state.integrationUpdates).toEqual([]);
+  });
+
+  it("already-done skip set counts failed items so mixed selections are not a clean import", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "queued",
+      dryRun: false
+    });
+    state.items.push(
+      {
+        id: "item-imported",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "1001",
+        status: "imported",
+        createdAt: new Date("2026-04-25T10:00:00.000Z"),
+        conversationId: "conversation-1001",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("1001"))
+      },
+      {
+        id: "item-failed",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "1002",
+        status: "failed",
+        createdAt: new Date("2026-04-25T11:00:00.000Z"),
+        warningsJson: "[]",
+        errorsJson: JSON.stringify([{ code: "import_failed", message: "upstream validation failed" }]),
+        normalizedPreviewJson: JSON.stringify(conversation("1002"))
+      }
+    );
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-imported", "item-failed"],
+      importer
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 1
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "imported",
+      importedCount: 1,
+      errorCount: 1,
+      checkedCount: 2,
+      errorMessage: null
+    });
+    expect(state.items.find((item) => item.id === "item-failed")).toMatchObject({
+      status: "failed"
+    });
+  });
+
+  it("already-done skip set finalizes when every selected item is failed", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "queued",
+      dryRun: false,
+      importedCount: 0
+    });
+    state.items.push({
+      id: "item-failed",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "1101",
+      status: "failed",
+      warningsJson: "[]",
+      errorsJson: JSON.stringify([{ code: "import_failed", message: "all failed" }]),
+      normalizedPreviewJson: JSON.stringify(conversation("1101"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-failed"],
+      importer
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 0,
+      errorCount: 1
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "failed",
+      importedCount: 0,
+      errorCount: 1,
+      errorMessage: "All selected preview items failed to import.",
+      finishedAt: expect.any(Date)
+    });
+    expect(state.runs[0].status).not.toBe("no_selection");
+  });
+
+  it("already-done skip set leaves a cancelled run unchanged", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "cancelled",
+      dryRun: false,
+      errorMessage: "Задача импорта отменена.",
+      importedCount: 0
+    });
+    state.items.push({
+      id: "item-1",
+      workspaceId: "workspace-1",
+      integrationRunId: "run-1",
+      externalId: "1201",
+      status: "imported",
+      conversationId: "conversation-1201",
+      warningsJson: "[]",
+      errorsJson: "[]",
+      normalizedPreviewJson: JSON.stringify(conversation("1201"))
+    });
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-1"],
+      importer
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 0
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "cancelled",
+      errorMessage: "Задача импорта отменена.",
+      importedCount: 0
+    });
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(state.integrationUpdates).toEqual([]);
+  });
+
+  it("already-done skip set counts cancelled items in the terminal set", async () => {
+    const { db, state } = createFakeDb();
+    const importer = vi.fn();
+    state.runs.push({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      source: "otrs",
+      mode: "manual_ticket_ids",
+      status: "queued",
+      dryRun: false
+    });
+    state.items.push(
+      {
+        id: "item-imported",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "1301",
+        status: "imported",
+        createdAt: new Date("2026-04-25T10:00:00.000Z"),
+        conversationId: "conversation-1301",
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("1301"))
+      },
+      {
+        id: "item-cancelled",
+        workspaceId: "workspace-1",
+        integrationRunId: "run-1",
+        externalId: "1302",
+        status: "cancelled",
+        createdAt: new Date("2026-04-25T11:00:00.000Z"),
+        warningsJson: "[]",
+        errorsJson: "[]",
+        normalizedPreviewJson: JSON.stringify(conversation("1302"))
+      }
+    );
+
+    const result = await importSelectedOtrsRunItems({
+      db,
+      workspaceId: "workspace-1",
+      integrationId: "integration-1",
+      integrationRunId: "run-1",
+      selectedItemIds: ["item-imported", "item-cancelled"],
+      importer
+    });
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      importedCount: 1,
+      errorCount: 1
+    });
+    expect(state.runs[0]).toMatchObject({
+      status: "imported",
+      importedCount: 1,
+      errorCount: 1,
+      checkedCount: 2
     });
   });
 });

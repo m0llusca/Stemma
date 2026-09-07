@@ -58,9 +58,14 @@ type PreviewDb = {
   };
 };
 
+const selectedImportItemOrderBy = { createdAt: "asc" } as const;
+const alreadyDoneSelectedItemStatuses = ["imported", "failed", "cancelled"] as const;
+const finalizeClaimableRunStatuses = ["queued", "retry_scheduled"] as const;
+const terminalSelectedImportRunStatuses = new Set(["imported", "failed", "cancelled"]);
+
 type ImportTransactionDb = {
   integrationRun: {
-    update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
+    updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
   };
   integration: {
     updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
@@ -71,6 +76,7 @@ type ImportDb = {
   integrationRun: {
     findFirst(args: { where: JsonRecord }): Promise<JsonRecord | null>;
     update(args: { where: { id: string }; data: JsonRecord }): Promise<JsonRecord | null | undefined>;
+    updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
   };
   integrationRunItem: {
     updateMany(args: { where: JsonRecord; data: JsonRecord }): Promise<{ count: number }>;
@@ -324,39 +330,26 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
       },
       status: "selected"
     },
-    orderBy: {
-      createdAt: "asc"
-    }
+    orderBy: selectedImportItemOrderBy
   });
   let importedCount = 0;
   let errorCount = 0;
   let lastSuccessfulExternalId: string | undefined;
 
   if (selectedItems.length === 0) {
-    // Race / re-entry: if a concurrent worker already imported these rows, do not
-    // clobber a successful run with no_selection.
-    const alreadyImported = await db.integrationRunItem.findMany({
-      where: {
-        workspaceId: input.workspaceId,
-        integrationRunId: input.integrationRunId,
-        id: {
-          in: input.selectedItemIds
-        },
-        status: "imported"
-      },
-      select: {
-        id: true,
-        externalId: true
-      }
-    });
+    // Race / re-entry: if a concurrent worker already finished these rows, do not
+    // clobber a successful run with no_selection. Failed/cancelled rows are
+    // terminal too — they must not look like an empty selection or a clean import.
+    const alreadyDone = await findAlreadyDoneSelectedItems(db, input);
 
-    if (alreadyImported.length > 0) {
-      // Items are already imported; still finalize a queued/retry_scheduled run
-      // so the job cannot become SUCCEEDED while IntegrationRun stays non-terminal.
-      await finalizeAlreadyImportedSelectedRun(db, input, run, alreadyImported);
+    if (alreadyDone.length > 0) {
+      const counts = alreadyDoneFinalizeCounts(alreadyDone);
+      // Still finalize a queued/retry_scheduled run so the job cannot become
+      // SUCCEEDED while IntegrationRun stays non-terminal.
+      await finalizeAlreadyDoneSelectedRun(db, input, run, alreadyDone);
       return {
-        importedCount: alreadyImported.length,
-        errorCount: 0
+        importedCount: counts.importedCount,
+        errorCount: counts.errorCount
       };
     }
 
@@ -440,31 +433,17 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     }
   }
 
-  // Concurrent worker claimed every row first — treat as idempotent success if
-  // those rows are already imported, instead of marking the run failed.
+  // Concurrent worker claimed every row first — treat as idempotent if those
+  // rows are already terminal, instead of marking the run failed or clean.
   if (importedCount === 0 && errorCount === 0) {
-    const alreadyImported = await db.integrationRunItem.findMany({
-      where: {
-        workspaceId: input.workspaceId,
-        integrationRunId: input.integrationRunId,
-        id: {
-          in: input.selectedItemIds
-        },
-        status: "imported"
-      },
-      select: {
-        id: true,
-        externalId: true
-      }
-    });
+    const alreadyDone = await findAlreadyDoneSelectedItems(db, input);
 
-    if (alreadyImported.length > 0) {
-      // Items are already imported; still finalize a queued/retry_scheduled run
-      // so the job cannot become SUCCEEDED while IntegrationRun stays non-terminal.
-      await finalizeAlreadyImportedSelectedRun(db, input, run, alreadyImported);
+    if (alreadyDone.length > 0) {
+      const counts = alreadyDoneFinalizeCounts(alreadyDone);
+      await finalizeAlreadyDoneSelectedRun(db, input, run, alreadyDone);
       return {
-        importedCount: alreadyImported.length,
-        errorCount: 0
+        importedCount: counts.importedCount,
+        errorCount: counts.errorCount
       };
     }
   }
@@ -505,29 +484,75 @@ async function updateEnabledIntegration(
   }
 }
 
-async function finalizeAlreadyImportedSelectedRun(
+function isTerminalSelectedImportRunStatus(status: unknown) {
+  return terminalSelectedImportRunStatuses.has(String(status));
+}
+
+async function findAlreadyDoneSelectedItems(db: ImportDb, input: ImportSelectedOtrsRunItemsInput) {
+  return db.integrationRunItem.findMany({
+    where: {
+      workspaceId: input.workspaceId,
+      integrationRunId: input.integrationRunId,
+      id: {
+        in: input.selectedItemIds
+      },
+      status: { in: [...alreadyDoneSelectedItemStatuses] }
+    },
+    orderBy: selectedImportItemOrderBy,
+    select: {
+      id: true,
+      externalId: true,
+      status: true
+    }
+  });
+}
+
+function alreadyDoneFinalizeCounts(alreadyDone: JsonRecord[]) {
+  let importedCount = 0;
+  let errorCount = 0;
+  const importedExternalIds: string[] = [];
+
+  for (const item of alreadyDone) {
+    const status = String(item.status);
+
+    if (status === "imported") {
+      importedCount += 1;
+      if (typeof item.externalId === "string" && item.externalId.length > 0) {
+        importedExternalIds.push(item.externalId);
+      }
+    } else if (status === "failed" || status === "cancelled") {
+      errorCount += 1;
+    }
+  }
+
+  return {
+    importedCount,
+    errorCount,
+    lastSuccessfulExternalId: importedExternalIds.at(-1),
+    checkedCount: alreadyDone.length
+  };
+}
+
+async function finalizeAlreadyDoneSelectedRun(
   db: ImportDb,
   input: ImportSelectedOtrsRunItemsInput,
   run: JsonRecord,
-  alreadyImported: JsonRecord[]
+  alreadyDone: JsonRecord[]
 ) {
-  if (String(run.status) === "imported") {
+  if (isTerminalSelectedImportRunStatus(run.status)) {
     return;
   }
 
-  const lastSuccessfulExternalId = alreadyImported
-    .map((item) => (typeof item.externalId === "string" ? item.externalId : ""))
-    .filter((externalId) => externalId.length > 0)
-    .at(-1);
+  const counts = alreadyDoneFinalizeCounts(alreadyDone);
 
   await finalizeSelectedOtrsImportRun({
     db,
     input,
     run,
-    importedCount: alreadyImported.length,
-    errorCount: 0,
-    lastSuccessfulExternalId,
-    checkedCount: alreadyImported.length
+    importedCount: counts.importedCount,
+    errorCount: counts.errorCount,
+    lastSuccessfulExternalId: counts.lastSuccessfulExternalId,
+    checkedCount: counts.checkedCount
   });
 }
 
@@ -562,8 +587,12 @@ async function finalizeSelectedOtrsImportRun(args: {
   });
 
   const finalizeImportRun = async (tx: ImportTransactionDb) => {
-    await tx.integrationRun.update({
-      where: { id: input.integrationRunId },
+    const claimed = await tx.integrationRun.updateMany({
+      where: {
+        id: input.integrationRunId,
+        workspaceId: input.workspaceId,
+        status: { in: [...finalizeClaimableRunStatuses] }
+      },
       data: {
         status,
         dryRun: false,
@@ -577,6 +606,10 @@ async function finalizeSelectedOtrsImportRun(args: {
         finishedAt
       }
     });
+
+    if (claimed.count === 0) {
+      return;
+    }
 
     // tolerateDisabled: если интеграцию отключили во время импорта, итог run
     // всё равно должен зафиксироваться — иначе транзакция откатит финализацию

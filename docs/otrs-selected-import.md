@@ -43,25 +43,25 @@ TicketGet is not on this path. Preview (`createOtrsPreviewItems`), diagnostics, 
 
 Conversations already upserted survive a crash. There is no rollback.
 
-Resume is the same `INTEGRATION_IMPORT` job after stale recovery or retry. It calls `finalizeImportRun` after reclaimable rows are processed, and also when every selected id is already `imported` but the run is still non-terminal (`queued` / `retry_scheduled`). An already-`imported` run is left unchanged.
+Resume is the same `INTEGRATION_IMPORT` job after stale recovery or retry. It calls `finalizeImportRun` after reclaimable rows are processed, and also when every selected id is already terminal (`imported` / `failed` / `cancelled`) but the run is still non-terminal (`queued` / `retry_scheduled`). A run already `imported`, `failed`, or `cancelled` is left unchanged.
 
 A second cockpit enqueue still needs a `previewed` run and `previewed` items. After a terminal job failure, start a new preview.
 
-### Finalize backlog (known, not fixed)
+### Finalize (fixed)
 
-PR #4 (`d47222a`) closed the SUCCEEDED-job / non-terminal-run hole. These three remain in `import-plan.ts`. Benefit of fixing them is a stable cursor and honest terminal status. Risk of leaving them is a wrong `syncCursor` or a last-write-wins `imported` over `failed` / `cancelled`.
+PR #4 (`d47222a`) closed the SUCCEEDED-job / non-terminal-run hole. The three residuals in `import-plan.ts` are closed:
 
-**1. Unstable `syncCursor` — no `orderBy` on already-imported rows**
+**1. Stable `syncCursor` — `orderBy` on already-done rows**
 
-`syncCursor` should be the last successful `externalId`, not an arbitrary row. Both already-imported `findMany` calls (empty reclaim set, and lost concurrent claims) have no `orderBy`. `finalizeAlreadyImportedSelectedRun` then takes `.at(-1)`. Reclaimable `selected` rows already use `orderBy: { createdAt: "asc" }`. Follow-up: same `orderBy` on the already-imported queries.
+`syncCursor` is the last successful `externalId`. Both already-done `findMany` calls (empty reclaim set, and lost concurrent claims) use `orderBy: { createdAt: "asc" }`, same as reclaimable `selected` rows. Finalize then takes `.at(-1)` of that ordered imported list.
 
-**2. Last-write-wins finalize — not CAS**
+**2. CAS finalize**
 
-A concurrent cancel or a second worker should not overwrite a terminal run. Finalize uses `integrationRun.update({ where: { id } })`. The already-imported path only skips when the start-of-function snapshot is `imported`. Enqueue already CAS-claims with `updateMany` where `status: "previewed"` (`integration-import-service.ts`). Follow-up: `updateMany` where `status in ("queued", "retry_scheduled")`; `count === 0` means leave the run alone.
+Finalize uses `integrationRun.updateMany` where `status in ("queued", "retry_scheduled")`. `count === 0` leaves the run and integration sync state alone, so a concurrent cancel or a second worker cannot overwrite a terminal run. Enqueue still CAS-claims with `updateMany` where `status: "previewed"` (`integration-import-service.ts`).
 
-**3. Skip set is `imported`-only**
+**3. Skip set includes `failed` / `cancelled`**
 
-A mixed selected set must not look like a clean import. Early-return counts only `status: "imported"`. If any imported item exists, the run is finalized as `imported` with `errorCount: 0`. Item rows in `failed` stay `failed` (not reclaimed), but they do not block that success path. A run already `failed` or `cancelled` is also rewritten to `imported` — the snapshot guard does not treat those as terminal. Follow-up: treat `failed` / `cancelled` as terminal skip; mixed imported+failed must not report a clean import.
+Already-done accounting counts `imported`, `failed`, and `cancelled` items. A mixed imported+failed set finalizes with a non-zero `errorCount`, not a clean import. A run whose selected ids are all failed still finalizes as `failed` (not `no_selection`). A run already `failed` or `cancelled` is a terminal skip.
 
 ## What did not change
 
