@@ -63,7 +63,8 @@ export function buildReviewerWorkloadRows(
 
 /**
  * Drill-through into the review queue for a QA assignee.
- * Single qaStatus when provided; otherwise open (non-finalized) work via status=unreviewed.
+ * Single qaStatus when provided; otherwise the assignee inbox — a real
+ * `qaAssignee` filter, not a fake open-work list dump.
  */
 export function reviewerWorkloadHref(
   qaAssigneeName: string,
@@ -73,8 +74,6 @@ export function reviewerWorkloadHref(
   search.set("qaAssignee", qaAssigneeName);
   if (qaStatus) {
     search.set("qaStatus", qaStatus);
-  } else {
-    search.set("status", "unreviewed");
   }
   return `/reviews?${search.toString()}`;
 }
