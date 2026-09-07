@@ -39,6 +39,7 @@ import { certificationDisplayTone } from "@/lib/certification/status";
 
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
+import { integrationConnectionTone } from "@/lib/integrations/connection-tone";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
@@ -178,14 +179,6 @@ function idPayloadFilters(ids: string[]) {
       contains: id
     }
   }));
-}
-
-function integrationTone(status: string): StatusTone {
-  if (status === "error") return "negative";
-  if (status === "disabled") return "warning";
-  if (status === "active" || status === "ready") return "positive";
-  if (status === "queued") return "info";
-  return "neutral";
 }
 
 function certificationTone(status: string): StatusTone {
@@ -767,7 +760,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                                     meta={capabilityTypeLabel(integration.type)}
                                     status={
                                       <ToneBadge
-                                        tone={integrationTone(integration.status)}
+                                        tone={integrationConnectionTone(integration.status, capability.certification.summary.status)}
                                         title={`Статус: ${integrationStatusLabel(integration.status)}`}
                                       >
                                         {integrationStatusLabel(integration.status)}
