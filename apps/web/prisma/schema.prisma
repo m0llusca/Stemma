@@ -149,6 +149,7 @@ model Workspace {
   reportSchedules           ReportSchedule[]
   reviewEvents              ReviewEvent[]
   integrations              Integration[]
+  integrationCredentials    IntegrationCredential[]
   integrationRuns           IntegrationRun[]
   integrationDiagnosticRuns IntegrationDiagnosticRun[]
   integrationRunItems       IntegrationRunItem[]
@@ -539,8 +540,9 @@ model Integration {
 model IntegrationCredential {
   id              String      @id @default(cuid())
   workspaceId     String
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id])
   integrationId   String
-  integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integration     Integration @relation(fields: [integrationId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
   kind            String      @default("auth_password")
   authMode        String
   encryptedSecret String
