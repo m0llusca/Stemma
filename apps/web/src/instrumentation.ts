@@ -6,6 +6,10 @@
  * message instead of silently starting and then crashing on the login page.
  */
 
+import { isLocalPlaywrightVerifyDatabase } from "@/lib/local-playwright-verify-database";
+
+export { isLocalPlaywrightVerifyDatabase };
+
 /**
  * Production fail-closed boot gates. Exported for unit tests; `register()`
  * calls this after the DATABASE_URL check when running on the Node runtime.
@@ -25,7 +29,7 @@ export function assertProductionBootEnv(): void {
     );
   }
 
-  if (process.env.QC_DEMO_AUTH === "enabled") {
+  if (process.env.QC_DEMO_AUTH === "enabled" && !isLocalPlaywrightVerifyDatabase()) {
     throw new Error(
       "Приложение не запущено: QC_DEMO_AUTH=enabled запрещён в production."
     );

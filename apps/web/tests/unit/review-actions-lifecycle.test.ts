@@ -81,8 +81,11 @@ vi.mock("@/lib/review-events", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/review/queue-href-filters", () => ({
+  filtersFromReviewsHref: vi.fn(() => undefined)
+}));
+
 vi.mock("@/lib/queue-view-actions", () => ({
-  filtersFromReviewsHref: vi.fn(() => undefined),
   selectNextReviewConversationId: mocks.selectNextReviewConversationId
 }));
 

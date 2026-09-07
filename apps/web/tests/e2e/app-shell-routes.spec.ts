@@ -221,22 +221,11 @@ test("authenticated app shell routes render stable chrome and content", async ({
     }
 
     if (route === "/dashboard") {
-      const activityTrigger = page.getByRole("button", { name: /Последняя активность/ });
-      await expect(activityTrigger).toBeVisible();
-      await activityTrigger.click();
-      const activitySheet = page.getByRole("dialog", { name: "Последняя активность" });
-      const firstActivity = activitySheet.locator(".dashboard-activity-row").first();
-      await expect(activitySheet).toBeVisible();
-      await expect(firstActivity).toBeVisible();
-      await expect(page.getByText(/qa\.reopened/)).toHaveCount(0);
-      await expect(page.getByText(/conversation\.workflow_updated/)).toHaveCount(0);
-      expect(await firstActivity.locator("strong").innerText(), "dashboard activity label").not.toMatch(
-        /(?:qa|conversation|review)\.[a-z_]+/
-      );
-      await page.keyboard.press("Escape");
-      await expect(activitySheet).toBeHidden();
+      // Seeded demo admin is a lead dashboard: ops activity drawer is hidden.
+      await expect(page.getByRole("button", { name: /Последняя активность/ })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Качество команды · 7 дней" })).toBeVisible();
 
-      const kpiRegion = page.getByRole("region", { name: "Ключевые показатели" });
+      const kpiRegion = page.getByRole("region", { name: "Риск и нагрузка" });
       const kpiLinks = kpiRegion.getByRole("link");
       const firstKpi = kpiRegion.getByRole("link", { name: /Проверок за неделю/ });
       const kpiValue = firstKpi.locator('[data-slot="card-title"]');
@@ -345,7 +334,9 @@ test("dashboard shell reaches first content quickly", async ({ page }) => {
   await page
     .getByRole("banner", { name: "Глобальная навигация" })
     .waitFor({ state: "visible" });
-  await page.getByText(/Фокус сейчас|Последняя активность/).first().waitFor({ state: "visible" });
+  await page.getByRole("region", { name: /Риск и нагрузка|Ключевые показатели/ }).waitFor({
+    state: "visible"
+  });
 
   expect(Date.now() - startedAt).toBeLessThan(2_500);
   await settleBrowserFrame(page);

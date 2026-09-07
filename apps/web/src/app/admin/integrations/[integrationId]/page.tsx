@@ -77,7 +77,7 @@ function integrationDetailsSectionParam(value: string | string[] | undefined): I
 }
 
 function formatDate(value: Date | null | undefined) {
-  return value ? value.toLocaleString("ru-RU") : "Нет данных";
+  return value ? value.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" }) : "Нет данных";
 }
 
 function parsePayloadJson(value: string) {

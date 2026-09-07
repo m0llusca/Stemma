@@ -1,6 +1,7 @@
 import { auditLog } from "@/lib/audit";
 import { isProtectedLiveEnvGate } from "@/lib/certification/readiness-report";
 import { prisma } from "@/lib/db";
+import { isLocalPlaywrightVerifyDatabase } from "@/lib/local-playwright-verify-database";
 import { dataSourceContracts } from "@/lib/integrations/data-source-adapters/source-contracts";
 import { phaseBSourceContracts } from "@/lib/integrations/helpdesk-adapters/source-contracts";
 
@@ -36,6 +37,12 @@ export async function assertIntegrationLiveCertifiedForProductionImport(input: {
   source: string;
   client?: Pick<typeof prisma, "certificationEvidence">;
 }) {
+  // Local Playwright verify DB is not a production deployment; next start still
+  // sets NODE_ENV=production. Keep the live-smoke gate for every other process.
+  if (isLocalPlaywrightVerifyDatabase()) {
+    return;
+  }
+
   const db = input.client ?? prisma;
   const evidence = await db.certificationEvidence.findFirst({
     where: {

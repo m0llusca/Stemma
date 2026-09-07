@@ -1,4 +1,5 @@
 import type { BrowserContext } from "@playwright/test";
+import { hashLocalPassword } from "@/lib/auth/local-credentials";
 import { prisma } from "@/lib/db";
 import { authJsSessionCookieName, createAuthSession, sessionCookieName } from "@/lib/auth/session";
 
@@ -16,6 +17,54 @@ export async function findSeededDemoAdmin() {
   return prisma.user.findFirstOrThrow({
     where: { email: seededDemoAdminEmail, role: "ADMIN", workspaceId: seededDemoWorkspaceId },
     select: { id: true, workspaceId: true }
+  });
+}
+
+export const seededDemoAnalystEmail = "qa@example.com";
+export const seededDemoAgentEmail = "ivan@example.com";
+
+export const localQaAdmin = {
+  email: "local.admin@example.com",
+  login: "local.admin",
+  name: "Локальный админ",
+  password: "LocalPassw0rd1"
+} as const;
+
+export async function findSeededDemoAnalyst() {
+  return prisma.user.findFirstOrThrow({
+    where: { email: seededDemoAnalystEmail, role: "QA_ANALYST", workspaceId: seededDemoWorkspaceId },
+    select: { id: true, workspaceId: true, name: true }
+  });
+}
+
+export async function findSeededDemoAgent() {
+  return prisma.user.findFirstOrThrow({
+    where: { email: seededDemoAgentEmail, role: "SUPPORT_AGENT", workspaceId: seededDemoWorkspaceId },
+    select: { id: true, workspaceId: true, name: true }
+  });
+}
+
+/** Local admin with password login and no DEMO identity — can persist settings. */
+export async function createLocalNonDemoAdmin() {
+  const passwordData = await hashLocalPassword(localQaAdmin.password);
+
+  return prisma.user.create({
+    data: {
+      workspaceId: seededDemoWorkspaceId,
+      email: localQaAdmin.email,
+      name: localQaAdmin.name,
+      role: "ADMIN",
+      localCredential: {
+        create: {
+          workspaceId: seededDemoWorkspaceId,
+          login: localQaAdmin.login,
+          passwordHash: passwordData.passwordHash,
+          passwordSalt: passwordData.passwordSalt,
+          keyVersion: passwordData.keyVersion
+        }
+      }
+    },
+    select: { id: true, workspaceId: true, email: true, name: true }
   });
 }
 

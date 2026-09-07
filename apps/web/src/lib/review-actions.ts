@@ -14,7 +14,8 @@ import { canFinalizeReview, canSaveReviewDraft, canSelfReview, getCurrentUser } 
 import { prisma } from "@/lib/db";
 import { enqueueBackendJob } from "@/lib/jobs/enqueue";
 import type { MessagingDeliveryJobPayload } from "@/lib/messaging/job-contract";
-import { filtersFromReviewsHref, selectNextReviewConversationId } from "@/lib/queue-view-actions";
+import { selectNextReviewConversationId } from "@/lib/queue-view-actions";
+import { filtersFromReviewsHref } from "@/lib/review/queue-href-filters";
 import { findLatestReopenedAt, recordReviewEvent } from "@/lib/review-events";
 import {
   ReviewLifecycleTransitionError,

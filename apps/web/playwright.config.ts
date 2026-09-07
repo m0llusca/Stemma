@@ -93,6 +93,8 @@ export default defineConfig({
     // (.next/BUILD_ID present) before Playwright starts — producing it is the
     // caller's responsibility; this config never builds to keep the exclusive
     // build ownership (Agent B) intact.
+    // QC_DEMO_AUTH=enabled is allowed only because TEST_DATABASE_URL is the
+    // dedicated local verify DB (see assertProductionBootEnv).
     command: "npm run db:deploy && npm run db:seed && npm run start -- --port 3000",
     env: webServerEnv,
     url: "http://localhost:3000",

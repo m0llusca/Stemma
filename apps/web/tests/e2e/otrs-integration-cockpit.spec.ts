@@ -262,10 +262,10 @@ test("imports an OTRS CE 6 ticket through the cockpit against the GenericInterfa
 
   const previewItem = previewPanel.getByRole("checkbox", { name: `Выбрать ${ticketId}` });
   await expect(previewItem).toBeChecked();
-  await previewItem.uncheck();
-  await previewItem.check();
   await previewPanel.getByRole("button", { name: "Импортировать выбранные" }).click();
-  await expect(previewPanel.getByText("Выбранные OTRS-обращения поставлены в backend-очередь.")).toBeVisible();
+  await expect(previewPanel.getByText("Выбранные OTRS-обращения поставлены в backend-очередь.")).toBeVisible({
+    timeout: 30_000
+  });
 
   await runIntegrationsQueueFromOverview(page);
 

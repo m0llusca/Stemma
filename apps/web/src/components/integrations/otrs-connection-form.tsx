@@ -80,7 +80,9 @@ function SubmitButton() {
 }
 
 function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleString("ru-RU") : "Нет данных";
+  return value
+    ? new Date(value).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })
+    : "Нет данных";
 }
 
 function routeConfigJson(

@@ -32,7 +32,7 @@ test("dashboard shows nonzero rolling seven-day activity", async ({ page }) => {
 
   await expect(weeklyChecks).toBeVisible();
   await expectPositiveMetric(weeklyChecks, "Проверок за неделю");
-  await expect(page.getByText("Качество за 7 дней", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Качество (за 7 дней|команды · 7 дней)/)).toBeVisible();
   await expect(page.getByRole("img", { name: "Тренд средней оценки" })).toBeVisible();
   await expect(page.getByText("Нет проверок за неделю")).toHaveCount(0);
 });

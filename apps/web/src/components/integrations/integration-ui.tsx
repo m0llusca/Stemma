@@ -48,7 +48,9 @@ export function IntegrationFact({
 function evidenceDate(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : value;
 
-  return Number.isNaN(date.getTime()) ? "Нет данных" : date.toLocaleString("ru-RU");
+  return Number.isNaN(date.getTime())
+    ? "Нет данных"
+    : date.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 function evidenceResultLabel(value: string) {

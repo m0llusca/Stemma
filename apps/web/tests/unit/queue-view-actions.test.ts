@@ -180,7 +180,8 @@ describe("queue view actions", () => {
 
   it("keeps take-next inside the AI exceptions process filter", async () => {
     mocks.prisma.conversation.findFirst.mockResolvedValue({ id: "conv-ai" });
-    const { takeNextReview, filtersFromReviewsHref } = await import("@/lib/queue-view-actions");
+    const { filtersFromReviewsHref } = await import("@/lib/review/queue-href-filters");
+    const { takeNextReview } = await import("@/lib/queue-view-actions");
     expect(filtersFromReviewsHref("/reviews?process=ai_exception")).toEqual(
       expect.objectContaining({ process: "ai_exception" })
     );
@@ -218,7 +219,7 @@ describe("queue view actions", () => {
   });
 
   it("parses overdue filters from a reviews href", async () => {
-    const { filtersFromReviewsHref } = await import("@/lib/queue-view-actions");
+    const { filtersFromReviewsHref } = await import("@/lib/review/queue-href-filters");
     expect(filtersFromReviewsHref("/reviews?due=overdue")).toEqual(
       expect.objectContaining({ due: "overdue" })
     );
