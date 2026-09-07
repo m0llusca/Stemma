@@ -38,7 +38,7 @@ Inside a page, wrap expensive content in `Suspense` with the same skeleton style
 
 A signed-in user without the page permission sees **«Недостаточно прав»** (`forbidden.tsx`), not the generic **«Что-то пошло не так»** (`error.tsx`). SUPPORT_AGENT on `/admin/*` is the usual case; any role missing the gate behaves the same.
 
-Gate RSC pages with `requirePagePermission` / `denyPageAccess` (`apps/web/src/lib/page-permission.ts`). They call Next.js `forbidden()`. That interrupt is on only while `experimental.authInterrupts` is `true` in `apps/web/next.config.ts`. Turn the flag off and denials fall through to `error.tsx` again.
+Gate RSC pages with `requirePagePermission` / `denyPageAccess` (`apps/web/src/lib/page-permission.ts`). They catch the deny and call Next.js `forbidden()`. That needs `experimental.authInterrupts: true` in `apps/web/next.config.ts`. Without the flag, `forbidden()` / `forbidden.tsx` do not work (undefined or wrong 403 UI).
 
 API routes and server actions keep `requireCurrentUserPermission` (403 JSON or throw). Mutation deny UX is unchanged.
 
