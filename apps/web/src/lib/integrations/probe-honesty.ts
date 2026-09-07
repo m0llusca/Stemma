@@ -2,6 +2,8 @@ import type { StatusTone } from "@/lib/ui/status-tone";
 
 export const certificationBadgeLabel = "Сертификация";
 export const stepBadgeLabel = "Шаг";
+export const adapterOperationalProfileTitle = "Операционный профиль";
+export const adapterOperationalStepsLabel = "Операционные шаги";
 
 export const certificationEvidenceEmptyText =
   "По этому источнику свидетельства сертификации ещё не записаны.";

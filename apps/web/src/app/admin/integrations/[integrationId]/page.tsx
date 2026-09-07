@@ -46,6 +46,8 @@ import { getIntegrationCapability } from "@/lib/integrations/capabilities";
 import { capabilityMatrixFromContract } from "@/lib/integrations/connect/capability-probe-display";
 import { diagnosticReadinessHint, readinessActionLabel } from "@/lib/integrations/labels";
 import {
+  adapterOperationalProfileTitle,
+  adapterOperationalStepsLabel,
   adapterProfileStep,
   certificationBadgeLabel,
   probeStepStatusView,
@@ -302,7 +304,7 @@ async function loadIntegration(workspaceId: string, integrationId: string) {
 
 type LoadedIntegration = NonNullable<Awaited<ReturnType<typeof loadIntegration>>>;
 
-function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration }) {
+function AdapterOperationalProfilePanel({ integration }: { integration: LoadedIntegration }) {
   const capability = getIntegrationCapability(integration.source, integration.type);
   const hasBaseUrl = Boolean(integration.baseUrl?.trim());
   const hasRequiredSecrets = hasRequiredCredentialSlots(integration.credentials, capability.requiredSecrets);
@@ -361,12 +363,12 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
   return (
     <section
       className="grid min-w-0 gap-4 border-t border-border pt-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0"
-      aria-labelledby="adapter-readiness-title"
+      aria-labelledby="adapter-operational-profile-title"
     >
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 break-words">
-          <h3 id="adapter-readiness-title" className="text-sm font-medium">
-            Готовность адаптера
+          <h3 id="adapter-operational-profile-title" className="text-sm font-medium">
+            {adapterOperationalProfileTitle}
           </h3>
           <p className="break-words text-sm text-muted-foreground">
             {capability.displayName} · {capability.authModes.map(authModeLabel).join(", ")}
@@ -421,7 +423,7 @@ function AdapterReadinessPanel({ integration }: { integration: LoadedIntegration
 
         <section
           className="min-w-0 overflow-clip rounded-lg border border-border"
-          aria-label="Маршрут готовности источника"
+          aria-label={adapterOperationalStepsLabel}
         >
           <div className="grid min-w-0 sm:grid-cols-2" role="list">
             {readinessSteps.map((step) => {
@@ -913,7 +915,7 @@ async function IntegrationDetailsPageContent({ params, searchParams }: Integrati
                 </Alert>
               ) : null}
             </div>
-            <AdapterReadinessPanel integration={integration} />
+            <AdapterOperationalProfilePanel integration={integration} />
           </CardContent>
         </Card>
       ) : null}

@@ -495,7 +495,7 @@ for (const width of viewportWidths) {
 }
 
 for (const width of summaryAuditWidths) {
-  test(`integration summary keeps adapter readiness sectioned at ${width}px`, async ({ page }) => {
+  test(`integration summary keeps adapter operational profile sectioned at ${width}px`, async ({ page }) => {
     const consoleMessages = collectUnexpectedConsole(page);
     const integration = await prisma.integration.findFirstOrThrow({
       where: {
@@ -514,20 +514,20 @@ for (const width of summaryAuditWidths) {
     expect(response?.ok(), "integration summary response").toBe(true);
 
     const summary = page.getByRole("region", { name: "Сводка источника" });
-    const readiness = summary.getByRole("region", { name: "Готовность адаптера" });
-    const command = readiness.getByRole("region", { name: "Командный контур" });
-    const route = readiness.getByRole("region", { name: "Маршрут готовности источника" });
+    const profile = summary.getByRole("region", { name: "Операционный профиль" });
+    const command = profile.getByRole("region", { name: "Командный контур" });
+    const route = profile.getByRole("region", { name: "Операционные шаги" });
 
     await expect(summary).toBeVisible();
-    await expectSemanticSection(readiness, `adapter readiness at ${width}px`);
+    await expectSemanticSection(profile, `adapter operational profile at ${width}px`);
     await expectSemanticSection(command, `adapter command contour at ${width}px`);
-    await expectSemanticSection(route, `adapter readiness route at ${width}px`);
-    await expectContained(readiness, summary, `adapter readiness at ${width}px`);
-    await expectContained(command, readiness, `adapter command contour at ${width}px`);
-    await expectContained(route, readiness, `adapter readiness route at ${width}px`);
+    await expectSemanticSection(route, `adapter operational steps at ${width}px`);
+    await expectContained(profile, summary, `adapter operational profile at ${width}px`);
+    await expectContained(command, profile, `adapter command contour at ${width}px`);
+    await expectContained(route, profile, `adapter operational steps at ${width}px`);
 
     const ordinaryLabels: Array<[string, Locator]> = [
-      ["adapter heading", readiness.getByRole("heading", { name: "Готовность адаптера" })],
+      ["adapter heading", profile.getByRole("heading", { name: "Операционный профиль" })],
       ["command heading", command.getByRole("heading", { name: "Командный контур" })],
       ["route label", route.getByText("Профиль", { exact: true })]
     ];
