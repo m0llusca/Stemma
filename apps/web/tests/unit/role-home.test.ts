@@ -22,15 +22,18 @@ describe("role-home", () => {
     );
     expect(roleHomePath("TEAM_LEAD")).toBe("/dashboard");
     expect(roleHomePath("ADMIN")).toBe("/dashboard");
+    expect(roleHomePath("EXEC")).toBe("/dashboard");
+    expect(roleHomePath("EXEC")).not.toBe(roleHomePath("QA_ANALYST", { name: "Наталья" }));
     expect(roleHomePath("SUPPORT_AGENT")).toBe("/self-review");
     expect(roleHomePath("VIEWER")).toBe("/auth/pending-access");
   });
 
-  it("allows only reviewer and lead roles onto the ops dashboard", () => {
-    expect(DASHBOARD_ROLES).toEqual(["ADMIN", "TEAM_LEAD", "QA_ANALYST"]);
+  it("allows reviewer, lead and exec roles onto the dashboard", () => {
+    expect(DASHBOARD_ROLES).toEqual(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "EXEC"]);
     expect(canAccessDashboard("ADMIN")).toBe(true);
     expect(canAccessDashboard("TEAM_LEAD")).toBe(true);
     expect(canAccessDashboard("QA_ANALYST")).toBe(true);
+    expect(canAccessDashboard("EXEC")).toBe(true);
     expect(canAccessDashboard("SUPPORT_AGENT")).toBe(false);
     expect(canAccessDashboard("VIEWER")).toBe(false);
   });
@@ -58,6 +61,11 @@ describe("role-home", () => {
       "/self-review"
     );
     expect(resolvePostLoginPath("/", { role: "TEAM_LEAD", name: "Игорь" })).toBe("/dashboard");
+    expect(resolvePostLoginPath("/reviews", { role: "EXEC", name: "Наталья" })).toBe("/dashboard");
+    expect(resolvePostLoginPath("/dashboard", { role: "EXEC", name: "Наталья" })).toBe("/dashboard");
+    expect(resolvePostLoginPath("/reviews?due=overdue", { role: "EXEC", name: "Наталья" })).toBe(
+      "/reviews?due=overdue"
+    );
     expect(
       resolvePostLoginPath("/reviews?status=unreviewed", { role: "QA_ANALYST", name: "Анна QA" })
     ).toBe("/reviews?status=unreviewed");

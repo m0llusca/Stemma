@@ -12,6 +12,7 @@ enum RoleName {
   TEAM_LEAD
   QA_ANALYST
   SUPPORT_AGENT
+  EXEC
   VIEWER
 }
 

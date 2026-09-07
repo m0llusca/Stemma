@@ -304,6 +304,18 @@ export async function mutateDemoSeed(
     }
   });
 
+  const execViewer = await prisma.user.create({
+    data: {
+      id: "demo-user-exec",
+      workspaceId: workspace.id,
+      email: "exec@example.com",
+      name: "Наталья Волкова",
+      role: "EXEC",
+      supportLine: "2ЛП",
+      teamName: "Руководство"
+    }
+  });
+
   const supportOlga = await prisma.user.create({
     data: {
       id: "demo-operator-02",
@@ -413,6 +425,13 @@ export async function mutateDemoSeed(
         providerSubject: "demo-senior-qa",
         email: seniorAnalyst.email,
         displayName: seniorAnalyst.name
+      },
+      {
+        userId: execViewer.id,
+        providerId: demoProvider.id,
+        providerSubject: "demo-exec",
+        email: execViewer.email,
+        displayName: execViewer.name
       },
       {
         userId: supportOlga.id,

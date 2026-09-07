@@ -100,7 +100,7 @@ const providerTypes: Array<{ value: Exclude<IdentityProviderType, "DEMO">; label
   { value: "ACTIVE_DIRECTORY_LDAPS", label: "Active Directory через LDAPS" }
 ];
 
-const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"];
+const roles: RoleName[] = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"];
 const interactiveSsoTypes: IdentityProviderType[] = ["MICROSOFT_ENTRA_ID", "OIDC", "SAML"];
 
 const toneClass: Record<StatusTone, string> = {

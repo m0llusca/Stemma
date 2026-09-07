@@ -30,7 +30,7 @@ const adapterUserSelect = {
   lifecycleStatus: true
 } as const;
 
-const adapterRoles = new Set<AdapterUser["role"]>(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"]);
+const adapterRoles = new Set<AdapterUser["role"]>(["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"]);
 
 function adapterString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";

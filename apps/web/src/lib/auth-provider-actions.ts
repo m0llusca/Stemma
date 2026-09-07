@@ -13,7 +13,7 @@ import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/cu
 import { prisma } from "@/lib/db";
 
 const providerTypes = ["MICROSOFT_ENTRA_ID", "ACTIVE_DIRECTORY_LDAPS", "OIDC", "SAML"] as const satisfies readonly IdentityProviderType[];
-const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] as const satisfies readonly RoleName[];
+const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"] as const satisfies readonly RoleName[];
 type ConfigurableProviderType = (typeof providerTypes)[number];
 type ConfigurableRole = (typeof roles)[number];
 

@@ -180,6 +180,27 @@ describe("app nav", () => {
     expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
   });
 
+  it("keeps exec on risk pulse without take-next or training chrome", async () => {
+    mockCurrentUser("EXEC");
+    const { AppNav } = await import("@/components/app-nav");
+
+    render(await AppNav());
+
+    const areaNav = screen.getByRole("navigation", { name: "Основные разделы" });
+    const labels = within(areaNav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(labels).toEqual(["Сегодня", "Проверки", "Аналитика"]);
+
+    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
+    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
+    expect(pulse).toBeDefined();
+    expect(within(pulse!).getByRole("link", { name: /Очередь/ })).not.toBeNull();
+    expect(within(pulse!).getByRole("link", { name: /Риск/ })).not.toBeNull();
+    expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
+  });
+
   it("hides every pulse link and the take-next-case shortcut from a viewer", async () => {
     mockCurrentUser("VIEWER");
     const { AppNav } = await import("@/components/app-nav");

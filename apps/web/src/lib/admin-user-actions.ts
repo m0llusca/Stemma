@@ -8,7 +8,7 @@ import { assertLocalPasswordPolicy, hashLocalPassword, normalizeLocalLogin } fro
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
-const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "VIEWER"] as const satisfies readonly RoleName[];
+const roles = ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "SUPPORT_AGENT", "EXEC", "VIEWER"] as const satisfies readonly RoleName[];
 type ConfigurableRole = (typeof roles)[number];
 
 function stringField(formData: FormData, key: string) {

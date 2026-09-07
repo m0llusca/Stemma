@@ -80,6 +80,7 @@ const rolePermissions: Record<RoleName, readonly Permission[]> = {
     "training:manage"
   ],
   SUPPORT_AGENT: ["reviews:read", "feedback:acknowledge", "self_review:write", "training:consume"],
+  EXEC: ["reviews:read", "reports:read"],
   VIEWER: []
 };
 

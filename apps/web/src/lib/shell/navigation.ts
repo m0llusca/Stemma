@@ -131,6 +131,7 @@ export type VisibleTopNavOptions = {
 };
 
 const analystTodayDescription = "Мои проверки с нарушенным сроком — очередь дня.";
+const execTodayDescription = "Риск и просроченный SLA за 30 секунд — с переходом в очередь.";
 
 /**
  * Analyst «Сегодня» is the mine+overdue inbox, not the lead pulse on `/dashboard`.
@@ -153,15 +154,22 @@ export function visibleTopNavAreas(role: RoleName, options?: VisibleTopNavOption
   return topNavAreas
     .filter((area) => canSeeDefinition(role, area))
     .map((area) => {
-      if (area.id !== "today" || role !== "QA_ANALYST") {
-        return area;
+      if (area.id === "today" && role === "QA_ANALYST") {
+        return {
+          ...area,
+          href: todayHrefForRole(role, options),
+          description: analystTodayDescription
+        };
       }
 
-      return {
-        ...area,
-        href: todayHrefForRole(role, options),
-        description: analystTodayDescription
-      };
+      if (area.id === "today" && role === "EXEC") {
+        return {
+          ...area,
+          description: execTodayDescription
+        };
+      }
+
+      return area;
     });
 }
 
@@ -487,7 +495,7 @@ const actionDefinitions: Array<
     modeLabel: "Работа",
     kind: "action",
     permission: "reviews:read",
-    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST", "EXEC"]
   },
   {
     href: "/reports?period=quarter-current",
@@ -553,7 +561,11 @@ export function buildShellNavigation({
         label: mode.label,
         compactLabel: mode.compactLabel,
         description:
-          role === "QA_ANALYST" && mode.id === "today" ? analystTodayDescription : mode.description,
+          role === "QA_ANALYST" && mode.id === "today"
+            ? analystTodayDescription
+            : role === "EXEC" && mode.id === "today"
+              ? execTodayDescription
+              : mode.description,
         icon: mode.icon,
         destinations: todayDestinations
       } satisfies ShellNavMode;

@@ -87,6 +87,18 @@ describe("visibleTopNavAreas", () => {
     ]);
   });
 
+  it("gives exec Сегодня, queue and analytics without ops chrome", () => {
+    expect(visibleTopNavAreas("EXEC").map((area) => area.id)).toEqual([
+      "today",
+      "review",
+      "analytics"
+    ]);
+    expect(visibleTopNavAreas("EXEC").find((area) => area.id === "today")?.href).toBe("/dashboard");
+    expect(visibleTopNavAreas("EXEC").find((area) => area.id === "today")?.description).toContain(
+      "30 секунд"
+    );
+  });
+
   it("gives a viewer no areas because it holds no permissions", () => {
     // VIEWER не имеет ни одного права → ни одна область топ-навигации не должна
     // вести на страницу, чей собственный гвард бросит «Недостаточно прав».
@@ -250,6 +262,21 @@ describe("buildShellNavigation gating gaps", () => {
       (item) => item.href
     );
     expect(agentHrefs).toContain("/coaching");
+  });
+
+  it("hides take-next and coaching from the exec palette while keeping SLA drill", () => {
+    const navigation = buildShellNavigation({ role: "EXEC" });
+    const hrefs = navigation.commandItems.map((item) => item.href);
+    const actions = navigation.commandItems.filter((item) => item.kind === "action");
+
+    expect(actions.some((item) => item.actionId === "take-next")).toBe(false);
+    expect(hrefs).toContain("/dashboard");
+    expect(hrefs).toContain("/reviews?due=overdue");
+    expect(hrefs).toContain("/reports?period=quarter-current");
+    expect(hrefs).not.toContain("/coaching");
+    expect(hrefs).not.toContain("/calibration");
+    expect(hrefs).not.toContain("/admin");
+    expect(navigation.modes.map((mode) => mode.id)).toEqual(["today", "quality"]);
   });
 
   it("hides ops Сегодня/dashboard from SUPPORT_AGENT nav and command palette", () => {

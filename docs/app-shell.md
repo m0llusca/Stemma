@@ -26,10 +26,11 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | --- | --- | --- |
 | QA_ANALYST | `/reviews?qaAssignee=…&due=overdue` (Мои+просрочено) | Same href. No name → `/reviews?due=overdue`. |
 | TEAM_LEAD, ADMIN | `/dashboard` | `/dashboard` |
+| EXEC | `/dashboard` (риск/SLA, без ops-хрома) | `/dashboard`. Nav: Сегодня, Проверки, Аналитика. |
 | SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. |
 | VIEWER | `/auth/pending-access` | Hidden |
 
-`todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`.
+`todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona.
 
 ⌘K **«Взять следующий кейс»** and the topbar pulse **«Взять кейс»** are actions, not nav hrefs. Same `takeNextReview` path as the queue button — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
 
