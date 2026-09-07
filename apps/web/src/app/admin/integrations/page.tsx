@@ -35,11 +35,11 @@ import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getSettingCoachmark } from "@/lib/admin-setup-guidance";
-import { certificationDisplayTone } from "@/lib/certification/status";
+import { certificationDisplayTone, isLiveCertified } from "@/lib/certification/status";
 
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability, listIntegrationCapabilities } from "@/lib/integrations/capabilities";
-import { integrationConnectionTone } from "@/lib/integrations/connection-tone";
+import { catalogReadinessTone, integrationConnectionTone } from "@/lib/integrations/connection-tone";
 import { parseIntegrationSyncState } from "@/lib/integrations/sync-state";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, integrationRunStatusView } from "@/lib/operational-status";
@@ -183,13 +183,6 @@ function idPayloadFilters(ids: string[]) {
 
 function certificationTone(status: string): StatusTone {
   return certificationDisplayTone(status);
-}
-
-function readinessTone(readiness: string): StatusTone {
-  if (readiness === "production_slice") return "positive";
-  if (readiness === "adapter_ready") return "info";
-  if (readiness === "roadmap") return "warning";
-  return "neutral";
 }
 
 function operationalTone(tone: "ok" | "warn" | "error" | "neutral"): StatusTone {
@@ -539,7 +532,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
   const certifiedSources = integrations.filter((integration) => {
     const capability = getIntegrationCapability(integration.source, integration.type);
 
-    return ["live_certified", "docs_checked", "contract_certified", "stub_certified"].includes(capability.certification.summary.status);
+    return isLiveCertified(capability.certification.summary.status);
   }).length;
   const successfulDiagnostics = diagnosticRuns.length - failedDiagnostics;
   const importRuns = recentRuns.filter((run) => !run.dryRun);
@@ -1152,7 +1145,7 @@ async function AdminIntegrationsPageContent({ searchParams }: AdminIntegrationsP
                                   {capability.certification.summary.label}
                                 </ToneBadge>
                                 <ToneBadge
-                                  tone={readinessTone(capability.readiness)}
+                                  tone={catalogReadinessTone(capability.readiness, capability.certification.summary.status)}
                                   title={`Этап: ${capabilityReadinessLabel(capability.readiness)}`}
                                 >
                                   {capabilityReadinessLabel(capability.readiness)}

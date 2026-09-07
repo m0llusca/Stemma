@@ -83,6 +83,10 @@ export function certificationDisplayTone(status: string): CertificationDisplayTo
   return "neutral";
 }
 
+export function isLiveCertified(status?: string | null): boolean {
+  return certificationDisplayTone(status ?? "") === "positive";
+}
+
 export function certificationStatusTone(status: CertificationStatus) {
   const tone = certificationDisplayTone(status);
   if (tone === "positive") {

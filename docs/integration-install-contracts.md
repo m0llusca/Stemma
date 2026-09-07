@@ -43,11 +43,9 @@ Token-only and limited sources must not be marketed or labeled as one-click inst
 
 ## Connection / channel chips
 
-Admin connection and messaging-channel badges use `integrationConnectionTone` / `messagingChannelTone` (`apps/web/src/lib/integrations/connection-tone.ts`). Green only when certification is `live_certified`. Operational `ready` / `active` is warning, not green.
+Admin connection, messaging-channel, and catalog-readiness badges use `integrationConnectionTone` / `messagingChannelTone` / `catalogReadinessTone` (`apps/web/src/lib/integrations/connection-tone.ts`). Green only when certification is `live_certified`. Operational `ready` / `active` and catalog `production_slice` are warning without live cert. The integrations `certifiedSources` stage counts only `live_certified`.
 
 See [semantic-status-colors.md](semantic-status-colors.md).
-
-**Follow-up (not fixed):** catalog capability chips still use local `readinessTone`. `production_slice` can be green without live cert.
 
 ## Source Documentation Gate
 

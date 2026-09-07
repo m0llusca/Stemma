@@ -1,4 +1,4 @@
-import { certificationDisplayTone } from "@/lib/certification/status";
+import { isLiveCertified } from "@/lib/certification/status";
 import type { StatusTone } from "@/lib/ui/status-tone";
 
 /**
@@ -23,7 +23,7 @@ export function integrationConnectionTone(
   }
 
   if (status === "active" || status === "ready") {
-    return certificationDisplayTone(certificationStatus ?? "") === "positive" ? "positive" : "warning";
+    return isLiveCertified(certificationStatus) ? "positive" : "warning";
   }
 
   return "neutral";
@@ -35,4 +35,27 @@ export function messagingChannelTone(
   certificationStatus?: string | null
 ): StatusTone {
   return integrationConnectionTone(status, certificationStatus);
+}
+
+/**
+ * Catalog readiness chip: `production_slice` is not production-green by itself.
+ * Green only when certification is live_certified — same bar as connection/channel.
+ */
+export function catalogReadinessTone(
+  readiness: string,
+  certificationStatus?: string | null
+): StatusTone {
+  if (readiness === "production_slice") {
+    return isLiveCertified(certificationStatus) ? "positive" : "warning";
+  }
+
+  if (readiness === "adapter_ready") {
+    return "info";
+  }
+
+  if (readiness === "roadmap") {
+    return "warning";
+  }
+
+  return "neutral";
 }
