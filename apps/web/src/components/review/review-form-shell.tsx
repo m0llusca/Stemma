@@ -7,10 +7,54 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { ValidatedSubmitButton } from "@/components/ui/validated-submit-button";
+import { isFormReadyToSubmit } from "@/lib/form-validity";
+import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
 import { cn } from "@/lib/utils";
 import { submitReviewState, type ReviewPanelActionState } from "@/lib/review-panel-actions";
 
 const initialState: ReviewPanelActionState = null;
+export const REVIEW_FINALIZE_BLOCKED_HINT_ID = "review-finalize-blocked-hint";
+
+function FinalizeBlockedHint() {
+  const hostRef = useRef<HTMLParagraphElement>(null);
+  const [blocked, setBlocked] = useState(true);
+
+  useEffect(() => {
+    const form = hostRef.current?.closest("form");
+
+    if (!form) {
+      return;
+    }
+
+    const update = () => {
+      setBlocked(!isFormReadyToSubmit(form));
+    };
+
+    update();
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    form.addEventListener("reset", update);
+
+    return () => {
+      form.removeEventListener("input", update);
+      form.removeEventListener("change", update);
+      form.removeEventListener("reset", update);
+    };
+  }, []);
+
+  return (
+    <p
+      ref={hostRef}
+      id={REVIEW_FINALIZE_BLOCKED_HINT_ID}
+      className={cn("basis-full text-sm text-muted-foreground", !blocked && "hidden")}
+      role="status"
+      aria-live="polite"
+      data-review-finalize-blocked={blocked ? "true" : "false"}
+    >
+      {blocked ? REVIEW_FINALIZE_BLOCKED_HINT : null}
+    </p>
+  );
+}
 
 function SaveDraftButton() {
   const { pending } = useFormStatus();
@@ -30,6 +74,7 @@ function FinalizeButton() {
       name="intent"
       value="finalize"
       disabled={pending}
+      aria-describedby={REVIEW_FINALIZE_BLOCKED_HINT_ID}
       className={cn(buttonVariants({ variant: "default" }))}
     >
       {pending ? "Завершаем..." : "Завершить проверку"}
@@ -45,6 +90,7 @@ function FinalizeAndNextButton() {
       name="intent"
       value="finalize_next"
       disabled={pending}
+      aria-describedby={REVIEW_FINALIZE_BLOCKED_HINT_ID}
       className={cn(buttonVariants({ variant: "secondary" }))}
     >
       {pending ? "Завершаем..." : "Завершить и взять следующий"}
@@ -92,6 +138,7 @@ export function ReviewFormShell({ className, children }: { className?: string; c
         <SaveDraftButton />
         <FinalizeButton />
         <FinalizeAndNextButton />
+        <FinalizeBlockedHint />
         {errorState ? (
           <div ref={messageRef} tabIndex={-1} className="basis-full outline-none">
             <Alert variant="destructive">

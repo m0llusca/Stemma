@@ -120,6 +120,26 @@ describe("ReviewFormShell", () => {
     expect(formData.get("intent")).toBe("finalize_next");
   });
 
+  it("показывает живую подсказку и не включает Finalize, пока обязательные поля пустые", () => {
+    renderWithToast(
+      <ReviewFormShell>
+        <input name="summary" required defaultValue="" aria-label="Итог проверки" />
+      </ReviewFormShell>
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Заполните все критерии");
+    expect(screen.getByRole("button", { name: "Завершить проверку" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Завершить и взять следующий" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Сохранить черновик" })).toBeEnabled();
+
+    fireEvent.input(screen.getByLabelText("Итог проверки"), { target: { value: "Итог готов" } });
+    fireEvent.change(screen.getByLabelText("Итог проверки"), { target: { value: "Итог готов" } });
+
+    expect(screen.queryByText("Заполните все критерии")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Завершить проверку" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Завершить и взять следующий" })).toBeEnabled();
+  });
+
   it("показывает тост при успешном сохранении без редиректа", async () => {
     vi.mocked(submitReviewState).mockResolvedValue({
       ok: true,
