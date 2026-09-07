@@ -1,30 +1,18 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle
-} from "@/components/ui/empty";
+import { NotFoundScreen } from "@/components/auth/not-found-screen";
+import { roleHomePath } from "@/lib/auth/role-home";
+import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 
-export default function NotFound() {
-  return (
-    <section className="mx-auto flex min-h-[50vh] max-w-lg items-center justify-center p-6">
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>Страница не найдена</EmptyTitle>
-          <EmptyDescription>
-            Запрошенная страница не существует или была перемещена. Вернитесь на дашборд и продолжите
-            работу оттуда.
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Button render={<Link href="/" />} nativeButton={false}>
-            На дашборд
-          </Button>
-        </EmptyContent>
-      </Empty>
-    </section>
-  );
+export default async function NotFound() {
+  let homeHref = "/";
+
+  try {
+    const user = await getCurrentUser();
+    homeHref = roleHomePath(user.role, { name: user.name });
+  } catch (error) {
+    if (!(error instanceof AuthRequiredError)) {
+      throw error;
+    }
+  }
+
+  return <NotFoundScreen homeHref={homeHref} />;
 }

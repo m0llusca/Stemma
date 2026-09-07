@@ -4,7 +4,7 @@ Authenticated Stemma routes should render a lightweight shell before expensive p
 
 ## Shell Snapshot
 
-`apps/web/src/lib/shell/snapshot.ts` exposes `getShellSnapshot()` and `buildShellNavItems()`.
+`apps/web/src/lib/shell/snapshot.ts` exposes `getShellSnapshot()`. Navigation is built by `buildShellNavigation` and `visibleTopNavAreas` (`apps/web/src/lib/shell/navigation.ts`).
 
 The snapshot is intentionally small:
 
@@ -26,13 +26,19 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | --- | --- | --- |
 | QA_ANALYST | `/reviews?qaAssignee=…&due=overdue` (Мои+просрочено) | Same href. No name → `/reviews?due=overdue`. |
 | TEAM_LEAD, ADMIN | `/dashboard` | `/dashboard` |
-| EXEC | `/dashboard` (риск/SLA, без ops-хрома) | `/dashboard`. Nav: Сегодня, Проверки, Аналитика. |
-| SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. |
-| VIEWER | `/auth/pending-access` | Hidden |
+| EXEC | `/dashboard` (риск/SLA, без ops-хрома) | `/dashboard`. Nav: Сегодня, Проверки, Аналитика. Pulse: no Очередь/Риск. Take next off. |
+| SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. Nav: Моя обратная связь, Обучение. No «Проверки». |
+| VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. Demo seed: `viewer@example.com` (DEMO ExternalIdentity, switchable). |
 
 `todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona.
 
-⌘K **«Взять следующий кейс»** and the topbar pulse **«Взять кейс»** are actions, not nav hrefs. Same `takeNextReview` path as the queue button — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
+Top-nav **«Проверки»** is writer/dashboard roles (`DASHBOARD_ROLES` / `canSeeReviewsQueueNav`), not any `reviews:read`. Ops pulse **«Очередь»** / **«Риск»** is `reviews:write` only (`canSeeOpsQueuePulse`). SUPPORT_AGENT and EXEC both hold `reviews:read`; chrome must not sell the ops queue. Agent keeps coaching pulse. EXEC risk signals stay on `ExecRiskHome`, not the topbar.
+
+⌘K, pulse, queue page, and next-case preview share one Take verb: **«Взять следующий»**. They are actions, not nav hrefs. Same `takeNextReview` path — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
+
+### Analyst dual-home residual
+
+Analyst **«Сегодня»** (nav + ⌘K mode) is the mine+overdue inbox. **«Проверки»** stays the unfiltered `/reviews` list. ⌘K no longer lists **«Пульс дня»** → `/dashboard` for this role (it competed with Сегодня). Residual: `QA_ANALYST` remains in `DASHBOARD_ROLES`, so `/dashboard` still opens by URL; empty triage there sends the analyst back to role home (`Открыть сегодня`), not Take-next copy on an unreviewed filter.
 
 ## Async Signals
 
@@ -42,7 +48,8 @@ Sidebar and topbar counters or alerts should be non-blocking. Load them in isola
 
 Authenticated pages should expose a route-level `loading.tsx` when page data can wait. Use `PageSkeleton` from `apps/web/src/components/loading-states.tsx` with the closest variant:
 
-- `dashboard`
+- `dashboard` (ops pulse: 4 KPI + dual panels)
+- `exec` (ExecRiskHome: 3 KPI, no ops dual panels)
 - `workspace`
 - `detail`
 - `reports`

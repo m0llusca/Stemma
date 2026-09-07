@@ -32,6 +32,8 @@ type QueueFiltersProps = {
   supportLines: string[];
   teamNames: string[];
   resultCount?: number;
+  /** Inbox home after reset. Analyst keeps mine+overdue; others go to `/reviews`. */
+  resetHref?: string;
 };
 
 const queueFiltersFormId = "review-queue-filters";
@@ -58,7 +60,8 @@ export function QueueFilters({
   qaAssignees,
   supportLines,
   teamNames,
-  resultCount
+  resultCount,
+  resetHref = "/reviews"
 }: QueueFiltersProps) {
   const advancedFilterValues = [
     filters.channel,
@@ -177,7 +180,7 @@ export function QueueFilters({
           actions={
             <div className="flex min-w-0 flex-nowrap items-end justify-start gap-2 sm:col-span-2 sm:justify-end xl:col-span-1">
               <Button
-                render={<Link href="/reviews" title="Вернуть очередь без фильтров" />}
+                render={<Link href={resetHref} title="Вернуть очередь к исходному виду" />}
                 nativeButton={false}
                 variant="outline"
               >

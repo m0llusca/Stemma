@@ -44,6 +44,7 @@ import { coachingActionStatusLabels } from "@/lib/coaching-action";
 import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
 import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
+import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
 import { canAccessTraining, getCurrentUser } from "@/lib/current-user";
 import { denyPageAccess } from "@/lib/page-permission";
@@ -668,12 +669,12 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         <StatKpi
           label="В работе"
           value={openAssignments.length}
-          hint={weekAssignments.length > 0 ? `${weekAssignments.length} со сроком на неделе` : "Сроки под контролем"}
+          hint={coachingInWorkKpiHint(weekAssignments.length)}
         />
         <StatKpi
           label="Просрочено"
           value={overdueAssignments.length}
-          hint={overdueAssignments.length > 0 ? "Поднимаются в начало очереди" : "Просроченных разборов нет"}
+          hint={coachingOverdueKpiHint(overdueAssignments.length)}
         />
         <StatKpi
           label="Эффект обучения"

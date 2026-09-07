@@ -38,7 +38,7 @@ describe("QueueTable status chip", () => {
   it("renders the shared review-state chip, not a second qaStatus wording", () => {
     const row = conversation({ qaStatus: "ASSIGNED" });
 
-    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" />);
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
 
     const chip = screen.getByText(reviewStateLabels.assigned, { selector: ".chip" });
     expect(chip).toBeInTheDocument();
@@ -69,10 +69,27 @@ describe("QueueTable status chip", () => {
       }
     });
 
-    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" />);
+    render(<QueueTable conversations={[row]} qaAssignees={[]} returnTo="/reviews" canWriteReviews />);
 
     const chip = screen.getByText(pendingReopenLabel, { selector: ".chip" });
     expect(chip.textContent).toBe(resolveQueueStatusChip(row).label);
     expect(screen.queryByText("Завершено")).not.toBeInTheDocument();
+  });
+
+  it("resets an empty analyst inbox to the mine+overdue role home", () => {
+    render(
+      <QueueTable
+        conversations={[]}
+        qaAssignees={[]}
+        returnTo="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue&channel=CHAT"
+        resetHref="/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+        canWriteReviews
+      />
+    );
+
+    expect(screen.getByText("Сбросить фильтры").closest("a")).toHaveAttribute(
+      "href",
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
   });
 });

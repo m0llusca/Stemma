@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, TrendingUp, TriangleAlert, Users } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ClipboardCheck, Clock3, History, TrendingUp, TriangleAlert, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -18,10 +18,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TriageStrip } from "@/components/ui/triage-strip";
 
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
+import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
+import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
+import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/page-permission";
+import { takeNextReview } from "@/lib/queue-view-actions";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
 import { formatReviewCount, reportReviewRangeHref } from "@/lib/reports/report-format";
 import { reviewEventActionLabel } from "@/lib/review-events";
@@ -92,9 +96,11 @@ type FocusItem = {
   hint: string;
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const skeletonVariant = await resolveDashboardSkeletonVariant();
+
   return (
-    <Suspense fallback={<PageSkeleton variant="dashboard" label="Загрузка дашборда" />}>
+    <Suspense fallback={<PageSkeleton variant={skeletonVariant} label="Загрузка дашборда" />}>
       <DashboardPageContent />
     </Suspense>
   );
@@ -348,7 +354,9 @@ async function DashboardPageContent() {
   // panel carries only the remaining signals so nothing is restated.
   const primaryFocus = focusItems[0];
   const secondaryFocusItems = focusItems.slice(1);
-  const primaryFocusHref = primaryFocus?.href ?? "/reviews?status=unreviewed";
+  const emptyTriage = emptyTriagePrimary(user.role, { name: user.name });
+  const emptyTriageCopy = buildOpsEmptyTriage();
+  const primaryFocusHref = primaryFocus?.href;
   const checkedStatus = semanticStatusForMetric({ kind: "completed_count", value: checkedThisWeek });
   const queueStatus = semanticStatusForMetric({ kind: "queue_count", value: totalQueueCount });
   const trainingStatus = semanticStatusForMetric(
@@ -367,11 +375,24 @@ async function DashboardPageContent() {
           ? reportReviewRangeHref(item.date, new Date(item.date.getTime() + dayMs - 1))
           : undefined
     }));
-  const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : "Критичных отклонений нет";
-  const triageDescription = focusItems.length
-    ? primaryFocus.hint
-    : "Держите ритм очереди — возьмите следующий разговор в проверку.";
+  const triageTitle = focusItems.length ? `${primaryFocus.label}: ${primaryFocus.value}` : emptyTriageCopy.title;
+  const triageDescription = focusItems.length ? primaryFocus.hint : emptyTriageCopy.description;
+  const triageTone = focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : emptyTriageCopy.tone;
   const PrimaryFocusIcon = primaryFocus?.icon;
+  const emptyTriageAction =
+    emptyTriage.kind === "take-next" ? (
+      <form action={takeNextReview}>
+        <Button type="submit">
+          <span>{emptyTriage.label}</span>
+          <ArrowRight data-icon="inline-end" size={16} aria-hidden="true" />
+        </Button>
+      </form>
+    ) : (
+      <Button render={<Link href={emptyTriage.href} />} nativeButton={false}>
+        <span>{emptyTriage.label}</span>
+        <ArrowRight data-icon="inline-end" size={16} aria-hidden="true" />
+      </Button>
+    );
 
   return (
     <PageShell
@@ -379,21 +400,25 @@ async function DashboardPageContent() {
       title="Сегодня"
       description={
         isLeadDashboard
-          ? "Риск и просроченный SLA за 30 секунд — с переходом в очередь. Ops-лента и суета фильтров скрыты."
+          ? "Риск и просроченный SLA за 30 секунд — с переходом в очередь. Нагрузка проверяющих, обучение и фокус остаются на экране."
           : "Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
       }
     >
       <WelcomeBackBanner />
       <TriageStrip
-        tone={focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : "success"}
-        icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
+        tone={triageTone}
+        icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <ClipboardCheck size={18} aria-hidden="true" />}
         title={triageTitle}
         description={triageDescription}
         action={
-          <Button render={<Link href={primaryFocusHref} />} nativeButton={false}>
-            <span>{focusItems.length ? "Разобрать" : "Открыть очередь"}</span>
-            <ArrowRight data-icon="inline-end" size={16} aria-hidden="true" />
-          </Button>
+          focusItems.length && primaryFocusHref ? (
+            <Button render={<Link href={primaryFocusHref} />} nativeButton={false}>
+              <span>Разобрать</span>
+              <ArrowRight data-icon="inline-end" size={16} aria-hidden="true" />
+            </Button>
+          ) : (
+            emptyTriageAction
+          )
         }
       />
 
