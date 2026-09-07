@@ -1472,7 +1472,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                               render={<Link href={`/reviews/${conversation.id}`} />}
                               nativeButton={false}
                             >
-                              Открыть
+                              К замечанию
                             </Button>
                           ) : null}
                           <ToastActionForm action={updateTrainingAssignmentStatusState}>
