@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     },
     user: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       findUnique: vi.fn()
     }
   }
@@ -77,6 +78,7 @@ describe("current user resolution", () => {
     mocks.getValidAuthSession.mockResolvedValue(null);
     mocks.prisma.identityProvider.findUnique.mockResolvedValue(null);
     mocks.prisma.user.findFirst.mockResolvedValue(null);
+    mocks.prisma.user.findMany.mockResolvedValue([]);
     mocks.prisma.user.findUnique.mockResolvedValue(null);
   });
 
@@ -195,6 +197,27 @@ describe("current user resolution", () => {
         role: "asc"
       },
       include: { workspace: true }
+    });
+  });
+
+  it("lists every workspace user for the demo switcher including VIEWER", async () => {
+    const { getWorkspaceUsers } = await import("@/lib/current-user");
+
+    await getWorkspaceUsers("workspace-1");
+
+    expect(mocks.prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-1"
+      },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        supportLine: true,
+        teamName: true
+      }
     });
   });
 

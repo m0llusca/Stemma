@@ -6,6 +6,7 @@ import {
   findSeededDemoAdmin,
   findSeededDemoAgent,
   findSeededDemoAnalyst,
+  findSeededDemoViewer,
   localQaAdmin,
   signInE2EUser
 } from "./helpers/auth";
@@ -73,6 +74,27 @@ test("dual-control reopen requires a second workflow manager", async ({ browser 
   await confirmerPage.getByRole("button", { name: "Подтвердить переоткрытие" }).click();
   await expect(confirmerPage.getByText("На пересмотре", { exact: true }).first()).toBeVisible();
   await confirmerContext.close();
+});
+
+test("VIEWER lands on pending-access without empty AppNav chrome", async ({ browser }) => {
+  const viewer = await findSeededDemoViewer();
+  const context = await browser.newContext();
+  await signInE2EUser(context, viewer, "playwright-viewer-pending-access");
+  const page = await context.newPage();
+
+  await page.goto("/auth/pending-access");
+  await expect(page).toHaveURL(/\/auth\/pending-access$/);
+  await expect(page.getByText("Доступ ещё не выдан")).toBeVisible();
+  await expect(page.getByText(viewer.email)).toBeVisible();
+  await expect(page.getByText("Без доступа")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Выйти" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Основные разделы" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Поиск или команда" })).toHaveCount(0);
+  await expect(page.getByLabel("Глобальная навигация")).toHaveCount(0);
+
+  await page.goto("/auth/login");
+  await expect(page).toHaveURL(/\/auth\/pending-access$/);
+  await context.close();
 });
 
 test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", async ({ browser }) => {

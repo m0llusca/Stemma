@@ -28,7 +28,7 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | TEAM_LEAD, ADMIN | `/dashboard` | `/dashboard` |
 | EXEC | `/dashboard` (риск/SLA, без ops-хрома) | `/dashboard`. Nav: Сегодня, Проверки, Аналитика. |
 | SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. |
-| VIEWER | `/auth/pending-access` | Hidden |
+| VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. Demo seed: `viewer@example.com` (DEMO ExternalIdentity, switchable). |
 
 `todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona.
 

@@ -201,25 +201,15 @@ describe("app nav", () => {
     expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
   });
 
-  it("hides every pulse link and the take-next-case shortcut from a viewer", async () => {
+  it("renders no workspace chrome for a viewer holding state", async () => {
     mockCurrentUser("VIEWER");
     const { AppNav } = await import("@/components/app-nav");
 
-    render(await AppNav());
-
-    // Имя «Рабочий пульс» делят два элемента: компактная мобильная кнопка меню
-    // и десктоп-контейнер ссылок — отсутствие ссылок проверяем в контейнере.
-    const pulseSurfaces = screen.getAllByLabelText("Рабочий пульс");
-    expect(pulseSurfaces).toHaveLength(2);
-    const pulse = pulseSurfaces.find((element) => element.tagName === "DIV");
-    expect(pulse).toBeDefined();
-    // VIEWER без прав не должен видеть счётчики очереди/риска/обучения…
-    expect(within(pulse!).queryByRole("link", { name: /Очередь/ })).toBeNull();
-    expect(within(pulse!).queryByRole("link", { name: /Риск/ })).toBeNull();
-    expect(within(pulse!).queryByRole("link", { name: /Обучение/ })).toBeNull();
-    // …ни быстрое действие «Взять следующий кейс».
-    expect(screen.queryByRole("button", { name: "Взять следующий кейс" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Взять следующий кейс" })).toBeNull();
+    expect(await AppNav()).toBeNull();
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+    expect(mocks.getWorkspaceUsers).not.toHaveBeenCalled();
   });
 
   it("keeps the take-next-case shortcut for reviewers", async () => {
