@@ -125,7 +125,7 @@ test("splits integrations overview, setup, and OTRS cockpit without exposing sec
   const newSourceButton = page.getByRole("button", { name: "Новый источник" });
   await expect(newSourceButton).toBeVisible();
   await expect(page.getByRole("heading", { name: "Подключенные источники" })).toBeVisible();
-  await expect(page.getByText("Готово к проверке").first()).toBeVisible();
+  await expect(page.getByText("Готово к живой сертификации").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Что значит статус сертификации?" }).first()).toBeVisible();
   const integrationTabs = page.getByRole("tablist", { name: "Разделы интеграций" });
   await expect(integrationTabs.getByRole("tab", { name: "Источники" })).toBeVisible();
