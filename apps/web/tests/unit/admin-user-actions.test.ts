@@ -39,10 +39,15 @@ vi.mock("@/lib/audit", () => ({
   auditLog: mocks.auditLog
 }));
 
-vi.mock("@/lib/auth/local-credentials", () => ({
-  hashLocalPassword: mocks.hashLocalPassword,
-  normalizeLocalLogin: (value: string) => value.trim().toLowerCase()
-}));
+vi.mock("@/lib/auth/local-credentials", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/auth/local-credentials")>("@/lib/auth/local-credentials");
+
+  return {
+    ...actual,
+    hashLocalPassword: mocks.hashLocalPassword,
+    normalizeLocalLogin: (value: string) => value.trim().toLowerCase()
+  };
+});
 
 vi.mock("@/lib/current-user", () => ({
   assertCanPersistSettings: mocks.assertCanPersistSettings,
@@ -94,6 +99,43 @@ describe("admin user actions", () => {
     mocks.prisma.localCredential.create.mockResolvedValue({
       id: "credential-1"
     });
+  });
+
+  it("rejects local passwords that are too short", async () => {
+    const { createLocalUser } = await import("@/lib/admin-user-actions");
+    const formData = new FormData();
+    formData.set("name", "Новый пользователь");
+    formData.set("email", "new.user@example.com");
+    formData.set("password", "short1ab");
+    formData.set("role", "QA_ANALYST");
+
+    await expect(createLocalUser(formData)).rejects.toThrow("Пароль должен быть не короче 12 символов.");
+    expect(mocks.hashLocalPassword).not.toHaveBeenCalled();
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects local passwords without a digit", async () => {
+    const { createLocalUser } = await import("@/lib/admin-user-actions");
+    const formData = new FormData();
+    formData.set("name", "Новый пользователь");
+    formData.set("email", "new.user@example.com");
+    formData.set("password", "only-letters-here");
+    formData.set("role", "QA_ANALYST");
+
+    await expect(createLocalUser(formData)).rejects.toThrow("Пароль должен содержать хотя бы одну букву и одну цифру.");
+    expect(mocks.hashLocalPassword).not.toHaveBeenCalled();
+  });
+
+  it("rejects local passwords without a letter", async () => {
+    const { createLocalUser } = await import("@/lib/admin-user-actions");
+    const formData = new FormData();
+    formData.set("name", "Новый пользователь");
+    formData.set("email", "new.user@example.com");
+    formData.set("password", "123456789012");
+    formData.set("role", "QA_ANALYST");
+
+    await expect(createLocalUser(formData)).rejects.toThrow("Пароль должен содержать хотя бы одну букву и одну цифру.");
+    expect(mocks.hashLocalPassword).not.toHaveBeenCalled();
   });
 
   it("creates a local user with a hashed password and assigned role", async () => {

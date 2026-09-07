@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
       this.type = type;
     }
   },
+  auditLog: vi.fn(),
   authSignIn: vi.fn(),
   authorizeLocalCredentials: vi.fn(),
   createAuthSession: vi.fn(),
@@ -75,6 +76,10 @@ vi.mock("next/navigation", () => ({
   redirect: mocks.redirect
 }));
 
+vi.mock("@/lib/audit", () => ({
+  auditLog: mocks.auditLog
+}));
+
 vi.mock("@/lib/auth/session", () => ({
   createAuthSession: mocks.createAuthSession,
   setAuthSessionCookies: mocks.setAuthSessionCookies,
@@ -103,6 +108,7 @@ describe("user actions", () => {
     vi.clearAllMocks();
     mocks.authSignIn.mockRejectedValue(new Error("Auth.js signIn should not be called by local credential actions."));
     mocks.authorizeLocalCredentials.mockResolvedValue(null);
+    mocks.auditLog.mockResolvedValue({});
     mocks.prisma.$transaction.mockImplementation(async (callback) => callback(mocks.prisma));
     mocks.isDemoAuthEnabled.mockReturnValue(true);
     mocks.headerGet.mockReturnValue("vitest-agent");
@@ -146,6 +152,17 @@ describe("user actions", () => {
       login: "dubrovskyrk",
       password: "wrong-password"
     });
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "primary-workspace",
+        actorId: null,
+        action: "auth.login_failure",
+        targetType: "local_credential",
+        targetId: "dubrovskyrk",
+        metadata: { login: "dubrovskyrk" }
+      })
+    );
+    expect(JSON.stringify(mocks.auditLog.mock.calls)).not.toContain("wrong-password");
     expect(mocks.cookieSet).toHaveBeenCalledWith(
       "qc_login_flash",
       "invalid_credentials",
@@ -172,6 +189,13 @@ describe("user actions", () => {
 
     expect(mocks.authorizeLocalCredentials).not.toHaveBeenCalled();
     expect(mocks.authSignIn).not.toHaveBeenCalled();
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "auth.login_failure",
+        targetId: "unknown",
+        metadata: { login: "" }
+      })
+    );
     expect(mocks.cookieSet).toHaveBeenCalledWith(
       "qc_login_flash",
       "invalid_credentials",
@@ -203,6 +227,17 @@ describe("user actions", () => {
       login: "real-admin",
       password: "local-password-123"
     });
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "workspace-1",
+        actorId: "real-user",
+        action: "auth.login_success",
+        targetType: "user",
+        targetId: "real-user",
+        metadata: { login: "real-admin" }
+      })
+    );
+    expect(JSON.stringify(mocks.auditLog.mock.calls)).not.toContain("local-password-123");
     expect(mocks.createAuthSession).toHaveBeenCalledWith({
       userId: "real-user",
       userAgent: "vitest-agent"
@@ -235,6 +270,32 @@ describe("user actions", () => {
     expect(mocks.cookieDelete).toHaveBeenCalledWith("qc_login_flash");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
     expect(mocks.authSignIn).not.toHaveBeenCalled();
+  });
+
+  it("audits login failure against the credential workspace when the login exists", async () => {
+    mocks.authorizeLocalCredentials.mockResolvedValue(null);
+    mocks.prisma.localCredential.findFirst.mockResolvedValue({ workspaceId: "credential-workspace" });
+    const { signInWithLocalCredentials } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("login", "known-user");
+    formData.set("password", "wrong-password");
+    formData.set("returnTo", "/");
+
+    await expect(signInWithLocalCredentials(formData)).rejects.toThrow("NEXT_REDIRECT:/auth/login?returnTo=%2F");
+
+    expect(mocks.prisma.localCredential.findFirst).toHaveBeenCalledWith({
+      where: { login: "known-user" },
+      select: { workspaceId: true }
+    });
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "credential-workspace",
+        action: "auth.login_failure",
+        targetId: "known-user",
+        metadata: { login: "known-user" }
+      })
+    );
+    expect(mocks.prisma.workspace.findFirst).not.toHaveBeenCalled();
   });
 
   it("lands a local QA analyst on mine+overdue when returnTo is the generic queue", async () => {

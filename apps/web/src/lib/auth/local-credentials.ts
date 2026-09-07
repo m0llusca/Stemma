@@ -4,9 +4,20 @@ import { promisify } from "node:util";
 const scrypt = promisify(scryptCallback);
 const keyLength = 64;
 const localCredentialKeyVersion = "scrypt-v1";
+export const localPasswordMinLength = 12;
 
 export function normalizeLocalLogin(value: string) {
   return value.trim().toLowerCase();
+}
+
+export function assertLocalPasswordPolicy(password: string) {
+  if (password.length < localPasswordMinLength) {
+    throw new Error(`Пароль должен быть не короче ${localPasswordMinLength} символов.`);
+  }
+
+  if (!/\p{L}/u.test(password) || !/\p{N}/u.test(password)) {
+    throw new Error("Пароль должен содержать хотя бы одну букву и одну цифру.");
+  }
 }
 
 export async function hashLocalPassword(password: string, salt = randomBytes(16).toString("base64url")) {

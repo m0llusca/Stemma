@@ -4,7 +4,7 @@ import type { RoleName } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auditLog } from "@/lib/audit";
-import { hashLocalPassword, normalizeLocalLogin } from "@/lib/auth/local-credentials";
+import { assertLocalPasswordPolicy, hashLocalPassword, normalizeLocalLogin } from "@/lib/auth/local-credentials";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 
@@ -67,10 +67,7 @@ export async function createLocalUser(formData: FormData) {
 
   assertEmail(email);
   assertLogin(login);
-
-  if (password.length < 8) {
-    throw new Error("Пароль должен быть не короче 8 символов.");
-  }
+  assertLocalPasswordPolicy(password);
 
   const passwordData = await hashLocalPassword(password);
 

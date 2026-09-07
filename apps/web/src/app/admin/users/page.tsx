@@ -342,7 +342,7 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
                         name="password"
                         type="password"
                         autoComplete="new-password"
-                        minLength={8}
+                        minLength={12}
                         required
                       />
                     </Field>

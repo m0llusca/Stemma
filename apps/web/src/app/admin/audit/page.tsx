@@ -64,6 +64,9 @@ const auditActionLabels: Record<string, string> = {
   "auth.group_role_mapping_saved": "Сохранена связь группы и роли",
   "auth.group_role_mapping_toggled": "Изменен статус связи группы и роли",
   "auth.group_role_mapping_upserted": "Обновлена связь группы и роли",
+  "auth.local_user_created": "Создан локальный пользователь",
+  "auth.login_failure": "Неудачный вход",
+  "auth.login_success": "Успешный вход",
   "auth.provider_saved": "Сохранен провайдер входа",
   "auth.provider_updated": "Обновлен провайдер входа",
   "auth.provider_upserted": "Обновлен провайдер входа",
@@ -100,6 +103,7 @@ const auditTargetTypeLabels: Record<string, string> = {
   auth_provider: "Провайдер входа",
   auth_session: "Сессия",
   identity_provider: "Провайдер входа",
+  local_credential: "Локальный логин",
   backend_job: "Фоновая задача",
   calibration_session: "Калибровка",
   conversation: "Обращение",
@@ -107,6 +111,7 @@ const auditTargetTypeLabels: Record<string, string> = {
   review: "Проверка",
   scorecard: "Форма оценки",
   training_assignment: "Учебная задача",
+  user: "Пользователь",
   workspace: "Рабочая область"
 };
 

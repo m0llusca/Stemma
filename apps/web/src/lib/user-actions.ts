@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { authorizeLocalCredentials } from "@/auth/providers/local";
+import { auditLog } from "@/lib/audit";
 import { demoUserByIdWhere } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, loginFlashCookieOptions } from "@/lib/auth/login-flash";
 import { normalizeLocalLogin } from "@/lib/auth/local-credentials";
@@ -28,20 +29,68 @@ async function loginErrorRedirect(returnTo: string): Promise<never> {
   redirect(`/auth/login?${params.toString()}`);
 }
 
+async function resolveLoginAuditWorkspaceId(login: string) {
+  if (login) {
+    const credential = await prisma.localCredential.findFirst({
+      where: { login },
+      select: { workspaceId: true }
+    });
+
+    if (credential) {
+      return credential.workspaceId;
+    }
+  }
+
+  const workspace = await prisma.workspace.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true }
+  });
+
+  return workspace?.id ?? null;
+}
+
+async function auditLocalLoginFailure(login: string) {
+  const workspaceId = await resolveLoginAuditWorkspaceId(login);
+
+  if (!workspaceId) {
+    return;
+  }
+
+  await auditLog({
+    workspaceId,
+    actorId: null,
+    action: "auth.login_failure",
+    targetType: "local_credential",
+    targetId: login || "unknown",
+    metadata: { login }
+  });
+}
+
 export async function signInWithLocalCredentials(formData: FormData) {
   const login = normalizeLocalLogin(stringField(formData, "login"));
   const password = stringField(formData, "password");
   const returnTo = sanitizeReturnTo(stringField(formData, "returnTo"));
 
   if (!login || !password) {
+    await auditLocalLoginFailure(login);
     return loginErrorRedirect(returnTo);
   }
 
   const user = await authorizeLocalCredentials({ login, password });
 
   if (!user) {
+    await auditLocalLoginFailure(login);
     return loginErrorRedirect(returnTo);
   }
+
+  await auditLog({
+    workspaceId: user.workspaceId,
+    actorId: user.id,
+    action: "auth.login_success",
+    targetType: "user",
+    targetId: user.id,
+    metadata: { login }
+  });
 
   const headerStore = await headers();
   const { token } = await createAuthSession({
