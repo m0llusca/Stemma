@@ -98,6 +98,8 @@ test("SUPPORT_AGENT can open self-review and is blocked from admin mutations", a
   }
 
   await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/self-review$/);
+  await expect(page.getByRole("heading", { name: "Моя обратная связь" })).toBeVisible();
   await expect(page.getByText("Операторы с наибольшей нагрузкой")).toHaveCount(0);
   await expect(page.getByText("Области для роста")).toHaveCount(0);
   await expect(page.getByText("Риск и апелляции")).toHaveCount(0);

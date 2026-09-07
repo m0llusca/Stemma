@@ -40,6 +40,17 @@ export function isGenericPostLoginPath(path: string) {
 }
 
 /**
+ * Roles that may open the ops pulse at `/dashboard`.
+ * SUPPORT_AGENT holds `reviews:read` (so a permission gate alone is not enough)
+ * but their product home is `/self-review`. VIEWER has neither.
+ */
+export const DASHBOARD_ROLES = ["ADMIN", "TEAM_LEAD", "QA_ANALYST"] as const satisfies readonly RoleName[];
+
+export function canAccessDashboard(role: RoleName) {
+  return (DASHBOARD_ROLES as readonly RoleName[]).includes(role);
+}
+
+/**
  * Role-gated product home after login when the caller did not request a specific page.
  * VIEWER lands on `/auth/pending-access` (no product permissions) instead of a deny page.
  */

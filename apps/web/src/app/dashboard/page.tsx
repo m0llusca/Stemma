@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpenCheck, CheckCircle2, ClipboardCheck, Clock3, History, TrendingUp, TriangleAlert, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { WelcomeBackBanner } from "@/components/guidance/welcome-back-banner";
 import { PageSkeleton } from "@/components/loading-states";
@@ -17,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TriageStrip } from "@/components/ui/triage-strip";
 
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
+import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/page-permission";
 import { computeAgentLeaderboard } from "@/lib/reports/report-aggregation";
@@ -99,6 +101,12 @@ export default function DashboardPage() {
 
 async function DashboardPageContent() {
   const user = await requirePagePermission("reviews:read");
+  // Agents have reviews:read, so a permission gate would still render the ops
+  // pulse. Send roles without dashboard access to their role home instead of
+  // hiding a VIEWER deny — VIEWER already fails requirePagePermission above.
+  if (!canAccessDashboard(user.role)) {
+    redirect(roleHomePath(user.role, { name: user.name }));
+  }
   const now = new Date();
   const thisWeekStart = daysAgo(6, now);
   const previousWeekStart = daysAgo(13, now);

@@ -29,7 +29,7 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. |
 | VIEWER | `/auth/pending-access` | Hidden |
 
-`todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is.
+`todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`.
 
 ⌘K **«Взять следующий кейс»** and the topbar pulse **«Взять кейс»** are actions, not nav hrefs. Same `takeNextReview` path as the queue button — [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md).
 
@@ -76,7 +76,3 @@ When adding or changing an enqueue route, keep validation and enqueue code in a 
 5. Add a shell nav item only if the route is top-level navigation, and set the allowed roles explicitly.
 6. Keep enqueue-only API routes free of LDAP, worker, and connector runtime imports.
 7. Add or update route smoke and runtime guard coverage when the route is part of the authenticated shell surface.
-
-## Follow-up (not fixed)
-
-- **AGENT deep-link `/dashboard`.** Brand and login send SUPPORT_AGENT to `/self-review`. Typed `/dashboard` still opens: page gate is `reviews:read`, which agents have. Nav hides «Сегодня»; the route does not.
