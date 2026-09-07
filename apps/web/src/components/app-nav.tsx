@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { AppNavShell } from "@/components/app-nav-shell";
 import { hasPermission } from "@/lib/auth/permissions";
-import { roleHomePath } from "@/lib/auth/role-home";
+import { canSeeOpsQueuePulse, roleHomePath } from "@/lib/auth/role-home";
 import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
@@ -77,27 +77,25 @@ type PulseItem = {
  * прав» по клику. Скрытые счётчики не запрашиваем: если права нет — запроса нет.
  */
 async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[]> {
-  const canReadReviews = hasPermission(user.role, "reviews:read");
+  // Очередь/Риск are ops-queue chrome. reviews:read is not enough — SUPPORT_AGENT
+  // and EXEC both hold it, but their JTBD is self-review and risk narrative.
+  const canSeeOpsPulse = canSeeOpsQueuePulse(user.role);
   const canAccessTraining =
     hasPermission(user.role, "training:manage") || hasPermission(user.role, "training:consume");
-  // SUPPORT_AGENT скоупит счётчики по назначенным на него диалогам через
-  // assigneeId (устойчивее к тёзкам, чем прежний assigneeName).
-  const conversationScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {};
 
   const [queuedCount, highRiskCount, trainingCount] = await Promise.all([
-    canReadReviews
+    canSeeOpsPulse
       ? prisma.conversation.count({
-          where: { workspaceId: user.workspaceId, qaStatus: "QUEUED", ...conversationScope }
+          where: { workspaceId: user.workspaceId, qaStatus: "QUEUED" }
         })
       : Promise.resolve(0),
-    canReadReviews
+    canSeeOpsPulse
       ? prisma.review.count({
           where: {
             workspaceId: user.workspaceId,
             status: "FINALIZED",
             reviewSource: "HUMAN",
-            findings: { some: { riskLevel: { in: ["HIGH", "CRITICAL"] } } },
-            ...(user.role === "SUPPORT_AGENT" ? { conversation: { assigneeId: user.id } } : {})
+            findings: { some: { riskLevel: { in: ["HIGH", "CRITICAL"] } } }
           }
         })
       : Promise.resolve(0),
@@ -113,7 +111,7 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
   ]);
 
   const items: PulseItem[] = [];
-  if (canReadReviews) {
+  if (canSeeOpsPulse) {
     items.push({ href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: queuedCount });
     items.push({ href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: highRiskCount, tone: "risk" });
   }

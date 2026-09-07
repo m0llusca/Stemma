@@ -4,7 +4,7 @@ import { PageShell } from "@/components/ui/page-shell";
 
 export type QueueWorkspaceProps = Readonly<{
   description: React.ReactNode;
-  actions: React.ReactNode;
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }>;
 

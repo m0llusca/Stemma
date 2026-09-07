@@ -49,11 +49,10 @@ describe("topNavAreas", () => {
 
 describe("visibleTopNavAreas", () => {
   it("gives a support agent only the areas its permissions can open", () => {
-    // Калибровка (calibration:manage), Аналитика (reports:read) и Настройки
-    // недоступны роли SUPPORT_AGENT — их страницы бросают "Недостаточно прав".
+    // Калибровка / Аналитика / Настройки недоступны. «Проверки» тоже скрыта:
+    // reviews:read есть, но chrome не должен продавать ops-очередь.
     expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).toEqual([
       "feedback",
-      "review",
       "coaching"
     ]);
   });
@@ -281,11 +280,14 @@ describe("buildShellNavigation gating gaps", () => {
 
   it("hides ops Сегодня/dashboard from SUPPORT_AGENT nav and command palette", () => {
     expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).not.toContain("today");
+    expect(visibleTopNavAreas("SUPPORT_AGENT").map((area) => area.id)).not.toContain("review");
     const agentHrefs = buildShellNavigation({ role: "SUPPORT_AGENT" }).commandItems.map(
       (item) => item.href
     );
     expect(agentHrefs).not.toContain("/dashboard");
+    expect(agentHrefs).not.toContain("/reviews");
     expect(agentHrefs).toContain("/self-review");
+    expect(agentHrefs).toContain("/coaching");
     expect(buildShellNavigation({ role: "SUPPORT_AGENT" }).modes.map((mode) => mode.id)).not.toContain(
       "today"
     );
