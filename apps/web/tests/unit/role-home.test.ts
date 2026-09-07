@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   analystMineOverdueHref,
+  canAccessDashboard,
+  DASHBOARD_ROLES,
   isGenericPostLoginPath,
   resolvePostLoginPath,
   roleHomePath,
@@ -22,6 +24,15 @@ describe("role-home", () => {
     expect(roleHomePath("ADMIN")).toBe("/dashboard");
     expect(roleHomePath("SUPPORT_AGENT")).toBe("/self-review");
     expect(roleHomePath("VIEWER")).toBe("/auth/pending-access");
+  });
+
+  it("allows only reviewer and lead roles onto the ops dashboard", () => {
+    expect(DASHBOARD_ROLES).toEqual(["ADMIN", "TEAM_LEAD", "QA_ANALYST"]);
+    expect(canAccessDashboard("ADMIN")).toBe(true);
+    expect(canAccessDashboard("TEAM_LEAD")).toBe(true);
+    expect(canAccessDashboard("QA_ANALYST")).toBe(true);
+    expect(canAccessDashboard("SUPPORT_AGENT")).toBe(false);
+    expect(canAccessDashboard("VIEWER")).toBe(false);
   });
 
   it("treats bare product roots as generic and keeps filtered deep links", () => {

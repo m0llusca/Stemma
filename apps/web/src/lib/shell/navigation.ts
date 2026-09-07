@@ -1,7 +1,7 @@
 import type { RoleName } from "@prisma/client";
 import { adminSectionTitles } from "@/lib/admin-sections";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
-import { roleHomePath } from "@/lib/auth/role-home";
+import { DASHBOARD_ROLES, roleHomePath } from "@/lib/auth/role-home";
 
 export type ShellNavIcon = "today" | "work" | "quality" | "team" | "system";
 export type ShellNavModeId = "today" | "work" | "quality" | "team" | "system";
@@ -71,7 +71,7 @@ export const topNavAreas: ShellNavArea[] = [
     // Ops pulse is for reviewers and leads. SUPPORT_AGENT home is calm
     // self-review — «Сегодня»→/dashboard must not be a primary agent path.
     permission: "reviews:read",
-    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+    roles: [...DASHBOARD_ROLES]
   },
   {
     id: "feedback",
@@ -270,7 +270,7 @@ const modeDefinitions: ModeDefinition[] = [
     // роли без права (VIEWER) не получали командных ссылок в никуда.
     // SUPPORT_AGENT also has reviews:read, but ops «Сегодня» is not their home.
     permission: "reviews:read",
-    roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"],
+    roles: [...DASHBOARD_ROLES],
     destinations: [
       {
         href: "/dashboard",
@@ -278,7 +278,7 @@ const modeDefinitions: ModeDefinition[] = [
         description: "Очередь, риск, обучение и последние изменения в одном входном экране.",
         aliases: ["дашборд", "dashboard", "обзор", "пульс"],
         permission: "reviews:read",
-        roles: ["ADMIN", "TEAM_LEAD", "QA_ANALYST"]
+        roles: [...DASHBOARD_ROLES]
       }
     ]
   },

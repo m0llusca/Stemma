@@ -5,6 +5,12 @@ import { join } from "node:path";
 describe("dashboard page agent scope", () => {
   const source = readFileSync(join(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
 
+  it("redirects roles without dashboard access to their role home", () => {
+    expect(source).toContain("canAccessDashboard(user.role)");
+    expect(source).toContain("redirect(roleHomePath(user.role, { name: user.name }))");
+    expect(source).toContain('await requirePagePermission("reviews:read")');
+  });
+
   it("scopes SUPPORT_AGENT review metrics by conversation.assigneeId", () => {
     expect(source).toContain(
       'user.role === "SUPPORT_AGENT" ? { conversation: { assigneeId: user.id } } : {}'

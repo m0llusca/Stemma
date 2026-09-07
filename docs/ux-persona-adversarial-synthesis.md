@@ -12,7 +12,7 @@
 - Role homes: Analyst «Сегодня» = Мои+просрочено; Agent brand → `/self-review`; Lead «Сегодня» = `/dashboard`. → [app-shell.md](app-shell.md)
 - Focus map removed from queue chrome (`f8b0fce`).
 
-Leftovers (not fixed): catalog `readinessTone`; AGENT deep-link `/dashboard`.
+Leftovers (not fixed): catalog `readinessTone`.
 
 ---
 
