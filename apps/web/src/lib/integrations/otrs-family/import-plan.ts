@@ -351,6 +351,9 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     });
 
     if (alreadyImported.length > 0) {
+      // Items are already imported; still finalize a queued/retry_scheduled run
+      // so the job cannot become SUCCEEDED while IntegrationRun stays non-terminal.
+      await finalizeAlreadyImportedSelectedRun(db, input, run, alreadyImported);
       return {
         importedCount: alreadyImported.length,
         errorCount: 0
@@ -450,11 +453,15 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
         status: "imported"
       },
       select: {
-        id: true
+        id: true,
+        externalId: true
       }
     });
 
     if (alreadyImported.length > 0) {
+      // Items are already imported; still finalize a queued/retry_scheduled run
+      // so the job cannot become SUCCEEDED while IntegrationRun stays non-terminal.
+      await finalizeAlreadyImportedSelectedRun(db, input, run, alreadyImported);
       return {
         importedCount: alreadyImported.length,
         errorCount: 0
@@ -462,11 +469,82 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     }
   }
 
+  await finalizeSelectedOtrsImportRun({
+    db,
+    input,
+    run,
+    importedCount,
+    errorCount,
+    lastSuccessfulExternalId,
+    checkedCount: selectedItems.length
+  });
+
+  return {
+    importedCount,
+    errorCount
+  };
+}
+
+async function updateEnabledIntegration(
+  db: Pick<ImportTransactionDb, "integration">,
+  input: Pick<ImportSelectedOtrsRunItemsInput, "workspaceId" | "integrationId">,
+  data: JsonRecord,
+  options: { tolerateDisabled?: boolean } = {}
+) {
+  const result = await db.integration.updateMany({
+    where: {
+      id: input.integrationId,
+      workspaceId: input.workspaceId,
+      status: { not: "disabled" }
+    },
+    data
+  });
+
+  if (result.count !== 1 && !options.tolerateDisabled) {
+    throw new Error("Интеграция отключена.");
+  }
+}
+
+async function finalizeAlreadyImportedSelectedRun(
+  db: ImportDb,
+  input: ImportSelectedOtrsRunItemsInput,
+  run: JsonRecord,
+  alreadyImported: JsonRecord[]
+) {
+  if (String(run.status) === "imported") {
+    return;
+  }
+
+  const lastSuccessfulExternalId = alreadyImported
+    .map((item) => (typeof item.externalId === "string" ? item.externalId : ""))
+    .filter((externalId) => externalId.length > 0)
+    .at(-1);
+
+  await finalizeSelectedOtrsImportRun({
+    db,
+    input,
+    run,
+    importedCount: alreadyImported.length,
+    errorCount: 0,
+    lastSuccessfulExternalId,
+    checkedCount: alreadyImported.length
+  });
+}
+
+async function finalizeSelectedOtrsImportRun(args: {
+  db: ImportDb;
+  input: ImportSelectedOtrsRunItemsInput;
+  run: JsonRecord;
+  importedCount: number;
+  errorCount: number;
+  lastSuccessfulExternalId?: string;
+  checkedCount: number;
+}) {
+  const { db, input, run, importedCount, errorCount, lastSuccessfulExternalId, checkedCount } = args;
   const finishedAt = new Date();
   const status = importedCount > 0 ? "imported" : "failed";
   const errorMessage = importedCount > 0 ? null : "All selected preview items failed to import.";
   const integrationStatus = importedCount > 0 ? "active" : "error";
-  const checkedCount = selectedItems.length;
   const syncState = buildIntegrationSyncState({
     source: String(run.source ?? "otrs"),
     mode: String(run.mode ?? "otrs_selected_import"),
@@ -536,31 +614,6 @@ export async function importSelectedOtrsRunItems(input: ImportSelectedOtrsRunIte
     await db.$transaction((tx) => finalizeImportRun(tx));
   } else {
     await finalizeImportRun(db);
-  }
-
-  return {
-    importedCount,
-    errorCount
-  };
-}
-
-async function updateEnabledIntegration(
-  db: Pick<ImportTransactionDb, "integration">,
-  input: Pick<ImportSelectedOtrsRunItemsInput, "workspaceId" | "integrationId">,
-  data: JsonRecord,
-  options: { tolerateDisabled?: boolean } = {}
-) {
-  const result = await db.integration.updateMany({
-    where: {
-      id: input.integrationId,
-      workspaceId: input.workspaceId,
-      status: { not: "disabled" }
-    },
-    data
-  });
-
-  if (result.count !== 1 && !options.tolerateDisabled) {
-    throw new Error("Интеграция отключена.");
   }
 }
 
