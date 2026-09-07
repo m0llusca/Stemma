@@ -15,6 +15,7 @@ vi.mock("@/lib/db", () => ({
 import {
   COACHING_PLAN_STATUSES,
   computePlanProgress,
+  filterCoachingPlansForAgent,
   isCoachingPlanStatus,
   listCoachingPlans
 } from "@/lib/coaching-plan";
@@ -85,6 +86,7 @@ describe("listCoachingPlans", () => {
         status: "active",
         reviewId: "rev-1",
         conversationId: "conv-1",
+        conversation: { assigneeId: "agent-1" },
         createdAt: now,
         updatedAt: now,
         assignments: [{ status: "done" }, { status: "open" }, { status: "done" }, { status: "in_progress" }]
@@ -95,7 +97,10 @@ describe("listCoachingPlans", () => {
 
     expect(mocks.prisma.coachingPlan.findMany).toHaveBeenCalledWith({
       where: { workspaceId: "workspace-1" },
-      include: { assignments: { select: { status: true } } },
+      include: {
+        assignments: { select: { status: true } },
+        conversation: { select: { assigneeId: true } }
+      },
       orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
     });
     expect(result).toHaveLength(1);
@@ -107,6 +112,7 @@ describe("listCoachingPlans", () => {
       status: "active",
       reviewId: "rev-1",
       conversationId: "conv-1",
+      conversation: { assigneeId: "agent-1" },
       progress: { total: 4, done: 2, percent: 50 }
     });
   });
@@ -115,5 +121,33 @@ describe("listCoachingPlans", () => {
     mocks.prisma.coachingPlan.findMany.mockResolvedValue([]);
 
     await expect(listCoachingPlans("workspace-1")).resolves.toEqual([]);
+  });
+});
+
+describe("filterCoachingPlansForAgent", () => {
+  const plans = [
+    { id: "own", agentName: "Анна", conversation: { assigneeId: "agent-1" } },
+    { id: "homonym", agentName: "Анна", conversation: { assigneeId: "agent-2" } },
+    { id: "unassigned", agentName: "Анна", conversation: { assigneeId: null } },
+    { id: "unlinked", agentName: "Анна", conversation: null }
+  ];
+
+  it("keeps only plans whose conversation assigneeId matches the agent", () => {
+    expect(filterCoachingPlansForAgent(plans, "agent-1").map((plan) => plan.id)).toEqual(["own"]);
+  });
+
+  it("excludes homonym plans that share agentName but a different assigneeId", () => {
+    const visible = filterCoachingPlansForAgent(plans, "agent-1");
+    expect(visible.some((plan) => plan.id === "homonym")).toBe(false);
+  });
+
+  it("excludes plans with null conversation or null assigneeId (fail-closed)", () => {
+    const visible = filterCoachingPlansForAgent(plans, "agent-1");
+    expect(visible.map((plan) => plan.id)).not.toContain("unassigned");
+    expect(visible.map((plan) => plan.id)).not.toContain("unlinked");
+  });
+
+  it("returns an empty list when no plan is assigned to the agent", () => {
+    expect(filterCoachingPlansForAgent(plans, "agent-missing")).toEqual([]);
   });
 });

@@ -27,4 +27,10 @@ describe("coaching page agent score scope", () => {
     expect(source).toContain("updateCoachingActionStatusState");
     expect(source).toContain("Разбор выполнен");
   });
+
+  it("scopes coaching plans by conversation assigneeId for agents, not agentName", () => {
+    expect(source).toContain("filterCoachingPlansForAgent");
+    expect(source).toContain("filterCoachingPlansForAgent(plans, user.id)");
+    expect(source).not.toContain("plan.agentName === user.name");
+  });
 });

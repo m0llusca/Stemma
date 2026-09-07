@@ -46,10 +46,24 @@ export type CoachingPlanListItem = {
   status: string;
   reviewId: string | null;
   conversationId: string | null;
+  /** Assignee of the linked conversation; null when unlinked or unassigned. */
+  conversation: { assigneeId: string | null } | null;
   createdAt: Date;
   updatedAt: Date;
   progress: CoachingPlanProgress;
 };
+
+/**
+ * Fail-closed agent scope: keep only plans whose linked conversation is
+ * assigned to `userId`. Plans with no conversation or a null assigneeId are
+ * excluded — never fall back to agentName (homonym leak).
+ */
+export function filterCoachingPlansForAgent<T extends { conversation: { assigneeId: string | null } | null }>(
+  plans: ReadonlyArray<T>,
+  userId: string
+): T[] {
+  return plans.filter((plan) => plan.conversation?.assigneeId === userId);
+}
 
 /**
  * Lists every coaching plan in a workspace with derived assignment progress.
@@ -63,6 +77,9 @@ export async function listCoachingPlans(workspaceId: string): Promise<CoachingPl
     include: {
       assignments: {
         select: { status: true }
+      },
+      conversation: {
+        select: { assigneeId: true }
       }
     },
     orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
@@ -76,6 +93,7 @@ export async function listCoachingPlans(workspaceId: string): Promise<CoachingPl
     status: plan.status,
     reviewId: plan.reviewId,
     conversationId: plan.conversationId,
+    conversation: plan.conversation,
     createdAt: plan.createdAt,
     updatedAt: plan.updatedAt,
     progress: computePlanProgress(plan.assignments.map((assignment) => assignment.status))

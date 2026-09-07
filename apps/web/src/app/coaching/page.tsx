@@ -42,7 +42,7 @@ import { createTrainingAssignmentState, updateTrainingAssignmentStatusState } fr
 import { updateCoachingActionStatusState } from "@/lib/coaching-action-actions";
 import { coachingActionStatusLabels } from "@/lib/coaching-action";
 import { createCoachingPlanState, updateCoachingPlanStatusState } from "@/lib/coaching-plan-actions";
-import { listCoachingPlans } from "@/lib/coaching-plan";
+import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-plan";
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
 import { permissionDeniedMessage } from "@/lib/api/user-facing-errors";
@@ -292,7 +292,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       take: 600
     }),
     listCoachingPlans(user.workspaceId).then((plans) =>
-      isSupportAgent ? plans.filter((plan) => plan.agentName === user.name) : plans
+      isSupportAgent ? filterCoachingPlansForAgent(plans, user.id) : plans
     ),
     canManageCoachingOps
       ? prisma.coachingAction.findMany({
