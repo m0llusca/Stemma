@@ -20,21 +20,19 @@ describe("QueueDay1Tour", () => {
     });
   });
 
-  it("walks three steps and can be skipped forever", async () => {
+  it("shows a single SLA/OTRS glossary hint without tour steps", async () => {
     render(<QueueDay1Tour />);
 
-    expect(await screen.findByRole("region", { name: /Обзор очереди, шаг 1/ })).toBeInTheDocument();
-    expect(screen.getByText("Взять следующий")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Далее" }));
-    expect(await screen.findByRole("region", { name: /Обзор очереди, шаг 2/ })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Далее" }));
-    expect(await screen.findByRole("region", { name: /Обзор очереди, шаг 3/ })).toBeInTheDocument();
-    expect(screen.getByText(/ещё не проверена или проверка завершена/i)).toBeInTheDocument();
+    const region = await screen.findByRole("region", { name: "Подсказки очереди" });
+    expect(region).toBeInTheDocument();
+    expect(screen.getByText("SLA и OTRS")).toBeInTheDocument();
+    expect(screen.getByText(/контрольный срок проверки/i)).toBeInTheDocument();
+    expect(screen.getByText(/типичный helpdesk-источник/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Далее" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Понятно" }));
-    expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Подсказки очереди" })).not.toBeInTheDocument();
     expect(storage.get(DAY1_TOUR_DISMISS_STORAGE_KEY)).toBe("1");
   });
 
@@ -43,7 +41,7 @@ describe("QueueDay1Tour", () => {
     render(<QueueDay1Tour />);
 
     await waitFor(() => {
-      expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Подсказки очереди" })).not.toBeInTheDocument();
     });
   });
 
@@ -53,7 +51,7 @@ describe("QueueDay1Tour", () => {
     render(<QueueDay1Tour />);
 
     await waitFor(() => {
-      expect(screen.queryByRole("region", { name: /Обзор очереди/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Подсказки очереди" })).not.toBeInTheDocument();
     });
   });
 });

@@ -10,7 +10,8 @@ import {
   resolvePostLoginPath,
   queueFilterResetHref,
   roleHomePath,
-  sanitizeReturnTo
+  sanitizeReturnTo,
+  welcomeBackResetHref
 } from "@/lib/auth/role-home";
 
 describe("role-home", () => {
@@ -42,6 +43,23 @@ describe("role-home", () => {
     expect(queueFilterResetHref("EXEC")).toBe("/reviews");
     expect(queueFilterResetHref("SUPPORT_AGENT")).toBe("/reviews");
     expect(queueFilterResetHref("VIEWER")).toBe("/reviews");
+  });
+
+  it("uses role-home on dashboard and the queue inbox helper on reviews", () => {
+    expect(welcomeBackResetHref("dashboard", "TEAM_LEAD")).toBe("/dashboard");
+    expect(welcomeBackResetHref("dashboard", "ADMIN")).toBe("/dashboard");
+    expect(welcomeBackResetHref("dashboard", "EXEC")).toBe("/dashboard");
+    expect(welcomeBackResetHref("dashboard", "QA_ANALYST", { name: "Анна QA" })).toBe(
+      queueFilterResetHref("QA_ANALYST", { name: "Анна QA" })
+    );
+    expect(welcomeBackResetHref("reviews", "TEAM_LEAD")).toBe("/reviews");
+    expect(welcomeBackResetHref("reviews", "ADMIN")).toBe("/reviews");
+    expect(welcomeBackResetHref("reviews", "QA_ANALYST", { name: "Анна QA" })).toBe(
+      "/reviews?qaAssignee=%D0%90%D0%BD%D0%BD%D0%B0%20QA&due=overdue"
+    );
+    expect(welcomeBackResetHref("dashboard", "TEAM_LEAD")).not.toBe(
+      welcomeBackResetHref("reviews", "TEAM_LEAD")
+    );
   });
 
   it("allows reviewer, lead and exec roles onto the dashboard", () => {

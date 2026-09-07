@@ -20,7 +20,7 @@ import { TriageStrip } from "@/components/ui/triage-strip";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
-import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
+import { canAccessDashboard, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
 import { opsQueueKpiHref } from "@/lib/dashboard/queue-kpi-href";
 import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
@@ -411,7 +411,7 @@ async function DashboardPageContent() {
           : "Быстрый обзор очереди, риска, обучения и последних действий без перехода по всем разделам."
       }
     >
-      <WelcomeBackBanner />
+      <WelcomeBackBanner resetHref={welcomeBackResetHref("dashboard", user.role, { name: user.name })} />
       <TriageStrip
         tone={triageTone}
         icon={PrimaryFocusIcon ? <PrimaryFocusIcon size={18} aria-hidden="true" /> : <ClipboardCheck size={18} aria-hidden="true" />}
