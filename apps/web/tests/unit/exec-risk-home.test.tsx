@@ -1,7 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
+
+vi.mock("next/dynamic", () => ({
+  default: () =>
+    function MockExecRiskChart() {
+      return <div data-slot="exec-risk-chart" />;
+    }
+}));
 
 const hrefs = {
   overdue: "/reviews?due=overdue",
@@ -26,9 +33,11 @@ describe("ExecRiskHome", () => {
     expect(screen.getByRole("link", { name: /Просрочено SLA/ })).toHaveAttribute("href", hrefs.overdue);
     expect(screen.getByRole("link", { name: /Высокий риск/ })).toHaveAttribute("href", hrefs.highRisk);
     expect(screen.getByRole("link", { name: /Очередь без старта/ })).toHaveAttribute("href", hrefs.queued);
+    expect(screen.getByRole("region", { name: "Сигналы риска" })).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart"]')).toBeInTheDocument();
   });
 
-  it("hides lead/analyst ops chrome", () => {
+  it("hides lead/analyst ops chrome and shows an honest empty instead of a fake-green chart", () => {
     render(
       <ExecRiskHome
         signal={{ overdueReviewCount: 0, highRiskCount: 0, queuedCount: 0 }}
@@ -37,10 +46,16 @@ describe("ExecRiskHome", () => {
       />
     );
 
-    expect(screen.getByText("Нет сигналов за период")).toBeInTheDocument();
+    expect(screen.getAllByText("Нет сигналов за период").length).toBeGreaterThan(0);
+    expect(screen.getByText(/это не сертификат/i)).toBeInTheDocument();
     expect(screen.queryByText("В норме")).not.toBeInTheDocument();
     expect(screen.queryByText("Критичных отклонений нет")).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="triage-strip"]')?.className).not.toMatch(/success/);
+    expect(document.querySelector('[data-slot="exec-risk-chart"]')).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Открыть очередь без фильтра" })).toHaveAttribute(
+      "href",
+      "/reviews"
+    );
     expect(screen.queryByText("Нагрузка проверяющих")).not.toBeInTheDocument();
     expect(screen.queryByText("Последняя активность")).not.toBeInTheDocument();
     expect(screen.queryByText("Ближайшее обучение")).not.toBeInTheDocument();

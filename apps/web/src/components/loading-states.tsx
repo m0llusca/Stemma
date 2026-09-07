@@ -114,6 +114,17 @@ export function PageSkeleton({ label = "Loading page", variant = "workspace" }: 
             </Card>
           ))}
         </section>
+
+        <section aria-hidden="true">
+          <Card>
+            <CardContent>
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-[240px] w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
       </Shell>
     );
   }

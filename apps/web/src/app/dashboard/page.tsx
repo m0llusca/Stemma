@@ -22,7 +22,7 @@ import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, roleHomePath } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
-import { opsQueueKpiHref } from "@/lib/dashboard/queue-kpi-href";
+import { opsQueueKpiHref, OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
 import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/page-permission";
@@ -269,11 +269,13 @@ async function DashboardPageContent() {
       <ExecRiskHome
         signal={{ overdueReviewCount, highRiskCount, queuedCount }}
         hrefs={{
-          overdue: "/reviews?due=overdue",
+          overdue: OVERDUE_SLA_HREF,
           highRisk: thirtyDayHighRiskHref,
-          queued: "/reviews?qaStatus=QUEUED"
+          queued: QUEUED_STATUS_HREF
         }}
         inWorkCount={inWorkCount}
+        role={user.role}
+        name={user.name}
       />
     );
   }
