@@ -49,6 +49,8 @@ List/detail copy uses the same honesty bar (`capabilityReadinessLabel`, `readine
 
 See [semantic-status-colors.md](semantic-status-colors.md).
 
+Probe/OTRS copy: cert badge **«Сертификация»**, operational step **«Шаг»** — do not reuse **«Готовность»** for both. OTRS diagnostics footer: **«Диагностика ≠ живая сертификация»** (`apps/web/src/lib/integrations/probe-honesty.ts`).
+
 ## Source Documentation Gate
 
 Before changing adapter runtime behavior, the implementer must check the current official vendor documentation. Use Context7 first when it has official coverage. If Context7 does not return a useful official source, use the vendor's official developer documentation directly and record the `checkedAt` date in the source contract.

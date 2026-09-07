@@ -56,7 +56,7 @@ All take-next surfaces require `reviews:write`. UI flag: `canTakeNextCase` (shel
 
 Ops empty-triage on `/dashboard` (Lead/Admin) uses the same `takeNextReview` path. Analyst empty-triage is a role-home href (`Открыть сегодня`), not take-next. See [app-shell.md](app-shell.md).
 
-**Follow-up (not fixed):** `QueueSavedViews` create UI still renders for readers on `/reviews`. `createSavedQueueView` does not require `reviews:write`.
+**Saved views:** create / rename / delete require `reviews:write` (`canWriteReviews`). Apply stays for readers who can open `/reviews`. `createSavedQueueView` / `deleteSavedQueueView` are `requireCurrentUserPermission("reviews:write")` — hide mutate chrome. Workspace-scope still additionally requires `workflow:manage`.
 
 **Always (workspace / role / sampling):**
 
@@ -136,6 +136,7 @@ Merging «Итог» into «Статус проверки» would drop the “an
 | ⌘K + pulse wiring | `apps/web/src/lib/shell/navigation.ts` (`take-next` action), `apps/web/src/components/app-nav-shell.tsx` (`runTakeNext`) |
 | Status chip | `apps/web/src/lib/review-state.ts`, `apps/web/src/components/review/review-status-chip.tsx` |
 | Preview UI | `apps/web/src/components/review/queue-next-case-preview.tsx` |
+| Saved views write-gate | `apps/web/src/components/review/queue-saved-views.tsx`, `apps/web/src/lib/queue-view-actions.ts` |
 | Unit tests | `apps/web/tests/unit/review-keyboard.test.ts`, `queue-next-case-preview.test.tsx`, `queue-table-status-chip.test.tsx`, `review-status-chip.test.ts`, `queue-href-filters.test.ts`, `app-nav-shell.test.tsx` (pulse + ⌘K + same FormData), `next-review-query.test.ts`, `queue-view-actions.test.ts`, `review-actions-lifecycle.test.ts` |
 
 Related: [app-shell.md](app-shell.md) (role homes, ⌘K), [ux-persona-adversarial-synthesis.md](ux-persona-adversarial-synthesis.md).
