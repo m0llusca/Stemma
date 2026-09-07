@@ -1,0 +1,28 @@
+---
+description: Always use and refresh the graphify knowledge graph for Stemma codebase work
+alwaysApply: true
+---
+
+# Graphify (required)
+
+Canonical graph: `graphify-out/` at the repo root (gitignored). Scan root: `apps/web/src`.
+
+## Before tasks
+
+For any codebase question or implementation that needs architecture, callers, file relationships, or “where does X live”:
+
+1. Prefer `graphify query "…"`, `graphify path "A" "B"`, or `graphify explain "X"` against `graphify-out/graph.json`.
+2. Or read `graphify-out/GRAPH_REPORT.md` (God Nodes / communities) before broad exploration.
+3. Do not skip this when `graphify-out/graph.json` exists — treat it as the map first.
+
+## After code changes
+
+When you change code under `apps/web/src` (or finish a multi-file coding task):
+
+```bash
+graphify update apps/web/src
+```
+
+If the CLI writes to `apps/web/src/graphify-out/`, move/sync that output to the repo-root `graphify-out/` and keep `graphify-out/.graphify_root` pointing at `/Users/…/qc_app/apps/web/src`.
+
+Code-only updates need no API key. For docs/papers/images, use `/graphify --update` via the graphify skill.

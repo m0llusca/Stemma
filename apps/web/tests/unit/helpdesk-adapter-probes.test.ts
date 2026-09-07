@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDynamicsAdapter } from "@/lib/integrations/helpdesk-adapters/dynamics";
 import { createFreshdeskAdapter } from "@/lib/integrations/helpdesk-adapters/freshdesk";
 import { createHubspotAdapter } from "@/lib/integrations/helpdesk-adapters/hubspot";
@@ -10,6 +10,9 @@ import { createZendeskAdapter } from "@/lib/integrations/helpdesk-adapters/zende
 import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
 
 describe("native helpdesk capability probes", () => {
+  beforeEach(() => {
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+  });
   it("confirms Zendesk ticket and comments operations", async () => {
     const server = await createHelpdeskAdapterServer({ source: "zendesk", mode: "success" });
 

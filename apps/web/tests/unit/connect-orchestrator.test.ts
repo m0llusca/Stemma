@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runConnectPipeline } from "@/lib/integrations/connect/orchestrator";
 import type { SourceConnectionProfile } from "@/lib/integrations/connect/types";
+
+vi.mock("@/lib/net-guard", () => ({
+  assertPublicBaseUrl: vi.fn(async () => undefined)
+}));
 
 function fakeProfile(overrides: Partial<SourceConnectionProfile> = {}): SourceConnectionProfile {
   return {

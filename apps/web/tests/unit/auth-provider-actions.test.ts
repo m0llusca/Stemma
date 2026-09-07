@@ -283,7 +283,7 @@ describe("auth provider server actions", () => {
 
     expect(metadataJson).not.toContain("env:OIDC_CLIENT_SECRET");
     expect(metadata).not.toHaveProperty("clientSecretRef");
-    expect(metadata.credentialConfigured).toBe(true);
+    expect(metadata.hasClientRef).toBe(true);
   });
 
   it("rejects non-HTTPS provider endpoints except localhost", async () => {

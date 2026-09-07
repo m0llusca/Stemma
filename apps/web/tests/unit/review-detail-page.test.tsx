@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   canManageReviewWorkflow: vi.fn(),
   canManageTraining: vi.fn(),
+  canResolveAppeal: vi.fn(),
   canSaveReviewDraft: vi.fn(),
   canSelfReview: vi.fn(),
   requireCurrentUserPermission: vi.fn(),
@@ -13,7 +14,8 @@ const mocks = vi.hoisted(() => ({
   notFound: vi.fn(),
   prisma: {
     user: {
-      findMany: vi.fn()
+      findMany: vi.fn(),
+      findFirst: vi.fn()
     },
     aiQualityDraft: {
       findMany: vi.fn(),
@@ -66,6 +68,7 @@ vi.mock("@/components/ui/validated-submit-button", () => ({
 vi.mock("@/lib/current-user", () => ({
   canManageReviewWorkflow: mocks.canManageReviewWorkflow,
   canManageTraining: mocks.canManageTraining,
+  canResolveAppeal: mocks.canResolveAppeal,
   canSaveReviewDraft: mocks.canSaveReviewDraft,
   canSelfReview: mocks.canSelfReview,
   requireCurrentUserPermission: mocks.requireCurrentUserPermission
@@ -123,6 +126,7 @@ describe("review detail page", () => {
     mocks.canSelfReview.mockReturnValue(true);
     mocks.canManageReviewWorkflow.mockReturnValue(false);
     mocks.canManageTraining.mockReturnValue(false);
+    mocks.canResolveAppeal.mockReturnValue(false);
     mocks.getConversationForReview.mockResolvedValue(conversation());
     mocks.getActiveScorecard.mockResolvedValue({
       id: "scorecard-1",

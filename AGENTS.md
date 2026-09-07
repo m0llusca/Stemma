@@ -5,6 +5,13 @@
 - Local Postgres: Docker Compose (`compose.yaml`) → `localhost:55432`
 - Primary commands: `npm run dev`, `npm run test`, `npm run test:e2e`, `npm run typecheck`
 
+## Graphify
+
+- Canonical map: repo-root `graphify-out/` (scan root `apps/web/src`)
+- **Before** architecture / “where is X” / multi-file work: `graphify query` / `path` / `explain`, or read `GRAPH_REPORT.md`
+- **After** code changes under `apps/web/src`: `graphify update apps/web/src` (sync nested `apps/web/src/graphify-out` → root `graphify-out/` if the CLI writes nested)
+- Cursor rule: `.cursor/rules/graphify.mdc`
+
 ## UI (shadcn)
 
 - Config: `apps/web/components.json` (Base UI, style **base-nova**, lucide)

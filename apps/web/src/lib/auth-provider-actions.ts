@@ -214,7 +214,7 @@ export async function saveIdentityProvider(formData: FormData) {
           type: result.type,
           slug: result.slug,
           status: result.status,
-          credentialConfigured: Boolean(result.clientSecretRef)
+          hasClientRef: Boolean(result.clientSecretRef)
         }
       },
       tx

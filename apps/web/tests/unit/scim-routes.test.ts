@@ -378,7 +378,7 @@ describe("SCIM route handlers", () => {
         ]
       },
       data: expect.objectContaining({
-        role: "SUPPORT_AGENT",
+        role: "VIEWER",
         sourceOfTruthProviderId: "provider-1"
       })
     });

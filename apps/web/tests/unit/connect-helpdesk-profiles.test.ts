@@ -1,10 +1,14 @@
 import { Buffer } from "node:buffer";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { helpdeskProfiles } from "@/lib/integrations/connect/profiles/helpdesk";
 import { getConnectionProfile } from "@/lib/integrations/connect/profiles";
 import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
 
 const zendesk = helpdeskProfiles.zendesk;
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
 
 describe("helpdesk verifyAuth", () => {
   it("zendesk: 200 -> ok with email/token basic credential slot", async () => {

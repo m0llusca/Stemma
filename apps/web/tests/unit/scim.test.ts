@@ -313,7 +313,7 @@ describe("SCIM inbound provisioning", () => {
     expect(JSON.stringify(mocks.prisma.auditLog.create.mock.calls)).not.toContain("scim_test_token");
   });
 
-  it("replaces a privileged local role with provider policy when SCIM links by email", async () => {
+  it("replaces a privileged local role with VIEWER fallback when SCIM links by email without mappings", async () => {
     const { createScimUser } = await import("@/lib/auth/scim");
     const existingAdmin = {
       id: "user-1",
@@ -331,7 +331,7 @@ describe("SCIM inbound provisioning", () => {
       .mockResolvedValueOnce({
         ...existingAdmin,
         name: "Directory User",
-        role: "SUPPORT_AGENT",
+        role: "VIEWER",
         sourceOfTruthProviderId: "provider-1",
         externalIdentities: [{ externalId: "entra-user-1", providerSubject: "entra-user-1", displayName: "Directory User" }]
       });
@@ -340,7 +340,7 @@ describe("SCIM inbound provisioning", () => {
     mocks.prisma.user.update.mockResolvedValue({
       ...existingAdmin,
       name: "Directory User",
-      role: "SUPPORT_AGENT",
+      role: "VIEWER",
       sourceOfTruthProviderId: "provider-1",
       lastDirectorySyncAt: new Date("2026-05-18T10:00:00.000Z")
     });
@@ -361,7 +361,7 @@ describe("SCIM inbound provisioning", () => {
     expect(mocks.prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: expect.objectContaining({
-        role: "SUPPORT_AGENT",
+        role: "VIEWER",
         sourceOfTruthProviderId: "provider-1"
       })
     });
@@ -598,7 +598,7 @@ describe("SCIM inbound provisioning", () => {
         ]
       },
       data: expect.objectContaining({
-        role: "SUPPORT_AGENT",
+        role: "VIEWER",
         sourceOfTruthProviderId: "provider-1"
       })
     });
@@ -685,7 +685,7 @@ describe("SCIM inbound provisioning", () => {
         ]
       },
       data: expect.objectContaining({
-        role: "SUPPORT_AGENT",
+        role: "VIEWER",
         sourceOfTruthProviderId: "provider-1"
       })
     });
@@ -724,7 +724,7 @@ describe("SCIM inbound provisioning", () => {
         ]
       },
       data: expect.objectContaining({
-        role: "SUPPORT_AGENT",
+        role: "VIEWER",
         sourceOfTruthProviderId: "provider-1"
       })
     });

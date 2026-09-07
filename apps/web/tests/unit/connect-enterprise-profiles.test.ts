@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   enterpriseProfiles,
   limitedSupportSources
@@ -7,6 +7,10 @@ import {
 import { getConnectionProfile } from "@/lib/integrations/connect/profiles";
 import type { ConnectContext } from "@/lib/integrations/connect/types";
 import { createHelpdeskAdapterServer } from "../fixtures/helpdesk-adapter-server";
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
 
 type FakeTransport = (req: unknown) => Promise<{ statusCode: number; body: Buffer }>;
 
