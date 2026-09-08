@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AccountMenuDisclosure,
+  DemoRoleSwitchMenu,
+  resetAccountMenuExpandedForTests
+} from "@/components/auth/demo-role-switch";
 
 vi.mock("@/lib/user-actions", () => ({
   switchCurrentUser: vi.fn()
@@ -26,17 +30,43 @@ function DemoPanel() {
   return <DemoRoleSwitchMenu switcher={{ currentUserId: "user-1", roleLabel: "Оператор", users: demoUsers }} />;
 }
 
+function renderMenu(dismissKey?: string) {
+  return render(
+    <AccountMenuDisclosure
+      triggerAriaLabel="Профиль: Оператор, Иван Петров"
+      triggerClassName="inline-flex"
+      dismissKey={dismissKey}
+      panel={<DemoPanel />}
+    >
+      Оператор
+    </AccountMenuDisclosure>
+  );
+}
+
+function openTrigger() {
+  const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+  fireEvent.pointerDown(trigger);
+  fireEvent.pointerUp(trigger);
+  fireEvent.click(trigger);
+  return trigger;
+}
+
 describe("AccountMenuDisclosure", () => {
+  beforeEach(() => {
+    resetAccountMenuExpandedForTests();
+  });
+
+  it("opens on pointerdown alone so a remount before click still shows DEMO roles", () => {
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    fireEvent.pointerDown(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
+  });
+
   it("opens on a real pointer sequence and keeps aria-expanded true with DEMO roles visible", () => {
-    render(
-      <AccountMenuDisclosure
-        triggerAriaLabel="Профиль: Оператор, Иван Петров"
-        triggerClassName="inline-flex"
-        panel={<DemoPanel />}
-      >
-        Оператор
-      </AccountMenuDisclosure>
-    );
+    renderMenu();
 
     const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
     expect(trigger.tagName).toBe("BUTTON");
@@ -53,6 +83,16 @@ describe("AccountMenuDisclosure", () => {
     expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+  });
+
+  it("stays open after a duplicate click (explicit open, not !current toggle)", () => {
+    renderMenu();
+    const trigger = openTrigger();
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
   it("keeps aria-expanded true after a parent re-render while the panel stays open", () => {
@@ -76,11 +116,7 @@ describe("AccountMenuDisclosure", () => {
     }
 
     render(<Harness />);
-    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
-    fireEvent.pointerDown(trigger);
-    fireEvent.pointerUp(trigger);
-    fireEvent.click(trigger);
-
+    const trigger = openTrigger();
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
     fireEvent.click(screen.getByRole("button", { name: "force-rerender" }));
@@ -89,21 +125,66 @@ describe("AccountMenuDisclosure", () => {
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
-  it("stays open after a leftover document pointerdown because outside-click is not wired", () => {
-    render(
+  it("stays open across an unmount/remount (AppNav Suspense remount)", () => {
+    const { unmount } = renderMenu();
+    openTrigger();
+    expect(screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" }).getAttribute("aria-expanded")).toBe(
+      "true"
+    );
+
+    unmount();
+    renderMenu();
+
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
+  });
+
+  it("closes only when dismissKey changes, not when it stays the same", () => {
+    const { rerender } = render(
       <AccountMenuDisclosure
         triggerAriaLabel="Профиль: Оператор, Иван Петров"
         triggerClassName="inline-flex"
+        dismissKey="/self-review"
         panel={<DemoPanel />}
       >
         Оператор
       </AccountMenuDisclosure>
     );
+    const trigger = openTrigger();
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
-    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
-    fireEvent.pointerDown(trigger);
-    fireEvent.pointerUp(trigger);
-    fireEvent.click(trigger);
+    rerender(
+      <AccountMenuDisclosure
+        triggerAriaLabel="Профиль: Оператор, Иван Петров"
+        triggerClassName="inline-flex"
+        dismissKey="/self-review"
+        panel={<DemoPanel />}
+      >
+        Оператор
+      </AccountMenuDisclosure>
+    );
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    rerender(
+      <AccountMenuDisclosure
+        triggerAriaLabel="Профиль: Оператор, Иван Петров"
+        triggerClassName="inline-flex"
+        dismissKey="/coaching"
+        panel={<DemoPanel />}
+      >
+        Оператор
+      </AccountMenuDisclosure>
+    );
+    expect(screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" }).getAttribute("aria-expanded")).toBe(
+      "false"
+    );
+    expect(screen.queryByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).toBeNull();
+  });
+
+  it("stays open after a leftover document pointerdown because outside-click is not wired", () => {
+    renderMenu();
+    const trigger = openTrigger();
     fireEvent.pointerDown(document.body);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");

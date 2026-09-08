@@ -47,6 +47,8 @@ vi.mock("@/lib/user-actions", () => ({
   switchCurrentUser: mocks.switchCurrentUser
 }));
 
+import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
+
 function mockCurrentUser(role = "ADMIN") {
   mocks.getCurrentUser.mockResolvedValue({
     id: "user-1",
@@ -64,6 +66,7 @@ function mockCurrentUser(role = "ADMIN") {
 
 describe("app nav", () => {
   beforeEach(() => {
+    resetAccountMenuExpandedForTests();
     vi.clearAllMocks();
     mockCurrentUser();
   });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
@@ -48,6 +49,7 @@ vi.mock("@/lib/user-actions", () => ({
 describe("pending-access holding state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAccountMenuExpandedForTests();
     mocks.getDemoRoleSwitcher.mockResolvedValue(null);
     mocks.getCurrentUser.mockResolvedValue({
       id: "demo-user-viewer",

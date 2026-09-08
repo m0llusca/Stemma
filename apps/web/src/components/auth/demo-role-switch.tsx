@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/**
+ * Survives AppNavShell remount (Suspense + useSearchParams in AppNav).
+ * LIVE ee55639: focus ring after click, panel never stuck — `useState(false)`
+ * reset on remount and/or `setExpanded(c => !c)` ran twice.
+ */
+let accountMenuExpanded = false;
+
+export function resetAccountMenuExpandedForTests() {
+  accountMenuExpanded = false;
+}
 
 type AccountMenuDisclosureProps = {
   triggerAriaLabel: string;
@@ -19,10 +30,16 @@ type AccountMenuDisclosureProps = {
   panel: ReactNode;
 };
 
+function setAccountMenuExpanded(next: boolean, commit: (value: boolean) => void) {
+  accountMenuExpanded = next;
+  commit(next);
+}
+
 /**
- * One React `expanded` flag drives both the panel and `aria-expanded`.
- * `<details>` is gone: native `open` and React state diverged on LIVE
- * (panel visible, oracle still read `aria-expanded="false"`).
+ * Plain button + one React flag for the panel and `aria-expanded`.
+ * Pointerdown and click always **open** (idempotent). Close is Escape or a
+ * dismissKey change only — no `!current` toggle, no document pointerdown,
+ * no `<details>`.
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -35,15 +52,23 @@ export function AccountMenuDisclosure({
   panel
 }: AccountMenuDisclosureProps) {
   const prevDismissKeyRef = useRef(dismissKey);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => accountMenuExpanded);
   const menuId = useId();
+
+  const openMenu = () => {
+    setAccountMenuExpanded(true, setExpanded);
+  };
+
+  useLayoutEffect(() => {
+    setExpanded(accountMenuExpanded);
+  }, []);
 
   useEffect(() => {
     if (prevDismissKeyRef.current === dismissKey) {
       return;
     }
     prevDismissKeyRef.current = dismissKey;
-    setExpanded(false);
+    setAccountMenuExpanded(false, setExpanded);
   }, [dismissKey]);
 
   useEffect(() => {
@@ -52,7 +77,7 @@ export function AccountMenuDisclosure({
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setExpanded(false);
+        setAccountMenuExpanded(false, setExpanded);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -67,12 +92,11 @@ export function AccountMenuDisclosure({
         title={triggerTitle}
         aria-label={triggerAriaLabel}
         aria-haspopup="menu"
-        aria-expanded={expanded}
+        aria-expanded={expanded ? "true" : "false"}
         aria-controls={expanded ? menuId : undefined}
         className={triggerClassName}
-        onClick={() => {
-          setExpanded((current) => !current);
-        }}
+        onPointerDown={openMenu}
+        onClick={openMenu}
       >
         {children}
       </button>

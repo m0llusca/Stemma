@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppNavShell } from "@/components/app-nav-shell";
+import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
 import { analystMineOverdueHref } from "@/lib/auth/role-home";
 import { buildShellNavigation, visibleTopNavAreas } from "@/lib/shell/navigation";
 
@@ -55,6 +56,7 @@ function areaNav() {
 
 describe("app nav shell", () => {
   beforeEach(() => {
+    resetAccountMenuExpandedForTests();
     mocks.pathname = "/reviews";
     mocks.search = "";
     mocks.routerPush.mockClear();
