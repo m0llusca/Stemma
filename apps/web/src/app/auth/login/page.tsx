@@ -13,11 +13,6 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from "@/components/ui/collapsible";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -274,32 +269,33 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {demoUsers.length > 0 ? (
           <CardFooter className="flex-col items-stretch">
-            <Collapsible className="w-full">
-              <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <details className="w-full">
+              <summary
+                role="button"
+                className="flex w-full cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-foreground outline-none [&::-webkit-details-marker]:hidden focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <UserRoundCheck className="size-3.5 text-muted-foreground" aria-hidden="true" />
                 Демо-вход
-              </CollapsibleTrigger>
-              <CollapsibleContent keepMounted>
-                <form action={signInWithDemoUser} className="mt-3.5">
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  <FieldGroup className="gap-3.5">
-                    <Field>
-                      <FieldLabel htmlFor="demo-user">Пользователь</FieldLabel>
-                      <NativeSelect id="demo-user" name="userId" className="w-full">
-                        {demoUsers.map((user) => (
-                          <NativeSelectOption key={user.id} value={user.id}>
-                            {demoUserOptionLabel(user)}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
-                    </Field>
-                    <Button type="submit" variant="secondary" className="w-full">
-                      Войти в демо-режиме
-                    </Button>
-                  </FieldGroup>
-                </form>
-              </CollapsibleContent>
-            </Collapsible>
+              </summary>
+              <form action={signInWithDemoUser} className="mt-3.5">
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <FieldGroup className="gap-3.5">
+                  <Field>
+                    <FieldLabel htmlFor="demo-user">Пользователь</FieldLabel>
+                    <NativeSelect id="demo-user" name="userId" className="w-full">
+                      {demoUsers.map((user) => (
+                        <NativeSelectOption key={user.id} value={user.id}>
+                          {demoUserOptionLabel(user)}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                  <Button type="submit" variant="secondary" className="w-full">
+                    Войти в демо-режиме
+                  </Button>
+                </FieldGroup>
+              </form>
+            </details>
           </CardFooter>
         ) : null}
       </Card>

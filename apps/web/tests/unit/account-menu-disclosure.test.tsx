@@ -6,6 +6,7 @@ import {
   DemoRoleSwitchMenu,
   resetAccountMenuExpandedForTests
 } from "@/components/auth/demo-role-switch";
+import { switchCurrentUser } from "@/lib/user-actions";
 
 vi.mock("@/lib/user-actions", () => ({
   switchCurrentUser: vi.fn()
@@ -58,6 +59,7 @@ function openViaUa(trigger: HTMLElement) {
 describe("AccountMenuDisclosure", () => {
   beforeEach(() => {
     resetAccountMenuExpandedForTests();
+    vi.mocked(switchCurrentUser).mockClear();
   });
 
   it("sets aria-expanded in the same turn as a native toggle event", () => {
@@ -182,5 +184,35 @@ describe("AccountMenuDisclosure", () => {
     const closed = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
     expect(closed.getAttribute("aria-expanded")).toBe("false");
     expect(closed.closest("details")?.open).toBe(false);
+  });
+
+  it("submits switchCurrentUser with userId when a DEMO role is chosen", () => {
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    openViaUa(trigger);
+
+    const option = screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" });
+    const form = option.closest("form");
+    expect(form).not.toBeNull();
+    expect(form?.querySelector('input[name="userId"]')?.getAttribute("value")).toBe("user-2");
+    expect(option.getAttribute("type")).toBe("submit");
+
+    fireEvent.click(option);
+
+    expect(switchCurrentUser).toHaveBeenCalledTimes(1);
+    const formData = vi.mocked(switchCurrentUser).mock.calls[0]?.[0] as FormData;
+    expect(formData.get("userId")).toBe("user-2");
+  });
+
+  it("does not submit switchCurrentUser for the current DEMO role", () => {
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    openViaUa(trigger);
+
+    const current = screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" });
+    expect(current.closest("form")).toBeNull();
+    expect(current.getAttribute("type")).toBe("button");
+    fireEvent.click(current);
+    expect(switchCurrentUser).not.toHaveBeenCalled();
   });
 });

@@ -11,7 +11,7 @@ import {
   type ToggleEvent
 } from "react";
 import { ChevronDown } from "lucide-react";
-import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
+import { type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -162,33 +162,38 @@ export function AccountMenuDisclosure({
 
 export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher }) {
   return (
-    <div role="group" aria-label="Сменить роль">
+    <div role="group" aria-label="Сменить роль" data-testid="demo-role-switch">
       <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Сменить роль</div>
       {switcher.users.map((user) => {
         const isCurrent = user.id === switcher.currentUserId;
+        const itemClassName = cn(
+          "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm outline-hidden select-none",
+          "focus:bg-accent focus:text-accent-foreground",
+          isCurrent && "pointer-events-none opacity-50"
+        );
+
+        if (isCurrent) {
+          return (
+            <button
+              key={user.id}
+              type="button"
+              role="menuitem"
+              aria-current="true"
+              aria-disabled="true"
+              className={itemClassName}
+            >
+              <span className="min-w-0 truncate">{user.optionLabel}</span>
+            </button>
+          );
+        }
 
         return (
-          <button
-            key={user.id}
-            type="button"
-            role="menuitem"
-            aria-current={isCurrent ? "true" : undefined}
-            aria-disabled={isCurrent ? true : undefined}
-            className={cn(
-              "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm outline-hidden select-none",
-              "focus:bg-accent focus:text-accent-foreground",
-              isCurrent && "pointer-events-none opacity-50"
-            )}
-            onClick={() => {
-              if (isCurrent) {
-                return;
-              }
-
-              void switchCurrentUser(demoRoleSwitchFormData(user.id));
-            }}
-          >
-            <span className="min-w-0 truncate">{user.optionLabel}</span>
-          </button>
+          <form key={user.id} action={switchCurrentUser} className="w-full">
+            <input type="hidden" name="userId" value={user.id} />
+            <button type="submit" role="menuitem" className={itemClassName}>
+              <span className="min-w-0 truncate">{user.optionLabel}</span>
+            </button>
+          </form>
         );
       })}
     </div>
