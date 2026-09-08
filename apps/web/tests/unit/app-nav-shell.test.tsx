@@ -54,6 +54,35 @@ function areaNav() {
   return screen.getByRole("navigation", { name: "Основные разделы" });
 }
 
+function openAccountMenu(trigger: HTMLElement) {
+  fireEvent.click(trigger);
+  const details = trigger.closest("details");
+  if (details && !details.open) {
+    details.open = true;
+  }
+  if (details?.open && trigger.getAttribute("aria-expanded") !== "true") {
+    fireEvent(details, new Event("toggle", { bubbles: true }));
+  }
+}
+
+function areaMenu() {
+  const menu = screen
+    .getAllByRole("menu")
+    .find((element) => element.getAttribute("aria-label") === "Основные разделы");
+  if (!menu) {
+    throw new Error("area menu not found");
+  }
+  return menu;
+}
+
+function queryAreaMenu() {
+  return (
+    screen
+      .queryAllByRole("menu")
+      .find((element) => element.getAttribute("aria-label") === "Основные разделы") ?? null
+  );
+}
+
 describe("app nav shell", () => {
   beforeEach(() => {
     resetAccountMenuExpandedForTests();
@@ -384,8 +413,8 @@ describe("app nav shell", () => {
   it("submits logout through a native post form inside the identity menu", () => {
     render(<AppNavShell {...baseProps} />);
 
-    // Identity popover is portaled; open it before looking for the logout action.
-    fireEvent.click(screen.getByRole("button", { name: /Админ/ }));
+    // Identity menu is a native details panel; open it before looking for logout.
+    openAccountMenu(screen.getByRole("button", { name: /Админ/ }));
     const logoutButton = screen.getByRole("button", { name: "Выйти" });
     const logoutForm = logoutButton.closest("form");
 
@@ -402,8 +431,9 @@ describe("app nav shell", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(trigger.textContent).toContain("Проверки");
 
-    // The disclosure menu is closed until the trigger is activated.
-    expect(screen.queryByRole("menu")).toBeNull();
+    // Area menu is closed until the trigger is activated (account details
+    // keeps a role=menu panel in the tree; jsdom does not hide it).
+    expect(queryAreaMenu()).toBeNull();
   });
 
   it("derives the compact menu and full navigation from the same active-area contract", () => {
@@ -417,7 +447,7 @@ describe("app nav shell", () => {
 
     const trigger = screen.getByRole("button", { name: "Разделы" });
     fireEvent.click(trigger);
-    const menuLinks = within(screen.getByRole("menu")).getAllByRole("menuitem");
+    const menuLinks = within(areaMenu()).getAllByRole("menuitem");
     expect(menuLinks.map((link) => link.getAttribute("href"))).toEqual(fullDestinations);
     expect(menuLinks.filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(1);
   });
@@ -438,7 +468,7 @@ describe("app nav shell", () => {
 
     fireEvent.click(trigger);
     expect(
-      within(screen.getByRole("menu"))
+      within(areaMenu())
         .getAllByRole("menuitem")
         .filter((link) => link.getAttribute("aria-current") === "page")
     ).toHaveLength(0);
@@ -460,8 +490,7 @@ describe("app nav shell", () => {
     fireEvent.click(trigger);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    // Base UI associates the popup name with the trigger ("Разделы"); match by role only.
-    const menu = screen.getByRole("menu");
+    const menu = areaMenu();
     expect(menu.getAttribute("aria-label")).toBe("Основные разделы");
     const links = within(menu).getAllByRole("menuitem");
     expect(links.map((link) => link.textContent)).toEqual([
@@ -479,7 +508,7 @@ describe("app nav shell", () => {
 
     // Escape closes the menu and returns aria-expanded to false.
     fireEvent.keyDown(menu, { key: "Escape" });
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(queryAreaMenu()).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
@@ -488,12 +517,12 @@ describe("app nav shell", () => {
 
     const trigger = screen.getByRole("button", { name: "Разделы" });
     fireEvent.click(trigger);
-    const menu = screen.getByRole("menu");
+    const menu = areaMenu();
 
     const analyticsLink = within(menu).getByRole("menuitem", { name: /Аналитика/ });
     analyticsLink.addEventListener("click", (event) => event.preventDefault());
     fireEvent.click(analyticsLink);
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(queryAreaMenu()).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
@@ -570,7 +599,7 @@ describe("app nav shell", () => {
     expect(trigger.getAttribute("data-slot")).toBe("account-menu");
     fireEvent.pointerDown(trigger);
     fireEvent.pointerUp(trigger);
-    fireEvent.click(trigger);
+    openAccountMenu(trigger);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menu")).not.toBeNull();
@@ -608,8 +637,8 @@ describe("app nav shell", () => {
     expect(trigger.getAttribute("data-slot")).toBe("account-menu");
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "Enter" });
-    // Native <button> synthesizes click on Enter; fireEvent.keyDown does not.
-    fireEvent.click(trigger);
+    // Native <summary> opens on click; fireEvent.keyDown does not synthesize it.
+    openAccountMenu(trigger);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
@@ -640,7 +669,7 @@ describe("app nav shell", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Администратор/ }));
+    openAccountMenu(screen.getByRole("button", { name: /Администратор/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" }));
 
     expect(mocks.switchCurrentUser).toHaveBeenCalledTimes(1);

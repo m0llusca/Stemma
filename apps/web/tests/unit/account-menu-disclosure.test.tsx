@@ -11,14 +11,6 @@ vi.mock("@/lib/user-actions", () => ({
   switchCurrentUser: vi.fn()
 }));
 
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-vi.stubGlobal("ResizeObserver", ResizeObserverStub);
-Element.prototype.scrollIntoView = vi.fn();
-
 const demoUsers = [
   {
     id: "user-1",
@@ -51,10 +43,16 @@ function renderMenu(dismissKey?: string) {
   );
 }
 
-function openTrigger() {
-  const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+function openViaUa(trigger: HTMLElement) {
   fireEvent.click(trigger);
-  return trigger;
+  const details = trigger.closest("details");
+  if (details && !details.open) {
+    details.open = true;
+  }
+  if (details?.open && trigger.getAttribute("aria-expanded") !== "true") {
+    fireEvent(details, new Event("toggle", { bubbles: true }));
+  }
+  return details;
 }
 
 describe("AccountMenuDisclosure", () => {
@@ -62,26 +60,25 @@ describe("AccountMenuDisclosure", () => {
     resetAccountMenuExpandedForTests();
   });
 
-  it("opens on click like the area-menu DropdownMenu and shows DEMO roles", () => {
+  it("opens via native details and sets aria-expanded from the toggle event", () => {
     renderMenu();
 
     const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
-    expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger.tagName).toBe("SUMMARY");
     expect(trigger.getAttribute("data-slot")).toBe("account-menu");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(trigger.closest("details")).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).toBeNull();
+    expect(trigger.closest("details")).not.toBeNull();
+    expect(trigger.closest("details")?.open).toBe(false);
 
-    fireEvent.click(trigger);
-
+    const details = openViaUa(trigger);
+    expect(details?.open).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("menu")).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
   });
 
-  it("keeps aria-expanded true after a parent re-render while the panel stays open", () => {
+  it("keeps details.open and aria-expanded true after a parent re-render", () => {
     function Harness() {
       const [tick, setTick] = useState(0);
       return (
@@ -102,27 +99,30 @@ describe("AccountMenuDisclosure", () => {
     }
 
     render(<Harness />);
-    const trigger = openTrigger();
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    openViaUa(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.closest("details")?.open).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "force-rerender" }));
     expect(screen.getByTestId("rerender-tick").textContent).toBe("1");
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.closest("details")?.open).toBe(true);
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
-  it("stays open across an unmount/remount (AppNav Suspense remount)", () => {
+  it("restores details.open and aria-expanded after remount from the mirrored flag", () => {
     const { unmount } = renderMenu();
-    openTrigger();
-    expect(screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" }).getAttribute("aria-expanded")).toBe(
-      "true"
-    );
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    openViaUa(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
     unmount();
     renderMenu();
 
-    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const next = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    expect(next.closest("details")?.open).toBe(true);
+    expect(next.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
@@ -137,7 +137,8 @@ describe("AccountMenuDisclosure", () => {
         Оператор
       </AccountMenuDisclosure>
     );
-    const trigger = openTrigger();
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    openViaUa(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
     rerender(
@@ -151,6 +152,7 @@ describe("AccountMenuDisclosure", () => {
       </AccountMenuDisclosure>
     );
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.closest("details")?.open).toBe(true);
 
     rerender(
       <AccountMenuDisclosure
@@ -162,9 +164,8 @@ describe("AccountMenuDisclosure", () => {
         Оператор
       </AccountMenuDisclosure>
     );
-    expect(screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" }).getAttribute("aria-expanded")).toBe(
-      "false"
-    );
-    expect(screen.queryByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).toBeNull();
+    const closed = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    expect(closed.getAttribute("aria-expanded")).toBe("false");
+    expect(closed.closest("details")?.open).toBe(false);
   });
 });

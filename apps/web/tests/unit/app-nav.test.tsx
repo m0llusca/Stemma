@@ -274,7 +274,13 @@ describe("app nav", () => {
     render(await AppNav());
 
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Профиль: Администратор/ }));
+    const profile = screen.getByRole("button", { name: /Профиль: Администратор/ });
+    fireEvent.click(profile);
+    const details = profile.closest("details");
+    if (details && !details.open) {
+      details.open = true;
+      fireEvent(details, new Event("toggle", { bubbles: true }));
+    }
     expect(await screen.findByRole("menuitem", { name: "Оператор · Демо" })).not.toBeNull();
     expect(
       screen.getByRole("menuitem", { name: "Админ · Администратор · Демо" }).getAttribute("aria-disabled")
