@@ -77,7 +77,7 @@ Gate RSC pages with `requirePagePermission` / `denyPageAccess` (`apps/web/src/li
 
 API routes and server actions keep `requireCurrentUserPermission` (403 JSON or throw). Mutation deny UX is unchanged.
 
-Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status.
+Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status. `/dashboard` is the exception: `requirePagePermission` runs **before** `<Suspense>` so a missing session can still set 401 (LIVE cold-curl used to get 200 + shell under `QC_DEMO_AUTH`; see [demo-stand-perf.md](operations/demo-stand-perf.md)).
 
 `AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). `AppNav` wraps the shell in `Suspense` (after the unauthenticated `null` return) so the layout can statically render without a CSR bailout. Do not wrap `<AppNav />` itself in `layout.tsx` — that would flash the header fallback on the login shell.
 

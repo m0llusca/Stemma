@@ -20,10 +20,9 @@ import { TriageStrip } from "@/components/ui/triage-strip";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
-import { canAccessDashboard, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
+import { canAccessDashboard, dashboardSkeletonVariantForRole, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
 import { opsQueueKpiHref, OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
-import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/page-permission";
 import { takeNextReview } from "@/lib/queue-view-actions";
@@ -98,7 +97,13 @@ type FocusItem = {
 };
 
 export default async function DashboardPage() {
-  const skeletonVariant = await resolveDashboardSkeletonVariant();
+  // Gate before Suspense so unauthorized/forbidden can set status. A gate
+  // inside the fallback stream stays HTTP 200 (see docs/app-shell.md).
+  const user = await requirePagePermission("reviews:read");
+  if (!canAccessDashboard(user.role)) {
+    redirect(roleHomePath(user.role, { name: user.name }));
+  }
+  const skeletonVariant = dashboardSkeletonVariantForRole(user.role);
 
   return (
     <Suspense fallback={<PageSkeleton variant={skeletonVariant} label="Загрузка дашборда" />}>
@@ -140,24 +145,28 @@ async function DashboardPageContent() {
     agentReviews,
     reviewerWorkload
   ] = await Promise.all([
-    prisma.review.count({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { gte: thisWeekStart, lte: now },
-        ...supportAgentScope
-      }
-    }),
-    prisma.review.count({
-      where: {
-        workspaceId: user.workspaceId,
-        status: "FINALIZED",
-        reviewSource: "HUMAN",
-        finalizedAt: { gte: previousWeekStart, lt: thisWeekStart },
-        ...supportAgentScope
-      }
-    }),
+    isExecDashboard
+      ? Promise.resolve(0)
+      : prisma.review.count({
+          where: {
+            workspaceId: user.workspaceId,
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            finalizedAt: { gte: thisWeekStart, lte: now },
+            ...supportAgentScope
+          }
+        }),
+    isExecDashboard
+      ? Promise.resolve(0)
+      : prisma.review.count({
+          where: {
+            workspaceId: user.workspaceId,
+            status: "FINALIZED",
+            reviewSource: "HUMAN",
+            finalizedAt: { gte: previousWeekStart, lt: thisWeekStart },
+            ...supportAgentScope
+          }
+        }),
     prisma.conversation.count({
       where: { workspaceId: user.workspaceId, qaStatus: "QUEUED", ...conversationScope }
     }),
@@ -174,21 +183,25 @@ async function DashboardPageContent() {
         ...supportAgentScope
       }
     }),
-    prisma.trainingAssignment.count({
-      where: {
-        workspaceId: user.workspaceId,
-        status: { not: "done" },
-        ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
-      }
-    }),
-    prisma.trainingAssignment.count({
-      where: {
-        workspaceId: user.workspaceId,
-        status: { not: "done" },
-        dueAt: { lt: now },
-        ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
-      }
-    }),
+    isExecDashboard
+      ? Promise.resolve(0)
+      : prisma.trainingAssignment.count({
+          where: {
+            workspaceId: user.workspaceId,
+            status: { not: "done" },
+            ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
+          }
+        }),
+    isExecDashboard
+      ? Promise.resolve(0)
+      : prisma.trainingAssignment.count({
+          where: {
+            workspaceId: user.workspaceId,
+            status: { not: "done" },
+            dueAt: { lt: now },
+            ...(user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : {})
+          }
+        }),
     prisma.conversation.count({
       where: {
         workspaceId: user.workspaceId,

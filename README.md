@@ -86,7 +86,7 @@ Store integration secrets as `v1:` ciphertext or `env:` refs (`apps/web/src/lib/
 - [Playwright verify database](docs/e2e-verify-database.md)
 - [Job scheduling](docs/jobs-scheduling.md)
 - [Integration install contracts](docs/integration-install-contracts.md)
-- [Operations](docs/operations/)
+- [Operations](docs/operations/) — box demo speed: [demo-stand-perf.md](docs/operations/demo-stand-perf.md)
 
 UI kit: shadcn/ui (Base UI, `base-nova`) — `docs/memory/shadcn-ui-knowledge.md`. Agent notes: `AGENTS.md`.
 
