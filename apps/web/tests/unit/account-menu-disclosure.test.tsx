@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AccountMenuDisclosure,
@@ -58,6 +58,20 @@ function openViaUa(trigger: HTMLElement) {
 describe("AccountMenuDisclosure", () => {
   beforeEach(() => {
     resetAccountMenuExpandedForTests();
+  });
+
+  it("sets aria-expanded in the same turn as a native toggle event", () => {
+    renderMenu();
+    const trigger = document.querySelector("[data-slot=account-menu]");
+    const details = trigger?.closest("details");
+    expect(trigger).not.toBeNull();
+    expect(details).not.toBeNull();
+
+    act(() => {
+      details!.open = true;
+      details!.dispatchEvent(new Event("toggle"));
+    });
+    expect(trigger!.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("opens via native details and sets aria-expanded from the toggle event", () => {

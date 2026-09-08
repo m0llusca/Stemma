@@ -54,9 +54,10 @@ type AccountMenuDisclosureProps = {
 };
 
 /**
- * Native `<details>` owns open. `aria-expanded` lives in both layers:
- * JSX so React will not strip the attribute, and setAttribute so readers
- * see it before paint. Each layout commit re-reads `details.open`.
+ * Native `<details>` owns open. A native `toggle` listener writes
+ * `aria-expanded` in the same turn as the UA click (React onToggle/setState
+ * is too late for same-turn getAttribute). JSX still has the prop so later
+ * commits do not strip it.
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -85,7 +86,16 @@ export function AccountMenuDisclosure({
   }, []);
 
   useLayoutEffect(() => {
-    syncFromDetails(detailsRef.current, setExpanded);
+    const root = detailsRef.current;
+    if (!root) {
+      return;
+    }
+    const onNativeToggle = () => {
+      syncFromDetails(root, setExpanded);
+    };
+    root.addEventListener("toggle", onNativeToggle);
+    onNativeToggle();
+    return () => root.removeEventListener("toggle", onNativeToggle);
   });
 
   useEffect(() => {
