@@ -34,7 +34,7 @@ import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
 import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
-import { DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
+import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -130,7 +130,6 @@ export function AppNavShell({
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
   const search = searchParams.toString();
@@ -182,10 +181,9 @@ export function AppNavShell({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openCommand]);
 
-  // Mobile area menu / account menu: close on route change so a navigation always dismisses the panel.
+  // Mobile area menu: close on route change so a navigation always dismisses the panel.
   useEffect(() => {
     setAreaMenuOpen(false);
-    setAccountMenuOpen(false);
   }, [pathname]);
 
   // Reset search text when the palette closes so the next open starts clean.
@@ -442,59 +440,54 @@ export function AppNavShell({
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
-        {/* Native trigger (not render={<Button>}) + modal={false}: Base UI treats the
-            opening click as outside-press when a Button host is modal, so the menu
-            never stays open — LIVE fail on Agent /self-review. */}
-        <DropdownMenu
-          open={accountMenuOpen}
-          onOpenChange={setAccountMenuOpen}
-          modal={false}
-        >
-          <DropdownMenuTrigger
-            type="button"
-            data-slot="account-menu"
-            title={user.email}
-            aria-label={
-              demoRoleLabel
-                ? `Профиль: ${demoRoleLabel}, ${demoUserName}`
-                : `Профиль: ${user.name}`
-            }
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
-            )}
-          >
-            <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-              <span className="max-w-36 truncate text-sm font-medium leading-none">
-                {demoRoleLabel ?? user.name}
-              </span>
-              <span className="max-w-36 truncate text-xs text-muted-foreground">
-                {demoSwitcher ? demoUserName : user.email}
-              </span>
-            </span>
-            <ChevronDown data-icon="inline-end" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={demoSwitcher ? "w-72" : "w-56"}>
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center gap-1.5 font-normal" title={user.email}>
-                <Bell />
+        <AccountMenuDisclosure
+          triggerAriaLabel={
+            demoRoleLabel
+              ? `Профиль: ${demoRoleLabel}, ${demoUserName}`
+              : `Профиль: ${user.name}`
+          }
+          triggerTitle={user.email}
+          triggerClassName={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
+          )}
+          align="end"
+          dismissKey={pathname}
+          panelClassName={demoSwitcher ? "w-72" : "w-56"}
+          panel={
+            <>
+              <div
+                className="flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-muted-foreground"
+                title={user.email}
+              >
+                <Bell className="size-4" />
                 <span className="truncate">{demoSwitcher ? demoUserName : user.name}</span>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            {demoSwitcher ? (
-              <>
-                <DropdownMenuSeparator />
-                <DemoRoleSwitchMenu switcher={demoSwitcher} />
-              </>
-            ) : null}
-            <DropdownMenuSeparator />
-            <form action="/auth/logout" method="post" className="px-1.5 pb-1">
-              <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
-                Выйти
-              </Button>
-            </form>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </div>
+              {demoSwitcher ? (
+                <>
+                  <div className="-mx-1 my-1 h-px bg-border" role="separator" />
+                  <DemoRoleSwitchMenu switcher={demoSwitcher} />
+                </>
+              ) : null}
+              <div className="-mx-1 my-1 h-px bg-border" role="separator" />
+              <form action="/auth/logout" method="post" className="px-1.5 pb-1">
+                <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
+                  Выйти
+                </Button>
+              </form>
+            </>
+          }
+        >
+          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+            <span className="max-w-36 truncate text-sm font-medium leading-none">
+              {demoRoleLabel ?? user.name}
+            </span>
+            <span className="max-w-36 truncate text-xs text-muted-foreground">
+              {demoSwitcher ? demoUserName : user.email}
+            </span>
+          </span>
+          <ChevronDown data-icon="inline-end" />
+        </AccountMenuDisclosure>
       </div>
 
       <CommandDialog

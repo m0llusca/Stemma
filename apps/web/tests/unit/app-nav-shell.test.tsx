@@ -570,8 +570,45 @@ describe("app nav shell", () => {
     fireEvent.click(trigger);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menu")).not.toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Иван · Оператор · Демо" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+  });
+
+  it("opens the account menu from the keyboard so DEMO roles stay visible", () => {
+    render(
+      <AppNavShell
+        {...baseProps}
+        demoSwitcher={{
+          currentUserId: "user-1",
+          roleLabel: "Оператор",
+          users: [
+            {
+              id: "user-1",
+              name: "Иван Петров",
+              roleLabel: "Оператор",
+              optionLabel: "Иван Петров · Оператор · Демо"
+            },
+            {
+              id: "user-2",
+              name: "Анна QA",
+              roleLabel: "Проверяющий",
+              optionLabel: "Анна QA · Проверяющий · Демо"
+            }
+          ]
+        }}
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: /Профиль: Оператор, Иван Петров/ });
+    expect(trigger.getAttribute("data-slot")).toBe("account-menu");
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
   it("lists seeded roles inside the account menu without a second confirm click", () => {
