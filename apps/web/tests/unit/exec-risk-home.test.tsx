@@ -3,11 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 
-vi.mock("next/dynamic", () => ({
-  default: () =>
-    function MockExecRiskChart() {
-      return <div data-slot="exec-risk-chart" />;
-    }
+vi.mock("@/components/dashboard/exec-risk-chart-island.client", () => ({
+  ExecRiskChartIsland: () => <div data-slot="exec-risk-chart" />
 }));
 
 const hrefs = {

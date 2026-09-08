@@ -26,12 +26,21 @@ describe("dashboard exec chrome", () => {
 
   it("keeps the Recharts drill chart on ExecRiskHome only — Agent and VIEWER stay chartless", () => {
     const execHome = readFileSync(join(process.cwd(), "src/components/dashboard/exec-risk-home.tsx"), "utf8");
+    const chartIsland = readFileSync(
+      join(process.cwd(), "src/components/dashboard/exec-risk-chart-island.client.tsx"),
+      "utf8"
+    );
     const selfReview = readFileSync(join(process.cwd(), "src/app/self-review/page.tsx"), "utf8");
     const pendingAccess = readFileSync(join(process.cwd(), "src/app/auth/pending-access/page.tsx"), "utf8");
     const appNav = readFileSync(join(process.cwd(), "src/components/app-nav.tsx"), "utf8");
 
-    expect(execHome).toContain("exec-risk-chart.client");
-    expect(execHome).toContain('ssr: false');
+    expect(execHome).not.toMatch(/^["']use client["']/m);
+    expect(execHome).not.toContain("next/dynamic");
+    expect(execHome).not.toContain("ssr: false");
+    expect(execHome).toContain("exec-risk-chart-island.client");
+    expect(chartIsland).toMatch(/^["']use client["']/m);
+    expect(chartIsland).toContain("exec-risk-chart.client");
+    expect(chartIsland).toContain("ssr: false");
     expect(source).not.toContain("exec-risk-chart.client");
     expect(selfReview).not.toContain("exec-risk-chart");
     expect(selfReview).not.toContain("BarChart");
