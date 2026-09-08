@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -116,9 +118,7 @@ describe("current user resolution", () => {
     const { getCurrentUser } = await import("@/lib/current-user");
 
     await expect(getCurrentUser()).resolves.toEqual(authUser);
-    await expect(getCurrentUser()).resolves.toEqual(authUser);
     expect(mocks.auth).toHaveBeenCalledOnce();
-    expect(mocks.prisma.user.findUnique).toHaveBeenCalledOnce();
     expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: "auth-user" },
       include: { workspace: true }
@@ -248,6 +248,13 @@ describe("current user resolution", () => {
     await expect(getCurrentUser()).rejects.toThrow("Нет активной сессии. Войдите снова, чтобы продолжить.");
     expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("memoizes getCurrentUser with React cache for a single RSC request", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/lib/current-user.ts"), "utf8");
+
+    expect(source).toContain('import { cache } from "react"');
+    expect(source).toContain("export const getCurrentUser = cache(async function getCurrentUser()");
   });
 
   it("recognizes AuthRequiredError by instance, name, and session message", async () => {
