@@ -32,6 +32,16 @@ describe("demo login users", () => {
     });
   });
 
+  it("loads login demo users in one findMany, batched with providers", () => {
+    const loginPage = readFileSync(resolve(process.cwd(), "src/app/auth/login/page.tsx"), "utf8");
+
+    expect(loginPage).toContain("const [providers, demoUsers] = await Promise.all([");
+    expect(loginPage).toContain("demoAuthEnabled");
+    expect(loginPage).toContain("prisma.user.findMany({");
+    expect(loginPage).toContain("where: demoLoginUserWhere");
+    expect(loginPage.match(/prisma\.user\.findMany/g)).toHaveLength(1);
+  });
+
   it("seeds a switchable VIEWER identity for pending-access QA", () => {
     const mutation = readFileSync(resolve(process.cwd(), "prisma/demo-seed-mutation.ts"), "utf8");
 

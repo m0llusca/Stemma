@@ -58,4 +58,14 @@ describe("dashboard exec chrome", () => {
       /isExecDashboard\s*\?\s*Promise\.resolve\(\[\]\)\s*:\s*prisma\.trainingAssignment\.findMany/
     );
   });
+
+  it("skips unused week and training counts on the exec risk home", () => {
+    expect(source).toMatch(/isExecDashboard\s*\?\s*Promise\.resolve\(0\)\s*:\s*prisma\.review\.count/);
+    expect(source).toMatch(
+      /isExecDashboard\s*\?\s*Promise\.resolve\(0\)\s*:\s*prisma\.trainingAssignment\.count/
+    );
+    expect(source).toContain("queuedCount");
+    expect(source).toContain("highRiskCount");
+    expect(source).toContain("overdueReviewCount");
+  });
 });

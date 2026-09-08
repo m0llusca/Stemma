@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { AppNavShell } from "@/components/app-nav-shell";
 import { hasPermission } from "@/lib/auth/permissions";
 import { canSeeOpsQueuePulse, roleHomePath } from "@/lib/auth/role-home";
-import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
+import { AuthRequiredError, getDemoSwitcherUsers, isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { visibleTopNavAreas } from "@/lib/shell/navigation";
@@ -128,7 +128,7 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
 }
 
 async function getDemoSwitcher(user: ShellSnapshot["user"]) {
-  const users = await getWorkspaceUsers(user.workspaceId);
+  const users = await getDemoSwitcherUsers(user.workspaceId);
 
   return {
     currentUserId: user.id,

@@ -86,7 +86,7 @@ Stemma/
 - [Playwright verify DB](docs/e2e-verify-database.md)
 - [Расписание задач](docs/jobs-scheduling.md)
 - [Контракты установки интеграций](docs/integration-install-contracts.md)
-- [Операции](docs/operations/)
+- [Операции](docs/operations/) — скорость бокс-демо: [demo-stand-perf.md](docs/operations/demo-stand-perf.md)
 
 UI-кит: shadcn/ui (Base UI, `base-nova`) — `docs/memory/shadcn-ui-knowledge.md`. Заметки для агентов: `AGENTS.md`.
 

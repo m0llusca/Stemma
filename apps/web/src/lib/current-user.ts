@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import type { RoleName } from "@prisma/client";
 import { sessionRequiredMessage } from "@/lib/api/user-facing-errors";
 import { isDemoAuthEnabled } from "@/lib/auth/demo";
+import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
 import { hasPermission, type Permission, requirePermission } from "@/lib/auth/permissions";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -37,7 +39,12 @@ async function getAuthJsSession() {
   return auth();
 }
 
-export async function getCurrentUser() {
+/**
+ * Per-request memo. Layout, AppNav, loading.tsx, and page gates all call this
+ * on the same RSC render; without cache() each call re-imports Auth.js, re-reads
+ * the session, and (legacy cookie path) writes `lastSeenAt` again.
+ */
+export const getCurrentUser = cache(async function getCurrentUser() {
   const authSession = await getAuthJsSession();
   const authUserId = authSession?.user?.id;
 
@@ -101,7 +108,7 @@ export async function getCurrentUser() {
   }
 
   return fallbackUser;
-}
+});
 
 export async function requireCurrentUserPermission(permission: Permission) {
   const user = await getCurrentUser();
@@ -148,19 +155,17 @@ export async function assertCanPersistSettings(user: { id: string }) {
   }
 }
 
-export async function getWorkspaceUsers(workspaceId: string) {
+/** Demo-identity users for the nav switcher — same filter as `/auth/login`. */
+export async function getDemoSwitcherUsers(workspaceId: string) {
   return prisma.user.findMany({
     where: {
-      workspaceId
+      workspaceId,
+      ...demoLoginUserWhere
     },
-    orderBy: [{ role: "asc" }, { name: "asc" }],
+    orderBy: demoLoginUserOrderBy,
     select: {
       id: true,
-      name: true,
-      email: true,
-      role: true,
-      supportLine: true,
-      teamName: true
+      name: true
     }
   });
 }

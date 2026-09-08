@@ -116,7 +116,9 @@ describe("current user resolution", () => {
     const { getCurrentUser } = await import("@/lib/current-user");
 
     await expect(getCurrentUser()).resolves.toEqual(authUser);
+    await expect(getCurrentUser()).resolves.toEqual(authUser);
     expect(mocks.auth).toHaveBeenCalledOnce();
+    expect(mocks.prisma.user.findUnique).toHaveBeenCalledOnce();
     expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: "auth-user" },
       include: { workspace: true }
@@ -200,23 +202,27 @@ describe("current user resolution", () => {
     });
   });
 
-  it("lists every workspace user for the demo switcher including VIEWER", async () => {
-    const { getWorkspaceUsers } = await import("@/lib/current-user");
+  it("lists demo-identity users for the nav switcher, not the whole workspace", async () => {
+    const { getDemoSwitcherUsers } = await import("@/lib/current-user");
 
-    await getWorkspaceUsers("workspace-1");
+    await getDemoSwitcherUsers("workspace-1");
 
     expect(mocks.prisma.user.findMany).toHaveBeenCalledWith({
       where: {
-        workspaceId: "workspace-1"
+        workspaceId: "workspace-1",
+        externalIdentities: {
+          some: {
+            provider: {
+              type: "DEMO",
+              status: "active"
+            }
+          }
+        }
       },
-      orderBy: [{ role: "asc" }, { name: "asc" }],
+      orderBy: [{ workspaceId: "asc" }, { role: "asc" }, { name: "asc" }],
       select: {
         id: true,
-        name: true,
-        email: true,
-        role: true,
-        supportLine: true,
-        teamName: true
+        name: true
       }
     });
   });

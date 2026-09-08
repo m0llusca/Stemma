@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
-  getWorkspaceUsers: vi.fn(),
+  getDemoSwitcherUsers: vi.fn(),
   isDemoAuthEnabled: vi.fn(),
   prisma: {
     conversation: {
@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/current-user", () => ({
   AuthRequiredError: class AuthRequiredError extends Error {},
   getCurrentUser: mocks.getCurrentUser,
-  getWorkspaceUsers: mocks.getWorkspaceUsers,
+  getDemoSwitcherUsers: mocks.getDemoSwitcherUsers,
   isDemoAuthEnabled: mocks.isDemoAuthEnabled
 }));
 
@@ -50,7 +50,7 @@ function mockCurrentUser(role = "ADMIN") {
     email: "admin@example.com",
     workspace: {}
   });
-  mocks.getWorkspaceUsers.mockResolvedValue([{ id: "user-1", name: "Админ", email: "admin@example.com", role }]);
+  mocks.getDemoSwitcherUsers.mockResolvedValue([{ id: "user-1", name: "Админ" }]);
   mocks.prisma.conversation.count.mockResolvedValue(0);
   mocks.prisma.review.count.mockResolvedValue(0);
   mocks.prisma.trainingAssignment.count.mockResolvedValue(0);
@@ -218,7 +218,7 @@ describe("app nav", () => {
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();
     expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
-    expect(mocks.getWorkspaceUsers).not.toHaveBeenCalled();
+    expect(mocks.getDemoSwitcherUsers).not.toHaveBeenCalled();
   });
 
   it("keeps the take-next-case shortcut for reviewers", async () => {
@@ -242,9 +242,9 @@ describe("app nav", () => {
 
   it("surfaces the demo switcher with the switch action when demo auth is enabled", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(true);
-    mocks.getWorkspaceUsers.mockResolvedValue([
-      { id: "user-1", name: "Админ", email: "admin@example.com", role: "ADMIN" },
-      { id: "user-2", name: "Оператор", email: "agent@example.com", role: "SUPPORT_AGENT" }
+    mocks.getDemoSwitcherUsers.mockResolvedValue([
+      { id: "user-1", name: "Админ" },
+      { id: "user-2", name: "Оператор" }
     ]);
     const { AppNav } = await import("@/components/app-nav");
 
