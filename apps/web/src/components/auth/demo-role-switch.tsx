@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -19,37 +19,10 @@ type AccountMenuDisclosureProps = {
   panel: ReactNode;
 };
 
-function syncDisclosureDom(root: HTMLDetailsElement | null) {
-  if (!root) {
-    return;
-  }
-
-  const isOpen = root.open;
-  const summary = root.querySelector("[data-slot=account-menu]");
-  const menu = root.querySelector("[data-slot=account-menu-panel]");
-  if (summary instanceof HTMLElement) {
-    summary.setAttribute("aria-expanded", isOpen ? "true" : "false");
-  }
-  if (menu instanceof HTMLElement) {
-    menu.hidden = !isOpen;
-  }
-}
-
-function toggleDisclosure(root: HTMLDetailsElement | null) {
-  if (!root) {
-    return;
-  }
-  root.open = !root.open;
-  syncDisclosureDom(root);
-}
-
 /**
- * Native `<details>` / `<summary>` with an explicit toggle in the click
- * handler. The open bit lives on the element (`details.open`), not React
- * state — LIVE Agent `/self-review` kept `aria-expanded=false` when `useState`
- * was reset on the same gesture. `preventDefault` avoids a double-toggle
- * (UA + our assignment). `hidden` is applied from `details.open` after mount
- * so SSR HTML stays visible to the UA disclosure.
+ * Native `<details>` owns the panel (`details.open`). `aria-expanded` is React
+ * state synced from that bit — never a hardcoded JSX `"false"`, which LIVE
+ * re-rendered over `setAttribute` after open (tip ba61c1b).
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -63,10 +36,18 @@ export function AccountMenuDisclosure({
 }: AccountMenuDisclosureProps) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const prevDismissKeyRef = useRef(dismissKey);
+  const [expanded, setExpanded] = useState(false);
   const menuId = useId();
 
+  const applyOpen = (isOpen: boolean) => {
+    if (detailsRef.current && detailsRef.current.open !== isOpen) {
+      detailsRef.current.open = isOpen;
+    }
+    setExpanded(isOpen);
+  };
+
   useLayoutEffect(() => {
-    syncDisclosureDom(detailsRef.current);
+    setExpanded(Boolean(detailsRef.current?.open));
   });
 
   useEffect(() => {
@@ -74,7 +55,7 @@ export function AccountMenuDisclosure({
     if (!root) {
       return;
     }
-    const onToggle = () => syncDisclosureDom(root);
+    const onToggle = () => setExpanded(root.open);
     root.addEventListener("toggle", onToggle);
     return () => root.removeEventListener("toggle", onToggle);
   }, []);
@@ -84,10 +65,7 @@ export function AccountMenuDisclosure({
       return;
     }
     prevDismissKeyRef.current = dismissKey;
-    if (detailsRef.current) {
-      detailsRef.current.open = false;
-    }
-    syncDisclosureDom(detailsRef.current);
+    applyOpen(false);
   }, [dismissKey]);
 
   useEffect(() => {
@@ -95,18 +73,21 @@ export function AccountMenuDisclosure({
       if (event.key !== "Escape" || !detailsRef.current?.open) {
         return;
       }
-      detailsRef.current.open = false;
-      syncDisclosureDom(detailsRef.current);
+      applyOpen(false);
     };
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const toggleOpen = () => {
+    applyOpen(!Boolean(detailsRef.current?.open));
+  };
+
   const onTriggerClick = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    toggleDisclosure(detailsRef.current);
+    toggleOpen();
   };
 
   const onTriggerKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -115,13 +96,16 @@ export function AccountMenuDisclosure({
     }
     event.preventDefault();
     event.stopPropagation();
-    toggleDisclosure(detailsRef.current);
+    toggleOpen();
   };
 
   return (
     <details
       ref={detailsRef}
       className={cn("relative open:z-50", align === "start" && "w-full")}
+      onToggle={(event) => {
+        setExpanded(event.currentTarget.open);
+      }}
     >
       <summary
         role="button"
@@ -129,7 +113,7 @@ export function AccountMenuDisclosure({
         title={triggerTitle}
         aria-label={triggerAriaLabel}
         aria-haspopup="menu"
-        aria-expanded="false"
+        aria-expanded={expanded}
         aria-controls={menuId}
         className={cn(
           triggerClassName,
@@ -143,6 +127,7 @@ export function AccountMenuDisclosure({
       <div
         id={menuId}
         role="menu"
+        hidden={!expanded}
         data-slot="account-menu-panel"
         className={cn(
           "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",

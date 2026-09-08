@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
@@ -48,6 +49,44 @@ describe("AccountMenuDisclosure", () => {
     expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+  });
+
+  it("keeps aria-expanded true after a parent re-render while details stays open", () => {
+    function Harness() {
+      const [tick, setTick] = useState(0);
+      return (
+        <div>
+          <button type="button" onClick={() => setTick((value) => value + 1)}>
+            force-rerender
+          </button>
+          <span data-testid="rerender-tick">{tick}</span>
+          <AccountMenuDisclosure
+            triggerAriaLabel="Профиль: Оператор, Иван Петров"
+            triggerClassName="inline-flex"
+            panel={
+              <DemoRoleSwitchMenu switcher={{ currentUserId: "user-1", roleLabel: "Оператор", users: demoUsers }} />
+            }
+          >
+            Оператор
+          </AccountMenuDisclosure>
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
+    fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.closest("details")?.hasAttribute("open")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "force-rerender" }));
+    expect(screen.getByTestId("rerender-tick").textContent).toBe("1");
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.closest("details")?.hasAttribute("open")).toBe(true);
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
   it("stays open after timers flush so a leftover document pointerdown is not required to keep state", () => {
