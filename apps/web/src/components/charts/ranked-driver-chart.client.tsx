@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
+import { RankedDriverVisual } from "@/components/charts/recharts-visuals.client";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
@@ -20,11 +21,6 @@ import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
 import { qualityScorePointWord } from "@/lib/score-display";
 
 export type DriverSeries = "down" | "up";
-
-const loadRankedDriverVisual = async () => {
-  const module = await import("@/components/charts/recharts-visuals.client");
-  return { default: module.RankedDriverVisual };
-};
 
 function signedDeltaLabel(point: ChartModel<DriverSeries>["points"][number]) {
   const down = point.values.down;
@@ -222,12 +218,8 @@ export function RankedDriverChart({
           />
         ) : null}
         <DeferredChartVisual
-          load={loadRankedDriverVisual}
+          Visual={RankedDriverVisual}
           componentProps={{ model, height }}
-          loadingLabel="Загрузка визуального представления"
-          fallbackClassName="min-h-[220px] w-full"
-          fallbackStyle={{ height }}
-          armed={activeIndex != null}
         />
       </div>
     </div>

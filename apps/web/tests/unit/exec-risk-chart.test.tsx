@@ -41,15 +41,30 @@ const bars: readonly ExecRiskChartBar[] = [
 ];
 
 describe("ExecRiskChart", () => {
-  it("keeps a fixed-height ChartContainer and an accessibility table of the same drills", () => {
+  it("paints first-commit SVG bar geometry — not an empty Recharts wrapper", () => {
     const { container } = render(<ExecRiskChart bars={bars} />);
+    const chart = container.querySelector('[data-slot="chart"]');
+    const surface = container.querySelector("svg.recharts-surface");
+    const rects = [...container.querySelectorAll("svg.recharts-surface rect[data-key]")];
 
-    expect(container.querySelector('[data-slot="chart"]')).toHaveClass("h-[240px]");
-    expect(container.querySelector('[data-slot="chart"]')).toHaveAttribute(
-      "data-qc-motion",
-      "chart-enter"
+    expect(chart).toHaveClass("h-[240px]");
+    expect(chart).toHaveAttribute("data-qc-motion", "chart-enter");
+    expect(chart).toHaveAttribute("data-initial-width", "520");
+    expect(chart).toHaveAttribute("data-initial-height", "240");
+    expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
+    expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
+    expect(surface).toBeInTheDocument();
+    expect(surface).toHaveAttribute("viewBox", "0 0 520 240");
+    expect(surface).toHaveAttribute("data-animation-active", "false");
+    expect(rects).toHaveLength(bars.length);
+    expect(rects.every((rect) => Number(rect.getAttribute("width")) > 0)).toBe(true);
+    expect(rects.every((rect) => Number(rect.getAttribute("height")) > 0)).toBe(true);
+    expect(container.querySelector('[data-key="overdue"]')).toHaveAttribute(
+      "data-href",
+      OVERDUE_SLA_HREF
     );
-    expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
+    expect(container.querySelector('[data-key="highRisk"]')).toBeTruthy();
+    expect(container.querySelector('[data-key="queued"]')).toBeTruthy();
     expect(screen.getByRole("table", { name: "Сводка риска и SLA" })).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "Просрочено SLA" })).toHaveAttribute("href", OVERDUE_SLA_HREF);
@@ -76,15 +91,20 @@ describe("ExecRiskChart", () => {
     expect(navigation.push).toHaveBeenCalledWith(OVERDUE_SLA_HREF);
   });
 
-  it("disables animation so reduced-motion is not a second motion system", () => {
+  it("uses a reports-style static SVG and never imports Recharts BarChart", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/exec-risk-chart.client.tsx"),
       "utf8"
     );
 
-    expect(source).toContain("accessibilityLayer");
-    expect(source).toContain("isAnimationActive={false}");
-    expect(source).toContain("ChartContainer");
-    expect(source).not.toContain("isAnimationActive={true}");
+    expect(source).toContain("StaticChartContainer");
+    expect(source).toContain("svg");
+    expect(source).toContain('className="recharts-surface');
+    expect(source).toContain('data-animation-active="false"');
+    expect(source).not.toContain("from \"recharts\"");
+    expect(source).not.toContain("BarChart");
+    expect(source).not.toContain("<ChartContainer");
+    expect(source).not.toContain("ResponsiveContainer");
+    expect(source).not.toContain("isAnimationActive");
   });
 });

@@ -149,15 +149,27 @@ function execRiskChartValue(key: ExecRiskChartKey, signal: ExecRiskSignal): numb
   }
 }
 
+export function isLiveExecRiskCount(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+export function isExecRiskSignalEmpty(signal: ExecRiskSignal): boolean {
+  return (
+    !isLiveExecRiskCount(signal.overdueReviewCount) &&
+    !isLiveExecRiskCount(signal.highRiskCount) &&
+    !isLiveExecRiskCount(signal.queuedCount)
+  );
+}
+
+export function isExecRiskBarsEmpty(bars: readonly ExecRiskChartBar[]): boolean {
+  return bars.length === 0 || bars.every((bar) => !isLiveExecRiskCount(bar.value));
+}
+
 export function buildExecRiskChartModel(input: ExecRiskChartHrefInput): ExecRiskChartModel {
   const resetHref = queueFilterResetHref(input.role, { name: input.name });
   const { signal } = input;
 
-  if (
-    signal.overdueReviewCount === 0 &&
-    signal.highRiskCount === 0 &&
-    signal.queuedCount === 0
-  ) {
+  if (isExecRiskSignalEmpty(signal)) {
     return { empty: true, resetHref };
   }
 

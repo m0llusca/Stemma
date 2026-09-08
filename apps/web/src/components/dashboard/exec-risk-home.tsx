@@ -2,10 +2,10 @@ import { ArrowRight, ClipboardCheck, Clock3, TriangleAlert } from "lucide-react"
 import Link from "next/link";
 import type { RoleName } from "@prisma/client";
 import { ExecRiskChartIsland } from "@/components/dashboard/exec-risk-chart-island.client";
+import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { TriageStrip } from "@/components/ui/triage-strip";
 import {
@@ -97,22 +97,9 @@ export function ExecRiskHome({
           </CardHeader>
           <CardContent>
             {chart.empty ? (
-              <div data-slot="exec-risk-empty">
-                <EmptyState
-                  size="inline"
-                  className="min-h-[200px] justify-center"
-                  icon={<ClipboardCheck size={20} aria-hidden="true" />}
-                  title="Нет сигналов за период"
-                  description="Это не сертификат «всё в порядке». Откройте очередь без фильтра, чтобы проверить объём."
-                  action={
-                    <Button render={<Link href={chart.resetHref} />} nativeButton={false} variant="outline" size="sm">
-                      Открыть очередь без фильтра
-                    </Button>
-                  }
-                />
-              </div>
+              <ExecRiskEmptyState resetHref={chart.resetHref} />
             ) : (
-              <ExecRiskChartIsland bars={chart.bars} />
+              <ExecRiskChartIsland bars={chart.bars} resetHref={chart.resetHref} />
             )}
           </CardContent>
         </Card>

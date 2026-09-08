@@ -7,25 +7,11 @@ import {
   type ErrorInfo,
   type ReactNode
 } from "react";
-import dynamic from "next/dynamic";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
-
-const ExecRiskChart = dynamic(
-  () =>
-    import("@/components/dashboard/exec-risk-chart.client").then((mod) => mod.ExecRiskChart),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="h-[240px] w-full rounded-lg bg-muted/40"
-        aria-hidden="true"
-        data-slot="exec-risk-chart-pending"
-      />
-    )
-  }
-);
+import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
+import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
+import { isExecRiskBarsEmpty, type ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
 
 function ChartLoadError({ onRetry }: { onRetry: () => void }) {
   return (
@@ -72,7 +58,7 @@ class ExecRiskChartBoundary extends Component<
   }
 }
 
-export function ExecRiskChartIsland({ bars }: { bars: readonly ExecRiskChartBar[] }) {
+function ExecRiskChartIslandLive({ bars }: { bars: readonly ExecRiskChartBar[] }) {
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => {
     setAttempt((current) => current + 1);
@@ -85,4 +71,18 @@ export function ExecRiskChartIsland({ bars }: { bars: readonly ExecRiskChartBar[
       </ExecRiskChartBoundary>
     </div>
   );
+}
+
+export function ExecRiskChartIsland({
+  bars,
+  resetHref
+}: {
+  bars: readonly ExecRiskChartBar[];
+  resetHref: string;
+}) {
+  if (isExecRiskBarsEmpty(bars)) {
+    return <ExecRiskEmptyState resetHref={resetHref} />;
+  }
+
+  return <ExecRiskChartIslandLive bars={bars} />;
 }

@@ -406,20 +406,20 @@ function validateDynamicSources(chunkGraph) {
     }
 
     const source = readFileSync(sourcePath, "utf8");
-    const importCalls = source.match(/\bimport\s*\(/g) ?? [];
-    const literalImports = [
-      ...source.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)
-    ].map((match) => match[1]);
-    if (
-      importCalls.length !== 1 ||
-      literalImports.length !== 1 ||
-      literalImports[0] !== RICH_RENDERER_SPECIFIER
-    ) {
+    const staticImport = new RegExp(
+      `from\\s+["']${escapeRegExp(RICH_RENDERER_SPECIFIER)}["']`
+    );
+    if (!staticImport.test(source)) {
       throw new Error(
-        `${target.source} must contain exactly one literal dynamic import of ${RICH_RENDERER_SPECIFIER}`
+        `${target.source} must statically import ${RICH_RENDERER_SPECIFIER}`
       );
     }
-    if (!new RegExp(`\\.\\s*${escapeRegExp(target.export)}\\b`).test(source)) {
+    if (/\bimport\s*\(/.test(source)) {
+      throw new Error(
+        `${target.source} must not dynamically import the rich renderer`
+      );
+    }
+    if (!new RegExp(`\\b${escapeRegExp(target.export)}\\b`).test(source)) {
       throw new Error(
         `${target.source} does not select the expected ${target.export} export`
       );

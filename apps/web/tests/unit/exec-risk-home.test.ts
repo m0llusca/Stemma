@@ -4,7 +4,9 @@ import { EMPTY_TRIAGE_IMPOSTOR_HREF } from "@/lib/dashboard/empty-triage";
 import {
   buildExecRiskChartModel,
   buildExecRiskNarrative,
-  execRiskChartBarHref
+  execRiskChartBarHref,
+  isExecRiskBarsEmpty,
+  isExecRiskSignalEmpty
 } from "@/lib/dashboard/exec-risk-home";
 import { opsQueueKpiHref } from "@/lib/dashboard/queue-kpi-href";
 
@@ -115,6 +117,31 @@ describe("buildExecRiskChartModel", () => {
     });
 
     expect(model).toEqual({ empty: true, resetHref: "/reviews" });
+  });
+
+  it("treats non-finite counts as empty so the chart island never stays on pending", () => {
+    const signal = {
+      overdueReviewCount: Number.NaN,
+      highRiskCount: Number.POSITIVE_INFINITY,
+      queuedCount: 0
+    };
+
+    expect(isExecRiskSignalEmpty(signal)).toBe(true);
+    expect(
+      buildExecRiskChartModel({
+        signal,
+        hrefs,
+        role: "EXEC"
+      })
+    ).toEqual({ empty: true, resetHref: queueFilterResetHref("EXEC") });
+    expect(isExecRiskBarsEmpty([])).toBe(true);
+    expect(
+      isExecRiskBarsEmpty([
+        { key: "overdue", label: "Просрочено SLA", value: 0, href: "/reviews", tone: "neutral" },
+        { key: "highRisk", label: "Высокий риск", value: Number.NaN, href: "/reviews", tone: "neutral" },
+        { key: "queued", label: "Очередь без старта", value: 0, href: "/reviews", tone: "neutral" }
+      ])
+    ).toBe(true);
   });
 
   it("builds three drill bars that reuse the KPI href contract", () => {

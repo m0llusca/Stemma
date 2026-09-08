@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { ExecRiskChartIsland } from "@/components/dashboard/exec-risk-chart-island.client";
+import { queueFilterResetHref } from "@/lib/auth/role-home";
 import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
 import { OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
 
@@ -11,16 +12,17 @@ const chartState = vi.hoisted(() => ({
   shouldThrow: false
 }));
 
-vi.mock("next/dynamic", () => ({
-  default: () =>
-    function MockExecRiskChart() {
-      if (chartState.shouldThrow) {
-        throw new Error("recharts render failed");
-      }
-
-      return <div data-slot="exec-risk-chart" />;
+vi.mock("@/components/dashboard/exec-risk-chart.client", () => ({
+  ExecRiskChart: () => {
+    if (chartState.shouldThrow) {
+      throw new Error("recharts render failed");
     }
+
+    return <div data-slot="exec-risk-chart" />;
+  }
 }));
+
+const resetHref = queueFilterResetHref("EXEC");
 
 const bars: readonly ExecRiskChartBar[] = [
   {
@@ -47,25 +49,62 @@ const bars: readonly ExecRiskChartBar[] = [
 ];
 
 describe("ExecRiskChartIsland", () => {
-  it("keeps next/dynamic ssr:false inside a client module", () => {
+  it("renders EmptyState + queueFilterResetHref instead of the pending shell when bars are empty", () => {
+    chartState.shouldThrow = false;
+
+    render(<ExecRiskChartIsland bars={[]} resetHref={resetHref} />);
+
+    expect(document.querySelector('[data-slot="exec-risk-empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart"]')).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Открыть очередь без фильтра$/ })).toHaveAttribute(
+      "href",
+      resetHref
+    );
+    expect(resetHref).toBe("/reviews");
+  });
+
+  it("treats all-zero bars as empty even if the chart module is available", () => {
+    chartState.shouldThrow = false;
+
+    const zeroBars: readonly ExecRiskChartBar[] = bars.map((bar) => ({
+      ...bar,
+      value: 0,
+      tone: "neutral"
+    }));
+
+    render(<ExecRiskChartIsland bars={zeroBars} resetHref={resetHref} />);
+
+    expect(document.querySelector('[data-slot="exec-risk-empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Открыть очередь без фильтра$/ })).toHaveAttribute(
+      "href",
+      "/reviews"
+    );
+  });
+
+  it("statically imports the Recharts chart from the client island — no ssr:false bailout", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/exec-risk-chart-island.client.tsx"),
       "utf8"
     );
 
     expect(source).toMatch(/^["']use client["']/m);
-    expect(source).toContain("next/dynamic");
-    expect(source).toContain("ssr: false");
+    expect(source).toContain('from "@/components/dashboard/exec-risk-chart.client"');
     expect(source).toContain("getDerivedStateFromError");
-    expect(source).toContain("exec-risk-chart.client");
+    expect(source).not.toContain("next/dynamic");
+    expect(source).not.toContain("ssr: false");
+    expect(source).not.toContain("ExecRiskChartPending");
   });
 
-  it("renders the deferred Recharts island when the chart chunk succeeds", () => {
+  it("renders live bars through the static chart import, not a pending shell", () => {
     chartState.shouldThrow = false;
-    render(<ExecRiskChartIsland bars={bars} />);
+    render(<ExecRiskChartIsland bars={bars} resetHref={resetHref} />);
 
     expect(document.querySelector('[data-slot="exec-risk-chart-island"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="exec-risk-chart"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).not.toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Загрузка графика" })).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -76,7 +115,7 @@ describe("ExecRiskChartIsland", () => {
     render(
       <section>
         <a href={OVERDUE_SLA_HREF}>Просрочено SLA</a>
-        <ExecRiskChartIsland bars={bars} />
+        <ExecRiskChartIsland bars={bars} resetHref={resetHref} />
       </section>
     );
 

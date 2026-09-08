@@ -319,7 +319,7 @@ describe("verify-route-budgets", () => {
     expect(result.stderr).toMatch(/deferred rich-chart.+70 KiB/is);
   });
 
-  it("resolves all six literal rich-export load sites to the shared renderer target", () => {
+  it("resolves all six static rich-export import sites to the shared renderer target", () => {
     const build = syntheticBuild();
     writeChunk(
       build.nextDir,

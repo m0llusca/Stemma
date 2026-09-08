@@ -11,17 +11,13 @@ import {
 import { useRouter } from "next/navigation";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
+import { ScoreDistributionVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildScoreDistributionGeometry,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
-
-const loadScoreDistributionVisual = async () => {
-  const module = await import("@/components/charts/recharts-visuals.client");
-  return { default: module.ScoreDistributionVisual };
-};
 
 export function ScoreDistributionChart({
   model
@@ -163,11 +159,8 @@ export function ScoreDistributionChart({
           />
         ) : null}
         <DeferredChartVisual
-          load={loadScoreDistributionVisual}
+          Visual={ScoreDistributionVisual}
           componentProps={{ model }}
-          loadingLabel="Загрузка визуального представления"
-          fallbackClassName="h-[200px] w-full min-[390px]:h-[216px] md:h-[240px] xl:h-[260px]"
-          armed={activeIndex != null}
         />
       </div>
     </div>
