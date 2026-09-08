@@ -27,10 +27,11 @@
 
 Реализация:
 
-- client components
+- Exec risk chart — client island (`exec-risk-chart-island.client.tsx`). `dynamic({ ssr: false })` только в Client Component. `ExecRiskHome` остаётся RSC: иначе `/dashboard` даёт 500.
+- падение чанка — error boundary + «Повторить»; KPI остаются
 - `ResponsiveContainer` + фиксированная высота
 - a11y: summary / таблица рядом с графиком (`accessibilityLayer` в v3)
-- lazy per-route (бандл)
+- lazy per-route (бандл) — внутри island
 
 **Spike** = первый осмысленный drill-chart на существующих `Chart*`. Новую библиотеку не добавляем.
 
@@ -70,9 +71,13 @@
 
 ## Фазы
 
-1. Drill-chart spike на Exec (потом Lead) через текущие `Chart*` — **сделано** (PR #101 / #99, master ~`3fff63f`): BarChart via existing Chart*, click = `opsQueueKpiMetricHref` / same KPI drills; empty chart + TriageStrip primary share one SoT `queueFilterResetHref(EXEC)` → `/reviews` (not dual QUEUED vs bare /reviews); Agent/VIEWER chartless; summary table beside chart.
+1. Drill-chart spike на Exec (потом Lead) через текущие `Chart*` — **сделано** (PR #101 / #99, master ~`3fff63f`; island P0 #104, master ~`74b875a`): BarChart via existing Chart*, click = `opsQueueKpiMetricHref` / same KPI drills; empty chart + TriageStrip primary share one SoT `queueFilterResetHref(EXEC)` → `/reviews` (not dual QUEUED vs bare /reviews); Agent/VIEWER chartless; summary table beside chart. Lazy-load — client island, не RSC `ssr:false`.
 2. Kinetics: 4–6 токенов / паттернов — **сделано** (токены + wiring выше)
 3. Эта заметка — fit; таблица adopted tokens обновляется вместе с CSS
+
+## Residual
+
+LIVE «Сигналы риска» может показать пустые столбцы без empty/error CTA. Не блокер docs. Follow-up после #104 — Разработчик.
 
 ## Тесты
 
