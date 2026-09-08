@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
-import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import {
   StaticChartContainer,
   type ChartConfig
@@ -46,27 +44,41 @@ const barFill: Record<ExecRiskChartBar["tone"], string> = {
 
 const EXEC_RISK_CHART_WIDTH = 520;
 const EXEC_RISK_CHART_HEIGHT = 240;
+const EXEC_RISK_CHART_MARGIN = { left: 28, right: 8, top: 8, bottom: 36 } as const;
 
-type BarClickPayload = {
-  payload?: ExecRiskChartBar;
-};
+function execRiskPlot(bars: readonly ExecRiskChartBar[]) {
+  const plotWidth =
+    EXEC_RISK_CHART_WIDTH - EXEC_RISK_CHART_MARGIN.left - EXEC_RISK_CHART_MARGIN.right;
+  const plotHeight =
+    EXEC_RISK_CHART_HEIGHT - EXEC_RISK_CHART_MARGIN.top - EXEC_RISK_CHART_MARGIN.bottom;
+  const maxValue = Math.max(1, ...bars.map((bar) => bar.value));
+  const slot = plotWidth / Math.max(bars.length, 1);
+  const barWidth = Math.min(72, slot * 0.55);
+  const mid = Math.round(maxValue / 2);
+  const ticks =
+    mid === 0 || mid === maxValue ? [0, maxValue] : [0, mid, maxValue];
 
-function isBarClickPayload(value: unknown): value is BarClickPayload {
-  if (typeof value !== "object" || value === null || !("payload" in value)) {
-    return false;
-  }
-
-  const payload = value.payload;
-  if (typeof payload !== "object" || payload === null) {
-    return false;
-  }
-
-  return "href" in payload && typeof payload.href === "string";
+  return {
+    plotHeight,
+    maxValue,
+    ticks,
+    bars: bars.map((bar, index) => {
+      const height = (bar.value / maxValue) * plotHeight;
+      return {
+        ...bar,
+        x: EXEC_RISK_CHART_MARGIN.left + slot * index + (slot - barWidth) / 2,
+        y: EXEC_RISK_CHART_MARGIN.top + plotHeight - height,
+        width: barWidth,
+        height
+      };
+    })
+  };
 }
 
 export function ExecRiskChart({ bars }: { bars: readonly ExecRiskChartBar[] }) {
   const router = useRouter();
   const summary = bars.map((bar) => `${bar.label}: ${bar.value}`).join(". ");
+  const plot = execRiskPlot(bars);
 
   function drillTo(href: string) {
     router.push(href);
@@ -81,44 +93,70 @@ export function ExecRiskChart({ bars }: { bars: readonly ExecRiskChartBar[] }) {
       <StaticChartContainer
         id="exec-risk"
         config={chartConfig}
-        className="h-[240px] w-full [&_.recharts-wrapper]:h-full [&_.recharts-wrapper]:w-full [&_.recharts-surface]:h-full [&_.recharts-surface]:w-full"
+        className="h-[240px] w-full"
         initialDimension={{ width: EXEC_RISK_CHART_WIDTH, height: EXEC_RISK_CHART_HEIGHT }}
       >
-        <BarChart
-          accessibilityLayer
-          width={EXEC_RISK_CHART_WIDTH}
-          height={EXEC_RISK_CHART_HEIGHT}
-          data={[...bars]}
-          margin={{ left: 8, right: 8, top: 8, bottom: 0 }}
+        <svg
+          aria-hidden="true"
+          className="recharts-surface block h-full w-full"
+          tabIndex={-1}
+          viewBox={`0 0 ${EXEC_RISK_CHART_WIDTH} ${EXEC_RISK_CHART_HEIGHT}`}
+          preserveAspectRatio="none"
+          data-animation-active="false"
         >
-          <CartesianGrid vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-          <Bar
-            dataKey="value"
-            name="value"
-            radius={6}
-            cursor="pointer"
-            isAnimationActive={false}
-            onClick={(data) => {
-              if (isBarClickPayload(data)) {
-                drillTo(data.payload.href);
-              }
-            }}
-          >
-            {bars.map((bar) => (
-              <Cell
-                key={bar.key}
+          {plot.ticks.map((tick) => {
+            const y =
+              EXEC_RISK_CHART_MARGIN.top +
+              plot.plotHeight * (1 - tick / plot.maxValue);
+            return (
+              <g key={tick} aria-hidden="true">
+                <line
+                  x1={EXEC_RISK_CHART_MARGIN.left}
+                  x2={EXEC_RISK_CHART_WIDTH - EXEC_RISK_CHART_MARGIN.right}
+                  y1={y}
+                  y2={y}
+                  stroke="var(--border)"
+                  strokeOpacity={0.55}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <text
+                  x={EXEC_RISK_CHART_MARGIN.left - 8}
+                  y={y + 4}
+                  textAnchor="end"
+                  fill="var(--muted-foreground)"
+                  fontSize={11}
+                >
+                  {tick}
+                </text>
+              </g>
+            );
+          })}
+          {plot.bars.map((bar) => (
+            <g key={bar.key}>
+              <rect
                 data-key={bar.key}
                 data-href={bar.href}
-                cursor="pointer"
+                x={bar.x}
+                y={bar.y}
+                width={bar.width}
+                height={bar.height}
+                rx={6}
                 fill={barFill[bar.tone]}
+                className="cursor-pointer"
                 onClick={() => drillTo(bar.href)}
               />
-            ))}
-          </Bar>
-        </BarChart>
+              <text
+                x={bar.x + bar.width / 2}
+                y={EXEC_RISK_CHART_HEIGHT - 14}
+                textAnchor="middle"
+                fill="var(--muted-foreground)"
+                fontSize={11}
+              >
+                {bar.label}
+              </text>
+            </g>
+          ))}
+        </svg>
       </StaticChartContainer>
 
       <Table aria-label="Сводка риска и SLA">

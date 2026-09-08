@@ -29,7 +29,7 @@
 
 - Exec risk chart — client island (`exec-risk-chart-island.client.tsx`) statically imports `exec-risk-chart.client` (Recharts). Do not use `dynamic({ ssr: false })` — Next CSR-bails and the turbopack async chunk never loads. `ExecRiskHome` stays RSC: do not put `dynamic({ ssr: false })` in the RSC either (`/dashboard` 500).
 - падение чанка — error boundary + «Повторить»; KPI остаются
-- Exec plot — `StaticChartContainer` + explicit Recharts `width`/`height` (same paint path as `/reports`). Do not wrap Exec in `ChartContainer` / `ResponsiveContainer`: parent flex/grid can measure 0×0 and leave `.recharts-wrapper` empty.
+- Exec plot — `StaticChartContainer` + first-render hand-rolled `<svg className="recharts-surface">` bars (same paint path as `/reports`). Do not use Recharts 3 `<BarChart>`: `RootSurface` stays null until a size effect/Redux write, so LIVE freezes on an empty `.recharts-wrapper`.
 - a11y: summary / таблица рядом с графиком (`accessibilityLayer` в v3)
 - lazy per-route (бандл) — внутри island
 
