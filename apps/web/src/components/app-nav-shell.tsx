@@ -17,6 +17,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isAuthPath } from "@/lib/auth/auth-path";
 import {
   activeAreaForPath,
   topNavAreas,
@@ -122,7 +123,18 @@ function pulseBadgeVariant(tone?: WorkPulseItem["tone"]) {
   return "outline" as const;
 }
 
-export function AppNavShell({
+export function AppNavShell(props: AppNavShellProps) {
+  const pathname = usePathname();
+  // Resolve pathname before `useSearchParams` so auth routes never suspend
+  // into the header-height fallback.
+  if (isAuthPath(pathname)) {
+    return null;
+  }
+
+  return <AppNavShellChrome {...props} />;
+}
+
+function AppNavShellChrome({
   navigation,
   pulseItems,
   user,

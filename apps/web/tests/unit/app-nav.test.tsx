@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   getWorkspaceUsers: vi.fn(),
+  isAuthEntryRequest: vi.fn(),
   isDemoAuthEnabled: vi.fn(),
   prisma: {
     conversation: {
@@ -24,6 +25,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn() })
+}));
+
+vi.mock("@/lib/auth/request-path", () => ({
+  isAuthEntryRequest: mocks.isAuthEntryRequest
 }));
 
 vi.mock("@/lib/current-user", () => ({
@@ -59,6 +64,7 @@ function mockCurrentUser(role = "ADMIN") {
 describe("app nav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isAuthEntryRequest.mockResolvedValue(false);
     mocks.isDemoAuthEnabled.mockReturnValue(false);
     mockCurrentUser();
   });
@@ -298,7 +304,7 @@ describe("app nav", () => {
   // The root layout renders AppNav on every route, including the login shell.
   // Suppressing workspace chrome there used to be a CSS concern
   // (`.page:has(.auth-shell) .app-nav { display: none }`); it is now the
-  // component's own unauthenticated branch, so assert the behaviour directly.
+  // component's own auth-route / unauthenticated branch.
   it("renders no workspace chrome while the unauthenticated login shell is up", async () => {
     const { AuthRequiredError } = await import("@/lib/current-user");
     mocks.getCurrentUser.mockRejectedValue(new AuthRequiredError());
@@ -309,6 +315,20 @@ describe("app nav", () => {
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();
     expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+  });
+
+  it("renders no workspace chrome on /auth/* even when demo fallback impersonates a user", async () => {
+    mocks.isAuthEntryRequest.mockResolvedValue(true);
+    mocks.isDemoAuthEnabled.mockReturnValue(true);
+    mockCurrentUser();
+    const { AppNav } = await import("@/components/app-nav");
+
+    expect(await AppNav()).toBeNull();
+    expect(mocks.getCurrentUser).not.toHaveBeenCalled();
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+    expect(mocks.getWorkspaceUsers).not.toHaveBeenCalled();
   });
 
   it("propagates non-auth failures instead of silently dropping the nav", async () => {

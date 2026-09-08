@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_PATHNAME_HEADER, isAuthPath } from "@/lib/auth/auth-path";
 import { isDemoAuthEnabled } from "@/lib/auth/demo";
 
 // Дублирует имена session-кук из src/lib/auth/session.ts (sessionCookieName,
@@ -13,8 +14,12 @@ const migrationSessionCookieNames = [
   "__Secure-next-auth.session-token"
 ] as const;
 
-function isAuthPath(pathname: string) {
-  return pathname === "/auth" || pathname.startsWith("/auth/");
+function nextWithPathname(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(AUTH_PATHNAME_HEADER, request.nextUrl.pathname);
+  return NextResponse.next({
+    request: { headers: requestHeaders }
+  });
 }
 
 function hasMigrationSessionCookie(request: NextRequest) {
@@ -30,14 +35,14 @@ export function proxy(request: NextRequest) {
     isAuthPath(pathname) ||
     (request.method !== "GET" && request.method !== "HEAD")
   ) {
-    return NextResponse.next();
+    return nextWithPathname(request);
   }
 
   if (hasMigrationSessionCookie(request)) {
     // Cookie presence is not session validity. An expired/forged cookie still
     // reaches the page; requirePagePermission / requirePageUser map
     // AuthRequiredError to unauthorized() — not generic error.tsx.
-    return NextResponse.next();
+    return nextWithPathname(request);
   }
 
   const loginUrl = new URL("/auth/login", request.url);

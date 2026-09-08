@@ -77,7 +77,7 @@ API routes and server actions keep `requireCurrentUserPermission` (403 JSON or t
 
 Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status.
 
-`AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). `AppNav` wraps the shell in `Suspense` (after the unauthenticated `null` return) so the layout can statically render without a CSR bailout. Do not wrap `<AppNav />` itself in `layout.tsx` — that would flash the header fallback on the login shell.
+`AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). `AppNav` returns null on `/auth/*` *before* that Suspense — and before `QC_DEMO_AUTH` no-cookie fallback can impersonate a seeded user — so login never paints product chrome or a header-height skeleton. After the auth-route / unauthenticated `null` return it wraps the shell in `Suspense` so the layout can statically render without a CSR bailout. Do not wrap `<AppNav />` itself in `layout.tsx` with a header placeholder — that would flash chrome on the login form. The inner fallback is also empty on auth routes.
 
 ## Runtime Import Guard
 
