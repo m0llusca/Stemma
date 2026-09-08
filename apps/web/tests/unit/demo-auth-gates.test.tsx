@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -125,6 +125,26 @@ describe("demo auth gated surfaces", () => {
     expect(mocks.prisma.user.findMany).not.toHaveBeenCalled();
     expect(screen.queryByText("Демо-вход")).toBeNull();
     expect(screen.getByRole("button", { name: "Войти" })).not.toBeNull();
+  });
+
+  it("opens demo login with native details when demo auth is enabled", async () => {
+    mocks.isDemoAuthEnabled.mockReturnValue(true);
+    const { default: LoginPage } = await import("@/app/auth/login/page");
+
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
+
+    const trigger = screen.getByRole("button", { name: "Демо-вход" });
+    expect(trigger.tagName).toBe("SUMMARY");
+    const details = trigger.closest("details");
+    expect(details).not.toBeNull();
+    expect(details?.open).toBe(false);
+
+    fireEvent.click(trigger);
+    if (details && !details.open) {
+      details.open = true;
+    }
+    expect(details?.open).toBe(true);
+    expect(screen.getByRole("button", { name: "Войти в демо-режиме" })).not.toBeNull();
   });
 
   it("does not render the hard-coded demo API token on the admin tokens page when demo auth is disabled", async () => {

@@ -17,8 +17,9 @@ describe("dashboard exec chrome", () => {
   });
 
   it("picks the exec/risk skeleton instead of the ops 4-KPI dashboard flash", () => {
-    expect(source).toContain("resolveDashboardSkeletonVariant");
+    expect(source).toContain("dashboardSkeletonVariantForRole(user.role)");
     expect(source).toContain("variant={skeletonVariant}");
+    expect(source.indexOf("requirePagePermission")).toBeLessThan(source.indexOf("<Suspense"));
     expect(loadingSource).toContain("resolveDashboardSkeletonVariant");
     expect(loadingSource).toContain("variant={variant}");
     expect(loadingSource).not.toContain('variant="dashboard"');
@@ -57,5 +58,15 @@ describe("dashboard exec chrome", () => {
     expect(source).toMatch(
       /isExecDashboard\s*\?\s*Promise\.resolve\(\[\]\)\s*:\s*prisma\.trainingAssignment\.findMany/
     );
+  });
+
+  it("skips unused week and training counts on the exec risk home", () => {
+    expect(source).toMatch(/isExecDashboard\s*\?\s*Promise\.resolve\(0\)\s*:\s*prisma\.review\.count/);
+    expect(source).toMatch(
+      /isExecDashboard\s*\?\s*Promise\.resolve\(0\)\s*:\s*prisma\.trainingAssignment\.count/
+    );
+    expect(source).toContain("queuedCount");
+    expect(source).toContain("highRiskCount");
+    expect(source).toContain("overdueReviewCount");
   });
 });

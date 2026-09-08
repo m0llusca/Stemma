@@ -445,6 +445,34 @@ describe("user actions", () => {
     );
   });
 
+  it("switches a demo exec onto the risk dashboard", async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "demo-exec",
+      workspaceId: "demo-workspace",
+      role: "EXEC",
+      name: "Директор"
+    });
+    const { switchCurrentUser } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("userId", "demo-exec");
+
+    await expect(switchCurrentUser(formData)).rejects.toThrow("NEXT_REDIRECT:/dashboard");
+  });
+
+  it("switches a demo agent onto self-review", async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "demo-agent",
+      workspaceId: "demo-workspace",
+      role: "SUPPORT_AGENT",
+      name: "Иван"
+    });
+    const { switchCurrentUser } = await import("@/lib/user-actions");
+    const formData = new FormData();
+    formData.set("userId", "demo-agent");
+
+    await expect(switchCurrentUser(formData)).rejects.toThrow("NEXT_REDIRECT:/self-review");
+  });
+
   it("keeps sidebar demo switching disabled when demo auth is off", async () => {
     mocks.isDemoAuthEnabled.mockReturnValue(false);
     const { switchCurrentUser } = await import("@/lib/user-actions");

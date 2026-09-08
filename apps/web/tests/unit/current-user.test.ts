@@ -1,9 +1,13 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   cookieGet: vi.fn(),
   cookies: vi.fn(),
+  headerGet: vi.fn(),
+  headers: vi.fn(),
   getValidAuthSession: vi.fn(),
   prisma: {
     identityProvider: {
@@ -18,7 +22,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/headers", () => ({
-  cookies: mocks.cookies
+  cookies: mocks.cookies,
+  headers: mocks.headers
 }));
 
 vi.mock("../../auth", () => ({
@@ -74,7 +79,9 @@ describe("current user resolution", () => {
     vi.resetModules();
     mocks.auth.mockResolvedValue(null);
     mocks.cookieGet.mockReturnValue({ value: "session-token" });
+    mocks.headerGet.mockReturnValue("localhost:3000");
     mocks.cookies.mockResolvedValue({ get: mocks.cookieGet });
+    mocks.headers.mockResolvedValue({ get: mocks.headerGet });
     mocks.getValidAuthSession.mockResolvedValue(null);
     mocks.prisma.identityProvider.findUnique.mockResolvedValue(null);
     mocks.prisma.user.findFirst.mockResolvedValue(null);
@@ -173,7 +180,7 @@ describe("current user resolution", () => {
     expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
-  it("keeps the demo fallback when Auth.js and the legacy session are absent", async () => {
+  it("keeps the demo fallback on loopback when Auth.js and the legacy session are absent", async () => {
     vi.stubEnv("QC_DEMO_AUTH", "enabled");
     const demoUser = user({
       id: "demo-user",
@@ -191,6 +198,7 @@ describe("current user resolution", () => {
     await expect(getCurrentUser()).resolves.toEqual(demoUser);
     expect(mocks.auth).toHaveBeenCalledOnce();
     expect(mocks.getValidAuthSession).toHaveBeenCalledWith(undefined);
+    expect(mocks.headerGet).toHaveBeenCalledWith("host");
     expect(mocks.prisma.user.findFirst).toHaveBeenCalledWith({
       where: { role: { in: ["QA_ANALYST", "ADMIN", "TEAM_LEAD"] } },
       orderBy: {
@@ -200,23 +208,40 @@ describe("current user resolution", () => {
     });
   });
 
-  it("lists every workspace user for the demo switcher including VIEWER", async () => {
-    const { getWorkspaceUsers } = await import("@/lib/current-user");
+  it("does not impersonate a demo fallback on a public Host", async () => {
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+    mocks.auth.mockResolvedValue(null);
+    mocks.cookieGet.mockReturnValue(undefined);
+    mocks.headerGet.mockReturnValue("stemma-demo.example.com");
+    mocks.getValidAuthSession.mockResolvedValue(null);
 
-    await getWorkspaceUsers("workspace-1");
+    const { AuthRequiredError, getCurrentUser } = await import("@/lib/current-user");
+
+    await expect(getCurrentUser()).rejects.toBeInstanceOf(AuthRequiredError);
+    expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("lists demo-identity users for the nav switcher, not the whole workspace", async () => {
+    const { getDemoSwitcherUsers } = await import("@/lib/current-user");
+
+    await getDemoSwitcherUsers("workspace-1");
 
     expect(mocks.prisma.user.findMany).toHaveBeenCalledWith({
       where: {
-        workspaceId: "workspace-1"
+        workspaceId: "workspace-1",
+        externalIdentities: {
+          some: {
+            provider: {
+              type: "DEMO",
+              status: "active"
+            }
+          }
+        }
       },
-      orderBy: [{ role: "asc" }, { name: "asc" }],
+      orderBy: [{ workspaceId: "asc" }, { role: "asc" }, { name: "asc" }],
       select: {
         id: true,
-        name: true,
-        email: true,
-        role: true,
-        supportLine: true,
-        teamName: true
+        name: true
       }
     });
   });
@@ -242,6 +267,24 @@ describe("current user resolution", () => {
     await expect(getCurrentUser()).rejects.toThrow("Нет активной сессии. Войдите снова, чтобы продолжить.");
     expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("memoizes getCurrentUser with React cache for a single RSC request", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/lib/current-user.ts"), "utf8");
+
+    expect(source).toContain('import { cache } from "react"');
+    expect(source).toContain("export const getCurrentUser = cache(async function getCurrentUser()");
+  });
+
+  it("treats only loopback Host values as the no-cookie demo fallback", async () => {
+    const { isLoopbackDemoFallbackHost } = await import("@/lib/current-user");
+
+    expect(isLoopbackDemoFallbackHost("localhost:3000")).toBe(true);
+    expect(isLoopbackDemoFallbackHost("127.0.0.1")).toBe(true);
+    expect(isLoopbackDemoFallbackHost("[::1]:3000")).toBe(true);
+    expect(isLoopbackDemoFallbackHost("stemma-demo.example.com")).toBe(false);
+    expect(isLoopbackDemoFallbackHost("localhost.attacker.example")).toBe(false);
+    expect(isLoopbackDemoFallbackHost(undefined)).toBe(false);
   });
 
   it("recognizes AuthRequiredError by instance, name, and session message", async () => {

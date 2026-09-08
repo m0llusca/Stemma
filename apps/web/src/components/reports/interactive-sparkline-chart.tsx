@@ -2,6 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  CHART_MARKER_RADIUS,
+  CHART_MARKER_RADIUS_LAST,
+  CHART_SERIES_STROKE,
+  CHART_SERIES_STROKE_WIDTH,
+  ChartEnter,
+  ChartGoalBadge,
+  ChartScaleFooter,
+  SCORE_OVER_TIME_MIN_HEIGHT_CLASS,
+  SCORE_OVER_TIME_PLOT_HEIGHT
+} from "@/components/charts/chart-visual-preset";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 import type { ChartDatum } from "@/components/reports/report-charts";
 import { reportPageLocalLinkProps } from "@/lib/reports/report-evidence-links";
@@ -81,7 +92,7 @@ export function InteractiveSparklineChart({
     }
 
     const width = plotWidth ?? 360;
-    const height = 132;
+    const height = SCORE_OVER_TIME_PLOT_HEIGHT;
     const values = points.map((point) => point.value);
     const min = Math.min(...values, target ?? values[0]);
     const max = Math.max(...values, target ?? values[0]);
@@ -125,11 +136,13 @@ export function InteractiveSparklineChart({
   // Each control owns the region between the neighboring midpoints. The first
   // and last points use half-width regions, so hit targets tile without overlap.
   const pointGapPercent = chart.points.length > 1 ? 100 / (chart.points.length - 1) : 100;
-  const targetLabel = target == null ? null : `Цель ${target}`;
   const targetBandY = chart.targetY == null ? null : Math.max(0, Math.min(chart.height, chart.targetY));
 
   return (
-    <div data-slot="interactive-sparkline-chart" className="grid gap-3">
+    <ChartEnter
+      data-slot="interactive-sparkline-chart"
+      className="grid gap-3"
+    >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-muted-foreground">Начало периода</p>
@@ -148,7 +161,7 @@ export function InteractiveSparklineChart({
       </div>
 
       <div
-        className="relative min-h-[180px] overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-9"
+        className={`relative ${SCORE_OVER_TIME_MIN_HEIGHT_CLASS} overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-9`}
         ref={plotRef}
         style={{
           backgroundImage:
@@ -188,45 +201,30 @@ export function InteractiveSparklineChart({
             vectorEffect="non-scaling-stroke"
           />
           {chart.targetY != null ? (
-            <>
-              <line
-                x1="0"
-                y1={chart.targetY}
-                x2={chart.width}
-                y2={chart.targetY}
-                aria-hidden="true"
-                data-slot="sparkline-target"
-                stroke="color-mix(in srgb, var(--chart-2) 56%, var(--border))"
-                strokeDasharray="6 6"
-                strokeWidth="1.2"
-                vectorEffect="non-scaling-stroke"
-              />
-              <text
-                x={chart.width - 2}
-                y={Math.max(10, chart.targetY - 6)}
-                aria-hidden="true"
-                data-slot="sparkline-target-label"
-                fill="var(--chart-2)"
-                fontSize="11"
-                fontWeight="700"
-                textAnchor="end"
-              >
-                {targetLabel}
-              </text>
-            </>
+            <line
+              x1="0"
+              y1={chart.targetY}
+              x2={chart.width}
+              y2={chart.targetY}
+              aria-hidden="true"
+              data-slot="sparkline-target"
+              stroke="color-mix(in srgb, var(--chart-2) 56%, var(--border))"
+              strokeDasharray="6 6"
+              strokeWidth="1.2"
+              vectorEffect="non-scaling-stroke"
+            />
           ) : null}
           <path
             d={chart.path}
             data-slot="sparkline-line"
             fill="none"
-            stroke="var(--primary)"
+            stroke={CHART_SERIES_STROKE}
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="3"
+            strokeWidth={CHART_SERIES_STROKE_WIDTH}
             vectorEffect="non-scaling-stroke"
           />
           {chart.points.map((point, index) => {
-            const isActive = index === activeIndex;
             const isLatest = index === chart.points.length - 1;
 
             return (
@@ -235,18 +233,25 @@ export function InteractiveSparklineChart({
                 <circle
                   cx={point.x}
                   cy={point.y}
-                  r={isActive ? "7" : isLatest ? "5.5" : "4"}
+                  r={isLatest ? CHART_MARKER_RADIUS_LAST : CHART_MARKER_RADIUS}
                   data-slot="sparkline-point"
-                  fill={isActive || isLatest ? "var(--primary)" : "var(--card)"}
-                  stroke={isActive || isLatest ? "var(--card)" : "var(--primary)"}
-                  strokeWidth={isActive || isLatest ? "3" : "2"}
+                  fill={CHART_SERIES_STROKE}
+                  stroke={CHART_SERIES_STROKE}
+                  strokeWidth={CHART_SERIES_STROKE_WIDTH}
                   vectorEffect="non-scaling-stroke"
                 />
               </g>
             );
           })}
         </svg>
-        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[132px]">
+        {target != null ? (
+          <ChartGoalBadge
+            value={target}
+            slot="sparkline-target-label"
+            className="right-2.5 top-2 font-medium"
+          />
+        ) : null}
+        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[200px]">
           {chart.points.map((point, index) => {
             const showPoint = () => setActiveIndex(index);
             const hidePoint = () => setActiveIndex(null);
@@ -355,21 +360,18 @@ export function InteractiveSparklineChart({
         </div>
       </div>
 
-      <div
-        aria-hidden="true"
-        data-slot="sparkline-scale"
-        className="flex flex-wrap justify-between gap-2 text-[11px] font-medium tabular-nums text-muted-foreground"
-      >
-        <span>Мин {formatQualityScore(chart.min)}</span>
-        {targetLabel ? <span>{targetLabel}</span> : null}
-        <span>Макс {formatQualityScore(chart.max)}</span>
-      </div>
+      <ChartScaleFooter
+        min={chart.min}
+        max={chart.max}
+        target={target}
+        formatValue={formatQualityScore}
+      />
 
       {annotation ? (
         <p className="rounded-md border border-border bg-muted/50 px-2.5 py-2 text-xs leading-snug text-muted-foreground">
           {annotation}
         </p>
       ) : null}
-    </div>
+    </ChartEnter>
   );
 }

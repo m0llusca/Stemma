@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
+import { DemoAccountMenu } from "@/components/auth/demo-role-switch";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +11,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { getDemoRoleSwitcher } from "@/lib/auth/demo-switcher";
 import { roleHomePath } from "@/lib/auth/role-home";
 import { AuthRequiredError, getCurrentUser } from "@/lib/current-user";
 import { roleLabels } from "@/lib/labels";
@@ -33,6 +35,8 @@ export default async function PendingAccessPage() {
   if (user.role !== "VIEWER") {
     redirect(roleHomePath(user.role, { name: user.name }));
   }
+
+  const demoSwitcher = await getDemoRoleSwitcher(user);
 
   return (
     <section
@@ -62,10 +66,23 @@ export default async function PendingAccessPage() {
             <span className="text-foreground">Роль:</span> {roleLabels[user.role]}
           </p>
         </CardContent>
-        <CardFooter>
-          <Button render={<Link href="/auth/logout" />} nativeButton={false} variant="outline" className="w-full">
-            Выйти
-          </Button>
+        <CardFooter className="flex-col gap-2">
+          {demoSwitcher ? (
+            <DemoAccountMenu
+              switcher={demoSwitcher}
+              logout={
+                <form action="/auth/logout" method="post" className="px-1.5 pb-1">
+                  <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
+                    Выйти
+                  </Button>
+                </form>
+              }
+            />
+          ) : (
+            <Button render={<Link href="/auth/logout" />} nativeButton={false} variant="outline" className="w-full">
+              Выйти
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </section>

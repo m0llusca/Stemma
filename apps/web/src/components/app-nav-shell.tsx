@@ -17,6 +17,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isAuthPath } from "@/lib/auth/auth-path";
 import {
   activeAreaForPath,
   topNavAreas,
@@ -32,8 +33,9 @@ import {
 import { takeNextReview } from "@/lib/queue-view-actions";
 import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
 import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
-import { switchCurrentUser } from "@/lib/user-actions";
+import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
+import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -56,7 +58,6 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 
 type WorkPulseItem = {
@@ -73,14 +74,7 @@ type AppNavShellProps = {
     name: string;
     email: string;
   };
-  demoSwitcher?: {
-    currentUserId: string;
-    roleLabel: string;
-    users: Array<{
-      id: string;
-      name: string;
-    }>;
-  } | null;
+  demoSwitcher?: DemoRoleSwitcher | null;
   branding?: WorkspaceBranding;
   areas?: ShellNavArea[];
   /** Role home from `roleHomePath` — never hardcode `/dashboard` (SUPPORT_AGENT stays off ops pulse). */
@@ -122,7 +116,18 @@ function pulseBadgeVariant(tone?: WorkPulseItem["tone"]) {
   return "outline" as const;
 }
 
-export function AppNavShell({
+export function AppNavShell(props: AppNavShellProps) {
+  const pathname = usePathname();
+  // Resolve pathname before `useSearchParams` so auth routes never suspend
+  // into the header-height fallback.
+  if (isAuthPath(pathname)) {
+    return null;
+  }
+
+  return <AppNavShellChrome {...props} />;
+}
+
+function AppNavShellChrome({
   navigation,
   pulseItems,
   user,
@@ -156,6 +161,7 @@ export function AppNavShell({
   const demoUserName =
     demoSwitcher?.users.find((workspaceUser) => workspaceUser.id === demoSwitcher.currentUserId)?.name ??
     user.name;
+  const demoRoleLabel = demoSwitcher?.roleLabel;
   const ActiveAreaIcon = activeArea ? areaIcons[activeArea.icon] : null;
 
   const openCommand = useCallback(() => {
@@ -446,94 +452,54 @@ export function AppNavShell({
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
-        {demoSwitcher ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="min-h-11 min-w-11 max-w-44 shrink-0 gap-1.5"
-                  aria-label={`Профиль: ${demoSwitcher.roleLabel}, ${demoUserName}`}
-                />
-              }
-            >
-              <span className="hidden min-w-0 flex-col items-start gap-0.5 text-left xl:flex">
-                <span className="truncate text-sm font-medium leading-none">{demoSwitcher.roleLabel}</span>
-                <span className="truncate text-xs text-muted-foreground">{demoUserName}</span>
-              </span>
-              <ChevronDown data-icon="inline-end" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Демо-доступ</DropdownMenuLabel>
-              </DropdownMenuGroup>
-              <form action={switchCurrentUser} className="flex flex-col gap-2 px-1.5 pb-1.5">
-                <label className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Демо-роль</span>
-                  <NativeSelect
-                    name="userId"
-                    defaultValue={demoSwitcher.currentUserId}
-                    aria-label="Демо-пользователь"
-                    className="w-full"
-                  >
-                    {demoSwitcher.users.map((workspaceUser) => (
-                      <NativeSelectOption key={workspaceUser.id} value={workspaceUser.id}>
-                        {workspaceUser.name}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </label>
-                <Button type="submit" size="sm">
-                  Сменить
-                </Button>
-                <span className="text-xs text-muted-foreground">{demoSwitcher.roleLabel}</span>
-              </form>
-              <DropdownMenuSeparator />
+        <AccountMenuDisclosure
+          triggerAriaLabel={
+            demoRoleLabel
+              ? `Профиль: ${demoRoleLabel}, ${demoUserName}`
+              : `Профиль: ${user.name}`
+          }
+          triggerTitle={user.email}
+          triggerClassName={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
+          )}
+          align="end"
+          dismissKey={pathname}
+          panelClassName={demoSwitcher ? "w-72" : "w-56"}
+          panel={
+            <>
+              <div
+                className="flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-muted-foreground"
+                title={user.email}
+              >
+                <Bell className="size-4" />
+                <span className="truncate">{demoSwitcher ? demoUserName : user.name}</span>
+              </div>
+              {demoSwitcher ? (
+                <>
+                  <div className="-mx-1 my-1 h-px bg-border" role="separator" />
+                  <DemoRoleSwitchMenu switcher={demoSwitcher} />
+                </>
+              ) : null}
+              <div className="-mx-1 my-1 h-px bg-border" role="separator" />
               <form action="/auth/logout" method="post" className="px-1.5 pb-1">
                 <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
                   Выйти
                 </Button>
               </form>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="min-h-11 min-w-11 max-w-48 shrink-0 gap-1.5"
-                  title={user.email}
-                  aria-label={`Профиль: ${user.name}`}
-                />
-              }
-            >
-              <span className="hidden min-w-0 flex-col items-start gap-0.5 text-left xl:flex">
-                <span className="truncate text-sm font-medium leading-none">{user.name}</span>
-                <span className="hidden truncate text-xs text-muted-foreground xl:inline">{user.email}</span>
-              </span>
-              <ChevronDown data-icon="inline-end" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="flex items-center gap-1.5 font-normal" title={user.email}>
-                  <Bell />
-                  <span className="truncate">{user.name}</span>
-                </DropdownMenuLabel>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <form action="/auth/logout" method="post" className="px-1.5 pb-1">
-                <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
-                  Выйти
-                </Button>
-              </form>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+            </>
+          }
+        >
+          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+            <span className="max-w-36 truncate text-sm font-medium leading-none">
+              {demoRoleLabel ?? user.name}
+            </span>
+            <span className="max-w-36 truncate text-xs text-muted-foreground">
+              {demoSwitcher ? demoUserName : user.email}
+            </span>
+          </span>
+          <ChevronDown data-icon="inline-end" />
+        </AccountMenuDisclosure>
       </div>
 
       <CommandDialog

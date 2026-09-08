@@ -6,6 +6,12 @@ import {
   StaticChartContainer,
   type ChartConfig
 } from "@/components/ui/chart-container";
+import {
+  CHART_MARKER_RADIUS,
+  CHART_MARKER_RADIUS_LAST,
+  CHART_SERIES_STROKE_WIDTH,
+  ChartGoalBadge
+} from "@/components/charts/chart-visual-preset";
 import type {
   QualityTrendSeries
 } from "@/components/charts/quality-trend-chart.client";
@@ -155,6 +161,12 @@ export function QualityTrendVisual({
       className="h-[216px] w-full min-[390px]:h-[232px] md:h-[280px] xl:h-[320px]"
       initialDimension={{ width: 720, height: 320 }}
     >
+      {visible.has("target") ? (
+        <ChartGoalBadge
+          value={geometry.targetValue ?? 90}
+          className="right-0 top-0"
+        />
+      ) : null}
       <svg
         aria-hidden="true"
         className="recharts-surface block h-full w-full"
@@ -272,24 +284,28 @@ export function QualityTrendVisual({
             {scoreSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
-                type="linear"
+                type="monotone"
                 points={segment}
                 fill="none"
                 stroke="var(--color-score)"
-                strokeWidth={2.5}
+                strokeWidth={CHART_SERIES_STROKE_WIDTH}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
-            {scorePoints.map((point) => (
+            {scorePoints.map((point, index) => (
               <circle
                 key={point.pointId}
                 data-point-id={point.pointId}
                 cx={point.x}
                 cy={point.y}
-                r={3}
-                fill="var(--background)"
+                r={
+                  index === scorePoints.length - 1
+                    ? CHART_MARKER_RADIUS_LAST
+                    : CHART_MARKER_RADIUS
+                }
+                fill="var(--color-score)"
                 stroke="var(--color-score)"
-                strokeWidth={2}
+                strokeWidth={CHART_SERIES_STROKE_WIDTH}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
@@ -309,15 +325,6 @@ export function QualityTrendVisual({
               strokeDasharray="2 4"
               vectorEffect="non-scaling-stroke"
             />
-            <text
-              x={width - margin.right}
-              y={yForScore(geometry.targetValue ?? 90) - 6}
-              textAnchor="end"
-              fill="var(--muted-foreground)"
-              fontSize={11}
-            >
-              Цель {geometry.targetValue ?? 90}
-            </text>
           </g>
         ) : null}
       </svg>

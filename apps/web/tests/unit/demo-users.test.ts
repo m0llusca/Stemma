@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { demoLoginUserOrderBy, demoLoginUserWhere, demoUserByIdWhere } from "@/lib/auth/demo-users";
+import {
+  demoLoginUserOrderBy,
+  demoLoginUsersFindManyArgs,
+  demoLoginUserWhere,
+  demoUserByIdWhere,
+  demoUserOptionLabel
+} from "@/lib/auth/demo-users";
 
 describe("demo login users", () => {
   it("lists only users explicitly linked to an active demo provider", () => {
@@ -18,6 +24,41 @@ describe("demo login users", () => {
     expect(demoLoginUserOrderBy).toEqual([{ workspaceId: "asc" }, { role: "asc" }, { name: "asc" }]);
   });
 
+  it("lists login and in-session switch from the same demo-identity query", () => {
+    expect(demoLoginUsersFindManyArgs()).toEqual({
+      where: demoLoginUserWhere,
+      orderBy: demoLoginUserOrderBy,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        workspace: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+  });
+
+  it("labels demo users the same way on login and role switch", () => {
+    expect(
+      demoUserOptionLabel({
+        name: "Анна QA",
+        role: "QA_ANALYST",
+        workspace: { name: "Демо" }
+      })
+    ).toBe("Анна QA · Проверяющий · Демо");
+    expect(
+      demoUserOptionLabel({
+        name: "Администратор",
+        role: "ADMIN",
+        workspace: { name: "Демо" }
+      })
+    ).toBe("Администратор · Демо");
+  });
+
   it("keeps direct demo switch lookups constrained to demo identities", () => {
     expect(demoUserByIdWhere("user-1")).toEqual({
       id: "user-1",
@@ -30,6 +71,15 @@ describe("demo login users", () => {
         }
       }
     });
+  });
+
+  it("loads login demo users in one findMany, batched with providers", () => {
+    const loginPage = readFileSync(resolve(process.cwd(), "src/app/auth/login/page.tsx"), "utf8");
+
+    expect(loginPage).toContain("const [providers, demoUsers] = await Promise.all([");
+    expect(loginPage).toContain("demoAuthEnabled");
+    expect(loginPage).toContain("prisma.user.findMany(demoLoginUsersFindManyArgs())");
+    expect(loginPage.match(/prisma\.user\.findMany/g)).toHaveLength(1);
   });
 
   it("seeds a switchable VIEWER identity for pending-access QA", () => {

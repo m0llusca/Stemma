@@ -252,6 +252,9 @@ describe("canonical UI theme contract", () => {
     expect(globals).toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-qc-motion="kpi-bump"\][\s\S]*animation:\s*none/
     );
+    expect(globals).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\[data-qc-motion="chart-enter"\][\s\S]*animation:\s*none/
+    );
     expect(globals).not.toMatch(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*transform:\s*none/
     );
@@ -260,9 +263,13 @@ describe("canonical UI theme contract", () => {
   it("adopts Kinetics spring patterns as CSS tokens wired to real surfaces, not an npm package", () => {
     expect(globals).toContain("@keyframes qc-skeleton-shimmer");
     expect(globals).toContain("@keyframes qc-kpi-bump");
+    expect(globals).toContain("@keyframes qc-chart-enter");
     expect(globals).toContain('[data-sonner-toast].cn-toast');
     expect(globals).toContain("var(--motion-ease-spring-toast)");
     expect(globals).toContain('[data-qc-motion="kpi-bump"]');
+    expect(globals).toContain('[data-qc-motion="chart-enter"]');
+    expect(globals).toContain("var(--motion-duration-spring-enter)");
+    expect(globals).toContain("var(--motion-ease-spring-panel)");
     expect(globals).not.toContain("qc-skeleton-pulse");
 
     const switchSource = readFileSync(resolve(appRoot, "src/components/ui/switch.tsx"), "utf8");
@@ -270,6 +277,10 @@ describe("canonical UI theme contract", () => {
     const accordionSource = readFileSync(resolve(appRoot, "src/components/ui/accordion.tsx"), "utf8");
     const tabsSource = readFileSync(resolve(appRoot, "src/components/ui/tabs.tsx"), "utf8");
     const statKpiSource = readFileSync(resolve(appRoot, "src/components/ui/stat-kpi.tsx"), "utf8");
+    const chartContainerSource = readFileSync(
+      resolve(appRoot, "src/components/ui/chart-container.tsx"),
+      "utf8"
+    );
     const packageJson = readFileSync(resolve(appRoot, "package.json"), "utf8");
 
     expect(switchSource).toContain("--motion-ease-spring-overshoot");
@@ -279,8 +290,10 @@ describe("canonical UI theme contract", () => {
     expect(accordionSource).toContain("--motion-ease-spring-overshoot");
     expect(tabsSource).toContain("--motion-ease-spring-glide");
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
+    expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
     expect(packageJson).not.toMatch(/["']kinetics["']/);
     expect(packageJson).not.toMatch(/@kinetics\//);
+    expect(packageJson).not.toMatch(/["']morphicons["']/);
     expect(globals).not.toMatch(/magnetic[- ]cursor|liquid[- ]glass|cursor[- ]trail|speed-dial|scramble|typewriter/i);
   });
 

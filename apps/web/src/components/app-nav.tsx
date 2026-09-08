@@ -1,29 +1,22 @@
 import { Suspense } from "react";
+import { AppNavFallback } from "@/components/app-nav-fallback";
 import { AppNavShell } from "@/components/app-nav-shell";
+import { getDemoRoleSwitcher } from "@/lib/auth/demo-switcher";
+import { isAuthEntryRequest } from "@/lib/auth/request-path";
 import { hasPermission } from "@/lib/auth/permissions";
 import { canSeeOpsQueuePulse, roleHomePath } from "@/lib/auth/role-home";
-import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
+import { AuthRequiredError } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { visibleTopNavAreas } from "@/lib/shell/navigation";
-import { roleLabels } from "@/lib/labels";
-
-/**
- * Header-height placeholder while `useSearchParams` resolves inside AppNavShell.
- * Keeps layout.tsx statically renderable and avoids a CLS jump on Analyst inbox.
- */
-function AppNavFallback() {
-  return (
-    <header
-      className="sticky top-0 z-20 min-h-14 border-b border-border bg-background"
-      aria-busy="true"
-      aria-label="Глобальная навигация"
-      data-slot="app-nav"
-    />
-  );
-}
 
 export async function AppNav() {
+  // Path first: QC_DEMO_AUTH no-cookie fallback can impersonate a seeded user,
+  // so "unauthenticated" is not enough to keep login free of product chrome.
+  if (await isAuthEntryRequest()) {
+    return null;
+  }
+
   const snapshot = await getShellSnapshot().catch((error: unknown) => {
     if (error instanceof AuthRequiredError) {
       return null;
@@ -45,7 +38,7 @@ export async function AppNav() {
 
   const [pulseItems, demoSwitcher] = await Promise.all([
     getNavPulseItems(snapshot.user),
-    isDemoAuthEnabled() ? getDemoSwitcher(snapshot.user) : Promise.resolve(null)
+    getDemoRoleSwitcher(snapshot.user)
   ]);
 
   return (
@@ -125,17 +118,4 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
   }
 
   return items;
-}
-
-async function getDemoSwitcher(user: ShellSnapshot["user"]) {
-  const users = await getWorkspaceUsers(user.workspaceId);
-
-  return {
-    currentUserId: user.id,
-    roleLabel: roleLabels[user.role],
-    users: users.map((workspaceUser) => ({
-      id: workspaceUser.id,
-      name: workspaceUser.name
-    }))
-  };
 }

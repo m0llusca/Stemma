@@ -28,9 +28,11 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | TEAM_LEAD, ADMIN | `/dashboard` | `/dashboard` |
 | EXEC | `/dashboard` (риск/SLA, без ops-хрома) | `/dashboard`. Nav: Сегодня, Проверки, Аналитика. Pulse: no Очередь/Риск. Take next off. |
 | SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. Nav: Моя обратная связь, Обучение. No «Проверки». |
-| VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. Demo seed: `viewer@example.com` (DEMO ExternalIdentity, switchable). |
+| VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. When `QC_DEMO_AUTH=enabled`, one account menu (name/role) lists seeded DEMO identities under «Сменить роль». Demo seed: `viewer@example.com`. |
 
 `todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona.
+
+When `QC_DEMO_AUTH=enabled`, the account/profile menu lists the same seeded DEMO identities as `/auth/login` under **«Сменить роль»**. One control — no extra header button. Switching re-issues the session and lands on `roleHomePath`. Hidden when demo auth is off — not production impersonation.
 
 Top-nav **«Проверки»** is writer/dashboard roles (`DASHBOARD_ROLES` / `canSeeReviewsQueueNav`), not any `reviews:read`. Ops pulse **«Очередь»** / **«Риск»** is `reviews:write` only (`canSeeOpsQueuePulse`). SUPPORT_AGENT and EXEC both hold `reviews:read`; chrome must not sell the ops queue. Agent keeps coaching pulse. EXEC risk signals stay on `ExecRiskHome`, not the topbar. The risk chart loads via client island (`exec-risk-chart-island.client.tsx`); do not put `dynamic({ ssr: false })` in the RSC.
 
@@ -75,9 +77,9 @@ Gate RSC pages with `requirePagePermission` / `denyPageAccess` (`apps/web/src/li
 
 API routes and server actions keep `requireCurrentUserPermission` (403 JSON or throw). Mutation deny UX is unchanged.
 
-Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status.
+Most pages call the gate inside `Suspense`. After the response starts streaming, Next.js cannot change the status: HTTP may be 200 with 403 UI. E2E checks the copy, not the status. `/dashboard` is the exception: `requirePagePermission` runs **before** `<Suspense>` so a missing session can still set 401 (LIVE cold-curl used to get 200 + shell under `QC_DEMO_AUTH`; see [demo-stand-perf.md](operations/demo-stand-perf.md)).
 
-`AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). `AppNav` wraps the shell in `Suspense` (after the unauthenticated `null` return) so the layout can statically render without a CSR bailout. Do not wrap `<AppNav />` itself in `layout.tsx` — that would flash the header fallback on the login shell.
+`AppNavShell` reads `useSearchParams()` for Analyst inbox active-area matching (`activeAreaForPath`). `AppNav` returns null on `/auth/*` *before* that Suspense — and before `QC_DEMO_AUTH` no-cookie fallback can impersonate a seeded user — so login never paints product chrome or a header-height skeleton. After the auth-route / unauthenticated `null` return it wraps the shell in `Suspense` so the layout can statically render without a CSR bailout. Do not wrap `<AppNav />` itself in `layout.tsx` with a header placeholder — that would flash chrome on the login form. The inner fallback is also empty on auth routes.
 
 ## Runtime Import Guard
 

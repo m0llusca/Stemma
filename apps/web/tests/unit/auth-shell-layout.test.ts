@@ -11,7 +11,7 @@ function makeRequest(cookie: string) {
 }
 
 // The login shell's "no workspace chrome" rule is no longer CSS: AppNav returns
-// null for unauthenticated requests. That behaviour is covered directly in
+// null on `/auth/*` and for unauthenticated requests. Covered in
 // tests/unit/app-nav.test.tsx.
 
 describe("auth proxy migration cookies", () => {

@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
+  getDemoRoleSwitcher: vi.fn(),
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   })
@@ -31,9 +33,24 @@ vi.mock("@/lib/current-user", () => ({
   getCurrentUser: mocks.getCurrentUser
 }));
 
+vi.mock("@/lib/auth/demo-switcher", () => ({
+  getDemoRoleSwitcher: mocks.getDemoRoleSwitcher,
+  demoRoleSwitchFormData: (userId: string) => {
+    const formData = new FormData();
+    formData.set("userId", userId);
+    return formData;
+  }
+}));
+
+vi.mock("@/lib/user-actions", () => ({
+  switchCurrentUser: vi.fn()
+}));
+
 describe("pending-access holding state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAccountMenuExpandedForTests();
+    mocks.getDemoRoleSwitcher.mockResolvedValue(null);
     mocks.getCurrentUser.mockResolvedValue({
       id: "demo-user-viewer",
       email: "viewer@example.com",
@@ -55,6 +72,45 @@ describe("pending-access holding state", () => {
     expect(logout.getAttribute("href")).toBe("/auth/logout");
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Командная палитра|⌘K|Поиск/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+  });
+
+  it("shows Сменить роль for a viewer only when demo auth lists seeded users", async () => {
+    mocks.getDemoRoleSwitcher.mockResolvedValue({
+      currentUserId: "demo-user-viewer",
+      roleLabel: "Без доступа",
+      users: [
+        {
+          id: "demo-user-viewer",
+          name: "Гость",
+          roleLabel: "Без доступа",
+          optionLabel: "Гость · Без доступа · Демо"
+        },
+        {
+          id: "demo-analyst",
+          name: "Анна QA",
+          roleLabel: "Проверяющий",
+          optionLabel: "Анна QA · Проверяющий · Демо"
+        }
+      ]
+    });
+    const { default: PendingAccessPage } = await import("@/app/auth/pending-access/page");
+
+    render(await PendingAccessPage());
+
+    expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+    const profile = screen.getByRole("button", { name: /Профиль: Без доступа/ });
+    expect(profile.getAttribute("data-slot")).toBe("account-menu");
+    fireEvent.click(profile);
+    const details = profile.closest("details");
+    if (details && !details.open) {
+      details.open = true;
+      fireEvent(details, new Event("toggle", { bubbles: true }));
+    }
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
+    expect(mocks.getDemoRoleSwitcher).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "demo-user-viewer", role: "VIEWER" })
+    );
   });
 
   it("sends anonymous visitors to login", async () => {
