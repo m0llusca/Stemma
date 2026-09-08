@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import type { RoleName } from "@prisma/client";
 import { sessionRequiredMessage } from "@/lib/api/user-facing-errors";
@@ -33,6 +33,27 @@ export class DemoSettingsMutationError extends Error {
 }
 
 export { isDemoAuthEnabled };
+
+const loopbackDemoFallbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+
+/**
+ * No-cookie demo impersonation is local-only. A public QC_DEMO_AUTH stand
+ * (cloudflared + Neon) must not serve the product shell from Host spoofing
+ * via `x-forwarded-host` — only the request `Host` is consulted.
+ */
+export function isLoopbackDemoFallbackHost(hostHeader: string | null | undefined) {
+  const host = (hostHeader ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
+  if (!host) {
+    return false;
+  }
+
+  const hostname =
+    host.startsWith("[") && host.includes("]")
+      ? host.slice(1, host.indexOf("]"))
+      : host.replace(/:\d+$/, "");
+
+  return loopbackDemoFallbackHosts.has(hostname);
+}
 
 async function getAuthJsSession() {
   const { auth } = await import("../../auth");
@@ -93,6 +114,11 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 
   if (user) {
     return user;
+  }
+
+  const requestHost = (await headers()).get("host");
+  if (!isLoopbackDemoFallbackHost(requestHost)) {
+    throw new AuthRequiredError();
   }
 
   const fallbackUser = await prisma.user.findFirst({

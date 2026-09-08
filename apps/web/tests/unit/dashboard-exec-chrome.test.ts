@@ -17,8 +17,9 @@ describe("dashboard exec chrome", () => {
   });
 
   it("picks the exec/risk skeleton instead of the ops 4-KPI dashboard flash", () => {
-    expect(source).toContain("resolveDashboardSkeletonVariant");
+    expect(source).toContain("dashboardSkeletonVariantForRole(user.role)");
     expect(source).toContain("variant={skeletonVariant}");
+    expect(source.indexOf("requirePagePermission")).toBeLessThan(source.indexOf("<Suspense"));
     expect(loadingSource).toContain("resolveDashboardSkeletonVariant");
     expect(loadingSource).toContain("variant={variant}");
     expect(loadingSource).not.toContain('variant="dashboard"');

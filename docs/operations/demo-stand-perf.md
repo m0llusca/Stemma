@@ -3,11 +3,41 @@
 Roman LIVE (2026-09-08) felt slow. Separate **stand topology** from **app
 regressions** before rewriting charts (#109) or Morphicons (#108).
 
-## What to measure
+## Tester LIVE cold-curl (2026-09-08)
+
+Origin TTFB on the current box (`next dev` + Neon, no session cookies):
+
+| URL | Time | Status | Notes |
+| --- | --- | --- | --- |
+| `/auth/login` | ~0.28s | 200 | Login card only; no product chrome |
+| `/` | ~0.26s | 307/200 | `page.tsx` redirects to `/auth/login` |
+| `/dashboard` (unauth) | ~0.65s | 200 | Soft: was serving a product shell without a session |
+
+Feel cost on that stand is **`next dev` + Neon**, not these cold-curl numbers.
+Repeat the same curls after `next build && next start` and a Neon warm.
+
+### Why unauth `/dashboard` was 200 + shell
+
+Verified in code (not a guess):
+
+1. `QC_DEMO_AUTH=enabled` makes `proxy()` skip the login redirect (`src/proxy.ts`).
+2. `getCurrentUser()` then used to `findFirst` a seeded QA/Admin/Lead when no
+   cookie was present — so `/dashboard` ran as that user (full AppNav + KPI
+   queries). That matches ~0.65s vs login ~0.28s.
+3. Even a real `unauthorized()` **inside** `<Suspense>` can stay HTTP 200
+   after the response starts streaming (`docs/app-shell.md`).
+
+This PR: no-cookie demo impersonation is **loopback `Host` only**
+(`localhost` / `127.0.0.1` / `::1`). A public tunnel Host no longer gets a
+shell. `/dashboard` also calls `requirePagePermission` **before** Suspense so
+status can be 401/403. Playwright / local `next dev` on localhost keep the
+fallback. Vercel production still refuses `QC_DEMO_AUTH`.
+
+## What to measure (role homes)
 
 Use DevTools Network + Performance on a warm tab. Record **first navigation**
-and a **repeat** of the same route. Note whether the process is `next dev` or
-`next start`, and whether Neon had been idle.
+and a **repeat**. Note whether the process is `next dev` or `next start`, and
+whether Neon had been idle.
 
 | Surface | Role home | What to record |
 | --- | --- | --- |
@@ -92,6 +122,8 @@ Safe wins in this PR:
   (feeds were already skipped).
 - Demo nav switcher lists demo-identity users only (same filter as login), not
   every workspace row.
+- Unauth `/dashboard` on a public demo Host no longer auto-impersonates; the
+  page gate runs before Suspense.
 
 Known follow-ups (not this PR):
 
