@@ -78,8 +78,7 @@ describe("demo login users", () => {
 
     expect(loginPage).toContain("const [providers, demoUsers] = await Promise.all([");
     expect(loginPage).toContain("demoAuthEnabled");
-    expect(loginPage).toContain("prisma.user.findMany({");
-    expect(loginPage).toContain("where: demoLoginUserWhere");
+    expect(loginPage).toContain("prisma.user.findMany(demoLoginUsersFindManyArgs())");
     expect(loginPage.match(/prisma\.user\.findMany/g)).toHaveLength(1);
   });
 
