@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
+  StaticChartContainer,
   type ChartConfig
-} from "@/components/ui/chart";
+} from "@/components/ui/chart-container";
 import {
   Table,
   TableBody,
@@ -45,6 +44,9 @@ const barFill: Record<ExecRiskChartBar["tone"], string> = {
   neutral: "var(--muted-foreground)"
 };
 
+const EXEC_RISK_CHART_WIDTH = 520;
+const EXEC_RISK_CHART_HEIGHT = 240;
+
 type BarClickPayload = {
   payload?: ExecRiskChartBar;
 };
@@ -76,14 +78,16 @@ export function ExecRiskChart({ bars }: { bars: readonly ExecRiskChartBar[] }) {
       className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,16rem)]"
     >
       <p className="sr-only">{summary}</p>
-      <ChartContainer
+      <StaticChartContainer
         id="exec-risk"
         config={chartConfig}
-        className="h-[240px] w-full"
-        initialDimension={{ width: 520, height: 240 }}
+        className="h-[240px] w-full [&_.recharts-wrapper]:h-full [&_.recharts-wrapper]:w-full [&_.recharts-surface]:h-full [&_.recharts-surface]:w-full"
+        initialDimension={{ width: EXEC_RISK_CHART_WIDTH, height: EXEC_RISK_CHART_HEIGHT }}
       >
         <BarChart
           accessibilityLayer
+          width={EXEC_RISK_CHART_WIDTH}
+          height={EXEC_RISK_CHART_HEIGHT}
           data={[...bars]}
           margin={{ left: 8, right: 8, top: 8, bottom: 0 }}
         >
@@ -115,7 +119,7 @@ export function ExecRiskChart({ bars }: { bars: readonly ExecRiskChartBar[] }) {
             ))}
           </Bar>
         </BarChart>
-      </ChartContainer>
+      </StaticChartContainer>
 
       <Table aria-label="Сводка риска и SLA">
         <TableCaption className="sr-only">

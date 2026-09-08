@@ -41,15 +41,26 @@ const bars: readonly ExecRiskChartBar[] = [
 ];
 
 describe("ExecRiskChart", () => {
-  it("keeps a fixed-height ChartContainer and an accessibility table of the same drills", () => {
+  it("paints bar rects in a static-size SVG — not an empty ResponsiveContainer wrapper", () => {
     const { container } = render(<ExecRiskChart bars={bars} />);
-
-    expect(container.querySelector('[data-slot="chart"]')).toHaveClass("h-[240px]");
-    expect(container.querySelector('[data-slot="chart"]')).toHaveAttribute(
-      "data-qc-motion",
-      "chart-enter"
+    const chart = container.querySelector('[data-slot="chart"]');
+    const surface = container.querySelector("svg.recharts-surface");
+    const rects = container.querySelectorAll(
+      ".recharts-bar-rectangle, .recharts-rectangle, rect[data-key], [data-key] rect"
     );
-    expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
+
+    expect(chart).toHaveClass("h-[240px]");
+    expect(chart).toHaveAttribute("data-qc-motion", "chart-enter");
+    expect(chart).toHaveAttribute("data-initial-width", "520");
+    expect(chart).toHaveAttribute("data-initial-height", "240");
+    expect(container.querySelector(".recharts-responsive-container")).not.toBeInTheDocument();
+    expect(surface).toBeInTheDocument();
+    expect(surface?.getAttribute("width")).toBe("520");
+    expect(surface?.getAttribute("height")).toBe("240");
+    expect(rects.length).toBeGreaterThanOrEqual(bars.length);
+    expect(container.querySelector('[data-key="overdue"]')).toBeTruthy();
+    expect(container.querySelector('[data-key="highRisk"]')).toBeTruthy();
+    expect(container.querySelector('[data-key="queued"]')).toBeTruthy();
     expect(screen.getByRole("table", { name: "Сводка риска и SLA" })).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "Просрочено SLA" })).toHaveAttribute("href", OVERDUE_SLA_HREF);
@@ -84,7 +95,11 @@ describe("ExecRiskChart", () => {
 
     expect(source).toContain("accessibilityLayer");
     expect(source).toContain("isAnimationActive={false}");
-    expect(source).toContain("ChartContainer");
+    expect(source).toContain("StaticChartContainer");
+    expect(source).toContain("width={EXEC_RISK_CHART_WIDTH}");
+    expect(source).toContain("height={EXEC_RISK_CHART_HEIGHT}");
+    expect(source).not.toContain("<ChartContainer");
+    expect(source).not.toContain("ResponsiveContainer");
     expect(source).not.toContain("isAnimationActive={true}");
   });
 });
