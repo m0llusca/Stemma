@@ -270,10 +270,9 @@ describe("app nav", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Сменить роль" }));
     expect(await screen.findByRole("menuitem", { name: "Оператор · Демо" })).not.toBeNull();
-    expect(screen.getByRole("menuitem", { name: "Админ · Администратор · Демо" })).toHaveAttribute(
-      "aria-disabled",
-      "true"
-    );
+    expect(
+      screen.getByRole("menuitem", { name: "Админ · Администратор · Демо" }).getAttribute("aria-disabled")
+    ).toBe("true");
   });
 
   it("keeps the risk pulse badge neutral when the count is 0", async () => {

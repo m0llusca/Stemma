@@ -59,6 +59,7 @@ describe("app nav shell", () => {
     mocks.search = "";
     mocks.routerPush.mockClear();
     mocks.takeNextReview.mockClear();
+    mocks.switchCurrentUser.mockClear();
     window.history.replaceState(null, "", "/reviews");
   });
 
