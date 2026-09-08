@@ -18,6 +18,7 @@
 | [operations/demo-stand-perf.md](operations/demo-stand-perf.md) | Box demo baseline: `next start` vs `next dev`, Neon warm, measure login / role home / reviews |
 | [e2e-verify-database.md](e2e-verify-database.md) | Playwright verify DB: demo-seed freshness, fail-closed bypass |
 | [research-kinetics-recharts.md](research-kinetics-recharts.md) | Team verdict: Recharts + Kinetics fit; kill vanity charts / decorative queue motion |
+| [research-morphicons-reject.md](research-morphicons-reject.md) | #108 Morphicons spike: reject for now (no helper / no provenance / wrong PR) |
 | [memory/](memory/) | Session write-ups (shadcn rewrite, etc.) |
 
 Start with the root [README](../README.md) for clone / run instructions.
