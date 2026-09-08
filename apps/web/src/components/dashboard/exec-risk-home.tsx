@@ -1,7 +1,7 @@
 import { ArrowRight, ClipboardCheck, Clock3, TriangleAlert } from "lucide-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { RoleName } from "@prisma/client";
+import { ExecRiskChartIsland } from "@/components/dashboard/exec-risk-chart-island.client";
 import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,21 +15,6 @@ import {
   type ExecRiskHrefSet,
   type ExecRiskSignal
 } from "@/lib/dashboard/exec-risk-home";
-
-const ExecRiskChart = dynamic(
-  () =>
-    import("@/components/dashboard/exec-risk-chart.client").then((mod) => mod.ExecRiskChart),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="h-[240px] w-full rounded-lg bg-muted/40"
-        aria-hidden="true"
-        data-slot="exec-risk-chart-pending"
-      />
-    )
-  }
-);
 
 const triageTone = {
   accent: "accent",
@@ -124,7 +109,7 @@ export function ExecRiskHome({
                 }
               />
             ) : (
-              <ExecRiskChart bars={chart.bars} />
+              <ExecRiskChartIsland bars={chart.bars} />
             )}
           </CardContent>
         </Card>
