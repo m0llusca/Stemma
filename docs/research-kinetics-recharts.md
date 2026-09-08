@@ -27,11 +27,10 @@
 
 Реализация:
 
-- Exec risk chart — client island (`exec-risk-chart-island.client.tsx`) statically imports `exec-risk-chart.client` (Recharts). Do not use `dynamic({ ssr: false })` — Next CSR-bails and the turbopack async chunk never loads. `ExecRiskHome` stays RSC: do not put `dynamic({ ssr: false })` in the RSC either (`/dashboard` 500).
-- падение чанка — error boundary + «Повторить»; KPI остаются
+- Exec risk chart — client island (`exec-risk-chart-island.client.tsx`) statically imports `exec-risk-chart.client`. Do not use `dynamic({ ssr: false })` — Next CSR-bails and the turbopack async chunk never loads. `ExecRiskHome` stays RSC: do not put `dynamic({ ssr: false })` in the RSC either (`/dashboard` 500).
+- error boundary + «Повторить»; KPI остаются
 - Exec plot — `StaticChartContainer` + first-render hand-rolled `<svg className="recharts-surface">` bars (same paint path as `/reports`). Do not use Recharts 3 `<BarChart>`: `RootSurface` stays null until a size effect/Redux write, so LIVE freezes on an empty `.recharts-wrapper`.
-- a11y: summary / таблица рядом с графиком (`accessibilityLayer` в v3)
-- lazy per-route (бандл) — внутри island
+- Exec a11y = summary / table beside chart (sr-only + visible table). No Recharts `accessibilityLayer` on this path.
 
 **Spike** = первый осмысленный drill-chart на существующих `Chart*`. Новую библиотеку не добавляем.
 
@@ -72,13 +71,19 @@
 
 ## Фазы
 
-1. Drill-chart spike на Exec (потом Lead) через текущие `Chart*` — **сделано** (PR #101 / #99, master ~`3fff63f`; island P0 #104, master ~`74b875a`): BarChart via existing Chart*, click = `opsQueueKpiMetricHref` / same KPI drills; empty chart + TriageStrip primary share one SoT `queueFilterResetHref(EXEC)` → `/reviews` (not dual QUEUED vs bare /reviews); Agent/VIEWER chartless; summary table beside chart. Lazy-load — client island, не RSC `ssr:false`.
+1. Drill-chart spike на Exec (потом Lead) — **сделано** (PR #101 / #99, master ~`3fff63f`; island P0 #104, master ~`74b875a`; paint #113, master `fcbcbbf`): Exec drill-chart done; paint = static SVG via `StaticChartContainer` (not Recharts BarChart); click = `opsQueueKpiMetricHref` / same KPI drills; empty SoT `queueFilterResetHref(EXEC)` → `/reviews`; Agent/VIEWER chartless; summary table beside chart. Island — static import, не RSC `ssr:false`.
 2. Kinetics: 4–6 токенов / паттернов — **сделано** (токены + wiring выше)
 3. Эта заметка — fit; таблица adopted tokens обновляется вместе с CSS
 
 ## Residual
 
-Empty «Сигналы риска» is honest (#113): RSC renders `EmptyState` + `queueFilterResetHref(EXEC)` when empty — never wrap that path in `Suspense` / «Загрузка графика». Non-empty hydrates via a **static** client import of the Recharts chart (no `dynamic({ ssr: false })` — that CSR-bails and never fetches the chunk). `/reports` rich visuals use the same static import (no IO-gated `import()` / eternal «Загрузка визуального представления»). ~~LIVE eternal pending~~ — fixed.
+Empty «Сигналы риска»: RSC `EmptyState` + `queueFilterResetHref(EXEC)` — never Suspense / «Загрузка графика».
+
+Non-empty Exec: static client import → `StaticChartContainer` + first-paint SVG rects. No Recharts `<BarChart>`, no `.recharts-wrapper`, no `accessibilityLayer`, no eternal pending.
+
+`/reports` rich visuals: same static-import + hand-rolled SVG (not IO-gated `import()`).
+
+~~LIVE blank wrapper / eternal pending~~ — fixed (#113).
 
 #109 visual contract unchanged: «Цель» HTML badge outside the plot (`ChartGoalBadge`, no SVG rotate); solid markers `r=3` (`r=4` last); footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; Recharts `isAnimationActive` stays false; tokens in `chart-visual-preset.tsx`.
 
