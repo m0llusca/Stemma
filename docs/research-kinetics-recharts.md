@@ -78,7 +78,7 @@
 
 ## Residual
 
-Empty «Сигналы риска» is honest (#113): the island short-circuits to `EmptyState` + `queueFilterResetHref(EXEC)` before dynamic Recharts. Labeled pending (`role="status"`) only while a **non-empty** chart chunk loads — a blank muted box must not stick. ~~LIVE empty bars / blank loading~~ — fixed.
+Empty «Сигналы риска» is honest (#113 / `e18ff85`): the island short-circuits to `EmptyState` + `queueFilterResetHref(EXEC)` before dynamic Recharts. Labeled pending (`role="status"`) only while a **non-empty** chart chunk loads — a blank muted box must not stick. ~~LIVE empty bars / blank loading~~ — fixed.
 
 #109 visual contract unchanged: «Цель» HTML badge outside the plot (`ChartGoalBadge`, no SVG rotate); solid markers `r=3` (`r=4` last); footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; Recharts `isAnimationActive` stays false; tokens in `chart-visual-preset.tsx`.
 
