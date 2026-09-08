@@ -47,17 +47,31 @@ describe("chart visual preset (#109)", () => {
       path.join(process.cwd(), "src/components/dashboard/exec-risk-home.tsx"),
       "utf8"
     );
+    const empty = readFileSync(
+      path.join(process.cwd(), "src/components/dashboard/exec-risk-empty.tsx"),
+      "utf8"
+    );
+    const island = readFileSync(
+      path.join(process.cwd(), "src/components/dashboard/exec-risk-chart-island.client.tsx"),
+      "utf8"
+    );
     const model = readFileSync(
       path.join(process.cwd(), "src/lib/dashboard/exec-risk-home.ts"),
       "utf8"
     );
 
-    expect(home).toContain("EmptyState");
-    expect(home).toContain('data-slot="exec-risk-empty"');
+    expect(home).toContain("ExecRiskEmptyState");
     expect(home).toContain("chart.resetHref");
+    expect(home).toContain("chart.empty");
+    expect(empty).toContain("EmptyState");
+    expect(empty).toContain('data-slot="exec-risk-empty"');
+    expect(island).toContain("isExecRiskBarsEmpty");
+    expect(island).toContain("ExecRiskEmptyState");
+    expect(island.indexOf("isExecRiskBarsEmpty")).toBeLessThan(island.indexOf("<ExecRiskChart key"));
     expect(model).toContain("queueFilterResetHref(input.role");
     expect(queueFilterResetHref("EXEC")).toBe("/reviews");
     expect(home).not.toContain("status=unreviewed");
     expect(home).not.toContain("qaStatus=QUEUED");
+    expect(empty).not.toContain("status=unreviewed");
   });
 });

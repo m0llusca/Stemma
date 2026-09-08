@@ -49,6 +49,7 @@ describe("ExecRiskHome", () => {
     expect(screen.queryByText("Критичных отклонений нет")).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="triage-strip"]')?.className).not.toMatch(/success/);
     expect(document.querySelector('[data-slot="exec-risk-chart"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).not.toBeInTheDocument();
     expect(document.querySelector('[data-slot="exec-risk-empty"]')).toBeInTheDocument();
     const triagePrimary = screen.getByRole("button", { name: /^Открыть очередь$/ });
     const chartReset = screen.getByRole("button", { name: /^Открыть очередь без фильтра$/ });

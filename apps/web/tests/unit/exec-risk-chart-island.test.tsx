@@ -3,17 +3,24 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { ExecRiskChartIsland } from "@/components/dashboard/exec-risk-chart-island.client";
+import { queueFilterResetHref } from "@/lib/auth/role-home";
 import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
 import { OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
 
 const chartState = vi.hoisted(() => ({
-  shouldThrow: false
+  shouldThrow: false,
+  stayPending: false
 }));
 
 vi.mock("next/dynamic", () => ({
-  default: () =>
+  default: (_loader: unknown, options?: { loading?: () => ReactNode }) =>
     function MockExecRiskChart() {
+      if (chartState.stayPending) {
+        return options?.loading?.() ?? null;
+      }
+
       if (chartState.shouldThrow) {
         throw new Error("recharts render failed");
       }
@@ -21,6 +28,8 @@ vi.mock("next/dynamic", () => ({
       return <div data-slot="exec-risk-chart" />;
     }
 }));
+
+const resetHref = queueFilterResetHref("EXEC");
 
 const bars: readonly ExecRiskChartBar[] = [
   {
@@ -47,6 +56,42 @@ const bars: readonly ExecRiskChartBar[] = [
 ];
 
 describe("ExecRiskChartIsland", () => {
+  it("renders EmptyState + queueFilterResetHref instead of the pending shell when bars are empty", () => {
+    chartState.shouldThrow = false;
+    chartState.stayPending = true;
+
+    render(<ExecRiskChartIsland bars={[]} resetHref={resetHref} />);
+
+    expect(document.querySelector('[data-slot="exec-risk-empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart"]')).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Открыть очередь без фильтра$/ })).toHaveAttribute(
+      "href",
+      resetHref
+    );
+    expect(resetHref).toBe("/reviews");
+  });
+
+  it("treats all-zero bars as empty even if the Recharts chunk would stay pending", () => {
+    chartState.shouldThrow = false;
+    chartState.stayPending = true;
+
+    const zeroBars: readonly ExecRiskChartBar[] = bars.map((bar) => ({
+      ...bar,
+      value: 0,
+      tone: "neutral"
+    }));
+
+    render(<ExecRiskChartIsland bars={zeroBars} resetHref={resetHref} />);
+
+    expect(document.querySelector('[data-slot="exec-risk-empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Открыть очередь без фильтра$/ })).toHaveAttribute(
+      "href",
+      "/reviews"
+    );
+  });
+
   it("keeps next/dynamic ssr:false inside a client module", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/exec-risk-chart-island.client.tsx"),
@@ -60,9 +105,21 @@ describe("ExecRiskChartIsland", () => {
     expect(source).toContain("exec-risk-chart.client");
   });
 
+  it("shows the pending shell only while live bars wait on the Recharts chunk", () => {
+    chartState.shouldThrow = false;
+    chartState.stayPending = true;
+
+    render(<ExecRiskChartIsland bars={bars} resetHref={resetHref} />);
+
+    expect(document.querySelector('[data-slot="exec-risk-chart-pending"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="exec-risk-empty"]')).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Загрузка графика" })).toBeInTheDocument();
+  });
+
   it("renders the deferred Recharts island when the chart chunk succeeds", () => {
     chartState.shouldThrow = false;
-    render(<ExecRiskChartIsland bars={bars} />);
+    chartState.stayPending = false;
+    render(<ExecRiskChartIsland bars={bars} resetHref={resetHref} />);
 
     expect(document.querySelector('[data-slot="exec-risk-chart-island"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="exec-risk-chart"]')).toBeInTheDocument();
@@ -71,12 +128,13 @@ describe("ExecRiskChartIsland", () => {
 
   it("contains a chart render failure and retries without blanking the parent", () => {
     chartState.shouldThrow = true;
+    chartState.stayPending = false;
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     render(
       <section>
         <a href={OVERDUE_SLA_HREF}>Просрочено SLA</a>
-        <ExecRiskChartIsland bars={bars} />
+        <ExecRiskChartIsland bars={bars} resetHref={resetHref} />
       </section>
     );
 
