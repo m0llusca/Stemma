@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -20,9 +20,9 @@ type AccountMenuDisclosureProps = {
 };
 
 /**
- * Native `<details>` owns the panel (`details.open`). `aria-expanded` is React
- * state synced from that bit — never a hardcoded JSX `"false"`, which LIVE
- * re-rendered over `setAttribute` after open (tip ba61c1b).
+ * One React `expanded` flag drives both the panel and `aria-expanded`.
+ * `<details>` is gone: native `open` and React state diverged on LIVE
+ * (panel visible, oracle still read `aria-expanded="false"`).
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -34,110 +34,63 @@ export function AccountMenuDisclosure({
   children,
   panel
 }: AccountMenuDisclosureProps) {
-  const detailsRef = useRef<HTMLDetailsElement>(null);
   const prevDismissKeyRef = useRef(dismissKey);
   const [expanded, setExpanded] = useState(false);
   const menuId = useId();
-
-  const applyOpen = (isOpen: boolean) => {
-    if (detailsRef.current && detailsRef.current.open !== isOpen) {
-      detailsRef.current.open = isOpen;
-    }
-    setExpanded(isOpen);
-  };
-
-  useLayoutEffect(() => {
-    setExpanded(Boolean(detailsRef.current?.open));
-  });
-
-  useEffect(() => {
-    const root = detailsRef.current;
-    if (!root) {
-      return;
-    }
-    const onToggle = () => setExpanded(root.open);
-    root.addEventListener("toggle", onToggle);
-    return () => root.removeEventListener("toggle", onToggle);
-  }, []);
 
   useEffect(() => {
     if (prevDismissKeyRef.current === dismissKey) {
       return;
     }
     prevDismissKeyRef.current = dismissKey;
-    applyOpen(false);
+    setExpanded(false);
   }, [dismissKey]);
 
   useEffect(() => {
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape" || !detailsRef.current?.open) {
-        return;
-      }
-      applyOpen(false);
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  const toggleOpen = () => {
-    applyOpen(!Boolean(detailsRef.current?.open));
-  };
-
-  const onTriggerClick = (event: MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    toggleOpen();
-  };
-
-  const onTriggerKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Enter" && event.key !== " ") {
+    if (!expanded) {
       return;
     }
-    event.preventDefault();
-    event.stopPropagation();
-    toggleOpen();
-  };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [expanded]);
 
   return (
-    <details
-      ref={detailsRef}
-      className={cn("relative open:z-50", align === "start" && "w-full")}
-      onToggle={(event) => {
-        setExpanded(event.currentTarget.open);
-      }}
-    >
-      <summary
-        role="button"
+    <div className={cn("relative", expanded && "z-50", align === "start" && "w-full")}>
+      <button
+        type="button"
         data-slot="account-menu"
         title={triggerTitle}
         aria-label={triggerAriaLabel}
         aria-haspopup="menu"
         aria-expanded={expanded}
-        aria-controls={menuId}
-        className={cn(
-          triggerClassName,
-          "cursor-pointer list-none [&::-webkit-details-marker]:hidden [&_*]:pointer-events-none"
-        )}
-        onClick={onTriggerClick}
-        onKeyDown={onTriggerKeyDown}
+        aria-controls={expanded ? menuId : undefined}
+        className={triggerClassName}
+        onClick={() => {
+          setExpanded((current) => !current);
+        }}
       >
         {children}
-      </summary>
-      <div
-        id={menuId}
-        role="menu"
-        hidden={!expanded}
-        data-slot="account-menu-panel"
-        className={cn(
-          "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
-          align === "end" ? "right-0" : "left-0",
-          panelClassName
-        )}
-      >
-        {panel}
-      </div>
-    </details>
+      </button>
+      {expanded ? (
+        <div
+          id={menuId}
+          role="menu"
+          data-slot="account-menu-panel"
+          className={cn(
+            "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
+            align === "end" ? "right-0" : "left-0",
+            panelClassName
+          )}
+        >
+          {panel}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
