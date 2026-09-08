@@ -101,6 +101,17 @@ describe("app nav shell", () => {
     expect(brand.getAttribute("href")).toBe("/self-review");
   });
 
+  it("renders no navigation landmark or pulse on auth entry paths", () => {
+    mocks.pathname = "/auth/login";
+    const { container } = render(<AppNavShell {...baseProps} />);
+
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByRole("banner", { name: "Глобальная навигация" })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Основные разделы" })).toBeNull();
+    expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
+    expect(document.querySelector('[data-slot="app-nav"]')).toBeNull();
+  });
+
   it("keeps the global navigation surface flat and opaque", () => {
     render(<AppNavShell {...baseProps} />);
 

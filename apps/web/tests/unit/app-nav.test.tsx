@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   getDemoRoleSwitcher: vi.fn(),
+  isAuthEntryRequest: vi.fn(),
   prisma: {
     conversation: {
       count: vi.fn()
@@ -23,6 +24,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn() })
+}));
+
+vi.mock("@/lib/auth/request-path", () => ({
+  isAuthEntryRequest: mocks.isAuthEntryRequest
 }));
 
 vi.mock("@/lib/current-user", () => ({
@@ -68,6 +73,7 @@ describe("app nav", () => {
   beforeEach(() => {
     resetAccountMenuExpandedForTests();
     vi.clearAllMocks();
+    mocks.isAuthEntryRequest.mockResolvedValue(false);
     mockCurrentUser();
   });
 
@@ -327,7 +333,7 @@ describe("app nav", () => {
   // The root layout renders AppNav on every route, including the login shell.
   // Suppressing workspace chrome there used to be a CSS concern
   // (`.page:has(.auth-shell) .app-nav { display: none }`); it is now the
-  // component's own unauthenticated branch, so assert the behaviour directly.
+  // component's own auth-route / unauthenticated branch.
   it("renders no workspace chrome while the unauthenticated login shell is up", async () => {
     const { AuthRequiredError } = await import("@/lib/current-user");
     mocks.getCurrentUser.mockRejectedValue(new AuthRequiredError());
@@ -335,6 +341,19 @@ describe("app nav", () => {
 
     expect(await AppNav()).toBeNull();
     // No chrome also means no pulse queries for an anonymous visitor.
+    expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.review.count).not.toHaveBeenCalled();
+    expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
+  });
+
+  it("renders no workspace chrome on /auth/* even when demo fallback impersonates a user", async () => {
+    mocks.isAuthEntryRequest.mockResolvedValue(true);
+    mockCurrentUser();
+    const { AppNav } = await import("@/components/app-nav");
+
+    expect(await AppNav()).toBeNull();
+    expect(mocks.getCurrentUser).not.toHaveBeenCalled();
+    expect(mocks.getDemoRoleSwitcher).not.toHaveBeenCalled();
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();
     expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();

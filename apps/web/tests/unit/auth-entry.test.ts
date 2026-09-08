@@ -51,4 +51,13 @@ describe("auth entry proxy", () => {
 
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
+
+  it("forwards the request pathname so AppNav can hide on auth entry routes", () => {
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+
+    const response = proxy(makeRequest("http://localhost/auth/login"));
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("x-middleware-request-x-stemma-pathname")).toBe("/auth/login");
+  });
 });
