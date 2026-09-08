@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, type ReactNode, type ToggleEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type ToggleEvent
+} from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -8,8 +17,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Remembers UA `details.open` across AppNav Suspense remount. `aria-expanded`
- * is DOM-owned (`setAttribute`) — React must not put it in JSX.
+ * Remembers UA `details.open` across AppNav Suspense remount.
  */
 let accountMenuExpanded = false;
 
@@ -17,15 +25,20 @@ export function resetAccountMenuExpandedForTests() {
   accountMenuExpanded = false;
 }
 
-function writeAriaExpanded(details: HTMLDetailsElement | null) {
-  if (!details) {
-    return;
-  }
-  accountMenuExpanded = details.open;
+function writeAriaAttribute(details: HTMLDetailsElement) {
   const summary = details.querySelector("[data-slot=account-menu]");
   if (summary instanceof HTMLElement) {
     summary.setAttribute("aria-expanded", details.open ? "true" : "false");
   }
+}
+
+function syncFromDetails(details: HTMLDetailsElement | null, commit: (open: boolean) => void) {
+  if (!details) {
+    return;
+  }
+  accountMenuExpanded = details.open;
+  commit(details.open);
+  writeAriaAttribute(details);
 }
 
 type AccountMenuDisclosureProps = {
@@ -41,9 +54,9 @@ type AccountMenuDisclosureProps = {
 };
 
 /**
- * Native `<details>` / `<summary>` owns open. `aria-expanded` is written with
- * `setAttribute` from `details.open` — never a React prop (LIVE 58d7aeb:
- * JSX kept overwriting the attribute back to "false").
+ * Native `<details>` owns open. `aria-expanded` lives in both layers:
+ * JSX so React will not strip the attribute, and setAttribute so readers
+ * see it before paint. Each layout commit re-reads `details.open`.
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -57,6 +70,7 @@ export function AccountMenuDisclosure({
 }: AccountMenuDisclosureProps) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const prevDismissKeyRef = useRef(dismissKey);
+  const [expanded, setExpanded] = useState(() => accountMenuExpanded);
   const menuId = useId();
 
   const attachDetails = useCallback((root: HTMLDetailsElement | null) => {
@@ -67,8 +81,12 @@ export function AccountMenuDisclosure({
     if (accountMenuExpanded && !root.open) {
       root.open = true;
     }
-    writeAriaExpanded(root);
+    syncFromDetails(root, setExpanded);
   }, []);
+
+  useLayoutEffect(() => {
+    syncFromDetails(detailsRef.current, setExpanded);
+  });
 
   useEffect(() => {
     if (prevDismissKeyRef.current === dismissKey) {
@@ -77,7 +95,7 @@ export function AccountMenuDisclosure({
     prevDismissKeyRef.current = dismissKey;
     if (detailsRef.current) {
       detailsRef.current.open = false;
-      writeAriaExpanded(detailsRef.current);
+      syncFromDetails(detailsRef.current, setExpanded);
     }
   }, [dismissKey]);
 
@@ -87,7 +105,7 @@ export function AccountMenuDisclosure({
         return;
       }
       detailsRef.current.open = false;
-      writeAriaExpanded(detailsRef.current);
+      syncFromDetails(detailsRef.current, setExpanded);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -98,7 +116,7 @@ export function AccountMenuDisclosure({
       ref={attachDetails}
       className={cn("relative open:z-50", align === "start" && "w-full")}
       onToggle={(event: ToggleEvent<HTMLDetailsElement>) => {
-        writeAriaExpanded(event.currentTarget);
+        syncFromDetails(event.currentTarget, setExpanded);
       }}
     >
       <summary
@@ -107,6 +125,7 @@ export function AccountMenuDisclosure({
         title={triggerTitle}
         aria-label={triggerAriaLabel}
         aria-haspopup="menu"
+        aria-expanded={expanded ? "true" : "false"}
         aria-controls={menuId}
         className={cn(
           triggerClassName,
