@@ -567,8 +567,10 @@ describe("app nav shell", () => {
     const trigger = screen.getByRole("button", { name: /Профиль: Оператор/ });
     expect(trigger.getAttribute("data-slot")).toBe("account-menu");
     fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
     fireEvent.click(trigger);
 
+    expect(trigger.closest("details")?.hasAttribute("open")).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menu")).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Иван · Оператор · Демо" })).not.toBeNull();
@@ -605,7 +607,6 @@ describe("app nav shell", () => {
     expect(trigger.getAttribute("data-slot")).toBe("account-menu");
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "Enter" });
-    fireEvent.click(trigger);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();

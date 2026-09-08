@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -19,10 +19,37 @@ type AccountMenuDisclosureProps = {
   panel: ReactNode;
 };
 
+function syncDisclosureDom(root: HTMLDetailsElement | null) {
+  if (!root) {
+    return;
+  }
+
+  const isOpen = root.open;
+  const summary = root.querySelector("[data-slot=account-menu]");
+  const menu = root.querySelector("[data-slot=account-menu-panel]");
+  if (summary instanceof HTMLElement) {
+    summary.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+  if (menu instanceof HTMLElement) {
+    menu.hidden = !isOpen;
+  }
+}
+
+function toggleDisclosure(root: HTMLDetailsElement | null) {
+  if (!root) {
+    return;
+  }
+  root.open = !root.open;
+  syncDisclosureDom(root);
+}
+
 /**
- * Account / demo switcher: native button + in-flow panel.
- * Base UI Menu/Popover treat the opening click as outside-press on LIVE
- * (Agent /self-review), so the popup never stays open.
+ * Native `<details>` / `<summary>` with an explicit toggle in the click
+ * handler. The open bit lives on the element (`details.open`), not React
+ * state — LIVE Agent `/self-review` kept `aria-expanded=false` when `useState`
+ * was reset on the same gesture. `preventDefault` avoids a double-toggle
+ * (UA + our assignment). `hidden` is applied from `details.open` after mount
+ * so SSR HTML stays visible to the UA disclosure.
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -34,77 +61,98 @@ export function AccountMenuDisclosure({
   children,
   panel
 }: AccountMenuDisclosureProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const prevDismissKeyRef = useRef(dismissKey);
   const menuId = useId();
 
+  useLayoutEffect(() => {
+    syncDisclosureDom(detailsRef.current);
+  });
+
   useEffect(() => {
-    setOpen(false);
+    const root = detailsRef.current;
+    if (!root) {
+      return;
+    }
+    const onToggle = () => syncDisclosureDom(root);
+    root.addEventListener("toggle", onToggle);
+    return () => root.removeEventListener("toggle", onToggle);
+  }, []);
+
+  useEffect(() => {
+    if (prevDismissKeyRef.current === dismissKey) {
+      return;
+    }
+    prevDismissKeyRef.current = dismissKey;
+    if (detailsRef.current) {
+      detailsRef.current.open = false;
+    }
+    syncDisclosureDom(detailsRef.current);
   }, [dismissKey]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node) || rootRef.current?.contains(target)) {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || !detailsRef.current?.open) {
         return;
       }
-      setOpen(false);
+      detailsRef.current.open = false;
+      syncDisclosureDom(detailsRef.current);
     };
 
     document.addEventListener("keydown", onKeyDown);
-    // After this turn so the opening pointerdown cannot dismiss the panel.
-    const timeoutId = window.setTimeout(() => {
-      document.addEventListener("pointerdown", onPointerDown);
-    }, 0);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [open]);
+  const onTriggerClick = (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleDisclosure(detailsRef.current);
+  };
+
+  const onTriggerKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    toggleDisclosure(detailsRef.current);
+  };
 
   return (
-    <div className={cn("relative", open && "z-50")} ref={rootRef}>
-      <button
-        type="button"
+    <details
+      ref={detailsRef}
+      className={cn("relative open:z-50", align === "start" && "w-full")}
+    >
+      <summary
+        role="button"
         data-slot="account-menu"
         title={triggerTitle}
         aria-label={triggerAriaLabel}
         aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
-        className={triggerClassName}
-        onClick={() => {
-          setOpen((current) => !current);
-        }}
+        aria-expanded="false"
+        aria-controls={menuId}
+        className={cn(
+          triggerClassName,
+          "cursor-pointer list-none [&::-webkit-details-marker]:hidden [&_*]:pointer-events-none"
+        )}
+        onClick={onTriggerClick}
+        onKeyDown={onTriggerKeyDown}
       >
         {children}
-      </button>
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          className={cn(
-            "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
-            align === "end" ? "right-0" : "left-0",
-            panelClassName
-          )}
-        >
-          {panel}
-        </div>
-      ) : null}
-    </div>
+      </summary>
+      <div
+        id={menuId}
+        role="menu"
+        data-slot="account-menu-panel"
+        className={cn(
+          "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
+          align === "end" ? "right-0" : "left-0",
+          panelClassName
+        )}
+      >
+        {panel}
+      </div>
+    </details>
   );
 }
 
