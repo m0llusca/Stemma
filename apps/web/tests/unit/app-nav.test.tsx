@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
-  getWorkspaceUsers: vi.fn(),
-  isDemoAuthEnabled: vi.fn(),
+  getDemoRoleSwitcher: vi.fn(),
   prisma: {
     conversation: {
       count: vi.fn()
@@ -28,9 +27,16 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/current-user", () => ({
   AuthRequiredError: class AuthRequiredError extends Error {},
-  getCurrentUser: mocks.getCurrentUser,
-  getWorkspaceUsers: mocks.getWorkspaceUsers,
-  isDemoAuthEnabled: mocks.isDemoAuthEnabled
+  getCurrentUser: mocks.getCurrentUser
+}));
+
+vi.mock("@/lib/auth/demo-switcher", () => ({
+  getDemoRoleSwitcher: mocks.getDemoRoleSwitcher,
+  demoRoleSwitchFormData: (userId: string) => {
+    const formData = new FormData();
+    formData.set("userId", userId);
+    return formData;
+  }
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -50,7 +56,7 @@ function mockCurrentUser(role = "ADMIN") {
     email: "admin@example.com",
     workspace: {}
   });
-  mocks.getWorkspaceUsers.mockResolvedValue([{ id: "user-1", name: "Админ", email: "admin@example.com", role }]);
+  mocks.getDemoRoleSwitcher.mockResolvedValue(null);
   mocks.prisma.conversation.count.mockResolvedValue(0);
   mocks.prisma.review.count.mockResolvedValue(0);
   mocks.prisma.trainingAssignment.count.mockResolvedValue(0);
@@ -59,7 +65,6 @@ function mockCurrentUser(role = "ADMIN") {
 describe("app nav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.isDemoAuthEnabled.mockReturnValue(false);
     mockCurrentUser();
   });
 
@@ -218,7 +223,7 @@ describe("app nav", () => {
     expect(mocks.prisma.conversation.count).not.toHaveBeenCalled();
     expect(mocks.prisma.review.count).not.toHaveBeenCalled();
     expect(mocks.prisma.trainingAssignment.count).not.toHaveBeenCalled();
-    expect(mocks.getWorkspaceUsers).not.toHaveBeenCalled();
+    expect(mocks.getDemoRoleSwitcher).not.toHaveBeenCalled();
   });
 
   it("keeps the take-next-case shortcut for reviewers", async () => {
@@ -231,31 +236,44 @@ describe("app nav", () => {
   });
 
   it("keeps the demo switcher hidden when demo auth is disabled", async () => {
-    mocks.isDemoAuthEnabled.mockReturnValue(false);
+    mocks.getDemoRoleSwitcher.mockResolvedValue(null);
     const { AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
-    expect(screen.queryByRole("button", { name: "Сменить" })).toBeNull();
-    expect(mocks.isDemoAuthEnabled).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+    expect(mocks.getDemoRoleSwitcher).toHaveBeenCalled();
   });
 
-  it("surfaces the demo switcher with the switch action when demo auth is enabled", async () => {
-    mocks.isDemoAuthEnabled.mockReturnValue(true);
-    mocks.getWorkspaceUsers.mockResolvedValue([
-      { id: "user-1", name: "Админ", email: "admin@example.com", role: "ADMIN" },
-      { id: "user-2", name: "Оператор", email: "agent@example.com", role: "SUPPORT_AGENT" }
-    ]);
+  it("surfaces the demo role switch when demo auth is enabled", async () => {
+    mocks.getDemoRoleSwitcher.mockResolvedValue({
+      currentUserId: "user-1",
+      roleLabel: "Администратор",
+      users: [
+        {
+          id: "user-1",
+          name: "Админ",
+          roleLabel: "Администратор",
+          optionLabel: "Админ · Администратор · Демо"
+        },
+        {
+          id: "user-2",
+          name: "Оператор",
+          roleLabel: "Оператор",
+          optionLabel: "Оператор · Демо"
+        }
+      ]
+    });
     const { AppNav } = await import("@/components/app-nav");
 
     render(await AppNav());
 
-    // Demo controls live in a DropdownMenu; open the identity menu first.
-    const trigger = screen.getByRole("button", { name: /Администратор/i });
-    fireEvent.click(trigger);
-
-    expect(await screen.findByRole("button", { name: "Сменить" })).not.toBeNull();
-    expect(screen.getByRole("combobox", { name: "Демо-пользователь" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Сменить роль" }));
+    expect(await screen.findByRole("menuitem", { name: "Оператор · Демо" })).not.toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Админ · Администратор · Демо" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
   });
 
   it("keeps the risk pulse badge neutral when the count is 0", async () => {

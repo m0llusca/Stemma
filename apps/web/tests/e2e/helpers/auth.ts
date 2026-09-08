@@ -1,4 +1,4 @@
-import type { BrowserContext } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { hashLocalPassword } from "@/lib/auth/local-credentials";
 import { prisma } from "@/lib/db";
 import { authJsSessionCookieName, createAuthSession, sessionCookieName } from "@/lib/auth/session";
@@ -110,4 +110,11 @@ export async function signInE2EUser(context: BrowserContext, user: { id: string 
   await context.addCookies(e2eSessionCookieNames.map((name) => ({ name, ...cookieOptions })));
 
   return { token, session };
+}
+
+/** QC_DEMO_AUTH only: header «Сменить роль» → one menuitem. Lands on that role's home. */
+export async function switchSeededDemoRole(page: Page, optionLabel: string | RegExp) {
+  await page.getByRole("button", { name: "Сменить роль" }).click();
+  const menu = page.getByRole("menu", { name: "Сменить роль" });
+  await menu.getByRole("menuitem", { name: optionLabel }).click();
 }

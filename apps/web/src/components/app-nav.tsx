@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import { AppNavShell } from "@/components/app-nav-shell";
+import { getDemoRoleSwitcher } from "@/lib/auth/demo-switcher";
 import { hasPermission } from "@/lib/auth/permissions";
 import { canSeeOpsQueuePulse, roleHomePath } from "@/lib/auth/role-home";
-import { AuthRequiredError, getWorkspaceUsers, isDemoAuthEnabled } from "@/lib/current-user";
+import { AuthRequiredError } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { visibleTopNavAreas } from "@/lib/shell/navigation";
-import { roleLabels } from "@/lib/labels";
 
 /**
  * Header-height placeholder while `useSearchParams` resolves inside AppNavShell.
@@ -45,7 +45,7 @@ export async function AppNav() {
 
   const [pulseItems, demoSwitcher] = await Promise.all([
     getNavPulseItems(snapshot.user),
-    isDemoAuthEnabled() ? getDemoSwitcher(snapshot.user) : Promise.resolve(null)
+    getDemoRoleSwitcher(snapshot.user)
   ]);
 
   return (
@@ -125,17 +125,4 @@ async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[
   }
 
   return items;
-}
-
-async function getDemoSwitcher(user: ShellSnapshot["user"]) {
-  const users = await getWorkspaceUsers(user.workspaceId);
-
-  return {
-    currentUserId: user.id,
-    roleLabel: roleLabels[user.role],
-    users: users.map((workspaceUser) => ({
-      id: workspaceUser.id,
-      name: workspaceUser.name
-    }))
-  };
 }

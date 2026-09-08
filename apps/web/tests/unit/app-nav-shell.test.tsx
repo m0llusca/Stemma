@@ -507,7 +507,7 @@ describe("app nav shell", () => {
     );
   });
 
-  it("renders the demo switcher form bound to the switch action when provided", () => {
+  it("switches a demo role in two clicks from the persistent header control", () => {
     render(
       <AppNavShell
         {...baseProps}
@@ -515,18 +515,61 @@ describe("app nav shell", () => {
           currentUserId: "user-1",
           roleLabel: "Администратор",
           users: [
-            { id: "user-1", name: "Админ" },
-            { id: "user-2", name: "Оператор" }
+            {
+              id: "user-1",
+              name: "Админ",
+              roleLabel: "Администратор",
+              optionLabel: "Админ · Администратор · Демо"
+            },
+            {
+              id: "user-2",
+              name: "Оператор",
+              roleLabel: "Оператор",
+              optionLabel: "Оператор · Демо"
+            }
+          ]
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Сменить роль" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Оператор · Демо" }));
+
+    expect(mocks.switchCurrentUser).toHaveBeenCalledTimes(1);
+    const formData = mocks.switchCurrentUser.mock.calls[0]?.[0] as FormData;
+    expect(formData.get("userId")).toBe("user-2");
+  });
+
+  it("lists seeded roles inside the account menu without a second confirm click", () => {
+    render(
+      <AppNavShell
+        {...baseProps}
+        demoSwitcher={{
+          currentUserId: "user-1",
+          roleLabel: "Администратор",
+          users: [
+            {
+              id: "user-1",
+              name: "Админ",
+              roleLabel: "Администратор",
+              optionLabel: "Админ · Администратор · Демо"
+            },
+            {
+              id: "user-2",
+              name: "Анна QA",
+              roleLabel: "Проверяющий",
+              optionLabel: "Анна QA · Проверяющий · Демо"
+            }
           ]
         }}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Администратор/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" }));
 
-    const select = screen.getByRole("combobox", { name: "Демо-пользователь" }) as HTMLSelectElement;
-    expect(select.getAttribute("name")).toBe("userId");
-    expect(select.value).toBe("user-1");
-    expect(screen.getByRole("button", { name: "Сменить" })).not.toBeNull();
+    expect(mocks.switchCurrentUser).toHaveBeenCalledTimes(1);
+    const formData = mocks.switchCurrentUser.mock.calls[0]?.[0] as FormData;
+    expect(formData.get("userId")).toBe("user-2");
   });
 });

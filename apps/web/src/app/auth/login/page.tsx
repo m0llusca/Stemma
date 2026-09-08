@@ -22,13 +22,12 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
-import { demoLoginUserOrderBy, demoLoginUserWhere } from "@/lib/auth/demo-users";
+import { demoLoginUsersFindManyArgs, demoUserOptionLabel } from "@/lib/auth/demo-users";
 import { loginFlashCookieName, resolveLoginFlashMessage } from "@/lib/auth/login-flash";
 import { resolvePostLoginPath, sanitizeReturnTo } from "@/lib/auth/role-home";
 import { getValidAuthSession, sessionCookieName } from "@/lib/auth/session";
 import { isDemoAuthEnabled } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { roleLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { signInWithDemoUser, signInWithLocalCredentials } from "@/lib/user-actions";
 
@@ -72,17 +71,6 @@ function providerSelectionHref(input: { provider: string; workspaceId: string; r
   return `/auth/login?${params.toString()}`;
 }
 
-function demoUserOptionLabel(user: {
-  name: string;
-  role: keyof typeof roleLabels;
-  workspace: { name: string };
-}) {
-  const roleLabel = roleLabels[user.role];
-  const identity = user.name === roleLabel ? roleLabel : `${user.name} · ${roleLabel}`;
-
-  return `${identity} · ${user.workspace.name}`;
-}
-
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const returnTo = safeReturnTo(firstParam(params.returnTo));
@@ -118,23 +106,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         }
       }
     }),
-    demoAuthEnabled
-      ? prisma.user.findMany({
-          where: demoLoginUserWhere,
-          orderBy: demoLoginUserOrderBy,
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            workspace: {
-              select: {
-                name: true
-              }
-            }
-          }
-        })
-      : Promise.resolve([])
+    demoAuthEnabled ? prisma.user.findMany(demoLoginUsersFindManyArgs()) : Promise.resolve([])
   ]);
   const selectedProvider =
     providers.find(
