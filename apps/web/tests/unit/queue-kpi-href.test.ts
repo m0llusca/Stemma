@@ -16,6 +16,7 @@ const primaryKpiSources = [
   "app/dashboard/page.tsx",
   "components/dashboard/exec-risk-home.tsx",
   "components/dashboard/exec-risk-empty.tsx",
+  "components/dashboard/exec-risk-chart-pending.tsx",
   "components/dashboard/exec-risk-chart-island.client.tsx",
   "components/dashboard/exec-risk-chart.client.tsx",
   "lib/dashboard/exec-risk-home.ts",

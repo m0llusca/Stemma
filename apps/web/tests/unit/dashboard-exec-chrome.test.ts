@@ -41,6 +41,9 @@ describe("dashboard exec chrome", () => {
     expect(execHome).toContain("exec-risk-chart-island.client");
     expect(execHome).toContain("ExecRiskEmptyState");
     expect(execHome).toContain("chart.empty");
+    expect(execHome).not.toContain("Suspense");
+    expect(execHome).not.toContain("ExecRiskChartPending");
+    expect(execHome).not.toContain("Загрузка графика");
     expect(chartIsland).toMatch(/^["']use client["']/m);
     expect(chartIsland).toContain("exec-risk-chart.client");
     expect(chartIsland).toContain("ssr: false");

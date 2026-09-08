@@ -1,9 +1,8 @@
 import { ArrowRight, ClipboardCheck, Clock3, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { Suspense } from "react";
 import type { RoleName } from "@prisma/client";
 import { ExecRiskChartIsland } from "@/components/dashboard/exec-risk-chart-island.client";
-import { ExecRiskChartPending, ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
+import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { OperationKpiCard } from "@/components/operations/operation-kpi-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,9 +99,7 @@ export function ExecRiskHome({
             {chart.empty ? (
               <ExecRiskEmptyState resetHref={chart.resetHref} />
             ) : (
-              <Suspense fallback={<ExecRiskChartPending />}>
-                <ExecRiskChartIsland bars={chart.bars} resetHref={chart.resetHref} />
-              </Suspense>
+              <ExecRiskChartIsland bars={chart.bars} resetHref={chart.resetHref} />
             )}
           </CardContent>
         </Card>

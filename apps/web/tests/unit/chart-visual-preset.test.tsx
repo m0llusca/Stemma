@@ -73,5 +73,7 @@ describe("chart visual preset (#109)", () => {
     expect(home).not.toContain("status=unreviewed");
     expect(home).not.toContain("qaStatus=QUEUED");
     expect(empty).not.toContain("status=unreviewed");
+    expect(empty).not.toContain("Загрузка графика");
+    expect(empty).not.toContain("ExecRiskChartPending");
   });
 });

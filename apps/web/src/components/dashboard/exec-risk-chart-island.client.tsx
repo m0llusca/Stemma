@@ -10,7 +10,8 @@ import {
 import dynamic from "next/dynamic";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ExecRiskChartPending, ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
+import { ExecRiskChartPending } from "@/components/dashboard/exec-risk-chart-pending";
+import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { isExecRiskBarsEmpty, type ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
 
 const ExecRiskChart = dynamic(
