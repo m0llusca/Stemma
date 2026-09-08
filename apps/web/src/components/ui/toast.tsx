@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <Toaster richColors closeButton position="top-right" />
+      <Toaster richColors closeButton position="top-right" offset={64} />
     </ToastContext.Provider>
   );
 }

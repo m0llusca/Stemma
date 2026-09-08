@@ -98,7 +98,7 @@ describe("pending-access holding state", () => {
 
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
     const profile = screen.getByRole("button", { name: /Профиль: Без доступа/ });
-    expect(profile).not.toBeNull();
+    expect(profile.getAttribute("data-slot")).toBe("account-menu");
     fireEvent.click(profile);
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(mocks.getDemoRoleSwitcher).toHaveBeenCalledWith(

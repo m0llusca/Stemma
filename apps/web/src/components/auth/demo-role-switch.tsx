@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher }) {
   return (
@@ -54,17 +55,12 @@ export function DemoAccountMenu({ switcher, logout }: DemoAccountMenuProps) {
     switcher.users.find((user) => user.id === switcher.currentUserId)?.name ?? switcher.roleLabel;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
-        render={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full min-h-11 gap-1.5"
-            aria-label={`Профиль: ${switcher.roleLabel}, ${currentName}`}
-          />
-        }
+        type="button"
+        data-slot="account-menu"
+        aria-label={`Профиль: ${switcher.roleLabel}, ${currentName}`}
+        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full min-h-11 gap-1.5")}
       >
         <span className="min-w-0 truncate">{switcher.roleLabel}</span>
         <span className="min-w-0 truncate text-muted-foreground">{currentName}</span>

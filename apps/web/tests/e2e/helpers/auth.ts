@@ -114,6 +114,6 @@ export async function signInE2EUser(context: BrowserContext, user: { id: string 
 
 /** QC_DEMO_AUTH only: account/profile menu → one menuitem. Lands on that role's home. */
 export async function switchSeededDemoRole(page: Page, optionLabel: string | RegExp) {
-  await page.getByRole("button", { name: /Профиль:/ }).click();
+  await page.locator('[data-slot="account-menu"]').click();
   await page.getByRole("menuitem", { name: optionLabel }).click();
 }

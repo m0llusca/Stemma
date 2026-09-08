@@ -130,6 +130,7 @@ export function AppNavShell({
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
   const search = searchParams.toString();
@@ -181,9 +182,10 @@ export function AppNavShell({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openCommand]);
 
-  // Mobile area menu: close on route change so a navigation always dismisses the panel.
+  // Mobile area menu / account menu: close on route change so a navigation always dismisses the panel.
   useEffect(() => {
     setAreaMenuOpen(false);
+    setAccountMenuOpen(false);
   }, [pathname]);
 
   // Reset search text when the palette closes so the next open starts clean.
@@ -440,28 +442,33 @@ export function AppNavShell({
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
-        <DropdownMenu>
+        {/* Native trigger (not render={<Button>}) + modal={false}: Base UI treats the
+            opening click as outside-press when a Button host is modal, so the menu
+            never stays open — LIVE fail on Agent /self-review. */}
+        <DropdownMenu
+          open={accountMenuOpen}
+          onOpenChange={setAccountMenuOpen}
+          modal={false}
+        >
           <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="min-h-11 min-w-11 max-w-48 shrink-0 gap-1.5"
-                title={user.email}
-                aria-label={
-                  demoRoleLabel
-                    ? `Профиль: ${demoRoleLabel}, ${demoUserName}`
-                    : `Профиль: ${user.name}`
-                }
-              />
+            type="button"
+            data-slot="account-menu"
+            title={user.email}
+            aria-label={
+              demoRoleLabel
+                ? `Профиль: ${demoRoleLabel}, ${demoUserName}`
+                : `Профиль: ${user.name}`
             }
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
+            )}
           >
-            <span className="hidden min-w-0 flex-col items-start gap-0.5 text-left xl:flex">
-              <span className="truncate text-sm font-medium leading-none">
+            <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+              <span className="max-w-36 truncate text-sm font-medium leading-none">
                 {demoRoleLabel ?? user.name}
               </span>
-              <span className="hidden truncate text-xs text-muted-foreground xl:inline">
+              <span className="max-w-36 truncate text-xs text-muted-foreground">
                 {demoSwitcher ? demoUserName : user.email}
               </span>
             </span>
