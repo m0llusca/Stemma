@@ -34,7 +34,7 @@ import { takeNextFormDataFromLocation } from "@/lib/review/queue-href-filters";
 import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
-import { DemoRoleSwitch, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
+import { DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -439,8 +439,6 @@ export function AppNavShell({
         </div>
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
-
-        {demoSwitcher ? <DemoRoleSwitch switcher={demoSwitcher} /> : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger

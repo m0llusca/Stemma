@@ -242,10 +242,12 @@ describe("app nav", () => {
     render(await AppNav());
 
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Профиль:/ }));
+    expect(screen.queryByRole("menuitem", { name: /Демо/ })).toBeNull();
     expect(mocks.getDemoRoleSwitcher).toHaveBeenCalled();
   });
 
-  it("surfaces the demo role switch when demo auth is enabled", async () => {
+  it("surfaces the demo role switch only inside the profile menu when demo auth is enabled", async () => {
     mocks.getDemoRoleSwitcher.mockResolvedValue({
       currentUserId: "user-1",
       roleLabel: "Администратор",
@@ -268,7 +270,8 @@ describe("app nav", () => {
 
     render(await AppNav());
 
-    fireEvent.click(screen.getByRole("button", { name: "Сменить роль" }));
+    expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Профиль: Администратор/ }));
     expect(await screen.findByRole("menuitem", { name: "Оператор · Демо" })).not.toBeNull();
     expect(
       screen.getByRole("menuitem", { name: "Админ · Администратор · Демо" }).getAttribute("aria-disabled")

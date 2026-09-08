@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -96,7 +96,11 @@ describe("pending-access holding state", () => {
 
     render(await PendingAccessPage());
 
-    expect(screen.getByRole("button", { name: "Сменить роль" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+    const profile = screen.getByRole("button", { name: /Профиль: Без доступа/ });
+    expect(profile).not.toBeNull();
+    fireEvent.click(profile);
+    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(mocks.getDemoRoleSwitcher).toHaveBeenCalledWith(
       expect.objectContaining({ id: "demo-user-viewer", role: "VIEWER" })
     );

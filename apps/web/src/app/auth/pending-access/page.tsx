@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { DemoRoleSwitch } from "@/components/auth/demo-role-switch";
+import { DemoAccountMenu } from "@/components/auth/demo-role-switch";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -67,10 +67,22 @@ export default async function PendingAccessPage() {
           </p>
         </CardContent>
         <CardFooter className="flex-col gap-2">
-          {demoSwitcher ? <DemoRoleSwitch switcher={demoSwitcher} variant="page" /> : null}
-          <Button render={<Link href="/auth/logout" />} nativeButton={false} variant="outline" className="w-full">
-            Выйти
-          </Button>
+          {demoSwitcher ? (
+            <DemoAccountMenu
+              switcher={demoSwitcher}
+              logout={
+                <form action="/auth/logout" method="post" className="px-1.5 pb-1">
+                  <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
+                    Выйти
+                  </Button>
+                </form>
+              }
+            />
+          ) : (
+            <Button render={<Link href="/auth/logout" />} nativeButton={false} variant="outline" className="w-full">
+              Выйти
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </section>

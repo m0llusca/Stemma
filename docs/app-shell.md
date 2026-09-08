@@ -28,11 +28,11 @@ Navigation is role-filtered from the shell definitions. Add a nav item by declar
 | TEAM_LEAD, ADMIN | `/dashboard` | `/dashboard` |
 | EXEC | `/dashboard` (риск/SLA, без ops-хрома) | `/dashboard`. Nav: Сегодня, Проверки, Аналитика. Pulse: no Очередь/Риск. Take next off. |
 | SUPPORT_AGENT | `/self-review` | Hidden. Brand → self-review, not ops pulse. Nav: Моя обратная связь, Обучение. No «Проверки». |
-| VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. When `QC_DEMO_AUTH=enabled`, the same «Сменить роль» control as the header (seeded DEMO identities). Demo seed: `viewer@example.com` (DEMO ExternalIdentity, switchable). |
+| VIEWER | `/auth/pending-access` | Hidden. `AppNav` returns null — no empty areas / empty ⌘K. Page shows identity + logout. When `QC_DEMO_AUTH=enabled`, one account menu (name/role) lists seeded DEMO identities under «Сменить роль». Demo seed: `viewer@example.com`. |
 
 `todayHrefForRole` / `visibleTopNavAreas` rewrite Analyst «Сегодня». Login generic paths (`/`, `/reviews`, `/dashboard`, `/auth/login`) remap to role home. Deep links with a query string stay as-is. `/dashboard` itself also remaps roles without `canAccessDashboard` (SUPPORT_AGENT → `/self-review`). VIEWER still hits `forbidden()` because they lack `reviews:read`. EXEC has `reviews:read` + `reports:read` and stays on `/dashboard` with the risk narrative (KPI → queue). Do not reuse VIEWER for this persona.
 
-When `QC_DEMO_AUTH=enabled`, the header keeps a persistent **«Сменить роль»** control (also in the account menu). It lists the same seeded DEMO identities as `/auth/login`. Switching re-issues the session and lands on `roleHomePath`. Hidden when demo auth is off — not production impersonation.
+When `QC_DEMO_AUTH=enabled`, the account/profile menu lists the same seeded DEMO identities as `/auth/login` under **«Сменить роль»**. One control — no extra header button. Switching re-issues the session and lands on `roleHomePath`. Hidden when demo auth is off — not production impersonation.
 
 Top-nav **«Проверки»** is writer/dashboard roles (`DASHBOARD_ROLES` / `canSeeReviewsQueueNav`), not any `reviews:read`. Ops pulse **«Очередь»** / **«Риск»** is `reviews:write` only (`canSeeOpsQueuePulse`). SUPPORT_AGENT and EXEC both hold `reviews:read`; chrome must not sell the ops queue. Agent keeps coaching pulse. EXEC risk signals stay on `ExecRiskHome`, not the topbar.
 

@@ -508,7 +508,7 @@ describe("app nav shell", () => {
     );
   });
 
-  it("switches a demo role in two clicks from the persistent header control", () => {
+  it("does not expose a standalone Сменить роль button in the header", () => {
     render(
       <AppNavShell
         {...baseProps}
@@ -533,12 +533,8 @@ describe("app nav shell", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Сменить роль" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Оператор · Демо" }));
-
-    expect(mocks.switchCurrentUser).toHaveBeenCalledTimes(1);
-    const formData = mocks.switchCurrentUser.mock.calls[0]?.[0] as FormData;
-    expect(formData.get("userId")).toBe("user-2");
+    expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Профиль: Администратор/ })).not.toBeNull();
   });
 
   it("lists seeded roles inside the account menu without a second confirm click", () => {

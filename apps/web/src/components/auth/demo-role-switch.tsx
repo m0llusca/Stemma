@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { Button } from "@/components/ui/button";
@@ -10,15 +11,9 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
-
-type DemoRoleSwitchProps = {
-  switcher: DemoRoleSwitcher;
-  /** Header: compact chrome. Page: full-width CTA on pending-access. */
-  variant?: "header" | "page";
-};
 
 export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher }) {
   return (
@@ -48,34 +43,37 @@ export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher })
   );
 }
 
-export function DemoRoleSwitch({ switcher, variant = "header" }: DemoRoleSwitchProps) {
+type DemoAccountMenuProps = {
+  switcher: DemoRoleSwitcher;
+  logout: ReactNode;
+};
+
+/** Single account menu for surfaces without AppNav (VIEWER pending-access). */
+export function DemoAccountMenu({ switcher, logout }: DemoAccountMenuProps) {
+  const currentName =
+    switcher.users.find((user) => user.id === switcher.currentUserId)?.name ?? switcher.roleLabel;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
           <Button
             type="button"
-            variant={variant === "page" ? "outline" : "ghost"}
+            variant="outline"
             size="sm"
-            className={cn(
-              "shrink-0 gap-1.5",
-              variant === "header" ? "min-h-11 min-w-11" : "w-full min-h-11"
-            )}
-            aria-label="Сменить роль"
+            className="w-full min-h-11 gap-1.5"
+            aria-label={`Профиль: ${switcher.roleLabel}, ${currentName}`}
           />
         }
       >
-        <Users data-icon="inline-start" />
-        <span className={variant === "header" ? "hidden md:inline" : undefined}>Сменить роль</span>
+        <span className="min-w-0 truncate">{switcher.roleLabel}</span>
+        <span className="min-w-0 truncate text-muted-foreground">{currentName}</span>
         <ChevronDown data-icon="inline-end" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align={variant === "header" ? "end" : "start"}
-        sideOffset={8}
-        className="w-72"
-        aria-label="Сменить роль"
-      >
+      <DropdownMenuContent align="start" sideOffset={8} className="w-72">
         <DemoRoleSwitchMenu switcher={switcher} />
+        <DropdownMenuSeparator />
+        {logout}
       </DropdownMenuContent>
     </DropdownMenu>
   );
