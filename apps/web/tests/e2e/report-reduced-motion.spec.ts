@@ -329,8 +329,11 @@ test("forced colors keeps axes, active point, selection, focus, and legend disti
       previousDash: previous?.getAttribute("stroke-dasharray") ?? null,
       targetDash:
         target?.querySelector("line")?.getAttribute("stroke-dasharray") ?? null,
-      targetLabel:
-        texts.find((value) => value.startsWith("Цель")) ?? null
+      targetLabelInSvg:
+        texts.find((value) => value.startsWith("Цель")) ?? null,
+      targetBadge:
+        node.querySelector('[data-slot="chart-goal-badge"]')?.textContent?.trim() ??
+        null
     };
   });
   expect(svgFacts, "quality trend svg must be rendered").not.toBeNull();
@@ -345,7 +348,8 @@ test("forced colors keeps axes, active point, selection, focus, and legend disti
   expect(svgFacts!.previousMarkerShape, svgDiagnostic).toBe("diamond");
   expect(svgFacts!.previousDash, svgDiagnostic).toBe("6 5");
   expect(svgFacts!.targetDash, svgDiagnostic).toBe("2 4");
-  expect(svgFacts!.targetLabel, svgDiagnostic).toMatch(/^Цель \d+/);
+  expect(svgFacts!.targetLabelInSvg, svgDiagnostic).toBeNull();
+  expect(svgFacts!.targetBadge, svgDiagnostic).toMatch(/^Цель \d+/);
 
   // The legend differentiates series by text label, aria-pressed state, and
   // border style (solid/dashed/dotted), none of which depend on colour.

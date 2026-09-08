@@ -6,6 +6,12 @@ import {
   StaticChartContainer,
   type ChartConfig
 } from "@/components/ui/chart-container";
+import {
+  CHART_MARKER_RADIUS,
+  CHART_MARKER_RADIUS_LAST,
+  CHART_SERIES_STROKE_WIDTH,
+  ChartGoalBadge
+} from "@/components/charts/chart-visual-preset";
 import type {
   QualityTrendSeries
 } from "@/components/charts/quality-trend-chart.client";
@@ -156,12 +162,10 @@ export function QualityTrendVisual({
       initialDimension={{ width: 720, height: 320 }}
     >
       {visible.has("target") ? (
-        <span
-          data-slot="chart-goal-badge"
-          className="pointer-events-none absolute right-0 top-0 z-10 text-xs text-muted-foreground"
-        >
-          Цель {geometry.targetValue ?? 90}
-        </span>
+        <ChartGoalBadge
+          value={geometry.targetValue ?? 90}
+          className="right-0 top-0"
+        />
       ) : null}
       <svg
         aria-hidden="true"
@@ -280,11 +284,11 @@ export function QualityTrendVisual({
             {scoreSegments.map((segment, index) => (
               <Curve
                 key={`segment-${index}`}
-                type="linear"
+                type="monotone"
                 points={segment}
                 fill="none"
                 stroke="var(--color-score)"
-                strokeWidth={2}
+                strokeWidth={CHART_SERIES_STROKE_WIDTH}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
@@ -294,10 +298,14 @@ export function QualityTrendVisual({
                 data-point-id={point.pointId}
                 cx={point.x}
                 cy={point.y}
-                r={index === scorePoints.length - 1 ? 4 : 3}
+                r={
+                  index === scorePoints.length - 1
+                    ? CHART_MARKER_RADIUS_LAST
+                    : CHART_MARKER_RADIUS
+                }
                 fill="var(--color-score)"
                 stroke="var(--color-score)"
-                strokeWidth={2}
+                strokeWidth={CHART_SERIES_STROKE_WIDTH}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
