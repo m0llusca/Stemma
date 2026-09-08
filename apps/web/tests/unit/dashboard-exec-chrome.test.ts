@@ -46,7 +46,8 @@ describe("dashboard exec chrome", () => {
     expect(execHome).not.toContain("Загрузка графика");
     expect(chartIsland).toMatch(/^["']use client["']/m);
     expect(chartIsland).toContain("exec-risk-chart.client");
-    expect(chartIsland).toContain("ssr: false");
+    expect(chartIsland).not.toContain("next/dynamic");
+    expect(chartIsland).not.toContain("ssr: false");
     expect(source).not.toContain("exec-risk-chart.client");
     expect(selfReview).not.toContain("exec-risk-chart");
     expect(selfReview).not.toContain("BarChart");

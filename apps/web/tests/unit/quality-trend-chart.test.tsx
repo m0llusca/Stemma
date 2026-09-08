@@ -1,6 +1,4 @@
 import "@testing-library/jest-dom/vitest";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import {
   act,
   fireEvent,
@@ -593,51 +591,15 @@ describe("QualityTrendChart", () => {
     vi.unstubAllGlobals();
   });
 
-  it("exposes a finite, named loading state while the rich visual waits for the viewport", () => {
-    const observe = vi.fn();
-    const disconnect = vi.fn();
+  it("hydrates the rich visual immediately — no «Загрузка визуального представления»", () => {
+    const { container } = renderChart();
 
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        observe = observe;
-        unobserve = vi.fn();
-        disconnect = disconnect;
-      }
-    );
-
-    const { container, unmount } = renderChart();
-
-    expect(
-      screen.getByRole("status", { name: "Загрузка визуального представления" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("status", { name: "Загрузка визуального представления" })
-    ).toHaveClass(
-      "h-[216px]",
-      "min-[390px]:h-[232px]",
-      "md:h-[280px]",
-      "xl:h-[320px]"
-    );
+    expect(container.querySelector('[data-series="score"]')).toBeInTheDocument();
     expect(
       container.querySelector('[data-slot="deferred-chart-visual"]')
-    ).toHaveAttribute("data-deferred-state", "waiting");
-    expect(container.querySelector('[data-slot="skeleton"]')).toHaveAttribute(
-      "data-qc-motion",
-      "none"
-    );
-    const globalsCss = readFileSync(
-      path.join(process.cwd(), "src/app/globals.css"),
-      "utf8"
-    );
-    expect(globalsCss).toMatch(
-      /\[data-slot="skeleton"\]\[data-qc-motion="none"\]\s*\{\s*animation:\s*none;?\s*\}/
-    );
-    expect(observe).toHaveBeenCalledTimes(1);
-
-    unmount();
-    expect(disconnect).toHaveBeenCalledTimes(1);
-    vi.unstubAllGlobals();
+    ).toHaveAttribute("data-deferred-state", "ready");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Загрузка визуального представления")).not.toBeInTheDocument();
   });
 });
 

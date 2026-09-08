@@ -27,7 +27,7 @@
 
 Реализация:
 
-- Exec risk chart — client island (`exec-risk-chart-island.client.tsx`). `dynamic({ ssr: false })` только в Client Component. `ExecRiskHome` остаётся RSC: иначе `/dashboard` даёт 500.
+- Exec risk chart — client island (`exec-risk-chart-island.client.tsx`) statically imports `exec-risk-chart.client` (Recharts). Do not use `dynamic({ ssr: false })` — Next CSR-bails and the turbopack async chunk never loads. `ExecRiskHome` stays RSC: do not put `dynamic({ ssr: false })` in the RSC either (`/dashboard` 500).
 - падение чанка — error boundary + «Повторить»; KPI остаются
 - `ResponsiveContainer` + фиксированная высота
 - a11y: summary / таблица рядом с графиком (`accessibilityLayer` в v3)
@@ -78,7 +78,7 @@
 
 ## Residual
 
-Empty «Сигналы риска» is honest (#113): RSC renders `EmptyState` + `queueFilterResetHref(EXEC)` when empty — never wrap that path in `Suspense` / «Загрузка графика». The island short-circuits empty bars before dynamic Recharts. Labeled pending (`role="status"`) only while a **non-empty** chart chunk loads. ~~LIVE empty / eternal «Загрузка графика»~~ — fixed.
+Empty «Сигналы риска» is honest (#113): RSC renders `EmptyState` + `queueFilterResetHref(EXEC)` when empty — never wrap that path in `Suspense` / «Загрузка графика». Non-empty hydrates via a **static** client import of the Recharts chart (no `dynamic({ ssr: false })` — that CSR-bails and never fetches the chunk). `/reports` rich visuals use the same static import (no IO-gated `import()` / eternal «Загрузка визуального представления»). ~~LIVE eternal pending~~ — fixed.
 
 #109 visual contract unchanged: «Цель» HTML badge outside the plot (`ChartGoalBadge`, no SVG rotate); solid markers `r=3` (`r=4` last); footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; Recharts `isAnimationActive` stays false; tokens in `chart-visual-preset.tsx`.
 

@@ -28,15 +28,18 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search)
 }));
 
+vi.mock("@/components/charts/recharts-visuals.client", () => ({
+  PairedAiDriftVisual: () => (
+    <svg aria-hidden="true" className="recharts-surface" tabIndex={-1} />
+  ),
+  RankedBreakdownVisual: () => (
+    <svg aria-hidden="true" className="recharts-surface" tabIndex={-1} />
+  )
+}));
+
 function keepRichVisualDeferred() {
-  vi.stubGlobal(
-    "IntersectionObserver",
-    class {
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = vi.fn();
-    }
-  );
+  // Visuals hydrate via static import. Kept as a no-op so existing tests stay focused
+  // on pointer/keyboard selection rather than Recharts internals.
 }
 
 type PerformanceBuilders = {
@@ -527,7 +530,7 @@ describe("report performance chart contracts", () => {
     ).toHaveLength(0);
   });
 
-  it("keeps ranked fallback minimum aligned with the clamp and preserves paired drift", () => {
+  it("hydrates ranked and paired-drift visuals immediately — no pending visual shell", () => {
     keepRichVisualDeferred();
     const agreementBundle = buildAgreement();
     const driftBundle = buildDrift();
@@ -538,16 +541,18 @@ describe("report performance chart contracts", () => {
       </>
     );
 
-    expect(
-      container.querySelector(
-        '[data-slot="ranked-breakdown-chart"] [role="status"]'
-      )
-    ).toHaveClass("min-h-[220px]");
-    expect(
-      container.querySelector(
-        '[data-slot="paired-ai-drift-charts"] [role="status"]'
-      )
-    ).toHaveClass("h-[340px]", "sm:h-[380px]");
+    for (const slot of [
+      "ranked-breakdown-chart",
+      "paired-ai-drift-charts"
+    ]) {
+      const root = container.querySelector(`[data-slot="${slot}"]`);
+      expect(root?.querySelector('[data-slot="deferred-chart-visual"]')).toHaveAttribute(
+        "data-deferred-state",
+        "ready"
+      );
+      expect(root?.querySelector("[role='status']")).toBeNull();
+      expect(root?.querySelector(".recharts-surface")).toBeInTheDocument();
+    }
   });
 
   it("paired AI drift exposes one shared active period for both panels", () => {

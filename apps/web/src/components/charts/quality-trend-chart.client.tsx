@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { ChartLegendControls } from "@/components/charts/chart-legend-controls";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
+import { QualityTrendVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildQualityTrendGeometry,
@@ -29,11 +30,6 @@ export type QualityTrendSeries =
   | "previous"
   | "target"
   | "volume";
-
-const loadQualityTrendVisual = async () => {
-  const module = await import("@/components/charts/recharts-visuals.client");
-  return { default: module.QualityTrendVisual };
-};
 
 function reviewCountLabel(count: number | undefined): string {
   if (count == null) {
@@ -225,11 +221,8 @@ export function QualityTrendChart({
           />
         ) : null}
         <DeferredChartVisual
-          load={loadQualityTrendVisual}
+          Visual={QualityTrendVisual}
           componentProps={{ model, visibleSeries }}
-          loadingLabel="Загрузка визуального представления"
-          fallbackClassName="h-[216px] w-full min-[390px]:h-[232px] md:h-[280px] xl:h-[320px]"
-          armed={activeIndex != null}
         />
       </div>
     </div>

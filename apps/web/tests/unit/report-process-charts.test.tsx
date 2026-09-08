@@ -34,15 +34,18 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search)
 }));
 
+vi.mock("@/components/charts/recharts-visuals.client", () => ({
+  ReasonTrendVisual: () => (
+    <svg aria-hidden="true" className="recharts-surface" tabIndex={-1} />
+  ),
+  ScoreDistributionVisual: () => (
+    <svg aria-hidden="true" className="recharts-surface" tabIndex={-1} />
+  )
+}));
+
 function keepRichVisualDeferred() {
-  vi.stubGlobal(
-    "IntersectionObserver",
-    class {
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = vi.fn();
-    }
-  );
+  // Visuals hydrate via static import. Kept as a no-op so existing tests stay focused
+  // on pointer/keyboard selection rather than Recharts internals.
 }
 
 type ReviewDate = Readonly<{ finalizedAt: Date | null }>;
@@ -411,7 +414,7 @@ describe("report process chart contracts", () => {
     ).toHaveLength(1);
   });
 
-  it("keeps both deferred secondary plot roots on the responsive height contract", () => {
+  it("hydrates both secondary plot roots immediately — no pending visual shell", () => {
     keepRichVisualDeferred();
     const distribution = buildDistribution();
     const reason = buildReason();
@@ -421,22 +424,18 @@ describe("report process chart contracts", () => {
         <ReasonTrendChart model={reason.model} />
       </>
     );
-    const expectedClasses = [
-      "h-[200px]",
-      "min-[390px]:h-[216px]",
-      "md:h-[240px]",
-      "xl:h-[260px]"
-    ];
 
     for (const slot of [
       "score-distribution-chart",
       "reason-trend-chart"
     ]) {
-      expect(
-        container.querySelector(
-          `[data-slot="${slot}"] [role="status"]`
-        )
-      ).toHaveClass(...expectedClasses);
+      const root = container.querySelector(`[data-slot="${slot}"]`);
+      expect(root?.querySelector('[data-slot="deferred-chart-visual"]')).toHaveAttribute(
+        "data-deferred-state",
+        "ready"
+      );
+      expect(root?.querySelector("[role='status']")).toBeNull();
+      expect(root?.querySelector(".recharts-surface")).toBeInTheDocument();
     }
   });
 

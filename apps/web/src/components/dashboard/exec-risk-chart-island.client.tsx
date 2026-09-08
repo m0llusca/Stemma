@@ -7,21 +7,11 @@ import {
   type ErrorInfo,
   type ReactNode
 } from "react";
-import dynamic from "next/dynamic";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ExecRiskChartPending } from "@/components/dashboard/exec-risk-chart-pending";
+import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
 import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { isExecRiskBarsEmpty, type ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
-
-const ExecRiskChart = dynamic(
-  () =>
-    import("@/components/dashboard/exec-risk-chart.client").then((mod) => mod.ExecRiskChart),
-  {
-    ssr: false,
-    loading: () => <ExecRiskChartPending />
-  }
-);
 
 function ChartLoadError({ onRetry }: { onRetry: () => void }) {
   return (

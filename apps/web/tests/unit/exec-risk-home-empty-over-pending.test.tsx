@@ -2,19 +2,9 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 import { queueFilterResetHref } from "@/lib/auth/role-home";
-
-vi.mock("next/dynamic", () => ({
-  default: (_loader: unknown, options?: { loading?: () => ReactNode }) =>
-    function PendingExecRiskChart() {
-      return options?.loading?.() ?? (
-        <div role="status" aria-label="Загрузка графика" data-slot="exec-risk-chart-pending" />
-      );
-    }
-}));
 
 const hrefs = {
   overdue: "/reviews?due=overdue",

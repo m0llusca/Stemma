@@ -3,23 +3,15 @@
 import {
   Component,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
   type ComponentType,
-  type CSSProperties,
   type ErrorInfo,
   type ReactNode
 } from "react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-
-type DeferredModule<Props extends object> = {
-  default: ComponentType<Props>;
-};
 
 type RenderBoundaryProps = {
   children: ReactNode;
@@ -77,39 +69,19 @@ function ChartLoadError({ onRetry }: { onRetry: () => void }) {
 }
 
 export function DeferredChartVisual<Props extends object>({
-  load,
-  componentProps,
-  loadingLabel,
-  fallbackClassName,
-  fallbackStyle,
-  armed = false
+  Visual,
+  componentProps
 }: {
-  load: () => Promise<DeferredModule<Props>>;
+  Visual: ComponentType<Props>;
   componentProps: Props;
-  loadingLabel: string;
-  fallbackClassName: string;
-  // Charts whose height is data-driven pass the same computed height here so
-  // the loading skeleton matches the final visual and avoids a layout shift.
-  fallbackStyle?: CSSProperties;
-  armed?: boolean;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
   const hydrationEndMarkedRef = useRef(false);
-  const [shouldLoad, setShouldLoad] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [Loaded, setLoaded] = useState<ComponentType<Props> | null>(null);
-  const [loadError, setLoadError] = useState<Error | null>(null);
 
-  // Task 10 hydration instrumentation (approved additive-only change): the
-  // first settled layout effect of the commit that mounts the loaded rich
-  // component records "qc-chart-hydration-end". Child layout effects run
-  // before this parent effect, so the chart subtree is committed when the mark
-  // is set. The shared mark name may repeat (once per island instance, guarded
-  // by hydrationEndMarkedRef); the measurement harness pairs the single
-  // module-evaluation start mark with the earliest end mark.
+  // Task 10 hydration instrumentation: first settled layout effect after the
+  // statically imported visual commits records "qc-chart-hydration-end".
   useLayoutEffect(() => {
     if (
-      Loaded &&
       !hydrationEndMarkedRef.current &&
       typeof performance !== "undefined" &&
       typeof performance.mark === "function"
@@ -117,106 +89,21 @@ export function DeferredChartVisual<Props extends object>({
       hydrationEndMarkedRef.current = true;
       performance.mark("qc-chart-hydration-end");
     }
-  }, [Loaded]);
-
-  useEffect(() => {
-    if (armed) {
-      setShouldLoad(true);
-    }
-  }, [armed]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || shouldLoad) {
-      return;
-    }
-
-    if (typeof IntersectionObserver === "undefined") {
-      setShouldLoad(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setShouldLoad(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "400px 0px" }
-    );
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [shouldLoad]);
-
-  useEffect(() => {
-    if (!shouldLoad) {
-      return;
-    }
-
-    let cancelled = false;
-    setLoaded(null);
-    setLoadError(null);
-
-    load()
-      .then((module) => {
-        if (!cancelled) {
-          setLoaded(() => module.default);
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setLoadError(
-            error instanceof Error ? error : new Error("Chart chunk failed to load")
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt, load, shouldLoad]);
+  }, []);
 
   const retry = useCallback(() => {
-    setShouldLoad(true);
     setAttempt((current) => current + 1);
   }, []);
 
-  const state = loadError
-    ? "error"
-    : Loaded
-      ? "ready"
-      : shouldLoad
-        ? "loading"
-        : "waiting";
-
   return (
     <div
-      ref={rootRef}
       data-slot="deferred-chart-visual"
-      data-deferred-state={state}
+      data-deferred-state="ready"
       className="min-w-0"
     >
-      {loadError ? <ChartLoadError onRetry={retry} /> : null}
-      {!loadError && Loaded ? (
-        <ChartRenderBoundary resetKey={attempt} onRetry={retry}>
-          <Loaded {...componentProps} />
-        </ChartRenderBoundary>
-      ) : null}
-      {!loadError && !Loaded ? (
-        <div
-          role="status"
-          aria-label={loadingLabel}
-          className={cn("relative grid overflow-hidden", fallbackClassName)}
-          style={fallbackStyle}
-        >
-          <Skeleton
-            aria-hidden="true"
-            data-qc-motion="none"
-            className="h-full w-full motion-reduce:animate-none"
-          />
-        </div>
-      ) : null}
+      <ChartRenderBoundary resetKey={attempt} onRetry={retry}>
+        <Visual key={attempt} {...componentProps} />
+      </ChartRenderBoundary>
     </div>
   );
 }

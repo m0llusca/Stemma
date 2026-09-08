@@ -11,17 +11,13 @@ import {
 import { useRouter } from "next/navigation";
 import { ChartTooltipStatus } from "@/components/charts/chart-tooltip-status";
 import { DeferredChartVisual } from "@/components/charts/deferred-chart-visual.client";
+import { PairedAiDriftVisual } from "@/components/charts/recharts-visuals.client";
 import type { ChartModel } from "@/lib/charts/contracts";
 import {
   buildPairedAiDriftGeometry,
   viewBoxPercent
 } from "@/lib/charts/plot-geometry";
 import { openReportChartPointHref } from "@/lib/reports/report-evidence-links";
-
-const loadPairedAiDriftVisual = async () => {
-  const module = await import("@/components/charts/recharts-visuals.client");
-  return { default: module.PairedAiDriftVisual };
-};
 
 function percentLabel(value: number | null | undefined) {
   return value == null ? "Нет данных" : `${Math.round(value)}%`;
@@ -204,11 +200,8 @@ export function PairedAiDriftCharts({
           />
         ) : null}
         <DeferredChartVisual
-          load={loadPairedAiDriftVisual}
+          Visual={PairedAiDriftVisual}
           componentProps={{ model }}
-          loadingLabel="Загрузка визуального представления"
-          fallbackClassName="h-[340px] w-full sm:h-[380px]"
-          armed={activeIndex != null}
         />
       </div>
     </div>
