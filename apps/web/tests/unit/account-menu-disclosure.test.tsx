@@ -106,6 +106,7 @@ describe("AccountMenuDisclosure", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "force-rerender" }));
     expect(screen.getByTestId("rerender-tick").textContent).toBe("1");
+    expect(trigger.hasAttribute("aria-expanded")).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(trigger.closest("details")?.open).toBe(true);
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();

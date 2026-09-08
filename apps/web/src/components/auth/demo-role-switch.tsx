@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode, type ToggleEvent } from "react";
+import { useCallback, useEffect, useId, useRef, type ReactNode, type ToggleEvent } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
@@ -8,13 +8,24 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Mirrors UA `details.open` for aria-expanded after remount. Open itself is
- * the native details bit — LIVE Agent only opened this control as `<details>`.
+ * Remembers UA `details.open` across AppNav Suspense remount. `aria-expanded`
+ * is DOM-owned (`setAttribute`) — React must not put it in JSX.
  */
 let accountMenuExpanded = false;
 
 export function resetAccountMenuExpandedForTests() {
   accountMenuExpanded = false;
+}
+
+function writeAriaExpanded(details: HTMLDetailsElement | null) {
+  if (!details) {
+    return;
+  }
+  accountMenuExpanded = details.open;
+  const summary = details.querySelector("[data-slot=account-menu]");
+  if (summary instanceof HTMLElement) {
+    summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+  }
 }
 
 type AccountMenuDisclosureProps = {
@@ -30,10 +41,9 @@ type AccountMenuDisclosureProps = {
 };
 
 /**
- * Native `<details>` / `<summary>` owns open. React only mirrors `details.open`
- * onto `aria-expanded` via the `toggle` event. No preventDefault on the
- * summary (that fought the UA on LIVE). No `open={...}` prop (that fights UA).
- * No useLayoutEffect rewriting the DOM.
+ * Native `<details>` / `<summary>` owns open. `aria-expanded` is written with
+ * `setAttribute` from `details.open` — never a React prop (LIVE 58d7aeb:
+ * JSX kept overwriting the attribute back to "false").
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
@@ -47,19 +57,17 @@ export function AccountMenuDisclosure({
 }: AccountMenuDisclosureProps) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const prevDismissKeyRef = useRef(dismissKey);
-  const [expanded, setExpanded] = useState(() => accountMenuExpanded);
   const menuId = useId();
 
-  const syncExpanded = (isOpen: boolean) => {
-    accountMenuExpanded = isOpen;
-    setExpanded(isOpen);
-  };
-
-  useEffect(() => {
-    const root = detailsRef.current;
-    if (root && accountMenuExpanded && !root.open) {
+  const attachDetails = useCallback((root: HTMLDetailsElement | null) => {
+    detailsRef.current = root;
+    if (!root) {
+      return;
+    }
+    if (accountMenuExpanded && !root.open) {
       root.open = true;
     }
+    writeAriaExpanded(root);
   }, []);
 
   useEffect(() => {
@@ -69,8 +77,8 @@ export function AccountMenuDisclosure({
     prevDismissKeyRef.current = dismissKey;
     if (detailsRef.current) {
       detailsRef.current.open = false;
+      writeAriaExpanded(detailsRef.current);
     }
-    syncExpanded(false);
   }, [dismissKey]);
 
   useEffect(() => {
@@ -79,6 +87,7 @@ export function AccountMenuDisclosure({
         return;
       }
       detailsRef.current.open = false;
+      writeAriaExpanded(detailsRef.current);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -86,10 +95,10 @@ export function AccountMenuDisclosure({
 
   return (
     <details
-      ref={detailsRef}
+      ref={attachDetails}
       className={cn("relative open:z-50", align === "start" && "w-full")}
       onToggle={(event: ToggleEvent<HTMLDetailsElement>) => {
-        syncExpanded(event.currentTarget.open);
+        writeAriaExpanded(event.currentTarget);
       }}
     >
       <summary
@@ -98,7 +107,6 @@ export function AccountMenuDisclosure({
         title={triggerTitle}
         aria-label={triggerAriaLabel}
         aria-haspopup="menu"
-        aria-expanded={expanded ? "true" : "false"}
         aria-controls={menuId}
         className={cn(
           triggerClassName,
