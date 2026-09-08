@@ -81,7 +81,7 @@ export function InteractiveSparklineChart({
     }
 
     const width = plotWidth ?? 360;
-    const height = 132;
+    const height = 200;
     const values = points.map((point) => point.value);
     const min = Math.min(...values, target ?? values[0]);
     const max = Math.max(...values, target ?? values[0]);
@@ -129,7 +129,11 @@ export function InteractiveSparklineChart({
   const targetBandY = chart.targetY == null ? null : Math.max(0, Math.min(chart.height, chart.targetY));
 
   return (
-    <div data-slot="interactive-sparkline-chart" className="grid gap-3">
+    <div
+      data-slot="interactive-sparkline-chart"
+      data-qc-motion="chart-enter"
+      className="grid gap-3"
+    >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-muted-foreground">Начало периода</p>
@@ -148,7 +152,7 @@ export function InteractiveSparklineChart({
       </div>
 
       <div
-        className="relative min-h-[180px] overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-9"
+        className="relative min-h-[200px] overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-9"
         ref={plotRef}
         style={{
           backgroundImage:
@@ -188,45 +192,30 @@ export function InteractiveSparklineChart({
             vectorEffect="non-scaling-stroke"
           />
           {chart.targetY != null ? (
-            <>
-              <line
-                x1="0"
-                y1={chart.targetY}
-                x2={chart.width}
-                y2={chart.targetY}
-                aria-hidden="true"
-                data-slot="sparkline-target"
-                stroke="color-mix(in srgb, var(--chart-2) 56%, var(--border))"
-                strokeDasharray="6 6"
-                strokeWidth="1.2"
-                vectorEffect="non-scaling-stroke"
-              />
-              <text
-                x={chart.width - 2}
-                y={Math.max(10, chart.targetY - 6)}
-                aria-hidden="true"
-                data-slot="sparkline-target-label"
-                fill="var(--chart-2)"
-                fontSize="11"
-                fontWeight="700"
-                textAnchor="end"
-              >
-                {targetLabel}
-              </text>
-            </>
+            <line
+              x1="0"
+              y1={chart.targetY}
+              x2={chart.width}
+              y2={chart.targetY}
+              aria-hidden="true"
+              data-slot="sparkline-target"
+              stroke="color-mix(in srgb, var(--chart-2) 56%, var(--border))"
+              strokeDasharray="6 6"
+              strokeWidth="1.2"
+              vectorEffect="non-scaling-stroke"
+            />
           ) : null}
           <path
             d={chart.path}
             data-slot="sparkline-line"
             fill="none"
-            stroke="var(--primary)"
+            stroke="var(--chart-1)"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="3"
+            strokeWidth="2"
             vectorEffect="non-scaling-stroke"
           />
           {chart.points.map((point, index) => {
-            const isActive = index === activeIndex;
             const isLatest = index === chart.points.length - 1;
 
             return (
@@ -235,18 +224,26 @@ export function InteractiveSparklineChart({
                 <circle
                   cx={point.x}
                   cy={point.y}
-                  r={isActive ? "7" : isLatest ? "5.5" : "4"}
+                  r={isLatest ? "4" : "3"}
                   data-slot="sparkline-point"
-                  fill={isActive || isLatest ? "var(--primary)" : "var(--card)"}
-                  stroke={isActive || isLatest ? "var(--card)" : "var(--primary)"}
-                  strokeWidth={isActive || isLatest ? "3" : "2"}
+                  fill="var(--chart-1)"
+                  stroke="var(--chart-1)"
+                  strokeWidth="2"
                   vectorEffect="non-scaling-stroke"
                 />
               </g>
             );
           })}
         </svg>
-        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[132px]">
+        {targetLabel ? (
+          <span
+            data-slot="sparkline-target-label"
+            className="pointer-events-none absolute right-2.5 top-2 text-xs font-medium text-muted-foreground"
+          >
+            {targetLabel}
+          </span>
+        ) : null}
+        <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[200px]">
           {chart.points.map((point, index) => {
             const showPoint = () => setActiveIndex(index);
             const hidePoint = () => setActiveIndex(null);
@@ -358,7 +355,7 @@ export function InteractiveSparklineChart({
       <div
         aria-hidden="true"
         data-slot="sparkline-scale"
-        className="flex flex-wrap justify-between gap-2 text-[11px] font-medium tabular-nums text-muted-foreground"
+        className="flex flex-wrap justify-between gap-2 text-sm font-medium tabular-nums text-muted-foreground"
       >
         <span>Мин {formatQualityScore(chart.min)}</span>
         {targetLabel ? <span>{targetLabel}</span> : null}

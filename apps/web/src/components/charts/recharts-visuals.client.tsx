@@ -155,6 +155,14 @@ export function QualityTrendVisual({
       className="h-[216px] w-full min-[390px]:h-[232px] md:h-[280px] xl:h-[320px]"
       initialDimension={{ width: 720, height: 320 }}
     >
+      {visible.has("target") ? (
+        <span
+          data-slot="chart-goal-badge"
+          className="pointer-events-none absolute right-0 top-0 z-10 text-xs text-muted-foreground"
+        >
+          Цель {geometry.targetValue ?? 90}
+        </span>
+      ) : null}
       <svg
         aria-hidden="true"
         className="recharts-surface block h-full w-full"
@@ -276,18 +284,18 @@ export function QualityTrendVisual({
                 points={segment}
                 fill="none"
                 stroke="var(--color-score)"
-                strokeWidth={2.5}
+                strokeWidth={2}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
-            {scorePoints.map((point) => (
+            {scorePoints.map((point, index) => (
               <circle
                 key={point.pointId}
                 data-point-id={point.pointId}
                 cx={point.x}
                 cy={point.y}
-                r={3}
-                fill="var(--background)"
+                r={index === scorePoints.length - 1 ? 4 : 3}
+                fill="var(--color-score)"
                 stroke="var(--color-score)"
                 strokeWidth={2}
                 vectorEffect="non-scaling-stroke"
@@ -309,15 +317,6 @@ export function QualityTrendVisual({
               strokeDasharray="2 4"
               vectorEffect="non-scaling-stroke"
             />
-            <text
-              x={width - margin.right}
-              y={yForScore(geometry.targetValue ?? 90) - 6}
-              textAnchor="end"
-              fill="var(--muted-foreground)"
-              fontSize={11}
-            >
-              Цель {geometry.targetValue ?? 90}
-            </text>
           </g>
         ) : null}
       </svg>

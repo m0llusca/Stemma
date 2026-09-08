@@ -97,17 +97,20 @@ export function ExecRiskHome({
           </CardHeader>
           <CardContent>
             {chart.empty ? (
-              <EmptyState
-                size="inline"
-                icon={<ClipboardCheck size={20} aria-hidden="true" />}
-                title="Нет сигналов за период"
-                description="Это не сертификат «всё в порядке». Откройте очередь без фильтра, чтобы проверить объём."
-                action={
-                  <Button render={<Link href={chart.resetHref} />} nativeButton={false} variant="outline" size="sm">
-                    Открыть очередь без фильтра
-                  </Button>
-                }
-              />
+              <div data-slot="exec-risk-empty">
+                <EmptyState
+                  size="inline"
+                  className="min-h-[200px] justify-center"
+                  icon={<ClipboardCheck size={20} aria-hidden="true" />}
+                  title="Нет сигналов за период"
+                  description="Это не сертификат «всё в порядке». Откройте очередь без фильтра, чтобы проверить объём."
+                  action={
+                    <Button render={<Link href={chart.resetHref} />} nativeButton={false} variant="outline" size="sm">
+                      Открыть очередь без фильтра
+                    </Button>
+                  }
+                />
+              </div>
             ) : (
               <ExecRiskChartIsland bars={chart.bars} />
             )}

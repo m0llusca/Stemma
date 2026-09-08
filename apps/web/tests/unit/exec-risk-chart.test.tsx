@@ -45,6 +45,10 @@ describe("ExecRiskChart", () => {
     const { container } = render(<ExecRiskChart bars={bars} />);
 
     expect(container.querySelector('[data-slot="chart"]')).toHaveClass("h-[240px]");
+    expect(container.querySelector('[data-slot="chart"]')).toHaveAttribute(
+      "data-qc-motion",
+      "chart-enter"
+    );
     expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Сводка риска и SLA" })).toBeInTheDocument();
 

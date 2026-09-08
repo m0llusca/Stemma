@@ -663,6 +663,22 @@
   animation: qc-kpi-bump var(--motion-duration-spring) var(--motion-ease-spring-overshoot);
 }
 
+@keyframes qc-chart-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-enter));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-qc-motion="chart-enter"] {
+  animation: qc-chart-enter var(--motion-duration-spring-enter)
+    var(--motion-ease-spring-panel) both;
+}
+
 [data-slot="accordion-content"] {
   animation-duration: var(--motion-duration-spring-panel);
   animation-timing-function: var(--motion-ease-spring-panel);
@@ -744,6 +760,7 @@
   [data-slot="skeleton"],
   [data-slot="spinner"],
   [data-qc-motion="kpi-bump"],
+  [data-qc-motion="chart-enter"],
   [data-sonner-toast] {
     animation: none;
   }

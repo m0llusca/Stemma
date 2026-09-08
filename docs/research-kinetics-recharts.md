@@ -56,6 +56,7 @@
 | Status pill morph | `--motion-duration-morph`, `--motion-ease-spring-gentle` | `Badge` / `Chip` / `StatusBadge` |
 | Admin accordion | `--motion-ease-spring-panel`, chevron overshoot | `Accordion` panel + trigger icon |
 | Tab-pill glide (optional) | `--motion-ease-spring-glide` | `TabsTrigger`, `PageShell` tabs |
+| Chart enter (#109) | `--motion-duration-spring-enter`, `--motion-ease-spring-panel`, `qc-chart-enter` | `[data-qc-motion="chart-enter"]` on `StaticChartContainer` / score sparkline |
 
 `prefers-reduced-motion: reduce` обнуляет duration-токены до `1ms`, гасит skeleton / KPI / toast animation и снимает shimmer `background-image`. Unit lock: `apps/web/tests/unit/ui-theme-contract.test.ts`.
 
@@ -77,7 +78,7 @@
 
 ## Residual
 
-LIVE «Сигналы риска» может показать пустые столбцы без empty/error CTA. Не блокер docs. Follow-up после #104 — Разработчик.
+#109 phase 2 in this tip: «Цель» is an HTML badge outside the plot (no SVG rotate); score markers are solid `r=3` (`r=4` last); empty «Сигналы риска» is `EmptyState` + `queueFilterResetHref(EXEC)`; chart enter uses `data-qc-motion="chart-enter"`. Recharts `isAnimationActive` stays false. Lead SLA chart still follow-up.
 
 ## Тесты
 

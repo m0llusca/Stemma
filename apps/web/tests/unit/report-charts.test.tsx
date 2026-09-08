@@ -118,24 +118,30 @@ describe("SparklineChart", () => {
     const axis = container.querySelector('[data-slot="sparkline-axis"]');
     const scale = container.querySelector('[data-slot="sparkline-scale"]');
 
-    expect(svg).toHaveAttribute("height", "132");
+    expect(svg).toHaveAttribute("height", "200");
     expect(svg).toHaveAttribute("width", "100%");
     expect(svg).not.toHaveAttribute("aria-hidden");
     expect(chartRoot).toBeInTheDocument();
-    expect(path).toHaveAttribute("d", "M 0.0 66.0 L 360.0 0.0");
+    expect(chartRoot).toHaveAttribute("data-qc-motion", "chart-enter");
+    expect(path).toHaveAttribute("d", "M 0.0 100.0 L 360.0 0.0");
     expect(path).toHaveAttribute("fill", "none");
-    expect(path).toHaveAttribute("stroke", "var(--primary)");
-    expect(path).toHaveAttribute("stroke-width", "3");
-    expect(circles[0]).toHaveAttribute("cy", "66");
+    expect(path).toHaveAttribute("stroke", "var(--chart-1)");
+    expect(path).toHaveAttribute("stroke-width", "2");
+    expect(circles[0]).toHaveAttribute("cy", "100");
     expect(circles[1]).toHaveAttribute("cy", "0");
-    expect(circles[0]).toHaveAttribute("fill", "var(--card)");
-    expect(circles[0]).toHaveAttribute("stroke", "var(--primary)");
+    expect(circles[0]).toHaveAttribute("r", "3");
+    expect(circles[1]).toHaveAttribute("r", "4");
+    expect(circles[0]).toHaveAttribute("fill", "var(--chart-1)");
+    expect(circles[0]).toHaveAttribute("stroke", "var(--chart-1)");
     expect(target).toHaveAttribute("stroke-dasharray", "6 6");
     expect(targetBand).toHaveAttribute("aria-hidden", "true");
     expect(target).toHaveAttribute("aria-hidden", "true");
-    expect(targetLabel).toHaveAttribute("aria-hidden", "true");
+    expect(targetLabel).toHaveTextContent("Цель 0");
+    expect(targetLabel).toHaveClass("text-xs", "text-muted-foreground");
+    expect(targetLabel?.tagName).toBe("SPAN");
     expect(axis).toHaveAttribute("aria-hidden", "true");
     expect(scale).toHaveAttribute("aria-hidden", "true");
+    expect(scale).toHaveClass("text-sm", "tabular-nums");
   });
 
   it("uses deterministic fallback geometry when ResizeObserver is unavailable", () => {
@@ -151,11 +157,11 @@ describe("SparklineChart", () => {
 
     expect(screen.getByRole("img", { name: "Тренд средней оценки" })).toHaveAttribute(
       "viewBox",
-      "0 0 360 132"
+      "0 0 360 200"
     );
     expect(container.querySelector('[data-slot="sparkline-line"]')).toHaveAttribute(
       "d",
-      "M 0.0 132.0 L 360.0 0.0"
+      "M 0.0 200.0 L 360.0 0.0"
     );
   });
 
@@ -195,11 +201,11 @@ describe("SparklineChart", () => {
 
     expect(screen.getByRole("img", { name: "Тренд средней оценки" })).toHaveAttribute(
       "viewBox",
-      "0 0 720 132"
+      "0 0 720 200"
     );
     expect(container.querySelector('[data-slot="sparkline-line"]')).toHaveAttribute(
       "d",
-      "M 0.0 132.0 L 720.0 0.0"
+      "M 0.0 200.0 L 720.0 0.0"
     );
 
     unmount();
@@ -361,9 +367,9 @@ describe("SparklineChart", () => {
 
     fireEvent.focus(point);
 
-    expect(points[0]).toHaveAttribute("r", "7");
-    expect(points[0]).toHaveAttribute("stroke-width", "3");
-    expect(points[0]).toHaveAttribute("fill", "var(--primary)");
+    expect(points[0]).toHaveAttribute("r", "3");
+    expect(points[0]).toHaveAttribute("stroke-width", "2");
+    expect(points[0]).toHaveAttribute("fill", "var(--chart-1)");
   });
 
   it("centers endpoint focus rings while keeping edge tooltips inside the plot", () => {

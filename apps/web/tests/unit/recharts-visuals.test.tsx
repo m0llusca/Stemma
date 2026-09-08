@@ -305,6 +305,14 @@ describe("lean Recharts visuals", () => {
     expect(container.querySelector('[data-series="target"]')).toHaveAccessibleName(
       "Цель 90 баллов"
     );
+    expect(container.querySelector('[data-slot="chart-goal-badge"]')).toHaveTextContent(
+      "Цель 90"
+    );
+    expect(container.querySelector('[data-series="target"] text')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-slot="chart"]')).toHaveAttribute(
+      "data-qc-motion",
+      "chart-enter"
+    );
     expect(container.querySelector('[data-series="volume"]')).toHaveAttribute(
       "data-tone",
       "neutral"
