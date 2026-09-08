@@ -1,27 +1,38 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { demoRoleSwitchFormData, type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 /**
- * Survives AppNavShell remount (Suspense + useSearchParams in AppNav).
- * LIVE ee55639: focus ring after click, panel never stuck — `useState(false)`
- * reset on remount and/or `setExpanded(c => !c)` ran twice.
+ * Survives AppNavShell remount (Suspense + useSearchParams). Synced from
+ * controlled `open` — same mechanism as the working area-menu DropdownMenu.
  */
-let accountMenuExpanded = false;
+let accountMenuOpen = false;
 
 export function resetAccountMenuExpandedForTests() {
-  accountMenuExpanded = false;
+  accountMenuOpen = false;
 }
+
+type ButtonVariant = "ghost" | "outline";
 
 type AccountMenuDisclosureProps = {
   triggerAriaLabel: string;
   triggerTitle?: string;
   triggerClassName?: string;
+  triggerVariant?: ButtonVariant;
   panelClassName?: string;
   align?: "start" | "end";
   /** Parent sets this to the current route so navigation dismisses the panel. */
@@ -30,21 +41,15 @@ type AccountMenuDisclosureProps = {
   panel: ReactNode;
 };
 
-function setAccountMenuExpanded(next: boolean, commit: (value: boolean) => void) {
-  accountMenuExpanded = next;
-  commit(next);
-}
-
 /**
- * Plain button + one React flag for the panel and `aria-expanded`.
- * Pointerdown and click always **open** (idempotent). Close is Escape or a
- * dismissKey change only — no `!current` toggle, no document pointerdown,
- * no `<details>`.
+ * Account menu via the same Base UI DropdownMenu as the LIVE-working area menu:
+ * controlled `open` / `onOpenChange`, `DropdownMenuTrigger render={<Button />}`.
  */
 export function AccountMenuDisclosure({
   triggerAriaLabel,
   triggerTitle,
   triggerClassName,
+  triggerVariant = "ghost",
   panelClassName,
   align = "end",
   dismissKey,
@@ -52,91 +57,64 @@ export function AccountMenuDisclosure({
   panel
 }: AccountMenuDisclosureProps) {
   const prevDismissKeyRef = useRef(dismissKey);
-  const [expanded, setExpanded] = useState(() => accountMenuExpanded);
-  const menuId = useId();
+  const [open, setOpen] = useState(() => accountMenuOpen);
 
-  const openMenu = () => {
-    setAccountMenuExpanded(true, setExpanded);
+  const handleOpenChange = (next: boolean) => {
+    accountMenuOpen = next;
+    setOpen(next);
   };
-
-  useLayoutEffect(() => {
-    setExpanded(accountMenuExpanded);
-  }, []);
 
   useEffect(() => {
     if (prevDismissKeyRef.current === dismissKey) {
       return;
     }
     prevDismissKeyRef.current = dismissKey;
-    setAccountMenuExpanded(false, setExpanded);
+    handleOpenChange(false);
   }, [dismissKey]);
 
-  useEffect(() => {
-    if (!expanded) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setAccountMenuExpanded(false, setExpanded);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
-
   return (
-    <div className={cn("relative", expanded && "z-50", align === "start" && "w-full")}>
-      <button
-        type="button"
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger
         data-slot="account-menu"
-        title={triggerTitle}
-        aria-label={triggerAriaLabel}
-        aria-haspopup="menu"
-        aria-expanded={expanded ? "true" : "false"}
-        aria-controls={expanded ? menuId : undefined}
-        className={triggerClassName}
-        onPointerDown={openMenu}
-        onClick={openMenu}
+        render={
+          <Button
+            type="button"
+            variant={triggerVariant}
+            size="sm"
+            data-slot="account-menu"
+            title={triggerTitle}
+            aria-label={triggerAriaLabel}
+            aria-expanded={open ? "true" : "false"}
+            className={cn(align === "start" && "w-full", triggerClassName)}
+          />
+        }
       >
         {children}
-      </button>
-      {expanded ? (
-        <div
-          id={menuId}
-          role="menu"
-          data-slot="account-menu-panel"
-          className={cn(
-            "absolute z-50 mt-2 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
-            align === "end" ? "right-0" : "left-0",
-            panelClassName
-          )}
-        >
-          {panel}
-        </div>
-      ) : null}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align={align}
+        sideOffset={8}
+        className={panelClassName}
+        data-slot="account-menu-panel"
+      >
+        {panel}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher }) {
   return (
-    <div role="group" aria-label="Сменить роль">
-      <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Сменить роль</div>
+    <DropdownMenuGroup>
+      <DropdownMenuLabel>Сменить роль</DropdownMenuLabel>
       {switcher.users.map((user) => {
         const isCurrent = user.id === switcher.currentUserId;
 
         return (
-          <button
+          <DropdownMenuItem
             key={user.id}
-            type="button"
-            role="menuitem"
+            disabled={isCurrent}
             aria-current={isCurrent ? "true" : undefined}
-            aria-disabled={isCurrent ? true : undefined}
-            className={cn(
-              "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm outline-hidden select-none",
-              "focus:bg-accent focus:text-accent-foreground",
-              isCurrent && "pointer-events-none opacity-50"
-            )}
             onClick={() => {
               if (isCurrent) {
                 return;
@@ -146,10 +124,10 @@ export function DemoRoleSwitchMenu({ switcher }: { switcher: DemoRoleSwitcher })
             }}
           >
             <span className="min-w-0 truncate">{user.optionLabel}</span>
-          </button>
+          </DropdownMenuItem>
         );
       })}
-    </div>
+    </DropdownMenuGroup>
   );
 }
 
@@ -166,13 +144,14 @@ export function DemoAccountMenu({ switcher, logout }: DemoAccountMenuProps) {
   return (
     <AccountMenuDisclosure
       triggerAriaLabel={`Профиль: ${switcher.roleLabel}, ${currentName}`}
-      triggerClassName={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full min-h-11 gap-1.5")}
+      triggerVariant="outline"
+      triggerClassName="min-h-11 gap-1.5"
       align="start"
       panelClassName="w-72"
       panel={
         <>
           <DemoRoleSwitchMenu switcher={switcher} />
-          <div className="-mx-1 my-1 h-px bg-border" role="separator" />
+          <DropdownMenuSeparator />
           {logout}
         </>
       }

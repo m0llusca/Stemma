@@ -11,6 +11,14 @@ vi.mock("@/lib/user-actions", () => ({
   switchCurrentUser: vi.fn()
 }));
 
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+Element.prototype.scrollIntoView = vi.fn();
+
 const demoUsers = [
   {
     id: "user-1",
@@ -45,8 +53,6 @@ function renderMenu(dismissKey?: string) {
 
 function openTrigger() {
   const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
-  fireEvent.pointerDown(trigger);
-  fireEvent.pointerUp(trigger);
   fireEvent.click(trigger);
   return trigger;
 }
@@ -56,16 +62,7 @@ describe("AccountMenuDisclosure", () => {
     resetAccountMenuExpandedForTests();
   });
 
-  it("opens on pointerdown alone so a remount before click still shows DEMO roles", () => {
-    renderMenu();
-    const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
-    fireEvent.pointerDown(trigger);
-
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
-  });
-
-  it("opens on a real pointer sequence and keeps aria-expanded true with DEMO roles visible", () => {
+  it("opens on click like the area-menu DropdownMenu and shows DEMO roles", () => {
     renderMenu();
 
     const trigger = screen.getByRole("button", { name: "Профиль: Оператор, Иван Петров" });
@@ -75,24 +72,13 @@ describe("AccountMenuDisclosure", () => {
     expect(trigger.closest("details")).toBeNull();
     expect(screen.queryByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).toBeNull();
 
-    fireEvent.pointerDown(trigger);
-    fireEvent.pointerUp(trigger);
     fireEvent.click(trigger);
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menu")).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();
-  });
-
-  it("stays open after a duplicate click (explicit open, not !current toggle)", () => {
-    renderMenu();
-    const trigger = openTrigger();
-    fireEvent.click(trigger);
-    fireEvent.click(trigger);
-
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 
   it("keeps aria-expanded true after a parent re-render while the panel stays open", () => {
@@ -180,14 +166,5 @@ describe("AccountMenuDisclosure", () => {
       "false"
     );
     expect(screen.queryByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).toBeNull();
-  });
-
-  it("stays open after a leftover document pointerdown because outside-click is not wired", () => {
-    renderMenu();
-    const trigger = openTrigger();
-    fireEvent.pointerDown(document.body);
-
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
   });
 });

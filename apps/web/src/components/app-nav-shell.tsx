@@ -447,29 +447,26 @@ export function AppNavShell({
               : `Профиль: ${user.name}`
           }
           triggerTitle={user.email}
-          triggerClassName={cn(
-            buttonVariants({ variant: "ghost", size: "sm" }),
-            "relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
-          )}
+          triggerVariant="ghost"
+          triggerClassName="relative z-30 min-h-11 shrink-0 gap-1.5 px-2"
           align="end"
           dismissKey={pathname}
           panelClassName={demoSwitcher ? "w-72" : "w-56"}
           panel={
             <>
-              <div
-                className="flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-muted-foreground"
-                title={user.email}
-              >
-                <Bell className="size-4" />
-                <span className="truncate">{demoSwitcher ? demoUserName : user.name}</span>
-              </div>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel title={user.email} className="flex items-center gap-1.5">
+                  <Bell className="size-4" />
+                  <span className="truncate">{demoSwitcher ? demoUserName : user.name}</span>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               {demoSwitcher ? (
                 <>
-                  <div className="-mx-1 my-1 h-px bg-border" role="separator" />
+                  <DropdownMenuSeparator />
                   <DemoRoleSwitchMenu switcher={demoSwitcher} />
                 </>
               ) : null}
-              <div className="-mx-1 my-1 h-px bg-border" role="separator" />
+              <DropdownMenuSeparator />
               <form action="/auth/logout" method="post" className="px-1.5 pb-1">
                 <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
                   Выйти
