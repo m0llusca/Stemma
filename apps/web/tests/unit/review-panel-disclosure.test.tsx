@@ -219,18 +219,12 @@ describe("ReviewPanel criterion disclosures", () => {
 
     fireEvent.keyDown(second, { key: "Enter" });
     expect((host as HTMLDetailsElement).open).toBe(true);
-    if (second.getAttribute("aria-expanded") !== "true") {
-      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
-    }
-    expect(second).toHaveAttribute("aria-expanded", "true");
+    expect(second.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
 
     fireEvent.keyDown(second, { key: " " });
     expect((host as HTMLDetailsElement).open).toBe(false);
-    if (second.getAttribute("aria-expanded") !== "false") {
-      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
-    }
-    expect(second).toHaveAttribute("aria-expanded", "false");
+    expect(second.getAttribute("aria-expanded")).toBe("false");
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 
@@ -245,25 +239,16 @@ describe("ReviewPanel criterion disclosures", () => {
 
     fireEvent.keyDown(first, { key: "Enter" });
     expect((host as HTMLDetailsElement).open).toBe(false);
-    if (first.getAttribute("aria-expanded") !== "false") {
-      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
-    }
-    expect(first).toHaveAttribute("aria-expanded", "false");
+    expect(first.getAttribute("aria-expanded")).toBe("false");
     expect(submitReviewState).not.toHaveBeenCalled();
 
     fireEvent.keyDown(first, { key: "Enter" });
     expect((host as HTMLDetailsElement).open).toBe(true);
-    if (first.getAttribute("aria-expanded") !== "true") {
-      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
-    }
-    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect(first.getAttribute("aria-expanded")).toBe("true");
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect((host as HTMLDetailsElement).open).toBe(false);
-    if (first.getAttribute("aria-expanded") !== "false") {
-      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
-    }
-    expect(first).toHaveAttribute("aria-expanded", "false");
+    expect(first.getAttribute("aria-expanded")).toBe("false");
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 

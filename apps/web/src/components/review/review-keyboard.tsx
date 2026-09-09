@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { syncReviewDisclosureAria } from "@/components/review/review-disclosure";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { announceToLiveRegion, focusFirstInvalidControl } from "@/lib/form-validity";
 import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
@@ -108,6 +109,7 @@ export function ReviewKeyboard() {
     function toggleDetails(host: HTMLElement) {
       if (host instanceof HTMLDetailsElement) {
         host.open = !host.open;
+        syncReviewDisclosureAria(host);
         return;
       }
 
@@ -122,6 +124,7 @@ export function ReviewKeyboard() {
         if (!card.open) {
           card.open = true;
         }
+        syncReviewDisclosureAria(card);
         return;
       }
 
@@ -140,6 +143,7 @@ export function ReviewKeyboard() {
         if (card.open) {
           card.open = false;
         }
+        syncReviewDisclosureAria(card);
         return;
       }
 
@@ -225,6 +229,7 @@ export function ReviewKeyboard() {
         if (trigger && host instanceof HTMLDetailsElement) {
           event.preventDefault();
           host.open = !host.open;
+          syncReviewDisclosureAria(host);
           return;
         }
       }

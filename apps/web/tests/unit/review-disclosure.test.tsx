@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   resetReviewDisclosureMemory,
-  ReviewDisclosure
+  ReviewDisclosure,
+  syncReviewDisclosureAria
 } from "@/components/review/review-disclosure";
 
 function Disclosure({ memoryKey, defaultOpen }: { memoryKey: string; defaultOpen: boolean }) {
@@ -70,6 +71,25 @@ describe("ReviewDisclosure native details", () => {
     expect(trigger.closest("[data-slot=collapsible-trigger]")).toBeNull();
   });
 
+  it("writes aria-expanded from details.open without a React state commit", () => {
+    render(<Disclosure memoryKey="ticket:criterion:1" defaultOpen />);
+
+    const trigger = triggerOf();
+    const details = trigger.closest("details");
+    expect(details).toBeInstanceOf(HTMLDetailsElement);
+    expect(trigger.getAttribute("aria-expanded")).toBe(String(details!.open));
+
+    details!.open = false;
+    syncReviewDisclosureAria(details!);
+    expect(details!.open).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+    details!.open = true;
+    syncReviewDisclosureAria(details!);
+    expect(details!.open).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("flips aria-expanded in the same turn as a native toggle event", () => {
     render(<Disclosure memoryKey="ticket:criterion:1" defaultOpen />);
 
@@ -86,6 +106,23 @@ describe("ReviewDisclosure native details", () => {
 
     expect(details!.open).toBe(false);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("matches aria-expanded to details.open after a summary click microtask", async () => {
+    render(<Disclosure memoryKey="ticket:criterion:1" defaultOpen />);
+
+    const trigger = triggerOf();
+    const details = trigger.closest("details");
+    expect(details).toBeInstanceOf(HTMLDetailsElement);
+
+    await act(async () => {
+      details!.open = false;
+      fireEvent.click(trigger);
+      await Promise.resolve();
+    });
+
+    expect(trigger.getAttribute("aria-expanded")).toBe(String(details!.open));
+    expect(trigger.getAttribute("aria-expanded")).toBe(details!.open ? "true" : "false");
   });
 
   it("toggles when the click lands on an inner DIV (LIVE hit path)", () => {
