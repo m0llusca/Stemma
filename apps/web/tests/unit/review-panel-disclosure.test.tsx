@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { CriterionScore, Message, Review, Scorecard, ScorecardCriterion } from "@prisma/client";
+import type { CoachingAction, CriterionScore, Finding, Message, Review, Scorecard, ScorecardCriterion } from "@prisma/client";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewPanel } from "@/components/review/review-panel";
@@ -92,31 +92,43 @@ const draftScore: CriterionScore = {
   evidenceMessageId: "message-1"
 };
 
-const draftReview = {
+const draftReview: Review & {
+  scores: CriterionScore[];
+  findings: (Finding & { coachingAction: CoachingAction | null })[];
+} = {
   id: "review-1",
   conversationId: "conversation-1",
   workspaceId: "workspace-1",
   reviewerId: "qa-1",
   scorecardId: "scorecard-1",
   status: "DRAFT",
-  source: "HUMAN",
+  reviewSource: "HUMAN",
+  rubricVersion: 1,
   totalScore: 100,
+  confidence: null,
   summary: "",
   criticalError: false,
   criticalCategory: null,
   needsReanswer: false,
-  reanswerStatus: "NONE",
-  feedbackStatus: "NONE",
-  feedbackComment: null,
-  positiveNotes: null,
-  instructionLinks: null,
-  calibrationNotes: null,
+  reanswerStatus: "not_needed",
+  feedbackStatus: "new",
+  feedbackComment: "",
+  positiveNotes: "",
+  instructionLinks: "",
+  feedbackAckAt: null,
+  feedbackAckBy: null,
+  appealStatus: "none",
+  appealDueAt: null,
+  appealResolvedAt: null,
+  calibrationStatus: "none",
+  calibrationNotes: "",
+  selfReviewNotes: "",
   createdAt: new Date("2026-07-01T10:00:00.000Z"),
   updatedAt: new Date("2026-07-01T10:00:00.000Z"),
   finalizedAt: null,
   scores: [draftScore],
   findings: []
-} as Review & { scores: CriterionScore[]; findings: [] };
+};
 
 function renderPanel(
   props?: Partial<Parameters<typeof ReviewPanel>[0]>
