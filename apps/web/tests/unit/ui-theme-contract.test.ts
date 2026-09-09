@@ -301,6 +301,10 @@ describe("canonical UI theme contract", () => {
     expect(createRequire(resolve(appRoot, "package.json")).resolve("morphicons/react")).toMatch(
       /morphicons[/\\]dist[/\\]react\.js$/
     );
+    const nextConfigSource = readFileSync(resolve(appRoot, "next.config.ts"), "utf8");
+    expect(nextConfigSource).toContain("morphiconsReactFromApp");
+    expect(nextConfigSource).toContain("turbopack: {");
+    expect(nextConfigSource).toMatch(/"morphicons\/react": morphiconsReactFromApp/);
     expect(globals).not.toMatch(/magnetic[- ]cursor|liquid[- ]glass|cursor[- ]trail|speed-dial|scramble|typewriter/i);
   });
 
