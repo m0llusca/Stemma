@@ -7,6 +7,7 @@
 | [jobs-scheduling.md](jobs-scheduling.md) | Background jobs |
 | [integration-install-contracts.md](integration-install-contracts.md) | Install / capability contracts |
 | [app-shell.md](app-shell.md) | App shell; role homes; take-next / SavedViews write-gate; empty-triage + KPI drill honesty; page permission / forbidden UX |
+| [hardening-screen-matrix.md](hardening-screen-matrix.md) | UX/hardening #116: role × route walk checklist (dead clicks #118, charts #119, Morphicons #117) |
 | [i18n.md](i18n.md) | Localization |
 | [semantic-status-colors.md](semantic-status-colors.md) | Status color semantics; connection / hub / pipeline green = `live_certified` or full coverage; appearance «Применено»; cert ≠ step; probe-before-save |
 | [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) | Review hotkeys + Take next / SavedViews write-gate + status chip (locked) |
