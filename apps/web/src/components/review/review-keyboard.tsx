@@ -21,7 +21,8 @@ import {
  *
  *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
  *  - 1 / 2 / 3                    → set the focused criterion's score
- *  - Enter                        → expand the focused criterion
+ *  - Enter                        → expand the focused criterion (workbench);
+ *                                   on the module <summary>, native toggle wins
  *  - Esc                          → hide legend, else collapse focused criterion
  *  - Cmd/Ctrl+Enter               → finalize & take next
  *  - ?                            → reveal the shortcut legend
