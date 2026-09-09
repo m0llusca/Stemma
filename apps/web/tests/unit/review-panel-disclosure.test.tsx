@@ -208,6 +208,24 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 
+  it("toggles the focused criterion trigger with Enter and does not submit", () => {
+    renderPanel();
+
+    const first = screen.getByRole("button", { name: /Решение/ });
+    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect(first.closest("details")?.open).toBe(true);
+
+    fireEvent.keyDown(first, { key: "Enter" });
+    setDisclosureOpen(first, false);
+    expect(first).toHaveAttribute("aria-expanded", "false");
+    expect(submitReviewState).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(first, { key: " " });
+    setDisclosureOpen(first, true);
+    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
   it("expands a closed score module with Enter and collapses with Escape without submitting", () => {
     renderPanel();
 
@@ -215,7 +233,7 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(second).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.keyDown(document, { key: "j" });
-    fireEvent.keyDown(second, { key: "Enter" });
+    fireEvent.keyDown(document, { key: "Enter" });
     setDisclosureOpen(second, true);
     expect(second).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();

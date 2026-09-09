@@ -226,6 +226,15 @@ export function ReviewKeyboard() {
           }
           return;
         case "expand_focused": {
+          // Enter/Space on the module <summary> must toggle (UX-ACCEPT).
+          // Native details already does that; preventDefault + force-open
+          // stole collapse on LIVE.
+          if (event.target instanceof Element) {
+            const trigger = event.target.closest("[data-slot=review-disclosure-trigger]");
+            if (trigger) {
+              return;
+            }
+          }
           event.preventDefault();
           const card = all[stateRef.current.focusedIndex];
           if (card) {
