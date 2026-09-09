@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { commandReviewDisclosure } from "@/components/review/review-disclosure";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { announceToLiveRegion, focusFirstInvalidControl } from "@/lib/form-validity";
 import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
@@ -21,7 +22,8 @@ import {
  *
  *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
  *  - 1 / 2 / 3                    → set the focused criterion's score
- *  - Enter                        → expand the focused criterion
+ *  - Enter / Space on a module <summary> → toggle (UX-ACCEPT)
+ *  - Enter (workbench, not on a field)   → toggle the focused criterion
  *  - Esc                          → hide legend, else collapse focused criterion
  *  - Cmd/Ctrl+Enter               → finalize & take next
  *  - ?                            → reveal the shortcut legend
@@ -59,9 +61,35 @@ function radioMatcher(card: HTMLElement, option: ScoreOption): HTMLInputElement 
   return null;
 }
 
+function disclosureTrigger(host: HTMLElement) {
+  return (
+    host.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
+    host.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")
+  );
+}
+
+function isDisclosureExpanded(host: HTMLElement): boolean {
+  return disclosureTrigger(host)?.getAttribute("aria-expanded") === "true";
+}
+
+function commitDisclosure(host: HTMLElement, next?: boolean) {
+  if (host instanceof HTMLDetailsElement && host.querySelector("[data-slot='review-disclosure-trigger']")) {
+    commandReviewDisclosure(host, next);
+    return;
+  }
+  const trigger = disclosureTrigger(host);
+  if (typeof next === "boolean") {
+    if (isDisclosureExpanded(host) !== next) {
+      trigger?.click();
+    }
+    return;
+  }
+  trigger?.click();
+}
+
 function isCriterionOpen(card: HTMLElement): boolean {
   if (card instanceof HTMLDetailsElement) {
-    return card.open;
+    return isDisclosureExpanded(card);
   }
 
   if (card.hasAttribute("data-closed")) {
@@ -104,37 +132,22 @@ export function ReviewKeyboard() {
       });
     }
 
-    function ensureCriterionOpen(card: HTMLElement) {
-      // Legacy details (if any remain in tests/fixtures).
-      if (card instanceof HTMLDetailsElement) {
-        if (!card.open) {
-          card.open = true;
-        }
-        return;
-      }
+    function toggleDetails(host: HTMLElement) {
+      commitDisclosure(host);
+    }
 
+    function ensureCriterionOpen(card: HTMLElement) {
       if (isCriterionOpen(card)) {
         return;
       }
-
-      const trigger = card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
-      trigger?.click();
+      commitDisclosure(card, true);
     }
 
     function ensureCriterionClosed(card: HTMLElement) {
-      if (card instanceof HTMLDetailsElement) {
-        if (card.open) {
-          card.open = false;
-        }
-        return;
-      }
-
       if (!isCriterionOpen(card)) {
         return;
       }
-
-      const trigger = card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
-      trigger?.click();
+      commitDisclosure(card, false);
     }
 
     function focusCard(index: number) {
@@ -193,6 +206,26 @@ export function ReviewKeyboard() {
     }
 
     function onKeyDown(event: KeyboardEvent) {
+      // UX-ACCEPT: Enter/Space on the module trigger toggles. preventDefault so
+      // native <summary> and ReviewKeyboard cannot fight (expand-only steal).
+      if (
+        (event.key === "Enter" || event.key === " ") &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.defaultPrevented &&
+        !isEditableTarget(event.target) &&
+        event.target instanceof Element
+      ) {
+        const trigger = event.target.closest("[data-slot=review-disclosure-trigger]");
+        const host = trigger?.closest("details");
+        if (trigger && host instanceof HTMLDetailsElement) {
+          event.preventDefault();
+          commandReviewDisclosure(host);
+          return;
+        }
+      }
+
       const all = cards();
       const action = resolveReviewHotkey({
         key: event.key,
@@ -229,7 +262,7 @@ export function ReviewKeyboard() {
           event.preventDefault();
           const card = all[stateRef.current.focusedIndex];
           if (card) {
-            ensureCriterionOpen(card);
+            toggleDetails(card);
             card.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }
           return;
@@ -290,7 +323,7 @@ export function ReviewKeyboard() {
           <Kbd>3</Kbd>
           <span>незачёт ·</span>
           <Kbd>Enter</Kbd>
-          <span>— раскрыть ·</span>
+          <span>— раскрыть/свернуть ·</span>
           <Kbd>Esc</Kbd>
           <span>— свернуть ·</span>
           <KbdGroup>
