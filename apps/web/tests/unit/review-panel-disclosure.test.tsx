@@ -146,6 +146,18 @@ function renderPanel(
   );
 }
 
+function setDisclosureOpen(trigger: HTMLElement, nextOpen: boolean) {
+  const host = trigger.closest("details");
+  if (!(host instanceof HTMLDetailsElement)) {
+    throw new Error("expected details host");
+  }
+  if (host.open !== nextOpen || trigger.getAttribute("aria-expanded") !== String(nextOpen)) {
+    host.open = nextOpen;
+    fireEvent(host, new Event("toggle", { bubbles: true }));
+  }
+  return host;
+}
+
 describe("ReviewPanel criterion disclosures", () => {
   beforeEach(() => {
     resetReviewDisclosureMemory();
@@ -158,35 +170,62 @@ describe("ReviewPanel criterion disclosures", () => {
     const first = screen.getByRole("button", { name: /Решение/ });
     const second = screen.getByRole("button", { name: /Тон/ });
 
-    expect(first).toHaveAttribute("type", "button");
-    expect(second).toHaveAttribute("type", "button");
+    expect(first.tagName).toBe("SUMMARY");
+    expect(second.tagName).toBe("SUMMARY");
+    expect(first).toHaveAttribute("data-slot", "review-disclosure-trigger");
     expect(first.className).toContain("min-h-[52px]");
     expect(second.className).toContain("min-h-[52px]");
     expect(first).toHaveAttribute("aria-expanded", "true");
     expect(second).toHaveAttribute("aria-expanded", "false");
+    expect(first.closest("details")?.open).toBe(true);
+    expect(second.closest("details")?.open).toBe(false);
 
     fireEvent.click(second);
+    setDisclosureOpen(second, true);
     expect(second).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
 
     fireEvent.click(first);
+    setDisclosureOpen(first, false);
     expect(first).toHaveAttribute("aria-expanded", "false");
 
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 
-  it("expands a closed score module with Enter and collapses with Escape", () => {
+  it("flips aria-expanded from a native details toggle, not a React button handler", () => {
+    renderPanel();
+
+    const first = screen.getByRole("button", { name: /Решение/ });
+    const host = first.closest("details");
+    expect(host).toBeInstanceOf(HTMLDetailsElement);
+    expect(first).toHaveAttribute("aria-expanded", "true");
+
+    (host as HTMLDetailsElement).open = false;
+    fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
+
+    expect((host as HTMLDetailsElement).open).toBe(false);
+    expect(first.getAttribute("aria-expanded")).toBe("false");
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
+  it("expands a closed score module with Enter and collapses with Escape without submitting", () => {
     renderPanel();
 
     const second = screen.getByRole("button", { name: /Тон/ });
     expect(second).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.keyDown(document, { key: "j" });
-    fireEvent.keyDown(document, { key: "Enter" });
+    fireEvent.keyDown(second, { key: "Enter" });
+    setDisclosureOpen(second, true);
     expect(second).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
 
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(second).toHaveAttribute("aria-expanded", "true");
+    expect(submitReviewState).not.toHaveBeenCalled();
+
     fireEvent.keyDown(document, { key: "Escape" });
+    setDisclosureOpen(second, false);
     expect(second).toHaveAttribute("aria-expanded", "false");
     expect(submitReviewState).not.toHaveBeenCalled();
   });
@@ -215,6 +254,7 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(step).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(step);
+    setDisclosureOpen(step, false);
     expect(step).toHaveAttribute("aria-expanded", "false");
 
     unmount();
@@ -245,6 +285,7 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(trigger);
+    setDisclosureOpen(trigger, false);
     expect(trigger).toHaveAttribute("aria-expanded", "false");
 
     unmount();
