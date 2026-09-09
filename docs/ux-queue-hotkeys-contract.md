@@ -10,7 +10,7 @@ Changing eligibility, sort, or hotkey semantics requires an explicit product dec
 | `j` / `ArrowDown` | Focus next criterion card |
 | `k` / `ArrowUp` | Focus previous criterion card |
 | `1` / `2` / `3` | Score focused criterion (pass / partial / fail) when criteria are present |
-| `Enter` | Expand the focused criterion (so score controls are visible) |
+| `Enter` | Toggle the focused criterion. Enter/Space on the module trigger also toggles (must not force-expand or steal collapse). |
 | `Esc` | Hide the `?` legend if open; otherwise collapse the focused criterion |
 | `Cmd+Enter` / `Ctrl+Enter` | Submit **Завершить и взять следующий** (`intent=finalize_next`) when that button is enabled. If Finalize is disabled (incomplete scorecard), do **not** submit: focus the first invalid control and announce the blocked reason (`Заполните все критерии`). |
 | `?` | Toggle the shortcut legend |

@@ -21,9 +21,8 @@ import {
  *
  *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
  *  - 1 / 2 / 3                    → set the focused criterion's score
- *  - Enter                        → expand the focused criterion
- *                                   (preventDefault so a focused <summary> cannot
- *                                   toggle-closed or submit the review form)
+ *  - Enter / Space on a module <summary> → toggle (UX-ACCEPT)
+ *  - Enter (workbench, not on a field)   → toggle the focused criterion
  *  - Esc                          → hide legend, else collapse focused criterion
  *  - Cmd/Ctrl+Enter               → finalize & take next
  *  - ?                            → reveal the shortcut legend
@@ -106,8 +105,19 @@ export function ReviewKeyboard() {
       });
     }
 
+    function toggleDetails(host: HTMLElement) {
+      if (host instanceof HTMLDetailsElement) {
+        host.open = !host.open;
+        return;
+      }
+
+      const trigger =
+        host.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
+        host.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
+      trigger?.click();
+    }
+
     function ensureCriterionOpen(card: HTMLElement) {
-      // Legacy details (if any remain in tests/fixtures).
       if (card instanceof HTMLDetailsElement) {
         if (!card.open) {
           card.open = true;
@@ -119,7 +129,9 @@ export function ReviewKeyboard() {
         return;
       }
 
-      const trigger = card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
+      const trigger =
+        card.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
+        card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
       trigger?.click();
     }
 
@@ -135,7 +147,9 @@ export function ReviewKeyboard() {
         return;
       }
 
-      const trigger = card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
+      const trigger =
+        card.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
+        card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
       trigger?.click();
     }
 
@@ -195,6 +209,26 @@ export function ReviewKeyboard() {
     }
 
     function onKeyDown(event: KeyboardEvent) {
+      // UX-ACCEPT: Enter/Space on the module trigger toggles. preventDefault so
+      // native <summary> and ReviewKeyboard cannot fight (expand-only steal).
+      if (
+        (event.key === "Enter" || event.key === " ") &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.defaultPrevented &&
+        !isEditableTarget(event.target) &&
+        event.target instanceof Element
+      ) {
+        const trigger = event.target.closest("[data-slot=review-disclosure-trigger]");
+        const host = trigger?.closest("details");
+        if (trigger && host instanceof HTMLDetailsElement) {
+          event.preventDefault();
+          host.open = !host.open;
+          return;
+        }
+      }
+
       const all = cards();
       const action = resolveReviewHotkey({
         key: event.key,
@@ -231,7 +265,7 @@ export function ReviewKeyboard() {
           event.preventDefault();
           const card = all[stateRef.current.focusedIndex];
           if (card) {
-            ensureCriterionOpen(card);
+            toggleDetails(card);
             card.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }
           return;
@@ -292,7 +326,7 @@ export function ReviewKeyboard() {
           <Kbd>3</Kbd>
           <span>незачёт ·</span>
           <Kbd>Enter</Kbd>
-          <span>— раскрыть ·</span>
+          <span>— раскрыть/свернуть ·</span>
           <Kbd>Esc</Kbd>
           <span>— свернуть ·</span>
           <KbdGroup>
