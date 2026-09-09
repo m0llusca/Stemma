@@ -19,7 +19,7 @@ import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Chip, type ChipTone } from "@/components/ui/chip";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ReviewDisclosure } from "@/components/review/review-disclosure";
 import {
   Field,
   FieldDescription,
@@ -138,12 +138,11 @@ const nestedDisclosureClass =
   "group overflow-clip rounded-lg border border-border bg-card";
 
 const nestedDisclosureTriggerClass = cn(
-  "flex w-full cursor-pointer items-center justify-between gap-3 bg-transparent px-4 py-3 text-left",
+  "flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 bg-transparent px-4 py-3 text-left",
   "outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 );
 
-const nestedDisclosureBodyClass =
-  "grid gap-4 border-t border-border bg-muted/40 p-4 data-closed:hidden";
+const nestedDisclosureBodyClass = "grid gap-4 border-t border-border bg-muted/40 p-4";
 
 function isCriterionIssue(criterion: ScorecardCriterion, score?: CriterionScore) {
   if (score?.isNotApplicable) {
@@ -272,6 +271,7 @@ function StepHeader({ number, title, detail }: { number: number; title: string; 
 }
 
 function StepDisclosure({
+  memoryKey,
   number,
   title,
   detail,
@@ -279,6 +279,7 @@ function StepDisclosure({
   className,
   defaultOpen = true
 }: {
+  memoryKey: string;
   number: number;
   title: string;
   detail: string;
@@ -287,33 +288,38 @@ function StepDisclosure({
   defaultOpen?: boolean;
 }) {
   return (
-    <Collapsible
+    <ReviewDisclosure
+      memoryKey={memoryKey}
       defaultOpen={defaultOpen}
       className={cn("work-section group flex flex-col gap-3", className)}
+      triggerClassName="flex min-h-11 w-full min-w-0 cursor-pointer items-start justify-between gap-2.5 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50"
+      contentClassName="min-w-0"
+      trigger={
+        <>
+          <StepHeader number={number} title={title} detail={detail} />
+          <span
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary transition-transform duration-150 group-open:rotate-180"
+            aria-hidden="true"
+          >
+            <ChevronDown className="size-4" />
+          </span>
+        </>
+      }
     >
-      <CollapsibleTrigger className="flex w-full min-w-0 cursor-pointer items-start justify-between gap-2.5 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50">
-        <StepHeader number={number} title={title} detail={detail} />
-        <span
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary transition-transform duration-150 group-data-open:rotate-180"
-          aria-hidden="true"
-        >
-          <ChevronDown className="size-4" />
-        </span>
-      </CollapsibleTrigger>
-      <CollapsibleContent keepMounted className="min-w-0 data-closed:hidden">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+      {children}
+    </ReviewDisclosure>
   );
 }
 
 function NestedDisclosure({
+  memoryKey,
   title,
   detail,
   defaultOpen,
   id,
   children
 }: {
+  memoryKey: string;
   title: string;
   detail: string;
   defaultOpen: boolean;
@@ -321,23 +327,30 @@ function NestedDisclosure({
   children: ReactNode;
 }) {
   return (
-    <Collapsible id={id} defaultOpen={defaultOpen} className={nestedDisclosureClass}>
-      <CollapsibleTrigger className={nestedDisclosureTriggerClass}>
-        <div className="min-w-0">
-          <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-        </div>
-        <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-data-open:rotate-180"
-          aria-hidden="true"
-        >
-          <ChevronDown className="size-4" />
-        </span>
-      </CollapsibleTrigger>
-      <CollapsibleContent keepMounted className={nestedDisclosureBodyClass}>
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+    <ReviewDisclosure
+      memoryKey={memoryKey}
+      id={id}
+      defaultOpen={defaultOpen}
+      className={nestedDisclosureClass}
+      triggerClassName={nestedDisclosureTriggerClass}
+      contentClassName={nestedDisclosureBodyClass}
+      trigger={
+        <>
+          <div className="min-w-0">
+            <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+            <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+          </div>
+          <span
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-open:rotate-180"
+            aria-hidden="true"
+          >
+            <ChevronDown className="size-4" />
+          </span>
+        </>
+      }
+    >
+      {children}
+    </ReviewDisclosure>
   );
 }
 
@@ -533,6 +546,7 @@ export function ReviewPanel({
 
       <div className="review-panel-scroll bg-muted">
         <StepDisclosure
+          memoryKey={`${conversationId}:step:criteria`}
           number={1}
           title="Оценка по критериям"
           detail="Заполните только то, что отличается от нормы."
@@ -600,88 +614,84 @@ export function ReviewPanel({
                         hasIssue || (Boolean(prediction) && !aiAgrees && !draftScore?.isNotApplicable);
 
                       return (
-                        <Collapsible
+                        <ReviewDisclosure
                           key={criterion.id}
+                          memoryKey={`${conversationId}:criterion:${criterion.id}`}
                           defaultOpen={shouldOpenCriterion(criterion, draftScore)}
                           className={cn(
                             "criterion-card disclosure-panel group overflow-clip border-0 border-t border-border bg-card first:border-t-0",
-                            "data-[state=ok]:bg-card",
-                            "data-[state=muted]:bg-muted",
-                            "data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warning)_7%,transparent),transparent_38%),var(--card)]",
-                            "data-open:bg-muted/40",
+                            "data-[criterion-state=ok]:bg-card",
+                            "data-[criterion-state=muted]:bg-muted",
+                            "data-[criterion-state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warning)_7%,transparent),transparent_38%),var(--card)]",
+                            "open:bg-muted/40",
                             presentation === "authoring" &&
-                              "data-open:data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
+                              "open:data-[criterion-state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
                             "data-[ai-flag=true]:relative data-[ai-flag=true]:z-[1] data-[ai-flag=true]:my-1.5 data-[ai-flag=true]:rounded-lg data-[ai-flag=true]:border-[1.5px] data-[ai-flag=true]:border-primary/30",
                             presentation === "authoring" &&
-                              "data-[ai-flag=true]:data-[state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
+                              "data-[ai-flag=true]:data-[criterion-state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
                             "data-kbd-focused:relative data-kbd-focused:z-[2] data-kbd-focused:rounded-lg data-kbd-focused:outline data-kbd-focused:outline-2 data-kbd-focused:-outline-offset-2 data-kbd-focused:outline-primary"
                           )}
                           data-criterion-card=""
                           data-criterion-id={criterion.id}
-                          data-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
+                          data-criterion-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
                           data-ai-flag={aiFlagged ? "true" : undefined}
-                        >
-                          <CollapsibleTrigger
-                            className={cn(
-                              "disclosure-summary grid w-full min-h-[52px] cursor-pointer grid-cols-[28px_minmax(0,1fr)_28px] items-center gap-2.5 bg-transparent px-2.5 py-2 text-left",
-                              "outline-none hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50"
-                            )}
-                          >
-                            <span className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-muted/80 text-xs font-extrabold tabular-nums text-muted-foreground">
-                              {criterion.order}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="flex min-w-0 flex-col items-start justify-between gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-                                <h4 className="min-w-0 text-[13px] font-bold leading-snug text-foreground">{criterion.label}</h4>
-                                <span className="flex flex-wrap items-center gap-1.5">
-                                  {prediction ? (
-                                    <Chip
-                                      tone="ai"
-                                      className={cn(aiAgrees && "opacity-80")}
-                                      title={
-                                        prediction.rationale
-                                          ? `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)} — ${prediction.rationale}`
-                                          : `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)}`
-                                      }
-                                    >
-                                      {aiAgrees ? "ИИ согласен" : criterionPredictionChipLabel(prediction)}
+                          triggerClassName={cn(
+                            "disclosure-summary grid w-full min-h-[52px] cursor-pointer grid-cols-[28px_minmax(0,1fr)_28px] items-center gap-2.5 bg-transparent px-2.5 py-2 text-left",
+                            "outline-none hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50"
+                          )}
+                          contentClassName="grid gap-2.5 border-t border-border bg-muted/50 p-2.5"
+                          trigger={
+                            <>
+                              <span className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-muted/80 text-xs font-extrabold tabular-nums text-muted-foreground">
+                                {criterion.order}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 flex-col items-start justify-between gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                                  <h4 className="min-w-0 text-[13px] font-bold leading-snug text-foreground">{criterion.label}</h4>
+                                  <span className="flex flex-wrap items-center gap-1.5">
+                                    {prediction ? (
+                                      <Chip
+                                        tone="ai"
+                                        className={cn(aiAgrees && "opacity-80")}
+                                        title={
+                                          prediction.rationale
+                                            ? `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)} — ${prediction.rationale}`
+                                            : `Предсказание ИИ: ${criterionPredictionChipLabel(prediction)}`
+                                        }
+                                      >
+                                        {aiAgrees ? "ИИ согласен" : criterionPredictionChipLabel(prediction)}
+                                      </Chip>
+                                    ) : null}
+                                    <Chip tone={status.tone}>
+                                      {status.label}
                                     </Chip>
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-[11px] font-medium leading-tight text-muted-foreground">
+                                  <span className="font-semibold tabular-nums">Вес {criterion.weight}%</span>
+                                  <span className="font-semibold tabular-nums text-foreground/80">
+                                    Вклад {draftScore?.isNotApplicable ? "Н/П" : formatPercent(contribution)}
+                                  </span>
+                                  <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
+                                  {evidenceMessage ? (
+                                    <span className="font-semibold tabular-nums text-foreground/80">
+                                      доказательство {formatEvidenceTime(evidenceMessage.sentAt)}
+                                    </span>
                                   ) : null}
-                                  <Chip tone={status.tone}>
-                                    {status.label}
-                                  </Chip>
-                                </span>
+                                  {densityMeta.map((item) => (
+                                    <span key={item}>{item}</span>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-[11px] font-medium leading-tight text-muted-foreground">
-                                <span className="font-semibold tabular-nums">Вес {criterion.weight}%</span>
-                                <span className="font-semibold tabular-nums text-foreground/80">
-                                  Вклад {draftScore?.isNotApplicable ? "Н/П" : formatPercent(contribution)}
-                                </span>
-                                <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
-                                {evidenceMessage ? (
-                                  <EvidenceJumpLink
-                                    messageId={evidenceMessage.id}
-                                    timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
-                                    className="font-semibold tabular-nums text-primary"
-                                  />
-                                ) : null}
-                                {densityMeta.map((item) => (
-                                  <span key={item}>{item}</span>
-                                ))}
-                              </div>
-                            </div>
-                            <span
-                              className="disclosure-chevron inline-flex size-7 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-data-open:rotate-180"
-                              aria-hidden="true"
-                            >
-                              <ChevronDown className="size-4" />
-                            </span>
-                          </CollapsibleTrigger>
-
-                          <CollapsibleContent
-                            keepMounted
-                            className="grid gap-2.5 border-t border-border bg-muted/50 p-2.5 data-closed:hidden"
-                          >
+                              <span
+                                className="disclosure-chevron inline-flex size-7 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-open:rotate-180"
+                                aria-hidden="true"
+                              >
+                                <ChevronDown className="size-4" />
+                              </span>
+                            </>
+                          }
+                        >
                             <div className="grid grid-cols-1 items-end gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
                               {criterion.kind === "SCALE_1_3" ? (
                                 <FieldSet className="min-w-0 gap-1.5">
@@ -791,7 +801,19 @@ export function ReviewPanel({
                                     </NativeSelectOption>
                                   ))}
                                 </NativeSelect>
-                                <FieldDescription>Реплика, на которую опирается оценка</FieldDescription>
+                                <FieldDescription>
+                                  Реплика, на которую опирается оценка
+                                  {evidenceMessage ? (
+                                    <>
+                                      {" · "}
+                                      <EvidenceJumpLink
+                                        messageId={evidenceMessage.id}
+                                        timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
+                                        className="font-semibold tabular-nums text-primary"
+                                      />
+                                    </>
+                                  ) : null}
+                                </FieldDescription>
                               </Field>
 
                               <Field className="rounded-md border border-border bg-card/80 p-2.5">
@@ -817,8 +839,7 @@ export function ReviewPanel({
                                 Добавить в разбор с оператором
                               </a>
                             ) : null}
-                          </CollapsibleContent>
-                        </Collapsible>
+                        </ReviewDisclosure>
                       );
                     })}
                   </div>
@@ -829,6 +850,7 @@ export function ReviewPanel({
         </StepDisclosure>
 
         <StepDisclosure
+          memoryKey={`${conversationId}:step:summary`}
           number={2}
           title="Итог проверки"
           detail="Короткий вывод и классификация, без лишней детализации."
@@ -891,6 +913,7 @@ export function ReviewPanel({
         </StepDisclosure>
 
         <StepDisclosure
+          memoryKey={`${conversationId}:step:extra`}
           number={3}
           title="Дополнительно"
           detail="Критические ошибки, переответ, обратная связь и разбор."
@@ -898,6 +921,7 @@ export function ReviewPanel({
         >
           <div className="grid gap-3">
             <NestedDisclosure
+              memoryKey={`${conversationId}:nested:critical`}
               title="Критическая ошибка и переответ"
               detail="Открывайте только для обнуления оценки или переответа клиенту."
               defaultOpen={hasCriticalDetails}
@@ -927,6 +951,7 @@ export function ReviewPanel({
             </NestedDisclosure>
 
             <NestedDisclosure
+              memoryKey={`${conversationId}:nested:feedback`}
               title="Обратная связь"
               detail="Комментарий оператору, сильные стороны и ссылки на материалы."
               defaultOpen={hasFeedbackDetails}
@@ -971,6 +996,7 @@ export function ReviewPanel({
             </NestedDisclosure>
 
             <NestedDisclosure
+              memoryKey={`${conversationId}:nested:coaching`}
               id="coaching-analysis"
               title="Разбор и калибровка"
               detail="Причина ошибки, доказательство, действие для разбора и заметки."
