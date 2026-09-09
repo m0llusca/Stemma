@@ -1,0 +1,196 @@
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { CriterionScore, Message, Review, Scorecard, ScorecardCriterion } from "@prisma/client";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ReviewPanel } from "@/components/review/review-panel";
+import { ToastProvider } from "@/components/ui/toast";
+import { submitReviewState } from "@/lib/review-panel-actions";
+
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: vi.fn() })
+}));
+
+vi.mock("@/lib/review-panel-actions", () => ({
+  submitReviewState: vi.fn(async () => null)
+}));
+
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  });
+});
+
+const scorecard: Scorecard & { criteria: ScorecardCriterion[] } = {
+  id: "scorecard-1",
+  workspaceId: "workspace-1",
+  name: "Основная форма",
+  version: 1,
+  isActive: true,
+  createdAt: new Date("2026-07-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+  criteria: [
+    {
+      id: "criterion-1",
+      scorecardId: "scorecard-1",
+      key: "resolution",
+      label: "Решение",
+      block: "Результат",
+      kind: "PASS_FAIL",
+      weight: 60,
+      required: true,
+      order: 1
+    },
+    {
+      id: "criterion-2",
+      scorecardId: "scorecard-1",
+      key: "tone",
+      label: "Тон",
+      block: "Результат",
+      kind: "SCALE_1_3",
+      weight: 40,
+      required: true,
+      order: 2
+    }
+  ]
+};
+
+const messages: Message[] = [
+  {
+    id: "message-1",
+    conversationId: "conversation-1",
+    externalId: "external-message-1",
+    participantType: "HUMAN_AGENT",
+    authorName: "Оператор",
+    body: "Предложил клиенту корректный вариант решения.",
+    sentAt: new Date("2026-07-01T10:00:00.000Z"),
+    isPrivate: false,
+    createdAt: new Date("2026-07-01T10:00:00.000Z")
+  }
+];
+
+const draftScore: CriterionScore = {
+  id: "score-2",
+  reviewId: "review-1",
+  criterionId: "criterion-2",
+  value: 3,
+  passed: true,
+  isNotApplicable: false,
+  comment: "",
+  evidenceMessageId: "message-1"
+};
+
+const draftReview = {
+  id: "review-1",
+  conversationId: "conversation-1",
+  workspaceId: "workspace-1",
+  reviewerId: "qa-1",
+  scorecardId: "scorecard-1",
+  status: "DRAFT",
+  source: "HUMAN",
+  totalScore: 100,
+  summary: "",
+  criticalError: false,
+  criticalCategory: null,
+  needsReanswer: false,
+  reanswerStatus: "NONE",
+  feedbackStatus: "NONE",
+  feedbackComment: null,
+  positiveNotes: null,
+  instructionLinks: null,
+  calibrationNotes: null,
+  createdAt: new Date("2026-07-01T10:00:00.000Z"),
+  updatedAt: new Date("2026-07-01T10:00:00.000Z"),
+  finalizedAt: null,
+  scores: [draftScore],
+  findings: []
+} as Review & { scores: CriterionScore[]; findings: [] };
+
+function renderPanel(
+  props?: Partial<Parameters<typeof ReviewPanel>[0]>
+) {
+  return render(
+    <ToastProvider>
+      <ReviewPanel
+        conversationId="conversation-1"
+        messages={messages}
+        scorecard={scorecard}
+        {...props}
+      />
+    </ToastProvider>
+  );
+}
+
+describe("ReviewPanel criterion disclosures", () => {
+  beforeEach(() => {
+    vi.mocked(submitReviewState).mockClear();
+  });
+
+  it("expands and collapses score modules without submitting the review form", () => {
+    renderPanel();
+
+    const first = screen.getByRole("button", { name: /Решение/ });
+    const second = screen.getByRole("button", { name: /Тон/ });
+
+    expect(first).toHaveAttribute("type", "button");
+    expect(second).toHaveAttribute("type", "button");
+    expect(first.className).toContain("min-h-[52px]");
+    expect(second.className).toContain("min-h-[52px]");
+    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect(second).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(second);
+    expect(second).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
+
+    fireEvent.click(first);
+    expect(first).toHaveAttribute("aria-expanded", "false");
+
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
+  it("expands a closed score module with Enter and collapses with Escape", () => {
+    renderPanel();
+
+    const second = screen.getByRole("button", { name: /Тон/ });
+    expect(second).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.keyDown(document, { key: "j" });
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(second).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(second).toHaveAttribute("aria-expanded", "false");
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
+  it("keeps the evidence jump link out of the criterion trigger", () => {
+    renderPanel({ draftReview });
+
+    const trigger = screen.getByRole("button", { name: /Тон/ });
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger.querySelector("a")).toBeNull();
+    expect(trigger).toHaveTextContent("доказательство");
+
+    const jump = screen.getByRole("link", { name: /Перейти к сообщению-доказательству/ });
+    expect(jump).toBeInTheDocument();
+    expect(trigger.contains(jump)).toBe(false);
+
+    fireEvent.click(jump);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+});

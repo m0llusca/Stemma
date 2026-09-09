@@ -138,7 +138,7 @@ const nestedDisclosureClass =
   "group overflow-clip rounded-lg border border-border bg-card";
 
 const nestedDisclosureTriggerClass = cn(
-  "flex w-full cursor-pointer items-center justify-between gap-3 bg-transparent px-4 py-3 text-left",
+  "flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 bg-transparent px-4 py-3 text-left",
   "outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 );
 
@@ -291,7 +291,7 @@ function StepDisclosure({
       defaultOpen={defaultOpen}
       className={cn("work-section group flex flex-col gap-3", className)}
     >
-      <CollapsibleTrigger className="flex w-full min-w-0 cursor-pointer items-start justify-between gap-2.5 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50">
+      <CollapsibleTrigger className="flex min-h-11 w-full min-w-0 cursor-pointer items-start justify-between gap-2.5 bg-transparent text-left outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring/50">
         <StepHeader number={number} title={title} detail={detail} />
         <span
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary transition-transform duration-150 group-data-open:rotate-180"
@@ -659,11 +659,9 @@ export function ReviewPanel({
                                 </span>
                                 <span>{criterion.kind === "SCALE_1_3" ? "Шкала 1-3" : "Да/нет"}</span>
                                 {evidenceMessage ? (
-                                  <EvidenceJumpLink
-                                    messageId={evidenceMessage.id}
-                                    timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
-                                    className="font-semibold tabular-nums text-primary"
-                                  />
+                                  <span className="font-semibold tabular-nums text-foreground/80">
+                                    доказательство {formatEvidenceTime(evidenceMessage.sentAt)}
+                                  </span>
                                 ) : null}
                                 {densityMeta.map((item) => (
                                   <span key={item}>{item}</span>
@@ -791,7 +789,19 @@ export function ReviewPanel({
                                     </NativeSelectOption>
                                   ))}
                                 </NativeSelect>
-                                <FieldDescription>Реплика, на которую опирается оценка</FieldDescription>
+                                <FieldDescription>
+                                  Реплика, на которую опирается оценка
+                                  {evidenceMessage ? (
+                                    <>
+                                      {" · "}
+                                      <EvidenceJumpLink
+                                        messageId={evidenceMessage.id}
+                                        timeLabel={formatEvidenceTime(evidenceMessage.sentAt)}
+                                        className="font-semibold tabular-nums text-primary"
+                                      />
+                                    </>
+                                  ) : null}
+                                </FieldDescription>
                               </Field>
 
                               <Field className="rounded-md border border-border bg-card/80 p-2.5">
