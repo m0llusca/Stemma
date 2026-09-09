@@ -19,7 +19,8 @@ import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Chip, type ChipTone } from "@/components/ui/chip";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ReviewDisclosure } from "@/components/review/review-disclosure";
+import { CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Field,
   FieldDescription,
@@ -272,6 +273,7 @@ function StepHeader({ number, title, detail }: { number: number; title: string; 
 }
 
 function StepDisclosure({
+  memoryKey,
   number,
   title,
   detail,
@@ -279,6 +281,7 @@ function StepDisclosure({
   className,
   defaultOpen = true
 }: {
+  memoryKey: string;
   number: number;
   title: string;
   detail: string;
@@ -287,7 +290,8 @@ function StepDisclosure({
   defaultOpen?: boolean;
 }) {
   return (
-    <Collapsible
+    <ReviewDisclosure
+      memoryKey={memoryKey}
       defaultOpen={defaultOpen}
       className={cn("work-section group flex flex-col gap-3", className)}
     >
@@ -303,17 +307,19 @@ function StepDisclosure({
       <CollapsibleContent keepMounted className="min-w-0 data-closed:hidden">
         {children}
       </CollapsibleContent>
-    </Collapsible>
+    </ReviewDisclosure>
   );
 }
 
 function NestedDisclosure({
+  memoryKey,
   title,
   detail,
   defaultOpen,
   id,
   children
 }: {
+  memoryKey: string;
   title: string;
   detail: string;
   defaultOpen: boolean;
@@ -321,7 +327,12 @@ function NestedDisclosure({
   children: ReactNode;
 }) {
   return (
-    <Collapsible id={id} defaultOpen={defaultOpen} className={nestedDisclosureClass}>
+    <ReviewDisclosure
+      memoryKey={memoryKey}
+      id={id}
+      defaultOpen={defaultOpen}
+      className={nestedDisclosureClass}
+    >
       <CollapsibleTrigger className={nestedDisclosureTriggerClass}>
         <div className="min-w-0">
           <h4 className="text-sm font-semibold text-foreground">{title}</h4>
@@ -337,7 +348,7 @@ function NestedDisclosure({
       <CollapsibleContent keepMounted className={nestedDisclosureBodyClass}>
         {children}
       </CollapsibleContent>
-    </Collapsible>
+    </ReviewDisclosure>
   );
 }
 
@@ -533,6 +544,7 @@ export function ReviewPanel({
 
       <div className="review-panel-scroll bg-muted">
         <StepDisclosure
+          memoryKey={`${conversationId}:step:criteria`}
           number={1}
           title="Оценка по критериям"
           detail="Заполните только то, что отличается от нормы."
@@ -600,25 +612,26 @@ export function ReviewPanel({
                         hasIssue || (Boolean(prediction) && !aiAgrees && !draftScore?.isNotApplicable);
 
                       return (
-                        <Collapsible
+                        <ReviewDisclosure
                           key={criterion.id}
+                          memoryKey={`${conversationId}:criterion:${criterion.id}`}
                           defaultOpen={shouldOpenCriterion(criterion, draftScore)}
                           className={cn(
                             "criterion-card disclosure-panel group overflow-clip border-0 border-t border-border bg-card first:border-t-0",
-                            "data-[state=ok]:bg-card",
-                            "data-[state=muted]:bg-muted",
-                            "data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warning)_7%,transparent),transparent_38%),var(--card)]",
+                            "data-[criterion-state=ok]:bg-card",
+                            "data-[criterion-state=muted]:bg-muted",
+                            "data-[criterion-state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warning)_7%,transparent),transparent_38%),var(--card)]",
                             "data-open:bg-muted/40",
                             presentation === "authoring" &&
-                              "data-open:data-[state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
+                              "data-open:data-[criterion-state=issue]:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--destructive)_6%,transparent),transparent_40%),var(--card)]",
                             "data-[ai-flag=true]:relative data-[ai-flag=true]:z-[1] data-[ai-flag=true]:my-1.5 data-[ai-flag=true]:rounded-lg data-[ai-flag=true]:border-[1.5px] data-[ai-flag=true]:border-primary/30",
                             presentation === "authoring" &&
-                              "data-[ai-flag=true]:data-[state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
+                              "data-[ai-flag=true]:data-[criterion-state=issue]:border-[color-mix(in_srgb,var(--primary)_50%,var(--destructive)_22%)]",
                             "data-kbd-focused:relative data-kbd-focused:z-[2] data-kbd-focused:rounded-lg data-kbd-focused:outline data-kbd-focused:outline-2 data-kbd-focused:-outline-offset-2 data-kbd-focused:outline-primary"
                           )}
                           data-criterion-card=""
                           data-criterion-id={criterion.id}
-                          data-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
+                          data-criterion-state={hasIssue ? "issue" : draftScore?.isNotApplicable ? "muted" : "ok"}
                           data-ai-flag={aiFlagged ? "true" : undefined}
                         >
                           <CollapsibleTrigger
@@ -828,7 +841,7 @@ export function ReviewPanel({
                               </a>
                             ) : null}
                           </CollapsibleContent>
-                        </Collapsible>
+                        </ReviewDisclosure>
                       );
                     })}
                   </div>
@@ -839,6 +852,7 @@ export function ReviewPanel({
         </StepDisclosure>
 
         <StepDisclosure
+          memoryKey={`${conversationId}:step:summary`}
           number={2}
           title="Итог проверки"
           detail="Короткий вывод и классификация, без лишней детализации."
@@ -901,6 +915,7 @@ export function ReviewPanel({
         </StepDisclosure>
 
         <StepDisclosure
+          memoryKey={`${conversationId}:step:extra`}
           number={3}
           title="Дополнительно"
           detail="Критические ошибки, переответ, обратная связь и разбор."
@@ -908,6 +923,7 @@ export function ReviewPanel({
         >
           <div className="grid gap-3">
             <NestedDisclosure
+              memoryKey={`${conversationId}:nested:critical`}
               title="Критическая ошибка и переответ"
               detail="Открывайте только для обнуления оценки или переответа клиенту."
               defaultOpen={hasCriticalDetails}
@@ -937,6 +953,7 @@ export function ReviewPanel({
             </NestedDisclosure>
 
             <NestedDisclosure
+              memoryKey={`${conversationId}:nested:feedback`}
               title="Обратная связь"
               detail="Комментарий оператору, сильные стороны и ссылки на материалы."
               defaultOpen={hasFeedbackDetails}
@@ -981,6 +998,7 @@ export function ReviewPanel({
             </NestedDisclosure>
 
             <NestedDisclosure
+              memoryKey={`${conversationId}:nested:coaching`}
               id="coaching-analysis"
               title="Разбор и калибровка"
               detail="Причина ошибки, доказательство, действие для разбора и заметки."

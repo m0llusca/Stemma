@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { CoachingAction, CriterionScore, Finding, Message, Review, Scorecard, ScorecardCriterion } from "@prisma/client";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetReviewDisclosureMemory } from "@/components/review/review-disclosure";
 import { ReviewPanel } from "@/components/review/review-panel";
 import { ToastProvider } from "@/components/ui/toast";
 import { submitReviewState } from "@/lib/review-panel-actions";
@@ -147,6 +148,7 @@ function renderPanel(
 
 describe("ReviewPanel criterion disclosures", () => {
   beforeEach(() => {
+    resetReviewDisclosureMemory();
     vi.mocked(submitReviewState).mockClear();
   });
 
@@ -204,5 +206,53 @@ describe("ReviewPanel criterion disclosures", () => {
     fireEvent.click(jump);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
+  it("collapses the step disclosure and keeps it closed after remount", () => {
+    const { unmount } = renderPanel();
+
+    const step = screen.getByRole("button", { name: /Оценка по критериям/ });
+    expect(step).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(step);
+    expect(step).toHaveAttribute("aria-expanded", "false");
+
+    unmount();
+    renderPanel();
+
+    expect(screen.getByRole("button", { name: /Оценка по критериям/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
+  it("collapses an initially open issue criterion and survives remount", () => {
+    const failingScore: CriterionScore = {
+      ...draftScore,
+      criterionId: "criterion-1",
+      passed: false,
+      value: 2,
+      comment: "неверная маршрутизация"
+    };
+    const issueReview = {
+      ...draftReview,
+      scores: [failingScore]
+    };
+
+    const { unmount } = renderPanel({ draftReview: issueReview });
+    const trigger = screen.getByRole("button", { name: /Решение/ });
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    unmount();
+    renderPanel({ draftReview: issueReview });
+
+    expect(screen.getByRole("button", { name: /Решение/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
   });
 });
