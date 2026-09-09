@@ -10,7 +10,7 @@ Child streams:
 
 ### #118 status
 
-Visual open/close+hold on score modules (click + Enter) shipped in #123 / `13eadb0`. LIVE SoT = **button + panel disclosure** — do not require native `<details>` / `<summary>`. `#118` cells stay `—` until Джамал marks the walk; note «visual fixed `13eadb0`; walk remaining surfaces». `aria-expanded` lag ≠ visual FAIL → [#125](https://github.com/m0llusca/Stemma/issues/125).
+Visual open/close+hold on score modules (click + Enter) shipped in #123 / master `13eadb0` (accepted tip **`b6d4a6c`**). LIVE SoT = **controlled `<details>` / `<summary>`**. `#118` cells stay `—` until Джамал marks the walk; note «visual fixed `13eadb0`; walk remaining surfaces». `aria-expanded` lag ≠ visual FAIL → [#125](https://github.com/m0llusca/Stemma/issues/125).
 
 LIVE: https://offering-vendor-late-homes.trycloudflare.com (ephemeral; tip `master`).
 
@@ -101,7 +101,7 @@ Home `/dashboard`. Nav: Сегодня / Проверки / Калибровка
 | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | welcome-back **«Сбросить к очереди дня»**; triage **Разобрать** / empty **Взять следующий**; KPI **Просрочено SLA** / **Высокий риск** / **Проверок за неделю** / **Активных обучений** → honest hrefs (never `status=unreviewed`); sparkline **Качество команды · 7 дней** (цель 90, point → period queue); **Нагрузка проверяющих** name/counts → queue; **Ещё в фокусе** | — | — | n/a | #119 Lead/Admin sparkline |
 | `/reviews` | filters (Итог, Статус проверки, Проверяющий, Срок, Риск, Sheet редких срезов); **Сбросить фильтры** → `/reviews`; SavedViews apply + create/rename/delete; **Взять следующий**; next-case preview collapse/expand + CTA; welcome-back reset; empty **Очередь пуста** / **В текущем представлении нет кейсов** | — | n/a | — | |
-| `/reviews/[conversationId]` | **Roman P0**: **модули оценки** = **button + panel disclosure** (not `<details>`/`<summary>`). Click + Enter: visual open/close+hold. Steps **Оценка по критериям** / **Итог проверки** / **Дополнительно**; **Группа процесса** blocks; per-criterion panel (Enter/Esc); score 1/2/3; **Сохранить черновик**; **Завершить проверку**; **Завершить и взять следующий** (⌘↩); `?` legend; AI draft Принять/Отклонить/Изменить if present; appeal/feedback under Дополнительно | — | n/a | — | visual fixed `13eadb0`; walk remaining. aria lag → #125, not visual FAIL |
+| `/reviews/[conversationId]` | **Roman P0**: **модули оценки** = **controlled `<details>` / `<summary>`** (tip `b6d4a6c` / master `13eadb0`). Click + Enter: visual open/close+hold. Steps **Оценка по критериям** / **Итог проверки** / **Дополнительно**; **Группа процесса** blocks; per-criterion summary (Enter/Esc); score 1/2/3; **Сохранить черновик**; **Завершить проверку**; **Завершить и взять следующий** (⌘↩); `?` legend; AI draft Принять/Отклонить/Изменить if present; appeal/feedback under Дополнительно | — | n/a | — | visual fixed `13eadb0`; walk remaining. aria lag → #125, not visual FAIL |
 | `/reports` | period: **Текущий период 22-21** / прошлый 22-21 / календарный месяц / квартал / произвольный; KPI + chart panels (static SVG / `StaticChartContainer`, not blank `.recharts-wrapper`); bar/point → evidence sheet or filtered queue; export CSV/XLSX/PDF if menu present | — | — | n/a | |
 | `/calibration` | **Новая сессия** / **Скрыть форму**; **Создать сессию**; session tabs; **Завершить**; matrix / agreement rows clickable → session or queue | — | n/a | — | accordion/chevron → #117 |
 | `/coaching` | views active/overdue/week/mine/unlinked/done/all; KPI drills; **Создать план** / **Создать задачу**; assignment **Готово** / **Вернуть**; theme/filter submit | — | — | — | sparkline on coaching if shown |
@@ -142,7 +142,7 @@ Admin rail **only**: Формы оценки, Правила выборки, Ж�
 | (shell) | **«Сменить роль»**, 6 nav areas, ⌘K + Take next, pulse Очередь/Риск | — | n/a | — | |
 | `/dashboard` | same Lead/Admin ops pulse as Admin (4 KPI, triage, Take next, sparkline, нагрузка) | — | — | n/a | |
 | `/reviews` | filters, SavedViews mutate, Take next, welcome-back, empty | — | n/a | — | |
-| `/reviews/[conversationId]` | **модули оценки**: button + panel disclosure (not native details). Visual open/close+hold on click+Enter; finalize; hotkeys; AI draft; appeal | — | n/a | — | visual fixed `13eadb0`. aria → #125 |
+| `/reviews/[conversationId]` | **модули оценки**: controlled `<details>` / `<summary>` (`b6d4a6c` / `13eadb0`). Visual open/close+hold on click+Enter; finalize; hotkeys; AI draft; appeal | — | n/a | — | visual fixed `13eadb0`. aria → #125 |
 | `/reports` | period, charts, drill, export | — | — | n/a | |
 | `/calibration` | create / complete session | — | n/a | — | |
 | `/coaching` | manage plans/tasks (not consume-only) | — | — | — | |
@@ -168,7 +168,7 @@ Home `/reviews?qaAssignee=<имя>&due=overdue` (maria.qa@ — свой inbox). 
 | (shell) | **«Сменить роль»**; Сегодня highlights only on exact inbox query; Проверки = bare `/reviews`; ⌘K Сегодня = **Мои + просрочено** (no Пульс дня); Take next; pulse Очередь/Риск | — | n/a | — | |
 | `/reviews` (Сегодня) | inbox filters pre-set; **Сбросить фильтры** → same inbox (not bare `/reviews`); SavedViews; Take next; welcome-back; empty | — | n/a | — | |
 | `/reviews` (Проверки) | unfiltered list; filters; Take next; empty | — | n/a | — | |
-| `/reviews/[conversationId]` | **#118 first repro (visual closed `13eadb0`)**: **модули оценки** = button + panel disclosure (not `<details>`/`<summary>`). Click + Enter: panel opens, closes, **holds**. **Группа процесса** + per-criterion panels; score; finalize + finalize_next; hotkeys; AI draft if present; appeal | — | n/a | — | visual PASS ≠ aria. aria-expanded lag → #125 |
+| `/reviews/[conversationId]` | **#118 first repro (visual closed `13eadb0`)**: **модули оценки** = controlled `<details>` / `<summary>` (`b6d4a6c`). Click + Enter: open, close, **hold**. **Группа процесса** + per-criterion summaries; score; finalize + finalize_next; hotkeys; AI draft if present; appeal | — | n/a | — | visual PASS ≠ aria. aria-expanded lag → #125 |
 | `/dashboard` | residual URL: KPI (no Lead sparkline / нагрузка — no `peer_quality:read`); empty triage **Открыть сегодня** (href home, not Take next) | — | n/a | n/a | no hero chart |
 | `/reports` | period, charts, drill, export — mini charts OK | — | — | n/a | |
 | `/calibration` | create / complete | — | n/a | — | |
@@ -189,7 +189,7 @@ Home `/dashboard` = ExecRiskHome. Nav: Сегодня / Проверки / Ан�
 | (shell) | **«Сменить роль»**; 3 nav areas; ⌘K Сегодня + **Открыть просроченные SLA** + **Открыть аналитику за квартал**; no Take next; no pulse | — | n/a | — | leaked Take next = FAIL |
 | `/dashboard` | 3 KPI: **Просрочено SLA** / **Высокий риск** / **Очередь без старта** (LIVE seed often 8 / 13 / 4); triage action → queue; **Сигналы риска**: **3 SVG bars** (`<svg class="recharts-surface">`), **not** `.recharts-wrapper` / Recharts `BarChart`; bar click = same KPI href; summary table beside chart; **EmptyState** «Нет сигналов за период» (`queueFilterResetHref` → `/reviews`) — force empty / unit path; **no** Take next | — | — | n/a | #119 visual + drill |
 | `/reviews` | read filters + apply SavedViews; **no** create/rename/delete; **no** Take next; **no** preview submit | — | n/a | — | |
-| `/reviews/[conversationId]` | read workbench; no finalize / draft save; modules = button + panel if present — visual open/close+hold (click+Enter); do not require native details | — | n/a | — | aria → #125 |
+| `/reviews/[conversationId]` | read workbench; no finalize / draft save; modules = controlled `<details>` / `<summary>` if present — visual open/close+hold (click+Enter) | — | n/a | — | aria → #125 |
 | `/reports` | period, charts, drill, export | — | — | n/a | |
 | `/calibration` | **Недостаточно прав** | — | n/a | n/a | |
 | `/coaching` | **Недостаточно прав** | — | n/a | n/a | |
