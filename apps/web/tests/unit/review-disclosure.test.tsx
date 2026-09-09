@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { useState } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -69,6 +70,48 @@ describe("ReviewDisclosure native details", () => {
     expect(trigger.closest("details")).not.toBeNull();
     expect(trigger.closest("[data-slot=collapsible]")).toBeNull();
     expect(trigger.closest("[data-slot=collapsible-trigger]")).toBeNull();
+  });
+
+  it("matches aria-expanded to details.open on first paint", () => {
+    const { unmount } = render(<Disclosure memoryKey="ticket:criterion:open" defaultOpen />);
+    const openTrigger = triggerOf();
+    const openHost = openTrigger.closest("details");
+    expect(openHost?.open).toBe(true);
+    expect(openTrigger.getAttribute("aria-expanded")).toBe("true");
+    unmount();
+
+    render(<Disclosure memoryKey="ticket:criterion:closed" defaultOpen={false} />);
+    const closedTrigger = triggerOf();
+    const closedHost = closedTrigger.closest("details");
+    expect(closedHost?.open).toBe(false);
+    expect(closedTrigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("does not restore stale aria-expanded=true after a parent re-render", () => {
+    function Harness() {
+      const [tick, setTick] = useState(0);
+      return (
+        <div>
+          <button type="button" onClick={() => setTick((value) => value + 1)}>
+            rerender {tick}
+          </button>
+          <Disclosure memoryKey="ticket:criterion:rerender" defaultOpen />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const trigger = triggerOf();
+    const details = trigger.closest("details");
+    expect(details).toBeInstanceOf(HTMLDetailsElement);
+
+    details!.open = false;
+    syncReviewDisclosureAria(details!);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: /rerender/ }));
+    expect(details!.open).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("writes aria-expanded from details.open without a React state commit", () => {
