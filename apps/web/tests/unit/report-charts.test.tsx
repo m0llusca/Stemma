@@ -388,7 +388,7 @@ describe("SparklineChart", () => {
     );
 
     const controls = screen.getAllByRole("button", { name: /провер/ });
-    const rings = container.querySelectorAll('[data-slot="sparkline-focus-ring"]');
+    const rings = container.querySelectorAll<HTMLElement>('[data-slot="sparkline-focus-ring"]');
 
     expect(rings[0]).toHaveStyle({
       transform: "translate(-50%, -50%)"
@@ -443,7 +443,7 @@ describe("SparklineChart", () => {
     });
 
     const controls = screen.getAllByRole("button", { name: /проверок/ });
-    const rings = container.querySelectorAll('[data-slot="sparkline-focus-ring"]');
+    const rings = container.querySelectorAll<HTMLElement>('[data-slot="sparkline-focus-ring"]');
     const finalRing = rings[rings.length - 1];
 
     expect(finalRing).toHaveStyle({
