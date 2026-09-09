@@ -153,7 +153,17 @@ function setDisclosureOpen(trigger: HTMLElement, nextOpen: boolean) {
   }
   if (host.open !== nextOpen || trigger.getAttribute("aria-expanded") !== String(nextOpen)) {
     host.open = nextOpen;
-    fireEvent(host, new Event("toggle", { bubbles: true }));
+    if (typeof ToggleEvent === "function") {
+      fireEvent(
+        host,
+        new ToggleEvent("toggle", {
+          newState: nextOpen ? "open" : "closed",
+          oldState: nextOpen ? "closed" : "open"
+        })
+      );
+    } else {
+      fireEvent(host, new Event("toggle", { bubbles: true }));
+    }
   }
   return host;
 }
@@ -179,6 +189,8 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(second).toHaveAttribute("aria-expanded", "false");
     expect(first.closest("details")?.open).toBe(true);
     expect(second.closest("details")?.open).toBe(false);
+    expect(first.getAttribute("aria-expanded")).toBe(String(first.closest("details")?.open));
+    expect(second.getAttribute("aria-expanded")).toBe(String(second.closest("details")?.open));
 
     fireEvent.click(second);
     setDisclosureOpen(second, true);
@@ -192,6 +204,22 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 
+  it("does not leave a defaultOpen score module aria-expanded true while closed", () => {
+    renderPanel();
+
+    const first = screen.getByRole("button", { name: /Решение/ });
+    const host = first.closest("details");
+    expect(host).toBeInstanceOf(HTMLDetailsElement);
+    expect(first.getAttribute("aria-expanded")).toBe(String((host as HTMLDetailsElement).open));
+    expect(["true", "false"]).toContain(first.getAttribute("aria-expanded"));
+
+    setDisclosureOpen(first, false);
+    expect((host as HTMLDetailsElement).open).toBe(false);
+    expect(first.getAttribute("aria-expanded")).not.toBeNull();
+    expect(first.getAttribute("aria-expanded")).toBe("false");
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
   it("flips aria-expanded from a native details toggle, not a React button handler", () => {
     renderPanel();
 
@@ -200,8 +228,7 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(first).toHaveAttribute("aria-expanded", "true");
 
-    (host as HTMLDetailsElement).open = false;
-    fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
+    setDisclosureOpen(first, false);
 
     expect((host as HTMLDetailsElement).open).toBe(false);
     expect(first.getAttribute("aria-expanded")).toBe("false");

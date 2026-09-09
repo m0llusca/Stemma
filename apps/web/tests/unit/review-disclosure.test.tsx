@@ -42,10 +42,23 @@ function expectAriaExpanded(trigger: HTMLElement, open: boolean) {
  * jsdom sometimes skips the UA `details` toggle on click. Drive `open` + the
  * native `toggle` event the same way LIVE ComputerUse observes `aria-expanded`.
  */
+function dispatchToggle(details: HTMLDetailsElement, nextOpen: boolean) {
+  if (typeof ToggleEvent === "function") {
+    details.dispatchEvent(
+      new ToggleEvent("toggle", {
+        newState: nextOpen ? "open" : "closed",
+        oldState: nextOpen ? "closed" : "open"
+      })
+    );
+    return;
+  }
+  details.dispatchEvent(new Event("toggle"));
+}
+
 function syncToggle(details: HTMLDetailsElement, nextOpen: boolean) {
   act(() => {
     details.open = nextOpen;
-    details.dispatchEvent(new Event("toggle"));
+    dispatchToggle(details, nextOpen);
   });
 }
 
@@ -115,7 +128,7 @@ describe("ReviewDisclosure native details", () => {
 
     act(() => {
       details!.open = false;
-      details!.dispatchEvent(new Event("toggle"));
+      dispatchToggle(details!, false);
     });
     expect(details!.open).toBe(false);
     expectAriaExpanded(trigger, false);
@@ -127,7 +140,7 @@ describe("ReviewDisclosure native details", () => {
 
     act(() => {
       details!.open = true;
-      details!.dispatchEvent(new Event("toggle"));
+      dispatchToggle(details!, true);
     });
     expect(details!.open).toBe(true);
     expectAriaExpanded(trigger, true);
@@ -154,11 +167,34 @@ describe("ReviewDisclosure native details", () => {
 
     act(() => {
       details!.open = true;
-      details!.dispatchEvent(new Event("toggle"));
+      dispatchToggle(details!, true);
     });
     expect(details!.open).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).not.toBeNull();
     expectAriaExpanded(trigger, true);
+  });
+
+  it("does not leave aria-expanded true while details is closed when defaultOpen is true", () => {
+    const { rerender } = render(<Disclosure memoryKey="ticket:criterion:live-closed" defaultOpen />);
+
+    const trigger = triggerOf();
+    const details = trigger.closest("details");
+    expect(details).toBeInstanceOf(HTMLDetailsElement);
+    expect(details!.open).toBe(true);
+    expectAriaExpanded(trigger, true);
+
+    act(() => {
+      details!.open = false;
+      dispatchToggle(details!, false);
+    });
+
+    expect(details!.open).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).not.toBeNull();
+    expectAriaExpanded(trigger, false);
+
+    rerender(<Disclosure memoryKey="ticket:criterion:live-closed" defaultOpen />);
+    expect(triggerOf().closest("details")?.open).toBe(false);
+    expectAriaExpanded(triggerOf(), false);
   });
 
   it("flips aria-expanded in the same turn as a native toggle event", () => {
@@ -172,7 +208,7 @@ describe("ReviewDisclosure native details", () => {
 
     act(() => {
       details!.open = false;
-      details!.dispatchEvent(new Event("toggle"));
+      dispatchToggle(details!, false);
     });
 
     expect(details!.open).toBe(false);

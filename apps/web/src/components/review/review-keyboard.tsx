@@ -61,12 +61,25 @@ function radioMatcher(card: HTMLElement, option: ScoreOption): HTMLInputElement 
   return null;
 }
 
-/** Flip or set `details.open` and keep React `aria-expanded` in sync (2da9198). */
+function dispatchDetailsToggle(details: HTMLDetailsElement, nextOpen: boolean) {
+  if (typeof ToggleEvent === "function") {
+    details.dispatchEvent(
+      new ToggleEvent("toggle", {
+        newState: nextOpen ? "open" : "closed",
+        oldState: nextOpen ? "closed" : "open"
+      })
+    );
+    return;
+  }
+  details.dispatchEvent(new Event("toggle"));
+}
+
+/** Flip or set `details.open` and keep React `open` / `aria-expanded` in sync. */
 function commitDetailsOpen(details: HTMLDetailsElement, nextOpen: boolean) {
   if (details.open !== nextOpen) {
     details.open = nextOpen;
   }
-  details.dispatchEvent(new Event("toggle"));
+  dispatchDetailsToggle(details, nextOpen);
   syncReviewDisclosureAria(details);
 }
 

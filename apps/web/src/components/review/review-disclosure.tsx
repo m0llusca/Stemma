@@ -13,8 +13,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Session memory for review disclosures. A remounted RSC slot would otherwise
- * re-apply `defaultOpen` and look dead. The UA owns `details.open`; this map
- * only restores it after remount.
+ * re-apply `defaultOpen` and look dead.
  */
 const reviewDisclosureMemory = new Map<string, boolean>();
 
@@ -22,19 +21,32 @@ export function resetReviewDisclosureMemory() {
   reviewDisclosureMemory.clear();
 }
 
-function writeAriaAttribute(details: HTMLDetailsElement) {
+function writeAriaAttribute(details: HTMLDetailsElement, open: boolean = details.open) {
   const summary =
     details.querySelector("summary[data-slot=review-disclosure-trigger]") ??
     details.querySelector("[data-slot=review-disclosure-trigger]");
   if (summary instanceof HTMLElement) {
-    summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+    summary.setAttribute("aria-expanded", open ? "true" : "false");
   }
 }
 
 /**
+ * Prefer `toggle` `newState` — React 19 can reset `details.open` to the
+ * previous `open` prop before the handler runs. Fall back to the IDL.
+ */
+function readToggleOpen(event: { newState?: string; currentTarget: EventTarget | null }): boolean {
+  if (event.newState === "open") {
+    return true;
+  }
+  if (event.newState === "closed") {
+    return false;
+  }
+  return event.currentTarget instanceof HTMLDetailsElement ? event.currentTarget.open : false;
+}
+
+/**
  * Same-turn `getAttribute("aria-expanded")` for keyboard / tests.
- * React state is updated by the `toggle` listener; this write must match
- * `details.open` immediately (2da9198 / account-menu pattern).
+ * React state is updated by the `toggle` listener.
  */
 export function syncReviewDisclosureAria(details: HTMLDetailsElement) {
   const key = details.getAttribute("data-review-disclosure-key");
@@ -44,17 +56,18 @@ export function syncReviewDisclosureAria(details: HTMLDetailsElement) {
   writeAriaAttribute(details);
 }
 
-function syncFromDetails(
-  details: HTMLDetailsElement | null,
+function syncFromToggle(
+  event: { newState?: string; currentTarget: EventTarget | null },
   memoryKey: string,
   commit: (open: boolean) => void
 ) {
-  if (!details) {
-    return;
+  const next = readToggleOpen(event);
+  const details = event.currentTarget instanceof HTMLDetailsElement ? event.currentTarget : null;
+  reviewDisclosureMemory.set(memoryKey, next);
+  commit(next);
+  if (details) {
+    writeAriaAttribute(details, next);
   }
-  reviewDisclosureMemory.set(memoryKey, details.open);
-  commit(details.open);
-  writeAriaAttribute(details);
 }
 
 type ReviewDisclosureProps = Omit<
@@ -69,10 +82,9 @@ type ReviewDisclosureProps = Omit<
 };
 
 /**
- * Native `<details>` owns open. `aria-expanded` is a React prop bound to
- * state that always mirrors `details.open` (2da9198 / AccountMenuDisclosure).
- * A native `toggle` listener writes the attribute in the same turn as the UA
- * click; JSX keeps the prop so later commits do not strip it.
+ * `open` and `aria-expanded` share one React state so they cannot diverge.
+ * Uncontrolled `<details>` (no `open` prop) starts closed while `defaultOpen`
+ * left `expanded` true — LIVE 8989a9a: aria stuck true, visual toggled.
  */
 export function ReviewDisclosure({
   memoryKey,
@@ -98,31 +110,23 @@ export function ReviewDisclosure({
     if (!root) {
       return;
     }
-    // After React commit — assigning `open` in the ref is reset when `<details>`
-    // has no `open` prop. Apply memory / defaultOpen once, then sync state.
-    if (root.dataset.disclosureReady !== "1") {
-      const stored = reviewDisclosureMemory.get(memoryKey) ?? defaultOpen;
-      if (root.open !== stored) {
-        root.open = stored;
-      }
-      root.dataset.disclosureReady = "1";
-    }
-    const onNativeToggle = () => {
-      syncFromDetails(root, memoryKey, setExpanded);
+    const onNativeToggle = (event: Event) => {
+      syncFromToggle(event, memoryKey, setExpanded);
     };
     root.addEventListener("toggle", onNativeToggle);
-    onNativeToggle();
+    writeAriaAttribute(root);
     return () => root.removeEventListener("toggle", onNativeToggle);
-  });
+  }, [memoryKey]);
 
   return (
     <details
       {...props}
       ref={attachDetails}
+      open={expanded}
       data-review-disclosure-key={memoryKey}
       className={cn("group", className)}
       onToggle={(event: ToggleEvent<HTMLDetailsElement>) => {
-        syncFromDetails(event.currentTarget, memoryKey, setExpanded);
+        syncFromToggle(event, memoryKey, setExpanded);
       }}
     >
       <summary
@@ -133,15 +137,6 @@ export function ReviewDisclosure({
           "cursor-pointer list-none [&::-webkit-details-marker]:hidden [&_*]:pointer-events-none",
           triggerClassName
         )}
-        onClick={() => {
-          const root = detailsRef.current;
-          if (!root) {
-            return;
-          }
-          queueMicrotask(() => {
-            syncFromDetails(root, memoryKey, setExpanded);
-          });
-        }}
       >
         {trigger}
       </summary>
