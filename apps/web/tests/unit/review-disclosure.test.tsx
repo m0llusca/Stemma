@@ -32,6 +32,12 @@ function triggerOf() {
   return screen.getByRole("button", { name: /Точность ответа/ });
 }
 
+function expectAriaExpanded(trigger: HTMLElement, open: boolean) {
+  const value = trigger.getAttribute("aria-expanded");
+  expect(value).not.toBeNull();
+  expect(value).toBe(open ? "true" : "false");
+}
+
 /**
  * jsdom sometimes skips the UA `details` toggle on click. Drive `open` + the
  * native `toggle` event the same way LIVE ComputerUse observes `aria-expanded`.
@@ -77,17 +83,17 @@ describe("ReviewDisclosure native details", () => {
     const openTrigger = triggerOf();
     const openHost = openTrigger.closest("details");
     expect(openHost?.open).toBe(true);
-    expect(openTrigger.getAttribute("aria-expanded")).toBe("true");
+    expectAriaExpanded(openTrigger, true);
     unmount();
 
     render(<Disclosure memoryKey="ticket:criterion:closed" defaultOpen={false} />);
     const closedTrigger = triggerOf();
     const closedHost = closedTrigger.closest("details");
     expect(closedHost?.open).toBe(false);
-    expect(closedTrigger.getAttribute("aria-expanded")).toBe("false");
+    expectAriaExpanded(closedTrigger, false);
   });
 
-  it("does not restore stale aria-expanded=true after a parent re-render", () => {
+  it("keeps getAttribute('aria-expanded') as true/false after toggle and parent re-render", () => {
     function Harness() {
       const [tick, setTick] = useState(0);
       return (
@@ -104,33 +110,55 @@ describe("ReviewDisclosure native details", () => {
     const trigger = triggerOf();
     const details = trigger.closest("details");
     expect(details).toBeInstanceOf(HTMLDetailsElement);
+    expectAriaExpanded(trigger, true);
+    expect(details!.open).toBe(true);
 
-    details!.open = false;
-    syncReviewDisclosureAria(details!);
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    act(() => {
+      details!.open = false;
+      details!.dispatchEvent(new Event("toggle"));
+    });
+    expect(details!.open).toBe(false);
+    expectAriaExpanded(trigger, false);
 
     fireEvent.click(screen.getByRole("button", { name: /rerender/ }));
     expect(details!.open).toBe(false);
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-expanded")).toBe(true);
+    expectAriaExpanded(trigger, false);
+
+    act(() => {
+      details!.open = true;
+      details!.dispatchEvent(new Event("toggle"));
+    });
+    expect(details!.open).toBe(true);
+    expectAriaExpanded(trigger, true);
+
+    fireEvent.click(screen.getByRole("button", { name: /rerender/ }));
+    expect(details!.open).toBe(true);
+    expectAriaExpanded(trigger, true);
   });
 
-  it("writes aria-expanded from details.open without a React state commit", () => {
+  it("never leaves aria-expanded null after mount or a same-turn sync", () => {
     render(<Disclosure memoryKey="ticket:criterion:1" defaultOpen />);
 
     const trigger = triggerOf();
     const details = trigger.closest("details");
     expect(details).toBeInstanceOf(HTMLDetailsElement);
-    expect(trigger.getAttribute("aria-expanded")).toBe(String(details!.open));
+    expect(trigger.getAttribute("aria-expanded")).not.toBeNull();
+    expectAriaExpanded(trigger, details!.open);
 
     details!.open = false;
     syncReviewDisclosureAria(details!);
     expect(details!.open).toBe(false);
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.getAttribute("aria-expanded")).not.toBeNull();
+    expectAriaExpanded(trigger, false);
 
-    details!.open = true;
-    syncReviewDisclosureAria(details!);
+    act(() => {
+      details!.open = true;
+      details!.dispatchEvent(new Event("toggle"));
+    });
     expect(details!.open).toBe(true);
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("aria-expanded")).not.toBeNull();
+    expectAriaExpanded(trigger, true);
   });
 
   it("flips aria-expanded in the same turn as a native toggle event", () => {
@@ -148,7 +176,7 @@ describe("ReviewDisclosure native details", () => {
     });
 
     expect(details!.open).toBe(false);
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expectAriaExpanded(trigger, false);
   });
 
   it("matches aria-expanded to details.open after a summary click microtask", async () => {
@@ -164,8 +192,8 @@ describe("ReviewDisclosure native details", () => {
       await Promise.resolve();
     });
 
-    expect(trigger.getAttribute("aria-expanded")).toBe(String(details!.open));
-    expect(trigger.getAttribute("aria-expanded")).toBe(details!.open ? "true" : "false");
+    expect(trigger.getAttribute("aria-expanded")).not.toBeNull();
+    expectAriaExpanded(trigger, details!.open);
   });
 
   it("toggles when the click lands on an inner DIV (LIVE hit path)", () => {

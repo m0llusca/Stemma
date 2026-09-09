@@ -61,6 +61,15 @@ function radioMatcher(card: HTMLElement, option: ScoreOption): HTMLInputElement 
   return null;
 }
 
+/** Flip or set `details.open` and keep React `aria-expanded` in sync (2da9198). */
+function commitDetailsOpen(details: HTMLDetailsElement, nextOpen: boolean) {
+  if (details.open !== nextOpen) {
+    details.open = nextOpen;
+  }
+  details.dispatchEvent(new Event("toggle"));
+  syncReviewDisclosureAria(details);
+}
+
 function isCriterionOpen(card: HTMLElement): boolean {
   if (card instanceof HTMLDetailsElement) {
     return card.open;
@@ -108,8 +117,7 @@ export function ReviewKeyboard() {
 
     function toggleDetails(host: HTMLElement) {
       if (host instanceof HTMLDetailsElement) {
-        host.open = !host.open;
-        syncReviewDisclosureAria(host);
+        commitDetailsOpen(host, !host.open);
         return;
       }
 
@@ -121,10 +129,7 @@ export function ReviewKeyboard() {
 
     function ensureCriterionOpen(card: HTMLElement) {
       if (card instanceof HTMLDetailsElement) {
-        if (!card.open) {
-          card.open = true;
-        }
-        syncReviewDisclosureAria(card);
+        commitDetailsOpen(card, true);
         return;
       }
 
@@ -140,10 +145,7 @@ export function ReviewKeyboard() {
 
     function ensureCriterionClosed(card: HTMLElement) {
       if (card instanceof HTMLDetailsElement) {
-        if (card.open) {
-          card.open = false;
-        }
-        syncReviewDisclosureAria(card);
+        commitDetailsOpen(card, false);
         return;
       }
 
@@ -228,8 +230,7 @@ export function ReviewKeyboard() {
         const host = trigger?.closest("details");
         if (trigger && host instanceof HTMLDetailsElement) {
           event.preventDefault();
-          host.open = !host.open;
-          syncReviewDisclosureAria(host);
+          commitDetailsOpen(host, !host.open);
           return;
         }
       }
