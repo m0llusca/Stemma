@@ -8,23 +8,13 @@ import {
   Bell,
   ClipboardCheck,
   GraduationCap,
+  Menu,
   MessageSquareText,
   Scale,
   Search,
   SlidersHorizontal,
   TrendingUp
 } from "lucide-react";
-import {
-  Activity as ActivityNode,
-  ClipboardCheck as ClipboardCheckNode,
-  GraduationCap as GraduationCapNode,
-  Menu as MenuNode,
-  MessageSquareText as MessageSquareTextNode,
-  Scale as ScaleNode,
-  SlidersHorizontal as SlidersHorizontalNode,
-  TrendingUp as TrendingUpNode,
-  X as XNode
-} from "lucide";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isAuthPath } from "@/lib/auth/auth-path";
 import {
@@ -45,7 +35,6 @@ import { TAKE_NEXT_LABEL } from "@/lib/review/take-next-copy";
 import type { DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { cn } from "@/lib/utils";
 import { AccountMenuDisclosure, DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
-import { MorphIcon } from "@/components/ui/morph-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -102,16 +91,6 @@ const areaIcons = {
   analytics: TrendingUp,
   settings: SlidersHorizontal
 } satisfies Record<ShellNavAreaIcon, typeof ClipboardCheck>;
-
-const areaIconNodes = {
-  today: ActivityNode,
-  feedback: MessageSquareTextNode,
-  review: ClipboardCheckNode,
-  calibration: ScaleNode,
-  coaching: GraduationCapNode,
-  analytics: TrendingUpNode,
-  settings: SlidersHorizontalNode
-} satisfies Record<ShellNavAreaIcon, typeof ActivityNode>;
 
 const defaultNavBranding = resolveWorkspaceBranding({});
 
@@ -290,18 +269,10 @@ function AppNavShellChrome({
                     />
                   }
                 >
-                  <MorphIcon
-                    icon={areaMenuOpen ? XNode : MenuNode}
-                    className={cn(activeArea && "md:hidden")}
-                    data-icon="inline-start"
-                  />
+                  <Menu className={cn(activeArea && "md:hidden")} />
                   {activeArea && ActiveAreaIcon ? (
                     <>
-                      <MorphIcon
-                        icon={areaIconNodes[activeArea.icon]}
-                        className="hidden md:block"
-                        data-icon="inline-start"
-                      />
+                      <ActiveAreaIcon className="hidden md:block" data-icon="inline-start" />
                       <span className="hidden md:inline">{activeArea.label}</span>
                     </>
                   ) : (

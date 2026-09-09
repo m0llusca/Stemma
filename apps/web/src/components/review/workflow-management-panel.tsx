@@ -1,6 +1,6 @@
 import type { Conversation, RoleName, User } from "@prisma/client";
+import { ChevronDown } from "lucide-react";
 import { ActionFlowGuard } from "@/components/action-flow-guard";
-import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -64,10 +64,10 @@ export function WorkflowManagementPanel({
           </p>
         </div>
         <span
-          className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary"
+          className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
           aria-hidden="true"
         >
-          <DisclosureMorphChevron />
+          <ChevronDown className="size-4" />
         </span>
       </CollapsibleTrigger>
 
