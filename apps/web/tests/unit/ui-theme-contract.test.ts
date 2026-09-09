@@ -275,6 +275,7 @@ describe("canonical UI theme contract", () => {
     const switchSource = readFileSync(resolve(appRoot, "src/components/ui/switch.tsx"), "utf8");
     const badgeSource = readFileSync(resolve(appRoot, "src/components/ui/badge.tsx"), "utf8");
     const accordionSource = readFileSync(resolve(appRoot, "src/components/ui/accordion.tsx"), "utf8");
+    const morphIconSource = readFileSync(resolve(appRoot, "src/components/ui/morph-icon.tsx"), "utf8");
     const tabsSource = readFileSync(resolve(appRoot, "src/components/ui/tabs.tsx"), "utf8");
     const statKpiSource = readFileSync(resolve(appRoot, "src/components/ui/stat-kpi.tsx"), "utf8");
     const chartContainerSource = readFileSync(
@@ -287,13 +288,15 @@ describe("canonical UI theme contract", () => {
     expect(switchSource).toContain("--motion-duration-spring");
     expect(badgeSource).toContain("--motion-duration-morph");
     expect(badgeSource).toContain("--motion-ease-spring-gentle");
-    expect(accordionSource).toContain("--motion-ease-spring-overshoot");
+    expect(accordionSource).toContain("DisclosureMorphChevron");
+    expect(morphIconSource).toContain('reducedMotion = "user"');
+    expect(morphIconSource).toContain('spring = "snappy"');
     expect(tabsSource).toContain("--motion-ease-spring-glide");
     expect(statKpiSource).toContain('data-qc-motion="kpi-bump"');
     expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
     expect(packageJson).not.toMatch(/["']kinetics["']/);
     expect(packageJson).not.toMatch(/@kinetics\//);
-    expect(packageJson).not.toMatch(/["']morphicons["']/);
+    expect(packageJson).toMatch(/["']morphicons["']/);
     expect(globals).not.toMatch(/magnetic[- ]cursor|liquid[- ]glass|cursor[- ]trail|speed-dial|scramble|typewriter/i);
   });
 

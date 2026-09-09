@@ -10,10 +10,10 @@ import {
   type ReactNode,
   type ToggleEvent
 } from "react";
-import { ChevronDown } from "lucide-react";
 import { type DemoRoleSwitcher } from "@/lib/auth/demo-users";
 import { switchCurrentUser } from "@/lib/user-actions";
 import { buttonVariants } from "@/components/ui/button";
+import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { cn } from "@/lib/utils";
 
 /**
@@ -143,6 +143,7 @@ export function AccountMenuDisclosure({
         )}
       >
         {children}
+        <DisclosureMorphChevron open={expanded} data-icon="inline-end" />
       </summary>
       <div
         id={menuId}
@@ -226,7 +227,6 @@ export function DemoAccountMenu({ switcher, logout }: DemoAccountMenuProps) {
     >
       <span className="min-w-0 truncate">{switcher.roleLabel}</span>
       <span className="min-w-0 truncate text-muted-foreground">{currentName}</span>
-      <ChevronDown data-icon="inline-end" />
     </AccountMenuDisclosure>
   );
 }

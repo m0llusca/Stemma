@@ -1,0 +1,43 @@
+"use client";
+
+import {
+  MorphIcon as MorphiconsIcon,
+  type MorphIconProps
+} from "morphicons/react";
+
+import { asMorphIcon, type MorphableIcon } from "@/lib/ui/lucide-morph";
+import { cn } from "@/lib/utils";
+
+export type AppMorphIconProps = Omit<MorphIconProps, "icon" | "from" | "to"> & {
+  icon?: MorphableIcon;
+  from?: MorphableIcon;
+  to?: MorphableIcon;
+};
+
+/**
+ * Product MorphIcon. Lucide data nodes only (not lucide-react components).
+ * Honors `prefers-reduced-motion` (instant swap). Spring is snappy — same
+ * Kinetics “Icon Morph Swap” slot as `--motion-duration-morph` (350ms).
+ */
+export function MorphIcon({
+  icon,
+  from,
+  to,
+  className,
+  reducedMotion = "user",
+  spring = "snappy",
+  ...props
+}: AppMorphIconProps) {
+  return (
+    <MorphiconsIcon
+      icon={icon === undefined ? undefined : asMorphIcon(icon)}
+      from={from === undefined ? undefined : asMorphIcon(from)}
+      to={to === undefined ? undefined : asMorphIcon(to)}
+      reducedMotion={reducedMotion}
+      spring={spring}
+      data-slot="morph-icon"
+      className={cn("size-4 shrink-0", className)}
+      {...props}
+    />
+  );
+}

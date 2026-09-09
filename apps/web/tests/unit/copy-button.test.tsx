@@ -36,10 +36,9 @@ describe("CopyButton motion and timer safety", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole("button", { name: "Скопировано" })).toHaveAttribute(
-      "data-qc-motion",
-      "feedback"
-    );
+    const copied = screen.getByRole("button", { name: "Скопировано" });
+    expect(copied).toHaveAttribute("data-qc-motion", "feedback");
+    expect(copied.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
     unmount();
   });
 
@@ -54,7 +53,7 @@ describe("CopyButton motion and timer safety", () => {
       await Promise.resolve();
     });
 
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -96,7 +95,7 @@ describe("CopyButton motion and timer safety", () => {
       "data-state",
       "success"
     );
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });

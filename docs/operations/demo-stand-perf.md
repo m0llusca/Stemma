@@ -1,7 +1,7 @@
 # Demo stand performance baseline
 
 Roman LIVE (2026-09-08) felt slow. Separate **stand topology** from **app
-regressions** before rewriting charts (#109) or Morphicons (#108).
+regressions** before rewriting charts (#109) or Morphicons (#117).
 
 ## Tester LIVE cold-curl (2026-09-08)
 

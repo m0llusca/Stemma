@@ -89,6 +89,8 @@ describe("AccountMenuDisclosure", () => {
     const details = openViaUa(trigger);
     expect(details?.open).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.querySelector('[data-slot="disclosure-morph-chevron"]')).not.toBeNull();
+    expect(trigger.querySelector('[data-slot="morph-icon"]')).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Иван Петров · Оператор · Демо" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "Анна QA · Проверяющий · Демо" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Сменить роль" })).toBeNull();

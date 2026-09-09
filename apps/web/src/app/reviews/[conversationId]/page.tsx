@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import {
-  ChevronDown,
   MessageSquareWarning,
   RotateCcw,
   Sparkles
@@ -21,6 +20,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -653,10 +653,10 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               <p className="mt-1 truncate text-sm text-muted-foreground">{latestFinalizedReview.summary}</p>
             </div>
             <span
-              className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
+              className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary"
               aria-hidden="true"
             >
-              <ChevronDown className="size-4" />
+              <DisclosureMorphChevron />
             </span>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -1040,10 +1040,10 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
               <p className="mt-1 text-sm text-muted-foreground">{russianPlural(conversation.reviews.length, ["запись", "записи", "записей"])}</p>
             </div>
             <span
-              className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform group-data-open:rotate-180"
+              className="disclosure-chevron flex size-8 shrink-0 items-center justify-center rounded-md text-primary"
               aria-hidden="true"
             >
-              <ChevronDown className="size-4" />
+              <DisclosureMorphChevron />
             </span>
           </CollapsibleTrigger>
           <CollapsibleContent>

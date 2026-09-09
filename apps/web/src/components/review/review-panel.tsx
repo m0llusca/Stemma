@@ -8,8 +8,8 @@ import type {
   Scorecard,
   ScorecardCriterion
 } from "@prisma/client";
-import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { criterionPredictionChipLabel } from "@/components/review/ai-prediction-chip";
 import { EvidencePickerListener } from "@/components/review/evidence-picker-listener";
 import { EvidenceJumpLink } from "@/components/review/evidence-jump-link";
@@ -298,10 +298,10 @@ function StepDisclosure({
         <>
           <StepHeader number={number} title={title} detail={detail} />
           <span
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary transition-transform duration-150 group-open:rotate-180"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary"
             aria-hidden="true"
           >
-            <ChevronDown className="size-4" />
+            <DisclosureMorphChevron />
           </span>
         </>
       }
@@ -341,10 +341,10 @@ function NestedDisclosure({
             <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
           </div>
           <span
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-open:rotate-180"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary"
             aria-hidden="true"
           >
-            <ChevronDown className="size-4" />
+            <DisclosureMorphChevron />
           </span>
         </>
       }
@@ -684,10 +684,10 @@ export function ReviewPanel({
                                 </div>
                               </div>
                               <span
-                                className="disclosure-chevron inline-flex size-7 shrink-0 items-center justify-center rounded-md text-primary transition-transform duration-150 group-open:rotate-180"
+                                className="disclosure-chevron inline-flex size-7 shrink-0 items-center justify-center rounded-md text-primary"
                                 aria-hidden="true"
                               >
-                                <ChevronDown className="size-4" />
+                                <DisclosureMorphChevron />
                               </span>
                             </>
                           }
