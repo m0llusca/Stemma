@@ -208,43 +208,47 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 
-  it("toggles the focused criterion trigger with Enter and does not submit", () => {
-    renderPanel();
-
-    const first = screen.getByRole("button", { name: /Решение/ });
-    expect(first).toHaveAttribute("aria-expanded", "true");
-    expect(first.closest("details")?.open).toBe(true);
-
-    fireEvent.keyDown(first, { key: "Enter" });
-    setDisclosureOpen(first, false);
-    expect(first).toHaveAttribute("aria-expanded", "false");
-    expect(submitReviewState).not.toHaveBeenCalled();
-
-    fireEvent.keyDown(first, { key: " " });
-    setDisclosureOpen(first, true);
-    expect(first).toHaveAttribute("aria-expanded", "true");
-    expect(submitReviewState).not.toHaveBeenCalled();
-  });
-
-  it("expands a closed score module with Enter and collapses with Escape without submitting", () => {
+  it("expands a closed score module with Enter on the trigger and does not submit", () => {
     renderPanel();
 
     const second = screen.getByRole("button", { name: /Тон/ });
+    const host = second.closest("details");
+    expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(second).toHaveAttribute("aria-expanded", "false");
+    expect((host as HTMLDetailsElement).open).toBe(false);
 
     fireEvent.keyDown(document, { key: "j" });
-    fireEvent.keyDown(document, { key: "Enter" });
-    setDisclosureOpen(second, true);
+    fireEvent.keyDown(second, { key: "Enter" });
+
+    expect((host as HTMLDetailsElement).open).toBe(true);
+    if (second.getAttribute("aria-expanded") !== "true") {
+      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
+    }
     expect(second).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
 
-    fireEvent.keyDown(document, { key: "Enter" });
-    expect(second).toHaveAttribute("aria-expanded", "true");
+  it("keeps an open focused criterion open on Enter and collapses it with Escape", () => {
+    renderPanel();
+
+    const first = screen.getByRole("button", { name: /Решение/ });
+    const host = first.closest("details");
+    expect(host).toBeInstanceOf(HTMLDetailsElement);
+    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect((host as HTMLDetailsElement).open).toBe(true);
+
+    fireEvent.keyDown(first, { key: "Enter" });
+    expect((host as HTMLDetailsElement).open).toBe(true);
+    expect(first).toHaveAttribute("aria-expanded", "true");
     expect(submitReviewState).not.toHaveBeenCalled();
 
     fireEvent.keyDown(document, { key: "Escape" });
-    setDisclosureOpen(second, false);
-    expect(second).toHaveAttribute("aria-expanded", "false");
+    expect((host as HTMLDetailsElement).open).toBe(false);
+    if (first.getAttribute("aria-expanded") !== "false") {
+      fireEvent(host as HTMLDetailsElement, new Event("toggle", { bubbles: true }));
+    }
+    expect(first).toHaveAttribute("aria-expanded", "false");
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 

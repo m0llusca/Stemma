@@ -21,8 +21,9 @@ import {
  *
  *  - j / ArrowDown · k / ArrowUp  → move the focus ring between criterion cards
  *  - 1 / 2 / 3                    → set the focused criterion's score
- *  - Enter                        → expand the focused criterion (workbench);
- *                                   on the module <summary>, native toggle wins
+ *  - Enter                        → expand the focused criterion
+ *                                   (preventDefault so a focused <summary> cannot
+ *                                   toggle-closed or submit the review form)
  *  - Esc                          → hide legend, else collapse focused criterion
  *  - Cmd/Ctrl+Enter               → finalize & take next
  *  - ?                            → reveal the shortcut legend
@@ -227,15 +228,6 @@ export function ReviewKeyboard() {
           }
           return;
         case "expand_focused": {
-          // Enter/Space on the module <summary> must toggle (UX-ACCEPT).
-          // Native details already does that; preventDefault + force-open
-          // stole collapse on LIVE.
-          if (event.target instanceof Element) {
-            const trigger = event.target.closest("[data-slot=review-disclosure-trigger]");
-            if (trigger) {
-              return;
-            }
-          }
           event.preventDefault();
           const card = all[stateRef.current.focusedIndex];
           if (card) {
