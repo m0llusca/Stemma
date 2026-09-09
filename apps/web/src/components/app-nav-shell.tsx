@@ -6,6 +6,7 @@ import {
   Activity,
   ArrowRight,
   Bell,
+  ChevronDown,
   ClipboardCheck,
   GraduationCap,
   Menu,
@@ -493,10 +494,11 @@ function AppNavShellChrome({
             <span className="max-w-36 truncate text-sm font-medium leading-none">
               {demoRoleLabel ?? user.name}
             </span>
-          <span className="max-w-36 truncate text-xs text-muted-foreground">
-            {demoSwitcher ? demoUserName : user.email}
+            <span className="max-w-36 truncate text-xs text-muted-foreground">
+              {demoSwitcher ? demoUserName : user.email}
+            </span>
           </span>
-        </span>
+          <ChevronDown data-icon="inline-end" />
         </AccountMenuDisclosure>
       </div>
 

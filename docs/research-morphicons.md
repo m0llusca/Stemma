@@ -3,7 +3,7 @@
 **Verdict: implement.** Isolated PR. Supersedes the #108 reject note.
 
 Roman (2026-09-09): implement, not defer. Parent epic: #116.
-Marques UX-ACCEPT: thin spike — CopyButton + accordion/score-module chevron. Account-menu chevron is optional third.
+Marques UX-ACCEPT: **exactly 2** surfaces — CopyButton + accordion/score-module chevron. Account-menu chevron is later, not in this spike.
 
 ## Provenance
 
@@ -24,9 +24,7 @@ Kinetics itself has no LICENSE ([audit](memory/2026-07-28-kinetics-evilcharts-pr
 | Surface | Morph | Notes |
 | --- | --- | --- |
 | CopyButton | Copy ↔ Check | Required ACCEPT |
-| Accordion trigger | ChevronDown ↔ ChevronUp | Required ACCEPT; replaces CSS rotate |
-| Review / scorecard score modules | ChevronDown ↔ ChevronUp | Same accordion pair on Collapsible score modules |
-| Account / role menu | ChevronDown ↔ ChevronUp | Optional 3rd (wired; not required for ACCEPT) |
+| Accordion / score-module chevron | ChevronDown ↔ ChevronUp | Required ACCEPT: `Accordion` + review/scorecard modules |
 
 ## Out of scope (no morph spam)
 

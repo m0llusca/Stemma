@@ -29,8 +29,8 @@ function triggerIsExpanded(trigger: Element) {
 }
 
 /**
- * ChevronDown ↔ ChevronUp via Morphicons. Used on account menu, accordion,
- * and ticket/assessment disclosures. Not for queue chrome.
+ * ChevronDown ↔ ChevronUp via Morphicons. Used on accordion / score-module
+ * disclosures only (#117 UX-ACCEPT). Not for queue chrome or account menu.
  */
 export function DisclosureMorphChevron({
   open,
