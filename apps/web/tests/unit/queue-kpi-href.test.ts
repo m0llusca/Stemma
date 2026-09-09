@@ -18,6 +18,7 @@ const primaryKpiSources = [
   "components/dashboard/exec-risk-empty.tsx",
   "components/dashboard/exec-risk-chart-island.client.tsx",
   "components/dashboard/exec-risk-chart.client.tsx",
+  "components/dashboard/lead-sla-chart.tsx",
   "lib/dashboard/exec-risk-home.ts",
   "lib/dashboard/queue-kpi-href.ts",
   "lib/reviewer-workload.ts"

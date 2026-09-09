@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { KeyboardEvent } from "react";
 import {
   EXEC_RISK_CHART_MIN_HEIGHT_CLASS
 } from "@/components/charts/chart-visual-preset";
@@ -11,6 +13,7 @@ import {
   CATEGORY_BAR_MARGIN,
   CATEGORY_BAR_VIEWBOX,
   buildCategoryBarPlot,
+  categoryBarDrillLabel,
   type CategoryBarDatum,
   type CategoryBarTone
 } from "@/lib/charts/category-bar-geometry";
@@ -29,16 +32,23 @@ const defaultConfig = {
   }
 } satisfies ChartConfig;
 
+function activateLinkOnSpace(event: KeyboardEvent<HTMLAnchorElement>) {
+  if (event.key !== " " && event.key !== "Spacebar") {
+    return;
+  }
+
+  event.preventDefault();
+  event.currentTarget.click();
+}
+
 export function StaticCategoryBarPlot({
   id,
   bars,
-  config = defaultConfig,
-  onBarClick
+  config = defaultConfig
 }: {
   id: string;
   bars: readonly CategoryBarDatum[];
   config?: ChartConfig;
-  onBarClick: (href: string) => void;
 }) {
   const plot = buildCategoryBarPlot(bars);
   const columnTemplate = `repeat(${Math.max(bars.length, 1)}, minmax(0, 1fr))`;
@@ -78,7 +88,7 @@ export function StaticCategoryBarPlot({
         >
           <svg
             aria-hidden="true"
-            className="recharts-surface block h-full w-full"
+            className="recharts-surface pointer-events-none block h-full w-full"
             tabIndex={-1}
             viewBox={`0 0 ${plot.width} ${plot.height}`}
             preserveAspectRatio="none"
@@ -113,8 +123,6 @@ export function StaticCategoryBarPlot({
                 height={bar.height}
                 rx={6}
                 fill={barFill[bar.tone]}
-                className="cursor-pointer"
-                onClick={() => onBarClick(bar.href)}
               />
             ))}
           </svg>
@@ -131,6 +139,22 @@ export function StaticCategoryBarPlot({
             >
               {bar.value}
             </span>
+          ))}
+          {plot.bars.map((bar) => (
+            <Link
+              key={`${bar.key}:drill`}
+              href={bar.href}
+              data-slot="category-bar-drill"
+              data-key={bar.key}
+              data-href={bar.href}
+              aria-label={categoryBarDrillLabel(bar.label, bar.value)}
+              className="absolute inset-y-0 -translate-x-1/2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              style={{
+                left: `${((bar.x + bar.width / 2) / plot.width) * 100}%`,
+                width: `${Math.max(12, (bar.width / plot.width) * 100)}%`
+              }}
+              onKeyDown={activateLinkOnSpace}
+            />
           ))}
         </StaticChartContainer>
       </div>

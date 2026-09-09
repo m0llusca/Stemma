@@ -22,6 +22,10 @@ export type CategoryBarDatum = {
   tone: CategoryBarTone;
 };
 
+export function categoryBarDrillLabel(label: string, value: number) {
+  return `${label}: ${value}. Открыть очередь`;
+}
+
 export type CategoryBarPlotBar = CategoryBarDatum & {
   x: number;
   y: number;

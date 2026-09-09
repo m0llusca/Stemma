@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   CATEGORY_BAR_MIN_HEIGHT,
-  buildCategoryBarPlot
+  buildCategoryBarPlot,
+  categoryBarDrillLabel
 } from "@/lib/charts/category-bar-geometry";
 
 describe("category bar geometry", () => {
@@ -26,5 +27,8 @@ describe("category bar geometry", () => {
     expect(plot.bars[0]?.height).toBeGreaterThanOrEqual(CATEGORY_BAR_MIN_HEIGHT);
     expect(plot.bars[1]?.height).toBe(0);
     expect(plot.maxValue).toBe(1);
+    expect(categoryBarDrillLabel("Просрочено SLA", 6)).toBe(
+      "Просрочено SLA: 6. Открыть очередь"
+    );
   });
 });

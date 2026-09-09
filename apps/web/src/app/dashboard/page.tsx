@@ -17,9 +17,9 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
 
-import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
 import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
+import { LeadSlaChart } from "@/components/dashboard/lead-sla-chart";
 import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
 import { buildExecRiskChartModel } from "@/lib/dashboard/exec-risk-home";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
@@ -584,7 +584,7 @@ async function DashboardPageContent() {
               {leadSlaChart.empty ? (
                 <ExecRiskEmptyState resetHref={leadSlaChart.resetHref} />
               ) : (
-                <ExecRiskChart bars={leadSlaChart.bars} layout="compact" />
+                <LeadSlaChart bars={leadSlaChart.bars} />
               )}
             </CardContent>
           </Card>

@@ -60,7 +60,9 @@ describe("dashboard page copy", () => {
     expect(dashboardPage).not.toContain("Ops-лента и суета фильтров скрыты");
     expect(dashboardPage).toContain("Нагрузка проверяющих, обучение и фокус остаются на экране");
     expect(dashboardPage).toContain('data-slot="lead-sla-surface"');
+    expect(dashboardPage).toContain("LeadSlaChart");
     expect(dashboardPage).toContain("Срок SLA");
+    expect(dashboardPage).not.toContain("exec-risk-chart.client");
     expect(dashboardPage).toContain("isLeadDashboard ? null : (");
     expect(dashboardPage).toContain("EvidenceDrawer");
     expect(dashboardPage).toContain('"Высокий риск"');

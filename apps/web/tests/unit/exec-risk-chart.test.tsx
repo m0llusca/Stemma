@@ -1,20 +1,13 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
 import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
+import { categoryBarDrillLabel } from "@/lib/charts/category-bar-geometry";
 import { EMPTY_TRIAGE_IMPOSTOR_HREF } from "@/lib/dashboard/empty-triage";
 import { OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
-
-const navigation = vi.hoisted(() => ({
-  push: vi.fn()
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => navigation
-}));
 
 const bars: readonly ExecRiskChartBar[] = [
   {
@@ -85,28 +78,12 @@ describe("ExecRiskChart", () => {
     expect(container.innerHTML).not.toContain("status=unreviewed");
   });
 
-  it("hides the summary table in the compact Lead SLA layout", () => {
-    const { container } = render(<ExecRiskChart bars={bars} layout="compact" />);
+  it("drills a bar through the same href as the KPI tile", () => {
+    render(<ExecRiskChart bars={bars} />);
 
-    expect(screen.queryByRole("table", { name: "Сводка риска и SLA" })).not.toBeInTheDocument();
-    expect(container.querySelector('[data-slot="category-bar-x-axis"]')).toHaveTextContent(
-      "Просрочено SLA"
-    );
-    expect(container.querySelector('[data-slot="exec-risk-chart"]')).toHaveAttribute(
-      "data-layout",
-      "compact"
-    );
-  });
-
-  it("drills a clicked bar through the same href as the KPI tile", () => {
-    navigation.push.mockClear();
-    const { container } = render(<ExecRiskChart bars={bars} />);
-    const overdueCell = container.querySelector('[data-href="/reviews?due=overdue"]');
-
-    expect(overdueCell).toBeTruthy();
-    fireEvent.click(overdueCell ?? container);
-
-    expect(navigation.push).toHaveBeenCalledWith(OVERDUE_SLA_HREF);
+    expect(
+      screen.getByRole("link", { name: categoryBarDrillLabel("Просрочено SLA", 6) })
+    ).toHaveAttribute("href", OVERDUE_SLA_HREF);
   });
 
   it("uses a reports-style static SVG and never imports Recharts BarChart", () => {
@@ -120,6 +97,7 @@ describe("ExecRiskChart", () => {
     );
 
     expect(chartSource).toContain("StaticCategoryBarPlot");
+    expect(chartSource).not.toContain("layout");
     expect(plotSource).toContain("StaticChartContainer");
     expect(plotSource).toContain("svg");
     expect(plotSource).toContain('className="recharts-surface');
