@@ -20,7 +20,7 @@ describe("chart visual preset (#109)", () => {
     const badge = container.querySelector('[data-slot="chart-goal-badge"]');
 
     expect(badge).toHaveTextContent(chartGoalLabel(90));
-    expect(badge).toHaveClass("text-xs", "text-muted-foreground");
+    expect(badge).toHaveClass("text-xs", "text-muted-foreground", "tabular-nums");
     expect(badge).not.toHaveAttribute("transform");
     expect(badge?.tagName).toBe("SPAN");
   });

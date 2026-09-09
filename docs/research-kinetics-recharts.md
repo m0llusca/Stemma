@@ -85,9 +85,7 @@ Non-empty Exec: static client import → `StaticChartContainer` + first-paint SV
 
 ~~LIVE blank wrapper / eternal pending~~ — fixed (#113).
 
-#109 visual contract unchanged: «Цель» HTML badge outside the plot (`ChartGoalBadge`, no SVG rotate); solid markers `r=3` (`r=4` last); footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; Recharts `isAnimationActive` stays false; tokens in `chart-visual-preset.tsx`.
-
-Lead SLA chart still follow-up.
+#109 / #119 visual contract: «Цель» HTML badge outside the plot (`ChartGoalBadge`, chip + tabular-nums, no SVG rotate); score-over-time sparkline uses padded 1:1 geometry + `preserveAspectRatio="xMidYMid meet"` so markers stay circular; footer Мин/Цель/Макс is `ChartScaleFooter` (`text-sm tabular-nums`); Exec / Lead SLA bars share `StaticCategoryBarPlot` (static SVG rects, HTML axis labels); report rich plots lock CSS aspect to the viewBox so `preserveAspectRatio="none"` does not squash ticks/markers; `data-qc-motion="chart-enter"` on `StaticChartContainer` / score sparkline; Recharts `isAnimationActive` stays false.
 
 ## Тесты
 

@@ -1,9 +1,12 @@
 import type { ComponentProps, ReactNode } from "react";
+import {
+  SCORE_OVER_TIME_PLOT_HEIGHT as SCORE_OVER_TIME_PLOT_HEIGHT_VALUE
+} from "@/lib/charts/sparkline-geometry";
 import { cn } from "@/lib/utils";
 
 export const EXEC_RISK_CHART_MIN_HEIGHT_CLASS = "h-[240px]";
 export const SCORE_OVER_TIME_MIN_HEIGHT_CLASS = "min-h-[200px]";
-export const SCORE_OVER_TIME_PLOT_HEIGHT = 200;
+export const SCORE_OVER_TIME_PLOT_HEIGHT = SCORE_OVER_TIME_PLOT_HEIGHT_VALUE;
 
 export const CHART_SERIES_STROKE = "var(--chart-1)";
 export const CHART_SERIES_STROKE_WIDTH = 2;
@@ -31,7 +34,7 @@ export function ChartGoalBadge({
     <span
       data-slot={slot}
       className={cn(
-        "pointer-events-none absolute top-2 right-2 z-10 text-xs text-muted-foreground",
+        "pointer-events-none absolute top-2 right-2 z-10 rounded-md border border-border bg-card/95 px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground shadow-sm",
         className
       )}
     >

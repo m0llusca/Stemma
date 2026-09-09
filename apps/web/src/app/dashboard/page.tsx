@@ -17,8 +17,11 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TriageStrip } from "@/components/ui/triage-strip";
 
+import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
+import { ExecRiskEmptyState } from "@/components/dashboard/exec-risk-empty";
 import { ExecRiskHome } from "@/components/dashboard/exec-risk-home";
 import { buildOpsEmptyTriage } from "@/lib/dashboard/ops-empty-triage";
+import { buildExecRiskChartModel } from "@/lib/dashboard/exec-risk-home";
 import { canViewPeerQuality, hasPermission } from "@/lib/auth/permissions";
 import { canAccessDashboard, dashboardSkeletonVariantForRole, roleHomePath, welcomeBackResetHref } from "@/lib/auth/role-home";
 import { emptyTriagePrimary } from "@/lib/dashboard/empty-triage";
@@ -401,6 +404,18 @@ async function DashboardPageContent() {
   const triageDescription = focusItems.length ? primaryFocus.hint : emptyTriageCopy.description;
   const triageTone = focusItems.length ? triageToneForStatusTone[primaryFocus.tone] : emptyTriageCopy.tone;
   const PrimaryFocusIcon = primaryFocus?.icon;
+  const leadSlaChart = isLeadDashboard
+    ? buildExecRiskChartModel({
+        signal: { overdueReviewCount, highRiskCount, queuedCount },
+        hrefs: {
+          overdue: OVERDUE_SLA_HREF,
+          highRisk: thirtyDayHighRiskHref,
+          queued: QUEUED_STATUS_HREF
+        },
+        role: user.role,
+        name: user.name
+      })
+    : null;
   const emptyTriageAction =
     emptyTriage.kind === "take-next" ? (
       <form action={takeNextReview}>
@@ -528,6 +543,8 @@ async function DashboardPageContent() {
         className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"
         aria-label="Операционные детали"
       >
+        {canViewPeerQualityMetrics || leadSlaChart ? (
+        <div className="grid min-w-0 content-start gap-3">
         {canViewPeerQualityMetrics ? (
         <Card className="min-h-[260px]">
           <CardHeader className="border-b pb-(--card-spacing)">
@@ -551,6 +568,28 @@ async function DashboardPageContent() {
             )}
           </CardContent>
         </Card>
+        ) : null}
+        {leadSlaChart ? (
+          <Card data-slot="lead-sla-surface" className="min-h-[240px]">
+            <CardHeader className="border-b pb-(--card-spacing)">
+              <CardTitle className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Clock3 size={14} aria-hidden="true" />
+                Срок SLA
+              </CardTitle>
+              <CardDescription>
+                Те же срезы, что и у плиток — клик по столбцу открывает отфильтрованную очередь.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-(--card-spacing)">
+              {leadSlaChart.empty ? (
+                <ExecRiskEmptyState resetHref={leadSlaChart.resetHref} />
+              ) : (
+                <ExecRiskChart bars={leadSlaChart.bars} layout="compact" />
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+        </div>
         ) : null}
 
         <div className="grid min-w-0 content-start gap-3">

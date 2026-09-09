@@ -228,32 +228,17 @@ describe("lean Recharts visuals", () => {
             visibleSeries={["score", "previous", "target", "volume"]}
           />
         ),
-        classes: [
-          "h-[216px]",
-          "min-[390px]:h-[232px]",
-          "md:h-[280px]",
-          "xl:h-[320px]"
-        ]
+        classes: ["aspect-[720/320]", "w-full"]
       },
       {
         component: (
           <task6Visuals.ScoreDistributionVisual model={distributionModel} />
         ),
-        classes: [
-          "h-[200px]",
-          "min-[390px]:h-[216px]",
-          "md:h-[240px]",
-          "xl:h-[260px]"
-        ]
+        classes: ["aspect-[560/260]", "w-full"]
       },
       {
         component: <task6Visuals.ReasonTrendVisual model={reasonModel} />,
-        classes: [
-          "h-[200px]",
-          "min-[390px]:h-[216px]",
-          "md:h-[240px]",
-          "xl:h-[260px]"
-        ]
+        classes: ["aspect-[720/280]", "w-full"]
       }
     ] as const;
 
@@ -278,10 +263,7 @@ describe("lean Recharts visuals", () => {
       '[data-slot="chart"]'
     );
 
-    expect(charts[0]).toHaveClass(
-      "h-[340px]",
-      "sm:h-[380px]"
-    );
+    expect(charts[0]).toHaveClass("aspect-[720/380]", "w-full");
     expect(charts[1]).toHaveStyle({ height: "220px" });
   });
 

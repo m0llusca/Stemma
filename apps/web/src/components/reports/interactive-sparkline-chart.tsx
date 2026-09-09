@@ -13,6 +13,12 @@ import {
   SCORE_OVER_TIME_MIN_HEIGHT_CLASS,
   SCORE_OVER_TIME_PLOT_HEIGHT
 } from "@/components/charts/chart-visual-preset";
+import {
+  SCORE_OVER_TIME_FALLBACK_WIDTH,
+  buildSparklineGeometry,
+  sparklineHitRegions,
+  sparklinePath
+} from "@/lib/charts/sparkline-geometry";
 import { formatQualityScore, formatQualityScoreDelta, qualityScoreDelta } from "@/lib/score-display";
 import type { ChartDatum } from "@/components/reports/report-charts";
 import { reportPageLocalLinkProps } from "@/lib/reports/report-evidence-links";
@@ -31,16 +37,6 @@ type InteractiveSparklineChartProps = {
   target?: number;
   annotation?: string;
 };
-
-function chartPath(points: SparklinePoint[]) {
-  if (points.length === 0) {
-    return "";
-  }
-
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
-    .join(" ");
-}
 
 function pointDeltaLabel(delta: number | null) {
   if (delta == null) {
@@ -66,8 +62,8 @@ export function InteractiveSparklineChart({
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const tooltipIdPrefix = useId();
   // Measure the real plot width so the chart geometry is built 1:1 in CSS pixels.
-  // A fixed viewBox would letterbox on wide columns (the dots drift away from the
-  // hover strips), so the points are placed against the actual rendered width.
+  // A fixed viewBox stretched with preserveAspectRatio="none" turns markers into
+  // ellipses and was squashing the score-over-time card on wide Lead columns.
   const plotRef = useRef<HTMLDivElement>(null);
   const [plotWidth, setPlotWidth] = useState<number | null>(null);
 
@@ -91,39 +87,32 @@ export function InteractiveSparklineChart({
       return null;
     }
 
-    const width = plotWidth ?? 360;
-    const height = SCORE_OVER_TIME_PLOT_HEIGHT;
-    const values = points.map((point) => point.value);
-    const min = Math.min(...values, target ?? values[0]);
-    const max = Math.max(...values, target ?? values[0]);
-    const range = Math.max(1, max - min);
-    const stepX = points.length > 1 ? width / (points.length - 1) : width;
-    const nextPoints = points.map((point, index): SparklinePoint => {
-      const x = points.length > 1 ? index * stepX : width / 2;
-      const y = height - ((point.value - min) / range) * height;
+    const geometry = buildSparklineGeometry(points, {
+      width: plotWidth ?? SCORE_OVER_TIME_FALLBACK_WIDTH,
+      height: SCORE_OVER_TIME_PLOT_HEIGHT,
+      target
+    });
+    const nextPoints = geometry.mapped.map((point, index): SparklinePoint => {
       const delta = index === 0 ? null : qualityScoreDelta(point.value, points[index - 1].value);
 
       return {
         ...point,
-        x,
-        y,
-        xPercent: (x / width) * 100,
-        yPercent: (y / height) * 100,
         delta,
         tooltip: buildTooltip(point, delta)
       };
     });
-    const targetY = target == null ? null : height - ((target - min) / range) * height;
 
     return {
-      height,
-      max,
-      min,
-      path: chartPath(nextPoints),
+      height: geometry.height,
+      max: geometry.max,
+      min: geometry.min,
+      padX: geometry.padX,
+      padY: geometry.padY,
+      path: sparklinePath(nextPoints),
       points: nextPoints,
-      range,
-      targetY,
-      width
+      range: geometry.range,
+      targetY: geometry.targetY,
+      width: geometry.width
     };
   }, [points, target, plotWidth]);
 
@@ -133,10 +122,9 @@ export function InteractiveSparklineChart({
 
   const firstPoint = chart.points[0];
   const lastPoint = chart.points[chart.points.length - 1];
-  // Each control owns the region between the neighboring midpoints. The first
-  // and last points use half-width regions, so hit targets tile without overlap.
-  const pointGapPercent = chart.points.length > 1 ? 100 / (chart.points.length - 1) : 100;
+  const hitRegions = sparklineHitRegions(chart.points.map((point) => point.xPercent));
   const targetBandY = chart.targetY == null ? null : Math.max(0, Math.min(chart.height, chart.targetY));
+  const gridTicks = [0, 0.5, 1];
 
   return (
     <ChartEnter
@@ -161,39 +149,53 @@ export function InteractiveSparklineChart({
       </div>
 
       <div
-        className={`relative ${SCORE_OVER_TIME_MIN_HEIGHT_CLASS} overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-9`}
+        className={`relative ${SCORE_OVER_TIME_MIN_HEIGHT_CLASS} overflow-visible rounded-lg border border-border bg-card px-2.5 pb-3 pt-10`}
         ref={plotRef}
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, transparent 0 27px, var(--border) 28px)"
-        }}
       >
         <svg
           viewBox={`0 0 ${chart.width} ${chart.height}`}
           width="100%"
           height={chart.height}
           className="block overflow-visible"
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="Тренд средней оценки"
           focusable="false"
         >
+          {gridTicks.map((ratio) => {
+            const y = chart.padY + (1 - ratio) * (chart.height - chart.padY * 2);
+
+            return (
+              <line
+                key={ratio}
+                x1={chart.padX}
+                x2={chart.width - chart.padX}
+                y1={y}
+                y2={y}
+                aria-hidden="true"
+                data-slot="sparkline-grid"
+                stroke="var(--border)"
+                strokeOpacity={0.55}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          })}
           {targetBandY != null ? (
             <rect
-              x="0"
-              y="0"
-              width={chart.width}
-              height={targetBandY}
+              x={chart.padX}
+              y={chart.padY}
+              width={chart.width - chart.padX * 2}
+              height={Math.max(0, targetBandY - chart.padY)}
               aria-hidden="true"
               data-slot="sparkline-target-band"
               fill="color-mix(in srgb, var(--chart-2) 8%, transparent)"
             />
           ) : null}
           <line
-            x1="0"
-            y1={chart.height}
-            x2={chart.width}
-            y2={chart.height}
+            x1={chart.padX}
+            y1={chart.height - chart.padY}
+            x2={chart.width - chart.padX}
+            y2={chart.height - chart.padY}
             aria-hidden="true"
             data-slot="sparkline-axis"
             stroke="var(--border)"
@@ -202,9 +204,9 @@ export function InteractiveSparklineChart({
           />
           {chart.targetY != null ? (
             <line
-              x1="0"
+              x1={chart.padX}
               y1={chart.targetY}
-              x2={chart.width}
+              x2={chart.width - chart.padX}
               y2={chart.targetY}
               aria-hidden="true"
               data-slot="sparkline-target"
@@ -248,7 +250,7 @@ export function InteractiveSparklineChart({
           <ChartGoalBadge
             value={target}
             slot="sparkline-target-label"
-            className="right-2.5 top-2 font-medium"
+            className="right-2.5 top-2"
           />
         ) : null}
         <div className="pointer-events-none absolute inset-x-2.5 bottom-3 h-[200px]">
@@ -257,25 +259,9 @@ export function InteractiveSparklineChart({
             const hidePoint = () => setActiveIndex(null);
             const isActive = index === activeIndex;
             const tooltipId = `${tooltipIdPrefix}-point-${index}`;
-            const controlLeftPercent = Math.max(0, point.xPercent - pointGapPercent / 2);
-            const controlRightPercent = Math.min(100, point.xPercent + pointGapPercent / 2);
+            const region = hitRegions[index] ?? { left: 0, width: 100 };
             const pointControlClass =
               "group absolute inset-y-0 pointer-events-auto border-0 bg-transparent p-0 text-left outline-none";
-            const focusRingStyle =
-              index === 0
-                ? {
-                    left: "0%",
-                    transform: "translate(-50%, -50%)"
-                  }
-                : index === chart.points.length - 1
-                  ? {
-                      right: "0%",
-                      transform: "translate(50%, -50%)"
-                    }
-                  : {
-                      left: "50%",
-                      transform: "translate(-50%, -50%)"
-                    };
             const tooltipBelowPoint = point.yPercent < 44;
             const tooltipStyle =
               point.xPercent < 32
@@ -304,7 +290,11 @@ export function InteractiveSparklineChart({
                   aria-hidden="true"
                   data-slot="sparkline-focus-ring"
                   className="pointer-events-none absolute size-6 rounded-full opacity-0 ring-2 ring-ring ring-offset-2 ring-offset-card transition-opacity group-focus-visible:opacity-100"
-                  style={{ top: `${point.yPercent}%`, ...focusRingStyle }}
+                  style={{
+                    left: `${point.xPercent}%`,
+                    top: `${point.yPercent}%`,
+                    transform: "translate(-50%, -50%)"
+                  }}
                 />
                 {isActive ? (
                   <span
@@ -331,8 +321,8 @@ export function InteractiveSparklineChart({
               "aria-describedby": isActive ? tooltipId : undefined,
               className: pointControlClass,
               style: {
-                left: `${controlLeftPercent}%`,
-                width: `${controlRightPercent - controlLeftPercent}%`
+                left: `${region.left}%`,
+                width: `${region.width}%`
               },
               onFocus: showPoint,
               onBlur: hidePoint,

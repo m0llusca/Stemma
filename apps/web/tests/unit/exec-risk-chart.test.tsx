@@ -49,6 +49,11 @@ describe("ExecRiskChart", () => {
 
     expect(chart).toHaveClass("h-[240px]");
     expect(chart).toHaveAttribute("data-qc-motion", "chart-enter");
+    expect(container.querySelector('[data-slot="category-bar-x-axis"]')).toHaveTextContent(
+      "Просрочено SLA"
+    );
+    expect(container.querySelector('[data-slot="category-bar-y-axis"]')).toBeInTheDocument();
+    expect(container.querySelector("svg.recharts-surface text")).not.toBeInTheDocument();
     expect(chart).toHaveAttribute("data-initial-width", "520");
     expect(chart).toHaveAttribute("data-initial-height", "240");
     expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
@@ -80,6 +85,19 @@ describe("ExecRiskChart", () => {
     expect(container.innerHTML).not.toContain("status=unreviewed");
   });
 
+  it("hides the summary table in the compact Lead SLA layout", () => {
+    const { container } = render(<ExecRiskChart bars={bars} layout="compact" />);
+
+    expect(screen.queryByRole("table", { name: "Сводка риска и SLA" })).not.toBeInTheDocument();
+    expect(container.querySelector('[data-slot="category-bar-x-axis"]')).toHaveTextContent(
+      "Просрочено SLA"
+    );
+    expect(container.querySelector('[data-slot="exec-risk-chart"]')).toHaveAttribute(
+      "data-layout",
+      "compact"
+    );
+  });
+
   it("drills a clicked bar through the same href as the KPI tile", () => {
     navigation.push.mockClear();
     const { container } = render(<ExecRiskChart bars={bars} />);
@@ -92,19 +110,29 @@ describe("ExecRiskChart", () => {
   });
 
   it("uses a reports-style static SVG and never imports Recharts BarChart", () => {
-    const source = readFileSync(
+    const chartSource = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/exec-risk-chart.client.tsx"),
       "utf8"
     );
+    const plotSource = readFileSync(
+      path.join(process.cwd(), "src/components/charts/static-category-bars.tsx"),
+      "utf8"
+    );
 
-    expect(source).toContain("StaticChartContainer");
-    expect(source).toContain("svg");
-    expect(source).toContain('className="recharts-surface');
-    expect(source).toContain('data-animation-active="false"');
-    expect(source).not.toContain("from \"recharts\"");
-    expect(source).not.toContain("BarChart");
-    expect(source).not.toContain("<ChartContainer");
-    expect(source).not.toContain("ResponsiveContainer");
-    expect(source).not.toContain("isAnimationActive");
+    expect(chartSource).toContain("StaticCategoryBarPlot");
+    expect(plotSource).toContain("StaticChartContainer");
+    expect(plotSource).toContain("svg");
+    expect(plotSource).toContain('className="recharts-surface');
+    expect(plotSource).toContain('data-animation-active="false"');
+    expect(chartSource).not.toContain("from \"recharts\"");
+    expect(plotSource).not.toContain("from \"recharts\"");
+    expect(chartSource).not.toContain("BarChart");
+    expect(plotSource).not.toContain("BarChart");
+    expect(chartSource).not.toContain("<ChartContainer");
+    expect(plotSource).not.toContain("<ChartContainer");
+    expect(chartSource).not.toContain("ResponsiveContainer");
+    expect(plotSource).not.toContain("ResponsiveContainer");
+    expect(chartSource).not.toContain("isAnimationActive");
+    expect(plotSource).not.toContain("isAnimationActive");
   });
 });

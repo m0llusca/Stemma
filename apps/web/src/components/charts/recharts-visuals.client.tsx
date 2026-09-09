@@ -158,7 +158,7 @@ export function QualityTrendVisual({
     <StaticChartContainer
       id={model.id}
       config={qualityTrendConfig}
-      className="h-[216px] w-full min-[390px]:h-[232px] md:h-[280px] xl:h-[320px]"
+      className="aspect-[720/320] w-full min-w-0"
       initialDimension={{ width: 720, height: 320 }}
     >
       {visible.has("target") ? (
@@ -451,7 +451,7 @@ export function ScoreDistributionVisual({
     <StaticChartContainer
       id={model.id}
       config={distributionConfig}
-      className="h-[200px] w-full min-[390px]:h-[216px] md:h-[240px] xl:h-[260px]"
+      className="aspect-[560/260] w-full min-w-0"
       initialDimension={{ width, height }}
     >
       <svg
@@ -542,7 +542,7 @@ export function PairedAiDriftVisual({
     <StaticChartContainer
       id={model.id}
       config={driftConfig}
-      className="h-[340px] w-full sm:h-[380px]"
+      className="aspect-[720/380] w-full min-w-0"
       initialDimension={{ width, height }}
     >
       <svg
@@ -688,7 +688,7 @@ export function ReasonTrendVisual({
     <StaticChartContainer
       id={model.id}
       config={reasonConfig}
-      className="h-[200px] w-full min-[390px]:h-[216px] md:h-[240px] xl:h-[260px]"
+      className="aspect-[720/280] w-full min-w-0"
       initialDimension={{ width, height }}
     >
       <svg
