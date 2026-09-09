@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -296,7 +297,10 @@ describe("canonical UI theme contract", () => {
     expect(chartContainerSource).toContain('data-qc-motion="chart-enter"');
     expect(packageJson).not.toMatch(/["']kinetics["']/);
     expect(packageJson).not.toMatch(/@kinetics\//);
-    expect(packageJson).toMatch(/["']morphicons["']/);
+    expect(packageJson).toMatch(/["']morphicons["']\s*:\s*["']1\.7\.1["']/);
+    expect(createRequire(resolve(appRoot, "package.json")).resolve("morphicons/react")).toMatch(
+      /morphicons[/\\]dist[/\\]react\.js$/
+    );
     expect(globals).not.toMatch(/magnetic[- ]cursor|liquid[- ]glass|cursor[- ]trail|speed-dial|scramble|typewriter/i);
   });
 

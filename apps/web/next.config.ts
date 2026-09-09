@@ -1,7 +1,26 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+
 import type { NextConfig } from "next";
+
+const requireFromWeb = createRequire(path.join(process.cwd(), "package.json"));
+const morphiconsReact = requireFromWeb.resolve("morphicons/react");
 
 const nextConfig: NextConfig = {
   transpilePackages: ["morphicons"],
+  turbopack: {
+    resolveAlias: {
+      "morphicons/react": morphiconsReact
+    }
+  },
+  webpack: (config) => {
+    config.resolve = config.resolve ?? {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "morphicons/react": morphiconsReact
+    };
+    return config;
+  },
   experimental: {
     authInterrupts: true
   },
