@@ -151,19 +151,8 @@ function setDisclosureOpen(trigger: HTMLElement, nextOpen: boolean) {
   if (!(host instanceof HTMLDetailsElement)) {
     throw new Error("expected details host");
   }
-  if (host.open !== nextOpen || trigger.getAttribute("aria-expanded") !== String(nextOpen)) {
-    host.open = nextOpen;
-    if (typeof ToggleEvent === "function") {
-      fireEvent(
-        host,
-        new ToggleEvent("toggle", {
-          newState: nextOpen ? "open" : "closed",
-          oldState: nextOpen ? "closed" : "open"
-        })
-      );
-    } else {
-      fireEvent(host, new Event("toggle", { bubbles: true }));
-    }
+  if (trigger.getAttribute("aria-expanded") !== String(nextOpen)) {
+    fireEvent.click(trigger);
   }
   return host;
 }
@@ -220,7 +209,23 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(submitReviewState).not.toHaveBeenCalled();
   });
 
-  it("flips aria-expanded from a native details toggle, not a React button handler", () => {
+  it("opens a closed score module and keeps aria-expanded true", () => {
+    renderPanel();
+
+    const second = screen.getByRole("button", { name: /Тон/ });
+    const host = second.closest("details");
+    expect(host).toBeInstanceOf(HTMLDetailsElement);
+    expect(second.getAttribute("aria-expanded")).toBe("false");
+    expect((host as HTMLDetailsElement).open).toBe(false);
+
+    fireEvent.click(second);
+    expect((host as HTMLDetailsElement).open).toBe(true);
+    expect(second.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("radiogroup", { name: "Оценка" })).toBeVisible();
+    expect(submitReviewState).not.toHaveBeenCalled();
+  });
+
+  it("flips aria-expanded from a summary click, not a details.open write", () => {
     renderPanel();
 
     const first = screen.getByRole("button", { name: /Решение/ });
@@ -228,7 +233,7 @@ describe("ReviewPanel criterion disclosures", () => {
     expect(host).toBeInstanceOf(HTMLDetailsElement);
     expect(first).toHaveAttribute("aria-expanded", "true");
 
-    setDisclosureOpen(first, false);
+    fireEvent.click(first);
 
     expect((host as HTMLDetailsElement).open).toBe(false);
     expect(first.getAttribute("aria-expanded")).toBe("false");

@@ -6,8 +6,8 @@ import {
   useRef,
   useState,
   type ComponentProps,
-  type ReactNode,
-  type ToggleEvent
+  type KeyboardEvent,
+  type ReactNode
 } from "react";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,9 @@ export function resetReviewDisclosureMemory() {
   reviewDisclosureMemory.clear();
 }
 
-function writeAriaAttribute(details: HTMLDetailsElement, open: boolean = details.open) {
+export const REVIEW_DISCLOSURE_COMMAND = "review-disclosure-command";
+
+function writeAriaAttribute(details: HTMLDetailsElement, open: boolean) {
   const summary =
     details.querySelector("summary[data-slot=review-disclosure-trigger]") ??
     details.querySelector("[data-slot=review-disclosure-trigger]");
@@ -31,43 +33,20 @@ function writeAriaAttribute(details: HTMLDetailsElement, open: boolean = details
 }
 
 /**
- * Prefer `toggle` `newState` — React 19 can reset `details.open` to the
- * previous `open` prop before the handler runs. Fall back to the IDL.
+ * Same-turn aria write from the React SoT (`next`), never from `details.open`
+ * (React 19 can reset that IDL before handlers run).
  */
-function readToggleOpen(event: { newState?: string; currentTarget: EventTarget | null }): boolean {
-  if (event.newState === "open") {
-    return true;
-  }
-  if (event.newState === "closed") {
-    return false;
-  }
-  return event.currentTarget instanceof HTMLDetailsElement ? event.currentTarget.open : false;
-}
-
-/**
- * Same-turn `getAttribute("aria-expanded")` for keyboard / tests.
- * React state is updated by the `toggle` listener.
- */
-export function syncReviewDisclosureAria(details: HTMLDetailsElement) {
+export function syncReviewDisclosureAria(details: HTMLDetailsElement, next?: boolean) {
+  const open = typeof next === "boolean" ? next : details.getAttribute("data-review-open") === "true";
   const key = details.getAttribute("data-review-disclosure-key");
   if (key) {
-    reviewDisclosureMemory.set(key, details.open);
+    reviewDisclosureMemory.set(key, open);
   }
-  writeAriaAttribute(details);
+  writeAriaAttribute(details, open);
 }
 
-function syncFromToggle(
-  event: { newState?: string; currentTarget: EventTarget | null },
-  memoryKey: string,
-  commit: (open: boolean) => void
-) {
-  const next = readToggleOpen(event);
-  const details = event.currentTarget instanceof HTMLDetailsElement ? event.currentTarget : null;
-  reviewDisclosureMemory.set(memoryKey, next);
-  commit(next);
-  if (details) {
-    writeAriaAttribute(details, next);
-  }
+export function commandReviewDisclosure(details: HTMLDetailsElement, next?: boolean) {
+  details.dispatchEvent(new CustomEvent(REVIEW_DISCLOSURE_COMMAND, { detail: { next } }));
 }
 
 type ReviewDisclosureProps = Omit<
@@ -82,9 +61,10 @@ type ReviewDisclosureProps = Omit<
 };
 
 /**
- * `open` and `aria-expanded` share one React state so they cannot diverge.
- * Uncontrolled `<details>` (no `open` prop) starts closed while `defaultOpen`
- * left `expanded` true — LIVE 8989a9a: aria stuck true, visual toggled.
+ * React state is the only SoT for both `open` and `aria-expanded`.
+ * Summary click / Enter / Space call `setExpanded(v => !v)` after
+ * preventDefault so the UA cannot flash-open a controlled details
+ * (LIVE 39be8da: aria stuck false, Enter did not persist).
  */
 export function ReviewDisclosure({
   memoryKey,
@@ -101,33 +81,55 @@ export function ReviewDisclosure({
     () => reviewDisclosureMemory.get(memoryKey) ?? defaultOpen
   );
 
-  const attachDetails = useCallback((root: HTMLDetailsElement | null) => {
-    detailsRef.current = root;
-  }, []);
+  const commit = useCallback(
+    (next: boolean) => {
+      reviewDisclosureMemory.set(memoryKey, next);
+      setExpanded(next);
+      const root = detailsRef.current;
+      if (root) {
+        writeAriaAttribute(root, next);
+      }
+    },
+    [memoryKey]
+  );
+
+  const toggle = useCallback(() => {
+    setExpanded((current) => {
+      const next = !current;
+      reviewDisclosureMemory.set(memoryKey, next);
+      const root = detailsRef.current;
+      if (root) {
+        writeAriaAttribute(root, next);
+      }
+      return next;
+    });
+  }, [memoryKey]);
 
   useLayoutEffect(() => {
     const root = detailsRef.current;
     if (!root) {
       return;
     }
-    const onNativeToggle = (event: Event) => {
-      syncFromToggle(event, memoryKey, setExpanded);
+    const onCommand = (event: Event) => {
+      const detail = (event as CustomEvent<{ next?: boolean }>).detail;
+      if (typeof detail?.next === "boolean") {
+        commit(detail.next);
+        return;
+      }
+      toggle();
     };
-    root.addEventListener("toggle", onNativeToggle);
-    writeAriaAttribute(root);
-    return () => root.removeEventListener("toggle", onNativeToggle);
-  }, [memoryKey]);
+    root.addEventListener(REVIEW_DISCLOSURE_COMMAND, onCommand);
+    return () => root.removeEventListener(REVIEW_DISCLOSURE_COMMAND, onCommand);
+  }, [commit, toggle]);
 
   return (
     <details
       {...props}
-      ref={attachDetails}
+      ref={detailsRef}
       open={expanded}
       data-review-disclosure-key={memoryKey}
+      data-review-open={expanded ? "true" : "false"}
       className={cn("group", className)}
-      onToggle={(event: ToggleEvent<HTMLDetailsElement>) => {
-        syncFromToggle(event, memoryKey, setExpanded);
-      }}
     >
       <summary
         role="button"
@@ -137,6 +139,17 @@ export function ReviewDisclosure({
           "cursor-pointer list-none [&::-webkit-details-marker]:hidden [&_*]:pointer-events-none",
           triggerClassName
         )}
+        onClick={(event) => {
+          event.preventDefault();
+          toggle();
+        }}
+        onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          toggle();
+        }}
       >
         {trigger}
       </summary>

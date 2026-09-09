@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { syncReviewDisclosureAria } from "@/components/review/review-disclosure";
+import { commandReviewDisclosure } from "@/components/review/review-disclosure";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { announceToLiveRegion, focusFirstInvalidControl } from "@/lib/form-validity";
 import { REVIEW_FINALIZE_BLOCKED_HINT } from "@/lib/review/finalize-blocked";
@@ -61,31 +61,35 @@ function radioMatcher(card: HTMLElement, option: ScoreOption): HTMLInputElement 
   return null;
 }
 
-function dispatchDetailsToggle(details: HTMLDetailsElement, nextOpen: boolean) {
-  if (typeof ToggleEvent === "function") {
-    details.dispatchEvent(
-      new ToggleEvent("toggle", {
-        newState: nextOpen ? "open" : "closed",
-        oldState: nextOpen ? "closed" : "open"
-      })
-    );
-    return;
-  }
-  details.dispatchEvent(new Event("toggle"));
+function disclosureTrigger(host: HTMLElement) {
+  return (
+    host.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
+    host.querySelector<HTMLElement>("[data-slot='collapsible-trigger']")
+  );
 }
 
-/** Flip or set `details.open` and keep React `open` / `aria-expanded` in sync. */
-function commitDetailsOpen(details: HTMLDetailsElement, nextOpen: boolean) {
-  if (details.open !== nextOpen) {
-    details.open = nextOpen;
+function isDisclosureExpanded(host: HTMLElement): boolean {
+  return disclosureTrigger(host)?.getAttribute("aria-expanded") === "true";
+}
+
+function commitDisclosure(host: HTMLElement, next?: boolean) {
+  if (host instanceof HTMLDetailsElement && host.querySelector("[data-slot='review-disclosure-trigger']")) {
+    commandReviewDisclosure(host, next);
+    return;
   }
-  dispatchDetailsToggle(details, nextOpen);
-  syncReviewDisclosureAria(details);
+  const trigger = disclosureTrigger(host);
+  if (typeof next === "boolean") {
+    if (isDisclosureExpanded(host) !== next) {
+      trigger?.click();
+    }
+    return;
+  }
+  trigger?.click();
 }
 
 function isCriterionOpen(card: HTMLElement): boolean {
   if (card instanceof HTMLDetailsElement) {
-    return card.open;
+    return isDisclosureExpanded(card);
   }
 
   if (card.hasAttribute("data-closed")) {
@@ -129,47 +133,21 @@ export function ReviewKeyboard() {
     }
 
     function toggleDetails(host: HTMLElement) {
-      if (host instanceof HTMLDetailsElement) {
-        commitDetailsOpen(host, !host.open);
-        return;
-      }
-
-      const trigger =
-        host.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
-        host.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
-      trigger?.click();
+      commitDisclosure(host);
     }
 
     function ensureCriterionOpen(card: HTMLElement) {
-      if (card instanceof HTMLDetailsElement) {
-        commitDetailsOpen(card, true);
-        return;
-      }
-
       if (isCriterionOpen(card)) {
         return;
       }
-
-      const trigger =
-        card.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
-        card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
-      trigger?.click();
+      commitDisclosure(card, true);
     }
 
     function ensureCriterionClosed(card: HTMLElement) {
-      if (card instanceof HTMLDetailsElement) {
-        commitDetailsOpen(card, false);
-        return;
-      }
-
       if (!isCriterionOpen(card)) {
         return;
       }
-
-      const trigger =
-        card.querySelector<HTMLElement>("[data-slot='review-disclosure-trigger']") ??
-        card.querySelector<HTMLElement>("[data-slot='collapsible-trigger']");
-      trigger?.click();
+      commitDisclosure(card, false);
     }
 
     function focusCard(index: number) {
@@ -243,7 +221,7 @@ export function ReviewKeyboard() {
         const host = trigger?.closest("details");
         if (trigger && host instanceof HTMLDetailsElement) {
           event.preventDefault();
-          commitDetailsOpen(host, !host.open);
+          commandReviewDisclosure(host);
           return;
         }
       }
