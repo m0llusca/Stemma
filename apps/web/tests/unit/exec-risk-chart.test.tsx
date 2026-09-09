@@ -1,20 +1,13 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ExecRiskChart } from "@/components/dashboard/exec-risk-chart.client";
 import type { ExecRiskChartBar } from "@/lib/dashboard/exec-risk-home";
+import { categoryBarDrillLabel } from "@/lib/charts/category-bar-geometry";
 import { EMPTY_TRIAGE_IMPOSTOR_HREF } from "@/lib/dashboard/empty-triage";
 import { OVERDUE_SLA_HREF, QUEUED_STATUS_HREF } from "@/lib/dashboard/queue-kpi-href";
-
-const navigation = vi.hoisted(() => ({
-  push: vi.fn()
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => navigation
-}));
 
 const bars: readonly ExecRiskChartBar[] = [
   {
@@ -49,6 +42,11 @@ describe("ExecRiskChart", () => {
 
     expect(chart).toHaveClass("h-[240px]");
     expect(chart).toHaveAttribute("data-qc-motion", "chart-enter");
+    expect(container.querySelector('[data-slot="category-bar-x-axis"]')).toHaveTextContent(
+      "Просрочено SLA"
+    );
+    expect(container.querySelector('[data-slot="category-bar-y-axis"]')).toBeInTheDocument();
+    expect(container.querySelector("svg.recharts-surface text")).not.toBeInTheDocument();
     expect(chart).toHaveAttribute("data-initial-width", "520");
     expect(chart).toHaveAttribute("data-initial-height", "240");
     expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
@@ -80,31 +78,39 @@ describe("ExecRiskChart", () => {
     expect(container.innerHTML).not.toContain("status=unreviewed");
   });
 
-  it("drills a clicked bar through the same href as the KPI tile", () => {
-    navigation.push.mockClear();
-    const { container } = render(<ExecRiskChart bars={bars} />);
-    const overdueCell = container.querySelector('[data-href="/reviews?due=overdue"]');
+  it("drills a bar through the same href as the KPI tile", () => {
+    render(<ExecRiskChart bars={bars} />);
 
-    expect(overdueCell).toBeTruthy();
-    fireEvent.click(overdueCell ?? container);
-
-    expect(navigation.push).toHaveBeenCalledWith(OVERDUE_SLA_HREF);
+    expect(
+      screen.getByRole("link", { name: categoryBarDrillLabel("Просрочено SLA", 6) })
+    ).toHaveAttribute("href", OVERDUE_SLA_HREF);
   });
 
   it("uses a reports-style static SVG and never imports Recharts BarChart", () => {
-    const source = readFileSync(
+    const chartSource = readFileSync(
       path.join(process.cwd(), "src/components/dashboard/exec-risk-chart.client.tsx"),
       "utf8"
     );
+    const plotSource = readFileSync(
+      path.join(process.cwd(), "src/components/charts/static-category-bars.tsx"),
+      "utf8"
+    );
 
-    expect(source).toContain("StaticChartContainer");
-    expect(source).toContain("svg");
-    expect(source).toContain('className="recharts-surface');
-    expect(source).toContain('data-animation-active="false"');
-    expect(source).not.toContain("from \"recharts\"");
-    expect(source).not.toContain("BarChart");
-    expect(source).not.toContain("<ChartContainer");
-    expect(source).not.toContain("ResponsiveContainer");
-    expect(source).not.toContain("isAnimationActive");
+    expect(chartSource).toContain("StaticCategoryBarPlot");
+    expect(chartSource).not.toContain("layout");
+    expect(plotSource).toContain("StaticChartContainer");
+    expect(plotSource).toContain("svg");
+    expect(plotSource).toContain('className="recharts-surface');
+    expect(plotSource).toContain('data-animation-active="false"');
+    expect(chartSource).not.toContain("from \"recharts\"");
+    expect(plotSource).not.toContain("from \"recharts\"");
+    expect(chartSource).not.toContain("BarChart");
+    expect(plotSource).not.toContain("BarChart");
+    expect(chartSource).not.toContain("<ChartContainer");
+    expect(plotSource).not.toContain("<ChartContainer");
+    expect(chartSource).not.toContain("ResponsiveContainer");
+    expect(plotSource).not.toContain("ResponsiveContainer");
+    expect(chartSource).not.toContain("isAnimationActive");
+    expect(plotSource).not.toContain("isAnimationActive");
   });
 });

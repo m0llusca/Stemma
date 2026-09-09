@@ -120,15 +120,16 @@ describe("SparklineChart", () => {
 
     expect(svg).toHaveAttribute("height", "200");
     expect(svg).toHaveAttribute("width", "100%");
+    expect(svg).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
     expect(svg).not.toHaveAttribute("aria-hidden");
     expect(chartRoot).toBeInTheDocument();
     expect(chartRoot).toHaveAttribute("data-qc-motion", "chart-enter");
-    expect(path).toHaveAttribute("d", "M 0.0 100.0 L 360.0 0.0");
+    expect(path).toHaveAttribute("d", "M 12.0 100.0 L 348.0 14.0");
     expect(path).toHaveAttribute("fill", "none");
     expect(path).toHaveAttribute("stroke", "var(--chart-1)");
     expect(path).toHaveAttribute("stroke-width", "2");
     expect(circles[0]).toHaveAttribute("cy", "100");
-    expect(circles[1]).toHaveAttribute("cy", "0");
+    expect(circles[1]).toHaveAttribute("cy", "14");
     expect(circles[0]).toHaveAttribute("r", "3");
     expect(circles[1]).toHaveAttribute("r", "4");
     expect(circles[0]).toHaveAttribute("fill", "var(--chart-1)");
@@ -161,7 +162,7 @@ describe("SparklineChart", () => {
     );
     expect(container.querySelector('[data-slot="sparkline-line"]')).toHaveAttribute(
       "d",
-      "M 0.0 200.0 L 360.0 0.0"
+      "M 12.0 186.0 L 348.0 14.0"
     );
   });
 
@@ -205,7 +206,7 @@ describe("SparklineChart", () => {
     );
     expect(container.querySelector('[data-slot="sparkline-line"]')).toHaveAttribute(
       "d",
-      "M 0.0 200.0 L 720.0 0.0"
+      "M 12.0 186.0 L 708.0 14.0"
     );
 
     unmount();
@@ -330,10 +331,14 @@ describe("SparklineChart", () => {
     );
 
     const controls = screen.getAllByRole("button", { name: /провер/ });
+    const lefts = controls.map((control) => Number.parseFloat(control.style.left));
+    const widths = controls.map((control) => Number.parseFloat(control.style.width));
 
-    expect(controls[0]).toHaveStyle({ left: "0%", width: "25%" });
-    expect(controls[1]).toHaveStyle({ left: "25%", width: "50%" });
-    expect(controls[2]).toHaveStyle({ left: "75%", width: "25%" });
+    expect(lefts[0]).toBe(0);
+    expect(lefts[0]! + widths[0]!).toBeCloseTo(lefts[1]!);
+    expect(lefts[1]! + widths[1]!).toBeCloseTo(lefts[2]!);
+    expect(lefts[2]! + widths[2]!).toBeCloseTo(100);
+    expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100);
   });
 
   it("uses displayed rounded score points for sparkline deltas", () => {
@@ -383,16 +388,16 @@ describe("SparklineChart", () => {
     );
 
     const controls = screen.getAllByRole("button", { name: /провер/ });
-    const rings = container.querySelectorAll('[data-slot="sparkline-focus-ring"]');
+    const rings = container.querySelectorAll<HTMLElement>('[data-slot="sparkline-focus-ring"]');
 
     expect(rings[0]).toHaveStyle({
-      left: "0%",
       transform: "translate(-50%, -50%)"
     });
     expect(rings[1]).toHaveStyle({
-      right: "0%",
-      transform: "translate(50%, -50%)"
+      transform: "translate(-50%, -50%)"
     });
+    expect(Number.parseFloat(rings[0]?.style.left ?? "")).toBeGreaterThan(0);
+    expect(Number.parseFloat(rings[1]?.style.left ?? "")).toBeGreaterThan(90);
 
     fireEvent.focus(controls[0]);
     const firstTooltip = screen.getByRole("tooltip");
@@ -438,13 +443,13 @@ describe("SparklineChart", () => {
     });
 
     const controls = screen.getAllByRole("button", { name: /проверок/ });
-    const rings = container.querySelectorAll('[data-slot="sparkline-focus-ring"]');
+    const rings = container.querySelectorAll<HTMLElement>('[data-slot="sparkline-focus-ring"]');
     const finalRing = rings[rings.length - 1];
 
     expect(finalRing).toHaveStyle({
-      right: "0%",
-      transform: "translate(50%, -50%)"
+      transform: "translate(-50%, -50%)"
     });
+    expect(Number.parseFloat(finalRing?.style.left ?? "")).toBeGreaterThan(90);
 
     fireEvent.focus(controls[controls.length - 1]);
 

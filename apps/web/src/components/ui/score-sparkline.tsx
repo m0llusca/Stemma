@@ -38,7 +38,7 @@ export function ScoreSparkline({
       height={height}
       role="img"
       aria-label={`Динамика балла: ${values.length} последних проверок`}
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
     >
       <path className="fill-primary/15 stroke-none" d={area} />
       <path className="fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]" d={line} />
