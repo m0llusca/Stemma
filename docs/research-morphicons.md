@@ -13,11 +13,11 @@ Marques UX-ACCEPT: **exactly 2** surfaces — CopyButton + accordion/score-modul
 | License | MIT ([upstream LICENSE](https://github.com/guillermolg00/morphicons/blob/main/LICENSE), © 2026 Guillermo) |
 | Repo | https://github.com/guillermolg00/morphicons |
 | Site | https://www.morphicons.com/ |
-| Icon data | `lucide@0.468.0` (ISC) — same generation as `lucide-react@0.468.0` |
+| Icon data | `lucide-react@0.468.0` (ISC) — same package the rest of the app imports |
 
 Kinetics itself has no LICENSE ([audit](memory/2026-07-28-kinetics-evilcharts-provenance-audit.md)); we still do not copy Kinetics React demos. Morphicons is a separate MIT npm package, so the Kinetics license bar is met.
 
-`lucide@0.x` ships a tree `["svg", attrs, children]`. `asMorphIcon` unwraps that to the flat `IconNode` Morphicons consumes. Do not import `lucide-react` components into `MorphIcon`.
+Call sites import from `lucide-react` (already on the stand). `asMorphIcon` unwraps those components to the flat `IconNode` Morphicons consumes. Do not add a bare `lucide` package.
 
 ## Surfaces (this spike)
 
@@ -44,7 +44,7 @@ Product wrapper always passes `reducedMotion="user"`. Morphicons instant-swaps w
 
 - `apps/web/src/components/ui/morph-icon.tsx` — `MorphIcon`
 - `apps/web/src/components/ui/disclosure-morph-chevron.tsx` — disclosure pair
-- `apps/web/src/lib/ui/lucide-morph.ts` — Lucide 0.x unwrap
+- `apps/web/src/lib/ui/lucide-morph.ts` — lucide-react unwrap
 
 ## Related
 

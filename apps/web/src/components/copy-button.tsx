@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide";
+import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { MorphIcon } from "@/components/ui/morph-icon";

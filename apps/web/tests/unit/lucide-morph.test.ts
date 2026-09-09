@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { Check, ChevronDown, Copy, Menu, X } from "lucide";
+import { Check, ChevronDown, Copy, Menu, X } from "lucide-react";
 import { asMorphIcon } from "@/lib/ui/lucide-morph";
 
 describe("asMorphIcon", () => {
-  it("unwraps lucide 0.x svg trees into a flat IconNode", () => {
+  it("unwraps lucide-react components into a flat IconNode", () => {
     const node = asMorphIcon(Menu);
     expect(Array.isArray(node)).toBe(true);
     expect(typeof node).not.toBe("string");
@@ -25,7 +25,7 @@ describe("asMorphIcon", () => {
     }
   });
 
-  it("rejects lucide-react components and other junk", () => {
+  it("rejects objects that are not lucide-react icons", () => {
     expect(() => asMorphIcon({ displayName: "Menu" })).toThrow(/Lucide IconNode/);
   });
 });

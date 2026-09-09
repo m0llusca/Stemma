@@ -15,7 +15,7 @@ export type AppMorphIconProps = Omit<MorphIconProps, "icon" | "from" | "to"> & {
 };
 
 /**
- * Product MorphIcon. Lucide data nodes only (not lucide-react components).
+ * Product MorphIcon. Pass lucide-react icons; `asMorphIcon` unwraps them.
  * Honors `prefers-reduced-motion` (instant swap). Spring is snappy — same
  * Kinetics “Icon Morph Swap” slot as `--motion-duration-morph` (350ms).
  */
