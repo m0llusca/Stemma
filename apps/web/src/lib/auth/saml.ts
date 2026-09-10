@@ -453,7 +453,7 @@ export async function upsertUserFromSamlProfile(input: {
         }
       });
 
-      const role = await roleAfterLastAdminGuard(tx, input.workspaceId, existingIdentity.user.role, policy.role);
+      const role = await roleAfterLastAdminGuard(tx, input.workspaceId, existingIdentity.userId, policy.role);
 
       return tx.user.update({
         where: { id: existingIdentity.userId },
@@ -490,7 +490,7 @@ export async function upsertUserFromSamlProfile(input: {
           ...directoryAttributes
         }
       }));
-    const role = await roleAfterLastAdminGuard(tx, input.workspaceId, linkedUser.role, policy.role);
+    const role = await roleAfterLastAdminGuard(tx, input.workspaceId, linkedUser.id, policy.role);
     const needsUserUpdate =
       linkedUser.role !== role ||
       linkedUser.name !== displayName ||

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { ConnectionOptions } from "node:tls";
 import { Client, type Entry, type SearchOptions, type SearchResult } from "ldapts";
-import type { IdentityProvider, Prisma, RoleName, UserLifecycleStatus } from "@prisma/client";
+import type { IdentityProvider, Prisma, UserLifecycleStatus } from "@prisma/client";
 import {
   assertLdapsUrl,
   parseLdapsConfig,
@@ -436,7 +436,6 @@ async function applyMissingUserAction(input: {
   workspaceId: string;
   providerId: string;
   userId: string;
-  role: RoleName;
   action: MissingUserAction;
 }) {
   if (input.action === "none") {
@@ -447,7 +446,7 @@ async function applyMissingUserAction(input: {
   const status = await lifecycleStatusAfterLastAdminGuard(
     input.client,
     input.workspaceId,
-    input.role,
+    input.userId,
     requestedStatus
   );
 
@@ -551,7 +550,7 @@ async function persistDirectorySnapshot(input: {
     );
     const lifecycleStatus: UserLifecycleStatus = directoryUser.disabled ? "SUSPENDED" : "ACTIVE";
     const role = existingUser
-      ? await roleAfterLastAdminGuard(client, provider.workspaceId, existingUser.role, policy.role)
+      ? await roleAfterLastAdminGuard(client, provider.workspaceId, existingUser.id, policy.role)
       : policy.role;
     const user = existingUser
       ? await client.user.update({
@@ -592,7 +591,7 @@ async function persistDirectorySnapshot(input: {
       const suspendStatus = await lifecycleStatusAfterLastAdminGuard(
         client,
         provider.workspaceId,
-        user.role,
+        user.id,
         "SUSPENDED"
       );
 
@@ -709,7 +708,6 @@ async function persistDirectorySnapshot(input: {
       workspaceId: provider.workspaceId,
       providerId: provider.id,
       userId: identity.userId,
-      role: identity.user.role,
       action: config.missingUserAction
     });
     suspendedUsers += lifecycle.suspended;

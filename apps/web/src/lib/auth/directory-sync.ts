@@ -129,7 +129,7 @@ export async function syncDirectoryProvider(input: {
     const teamName = policy.teamName ?? identity.user.teamName;
 
     const userAttributesChanged = await runInTransactionIfAvailable(root, async (tx) => {
-      const role = await roleAfterLastAdminGuard(tx, provider.workspaceId, identity.user.role, policy.role);
+      const role = await roleAfterLastAdminGuard(tx, provider.workspaceId, identity.userId, policy.role);
       const changed =
         identity.user.role !== role ||
         identity.user.email !== identity.email ||

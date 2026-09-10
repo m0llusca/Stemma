@@ -10,6 +10,11 @@ export type LastAdminLockClient = {
   $queryRaw: <T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => Promise<T>;
 };
 
+export type LastAdminUserRow = {
+  role: RoleName;
+  lifecycleStatus: UserLifecycleStatus;
+};
+
 export type LastAdminCountClient = {
   user: {
     count: (args: {
@@ -19,12 +24,25 @@ export type LastAdminCountClient = {
         lifecycleStatus: "ACTIVE";
       };
     }) => Promise<number>;
+    findFirst?: (args: {
+      where: { id: string; workspaceId: string };
+      select: { role: true; lifecycleStatus: true };
+    }) => Promise<LastAdminUserRow | null>;
   };
   $queryRaw?: LastAdminLockClient["$queryRaw"];
+  $transaction?: <T>(callback: (tx: LastAdminCountClient) => Promise<T>) => Promise<T>;
 };
 
 function canLockForUpdate(client: LastAdminCountClient): client is LastAdminCountClient & LastAdminLockClient {
   return typeof client.$queryRaw === "function";
+}
+
+function canRunInteractiveTransaction(
+  client: LastAdminCountClient
+): client is LastAdminCountClient & {
+  $transaction: <T>(callback: (tx: LastAdminCountClient) => Promise<T>) => Promise<T>;
+} {
+  return typeof client.$transaction === "function";
 }
 
 /**
@@ -69,6 +87,61 @@ export async function isLastWorkspaceAdmin(client: LastAdminCountClient, workspa
 }
 
 /**
+ * Lock ACTIVE ADMINs (when possible), then re-read the target user's role/lifecycle.
+ * Soft guards must use this — never a caller-supplied pre-txn snapshot.
+ */
+export async function readUserRoleLifecycleForLastAdminGuard(
+  client: LastAdminCountClient,
+  workspaceId: string,
+  userId: string
+): Promise<{ row: LastAdminUserRow | null; activeAdminCount: number }> {
+  if (canLockForUpdate(client)) {
+    const activeAdminCount = await lockActiveAdminsForUpdate(client, workspaceId);
+    const rows = await client.$queryRaw<Array<LastAdminUserRow>>(Prisma.sql`
+      SELECT role, "lifecycleStatus"
+      FROM "User"
+      WHERE id = ${userId}
+        AND "workspaceId" = ${workspaceId}
+      FOR UPDATE
+    `);
+
+    return { row: rows[0] ?? null, activeAdminCount };
+  }
+
+  const [activeAdminCount, row] = await Promise.all([
+    client.user.count({
+      where: {
+        workspaceId,
+        role: "ADMIN",
+        lifecycleStatus: "ACTIVE"
+      }
+    }),
+    client.user.findFirst
+      ? client.user.findFirst({
+          where: { id: userId, workspaceId },
+          select: { role: true, lifecycleStatus: true }
+        })
+      : Promise.resolve(null)
+  ]);
+
+  return { row, activeAdminCount };
+}
+
+async function withLastAdminMutationTxn<T>(
+  client: LastAdminCountClient,
+  run: (tx: LastAdminCountClient) => Promise<T>
+): Promise<T> {
+  // FOR UPDATE on the Prisma root client does not span later statements.
+  // Soft-guard mutate paths open an interactive transaction when available.
+  // Transaction clients (no `$transaction`) already hold the outer lock scope.
+  if (canRunInteractiveTransaction(client)) {
+    return client.$transaction(run);
+  }
+
+  return run(client);
+}
+
+/**
  * Admin UI and other explicit demotions: throw when removing the last ADMIN.
  */
 export async function assertCanDemoteAdminRole(
@@ -106,40 +179,58 @@ export async function assertCanDeactivateLastAdmin(
 
 /**
  * IdP / SCIM / directory sync: never strip the last ADMIN — keep ADMIN and apply the rest.
+ * Always re-reads the target user's role under lock; never trusts a caller snapshot.
  */
 export async function roleAfterLastAdminGuard(
   client: LastAdminCountClient,
   workspaceId: string,
-  currentRole: RoleName,
+  userId: string,
   nextRole: RoleName
 ): Promise<RoleName> {
-  if (currentRole !== "ADMIN" || nextRole === "ADMIN") {
+  if (nextRole === "ADMIN") {
     return nextRole;
   }
 
-  if (await isLastWorkspaceAdmin(client, workspaceId)) {
-    return "ADMIN";
-  }
+  return withLastAdminMutationTxn(client, async (tx) => {
+    const { row, activeAdminCount } = await readUserRoleLifecycleForLastAdminGuard(tx, workspaceId, userId);
 
-  return nextRole;
+    if (!row || row.role !== "ADMIN") {
+      return nextRole;
+    }
+
+    if (activeAdminCount <= 1) {
+      return "ADMIN";
+    }
+
+    return nextRole;
+  });
 }
 
 /**
  * IdP / SCIM / directory sync: never suspend/deprovision the last ACTIVE ADMIN — keep ACTIVE.
+ * Always re-reads the target user's role under lock; never trusts a caller snapshot.
  */
 export async function lifecycleStatusAfterLastAdminGuard(
   client: LastAdminCountClient,
   workspaceId: string,
-  currentRole: RoleName,
+  userId: string,
   nextStatus: UserLifecycleStatus
 ): Promise<UserLifecycleStatus> {
-  if (currentRole !== "ADMIN" || nextStatus === "ACTIVE") {
+  if (nextStatus === "ACTIVE") {
     return nextStatus;
   }
 
-  if (await isLastWorkspaceAdmin(client, workspaceId)) {
-    return "ACTIVE";
-  }
+  return withLastAdminMutationTxn(client, async (tx) => {
+    const { row, activeAdminCount } = await readUserRoleLifecycleForLastAdminGuard(tx, workspaceId, userId);
 
-  return nextStatus;
+    if (!row || row.role !== "ADMIN") {
+      return nextStatus;
+    }
+
+    if (activeAdminCount <= 1) {
+      return "ACTIVE";
+    }
+
+    return nextStatus;
+  });
 }

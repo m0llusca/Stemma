@@ -868,7 +868,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
       const nextLifecycleStatus = await lifecycleStatusAfterLastAdminGuard(
         tx,
         context.workspaceId,
-        existingIdentity.user.role,
+        existingIdentity.userId,
         status
       );
 
@@ -894,7 +894,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
             context,
             now,
             nextLifecycleStatus,
-            await roleAfterLastAdminGuard(tx, context.workspaceId, existingIdentity.user.role, policy.role)
+            await roleAfterLastAdminGuard(tx, context.workspaceId, existingIdentity.userId, policy.role)
           )
         },
         include: {
@@ -952,7 +952,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
       const nextLifecycleStatus = await lifecycleStatusAfterLastAdminGuard(
         tx,
         context.workspaceId,
-        user.role,
+        user.id,
         status
       );
 
@@ -978,7 +978,7 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
             context,
             now,
             nextLifecycleStatus,
-            await roleAfterLastAdminGuard(tx, context.workspaceId, user.role, policy.role)
+            await roleAfterLastAdminGuard(tx, context.workspaceId, user.id, policy.role)
           )
         }
       });
@@ -1108,7 +1108,7 @@ export async function patchScimUser(context: ScimContext, id: string, payload: S
     const nextStatus = await lifecycleStatusAfterLastAdminGuard(
       tx,
       context.workspaceId,
-      existing.role,
+      existing.id,
       requestedStatus
     );
     const now = new Date();

@@ -244,18 +244,7 @@ export async function refreshIdentityPoliciesForUsers(
   for (const userId of ids) {
     const policy = await resolveIdentityPolicyForUser(input.workspaceId, input.providerId, userId, {}, client);
     await runInTransactionIfAvailable(client, async (tx) => {
-      const current = await tx.user.findFirst({
-        where: {
-          id: userId,
-          workspaceId: input.workspaceId
-        },
-        select: {
-          role: true
-        }
-      });
-      const role = current
-        ? await roleAfterLastAdminGuard(tx, input.workspaceId, current.role, policy.role)
-        : policy.role;
+      const role = await roleAfterLastAdminGuard(tx, input.workspaceId, userId, policy.role);
       await tx.user.updateMany({
         where: {
           id: userId,
