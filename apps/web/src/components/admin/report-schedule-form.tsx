@@ -11,6 +11,8 @@ import { RequiredMark } from "@/components/ui/required-mark";
 import { Textarea } from "@/components/ui/textarea";
 import { createReportSchedule, type ReportScheduleActionState } from "@/lib/report-schedule-actions";
 import { reportScheduleFilterKeys, validateReportScheduleFiltersJson } from "@/lib/report-schedule-filters";
+import { statusToneClass } from "@/lib/ui/status-tone";
+import { cn } from "@/lib/utils";
 
 const initialState: ReportScheduleActionState = {
   status: "idle"
@@ -172,7 +174,7 @@ export function ReportScheduleForm({
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton />
         {state.status === "success" ? (
-          <span className="text-sm text-emerald-800 dark:text-emerald-300" role="status">
+          <span className={cn("text-sm font-medium", statusToneClass("neutral"))} role="status">
             {state.message}
           </span>
         ) : null}
