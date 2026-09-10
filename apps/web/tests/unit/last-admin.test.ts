@@ -8,14 +8,16 @@ import {
   lifecycleStatusAfterLastAdminGuard,
   lockActiveAdminsForUpdate,
   readUserRoleLifecycleForLastAdminGuard,
-  roleAfterLastAdminGuard
+  roleAfterLastAdminGuard,
+  type LastAdminCountClient,
+  type LastAdminLockClient
 } from "@/lib/auth/last-admin";
 import type { RoleName, UserLifecycleStatus } from "@prisma/client";
 
 function clientWithAdminCount(
   count: number,
   user?: { role: RoleName; lifecycleStatus: UserLifecycleStatus } | null
-) {
+): LastAdminCountClient {
   return {
     user: {
       count: vi.fn().mockResolvedValue(count),
@@ -31,7 +33,7 @@ function clientWithAdminCount(
 function clientWithLockedAdmins(
   ids: string[],
   userRow?: { role: RoleName; lifecycleStatus: UserLifecycleStatus } | null
-) {
+): LastAdminCountClient & LastAdminLockClient & { $queryRaw: ReturnType<typeof vi.fn> } {
   const queryRaw = vi.fn(async (query: { text?: string; sql?: string; strings?: string[] }) => {
     const sqlText = query?.text ?? query?.sql ?? (query?.strings ?? []).join("?");
     // User-row re-read selects role/lifecycleStatus; admin lock selects id + ORDER BY.
@@ -50,8 +52,8 @@ function clientWithLockedAdmins(
       count: vi.fn(),
       findFirst: vi.fn()
     },
-    $queryRaw: queryRaw
-  };
+    $queryRaw: queryRaw as unknown as LastAdminLockClient["$queryRaw"]
+  } as unknown as LastAdminCountClient & LastAdminLockClient & { $queryRaw: ReturnType<typeof vi.fn> };
 }
 
 describe("last-admin guard", () => {
@@ -201,14 +203,21 @@ describe("last-admin guard", () => {
       role: "ADMIN",
       lifecycleStatus: "ACTIVE"
     });
-    const root = {
-      ...clientWithAdminCount(1),
-      $transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx))
+    const findFirst = vi.fn();
+    const transaction = vi.fn(async (callback: (client: LastAdminCountClient) => Promise<unknown>) =>
+      callback(tx)
+    );
+    const root: LastAdminCountClient = {
+      user: {
+        count: vi.fn().mockResolvedValue(1),
+        findFirst
+      },
+      $transaction: transaction as LastAdminCountClient["$transaction"]
     };
 
     await expect(roleAfterLastAdminGuard(root, "workspace-1", "user-1", "VIEWER")).resolves.toBe("ADMIN");
-    expect(root.$transaction).toHaveBeenCalledTimes(1);
+    expect(transaction).toHaveBeenCalledTimes(1);
     expect(tx.$queryRaw).toHaveBeenCalled();
-    expect(root.user.findFirst).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
   });
 });
