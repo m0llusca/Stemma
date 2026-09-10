@@ -18,7 +18,16 @@ import { ReviewFormShell } from "@/components/review/review-form-shell";
 import { SummaryTemplatePicker, type SummaryTemplate } from "@/components/review/summary-template-picker";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Chip } from "@/components/ui/chip";
+import {
+  aiAgreesWithDraft,
+  criterionContribution,
+  criterionStatus,
+  isCriterionAnswered,
+  isCriterionIssue,
+  passFailDefaultValue,
+  scaleDefaultValue
+} from "@/components/review/review-criterion-scoring";
 import { ReviewDisclosure } from "@/components/review/review-disclosure";
 import {
   Field,
@@ -144,62 +153,6 @@ const nestedDisclosureTriggerClass = cn(
 
 const nestedDisclosureBodyClass = "grid gap-4 border-t border-border bg-muted/40 p-4";
 
-function isCriterionIssue(criterion: ScorecardCriterion, score?: CriterionScore) {
-  if (score?.isNotApplicable) {
-    return false;
-  }
-
-  if (criterion.kind === "SCALE_1_3") {
-    return (score?.value ?? 3) < 3;
-  }
-
-  return score?.passed === false;
-}
-
-function criterionStatus(
-  criterion: ScorecardCriterion,
-  score: CriterionScore | undefined,
-  presentation: "authoring" | "agent"
-): { label: string; tone: ChipTone } {
-  if (score?.isNotApplicable) {
-    return { label: "Не применимо", tone: "neutral" };
-  }
-
-  if (criterion.kind === "SCALE_1_3") {
-    const value = score?.value ?? 3;
-
-    if (presentation === "agent") {
-      if (value <= 1) {
-        return { label: "1/3", tone: "warning" };
-      }
-      if (value === 2) {
-        return { label: "2/3", tone: "warning" };
-      }
-      return { label: "3/3", tone: "success" };
-    }
-
-    if (value <= 1) {
-      return { label: "1/3 критично", tone: "danger" };
-    }
-
-    if (value === 2) {
-      return { label: "2/3 доработка", tone: "warning" };
-    }
-
-    return { label: "3/3 стандарт", tone: "success" };
-  }
-
-  if (presentation === "agent") {
-    return score?.passed === false
-      ? { label: "не зачтено", tone: "warning" }
-      : { label: "зачтено", tone: "success" };
-  }
-
-  return score?.passed === false
-    ? { label: "Незачет", tone: "danger" }
-    : { label: "Зачет", tone: "success" };
-}
-
 function getCriterionDensityMeta(score?: CriterionScore) {
   const meta: string[] = [];
 
@@ -208,34 +161,6 @@ function getCriterionDensityMeta(score?: CriterionScore) {
   }
 
   return meta;
-}
-
-/**
- * Whether the human draft verdict matches the real AI prediction for this
- * criterion. Used to flip the AI chip to the quiet "ИИ согласен" state and
- * to decide the indigo override border. Returns `false` when either side is
- * unscored/non-applicable so a real disagreement is never hidden.
- */
-function aiAgreesWithDraft(
-  criterion: ScorecardCriterion,
-  prediction: CriterionPrediction,
-  score?: CriterionScore
-) {
-  if (score?.isNotApplicable || prediction.isNotApplicable) {
-    return Boolean(score?.isNotApplicable) && Boolean(prediction.isNotApplicable);
-  }
-
-  if (criterion.kind === "SCALE_1_3") {
-    if (typeof prediction.value !== "number") {
-      return false;
-    }
-    return (score?.value ?? 3) === prediction.value;
-  }
-
-  if (typeof prediction.passed !== "boolean") {
-    return false;
-  }
-  return (score?.passed ?? true) === prediction.passed;
 }
 
 function formatEvidenceTime(value: Date) {
@@ -404,26 +329,10 @@ export function ReviewPanel({
 
   const messageById = new Map(messages.map((message) => [message.id, message]));
   const totalWeight = scorecard.criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
-  const answeredCount = scorecard.criteria.filter((criterion) => {
-    const score = draftScores.get(criterion.id);
-    return Boolean(score) && !score?.isNotApplicable;
-  }).length;
+  const answeredCount = scorecard.criteria.filter((criterion) =>
+    isCriterionAnswered(criterion, draftScores.get(criterion.id))
+  ).length;
   const scoredCount = scorecard.criteria.filter((criterion) => !draftScores.get(criterion.id)?.isNotApplicable).length;
-
-  /** Per-answer contribution of a criterion toward the 100-point final score. */
-  function criterionContribution(criterion: ScorecardCriterion, score?: CriterionScore) {
-    if (totalWeight <= 0 || score?.isNotApplicable) {
-      return 0;
-    }
-
-    if (criterion.kind === "SCALE_1_3") {
-      const value = score?.value ?? 3;
-      return (criterion.weight * (value / 3) * 100) / totalWeight;
-    }
-
-    const passed = score?.passed ?? true;
-    return passed ? (criterion.weight * 100) / totalWeight : 0;
-  }
 
   function formatPercent(value: number) {
     return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}%`;
@@ -597,11 +506,10 @@ export function ReviewPanel({
                   <div className="grid gap-0 bg-card">
                     {group.criteria.map((criterion) => {
                       const draftScore = draftScores.get(criterion.id);
-                      const passedValue = draftScore?.passed ?? true;
                       const status = criterionStatus(criterion, draftScore, presentation);
                       const densityMeta = getCriterionDensityMeta(draftScore);
                       const hasIssue = isCriterionIssue(criterion, draftScore);
-                      const contribution = criterionContribution(criterion, draftScore);
+                      const contribution = criterionContribution(criterion, totalWeight, draftScore);
                       const prediction = aiPredictions?.[criterion.id];
                       const aiAgrees = prediction ? aiAgreesWithDraft(criterion, prediction, draftScore) : false;
                       const evidenceMessage = draftScore?.evidenceMessageId
@@ -705,7 +613,7 @@ export function ReviewPanel({
                                   <RadioGroup
                                     aria-labelledby={`review-criterion-${criterion.id}-score-legend`}
                                     name={`criterion.${criterion.id}.score`}
-                                    defaultValue={String(draftScore?.value ?? 3)}
+                                    defaultValue={scaleDefaultValue(draftScore)}
                                     className="grid w-full grid-flow-row gap-0 overflow-clip rounded-md border border-border bg-card"
                                   >
                                     <label className={segmentLabelScaleClass}>
@@ -749,7 +657,7 @@ export function ReviewPanel({
                                   <RadioGroup
                                     aria-labelledby={`review-criterion-${criterion.id}-result-legend`}
                                     name={`criterion.${criterion.id}.passed`}
-                                    defaultValue={passedValue ? "true" : "false"}
+                                    defaultValue={passFailDefaultValue(draftScore)}
                                     className="grid w-full grid-cols-1 gap-0 overflow-clip rounded-md border border-border bg-card sm:grid-cols-2"
                                   >
                                     <label className={segmentLabelBinaryClass}>
