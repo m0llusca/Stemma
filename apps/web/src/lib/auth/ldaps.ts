@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { ConnectionOptions } from "node:tls";
 import { Client, type Entry, type SearchOptions, type SearchResult } from "ldapts";
-import type { IdentityProvider, Prisma, UserLifecycleStatus } from "@prisma/client";
+import type { IdentityProvider, Prisma, RoleName, UserLifecycleStatus } from "@prisma/client";
 import {
   assertLdapsUrl,
   parseLdapsConfig,
@@ -11,7 +11,7 @@ import {
   type ParsedLdapsConfig
 } from "@/lib/auth/ldaps-config";
 import { resolveSecretReference } from "@/lib/auth/secret-refs";
-import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
+import { lifecycleStatusAfterLastAdminGuard, roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import { resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
 import { applyUserLifecycleStatus } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -434,13 +434,25 @@ async function applyMissingUserAction(input: {
   workspaceId: string;
   providerId: string;
   userId: string;
+  role: RoleName;
   action: MissingUserAction;
 }) {
   if (input.action === "none") {
     return { suspended: 0, deprovisioned: 0 };
   }
 
-  const status: UserLifecycleStatus = input.action === "deprovision" ? "DEPROVISIONED" : "SUSPENDED";
+  const requestedStatus: UserLifecycleStatus = input.action === "deprovision" ? "DEPROVISIONED" : "SUSPENDED";
+  const status = await lifecycleStatusAfterLastAdminGuard(
+    input.client,
+    input.workspaceId,
+    input.role,
+    requestedStatus
+  );
+
+  if (status === "ACTIVE") {
+    return { suspended: 0, deprovisioned: 0 };
+  }
+
   await applyUserLifecycleStatus({
     userId: input.userId,
     workspaceId: input.workspaceId,
@@ -575,16 +587,25 @@ async function persistDirectorySnapshot(input: {
     }
 
     if (directoryUser.disabled) {
-      await applyUserLifecycleStatus({
-        userId: user.id,
-        workspaceId: provider.workspaceId,
-        status: "SUSPENDED",
-        actorId: null,
-        sourceOfTruthProviderId: provider.id,
-        reason: "LDAPS userAccountControl ACCOUNTDISABLE",
-        client
-      });
-      suspendedUsers += 1;
+      const suspendStatus = await lifecycleStatusAfterLastAdminGuard(
+        client,
+        provider.workspaceId,
+        user.role,
+        "SUSPENDED"
+      );
+
+      if (suspendStatus !== "ACTIVE") {
+        await applyUserLifecycleStatus({
+          userId: user.id,
+          workspaceId: provider.workspaceId,
+          status: "SUSPENDED",
+          actorId: null,
+          sourceOfTruthProviderId: provider.id,
+          reason: "LDAPS userAccountControl ACCOUNTDISABLE",
+          client
+        });
+        suspendedUsers += 1;
+      }
     }
 
     if (existingIdentity) {
@@ -686,6 +707,7 @@ async function persistDirectorySnapshot(input: {
       workspaceId: provider.workspaceId,
       providerId: provider.id,
       userId: identity.userId,
+      role: identity.user.role,
       action: config.missingUserAction
     });
     suspendedUsers += lifecycle.suspended;
@@ -777,9 +799,9 @@ export async function syncActiveDirectoryLdapsProvider(input: {
     throw new Error("LDAPS dry-run недоступен для отключенного провайдера.");
   }
 
-  assertLdapsUrl(input.provider.ldapsUrl);
+  await assertLdapsUrl(input.provider.ldapsUrl);
   const config = parseLdapsConfig(input.provider);
-  validateLdapsProviderConfigForSave({
+  await validateLdapsProviderConfigForSave({
     type: input.provider.type,
     status: "active",
     ldapsUrl: input.provider.ldapsUrl,

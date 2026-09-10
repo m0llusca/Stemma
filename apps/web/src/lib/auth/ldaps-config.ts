@@ -1,5 +1,6 @@
 import type { IdentityProvider } from "@prisma/client";
 import { assertSupportedSecretReference } from "@/lib/auth/secret-refs";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 
 export type MissingUserAction = "none" | "suspend" | "deprovision";
 
@@ -116,7 +117,7 @@ export function parseLdapsConfig(provider: Pick<IdentityProvider, "configJson">)
   };
 }
 
-export function assertLdapsUrl(value: string | null | undefined) {
+export async function assertLdapsUrl(value: string | null | undefined) {
   const raw = value?.trim();
   if (!raw) {
     throw new Error("Для Active Directory LDAPS укажите ldapsUrl.");
@@ -136,13 +137,16 @@ export function assertLdapsUrl(value: string | null | undefined) {
   if (url.username || url.password || url.search || url.hash) {
     throw new Error("ldapsUrl не должен содержать username/password, query или fragment.");
   }
+
+  // Same SSRF gate as HTTP integration base URLs (respects QC_ALLOW_PRIVATE_BASE_URLS).
+  await assertPublicBaseUrl(url);
 }
 
 function assertSecretReference(value: string | null | undefined, label: string) {
   assertSupportedSecretReference(value, label);
 }
 
-export function validateLdapsProviderConfigForSave(input: {
+export async function validateLdapsProviderConfigForSave(input: {
   type: IdentityProvider["type"];
   status: string;
   ldapsUrl?: string | null;
@@ -155,7 +159,7 @@ export function validateLdapsProviderConfigForSave(input: {
   }
 
   if (input.ldapsUrl) {
-    assertLdapsUrl(input.ldapsUrl);
+    await assertLdapsUrl(input.ldapsUrl);
   }
 
   assertSecretReference(input.ldapsBindSecretRef, "Секрет bind-учетной записи LDAPS");
@@ -170,7 +174,7 @@ export function validateLdapsProviderConfigForSave(input: {
     return;
   }
 
-  assertLdapsUrl(input.ldapsUrl);
+  await assertLdapsUrl(input.ldapsUrl);
 
   if (!input.ldapsBindDn?.trim()) {
     throw new Error("Для активного LDAPS-провайдера нужен bind DN сервисной учетной записи.");

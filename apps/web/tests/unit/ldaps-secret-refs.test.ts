@@ -5,22 +5,29 @@ import { resolveSecretReference } from "@/lib/auth/secret-refs";
 describe("LDAPS secret reference resolution", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    delete process.env.QC_PROVIDER_AD_BIND_PASSWORD;
+    delete process.env.QC_PROVIDER_AD_CA_PEM;
+    delete process.env.QC_AD_BIND_PASSWORD;
+    delete process.env.QC_AD_CA_PEM;
+    delete process.env.QC_ALLOWED_SECRET_ENV;
   });
 
   it("resolves bind secrets from env and encrypted references", () => {
-    process.env.QC_AD_BIND_PASSWORD = "service-account-password";
+    process.env.QC_PROVIDER_AD_BIND_PASSWORD = "service-account-password";
 
-    expect(resolveSecretReference("env:QC_AD_BIND_PASSWORD", "Bind-секрет LDAPS")).toBe("service-account-password");
+    expect(resolveSecretReference("env:QC_PROVIDER_AD_BIND_PASSWORD", "Bind-секрет LDAPS")).toBe(
+      "service-account-password"
+    );
 
     const encrypted = encryptSecret("encrypted-bind-password");
     expect(resolveSecretReference(encrypted, "Bind-секрет LDAPS")).toBe("encrypted-bind-password");
   });
 
   it("fails closed when bind secret refs are missing or unsupported", () => {
-    delete process.env.MISSING_LDAPS_BIND_SECRET;
+    delete process.env.QC_PROVIDER_MISSING_LDAPS_BIND_SECRET;
 
     expect(() => resolveSecretReference(null, "Bind-секрет LDAPS")).toThrow(/не настроен/);
-    expect(() => resolveSecretReference("env:MISSING_LDAPS_BIND_SECRET", "Bind-секрет LDAPS")).toThrow(
+    expect(() => resolveSecretReference("env:QC_PROVIDER_MISSING_LDAPS_BIND_SECRET", "Bind-секрет LDAPS")).toThrow(
       /пустую или отсутствующую переменную окружения/
     );
     expect(() => resolveSecretReference("vault:qc/ad/bind-password", "Bind-секрет LDAPS")).toThrow(
@@ -38,9 +45,11 @@ describe("LDAPS secret reference resolution", () => {
   });
 
   it("resolves CA references through the shared secret resolver", () => {
-    process.env.QC_AD_CA_PEM = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
+    process.env.QC_PROVIDER_AD_CA_PEM = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
 
-    expect(resolveSecretReference("env:QC_AD_CA_PEM", "LDAPS CA")).toContain("BEGIN CERTIFICATE");
-    expect(() => resolveSecretReference("vault:qc/ad/ca", "LDAPS CA")).toThrow(/исполняются только env:- и зашифрованные v1:-ссылки/);
+    expect(resolveSecretReference("env:QC_PROVIDER_AD_CA_PEM", "LDAPS CA")).toContain("BEGIN CERTIFICATE");
+    expect(() => resolveSecretReference("vault:qc/ad/ca", "LDAPS CA")).toThrow(
+      /исполняются только env:- и зашифрованные v1:-ссылки/
+    );
   });
 });

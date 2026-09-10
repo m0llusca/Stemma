@@ -38,8 +38,9 @@ export async function getReviewQueuePageData(rawParams: ReviewQueueSearchParams)
   // NOTE: ReviewQueueScope (src/lib/review-repository.ts, owned by a parallel
   // agent) must gain `assigneeId?: string` and honor it in scopedConversationWhere
   // / buildReviewQueueWhere for this to compile and scope summary/filter-options.
+  // Scope operators by assigneeId only — never AND with the non-unique display name.
   const supportAgentScope = user.role === "SUPPORT_AGENT" ? { assigneeId: user.id } : undefined;
-  const effectiveFilters = supportAgentScope ? { ...filters, assignee: user.name } : filters;
+  const effectiveFilters = filters;
   const currentHref = reviewQueueHref(rawParams);
 
   const [conversations, summary, filterOptions, qaAssignees, savedViews] = await Promise.all([
