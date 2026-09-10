@@ -46,6 +46,7 @@ import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-p
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
+import { canViewPeerQuality } from "@/lib/auth/permissions";
 import { canAccessTraining, getCurrentUser } from "@/lib/current-user";
 import { denyPageAccess } from "@/lib/page-permission";
 import { prisma } from "@/lib/db";
@@ -59,6 +60,7 @@ export const dynamic = "force-dynamic";
 
 const dayMs = 24 * 60 * 60 * 1000;
 const coachingViewIds = ["active", "overdue", "week", "mine", "unlinked", "done", "all"] as const;
+const russianMonthLabels = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"] as const;
 
 type CoachingViewId = (typeof coachingViewIds)[number];
 
@@ -219,6 +221,10 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   // Agents may view their own training tasks; team scoring, create forms, and
   // other operators' reviews stay manager-only.
   const canManageCoachingOps = !isSupportAgent;
+  // Workspace-wide «Средний балл команды» is peer_quality:read (ADMIN/TEAM_LEAD),
+  // not merely «not SUPPORT_AGENT» — QA with training:manage must not see peer ranks.
+  const canViewPeerQualityMetrics = canViewPeerQuality(user.role);
+  const showScoreTrendCard = isSupportAgent || canViewPeerQualityMetrics;
   const trainingWhere =
     isSupportAgent
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
@@ -590,18 +596,21 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
     .sort((left, right) => left[1].order - right[1].order)
     .slice(-8)
     .map(([key, bucket]) => {
-      const [, month] = key.split("-");
+      const monthIndex = Number(key.split("-")[1]) - 1;
       return {
-        label: `${month}`,
+        label: russianMonthLabels[monthIndex] ?? key,
         value: Math.round(bucket.sum / bucket.count),
         volume: bucket.count
       };
     });
-  const trendPoints: ChartDatum[] = scoreTrend.map((point) => ({
-    label: point.label,
-    value: point.value,
-    detail: formatReviewCount(point.volume)
-  }));
+  // Personal sparkline for agents; team sparkline only with peer_quality:read.
+  const trendPoints: ChartDatum[] = showScoreTrendCard
+    ? scoreTrend.map((point) => ({
+        label: point.label,
+        value: point.value,
+        detail: formatReviewCount(point.volume)
+      }))
+    : [];
   const measuredTrainingEffectCount = trainingEffects.size;
   const positiveTrainingEffectCount = trainingEffectValues.filter((value) => value > 0).length;
   const linkedAssignmentShare = assignments.length > 0 ? Math.round((linkedAssignmentCount / assignments.length) * 100) : 0;
@@ -767,18 +776,29 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </Card>
       ) : null}
 
-      {trendPoints.length >= 2 || topCategories.length > 0 ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]" aria-label="Динамика качества и зоны роста">
-          <Card>
-            <CardHeader>
-              <CardDescription>Качество во времени</CardDescription>
-              <CardTitle>{isSupportAgent ? "Ваш средний балл" : "Средний балл команды"}</CardTitle>
-              <CardDescription>
-                {isSupportAgent
-                  ? "Динамика ваших финальных проверок по месяцам."
-                  : "Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов."}
-              </CardDescription>
-            </CardHeader>
+      {(showScoreTrendCard && trendPoints.length >= 2) || topCategories.length > 0 ? (
+        <div
+          className={cn(
+            "grid gap-4",
+            showScoreTrendCard
+              ? "lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
+              : "lg:grid-cols-1"
+          )}
+          aria-label="Динамика качества и зоны роста"
+        >
+          {showScoreTrendCard ? (
+            <Card>
+              <CardHeader>
+                <CardDescription>Качество во времени</CardDescription>
+                <CardTitle>
+                  {canViewPeerQualityMetrics ? "Средний балл команды" : "Ваш средний балл"}
+                </CardTitle>
+                <CardDescription>
+                  {canViewPeerQualityMetrics
+                    ? "Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов."
+                    : "Динамика ваших финальных проверок по месяцам."}
+                </CardDescription>
+              </CardHeader>
             <CardContent>
               {trendPoints.length >= 2 ? (
                 <SparklineChart points={trendPoints} target={90} />
@@ -791,7 +811,8 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 />
               )}
             </CardContent>
-          </Card>
+            </Card>
+          ) : null}
 
           <Card size="sm">
             <CardHeader>
@@ -1237,10 +1258,12 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               : "Показываем критичные правила, которые стоит держать перед глазами."}
           </CardDescription>
           <CardAction>
-            <Button variant="outline" size="sm" render={<Link href={createRuleHref} />} nativeButton={false}>
-              <BookOpenCheck data-icon="inline-start" aria-hidden="true" />
-              Добавить правило
-            </Button>
+            {canManageCoachingOps ? (
+              <Button variant="outline" size="sm" render={<Link href={createRuleHref} />} nativeButton={false}>
+                <BookOpenCheck data-icon="inline-start" aria-hidden="true" />
+                Добавить правило
+              </Button>
+            ) : null}
           </CardAction>
         </CardHeader>
         <CardContent className="pt-(--card-spacing)">
@@ -1261,16 +1284,18 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3">
                       <p className="line-clamp-2 text-sm text-muted-foreground">{entry.recommendation}</p>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="h-auto justify-start px-0"
-                        render={<Link href={createTaskHref} />}
-                        nativeButton={false}
-                      >
-                        <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                        Добавить в обучение
-                      </Button>
+                      {canManageCoachingOps ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto justify-start px-0"
+                          render={<Link href={createTaskHref} />}
+                          nativeButton={false}
+                        >
+                          <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                          Добавить в обучение
+                        </Button>
+                      ) : null}
                     </CardContent>
                   </Card>
                 );
@@ -1281,7 +1306,11 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
               size="inline"
               icon={<BookOpenCheck size={20} aria-hidden="true" />}
               title="Нет правила для текущего фокуса"
-              description="Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
+              description={
+                canManageCoachingOps
+                  ? "Добавьте типовую ошибку кнопкой выше — она будет показываться здесь для похожих разборов."
+                  : "Типовые правила появятся здесь, когда их добавит тимлид."
+              }
             />
           )}
         </CardContent>
@@ -1333,7 +1362,16 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             })}
           </nav>
 
-          <AutoSubmitFilterForm action="/coaching" className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.5fr)_minmax(0,0.58fr)_auto] lg:items-end" debounceMs={350}>
+          <AutoSubmitFilterForm
+            action="/coaching"
+            className={cn(
+              "grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:items-end",
+              supportUsers.length > 0
+                ? "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.5fr)_minmax(0,0.58fr)_auto]"
+                : "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.58fr)_auto]"
+            )}
+            debounceMs={350}
+          >
             <input type="hidden" name="view" value={view} />
             <Field>
               <FieldLabel htmlFor="filter-q">Поиск</FieldLabel>
@@ -1353,17 +1391,19 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                 />
               </div>
             </Field>
-            <Field>
-              <FieldLabel htmlFor="filter-assigneeId">Исполнитель</FieldLabel>
-              <NativeSelect id="filter-assigneeId" name="assigneeId" defaultValue={assigneeId} className="w-full">
-                <NativeSelectOption value="">Все операторы</NativeSelectOption>
-                {supportUsers.map((supportUser) => (
-                  <NativeSelectOption key={supportUser.id} value={supportUser.id}>
-                    {supportUser.name}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
+            {supportUsers.length > 0 ? (
+              <Field>
+                <FieldLabel htmlFor="filter-assigneeId">Исполнитель</FieldLabel>
+                <NativeSelect id="filter-assigneeId" name="assigneeId" defaultValue={assigneeId} className="w-full">
+                  <NativeSelectOption value="">Все операторы</NativeSelectOption>
+                  {supportUsers.map((supportUser) => (
+                    <NativeSelectOption key={supportUser.id} value={supportUser.id}>
+                      {supportUser.name}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+            ) : null}
             <Field>
               <FieldLabel htmlFor="filter-category">Категория</FieldLabel>
               <NativeSelect id="filter-category" name="category" defaultValue={category} className="w-full">
@@ -1493,12 +1533,18 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             <EmptyState
               icon={<ClipboardList size={24} aria-hidden="true" />}
               title="В этом срезе нет задач"
-              description="Измените фильтры или создайте учебную задачу из проверки с замечанием."
+              description={
+                canManageCoachingOps
+                  ? "Измените фильтры или создайте учебную задачу из проверки с замечанием."
+                  : "Измените фильтры или дождитесь новой задачи от тимлида."
+              }
               action={
-                <Button render={<Link href={createTaskHref} />} nativeButton={false}>
-                  <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                  Новая задача
-                </Button>
+                canManageCoachingOps ? (
+                  <Button render={<Link href={createTaskHref} />} nativeButton={false}>
+                    <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                    Новая задача
+                  </Button>
+                ) : undefined
               }
             />
           )}

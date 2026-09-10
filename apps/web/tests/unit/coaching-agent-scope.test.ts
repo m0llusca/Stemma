@@ -15,6 +15,23 @@ describe("coaching page agent score scope", () => {
     expect(source).toContain("Ваш средний балл");
   });
 
+  it("gates team average / team trend behind peer_quality:read, not merely !SUPPORT_AGENT", () => {
+    expect(source).toContain("const canViewPeerQualityMetrics = canViewPeerQuality(user.role)");
+    expect(source).toContain("const showScoreTrendCard = isSupportAgent || canViewPeerQualityMetrics");
+    expect(source).toContain('{canViewPeerQualityMetrics ? "Средний балл команды" : "Ваш средний балл"}');
+    expect(source).toContain("{showScoreTrendCard ? (");
+    expect(source).not.toContain('{isSupportAgent ? "Ваш средний балл" : "Средний балл команды"}');
+  });
+
+  it("hides create CTAs and empty assignee filter when agents cannot manage coaching ops", () => {
+    expect(source).toContain("canManageCoachingOps");
+    expect(source).toMatch(/canManageCoachingOps\s*\?\s*\([\s\S]*?Добавить правило/);
+    expect(source).toMatch(/canManageCoachingOps\s*\?\s*\([\s\S]*?Добавить в обучение/);
+    expect(source).toMatch(/canManageCoachingOps\s*\?\s*\([\s\S]*?Новая задача/);
+    expect(source).toContain("supportUsers.length > 0 ? (");
+    expect(source).toContain('id="filter-assigneeId"');
+  });
+
   it("does not load team review candidates or support-user lists for agents", () => {
     expect(source).toContain("canManageCoachingOps");
     expect(source).toMatch(/canManageCoachingOps\s*\?\s*prisma\.user\.findMany/);
