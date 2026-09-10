@@ -247,6 +247,6 @@ Close [#116](https://github.com/m0llusca/Stemma/issues/116) only when: this matr
 - [ux-queue-hotkeys-contract.md](ux-queue-hotkeys-contract.md) — j/k, Enter toggles module, finalize_next, Take next = one path
 - [#125](https://github.com/m0llusca/Stemma/issues/125) — P1 `aria-expanded` sync on review disclosure (split from #118)
 - [research-kinetics-recharts.md](research-kinetics-recharts.md) — Exec = static SVG bars; drill SoT; no vanity
-- [research-morphicons-reject.md](research-morphicons-reject.md) — #108 reject. **#117 reopens Morphicons** (wire ≥2 surfaces or Roman-accepted reject)
+- [research-morphicons.md](research-morphicons.md) — #117 adopt: Morphicons on CopyButton + accordion/score chevron (supersedes #108 reject)
 - [ux-agent-feedback-contract.md](ux-agent-feedback-contract.md) — self-review pack
 - [semantic-status-colors.md](semantic-status-colors.md) — probe-before-save, cert ≠ step
