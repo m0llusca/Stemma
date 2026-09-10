@@ -89,6 +89,9 @@ export async function isLastWorkspaceAdmin(client: LastAdminCountClient, workspa
 /**
  * Lock ACTIVE ADMINs (when possible), then re-read the target user's role/lifecycle.
  * Soft guards must use this — never a caller-supplied pre-txn snapshot.
+ *
+ * Without `$queryRaw`, reads the user first and only counts ACTIVE ADMINs when the
+ * fresh role is ADMIN (so IdP/SCIM mocks without `user.count` still work on no-op paths).
  */
 export async function readUserRoleLifecycleForLastAdminGuard(
   client: LastAdminCountClient,
@@ -108,21 +111,24 @@ export async function readUserRoleLifecycleForLastAdminGuard(
     return { row: rows[0] ?? null, activeAdminCount };
   }
 
-  const [activeAdminCount, row] = await Promise.all([
-    client.user.count({
-      where: {
-        workspaceId,
-        role: "ADMIN",
-        lifecycleStatus: "ACTIVE"
-      }
-    }),
-    client.user.findFirst
-      ? client.user.findFirst({
-          where: { id: userId, workspaceId },
-          select: { role: true, lifecycleStatus: true }
-        })
-      : Promise.resolve(null)
-  ]);
+  const row = client.user.findFirst
+    ? await client.user.findFirst({
+        where: { id: userId, workspaceId },
+        select: { role: true, lifecycleStatus: true }
+      })
+    : null;
+
+  if (!row || row.role !== "ADMIN") {
+    return { row, activeAdminCount: 0 };
+  }
+
+  const activeAdminCount = await client.user.count({
+    where: {
+      workspaceId,
+      role: "ADMIN",
+      lifecycleStatus: "ACTIVE"
+    }
+  });
 
   return { row, activeAdminCount };
 }
