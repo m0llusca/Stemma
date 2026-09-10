@@ -17,6 +17,9 @@ describe("secret-refs", () => {
     delete process.env.QC_AD_BIND_PASSWORD;
     delete process.env.TEST_SECRET_REF;
     delete process.env.QC_ALLOWED_SECRET_ENV;
+    delete process.env.AUTH_SECRET;
+    delete process.env.QC_SECRET_KEY;
+    delete process.env.DATABASE_URL;
   });
 
   it("detects managed and encrypted secret reference formats", () => {
@@ -32,10 +35,15 @@ describe("secret-refs", () => {
     expect(isSupportedSecretReference("vault:qc/ad/bind-password")).toBe(false);
   });
 
-  it("allowlists only QC_PROVIDER_* or QC_ALLOWED_SECRET_ENV names", () => {
+  it("allowlists IdP prefixes or QC_ALLOWED_SECRET_ENV names", () => {
     expect(isAllowedSecretEnvName("QC_PROVIDER_AD_BIND")).toBe(true);
+    expect(isAllowedSecretEnvName("SAML_IDP_CERT_CURRENT")).toBe(true);
+    expect(isAllowedSecretEnvName("OIDC_CLIENT_SECRET")).toBe(true);
+    expect(isAllowedSecretEnvName("LDAP_BIND_PASSWORD")).toBe(true);
+    expect(isAllowedSecretEnvName("LDAPS_CA_PEM")).toBe(true);
     expect(isAllowedSecretEnvName("AUTH_SECRET")).toBe(false);
     expect(isAllowedSecretEnvName("QC_SECRET_KEY")).toBe(false);
+    expect(isAllowedSecretEnvName("DATABASE_URL")).toBe(false);
     expect(isAllowedSecretEnvName("QC_AD_BIND_PASSWORD")).toBe(false);
 
     vi.stubEnv("QC_ALLOWED_SECRET_ENV", "QC_AD_BIND_PASSWORD, QC_AD_CA_PEM");
@@ -56,10 +64,12 @@ describe("secret-refs", () => {
   it("rejects arbitrary and sensitive env names outside the allowlist", () => {
     process.env.AUTH_SECRET = "session-secret";
     process.env.QC_SECRET_KEY = "kms-key";
+    process.env.DATABASE_URL = "postgres://local/db";
     process.env.QC_AD_BIND_PASSWORD = "should-not-resolve";
 
     expect(() => resolveSecretReference("env:AUTH_SECRET", "Секрет сессии")).toThrow(/allowlist/);
     expect(() => resolveSecretReference("env:QC_SECRET_KEY", "Ключ")).toThrow(/allowlist/);
+    expect(() => resolveSecretReference("env:DATABASE_URL", "БД")).toThrow(/allowlist/);
     expect(() => resolveSecretReference("env:QC_AD_BIND_PASSWORD", "Bind-секрет LDAPS")).toThrow(/allowlist/);
 
     vi.stubEnv("QC_ALLOWED_SECRET_ENV", "QC_AD_BIND_PASSWORD");

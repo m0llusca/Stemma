@@ -1,6 +1,7 @@
 import { decryptSecret } from "@/lib/secrets";
 
-const PROVIDER_SECRET_ENV_PREFIX = "QC_PROVIDER_";
+/** Grandfathered IdP / provider env prefixes (plus QC_ALLOWED_SECRET_ENV allowlist). */
+const GRANDFATHERED_SECRET_ENV_PREFIXES = ["QC_PROVIDER_", "SAML_", "OIDC_", "LDAP_", "LDAPS_"] as const;
 
 export function isProductionRuntime() {
   return process.env.NODE_ENV === "production";
@@ -31,8 +32,9 @@ function allowedSecretEnvNames() {
 }
 
 /**
- * Fail-closed env secret allowlist: only `QC_PROVIDER_*` or names listed in
- * `QC_ALLOWED_SECRET_ENV` (comma-separated). Blocks `AUTH_SECRET` / `QC_SECRET_KEY` / arbitrary env.
+ * Fail-closed env secret allowlist: IdP prefixes (`QC_PROVIDER_*`, `SAML_*`, `OIDC_*`,
+ * `LDAP_*`, `LDAPS_*`) or names listed in `QC_ALLOWED_SECRET_ENV` (comma-separated).
+ * Blocks `AUTH_SECRET` / `QC_SECRET_KEY` / `DATABASE_URL` / arbitrary env.
  */
 export function isAllowedSecretEnvName(name: string) {
   const trimmed = name.trim();
@@ -40,7 +42,7 @@ export function isAllowedSecretEnvName(name: string) {
     return false;
   }
 
-  if (trimmed.startsWith(PROVIDER_SECRET_ENV_PREFIX)) {
+  if (GRANDFATHERED_SECRET_ENV_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
     return true;
   }
 
@@ -50,7 +52,7 @@ export function isAllowedSecretEnvName(name: string) {
 export function assertAllowedSecretEnvName(name: string, label: string) {
   if (!isAllowedSecretEnvName(name)) {
     throw new Error(
-      `${label} ссылается на переменную окружения вне allowlist (QC_PROVIDER_* или QC_ALLOWED_SECRET_ENV).`
+      `${label} ссылается на переменную окружения вне allowlist (QC_PROVIDER_*/SAML_*/OIDC_*/LDAP_*/LDAPS_* или QC_ALLOWED_SECRET_ENV).`
     );
   }
 }

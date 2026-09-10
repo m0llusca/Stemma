@@ -1,6 +1,6 @@
 import type { IdentityProvider } from "@prisma/client";
 import { assertSupportedSecretReference } from "@/lib/auth/secret-refs";
-import { assertPublicBaseUrl } from "@/lib/net-guard";
+import { assertDirectoryServiceBaseUrl } from "@/lib/net-guard";
 
 export type MissingUserAction = "none" | "suspend" | "deprovision";
 
@@ -138,8 +138,8 @@ export async function assertLdapsUrl(value: string | null | undefined) {
     throw new Error("ldapsUrl не должен содержать username/password, query или fragment.");
   }
 
-  // Same SSRF gate as HTTP integration base URLs (respects QC_ALLOW_PRIVATE_BASE_URLS).
-  await assertPublicBaseUrl(url);
+  // Directory-specific SSRF gate: allows on-prem RFC1918/ULA DCs, blocks loopback/metadata.
+  await assertDirectoryServiceBaseUrl(url);
 }
 
 function assertSecretReference(value: string | null | undefined, label: string) {

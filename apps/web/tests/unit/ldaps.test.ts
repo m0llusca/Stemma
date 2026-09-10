@@ -33,34 +33,31 @@ describe("LDAPS config validation", () => {
   });
 
   it("requires LDAPS URLs without embedded credentials or query fragments", async () => {
-    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
-
     await expect(assertLdapsUrl("ldap://dc01.example.com:389")).rejects.toThrow(/LDAPS/);
     await expect(assertLdapsUrl("ldaps://bind:password@dc01.example.com:636")).rejects.toThrow(/username\/password/);
-    await expect(assertLdapsUrl("ldaps://dc01.example.com:636")).resolves.toBeUndefined();
-  });
-
-  it("rejects private LDAPS hosts unless QC_ALLOW_PRIVATE_BASE_URLS=1", async () => {
-    await expect(assertLdapsUrl("ldaps://127.0.0.1:636")).rejects.toThrow(
-      /приватный адрес сети|QC_ALLOW_PRIVATE_BASE_URLS/
-    );
-    await expect(assertLdapsUrl("ldaps://10.0.0.5:636")).rejects.toThrow(
-      /приватный адрес сети|QC_ALLOW_PRIVATE_BASE_URLS/
-    );
-
-    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
     await expect(assertLdapsUrl("ldaps://10.0.0.5:636")).resolves.toBeUndefined();
   });
 
+  it("allows private RFC1918 AD hosts and still blocks loopback/metadata", async () => {
+    await expect(assertLdapsUrl("ldaps://10.0.0.5:636")).resolves.toBeUndefined();
+    await expect(assertLdapsUrl("ldaps://192.168.1.20:636")).resolves.toBeUndefined();
+    await expect(assertLdapsUrl("ldaps://172.16.0.1:636")).resolves.toBeUndefined();
+
+    await expect(assertLdapsUrl("ldaps://127.0.0.1:636")).rejects.toThrow(/loopback|link-local|metadata|multicast/);
+    await expect(assertLdapsUrl("ldaps://169.254.169.254:636")).rejects.toThrow(/loopback|link-local|metadata|multicast/);
+    await expect(assertLdapsUrl("ldaps://metadata.google.internal:636")).rejects.toThrow(
+      /loopback|link-local|metadata|multicast/
+    );
+  });
+
   it("accepts env and encrypted bind secrets at save time", async () => {
-    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
     const encryptedBindSecret = encryptSecret("bind-password");
 
     await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "active",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
@@ -74,7 +71,7 @@ describe("LDAPS config validation", () => {
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: encryptedBindSecret,
         config: {}
@@ -83,13 +80,11 @@ describe("LDAPS config validation", () => {
   });
 
   it("rejects unsupported vault and inline bind secret references at save time", async () => {
-    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
-
     await expect(
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: "vault:qc/ad/bind-password",
         config: {}
@@ -100,7 +95,7 @@ describe("LDAPS config validation", () => {
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: "raw-bind-password",
         config: {}
@@ -111,7 +106,7 @@ describe("LDAPS config validation", () => {
       validateLdapsProviderConfigForSave({
         type: "ACTIVE_DIRECTORY_LDAPS",
         status: "draft",
-        ldapsUrl: "ldaps://dc01.example.com:636",
+        ldapsUrl: "ldaps://10.0.0.5:636",
         ldapsBindDn: "CN=svc,DC=example,DC=com",
         ldapsBindSecretRef: "env:QC_PROVIDER_AD_BIND_PASSWORD",
         config: {
@@ -121,7 +116,6 @@ describe("LDAPS config validation", () => {
     ).rejects.toThrow(/vault:\/secret:/);
   });
 });
-
 describe("LDAPS secret resolution paths", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

@@ -17,9 +17,10 @@ vi.mock("node:dns/promises", () => ({
   resolve6: dnsMocks.resolve6
 }));
 
-import { assertPublicBaseUrl, guardedFetch, resolvePublicBaseUrl } from "@/lib/net-guard";
+import { assertDirectoryServiceBaseUrl, assertPublicBaseUrl, guardedFetch, resolvePublicBaseUrl } from "@/lib/net-guard";
 
 const SSRF_MESSAGE = /приватный адрес сети|QC_ALLOW_PRIVATE_BASE_URLS/;
+const DIRECTORY_BLOCK_MESSAGE = /loopback|link-local|metadata|multicast/;
 
 describe("assertPublicBaseUrl", () => {
   beforeEach(() => {
@@ -214,5 +215,84 @@ describe("guardedFetch", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(dnsMocks.lookup).toHaveBeenCalledWith("cdn.example.com", { all: true, verbatim: true });
     expect(dnsMocks.lookup).toHaveBeenCalledWith("next.example.com", { all: true, verbatim: true });
+  });
+
+  it("strips Authorization on cross-host redirect hops", async () => {
+    dnsMocks.lookup
+      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "1.1.1.1", family: 4 }]);
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://other.example.com/next" }
+        })
+      )
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+    await guardedFetch("https://cdn.example.com/start", {
+      headers: {
+        Authorization: "Bearer leak-me",
+        "X-Custom": "keep"
+      }
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondInit = fetchMock.mock.calls[1][1] as RequestInit;
+    const secondHeaders = new Headers(secondInit.headers);
+    expect(secondHeaders.get("authorization")).toBeNull();
+    expect(secondHeaders.get("x-custom")).toBe("keep");
+  });
+});
+
+describe("assertDirectoryServiceBaseUrl", () => {
+  beforeEach(() => {
+    dnsMocks.lookup.mockReset();
+    dnsMocks.resolve4.mockReset();
+    dnsMocks.resolve6.mockReset();
+    dnsMocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ["ldaps://10.0.0.5:636", "RFC1918 10/8"],
+    ["ldaps://172.16.0.1:636", "RFC1918 172.16/12"],
+    ["ldaps://192.168.1.10:636", "RFC1918 192.168/16"],
+    ["ldaps://[fdab:1234::1]:636", "IPv6 ULA"],
+    ["ldaps://8.8.8.8:636", "public IPv4"]
+  ])("allows on-prem/public directory host %s (%s)", async (baseUrl) => {
+    await expect(assertDirectoryServiceBaseUrl(new URL(baseUrl))).resolves.toBeUndefined();
+    expect(dnsMocks.lookup).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ldaps://127.0.0.1:636", "loopback"],
+    ["ldaps://169.254.169.254:636", "link-local metadata"],
+    ["ldaps://0.0.0.0:636", "unspecified"],
+    ["ldaps://224.0.0.1:636", "multicast"],
+    ["ldaps://[::1]:636", "IPv6 loopback"],
+    ["ldaps://[fe80::1]:636", "IPv6 link-local"],
+    ["ldaps://metadata.google.internal:636", "GCP metadata hostname"],
+    ["ldaps://localhost:636", "localhost"]
+  ])("blocks dangerous directory host %s (%s)", async (baseUrl) => {
+    await expect(assertDirectoryServiceBaseUrl(new URL(baseUrl))).rejects.toThrow(DIRECTORY_BLOCK_MESSAGE);
+  });
+
+  it("allows a hostname that resolves to RFC1918 without QC_ALLOW_PRIVATE_BASE_URLS", async () => {
+    dnsMocks.lookup.mockResolvedValueOnce([{ address: "10.1.2.3", family: 4 }]);
+
+    await expect(assertDirectoryServiceBaseUrl(new URL("ldaps://dc01.corp.example:636"))).resolves.toBeUndefined();
+  });
+
+  it("rejects a hostname that resolves to metadata", async () => {
+    dnsMocks.lookup.mockResolvedValueOnce([{ address: "169.254.169.254", family: 4 }]);
+
+    await expect(assertDirectoryServiceBaseUrl(new URL("ldaps://evil.example.com:636"))).rejects.toThrow(
+      DIRECTORY_BLOCK_MESSAGE
+    );
   });
 });
