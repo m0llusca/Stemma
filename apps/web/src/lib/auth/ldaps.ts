@@ -55,7 +55,9 @@ type LdapsSyncClient = Pick<
   | "groupRoleMapping"
   | "authSession"
   | "auditLog"
->;
+> & {
+  $queryRaw?: Prisma.TransactionClient["$queryRaw"];
+};
 type LdapsRootClient = LdapsSyncClient & {
   $transaction?: <T>(callback: (tx: LdapsSyncClient) => Promise<T>) => Promise<T>;
 };

@@ -6,6 +6,7 @@ import {
   assertCanDemoteAdminRole,
   isLastWorkspaceAdmin,
   lifecycleStatusAfterLastAdminGuard,
+  lockActiveAdminsForUpdate,
   roleAfterLastAdminGuard
 } from "@/lib/auth/last-admin";
 
@@ -17,6 +18,15 @@ function clientWithAdminCount(count: number) {
   };
 }
 
+function clientWithLockedAdmins(ids: string[]) {
+  return {
+    user: {
+      count: vi.fn()
+    },
+    $queryRaw: vi.fn().mockResolvedValue(ids.map((id) => ({ id })))
+  };
+}
+
 describe("last-admin guard", () => {
   it("detects the sole remaining ACTIVE workspace admin", async () => {
     const client = clientWithAdminCount(1);
@@ -24,6 +34,30 @@ describe("last-admin guard", () => {
     expect(client.user.count).toHaveBeenCalledWith({
       where: { workspaceId: "workspace-1", role: "ADMIN", lifecycleStatus: "ACTIVE" }
     });
+  });
+
+  it("locks ACTIVE ADMIN rows with FOR UPDATE when $queryRaw is available", async () => {
+    const client = clientWithLockedAdmins(["admin-1", "admin-2"]);
+    await expect(lockActiveAdminsForUpdate(client, "workspace-1")).resolves.toBe(2);
+    await expect(isLastWorkspaceAdmin(client, "workspace-1")).resolves.toBe(false);
+    expect(client.$queryRaw).toHaveBeenCalled();
+    expect(client.user.count).not.toHaveBeenCalled();
+    const raw = client.$queryRaw.mock.calls[0]?.[0] as { text?: string; sql?: string; strings?: string[] };
+    const sqlText = raw?.text ?? raw?.sql ?? (raw?.strings ?? []).join("?");
+    expect(sqlText).toContain("FOR UPDATE");
+    expect(sqlText).toContain('"User"');
+  });
+
+  it("uses locked count for demotion guards inside a transaction client", async () => {
+    const lastAdmin = clientWithLockedAdmins(["admin-1"]);
+    await expect(assertCanDemoteAdminRole(lastAdmin, "workspace-1", "ADMIN", "VIEWER")).rejects.toThrow(
+      LAST_ADMIN_DEMOTION_ERROR
+    );
+    await expect(roleAfterLastAdminGuard(lastAdmin, "workspace-1", "ADMIN", "SUPPORT_AGENT")).resolves.toBe("ADMIN");
+
+    const twoAdmins = clientWithLockedAdmins(["admin-1", "admin-2"]);
+    await expect(assertCanDemoteAdminRole(twoAdmins, "workspace-1", "ADMIN", "QA_ANALYST")).resolves.toBeUndefined();
+    await expect(roleAfterLastAdminGuard(twoAdmins, "workspace-1", "ADMIN", "QA_ANALYST")).resolves.toBe("QA_ANALYST");
   });
 
   it("allows demotion when another active admin remains", async () => {
