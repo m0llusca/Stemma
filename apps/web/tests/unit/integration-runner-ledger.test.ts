@@ -143,6 +143,7 @@ function fakeClient() {
 
 describe("integration connector run ledger", () => {
   beforeEach(() => {
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
     vi.clearAllMocks();
     mocks.prisma.certificationEvidence.findFirst.mockResolvedValue(liveEvidence);
   });

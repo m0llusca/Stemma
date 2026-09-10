@@ -176,7 +176,7 @@ describe("guardedFetch", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.objectContaining({ href: "https://cdn.example.com/api" }),
+      "https://cdn.example.com/api",
       expect.objectContaining({ redirect: "manual" })
     );
   });

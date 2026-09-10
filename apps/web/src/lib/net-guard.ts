@@ -303,7 +303,8 @@ export async function guardedFetch(input: string | URL, init: GuardedFetchInit =
   for (let hop = 0; hop <= maxRedirects; hop += 1) {
     await resolvePublicBaseUrl(current);
 
-    const response = await fetch(current, {
+    // Pass href string so test doubles and wrappers that match on string URLs keep working.
+    const response = await fetch(current.href, {
       ...rest,
       method,
       body,
@@ -311,11 +312,13 @@ export async function guardedFetch(input: string | URL, init: GuardedFetchInit =
       redirect: "manual"
     });
 
-    if (response.status < 300 || response.status >= 400) {
+    // Incomplete/mocked Responses (no numeric status) are treated as final.
+    const status = response.status;
+    if (typeof status !== "number" || status < 300 || status >= 400) {
       return response;
     }
 
-    const location = response.headers.get("location");
+    const location = response.headers?.get?.("location");
     if (!location) {
       return response;
     }

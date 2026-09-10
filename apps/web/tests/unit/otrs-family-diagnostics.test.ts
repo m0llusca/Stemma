@@ -11,7 +11,7 @@ import {
   runOtrsDiagnostics
 } from "@/lib/integrations/otrs-family/diagnostics";
 import { runOtrsConnectorDiagnostics, summarizeOtrsCertificationInput } from "@/lib/integrations/otrs-family/service";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const workspaceId = "workspace-1";
 const integrationId = "integration-1";
@@ -183,6 +183,10 @@ async function withOtrsGenericInterfaceServer<T>(
     await server.close();
   }
 }
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
 
 describe("OTRS-family diagnostics", () => {
   it("summarizes diagnostics and import counts for certification", () => {

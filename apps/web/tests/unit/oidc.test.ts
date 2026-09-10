@@ -37,6 +37,7 @@ function signJwt(input: { kid: string; claims: OidcClaims; privateKey: ReturnTyp
 describe("OIDC helpers", () => {
   beforeEach(() => {
     clearOidcJwksCacheForTests();
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
   });
 
   afterEach(() => {

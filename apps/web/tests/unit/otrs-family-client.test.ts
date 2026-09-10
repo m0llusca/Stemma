@@ -21,7 +21,11 @@ import {
   parseTicketSearchResponse
 } from "@/lib/integrations/otrs-family/requests";
 import { runWithSessionReauth } from "@/lib/integrations/otrs-family/session-auth";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+beforeEach(() => {
+  vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
+});
 
 const baseUrl = "https://support.example.com/otrs";
 const userLogin = "qa_api";
