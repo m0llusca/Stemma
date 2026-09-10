@@ -1,4 +1,5 @@
 import type { IdentityProvider, Prisma } from "@prisma/client";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import { resolveIdentityPolicyForUser, type ExternalRoleClaims } from "@/lib/auth/providers";
 import { syncActiveDirectoryLdapsProvider, type LdapsClientFactory } from "@/lib/auth/ldaps";
 import { prisma } from "@/lib/db";
@@ -108,8 +109,9 @@ export async function syncDirectoryProvider(input: {
     const name = identity.displayName ?? identity.email;
     const supportLine = policy.supportLine ?? identity.user.supportLine;
     const teamName = policy.teamName ?? identity.user.teamName;
+    const role = await roleAfterLastAdminGuard(db, provider.workspaceId, identity.user.role, policy.role);
     const userAttributesChanged =
-      identity.user.role !== policy.role ||
+      identity.user.role !== role ||
       identity.user.email !== identity.email ||
       identity.user.name !== name ||
       identity.user.supportLine !== supportLine ||
@@ -123,7 +125,7 @@ export async function syncDirectoryProvider(input: {
           ? {
               email: identity.email,
               name,
-              role: policy.role,
+              role,
               supportLine,
               teamName,
               sourceOfTruthProviderId: provider.id

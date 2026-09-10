@@ -14,6 +14,7 @@ import type {
   ConnectStepStatus,
   SourceConnectionProfile
 } from "@/lib/integrations/connect/types";
+import { guardedFetch } from "@/lib/net-guard";
 
 export type ConnectJournalState =
   | {
@@ -42,13 +43,20 @@ async function defaultReachabilityCheck(
   baseUrl: string
 ): Promise<{ status: ConnectStepStatus; detail?: string; hint?: string }> {
   try {
-    const response = await fetch(baseUrl, {
+    const response = await guardedFetch(baseUrl, {
       method: "GET",
-      redirect: "manual",
       signal: AbortSignal.timeout(8000)
     });
     return { status: "ok", detail: productFromHeaders(response) };
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/приватный адрес|DNS-имя|QC_ALLOW_PRIVATE_BASE_URLS|перенаправлен/.test(message)) {
+      return {
+        status: "failed",
+        detail: message,
+        hint: "Проверьте Base URL: локальные и приватные адреса запрещены по умолчанию."
+      };
+    }
     return {
       status: "failed",
       detail: "Сервер не ответил.",

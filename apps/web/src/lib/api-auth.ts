@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, requestIdFromHeaders } from "@/lib/api/response";
 import { isDemoAuthEnabled } from "@/lib/auth/demo";
-import { demoApiToken } from "@/lib/custom-api-docs";
+import { isHardcodedDemoApiToken } from "@/lib/custom-api-docs";
 import { prisma } from "@/lib/db";
 
 export type ApiScope =
@@ -71,7 +71,9 @@ function authErrorResponse(request: NextRequest, message: string, status: 401 | 
 }
 
 function isDisabledDemoApiToken(token: string) {
-  return token === demoApiToken && !isDemoAuthEnabled();
+  // Fail closed: the source-known demo token never authenticates unless demo auth is on.
+  // Even if a matching hashed row exists in the DB from an old seed, reject before lookup.
+  return isHardcodedDemoApiToken(token) && !isDemoAuthEnabled();
 }
 
 export async function requireApiToken(

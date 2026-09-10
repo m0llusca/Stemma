@@ -4,6 +4,7 @@ import { Buffer } from "node:buffer";
 import { OtrsConnectorError, type OtrsConnectorErrorCode } from "@/lib/integrations/otrs-family/errors";
 import type { OtrsConnectorConfig } from "@/lib/integrations/otrs-family/config";
 import type { OtrsOperationRequest } from "@/lib/integrations/otrs-family/requests";
+import { assertPublicBaseUrl } from "@/lib/net-guard";
 
 export type OtrsTransportRequest = {
   operation: OtrsOperationRequest["operation"];
@@ -209,6 +210,8 @@ export function redactOtrsPayload<T>(value: T): T {
 }
 
 async function nodeTransport(request: OtrsTransportRequest): Promise<OtrsTransportResponse> {
+  await assertPublicBaseUrl(new URL(request.url));
+
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(request.url);
     const isHttps = parsedUrl.protocol === "https:";

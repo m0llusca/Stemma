@@ -11,6 +11,7 @@ import {
   type ParsedLdapsConfig
 } from "@/lib/auth/ldaps-config";
 import { resolveSecretReference } from "@/lib/auth/secret-refs";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import { resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
 import { applyUserLifecycleStatus } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
@@ -535,13 +536,16 @@ async function persistDirectorySnapshot(input: {
       client
     );
     const lifecycleStatus: UserLifecycleStatus = directoryUser.disabled ? "SUSPENDED" : "ACTIVE";
+    const role = existingUser
+      ? await roleAfterLastAdminGuard(client, provider.workspaceId, existingUser.role, policy.role)
+      : policy.role;
     const user = existingUser
       ? await client.user.update({
           where: { id: existingUser.id },
           data: {
             email: directoryUser.email,
             name: directoryUser.displayName,
-            role: policy.role,
+            role,
             supportLine: policy.supportLine ?? existingUser.supportLine,
             teamName: policy.teamName ?? existingUser.teamName,
             sourceOfTruthProviderId: provider.id,

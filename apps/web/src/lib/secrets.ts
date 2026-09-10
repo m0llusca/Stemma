@@ -2,15 +2,36 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 
 const algorithm = "aes-256-gcm";
 
+/**
+ * Soft fallback used only when `QC_SECRET_KEY` is unset in local `development` or `test`.
+ * Production boot already fails closed in instrumentation; this module also refuses the
+ * fallback for any other NODE_ENV so staging/preview hosts cannot silently encrypt with
+ * a public default.
+ */
+export const LOCAL_DEV_SECRET_FALLBACK = "local-dev-secret-key-change-before-production";
+
+function allowsLocalSecretFallback(nodeEnv: string | undefined) {
+  return nodeEnv === undefined || nodeEnv === "development" || nodeEnv === "test";
+}
+
 function keyFromEnvironment() {
   const raw = process.env.QC_SECRET_KEY;
 
-  if (!raw && process.env.NODE_ENV === "production") {
+  if (raw) {
+    return createHash("sha256").update(raw, "utf8").digest();
+  }
+
+  if (process.env.NODE_ENV === "production") {
     throw new Error("QC_SECRET_KEY must be configured in production.");
   }
 
-  const secret = raw || "local-dev-secret-key-change-before-production";
-  return createHash("sha256").update(secret, "utf8").digest();
+  if (!allowsLocalSecretFallback(process.env.NODE_ENV)) {
+    throw new Error(
+      "QC_SECRET_KEY must be configured outside local development (NODE_ENV=development|test)."
+    );
+  }
+
+  return createHash("sha256").update(LOCAL_DEV_SECRET_FALLBACK, "utf8").digest();
 }
 
 export function encryptSecret(value: string) {

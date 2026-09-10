@@ -1,8 +1,10 @@
 import { createHash, createPublicKey, createVerify, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IdentityProvider, RoleName } from "@prisma/client";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import { buildEntraAuthorizationMetadata, resolveIdentityPolicyFromExternalClaims } from "@/lib/auth/providers";
 import { assertProductionSecretReference, resolveSecretReference } from "@/lib/auth/secret-refs";
 import { prisma } from "@/lib/db";
+import { guardedFetch } from "@/lib/net-guard";
 
 export { assertProductionSecretReference, isManagedSecretReference } from "@/lib/auth/secret-refs";
 
@@ -168,7 +170,7 @@ function validateClaims(input: {
 }
 
 async function fetchJwks(jwksUrl: string): Promise<JwksKey[]> {
-  const response = await fetch(jwksUrl, { cache: "no-store" });
+  const response = await guardedFetch(jwksUrl, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error("Не удалось получить JWKS провайдера.");
@@ -349,7 +351,7 @@ export async function exchangeAuthorizationCode(input: {
     body.set("client_secret", clientSecret);
   }
 
-  const response = await fetch(metadata.tokenUrl, {
+  const response = await guardedFetch(metadata.tokenUrl, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded"
@@ -407,7 +409,7 @@ async function fetchGraphMemberGroups(input: {
   const endpoint = resolveMicrosoftGraphEndpoint(config.endpoint);
   const userId = userIdForGraph(input.claims, config.userIdClaim ?? "oid");
   const path = userId ? `/users/${encodeURIComponent(userId)}/getMemberGroups` : "/me/getMemberGroups";
-  const response = await fetch(`${endpoint}${path}`, {
+  const response = await guardedFetch(`${endpoint}${path}`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${input.accessToken}`,
@@ -561,12 +563,14 @@ export async function upsertUserFromOidcClaims(input: {
         }
       });
 
+      const role = await roleAfterLastAdminGuard(tx, input.workspaceId, existingIdentity.user.role, policy.role);
+
       return tx.user.update({
         where: { id: existingIdentity.userId },
         data: {
           email,
           name: displayName,
-          role: policy.role,
+          role,
           sourceOfTruthProviderId: input.providerId,
           lastDirectorySyncAt: new Date(),
           ...directoryAttributes
@@ -602,8 +606,10 @@ export async function upsertUserFromOidcClaims(input: {
         }
       }));
 
+    const role = await roleAfterLastAdminGuard(tx, input.workspaceId, linkedUser.role, policy.role);
+
     const needsUserUpdate =
-      linkedUser.role !== policy.role ||
+      linkedUser.role !== role ||
       linkedUser.name !== displayName ||
       linkedUser.sourceOfTruthProviderId !== input.providerId ||
       (policy.supportLine !== undefined && linkedUser.supportLine !== policy.supportLine) ||
@@ -614,7 +620,7 @@ export async function upsertUserFromOidcClaims(input: {
             where: { id: linkedUser.id },
             data: {
               name: displayName,
-              role: policy.role,
+              role,
               sourceOfTruthProviderId: input.providerId,
               lastDirectorySyncAt: new Date(),
               ...directoryAttributes
@@ -639,6 +645,6 @@ export async function upsertUserFromOidcClaims(input: {
 
   return {
     user,
-    role: policy.role as RoleName
+    role: user.role as RoleName
   };
 }

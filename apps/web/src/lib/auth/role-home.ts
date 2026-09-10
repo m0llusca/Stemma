@@ -23,14 +23,53 @@ export function analystMineOverdueHref(qaAssigneeName: string) {
   return `/reviews?qaAssignee=${encodeURIComponent(qaAssigneeName)}&due=overdue`;
 }
 
+/**
+ * Collapse open-redirect attempts to `/` so role home applies.
+ * Rejects scheme-relative URLs, backslash IE/WHATWG edge cases, control chars,
+ * percent-encoded `//` / `\`, and any path that WHATWG URL resolution would take
+ * off a same-origin base.
+ */
 export function sanitizeReturnTo(value: string | null | undefined) {
   const text = typeof value === "string" ? value.trim() : "";
-  if (text.startsWith("/") && !text.startsWith("//")) {
-    return text;
+
+  if (
+    !text.startsWith("/") ||
+    text.startsWith("//") ||
+    text.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(text)
+  ) {
+    return "/";
   }
 
-  // Invalid / open-redirect attempts collapse to a generic sentinel so role home applies.
-  return "/";
+  try {
+    const base = "https://stemma.invalid";
+    const resolved = new URL(text, base);
+
+    // Username/password in the path (e.g. `/@evil` tricks) or off-origin → reject.
+    if (resolved.origin !== base || resolved.username || resolved.password) {
+      return "/";
+    }
+
+    let decodedPath = resolved.pathname;
+    try {
+      decodedPath = decodeURIComponent(resolved.pathname);
+    } catch {
+      return "/";
+    }
+
+    if (!decodedPath.startsWith("/") || decodedPath.startsWith("//") || decodedPath.includes("\\")) {
+      return "/";
+    }
+
+    const safe = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+    if (!safe.startsWith("/") || safe.startsWith("//") || safe.includes("\\")) {
+      return "/";
+    }
+
+    return safe || "/";
+  } catch {
+    return "/";
+  }
 }
 
 export function isGenericPostLoginPath(path: string) {

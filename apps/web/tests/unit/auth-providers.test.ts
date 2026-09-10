@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildEntraAuthorizationMetadata,
   getDirectoryIntegrationGuidance,
+  refreshIdentityPoliciesForUsers,
   resolveIdentityPolicyFromExternalClaims,
   resolveIdentityPolicyForUser,
   resolveRoleFromExternalClaims
@@ -14,6 +15,11 @@ const mocks = vi.hoisted(() => ({
     },
     userIdentityGroup: {
       findMany: vi.fn()
+    },
+    user: {
+      findFirst: vi.fn(),
+      count: vi.fn(),
+      updateMany: vi.fn()
     }
   }
 }));
@@ -194,5 +200,50 @@ describe("auth provider helpers", () => {
       preferred: expect.stringContaining("Microsoft Entra ID"),
       fallback: expect.stringContaining("LDAPS")
     });
+  });
+
+  it("refuses to demote the last workspace admin during identity policy refresh", async () => {
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValueOnce([]);
+    mocks.prisma.userIdentityGroup.findMany.mockResolvedValueOnce([]);
+    mocks.prisma.user.findFirst.mockResolvedValueOnce({ role: "ADMIN" });
+    mocks.prisma.user.count.mockResolvedValueOnce(1);
+    mocks.prisma.user.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await refreshIdentityPoliciesForUsers({
+      workspaceId: "workspace-1",
+      providerId: "provider-1",
+      userIds: ["admin-1"]
+    });
+
+    expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "admin-1" }),
+        data: expect.objectContaining({
+          role: "ADMIN"
+        })
+      })
+    );
+  });
+
+  it("allows demoting an admin when another admin remains during identity policy refresh", async () => {
+    mocks.prisma.groupRoleMapping.findMany.mockResolvedValueOnce([]);
+    mocks.prisma.userIdentityGroup.findMany.mockResolvedValueOnce([]);
+    mocks.prisma.user.findFirst.mockResolvedValueOnce({ role: "ADMIN" });
+    mocks.prisma.user.count.mockResolvedValueOnce(2);
+    mocks.prisma.user.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await refreshIdentityPoliciesForUsers({
+      workspaceId: "workspace-1",
+      providerId: "provider-1",
+      userIds: ["admin-2"]
+    });
+
+    expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: "VIEWER"
+        })
+      })
+    );
   });
 });

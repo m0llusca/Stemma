@@ -108,6 +108,21 @@ describe("role-home", () => {
     expect(sanitizeReturnTo("/reviews/abc")).toBe("/reviews/abc");
   });
 
+  it("rejects backslash and WHATWG open-redirect edge cases", () => {
+    expect(sanitizeReturnTo("/\\evil.example")).toBe("/");
+    expect(sanitizeReturnTo("/\\\\evil.example")).toBe("/");
+    expect(sanitizeReturnTo("/reviews\\next")).toBe("/");
+    expect(sanitizeReturnTo("/\tevil")).toBe("/");
+    expect(sanitizeReturnTo("/reviews\u0000")).toBe("/");
+    expect(sanitizeReturnTo("/%2f%2fevil.example")).toBe("/");
+    expect(sanitizeReturnTo("//@evil.example")).toBe("/");
+    expect(sanitizeReturnTo("/reviews?next=https://evil.example")).toBe(
+      "/reviews?next=https://evil.example"
+    );
+    expect(sanitizeReturnTo("/reviews#section")).toBe("/reviews#section");
+    expect(sanitizeReturnTo("  /reviews/abc  ")).toBe("/reviews/abc");
+  });
+
   it("resolves generic returnTo to role home and keeps intentional destinations", () => {
     expect(
       resolvePostLoginPath("/reviews", { role: "QA_ANALYST", name: "Анна QA" })
