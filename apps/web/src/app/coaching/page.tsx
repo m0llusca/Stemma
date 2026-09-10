@@ -1502,7 +1502,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
             <EmptyState
               icon={<ClipboardList size={24} aria-hidden="true" />}
               title="В этом срезе нет задач"
-              description="{canManageCoachingOps ? "Измените фильтры или создайте учебную задачу из проверки с замечанием." : "Измените фильтры — новые задачи назначает тимлид."}
+              description={canManageCoachingOps ? "Измените фильтры или создайте учебную задачу из проверки с замечанием." : "Измените фильтры — новые задачи назначает тимлид."}
               action={
                 canManageCoachingOps ? (
                   <Button render={<Link href={createTaskHref} />} nativeButton={false}>

@@ -150,7 +150,7 @@ function isCriterionIssue(criterion: ScorecardCriterion, score?: CriterionScore)
   }
 
   if (criterion.kind === "SCALE_1_3") {
-    return (score?.value ?? 3) < 3;
+    return typeof score?.value === "number" && score.value < 3;
   }
 
   return score?.passed === false;
@@ -166,7 +166,11 @@ function criterionStatus(
   }
 
   if (criterion.kind === "SCALE_1_3") {
-    const value = score?.value ?? 3;
+    if (typeof score?.value !== "number") {
+      return { label: "Не оценено", tone: "neutral" };
+    }
+
+    const value = score.value;
 
     if (presentation === "agent") {
       if (value <= 1) {
@@ -189,15 +193,19 @@ function criterionStatus(
     return { label: "3/3 стандарт", tone: "success" };
   }
 
-  if (presentation === "agent") {
-    return score?.passed === false
-      ? { label: "не зачтено", tone: "warning" }
-      : { label: "зачтено", tone: "success" };
+  if (typeof score?.passed !== "boolean") {
+    return { label: "Не оценено", tone: "neutral" };
   }
 
-  return score?.passed === false
-    ? { label: "Незачет", tone: "danger" }
-    : { label: "Зачет", tone: "success" };
+  if (presentation === "agent") {
+    return score.passed
+      ? { label: "зачтено", tone: "success" }
+      : { label: "не зачтено", tone: "warning" };
+  }
+
+  return score.passed
+    ? { label: "Зачет", tone: "success" }
+    : { label: "Незачет", tone: "danger" };
 }
 
 function getCriterionDensityMeta(score?: CriterionScore) {
@@ -229,13 +237,13 @@ function aiAgreesWithDraft(
     if (typeof prediction.value !== "number") {
       return false;
     }
-    return (score?.value ?? 3) === prediction.value;
+    return typeof score?.value === "number" && score.value === prediction.value;
   }
 
   if (typeof prediction.passed !== "boolean") {
     return false;
   }
-  return (score?.passed ?? true) === prediction.passed;
+  return typeof score?.passed === "boolean" && score.passed === prediction.passed;
 }
 
 function formatEvidenceTime(value: Date) {
@@ -417,12 +425,16 @@ export function ReviewPanel({
     }
 
     if (criterion.kind === "SCALE_1_3") {
-      const value = score?.value ?? 3;
-      return (criterion.weight * (value / 3) * 100) / totalWeight;
+      if (typeof score?.value !== "number") {
+        return 0;
+      }
+      return (criterion.weight * (score.value / 3) * 100) / totalWeight;
     }
 
-    const passed = score?.passed ?? true;
-    return passed ? (criterion.weight * 100) / totalWeight : 0;
+    if (typeof score?.passed !== "boolean") {
+      return 0;
+    }
+    return score.passed ? (criterion.weight * 100) / totalWeight : 0;
   }
 
   function formatPercent(value: number) {
@@ -597,8 +609,7 @@ export function ReviewPanel({
                   <div className="grid gap-0 bg-card">
                     {group.criteria.map((criterion) => {
                       const draftScore = draftScores.get(criterion.id);
-                      const passedValue = draftScore?.passed ?? true;
-                      const status = criterionStatus(criterion, draftScore, presentation);
+                                            const status = criterionStatus(criterion, draftScore, presentation);
                       const densityMeta = getCriterionDensityMeta(draftScore);
                       const hasIssue = isCriterionIssue(criterion, draftScore);
                       const contribution = criterionContribution(criterion, draftScore);
@@ -705,7 +716,7 @@ export function ReviewPanel({
                                   <RadioGroup
                                     aria-labelledby={`review-criterion-${criterion.id}-score-legend`}
                                     name={`criterion.${criterion.id}.score`}
-                                    defaultValue={String(draftScore?.value ?? 3)}
+                                    defaultValue={typeof draftScore?.value === "number" ? String(draftScore.value) : undefined}
                                     className="grid w-full grid-flow-row gap-0 overflow-clip rounded-md border border-border bg-card"
                                   >
                                     <label className={segmentLabelScaleClass}>
@@ -749,7 +760,7 @@ export function ReviewPanel({
                                   <RadioGroup
                                     aria-labelledby={`review-criterion-${criterion.id}-result-legend`}
                                     name={`criterion.${criterion.id}.passed`}
-                                    defaultValue={passedValue ? "true" : "false"}
+                                    defaultValue={typeof draftScore?.passed === "boolean" ? (draftScore.passed ? "true" : "false") : undefined}
                                     className="grid w-full grid-cols-1 gap-0 overflow-clip rounded-md border border-border bg-card sm:grid-cols-2"
                                   >
                                     <label className={segmentLabelBinaryClass}>

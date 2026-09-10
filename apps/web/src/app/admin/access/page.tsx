@@ -911,7 +911,8 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
           </Card>
         ) : null}
 
-        {activeSection === "scim" && selectedProvider ? (
+        {activeSection === "scim" ? (
+          selectedProvider ? (
           <Card aria-labelledby="scim-token-title">
             {selectedProvider.type === "DEMO" ? (
               <>
@@ -946,9 +947,24 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               </CardContent>
             )}
           </Card>
+
+          ) : (
+            <EmptyState
+              size="inline"
+              icon={<KeyRound size={20} aria-hidden="true" />}
+              title="Нет выбранного провайдера"
+              description="Выберите или создайте провайдера входа, чтобы выпускать и управлять SCIM-токеном."
+              action={
+                <Button render={<Link href={accessSectionHref("provider")} />} nativeButton={false} size="sm">
+                  {providers.length === 0 ? "Создать провайдера" : "Выбрать провайдера"}
+                </Button>
+              }
+            />
+          )
         ) : null}
 
-        {activeSection === "mappings" && selectedProvider ? (
+        {activeSection === "mappings" ? (
+          selectedProvider ? (
           <Card aria-labelledby="mappings-title">
             <CardHeader className="border-b">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Политика ролей</p>
@@ -1081,6 +1097,20 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               </div>
             </CardContent>
           </Card>
+
+          ) : (
+            <EmptyState
+              size="inline"
+              icon={<UsersRound size={20} aria-hidden="true" />}
+              title="Нет выбранного провайдера"
+              description="Выберите или создайте провайдера входа, чтобы настроить сопоставление групп и ролей."
+              action={
+                <Button render={<Link href={accessSectionHref("provider")} />} nativeButton={false} size="sm">
+                  {providers.length === 0 ? "Создать провайдера" : "Выбрать провайдера"}
+                </Button>
+              }
+            />
+          )
         ) : null}
 
         {activeSection === "sessions" ? (
