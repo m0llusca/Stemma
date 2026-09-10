@@ -440,8 +440,11 @@ export type GuardedFetchInit = RequestInit & {
 };
 
 /**
- * fetch() with DNS-pinning SSRF checks on the initial URL and every redirect Location.
+ * fetch() with pre-flight SSRF DNS validation on the initial URL and every redirect Location.
  * Always uses redirect:"manual" so the runtime cannot follow a private hop before we re-assert.
+ *
+ * Note: this is not true connection-level DNS pinning — `fetch` may re-resolve the hostname
+ * after our check (TOCTOU). Prefer literal IPs in trusted configs when pinning is required.
  */
 export async function guardedFetch(input: string | URL, init: GuardedFetchInit = {}): Promise<Response> {
   const maxRedirects = init.maxRedirects ?? 5;
