@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { assertCanPersistSettings, requireCurrentUserPermission } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
-import { probeBeforeSaveGate } from "@/lib/integrations/probe-honesty";
+import {
+  isProbeBeforeSaveAllowed,
+  probeBeforeSaveGate,
+  type ProbeBeforeSaveIntent
+} from "@/lib/integrations/probe-honesty";
+import { probeMessagingChannelWebhook } from "@/lib/messaging/probe-channel";
 import { messagingChannelRegistry } from "@/lib/messaging/registry";
 import { assertPublicBaseUrl } from "@/lib/net-guard";
 import { encryptSecret } from "@/lib/secrets";
@@ -21,6 +26,9 @@ import type { StatusTone } from "@/lib/ui/status-tone";
  * - configJson  = JSON.stringify({ webhookUrl })
  * - secretRef   = encryptSecret(token) | null
  * - status      = "active" (deliverable) | "draft" (not)
+ *
+ * Activate / claim_live: probe runs BEFORE persist; `decision.action === "block"`
+ * aborts the write (fail-closed). Operational enable is not live certification.
  */
 
 export type SaveMessagingChannelState = {
@@ -55,6 +63,102 @@ function isLikelyWebhookUrl(value: string) {
   }
 }
 
+function parseStoredWebhookUrl(configJson: string | null | undefined): string {
+  if (!configJson) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(configJson) as { webhookUrl?: unknown };
+    return typeof parsed.webhookUrl === "string" ? parsed.webhookUrl.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Resolve honesty intent. `claimLive=1` asserts live-ready (blocked without cert).
+ * Otherwise active → activate, draft → config_only.
+ */
+function resolveMessagingSaveIntent(
+  status: MessagingChannelStatus,
+  formData: FormData
+): ProbeBeforeSaveIntent {
+  const claimLive = stringField(formData, "claimLive");
+  if (claimLive === "1" || claimLive === "true") {
+    return "claim_live";
+  }
+
+  return status === "active" ? "activate" : "config_only";
+}
+
+/**
+ * Probe + gate BEFORE any activate/claim_live persist. Returns a block state when
+ * the probe fails or the gate blocks; otherwise evidence for the success message.
+ */
+async function gateMessagingLiveIntent(input: {
+  intent: ProbeBeforeSaveIntent;
+  kind: string;
+  webhookUrl: string;
+  liveCertified?: boolean;
+}): Promise<
+  | { blocked: true; state: SaveMessagingChannelState }
+  | {
+      blocked: false;
+      decision: ReturnType<typeof probeBeforeSaveGate>;
+      probeSucceeded: boolean;
+      liveCertified: boolean;
+    }
+> {
+  const liveCertified = Boolean(input.liveCertified);
+  let probeSucceeded = false;
+
+  if (input.intent === "activate" || input.intent === "claim_live") {
+    if (!liveCertified) {
+      const probe = await probeMessagingChannelWebhook({
+        kind: input.kind,
+        webhookUrl: input.webhookUrl
+      });
+      probeSucceeded = probe.ok;
+
+      if (!probe.ok) {
+        const decision = probeBeforeSaveGate(input.intent, {
+          probeSucceeded: false,
+          liveCertified: false
+        });
+        return {
+          blocked: true,
+          state: {
+            status: "error",
+            message: probe.error ?? decision.message,
+            kind: input.kind,
+            tone: decision.tone
+          }
+        };
+      }
+    } else {
+      // Live cert already covers readiness; skip network probe.
+      probeSucceeded = true;
+    }
+  }
+
+  const decision = probeBeforeSaveGate(input.intent, { probeSucceeded, liveCertified });
+
+  if (!isProbeBeforeSaveAllowed(decision)) {
+    return {
+      blocked: true,
+      state: {
+        status: "error",
+        message: decision.message,
+        kind: input.kind,
+        tone: decision.tone
+      }
+    };
+  }
+
+  return { blocked: false, decision, probeSucceeded, liveCertified };
+}
+
 export async function saveMessagingChannel(
   _previousState: SaveMessagingChannelState,
   formData: FormData
@@ -78,9 +182,10 @@ export async function saveMessagingChannel(
   const requestedStatus = stringField(formData, "status");
   const status: MessagingChannelStatus = isChannelStatus(requestedStatus) ? requestedStatus : "draft";
   const displayName = stringField(formData, "displayName") || definition.displayName;
+  const intent = resolveMessagingSaveIntent(status, formData);
 
   // A channel cannot be deliverable without somewhere to deliver to.
-  if (status === "active" && !webhookUrl) {
+  if ((status === "active" || intent === "claim_live") && !webhookUrl) {
     return {
       status: "error",
       message: "Укажите webhook URL, чтобы включить уведомление.",
@@ -105,6 +210,18 @@ export async function saveMessagingChannel(
         message: error instanceof Error ? error.message : "Webhook URL недопустим.",
         kind
       };
+    }
+  }
+
+  // Probe-before-save: activate/claim_live must pass the gate BEFORE upsert.
+  if (intent === "activate" || intent === "claim_live") {
+    const gated = await gateMessagingLiveIntent({
+      intent,
+      kind,
+      webhookUrl
+    });
+    if (gated.blocked) {
+      return gated.state;
     }
   }
 
@@ -151,14 +268,18 @@ export async function saveMessagingChannel(
         status: channel.status,
         hasWebhook: Boolean(webhookUrl),
         // Record only whether a secret is present — never the secret itself.
-        secretConfigured: Boolean(encryptedSecret) || undefined
+        secretConfigured: Boolean(encryptedSecret) || undefined,
+        intent
       }
     });
 
     revalidatePath("/admin/channels");
     revalidatePath("/admin");
 
-    const decision = probeBeforeSaveGate(status === "active" ? "activate" : "config_only");
+    const decision =
+      intent === "activate" || intent === "claim_live"
+        ? probeBeforeSaveGate(intent, { probeSucceeded: true, liveCertified: false })
+        : probeBeforeSaveGate("config_only");
 
     return {
       status: "success",
@@ -187,6 +308,10 @@ export async function setMessagingChannelStatus(
 
   const kind = stringField(formData, "kind");
   const requestedStatus = stringField(formData, "status");
+  const intent = resolveMessagingSaveIntent(
+    isChannelStatus(requestedStatus) ? requestedStatus : "draft",
+    formData
+  );
 
   if (!isKnownChannelKind(kind)) {
     throw new Error("Неизвестный тип уведомления.");
@@ -194,6 +319,39 @@ export async function setMessagingChannelStatus(
 
   if (!isChannelStatus(requestedStatus)) {
     throw new Error("Недопустимый статус уведомления.");
+  }
+
+  if (requestedStatus === "active" || intent === "claim_live") {
+    const existing = await prisma.messagingChannel.findUnique({
+      where: {
+        workspaceId_kind: {
+          workspaceId: user.workspaceId,
+          kind
+        }
+      },
+      select: {
+        configJson: true
+      }
+    });
+    const webhookUrl = parseStoredWebhookUrl(existing?.configJson);
+
+    if (!webhookUrl) {
+      return {
+        status: "error",
+        message: "Укажите webhook URL, чтобы включить уведомление.",
+        kind,
+        tone: "negative"
+      };
+    }
+
+    const gated = await gateMessagingLiveIntent({
+      intent: intent === "claim_live" ? "claim_live" : "activate",
+      kind,
+      webhookUrl
+    });
+    if (gated.blocked) {
+      return gated.state;
+    }
   }
 
   const channel = await prisma.messagingChannel.update({
@@ -216,15 +374,19 @@ export async function setMessagingChannelStatus(
     targetId: channel.id,
     metadata: {
       kind: channel.kind,
-      status: requestedStatus
+      status: requestedStatus,
+      intent
     }
   });
 
   revalidatePath("/admin/channels");
   revalidatePath("/admin");
 
-  if (requestedStatus === "active") {
-    const decision = probeBeforeSaveGate("activate");
+  if (requestedStatus === "active" || intent === "claim_live") {
+    const decision = probeBeforeSaveGate(intent === "claim_live" ? "claim_live" : "activate", {
+      probeSucceeded: true,
+      liveCertified: false
+    });
     return {
       status: "success",
       message: `Уведомление включено для доставки. ${decision.message}`,

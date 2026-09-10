@@ -112,13 +112,17 @@ describe("admin connection chip wiring", () => {
 });
 
 describe("probe-before-save action wiring", () => {
-  it("gates messaging and integration saves through probeBeforeSaveGate", () => {
+  it("gates messaging and integration saves through probeBeforeSaveGate before persist", () => {
     expect(messagingActions).toContain("probeBeforeSaveGate");
-    expect(messagingActions).toContain('status === "active" ? "activate" : "config_only"');
-    expect(messagingActions).toContain('probeBeforeSaveGate("activate")');
+    expect(messagingActions).toContain("isProbeBeforeSaveAllowed");
+    expect(messagingActions).toContain("probeMessagingChannelWebhook");
+    expect(messagingActions).toContain("gateMessagingLiveIntent");
+    expect(messagingActions).toContain('"claim_live"');
     expect(messagingActions).toContain("setMessagingChannelStatus");
     expect(messagingActions).not.toContain("Канал сохранен и активирован.");
     expect(integrationActions).toContain("probeBeforeSaveGate");
+    expect(integrationActions).toContain("isProbeBeforeSaveAllowed");
+    expect(integrationActions).toContain("claim_live");
     expect(integrationActions).not.toContain("Источник появился в списке подключений.");
     expect(connectWizard).toContain("probeBeforePersistCopy");
     expect(connectWizard).toContain("connectPersistedNotLiveCopy");

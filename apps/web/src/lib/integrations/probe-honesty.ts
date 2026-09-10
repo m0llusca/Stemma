@@ -23,7 +23,9 @@ export const channelsIaDistinction =
 export const saveDoesNotCertifyCopy =
   "Сохранение настроек ≠ живая сертификация. Зелёный статус — только после live cert с evidence.";
 export const activateWithoutProbeCopy =
-  "Включение без probe не подтверждает live-готовность. Доставка может идти, сертификация не пройдена.";
+  "Нельзя включить без успешного probe. Сначала проверьте доступ — иначе доставка не подтверждена. Живая сертификация — отдельный шаг.";
+export const activateProbePassedNotLiveCopy =
+  "Probe прошёл. Это ещё не живая сертификация — зелёный только после live cert.";
 export const claimLiveWithoutCertCopy =
   "Нельзя сохранить как live-ready без живой сертификации и evidence.";
 export const connectPersistedNotLiveCopy =
@@ -47,7 +49,14 @@ export type ProbeBeforeSaveDecision = {
 /**
  * Action-level honesty gate. Labels can stay operational; the save/connect
  * action must not claim live readiness without probe/cert evidence.
- * claim_live without cert is blocked. activate/config_only warn fail-closed.
+ *
+ * - claim_live without liveCertified → block (do not persist)
+ * - activate without successful probe → block (probe-before-save fail-closed)
+ * - activate with probe, without live cert → warn (operational enable ≠ live)
+ * - config_only without live cert → warn (save ≠ live cert)
+ *
+ * Callers must evaluate this BEFORE persisting activate/claim_live intents and
+ * must honor `action === "block"` (see `isProbeBeforeSaveAllowed`).
  */
 export function probeBeforeSaveGate(
   intent: ProbeBeforeSaveIntent,
@@ -81,12 +90,18 @@ export function probeBeforeSaveGate(
       };
     }
 
+    if (!probeSucceeded) {
+      return {
+        action: "block",
+        tone: "negative",
+        message: activateWithoutProbeCopy
+      };
+    }
+
     return {
       action: "warn",
       tone: "warning",
-      message: probeSucceeded
-        ? "Probe прошёл. Это ещё не живая сертификация — зелёный только после live cert."
-        : activateWithoutProbeCopy
+      message: activateProbePassedNotLiveCopy
     };
   }
 
@@ -103,6 +118,11 @@ export function probeBeforeSaveGate(
     tone: "warning",
     message: saveDoesNotCertifyCopy
   };
+}
+
+/** Persist only when the gate did not block (activate/claim_live fail-closed). */
+export function isProbeBeforeSaveAllowed(decision: ProbeBeforeSaveDecision): boolean {
+  return decision.action !== "block";
 }
 
 export function saveActionSuccessTone(liveCertified: boolean): StatusTone {
