@@ -46,6 +46,7 @@ import { filterCoachingPlansForAgent, listCoachingPlans } from "@/lib/coaching-p
 import { groupCoachingThemesByAgent } from "@/lib/coaching-themes";
 import { coachingInWorkKpiHint, coachingOverdueKpiHint } from "@/lib/coaching/empty-honesty";
 import { loadAssignmentCoachingImpact, trainingEffectKpiHint, type CoachingImpact } from "@/lib/coaching-impact";
+import { canViewPeerQuality } from "@/lib/auth/permissions";
 import { canAccessTraining, getCurrentUser } from "@/lib/current-user";
 import { denyPageAccess } from "@/lib/page-permission";
 import { prisma } from "@/lib/db";
@@ -219,6 +220,10 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   // Agents may view their own training tasks; team scoring, create forms, and
   // other operators' reviews stay manager-only.
   const canManageCoachingOps = !isSupportAgent;
+  // Team avg / sparkline — same gate as dashboard (`peer_quality:read`).
+  // QA with training:manage but without peer_quality must not see other agents' scores.
+  const canViewPeerQualityMetrics = canViewPeerQuality(user.role);
+  const canShowScoreTrend = isSupportAgent || canViewPeerQualityMetrics;
   const trainingWhere =
     isSupportAgent
       ? { workspaceId: user.workspaceId, assigneeId: user.id }
@@ -282,16 +287,18 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           take: 20
         })
       : Promise.resolve([]),
-    prisma.review.findMany({
-      where: scoreHistoryWhere,
-      select: {
-        totalScore: true,
-        finalizedAt: true,
-        conversation: { select: { assigneeName: true } }
-      },
-      orderBy: { finalizedAt: "desc" },
-      take: 600
-    }),
+    canShowScoreTrend
+      ? prisma.review.findMany({
+          where: scoreHistoryWhere,
+          select: {
+            totalScore: true,
+            finalizedAt: true,
+            conversation: { select: { assigneeName: true } }
+          },
+          orderBy: { finalizedAt: "desc" },
+          take: 600
+        })
+      : Promise.resolve([]),
     listCoachingPlans(user.workspaceId).then((plans) =>
       isSupportAgent ? filterCoachingPlansForAgent(plans, user.id) : plans
     ),
@@ -419,20 +426,24 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
   // Loaded through C2's loadAssignmentCoachingImpact so the page owns no scoring
   // math of its own. Keyed by assignment id for per-row display and grouped by
   // plan id so each coaching plan shows its strongest measured result.
+  // Skip peer before/after averages when the viewer lacks peer_quality:read
+  // (agents still load their personal series via canShowScoreTrend).
   const assignmentImpacts = new Map<string, CoachingImpact>();
-  await Promise.all(
-    doneAssignments.map(async (assignment) => {
-      const impact = await loadAssignmentCoachingImpact(
-        {
-          workspaceId: user.workspaceId,
-          assigneeName: assignment.assigneeName,
-          pivot: assignment.updatedAt
-        },
-        prisma
-      );
-      assignmentImpacts.set(assignment.id, impact);
-    })
-  );
+  if (canShowScoreTrend) {
+    await Promise.all(
+      doneAssignments.map(async (assignment) => {
+        const impact = await loadAssignmentCoachingImpact(
+          {
+            workspaceId: user.workspaceId,
+            assigneeName: assignment.assigneeName,
+            pivot: assignment.updatedAt
+          },
+          prisma
+        );
+        assignmentImpacts.set(assignment.id, impact);
+      })
+    );
+  }
   // Best measured impact per plan: prefer the assignment with the largest
   // positive delta so a plan headlines its most convincing win.
   const planImpacts = new Map<string, CoachingImpact>();
@@ -678,12 +689,16 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         />
         <StatKpi
           label="Эффект обучения"
-          value={averageTrainingEffect == null ? "—" : formatQualityScoreDelta(averageTrainingEffect)}
-          delta={trainingEffectDelta}
+          value={
+            canShowScoreTrend && averageTrainingEffect != null
+              ? formatQualityScoreDelta(averageTrainingEffect)
+              : "—"
+          }
+          delta={canShowScoreTrend ? trainingEffectDelta : null}
           hint={trainingEffectKpiHint({
-            averageDelta: averageTrainingEffect,
-            positiveCount: positiveTrainingEffectCount,
-            measuredCount: measuredTrainingEffectCount
+            averageDelta: canShowScoreTrend ? averageTrainingEffect : null,
+            positiveCount: canShowScoreTrend ? positiveTrainingEffectCount : 0,
+            measuredCount: canShowScoreTrend ? measuredTrainingEffectCount : 0
           })}
         />
         <StatKpi
@@ -767,78 +782,91 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         </Card>
       ) : null}
 
-      {trendPoints.length >= 2 || topCategories.length > 0 ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]" aria-label="Динамика качества и зоны роста">
-          <Card>
-            <CardHeader>
-              <CardDescription>Качество во времени</CardDescription>
-              <CardTitle>{isSupportAgent ? "Ваш средний балл" : "Средний балл команды"}</CardTitle>
-              <CardDescription>
-                {isSupportAgent
-                  ? "Динамика ваших финальных проверок по месяцам."
-                  : "Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {trendPoints.length >= 2 ? (
-                <SparklineChart points={trendPoints} target={90} />
-              ) : (
-                <EmptyState
-                  size="inline"
-                  icon={<BookOpenCheck size={20} aria-hidden="true" />}
-                  title="Недостаточно данных для тренда"
-                  description="Линия появится после финальных проверок за несколько месяцев."
-                />
-              )}
-            </CardContent>
-          </Card>
+      {canShowScoreTrend || topCategories.length > 0 ? (
+        <div
+          className={
+            canShowScoreTrend
+              ? "grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.95fr)]"
+              : "grid gap-4"
+          }
+          aria-label="Динамика качества и зоны роста"
+        >
+          {canShowScoreTrend ? (
+            <Card>
+              <CardHeader>
+                <CardDescription>Качество во времени</CardDescription>
+                <CardTitle>
+                  {canViewPeerQualityMetrics ? "Средний балл команды" : "Ваш средний балл"}
+                </CardTitle>
+                <CardDescription>
+                  {canViewPeerQualityMetrics
+                    ? "Динамика финальных проверок по месяцам. Смотрите, меняется ли линия после закрытых разборов."
+                    : "Динамика ваших финальных проверок по месяцам."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {trendPoints.length >= 2 ? (
+                  <SparklineChart points={trendPoints} target={90} />
+                ) : (
+                  <EmptyState
+                    size="inline"
+                    icon={<BookOpenCheck size={20} aria-hidden="true" />}
+                    title="Недостаточно данных для тренда"
+                    description="Линия появится после финальных проверок за несколько месяцев."
+                  />
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>Зоны роста</CardTitle>
-              <CardDescription>Категории с наибольшим числом активных разборов.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {topCategories.length > 0 ? (
-                <ol className="flex flex-col gap-2">
-                  {topCategories.map(([categoryName, count], index) => (
-                    <li
-                      key={categoryName}
-                      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
-                    >
-                      <span
-                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
-                        aria-hidden="true"
+          {topCategories.length > 0 || canShowScoreTrend ? (
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>Зоны роста</CardTitle>
+                <CardDescription>Категории с наибольшим числом активных разборов.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topCategories.length > 0 ? (
+                  <ol className="flex flex-col gap-2">
+                    {topCategories.map(([categoryName, count], index) => (
+                      <li
+                        key={categoryName}
+                        className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2"
                       >
-                        {index + 1}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{categoryName}</span>
-                      <Chip tone="neutral" className="tabular-nums">
-                        {count}
-                      </Chip>
-                      <Button
-                        variant="link"
-                        size="xs"
-                        className="h-auto px-0"
-                        render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
-                        nativeButton={false}
-                      >
-                        <PlusCircle data-icon="inline-start" aria-hidden="true" />
-                        В обучение
-                      </Button>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <EmptyState
-                  size="inline"
-                  icon={<ClipboardList size={20} aria-hidden="true" />}
-                  title="Зон роста пока нет"
-                  description="Категории появятся после привязки разборов к проверкам."
-                />
-              )}
-            </CardContent>
-          </Card>
+                        <span
+                          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
+                          aria-hidden="true"
+                        >
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{categoryName}</span>
+                        <Chip tone="neutral" className="tabular-nums">
+                          {count}
+                        </Chip>
+                        <Button
+                          variant="link"
+                          size="xs"
+                          className="h-auto px-0"
+                          render={<Link href={viewHref(view, { q, assigneeId, category: categoryName })} />}
+                          nativeButton={false}
+                        >
+                          <PlusCircle data-icon="inline-start" aria-hidden="true" />
+                          В обучение
+                        </Button>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <EmptyState
+                    size="inline"
+                    icon={<ClipboardList size={20} aria-hidden="true" />}
+                    title="Зон роста пока нет"
+                    description="Категории появятся после привязки разборов к проверкам."
+                  />
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       ) : null}
 
@@ -1450,13 +1478,13 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
                           )}
                           {finding ? <Chip tone="neutral">{finding.category}</Chip> : null}
                           {finding ? <Chip tone="neutral">{riskLevelLabels[finding.riskLevel]}</Chip> : null}
-                          {assignment.review ? (
+                          {assignment.review && canShowScoreTrend ? (
                             <Chip tone="neutral" className="tabular-nums">
                               {formatQualityScore(assignment.review.totalScore)}
                             </Chip>
                           ) : null}
                           {assignment.review?.needsReanswer ? <Chip tone="warning">переответ</Chip> : null}
-                          {trainingEffect != null ? (
+                          {trainingEffect != null && canShowScoreTrend ? (
                             <Chip tone={trainingEffect >= 0 ? "success" : "danger"} className="tabular-nums">
                               {formatQualityScoreDelta(trainingEffect)} после разбора
                             </Chip>

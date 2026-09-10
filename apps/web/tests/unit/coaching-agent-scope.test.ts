@@ -15,6 +15,16 @@ describe("coaching page agent score scope", () => {
     expect(source).toContain("Ваш средний балл");
   });
 
+  it("gates team score history and sparkline behind peer_quality:read", () => {
+    expect(source).toContain("canViewPeerQuality(user.role)");
+    expect(source).toContain("canViewPeerQualityMetrics");
+    expect(source).toContain("canShowScoreTrend");
+    expect(source).toMatch(/canShowScoreTrend\s*\?\s*prisma\.review\.findMany/);
+    expect(source).toContain('canViewPeerQualityMetrics ? "Средний балл команды"');
+    expect(source).toContain("loadAssignmentCoachingImpact");
+    expect(source).toMatch(/if\s*\(\s*canShowScoreTrend\s*\)/);
+  });
+
   it("does not load team review candidates or support-user lists for agents", () => {
     expect(source).toContain("canManageCoachingOps");
     expect(source).toMatch(/canManageCoachingOps\s*\?\s*prisma\.user\.findMany/);
