@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,9 +18,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@/components/ui/collapsible";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatKpi } from "@/components/ui/stat-kpi";
 import { PageShell } from "@/components/ui/page-shell";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -157,10 +159,13 @@ async function JobDetailsPageContent({ params, searchParams }: JobDetailsPagePro
           {job.status === "QUEUED" ? (
             <form action={cancelQueuedBackendJob}>
               <input type="hidden" name="jobId" value={job.id} />
-              <Button type="submit" variant="outline" size="sm">
+              <ConfirmSubmitButton
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                confirmMessage="Отменить задачу в очереди? Она не будет выполнена, повторный запуск потребуется вручную."
+              >
                 <Ban data-icon="inline-start" aria-hidden="true" />
                 Отменить
-              </Button>
+              </ConfirmSubmitButton>
             </form>
           ) : null}
           <form action={runQueuedBackendJobs}>

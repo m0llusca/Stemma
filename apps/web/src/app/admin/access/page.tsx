@@ -913,41 +913,40 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
 
         {activeSection === "scim" ? (
           selectedProvider ? (
-          <Card aria-labelledby="scim-token-title">
-            {selectedProvider.type === "DEMO" ? (
-              <>
-                <CardHeader className="border-b">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Провижининг</p>
-                  <CardTitle id="scim-token-title">Bearer-токен SCIM 2.0</CardTitle>
-                  <CardDescription>
-                    Выпуск, ротация и отзыв токена входящего провижининга для выбранного провайдера.
-                  </CardDescription>
-                  <CardAction>
-                    <StatusPill tone="warning">Не выпущен</StatusPill>
-                  </CardAction>
-                </CardHeader>
-                <CardContent>
-                  <EmptyState
-                    size="inline"
-                    icon={<KeyRound size={20} aria-hidden="true" />}
-                    title="SCIM недоступен"
-                    description="Для демо-провайдера токен провижининга не выпускается."
+            <Card aria-labelledby="scim-token-title">
+              {selectedProvider.type === "DEMO" ? (
+                <>
+                  <CardHeader className="border-b">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Провижининг</p>
+                    <CardTitle id="scim-token-title">Bearer-токен SCIM 2.0</CardTitle>
+                    <CardDescription>
+                      Выпуск, ротация и отзыв токена входящего провижининга для выбранного провайдера.
+                    </CardDescription>
+                    <CardAction>
+                      <StatusPill tone="warning">Не выпущен</StatusPill>
+                    </CardAction>
+                  </CardHeader>
+                  <CardContent>
+                    <EmptyState
+                      size="inline"
+                      icon={<KeyRound size={20} aria-hidden="true" />}
+                      title="SCIM недоступен"
+                      description="Для демо-провайдера токен провижининга не выпускается."
+                    />
+                  </CardContent>
+                </>
+              ) : (
+                <CardContent className="pt-(--card-spacing)">
+                  <ScimTokenManager
+                    titleId="scim-token-title"
+                    providerId={selectedProvider.id}
+                    providerName={selectedProvider.name}
+                    initialTokenPrefix={selectedProvider.scimTokenPrefix}
+                    scimBaseUrl={scimBaseUrl}
                   />
                 </CardContent>
-              </>
-            ) : (
-              <CardContent className="pt-(--card-spacing)">
-                <ScimTokenManager
-                  titleId="scim-token-title"
-                  providerId={selectedProvider.id}
-                  providerName={selectedProvider.name}
-                  initialTokenPrefix={selectedProvider.scimTokenPrefix}
-                  scimBaseUrl={scimBaseUrl}
-                />
-              </CardContent>
-            )}
-          </Card>
-
+              )}
+            </Card>
           ) : (
             <EmptyState
               size="inline"
@@ -1097,7 +1096,6 @@ async function AdminAccessPageContent({ searchParams }: AccessPageProps) {
               </div>
             </CardContent>
           </Card>
-
           ) : (
             <EmptyState
               size="inline"
