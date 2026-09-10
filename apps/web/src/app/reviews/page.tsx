@@ -195,7 +195,7 @@ export async function ReviewsPageContent({ searchParams }: ReviewsPageProps) {
     <QueueWorkspace
       description={
         data.canWriteReviews
-          ? `Найдено ${filteredCount} из ${total}. Рабочий inbox для ручной проверки: сначала обращения, затем фильтры и массовые действия.`
+          ? `Найдено ${filteredCount} из ${total}. Рабочая очередь для ручной проверки: сначала обращения, затем фильтры и массовые действия.`
           : `Найдено ${filteredCount} из ${total}. Просмотр очереди: обращения и фильтры.`
       }
       actions={

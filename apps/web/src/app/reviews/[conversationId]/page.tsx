@@ -105,7 +105,8 @@ const statusChipTone: Record<StatusTone, ChipTone> = {
 
 function reviewStateTone(state: ReviewState): StatusTone {
   if (state === "finalized") {
-    return "positive";
+    // Completion is informational, not a health/success signal.
+    return "info";
   }
 
   if (state === "reopened") {
@@ -125,7 +126,8 @@ function dueDateTone(value: Date | null, now: Date, state: ReviewState): StatusT
   }
 
   if (state === "finalized") {
-    return "positive";
+    // Closed due date is neutral context, not emerald "all good".
+    return "neutral";
   }
 
   if (value.getTime() < now.getTime()) {
@@ -627,7 +629,11 @@ export async function ReviewDetailPageContent({ params, searchParams }: ReviewDe
             {latestFinalizedReview ? feedbackStatusLabels[latestFinalizedReview.feedbackStatus] ?? latestFinalizedReview.feedbackStatus : "Нет"}
           </strong>
           <small className="text-xs text-muted-foreground">
-            {hasOpenAppeal ? "Открыта апелляция." : hasReanswer ? "Нужен переответ." : "Без блокирующего процесса."}
+            {hasOpenAppeal
+              ? "Открыта апелляция."
+              : hasReanswer
+                ? "Нужен переответ."
+                : "Открытых апелляций и переответов нет."}
           </small>
         </div>
         {canSeeAiQualityDrafts ? (
