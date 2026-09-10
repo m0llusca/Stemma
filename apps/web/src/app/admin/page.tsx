@@ -222,7 +222,7 @@ async function AdminHomePageContent() {
           ? russianPlural(0, ["источник", "источника", "источников"])
           : liveCertifiedIntegrations === integrationCount
             ? russianPlural(integrationCount, ["источник", "источника", "источников"])
-            : `${liveCertifiedIntegrations} из ${integrationCount} с live cert`,
+            : `${liveCertifiedIntegrations} из ${integrationCount} с живой сертификацией`,
       tone: adminHubIntegrationsTone({
         integrationCount,
         liveCertifiedCount: liveCertifiedIntegrations
@@ -238,7 +238,7 @@ async function AdminHomePageContent() {
           ? "Готово"
           : liveSsoCount > 0
             ? `${providerWarnings} требуют настройки`
-            : "Нет live SSO",
+            : "Нет живого SSO",
       tone: adminHubAccessTone({
         liveSsoCount,
         providerWarningCount: providerWarnings

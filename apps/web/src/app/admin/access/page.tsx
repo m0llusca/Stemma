@@ -130,8 +130,9 @@ function formatDate(value: Date | null | undefined) {
 }
 
 function statusTone(status: string): StatusTone {
+  // Operational active is not production-green — reserve success for proven live SSO.
   if (status === "active" || status === "ACTIVE") {
-    return "success";
+    return "neutral";
   }
 
   if (status === "draft") {

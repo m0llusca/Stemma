@@ -65,4 +65,10 @@ describe("admin access UI", () => {
     expect(accessPage).not.toContain('const scimBaseUrl = `${origin}/scim/v2`');
     expect(accessPage).not.toContain("SCIM production-ready");
   });
+
+  it("does not paint operational active provider/session status as success emerald", () => {
+    expect(accessPage).not.toContain('if (status === "active" || status === "ACTIVE") {\n    return "success";');
+    expect(accessPage).toContain("Operational active is not production-green");
+    expect(accessPage).toContain('if (status === "active" || status === "ACTIVE") {\n    return "neutral";');
+  });
 });
