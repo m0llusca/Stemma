@@ -1,4 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const dnsMocks = vi.hoisted(() => ({
+  lookup: vi.fn(),
+  resolve4: vi.fn(),
+  resolve6: vi.fn()
+}));
+
+vi.mock("node:dns/promises", () => ({
+  default: {
+    lookup: dnsMocks.lookup,
+    resolve4: dnsMocks.resolve4,
+    resolve6: dnsMocks.resolve6
+  },
+  lookup: dnsMocks.lookup,
+  resolve4: dnsMocks.resolve4,
+  resolve6: dnsMocks.resolve6
+}));
+
 import {
   assertProviderEndpointUrls,
   assertSafeProviderConfig,
@@ -7,6 +25,15 @@ import {
 import { validateLdapsProviderConfigForSave } from "@/lib/auth/ldaps-config";
 
 describe("provider config validation", () => {
+  beforeEach(() => {
+    dnsMocks.lookup.mockReset();
+    dnsMocks.resolve4.mockReset();
+    dnsMocks.resolve6.mockReset();
+    // LDAPS fixtures use example.com hostnames — pin to a public IP so CI
+    // does not depend on real DNS (directory gate still re-checks the result).
+    dnsMocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });
