@@ -33,7 +33,7 @@ export function QueueNextCasePreview({
   queueHref,
   statusConversation,
   children,
-  canTakeNext = true
+  canTakeNext = false
 }: QueueNextCasePreviewProps) {
   return (
     <Card className="h-full gap-0 overflow-clip py-0" data-slot="queue-next-case-preview">
