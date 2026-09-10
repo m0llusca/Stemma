@@ -335,7 +335,9 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
           take: 40
         })
       : Promise.resolve([]),
-    canManageCoachingOps
+    // Peer theme/score aggregation — same gate as team sparkline (`peer_quality:read`).
+    // QA with training:manage but without peer_quality must not load other agents' themes.
+    canViewPeerQualityMetrics
       ? prisma.review.findMany({
           where: {
             workspaceId: user.workspaceId,
@@ -360,7 +362,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
         })
       : Promise.resolve([])
   ]);
-  const themesByAgent = canManageCoachingOps
+  const themesByAgent = canViewPeerQualityMetrics
     ? groupCoachingThemesByAgent(
         themeSourceReviews.map((review) => ({
           assigneeName: review.conversation.assigneeName,

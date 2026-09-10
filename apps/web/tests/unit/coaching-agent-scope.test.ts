@@ -25,6 +25,15 @@ describe("coaching page agent score scope", () => {
     expect(source).toMatch(/if\s*\(\s*canShowScoreTrend\s*\)/);
   });
 
+  it("gates peer theme/score loads and themesByAgent behind peer_quality:read", () => {
+    expect(source).toContain("canViewPeerQualityMetrics");
+    expect(source).toMatch(/canViewPeerQualityMetrics\s*\?\s*prisma\.review\.findMany/);
+    expect(source).toMatch(/const themesByAgent = canViewPeerQualityMetrics/);
+    expect(source).toContain("groupCoachingThemesByAgent");
+    // Must not build themesByAgent from training:manage alone (QA leak).
+    expect(source).not.toMatch(/const themesByAgent = canManageCoachingOps/);
+  });
+
   it("does not load team review candidates or support-user lists for agents", () => {
     expect(source).toContain("canManageCoachingOps");
     expect(source).toMatch(/canManageCoachingOps\s*\?\s*prisma\.user\.findMany/);
