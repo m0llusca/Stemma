@@ -83,13 +83,31 @@ describe("admin connection chip wiring", () => {
   it("does not green connection chips from ready|active alone", () => {
     expect(integrationsPage).not.toContain('if (status === "active" || status === "ready") return "positive"');
     expect(systemPage).not.toContain('if (status === "active" || status === "ready") return "positive"');
+    expect(systemPage).not.toContain('if (status === "active") return "positive"');
     expect(integrationsPage).toContain('from "@/lib/integrations/connection-tone"');
     expect(integrationsPage).toContain("catalogReadinessTone");
-    expect(systemPage).toContain('import { integrationConnectionTone } from "@/lib/integrations/connection-tone"');
+    expect(systemPage).toContain('from "@/lib/integrations/connection-tone"');
+    expect(systemPage).toContain("adminHubAccessTone");
+    expect(systemPage).toContain("adminHubIntegrationsTone");
+    expect(systemPage).toContain("isLiveCertified");
     expect(integrationsPage).toContain("integrationConnectionTone(");
     expect(systemPage).toContain("integrationConnectionTone(");
     expect(integrationsPage).toContain("capability.certification.summary.status");
     expect(systemPage).toContain("capability.certification.summary.status");
+  });
+
+  it("does not green system hub SSO/integrations strips without live cert coverage", () => {
+    expect(systemPage).not.toContain(
+      'tone: providerWarnings > 0 || expiredActiveSessions > 0 ? "warning" : providers.length > 0 ? "success" : "neutral"'
+    );
+    expect(systemPage).not.toContain(
+      'tone: integrationRiskCount > 0 ? "danger" : integrations.length > 0 ? "success" : "neutral"'
+    );
+    expect(systemPage).not.toContain('tone: providerWarnings > 0 ? "warning" : "success"');
+    expect(systemPage).toContain("hubStripTone(ssoHubTone)");
+    expect(systemPage).toContain("hubStripTone(integrationsHubTone)");
+    expect(systemPage).toContain("phaseDReport.summary.liveCertified > 0 ? \"success\" : \"neutral\"");
+    expect(systemPage).toContain("providerTone(provider.status, identityCertById.get(provider.id))");
   });
 
   it("does not green channel chips from active alone", () => {
@@ -389,6 +407,9 @@ describe("admin hub and pipeline wiring", () => {
     expect(adminHubPage).not.toContain("tone={primarySetupCoachmark || attentionCount > 0 ? \"warning\" : \"success\"}");
     expect(adminHubPage).toContain("isLiveCertified(");
     expect(adminHubPage).toContain("getPhaseDReadinessReport(");
-    expect(adminHubPage).toContain("Нет live SSO");
+    expect(adminHubPage).toContain("Нет живого SSO");
+    expect(adminHubPage).toContain("с живой сертификацией");
+    expect(adminHubPage).not.toContain("Нет live SSO");
+    expect(adminHubPage).not.toContain("с live cert");
   });
 });

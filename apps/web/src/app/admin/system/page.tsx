@@ -43,11 +43,16 @@ import { AdminFrame } from "@/components/admin/admin-frame";
 import { AdminSectionTabs } from "@/components/admin/admin-section-tabs";
 import { adminEyebrow, adminLoadingLabel, adminSectionTitles } from "@/lib/admin-sections";
 import { getPhaseDReadinessReport, type PhaseDReadinessItem } from "@/lib/certification/readiness-report";
-import { certificationDisplayTone } from "@/lib/certification/status";
+import { certificationDisplayTone, isLiveCertified } from "@/lib/certification/status";
 
 import { prisma } from "@/lib/db";
 import { getIntegrationCapability } from "@/lib/integrations/capabilities";
-import { integrationConnectionTone } from "@/lib/integrations/connection-tone";
+import {
+  adminHubAccessTone,
+  adminHubIntegrationsTone,
+  integrationConnectionTone,
+  type AdminHubTone
+} from "@/lib/integrations/connection-tone";
 import { externalSourceLabel, integrationStatusLabel } from "@/lib/labels";
 import { backendJobStatusView, backendJobTypeLabel, integrationRunStatusView, queueNameLabel } from "@/lib/operational-status";
 import { getRuntimeConfigDiagnostics } from "@/lib/runtime-config";
@@ -110,10 +115,22 @@ function runtimeTone(status: string): StatusTone {
   return "neutral";
 }
 
-function providerTone(status: string): StatusTone {
-  if (status === "active") return "positive";
+/**
+ * Operational provider status is not production-green.
+ * Green only with Phase D live SSO evidence (`isLiveCertified`).
+ */
+function providerTone(status: string, certificationStatus?: string | null): StatusTone {
   if (status === "draft") return "info";
+  if (status === "active") {
+    return isLiveCertified(certificationStatus) ? "positive" : "info";
+  }
   if (status === "disabled") return "warning";
+  return integrationConnectionTone(status, certificationStatus);
+}
+
+function hubStripTone(tone: AdminHubTone): StatStripTone {
+  if (tone === "ok") return "success";
+  if (tone === "warn") return "warning";
   return "neutral";
 }
 
@@ -349,6 +366,12 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   ]);
   const runtime = getRuntimeConfigDiagnostics();
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
+  const liveSsoCount = phaseDReport.identityProviders.filter((provider) => isLiveCertified(provider.status)).length;
+  const identityCertById = new Map(
+    phaseDReport.identityProviders.map((item) => [item.key.replace(/^identity_provider:/, ""), item.status])
+  );
+  const configuredPhaseDIntegrations = phaseDReport.integrations.filter((item) => item.configured);
+  const liveCertifiedIntegrations = configuredPhaseDIntegrations.filter((item) => isLiveCertified(item.status)).length;
   const integrationErrors = integrations.filter((integration) => integration.lastError || integration.status === "error").length;
   const apiTokenErrors = apiTokens.filter(
     (token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
@@ -358,6 +381,14 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   const readinessBlockers = phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess;
   const maintenanceBacklog = expiredActiveSessions + expiredIdempotencyKeys + staleRateLimits;
   const integrationRiskCount = integrationErrors + apiTokenErrors;
+  const ssoHubTone = adminHubAccessTone({
+    liveSsoCount,
+    providerWarningCount: providerWarnings + (expiredActiveSessions > 0 ? 1 : 0)
+  });
+  const integrationsHubTone = adminHubIntegrationsTone({
+    integrationCount: configuredPhaseDIntegrations.length,
+    liveCertifiedCount: liveCertifiedIntegrations
+  });
   const runtimeCritical = runtime.status === "error";
   const highSeverityIssues = (runtimeCritical ? 1 : 0) + failedJobs + integrationRiskCount;
   const warningSignals =
@@ -466,13 +497,13 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
       label: "SSO и каталог",
       value: providers.length,
       hint: `сессии: ${activeSessions} · не активны: ${providerWarnings}`,
-      tone: providerWarnings > 0 || expiredActiveSessions > 0 ? "warning" : providers.length > 0 ? "success" : "neutral"
+      tone: hubStripTone(ssoHubTone)
     },
     {
       label: "Интеграции",
       value: integrations.length,
       hint: `ошибки: ${integrationRiskCount} · запусков: ${recentRuns.length}`,
-      tone: integrationRiskCount > 0 ? "danger" : integrations.length > 0 ? "success" : "neutral"
+      tone: integrationRiskCount > 0 ? "danger" : hubStripTone(integrationsHubTone)
     },
     {
       label: "Обслуживание",
@@ -687,7 +718,7 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       label: "Сертифицировано",
                       value: phaseDReport.summary.liveCertified,
                       hint: "только успешные защищенные свидетельства",
-                      tone: "success"
+                      tone: phaseDReport.summary.liveCertified > 0 ? "success" : "neutral"
                     },
                     {
                       label: "Готово к боевому режиму",
@@ -756,7 +787,12 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                       label: "Провайдеры",
                       value: providers.length,
                       hint: `не активны: ${providerWarnings}`,
-                      tone: providerWarnings > 0 ? "warning" : "success"
+                      tone: hubStripTone(
+                        adminHubAccessTone({
+                          liveSsoCount,
+                          providerWarningCount: providerWarnings
+                        })
+                      )
                     },
                     { label: "Сессии", value: activeSessions, hint: "активные сейчас" },
                     {
@@ -784,7 +820,10 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                         <div className="flex min-w-0 flex-col gap-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm font-medium text-foreground">{provider.name}</span>
-                            <StatusBadge tone={badgeTone(providerTone(provider.status))} size="sm">
+                            <StatusBadge
+                              tone={badgeTone(providerTone(provider.status, identityCertById.get(provider.id)))}
+                              size="sm"
+                            >
                               {providerStatusLabel(provider.status)}
                             </StatusBadge>
                           </div>
