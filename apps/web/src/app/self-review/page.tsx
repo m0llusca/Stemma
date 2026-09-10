@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BookOpenCheck, MessageSquareText, ShieldQuestion } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { AgentAppealForm } from "@/components/feedback/agent-appeal-form";
@@ -31,6 +32,7 @@ import {
 import { toAgentCriterionFeedbackItems } from "@/lib/feedback/agent-criterion-feedback";
 import { coachingPlanFocusHref } from "@/lib/coaching-follow-up";
 import { buildSelfReviewTriage, trainingAssignmentEmptyCopy } from "@/lib/self-review/empty-honesty";
+import { roleHomePath } from "@/lib/auth/role-home";
 
 import { prisma } from "@/lib/db";
 import {
@@ -68,7 +70,11 @@ export default function SelfReviewPage() {
 
 async function SelfReviewPageContent() {
   const user = await requirePagePermission("feedback:acknowledge");
-  const scopedToAgent = user.role === "SUPPORT_AGENT";
+  // Nav is agent-only; deep links from other roles must not land here.
+  if (user.role !== "SUPPORT_AGENT") {
+    redirect(roleHomePath(user.role, { name: user.name }));
+  }
+  const scopedToAgent = true;
   const [conversations, assignments, assignedTrainingCount] = await Promise.all([
     prisma.conversation.findMany({
       where: {

@@ -47,7 +47,9 @@ const baseProps = {
     { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: 1, tone: "risk" as const },
     { href: "/coaching", label: "Обучение", value: 0, tone: "neutral" as const }
   ],
-  user: { name: "Админ", email: "admin@example.com" }
+  user: { name: "Админ", email: "admin@example.com" },
+  // Production AppNav passes reviews:write; default shell prop is fail-closed false.
+  canTakeNextCase: true
 };
 
 function areaNav() {
@@ -329,6 +331,21 @@ describe("app nav shell", () => {
     const input = screen.getByPlaceholderText(/Найти раздел/);
     fireEvent.change(input, { target: { value: "следующий кейс" } });
     expect(screen.queryByRole("option", { name: /Взять следующий/ })).toBeNull();
+  });
+
+  it("hides pulse chrome when there are no pulse items and take-next is gated off", () => {
+    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase={false} />);
+
+    expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Рабочий пульс" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
+  });
+
+  it("keeps take-next pulse chrome when pulse items are empty but write is allowed", () => {
+    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase />);
+
+    expect(screen.getByRole("button", { name: "Рабочий пульс" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Взять следующий" })).toBeInTheDocument();
   });
 
   it("moves a highlighted result with Up/Down and activates it with Enter", () => {

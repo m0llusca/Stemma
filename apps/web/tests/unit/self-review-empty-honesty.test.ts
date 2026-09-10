@@ -99,4 +99,10 @@ describe("self-review empty honesty adversarial", () => {
     expect(page).toContain("trainingAssignmentEmptyCopy(assignedTrainingCount > 0)");
     expect(page).not.toMatch(/assignments\.length > 0[\s\S]*Все разборы закрыты/);
   });
+
+  it("redirects non-SUPPORT_AGENT deep links to role home after permission check", () => {
+    expect(page).toContain('await requirePagePermission("feedback:acknowledge")');
+    expect(page).toContain('user.role !== "SUPPORT_AGENT"');
+    expect(page).toContain("redirect(roleHomePath(user.role, { name: user.name }))");
+  });
 });

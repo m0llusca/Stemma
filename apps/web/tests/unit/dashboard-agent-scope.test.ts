@@ -31,8 +31,10 @@ describe("dashboard page agent scope", () => {
 
   it("resets Lead/Admin welcome-back to role-home, not the reviews inbox", () => {
     expect(source).toContain('welcomeBackResetHref("dashboard", user.role, { name: user.name })');
-    expect(source).not.toContain("queueFilterResetHref(");
     expect(source).not.toContain("resetHref={queueFilterResetHref");
+    // Zero high-risk KPI may use queue reset (same as exec chart); welcome-back must not.
+    expect(source).toContain("highRiskKpiHref");
+    expect(source).toContain("queueFilterResetHref(user.role, { name: user.name })");
   });
 
   it("does not authorize SUPPORT_AGENT metrics by assigneeName: user.name", () => {

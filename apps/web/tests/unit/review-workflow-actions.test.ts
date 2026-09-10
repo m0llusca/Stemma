@@ -221,18 +221,8 @@ describe("review workflow actions", () => {
 
     await updateConversationWorkflow(formData);
 
-    expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: "conversation-1",
-          workspaceId: "workspace-1",
-          qaStatus: "FINALIZED"
-        },
-        data: expect.not.objectContaining({
-          qaStatus: "REOPENED"
-        })
-      })
-    );
+    // Dual-control reopen without assignee/due fields must not null them.
+    expect(mocks.tx.conversation.updateMany).not.toHaveBeenCalled();
     expect(mocks.auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "qa.reopen_requested",
@@ -255,6 +245,38 @@ describe("review workflow actions", () => {
           reason: "Калибровка: ошибка критерия",
           requestedById: "manager-1"
         })
+      })
+    );
+  });
+
+  it("updates assignee on FINALIZED reopen request only when the form provides one", async () => {
+    const { updateConversationWorkflow } = await import("@/lib/review-workflow-actions");
+    mocks.tx.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      qaStatus: "FINALIZED"
+    });
+    mocks.prisma.user.findFirst.mockResolvedValue({
+      id: "qa-2",
+      name: "Анна QA"
+    });
+    const formData = workflowForm("REOPENED");
+    formData.set("reason", "Переназначить");
+    formData.set("qaAssigneeId", "qa-2");
+
+    await updateConversationWorkflow(formData);
+
+    expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "conversation-1",
+          workspaceId: "workspace-1",
+          qaStatus: "FINALIZED"
+        },
+        data: {
+          qaAssigneeId: "qa-2",
+          qaAssigneeName: "Анна QA",
+          reviewDueAt: null
+        }
       })
     );
   });
@@ -310,9 +332,9 @@ describe("review workflow actions", () => {
           workspaceId: "workspace-1",
           qaStatus: "FINALIZED"
         },
-        data: expect.objectContaining({
+        data: {
           qaStatus: "REOPENED"
-        })
+        }
       })
     );
     expect(mocks.auditLog).toHaveBeenCalledWith(

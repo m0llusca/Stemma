@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  canAcknowledgeFeedback: vi.fn(),
   canManageReviewWorkflow: vi.fn(),
   canManageTraining: vi.fn(),
   canResolveAppeal: vi.fn(),
@@ -66,6 +67,7 @@ vi.mock("@/components/ui/validated-submit-button", () => ({
 }));
 
 vi.mock("@/lib/current-user", () => ({
+  canAcknowledgeFeedback: mocks.canAcknowledgeFeedback,
   canManageReviewWorkflow: mocks.canManageReviewWorkflow,
   canManageTraining: mocks.canManageTraining,
   canResolveAppeal: mocks.canResolveAppeal,
@@ -125,6 +127,7 @@ describe("review detail page", () => {
     });
     mocks.canSaveReviewDraft.mockReturnValue(false);
     mocks.canSelfReview.mockReturnValue(true);
+    mocks.canAcknowledgeFeedback.mockReturnValue(true);
     mocks.canManageReviewWorkflow.mockReturnValue(false);
     mocks.canManageTraining.mockReturnValue(false);
     mocks.canResolveAppeal.mockReturnValue(false);
@@ -331,5 +334,59 @@ describe("review detail page", () => {
       })
     );
     expect(screen.getByTestId("review-panel").dataset.aiPredictions).toBe("2");
+  });
+
+  it("hides acknowledge/appeal/reanswer CTAs when the role lacks feedback:acknowledge (EXEC)", async () => {
+    mocks.requireCurrentUserPermission.mockResolvedValue({
+      id: "exec-1",
+      workspaceId: "workspace-1",
+      role: "EXEC",
+      name: "Исполнитель"
+    });
+    mocks.canAcknowledgeFeedback.mockReturnValue(false);
+    mocks.canSaveReviewDraft.mockReturnValue(false);
+    mocks.canSelfReview.mockReturnValue(false);
+    mocks.getConversationForReview.mockResolvedValue({
+      ...conversation(),
+      qaStatus: "FINALIZED",
+      reviews: [
+        {
+          id: "review-final",
+          status: "FINALIZED",
+          reviewSource: "HUMAN",
+          reviewerId: "qa-1",
+          totalScore: 80,
+          summary: "Итог",
+          criticalError: false,
+          criticalCategory: null,
+          needsReanswer: true,
+          reanswerStatus: "requested",
+          appealStatus: "none",
+          feedbackStatus: "pending",
+          feedbackAckAt: null,
+          appealDueAt: null,
+          feedbackComment: null,
+          positiveNotes: null,
+          instructionLinks: null,
+          feedbackEvents: [],
+          scores: [],
+          findings: [],
+          trainingAssignments: []
+        }
+      ]
+    });
+
+    const { ReviewDetailPageContent } = await import("@/app/reviews/[conversationId]/page");
+    const page = await ReviewDetailPageContent({
+      params: Promise.resolve({ conversationId: "conversation-1" }),
+      searchParams: Promise.resolve({})
+    });
+
+    render(page);
+
+    expect(mocks.canAcknowledgeFeedback).toHaveBeenCalledWith("EXEC");
+    expect(screen.queryByRole("button", { name: "Принять оценку" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Переответ выполнен" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Оспорить оценку" })).toBeNull();
   });
 });

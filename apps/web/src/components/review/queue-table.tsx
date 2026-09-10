@@ -71,10 +71,12 @@ function initials(name: string) {
 
 function QueueTableRows({
   conversations,
-  canWriteReviews
+  canWriteReviews,
+  returnTo
 }: {
   conversations: ReviewQueueConversationDto[];
   canWriteReviews: boolean;
+  returnTo: string;
 }) {
   return (
     <>
@@ -101,6 +103,11 @@ function QueueTableRows({
           : conversation.qaStatus === "FINALIZED"
             ? "закрыто"
             : "не задан";
+        // Same returnTo contract as take-next: keep filtered queue when leaving.
+        const reviewHref =
+          returnTo && returnTo !== "/reviews"
+            ? `/reviews/${conversation.id}?returnTo=${encodeURIComponent(returnTo)}`
+            : `/reviews/${conversation.id}`;
 
         const signalItems = [
           hasCritical ? "критическая ошибка" : null,
@@ -146,7 +153,7 @@ function QueueTableRows({
             <TableCell className="max-w-[420px] whitespace-normal">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <Link
-                  href={`/reviews/${conversation.id}`}
+                  href={reviewHref}
                   className="font-medium text-foreground hover:underline"
                 >
                   {conversation.subject}
@@ -183,7 +190,7 @@ function QueueTableRows({
 
             <TableCell>
               <Button
-                render={<Link href={`/reviews/${conversation.id}`} />}
+                render={<Link href={reviewHref} />}
                 nativeButton={false}
                 variant="outline"
                 size="sm"
@@ -200,10 +207,12 @@ function QueueTableRows({
 
 function QueueConversationsTable({
   conversations,
-  canWriteReviews
+  canWriteReviews,
+  returnTo
 }: {
   conversations: ReviewQueueConversationDto[];
   canWriteReviews: boolean;
+  returnTo: string;
 }) {
   return (
     <Table>
@@ -228,7 +237,11 @@ function QueueConversationsTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        <QueueTableRows conversations={conversations} canWriteReviews={canWriteReviews} />
+        <QueueTableRows
+          conversations={conversations}
+          canWriteReviews={canWriteReviews}
+          returnTo={returnTo}
+        />
       </TableBody>
     </Table>
   );
@@ -266,7 +279,11 @@ export function QueueTable({
   }
 
   const table = (
-    <QueueConversationsTable conversations={conversations} canWriteReviews={canWriteReviews} />
+    <QueueConversationsTable
+      conversations={conversations}
+      canWriteReviews={canWriteReviews}
+      returnTo={returnTo}
+    />
   );
 
   if (!canWriteReviews) {

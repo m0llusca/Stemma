@@ -236,6 +236,10 @@ export async function updateConversationWorkflow(formData: FormData) {
     throw new Error("Проверяющий не найден.");
   }
 
+  // Same contract as bulk: only rewrite assignee/due when the form actually
+  // provided those fields — otherwise dual-control reopen must not null them.
+  const updateAssigneeAndDue = qaAssigneeId !== undefined || reviewDueAt !== undefined;
+
   await prisma.$transaction(async (tx) => {
     const conversation = await tx.conversation.findFirst({
       where: {
@@ -265,7 +269,7 @@ export async function updateConversationWorkflow(formData: FormData) {
         qaAssigneeId: qaAssignee?.id,
         qaAssigneeName: qaAssignee?.name,
         reviewDueAt,
-        updateAssigneeAndDue: true
+        updateAssigneeAndDue
       });
       return;
     }
@@ -295,7 +299,7 @@ export async function updateConversationWorkflow(formData: FormData) {
         qaAssigneeId: qaAssignee?.id,
         qaAssigneeName: qaAssignee?.name,
         reviewDueAt,
-        updateAssigneeAndDue: true
+        updateAssigneeAndDue
       });
       return;
     }

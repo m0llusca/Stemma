@@ -25,5 +25,8 @@ describe("ops empty triage adversarial", () => {
     expect(dashboardPage).not.toContain("Критичных отклонений нет");
     expect(dashboardPage).not.toMatch(/focusItems\.length \? .* : "success"/);
     expect(dashboardPage).not.toContain("<CheckCircle2");
+    expect(dashboardPage).not.toContain("Сроки под контролем");
+    expect(dashboardPage).toContain("Просроченных в текущем срезе нет");
+    expect(dashboardPage).toContain("highRiskKpiHref");
   });
 });
