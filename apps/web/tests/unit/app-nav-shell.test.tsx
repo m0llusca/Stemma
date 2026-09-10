@@ -47,7 +47,9 @@ const baseProps = {
     { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: 1, tone: "risk" as const },
     { href: "/coaching", label: "Обучение", value: 0, tone: "neutral" as const }
   ],
-  user: { name: "Админ", email: "admin@example.com" }
+  user: { name: "Админ", email: "admin@example.com" },
+  // Explicit gate — production always passes this; default is fail-closed.
+  canTakeNextCase: true
 };
 
 function areaNav() {

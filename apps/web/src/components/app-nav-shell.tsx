@@ -135,7 +135,7 @@ function AppNavShellChrome({
   branding = defaultNavBranding,
   areas = topNavAreas,
   homeHref = "/dashboard",
-  canTakeNextCase = true
+  canTakeNextCase = false
 }: AppNavShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -441,10 +441,10 @@ function AppNavShellChrome({
               type="button"
               size="sm"
               aria-label={TAKE_NEXT_LABEL}
-              className="hidden shrink-0 sm:inline-flex"
+              className="hidden max-w-40 shrink-0 sm:inline-flex"
               onClick={runTakeNext}
             >
-              <span className="hidden xl:inline">{TAKE_NEXT_LABEL}</span>
+              <span className="hidden truncate md:inline">{TAKE_NEXT_LABEL}</span>
               <ArrowRight data-icon="inline-end" />
             </Button>
           ) : null}
