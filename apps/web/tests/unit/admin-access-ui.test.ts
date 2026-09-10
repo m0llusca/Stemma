@@ -59,4 +59,10 @@ describe("admin access UI", () => {
     expect(accessPage).toContain("Operational active is not production-green");
     expect(accessPage).toContain('if (status === "active" || status === "ACTIVE") {\n    return "neutral";');
   });
+
+  it("does not paint operational active provider/session status as success emerald", () => {
+    expect(accessPage).not.toContain('if (status === "active" || status === "ACTIVE") {\n    return "success";');
+    expect(accessPage).toContain("Operational active is not production-green");
+    expect(accessPage).toContain('if (status === "active" || status === "ACTIVE") {\n    return "neutral";');
+  });
 });
