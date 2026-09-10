@@ -2,8 +2,9 @@ import { assertPublicBaseUrl, guardedFetch } from "@/lib/net-guard";
 
 /**
  * Pre-activate reachability probe for outgoing notification webhooks.
- * Fail-closed: WhatsApp (unsupported) and network/SSRF failures do not count
- * as a successful probe — callers must not persist `active` without ok:true.
+ * Fail-closed: WhatsApp (unsupported), non-2xx HTTP, and network/SSRF failures
+ * do not count as a successful probe — callers must not persist `active`
+ * without ok:true.
  */
 export async function probeMessagingChannelWebhook(input: {
   kind: string;
@@ -38,13 +39,20 @@ export async function probeMessagingChannelWebhook(input: {
   }
 
   try {
-    // Any HTTP response (including 4xx/405) means the endpoint is reachable.
-    // Network/DNS/timeout failures are fail-closed.
-    await guardedFetch(parsed, {
+    // Only 2xx counts as a successful probe. 4xx/5xx mean the endpoint answered
+    // but is not a healthy webhook target — fail closed (no false-green activate).
+    // Network/DNS/timeout/SSRF failures also fail closed.
+    const response = await guardedFetch(parsed, {
       method: "GET",
       signal: AbortSignal.timeout(8_000)
     });
-    return { ok: true };
+    if (response.status >= 200 && response.status < 300) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      error: `Probe не прошёл: webhook ответил HTTP ${response.status}. Включение отменено.`
+    };
   } catch {
     return {
       ok: false,

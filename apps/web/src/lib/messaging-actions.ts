@@ -177,15 +177,30 @@ export async function saveMessagingChannel(
   }
 
   const definition = messagingChannelRegistry[kind];
-  const webhookUrl = stringField(formData, "webhookUrl");
+  const formWebhookUrl = stringField(formData, "webhookUrl");
   const token = stringField(formData, "token");
   const requestedStatus = stringField(formData, "status");
   const status: MessagingChannelStatus = isChannelStatus(requestedStatus) ? requestedStatus : "draft";
   const displayName = stringField(formData, "displayName") || definition.displayName;
   const intent = resolveMessagingSaveIntent(status, formData);
 
+  // Blank webhook in the form means "keep the masked/stored URL" (same as blank token).
+  const existing = await prisma.messagingChannel.findUnique({
+    where: {
+      workspaceId_kind: {
+        workspaceId: user.workspaceId,
+        kind
+      }
+    },
+    select: {
+      configJson: true
+    }
+  });
+  const storedWebhookUrl = parseStoredWebhookUrl(existing?.configJson);
+  const effectiveWebhookUrl = formWebhookUrl || storedWebhookUrl;
+
   // A channel cannot be deliverable without somewhere to deliver to.
-  if ((status === "active" || intent === "claim_live") && !webhookUrl) {
+  if ((status === "active" || intent === "claim_live") && !effectiveWebhookUrl) {
     return {
       status: "error",
       message: "Укажите webhook URL, чтобы включить уведомление.",
@@ -193,7 +208,7 @@ export async function saveMessagingChannel(
     };
   }
 
-  if (webhookUrl && !isLikelyWebhookUrl(webhookUrl)) {
+  if (formWebhookUrl && !isLikelyWebhookUrl(formWebhookUrl)) {
     return {
       status: "error",
       message: "Webhook URL должен быть корректной ссылкой https://.",
@@ -201,9 +216,9 @@ export async function saveMessagingChannel(
     };
   }
 
-  if (webhookUrl) {
+  if (formWebhookUrl) {
     try {
-      await assertPublicBaseUrl(new URL(webhookUrl));
+      await assertPublicBaseUrl(new URL(formWebhookUrl));
     } catch (error) {
       return {
         status: "error",
@@ -218,14 +233,14 @@ export async function saveMessagingChannel(
     const gated = await gateMessagingLiveIntent({
       intent,
       kind,
-      webhookUrl
+      webhookUrl: effectiveWebhookUrl
     });
     if (gated.blocked) {
       return gated.state;
     }
   }
 
-  const configJson = JSON.stringify({ webhookUrl });
+  const configJson = JSON.stringify({ webhookUrl: formWebhookUrl });
   const capabilities = JSON.stringify(definition.capabilities);
   const encryptedSecret = token ? encryptSecret(token) : null;
 
@@ -250,9 +265,9 @@ export async function saveMessagingChannel(
         displayName,
         status,
         capabilities,
-        configJson,
-        // Only overwrite the stored secret when a fresh token was supplied,
-        // so saving the webhook alone does not wipe an existing credential.
+        // Only overwrite stored webhook / secret when the form supplied a new value,
+        // so leaving the masked fields blank does not wipe existing config.
+        ...(formWebhookUrl ? { configJson } : {}),
         ...(encryptedSecret ? { secretRef: encryptedSecret } : {})
       }
     });
@@ -266,7 +281,7 @@ export async function saveMessagingChannel(
       metadata: {
         kind: channel.kind,
         status: channel.status,
-        hasWebhook: Boolean(webhookUrl),
+        hasWebhook: Boolean(effectiveWebhookUrl),
         // Record only whether a secret is present — never the secret itself.
         secretConfigured: Boolean(encryptedSecret) || undefined,
         intent

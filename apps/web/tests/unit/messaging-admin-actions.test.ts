@@ -190,6 +190,41 @@ describe("messaging channel admin actions", () => {
     expect(args.create.secretRef).toBeNull();
   });
 
+  it("preserves existing configJson when webhook URL is left blank on update", async () => {
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+
+    const state = await saveMessagingChannel(
+      { status: "idle" },
+      buildSaveForm({ webhookUrl: "", token: "", status: "draft" })
+    );
+
+    expect(state.status).toBe("success");
+    expect(mocks.channelFindUnique).toHaveBeenCalled();
+    const args = mocks.channelUpsert.mock.calls[0][0];
+    // Blank form webhook must not wipe the masked/stored URL on update.
+    expect(args.update).not.toHaveProperty("configJson");
+    // Create path still gets an explicit (empty) config for first-time inserts.
+    expect(JSON.parse(args.create.configJson)).toEqual({ webhookUrl: "" });
+  });
+
+  it("activates with blank form webhook by reusing the stored URL", async () => {
+    const { saveMessagingChannel } = await import("@/lib/messaging-actions");
+
+    const state = await saveMessagingChannel(
+      { status: "idle" },
+      buildSaveForm({ webhookUrl: "", token: "" })
+    );
+
+    expect(state.status).toBe("success");
+    expect(mocks.probeMessagingChannelWebhook).toHaveBeenCalledWith({
+      kind: "slack",
+      webhookUrl: "https://hooks.slack.com/services/T000/B000/XXXX"
+    });
+    const args = mocks.channelUpsert.mock.calls[0][0];
+    expect(args.update).not.toHaveProperty("configJson");
+    expect(args.update.status).toBe("active");
+  });
+
   it("rejects a kind that is not in the messaging channel registry", async () => {
     const { saveMessagingChannel } = await import("@/lib/messaging-actions");
 
@@ -199,7 +234,8 @@ describe("messaging channel admin actions", () => {
     expect(mocks.channelUpsert).not.toHaveBeenCalled();
   });
 
-  it("requires a webhook URL when activating a channel", async () => {
+  it("requires a webhook URL when activating a channel with no stored URL", async () => {
+    mocks.channelFindUnique.mockResolvedValue(null);
     const { saveMessagingChannel } = await import("@/lib/messaging-actions");
 
     const state = await saveMessagingChannel({ status: "idle" }, buildSaveForm({ webhookUrl: "" }));
