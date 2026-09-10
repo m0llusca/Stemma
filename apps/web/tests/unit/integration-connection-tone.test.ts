@@ -89,7 +89,10 @@ describe("admin connection chip wiring", () => {
     expect(integrationsPage).toContain("integrationConnectionTone(");
     expect(systemPage).toContain("integrationConnectionTone(");
     expect(integrationsPage).toContain("capability.certification.summary.status");
-    expect(systemPage).toContain("capability.certification.summary.status");
+    // System hub prefers Phase D evidence for connection chips; catalog is fallback only.
+    expect(systemPage).toContain("integrationCertBySource");
+    expect(systemPage).toContain("integrationConnectionTone(integration.status, certificationStatus)");
+    expect(systemPage).toContain(".certification.summary.status");
   });
 
   it("does not green channel chips from active alone", () => {

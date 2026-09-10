@@ -373,9 +373,11 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
       return [id, item.status] as const;
     })
   );
-  const liveCertifiedIntegrations = integrations.filter((integration) =>
-    isLiveCertified(getIntegrationCapability(integration.source, integration.type).certification.summary.status)
-  ).length;
+  // Live-cert count from Phase D evidence (same bar as SSO), not catalog-only status.
+  const integrationCertBySource = new Map(
+    phaseDReport.integrations.map((item) => [item.source, item.status] as const)
+  );
+  const liveCertifiedIntegrations = phaseDReport.integrations.filter((item) => isLiveCertified(item.status)).length;
   const runtimeIssues = runtime.checks.filter((check) => check.status !== "ok").length;
   const runtimeHealthyChecks = runtime.checks.length - runtimeIssues;
   const readinessBlockers = phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess;
@@ -916,7 +918,11 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                     ) : (
                       <div className="flex flex-col">
                         {integrations.map((integration) => {
-                          const capability = getIntegrationCapability(integration.source, integration.type);
+                          const catalogStatus = getIntegrationCapability(integration.source, integration.type)
+                            .certification.summary.status;
+                          // Prefer Phase D evidence when present; catalog alone must not paint live-green.
+                          const certificationStatus =
+                            integrationCertBySource.get(integration.source) ?? catalogStatus;
 
                           return (
                             <div
@@ -935,14 +941,11 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
                               </div>
                               <StatusBadge
                                 tone={badgeTone(
-                                  integrationConnectionTone(
-                                    integration.status,
-                                    capability.certification.summary.status
-                                  )
+                                  integrationConnectionTone(integration.status, certificationStatus)
                                 )}
                                 size="sm"
                               >
-                                {integrationStatusLabel(integration.status, capability.certification.summary.status)}
+                                {integrationStatusLabel(integration.status, certificationStatus)}
                               </StatusBadge>
                             </div>
                           );
