@@ -243,7 +243,7 @@ test("conversation timeline keeps avatar and long content in separate columns", 
         externalId: "conv-1001"
       }
     },
-    select: { id: true, conversationId: true }
+    select: { id: true, conversationId: true, participantType: true }
   });
   await signInE2EUser(context, admin, "reviews-layout");
   await page.goto(`/reviews/${seededMessage.conversationId}`);
@@ -254,13 +254,17 @@ test("conversation timeline keeps avatar and long content in separate columns", 
   const avatar = message.locator('[data-slot="conversation-message-avatar"]');
   const content = message.locator('[data-slot="conversation-message-content"]');
   await expect(message).toContainText(seededLongMessageBody);
+  await expect(message).toHaveAttribute("data-align", "end");
+  expect(seededMessage.participantType).toBe("HUMAN_AGENT");
   const [messageBox, avatarBox, contentBox] = await Promise.all([
     rect(message),
     rect(avatar),
     rect(content)
   ]);
 
-  expect(contentBox.x).toBeGreaterThan(avatarBox.x + avatarBox.width);
-  expect(contentBox.x + contentBox.width).toBeLessThanOrEqual(messageBox.x + messageBox.width + 1);
+  // Operator messages sit on the right: avatar after the bubble column.
+  expect(avatarBox.x).toBeGreaterThan(contentBox.x + contentBox.width - 1);
+  expect(contentBox.x).toBeGreaterThanOrEqual(messageBox.x - 1);
+  expect(avatarBox.x + avatarBox.width).toBeLessThanOrEqual(messageBox.x + messageBox.width + 1);
   await expectNoDocumentOverflow(page);
 });
