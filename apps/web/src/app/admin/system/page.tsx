@@ -363,27 +363,22 @@ async function AdminSystemPageContent({ searchParams }: AdminSystemPageProps) {
   const runtime = getRuntimeConfigDiagnostics();
   const providerWarnings = providers.filter((provider) => provider.status !== "active" && provider.type !== "DEMO").length;
   const liveSsoCount = phaseDReport.identityProviders.filter((provider) => isLiveCertified(provider.status)).length;
-  const identityCertById = new Map(
-    phaseDReport.identityProviders.map((item) => [item.key.replace(/^identity_provider:/, ""), item.status])
-  );
-  const configuredPhaseDIntegrations = phaseDReport.integrations.filter((item) => item.configured);
-  const liveCertifiedIntegrations = configuredPhaseDIntegrations.filter((item) => isLiveCertified(item.status)).length;
-  const integrationErrors = integrations.filter((integration) => integration.lastError || integration.status === "error").length;
-  const apiTokenErrors = apiTokens.filter(
-    (token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
-  ).length;
-  const liveSsoCount = phaseDReport.identityProviders.filter((provider) => isLiveCertified(provider.status)).length;
   const identityCertByProviderId = new Map(
     phaseDReport.identityProviders.map((item) => {
       const id = item.key.startsWith("identity_provider:") ? item.key.slice("identity_provider:".length) : item.key;
       return [id, item.status] as const;
     })
   );
-  // Live-cert count from Phase D evidence (same bar as SSO), not catalog-only status.
+  const configuredPhaseDIntegrations = phaseDReport.integrations.filter((item) => item.configured);
+  // Live-cert count from Phase D evidence for configured sources (same bar as SSO), not catalog-only status.
+  const liveCertifiedIntegrations = configuredPhaseDIntegrations.filter((item) => isLiveCertified(item.status)).length;
   const integrationCertBySource = new Map(
     phaseDReport.integrations.map((item) => [item.source, item.status] as const)
   );
-  const liveCertifiedIntegrations = phaseDReport.integrations.filter((item) => isLiveCertified(item.status)).length;
+  const integrationErrors = integrations.filter((integration) => integration.lastError || integration.status === "error").length;
+  const apiTokenErrors = apiTokens.filter(
+    (token) => token.lastError && token.lastErrorAt && (!token.lastSuccessAt || token.lastErrorAt > token.lastSuccessAt)
+  ).length;
   const runtimeIssues = runtime.checks.filter((check) => check.status !== "ok").length;
   const runtimeHealthyChecks = runtime.checks.length - runtimeIssues;
   const readinessBlockers = phaseDReport.summary.failedOrLimited + phaseDReport.summary.waitingForAccess;
