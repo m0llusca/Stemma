@@ -119,6 +119,7 @@ export function StaticCategoryBarPlot({
             {plot.bars.map((bar) => (
               <rect
                 key={bar.key}
+                data-slot="category-bar"
                 data-key={bar.key}
                 data-href={bar.href}
                 data-slot="category-bar"
