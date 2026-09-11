@@ -90,19 +90,6 @@ export function StaticCategoryBarPlot({
             height: CATEGORY_BAR_VIEWBOX.height
           }}
         >
-          {activeBar ? (
-            <ChartTooltipStatus
-              id={tooltipId}
-              label={activeBar.label}
-              lines={[
-                {
-                  label: "Проверки",
-                  value: String(activeBar.value)
-                }
-              ]}
-              className="absolute left-3 top-3 max-w-56"
-            />
-          ) : null}
           <svg
             aria-hidden="true"
             className="recharts-surface pointer-events-none block h-full w-full"
@@ -153,7 +140,7 @@ export function StaticCategoryBarPlot({
               data-href={bar.href}
               aria-label={categoryBarDrillLabel(bar.label, bar.value)}
               aria-describedby={activeKey === bar.key ? tooltipId : undefined}
-              className="absolute inset-y-0 -translate-x-1/2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="absolute inset-y-0 z-10 -translate-x-1/2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               style={{
                 left: `${((bar.x + bar.width / 2) / plot.width) * 100}%`,
                 width: `${Math.max(12, (bar.width / plot.width) * 100)}%`
@@ -165,6 +152,19 @@ export function StaticCategoryBarPlot({
               onPointerLeave={() => setActiveKey(null)}
             />
           ))}
+          {activeBar ? (
+            <ChartTooltipStatus
+              id={tooltipId}
+              label={activeBar.label}
+              lines={[
+                {
+                  label: "Проверки",
+                  value: String(activeBar.value)
+                }
+              ]}
+              className="absolute left-3 top-3 max-w-56"
+            />
+          ) : null}
         </StaticChartContainer>
       </div>
       <div

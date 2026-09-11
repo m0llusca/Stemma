@@ -54,7 +54,7 @@ const markerClassByKey: Record<string, string> = {
   score: "border-chart-1",
   previous: "border-chart-2 border-dashed",
   target: "border-chart-4 border-dotted",
-  volume: "border-chart-3"
+  volume: "h-2.5 w-1.5 rounded-[1px] border-0 bg-chart-3/35"
 };
 
 export function ChartLegendControls<TKey extends string>({
@@ -76,6 +76,7 @@ export function ChartLegendControls<TKey extends string>({
       {series.map((item) => {
         const pressed = visible.has(item.key);
         const isLastVisible = pressed && visible.size === 1;
+        const isVolume = item.key === "volume";
 
         return (
           <Button
@@ -105,7 +106,7 @@ export function ChartLegendControls<TKey extends string>({
             <span
               aria-hidden="true"
               className={cn(
-                "w-4 border-t-2",
+                isVolume ? "shrink-0" : "w-4 border-t-2",
                 markerClassByKey[item.key] ?? "border-foreground"
               )}
             />

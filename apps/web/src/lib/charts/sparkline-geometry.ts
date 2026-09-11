@@ -6,9 +6,9 @@ export const SCORE_OVER_TIME_PLOT_PAD_Y = 12;
 
 export type SparklineMappedPoint<T> = T & {
   x: number;
-  y: number;
+  y: number | null;
   xPercent: number;
-  yPercent: number;
+  yPercent: number | null;
 };
 
 export type SparklineHitRegion = {
@@ -20,8 +20,11 @@ export type SparklineHitRegion = {
  * Score-over-time geometry in CSS pixels. Inner padding keeps circular
  * markers and the target line off the clip edge — `preserveAspectRatio="none"`
  * plus points at 0/width was squashing «Цель 90» chrome and clipping dots.
+ *
+ * `value: null` keeps the calendar slot (so a «7 дней» title still spans seven
+ * weekdays) while the path gaps across empty days.
  */
-export function buildSparklineGeometry<T extends { value: number }>(
+export function buildSparklineGeometry<T extends { value: number | null }>(
   points: readonly T[],
   options: {
     width: number;
@@ -35,14 +38,27 @@ export function buildSparklineGeometry<T extends { value: number }>(
   const padY = SCORE_OVER_TIME_PLOT_PAD_Y;
   const innerWidth = Math.max(1, width - padX * 2);
   const innerHeight = Math.max(1, height - padY * 2);
-  const values = points.map((point) => point.value);
-  const min = Math.min(...values, options.target ?? values[0]);
-  const max = Math.max(...values, options.target ?? values[0]);
+  const numericValues = points
+    .map((point) => point.value)
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  const baseline = numericValues[0] ?? options.target ?? 0;
+  const min = Math.min(...(numericValues.length ? numericValues : [baseline]), options.target ?? baseline);
+  const max = Math.max(...(numericValues.length ? numericValues : [baseline]), options.target ?? baseline);
   const range = Math.max(1, max - min);
   const stepX = points.length > 1 ? innerWidth / (points.length - 1) : innerWidth;
 
   const mapped = points.map((point, index): SparklineMappedPoint<T> => {
     const x = points.length > 1 ? padX + index * stepX : padX + innerWidth / 2;
+    if (point.value == null || !Number.isFinite(point.value)) {
+      return {
+        ...point,
+        x,
+        y: null,
+        xPercent: (x / width) * 100,
+        yPercent: null
+      };
+    }
+
     const y = padY + innerHeight - ((point.value - min) / range) * innerHeight;
 
     return {
@@ -74,14 +90,24 @@ export function buildSparklineGeometry<T extends { value: number }>(
   };
 }
 
-export function sparklinePath(points: readonly { x: number; y: number }[]) {
-  if (points.length === 0) {
-    return "";
+/** Polyline with gaps: null `y` starts a new subpath so empty days stay empty. */
+export function sparklinePath(points: readonly { x: number; y: number | null }[]) {
+  const commands: string[] = [];
+  let drawing = false;
+
+  for (const point of points) {
+    if (point.y == null) {
+      drawing = false;
+      continue;
+    }
+
+    commands.push(
+      `${drawing ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+    );
+    drawing = true;
   }
 
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
-    .join(" ");
+  return commands.join(" ");
 }
 
 /** Hit strips tile 0–100% from neighboring midpoints so padding cannot open gaps. */

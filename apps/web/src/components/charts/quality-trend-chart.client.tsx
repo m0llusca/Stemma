@@ -182,6 +182,23 @@ export function QualityTrendChart({
           }
         }}
       >
+        <DeferredChartVisual
+          Visual={QualityTrendVisual}
+          componentProps={{ model, visibleSeries }}
+        />
+        {activePoint && activePosition ? (
+          <span
+            aria-hidden="true"
+            data-slot="quality-selected-marker"
+            data-point-id={activePoint.id}
+            data-marker-series={activeMark?.series}
+            className="pointer-events-none absolute z-40 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary ring-3 ring-primary/45 shadow-sm"
+            style={{
+              left: `${activePosition.left}%`,
+              top: `${activePosition.top}%`
+            }}
+          />
+        ) : null}
         {activePoint ? (
           <ChartTooltipStatus
             id={tooltipId}
@@ -207,23 +224,6 @@ export function QualityTrendChart({
             className="absolute left-3 top-3 max-w-64"
           />
         ) : null}
-        {activePoint && activePosition ? (
-          <span
-            aria-hidden="true"
-            data-slot="quality-selected-marker"
-            data-point-id={activePoint.id}
-            data-marker-series={activeMark?.series}
-            className="pointer-events-none absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary ring-3 ring-primary/45 shadow-sm"
-            style={{
-              left: `${activePosition.left}%`,
-              top: `${activePosition.top}%`
-            }}
-          />
-        ) : null}
-        <DeferredChartVisual
-          Visual={QualityTrendVisual}
-          componentProps={{ model, visibleSeries }}
-        />
       </div>
     </div>
   );

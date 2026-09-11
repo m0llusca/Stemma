@@ -279,8 +279,14 @@ describe("canonical UI theme contract", () => {
     expect(globals).toContain("@keyframes qc-chart-bar-grow-y");
     expect(globals).toContain("@keyframes qc-chart-bar-grow-x");
     expect(globals).toContain("@keyframes qc-chart-line-draw");
+    expect(globals).toContain("@keyframes qc-chart-line-fade");
     expect(globals).toContain("@keyframes qc-chart-mark-in");
+    expect(globals).toContain("@keyframes qc-chart-mark-fade");
     expect(globals).toContain('[data-animation-active="true"] .recharts-curve');
+    expect(globals).toContain("qc-chart-line-fade");
+    expect(globals).not.toMatch(
+      /\[data-animation-active="true"\]\s*\.recharts-curve[\s\S]{0,120}stroke-dasharray:\s*1/
+    );
     expect(globals).toContain('svg[data-animation-active="true"] rect[data-slot="category-bar"]');
     expect(globals).toContain('[data-sonner-toast].cn-toast');
     expect(globals).toContain("var(--motion-ease-spring-toast)");
@@ -319,10 +325,12 @@ describe("canonical UI theme contract", () => {
       resolve(appRoot, "src/components/charts/chart-tooltip-status.tsx"),
       "utf8"
     );
-    expect(tooltipStatusSource).toContain("z-20");
-    expect(globals).toMatch(
-      /@keyframes\s+qc-chart-enter[\s\S]*to\s*\{[\s\S]*transform:\s*none/
-    );
+    expect(tooltipStatusSource).toContain("z-50");
+    const chartEnterKeyframes =
+      globals.match(/@keyframes\s+qc-chart-enter\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(chartEnterKeyframes).toMatch(/to\s*\{\s*opacity:\s*1/);
+    // Opacity-only enter — a lasting transform stacking context hid tooltips.
+    expect(chartEnterKeyframes).not.toMatch(/transform:/);
     expect(packageJson).toMatch(/["']@stemma\/kinetics["']\s*:\s*["']file:/);
     expect(packageJson).not.toMatch(/["']kinetics["']\s*:/);
     expect(packageJson).not.toMatch(/@kinetics\//);

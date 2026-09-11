@@ -131,22 +131,7 @@ export function ScoreDistributionChart({
             setActiveIndex(null);
           }
         }}
-      >
-        {activePoint ? (
-          <ChartTooltipStatus
-            id={tooltipId}
-            label={activePoint.label}
-            detail={activePoint.detail}
-            lines={[
-              {
-                label: "Проверки",
-                value: String(activePoint.values.count ?? 0)
-              }
-            ]}
-            className="absolute left-3 top-3 max-w-64"
-          />
-        ) : null}
-        {activePoint && activePosition ? (
+      >        {activePoint && activePosition ? (
           <span
             aria-hidden="true"
             data-slot="score-distribution-selected-marker"
@@ -162,6 +147,21 @@ export function ScoreDistributionChart({
           Visual={ScoreDistributionVisual}
           componentProps={{ model }}
         />
+
+        {activePoint ? (
+          <ChartTooltipStatus
+            id={tooltipId}
+            label={activePoint.label}
+            detail={activePoint.detail}
+            lines={[
+              {
+                label: "Проверки",
+                value: String(activePoint.values.count ?? 0)
+              }
+            ]}
+            className="absolute left-3 top-3 max-w-64"
+          />
+        ) : null}
       </div>
     </div>
   );

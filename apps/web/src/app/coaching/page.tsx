@@ -20,7 +20,7 @@ import {
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/loading-states";
 import { KnowledgeCategoryFields } from "@/components/coaching/knowledge-category-fields";
-import { SparklineChart, type ChartDatum } from "@/components/reports/report-charts";
+import { SparklineChart, type SparklineDatum } from "@/components/reports/report-charts";
 import { ToastActionForm } from "@/app/coaching/toast-action-form";
 import { CoachingViewNavLink } from "@/app/coaching/coaching-view-nav-link";
 import { CoachingPlanThemeField } from "@/app/coaching/coaching-plan-theme-field";
@@ -612,7 +612,7 @@ async function CoachingPageContent({ searchParams }: CoachingPageProps) {
       };
     });
   // Personal sparkline for agents; team sparkline only with peer_quality:read.
-  const trendPoints: ChartDatum[] = canShowScoreTrend
+  const trendPoints: SparklineDatum[] = canShowScoreTrend
     ? scoreTrend.map((point) => ({
         label: point.label,
         value: point.value,
