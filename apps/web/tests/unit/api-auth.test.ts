@@ -103,6 +103,24 @@ describe("api token auth", () => {
       });
       expect(auth.response.status).toBe(401);
     }
+    expect(mocks.prisma.apiToken.findUnique).not.toHaveBeenCalled();
     expect(mocks.prisma.apiToken.update).not.toHaveBeenCalled();
+  });
+
+  it("does not short-circuit the hardcoded demo token when demo auth is enabled", async () => {
+    vi.stubEnv("QC_DEMO_AUTH", "enabled");
+    mocks.prisma.apiToken.findUnique.mockResolvedValue({
+      id: "demo-token",
+      workspaceId: "workspace-1",
+      scopes: "all",
+      expiresAt: null,
+      lastUsedAt: null
+    });
+    mocks.prisma.apiToken.update.mockResolvedValue({});
+
+    const auth = await requireApiToken(request({ authorization: `Bearer ${demoApiToken}` }), "reviews:read");
+
+    expect(auth).toEqual({ ok: true, workspaceId: "workspace-1", apiTokenId: "demo-token" });
+    expect(mocks.prisma.apiToken.findUnique).toHaveBeenCalled();
   });
 });

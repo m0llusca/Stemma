@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode
 } from "react";
+import { DisclosureOpenProvider } from "@/components/ui/disclosure-morph-chevron";
 import { cn } from "@/lib/utils";
 
 /**
@@ -151,7 +152,7 @@ export function ReviewDisclosure({
           toggle();
         }}
       >
-        {trigger}
+        <DisclosureOpenProvider open={expanded}>{trigger}</DisclosureOpenProvider>
       </summary>
       <div data-slot="review-disclosure-panel" className={contentClassName}>
         {children}

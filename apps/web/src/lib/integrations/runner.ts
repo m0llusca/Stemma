@@ -19,6 +19,7 @@ import {
   integrationRunCursorPayload,
   serializeIntegrationSyncState
 } from "@/lib/integrations/sync-state";
+import { guardedFetch } from "@/lib/net-guard";
 import type { OtrsFamilySource, OtrsFamilyTicketGetResponse } from "@/lib/normalizers/otrs-family";
 import { customConversationSchema, type CustomConversationInput } from "@/lib/validation/custom-api";
 
@@ -93,7 +94,7 @@ function requestedLimit(value: unknown, fallback: number) {
 }
 
 async function fetchJson(url: string, init: RequestInit = {}) {
-  const response = await fetch(url, {
+  const response = await guardedFetch(url, {
     ...init,
     headers: {
       accept: "application/json",

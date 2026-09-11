@@ -300,6 +300,7 @@ function createRealOtrsClient(config: OtrsConnectorConfig, server: OtrsGenericIn
 
 describe("OTRS-family preview/import planning", () => {
   beforeEach(() => {
+    vi.stubEnv("QC_ALLOW_PRIVATE_BASE_URLS", "1");
     vi.clearAllMocks();
   });
 

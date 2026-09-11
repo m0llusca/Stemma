@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Prisma, type UserLifecycleStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auditLog } from "@/lib/audit";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import {
   refreshIdentityPoliciesForUsers,
   resolveIdentityPolicyForUser,
@@ -550,9 +551,15 @@ function scimUserGroupClaims(payload: ScimUserPayload) {
   return Array.isArray(payload.groups) ? payload.groups.map((group) => stringValue(group.value, 240)).filter(Boolean) : [];
 }
 
-function scimPolicyUpdateData(policy: ResolvedIdentityPolicy, context: ScimContext, now: Date, status: UserLifecycleStatus) {
+function scimPolicyUpdateData(
+  policy: ResolvedIdentityPolicy,
+  context: ScimContext,
+  now: Date,
+  status: UserLifecycleStatus,
+  role: ResolvedIdentityPolicy["role"] = policy.role
+) {
   return {
-    role: policy.role,
+    role,
     ...(policy.supportLine ? { supportLine: policy.supportLine } : {}),
     ...(policy.teamName ? { teamName: policy.teamName } : {}),
     sourceOfTruthProviderId: context.providerId,
@@ -875,7 +882,13 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         data: {
           email,
           name,
-          ...scimPolicyUpdateData(policy, context, now, status)
+          ...scimPolicyUpdateData(
+            policy,
+            context,
+            now,
+            status,
+            await roleAfterLastAdminGuard(tx, context.workspaceId, existingIdentity.user.role, policy.role)
+          )
         },
         include: {
           externalIdentities: {
@@ -946,7 +959,13 @@ export async function createScimUser(context: ScimContext, payload: ScimUserPayl
         data: {
           email,
           name,
-          ...scimPolicyUpdateData(policy, context, now, status)
+          ...scimPolicyUpdateData(
+            policy,
+            context,
+            now,
+            status,
+            await roleAfterLastAdminGuard(tx, context.workspaceId, user.role, policy.role)
+          )
         }
       });
     } else {

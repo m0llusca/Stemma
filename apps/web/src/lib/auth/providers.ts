@@ -1,5 +1,6 @@
 import type { IdentityProvider, RoleName } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import { roleAfterLastAdminGuard } from "@/lib/auth/last-admin";
 import { prisma } from "@/lib/db";
 
 export type ExternalRoleClaims = {
@@ -227,6 +228,18 @@ export async function refreshIdentityPoliciesForUsers(
   const now = input.now ?? new Date();
   for (const userId of ids) {
     const policy = await resolveIdentityPolicyForUser(input.workspaceId, input.providerId, userId, {}, client);
+    const current = await client.user.findFirst({
+      where: {
+        id: userId,
+        workspaceId: input.workspaceId
+      },
+      select: {
+        role: true
+      }
+    });
+    const role = current
+      ? await roleAfterLastAdminGuard(client, input.workspaceId, current.role, policy.role)
+      : policy.role;
     await client.user.updateMany({
       where: {
         id: userId,
@@ -240,7 +253,7 @@ export async function refreshIdentityPoliciesForUsers(
           }
         ]
       },
-      data: identityPolicyUpdateData(input.providerId, policy, now)
+      data: identityPolicyUpdateData(input.providerId, { ...policy, role }, now)
     });
   }
 }

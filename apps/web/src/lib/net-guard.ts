@@ -278,3 +278,79 @@ export async function resolvePublicBaseUrl(url: URL): Promise<PublicBaseUrlResol
 export async function assertPublicBaseUrl(url: URL): Promise<void> {
   await resolvePublicBaseUrl(url);
 }
+
+const REDIRECT_HOP_LIMIT_MESSAGE =
+  "Слишком много перенаправлений при запросе к внешнему URL — запрос отклонён для защиты от SSRF.";
+
+export type GuardedFetchInit = RequestInit & {
+  /** Max redirect hops to follow (default 5). Each hop re-runs resolvePublicBaseUrl. */
+  maxRedirects?: number;
+};
+
+/**
+ * fetch() with DNS-pinning SSRF checks on the initial URL and every redirect Location.
+ * Always uses redirect:"manual" so the runtime cannot follow a private hop before we re-assert.
+ */
+export async function guardedFetch(input: string | URL, init: GuardedFetchInit = {}): Promise<Response> {
+  const maxRedirects = init.maxRedirects ?? 5;
+  const { maxRedirects: _maxRedirects, redirect: _redirect, ...rest } = init;
+
+  let current = typeof input === "string" ? new URL(input) : new URL(input.href);
+  let method = rest.method;
+  let body = rest.body;
+  let headers = rest.headers;
+
+  for (let hop = 0; hop <= maxRedirects; hop += 1) {
+    await resolvePublicBaseUrl(current);
+
+    // Pass href string so test doubles and wrappers that match on string URLs keep working.
+    const response = await fetch(current.href, {
+      ...rest,
+      method,
+      body,
+      headers,
+      redirect: "manual"
+    });
+
+    // Incomplete/mocked Responses (no numeric status) are treated as final.
+    const status = response.status;
+    if (typeof status !== "number" || status < 300 || status >= 400) {
+      return response;
+    }
+
+    const location = response.headers?.get?.("location");
+    if (!location) {
+      return response;
+    }
+
+    let next: URL;
+    try {
+      next = new URL(location, current);
+    } catch {
+      throw new Error(PRIVATE_BASE_URL_MESSAGE);
+    }
+
+    if (next.protocol !== "http:" && next.protocol !== "https:") {
+      throw new Error(PRIVATE_BASE_URL_MESSAGE);
+    }
+
+    // Drop body on classic redirect semantics (301/302/303) so we do not replay POST to a new host.
+    if (
+      response.status === 303 ||
+      ((response.status === 301 || response.status === 302) && method && method !== "GET" && method !== "HEAD")
+    ) {
+      method = "GET";
+      body = undefined;
+      if (headers) {
+        const nextHeaders = new Headers(headers);
+        nextHeaders.delete("content-type");
+        nextHeaders.delete("content-length");
+        headers = nextHeaders;
+      }
+    }
+
+    current = next;
+  }
+
+  throw new Error(REDIRECT_HOP_LIMIT_MESSAGE);
+}

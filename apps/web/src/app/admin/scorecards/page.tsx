@@ -1,4 +1,4 @@
-import { ChevronDown, Gauge, History, Plus } from "lucide-react";
+import { Gauge, History, Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachCallout } from "@/components/guidance/coach-callout";
@@ -21,6 +21,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@/components/ui/collapsible";
+import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { PageShell } from "@/components/ui/page-shell";
@@ -415,10 +416,10 @@ async function AdminScorecardsPageContent({ searchParams }: AdminScorecardsPageP
                         </p>
                       </div>
                       <span
-                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-transform group-data-open:rotate-180"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground"
                         aria-hidden="true"
                       >
-                        <ChevronDown className="size-4" />
+                        <DisclosureMorphChevron />
                       </span>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="border-t border-border p-3">

@@ -320,4 +320,23 @@ describe("admin user actions", () => {
     await expect(updateUserAccess(formData)).rejects.toThrow("Нельзя снять роль администратора с собственной учетной записи.");
     expect(mocks.prisma.user.update).not.toHaveBeenCalled();
   });
+
+  it("does not demote the last remaining workspace administrator", async () => {
+    const { updateUserAccess } = await import("@/lib/admin-user-actions");
+    mocks.prisma.user.findFirst.mockResolvedValueOnce({
+      id: "user-2",
+      email: "other-admin@example.com",
+      name: "Другой админ",
+      role: "ADMIN"
+    });
+    mocks.prisma.user.count.mockResolvedValueOnce(1);
+    const formData = new FormData();
+    formData.set("userId", "user-2");
+    formData.set("role", "QA_ANALYST");
+
+    await expect(updateUserAccess(formData)).rejects.toThrow(
+      "Нельзя снять роль администратора с последней учетной записи администратора."
+    );
+    expect(mocks.prisma.user.update).not.toHaveBeenCalled();
+  });
 });

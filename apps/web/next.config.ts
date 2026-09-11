@@ -1,6 +1,37 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+
 import type { NextConfig } from "next";
 
+const appRoot = process.cwd();
+const requireFromWeb = createRequire(path.join(appRoot, "package.json"));
+/** Absolute filesystem path — webpack alias. Turbopack cannot consume this:
+ *  it prefixes `./` and looks for `./workspace/...` inside the app root. */
+const morphiconsReactAbsolute = path.resolve(requireFromWeb.resolve("morphicons/react"));
+if (!path.isAbsolute(morphiconsReactAbsolute)) {
+  throw new Error("morphicons/react must resolve to an absolute filesystem path");
+}
+/** Project-relative (`./node_modules/morphicons/dist/react.js`) for Turbopack. */
+const morphiconsReactFromApp = `./${path
+  .relative(appRoot, morphiconsReactAbsolute)
+  .split(path.sep)
+  .join("/")}`;
+
 const nextConfig: NextConfig = {
+  transpilePackages: ["morphicons"],
+  turbopack: {
+    resolveAlias: {
+      "morphicons/react": morphiconsReactFromApp
+    }
+  },
+  webpack: (config) => {
+    config.resolve = config.resolve ?? {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "morphicons/react": morphiconsReactAbsolute
+    };
+    return config;
+  },
   experimental: {
     authInterrupts: true
   },

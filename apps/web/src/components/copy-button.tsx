@@ -3,6 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { MorphIcon } from "@/components/ui/morph-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +76,7 @@ export function CopyButton({
       onClick={copyValue}
       className={cn("gap-1.5", className)}
     >
-      {copied ? <Check data-icon="inline-start" aria-hidden="true" /> : <Copy data-icon="inline-start" aria-hidden="true" />}
+      <MorphIcon icon={copied ? Check : Copy} data-icon="inline-start" />
       {copied ? copiedLabel : label}
     </Button>
   );

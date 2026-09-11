@@ -1,7 +1,7 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
 
+import { DisclosureMorphChevron } from "@/components/ui/disclosure-morph-chevron"
 import { cn } from "@/lib/utils"
-import { ChevronDownIcon } from "lucide-react"
 
 function Accordion({ className, ...props }: AccordionPrimitive.Root.Props) {
   return (
@@ -41,9 +41,9 @@ function AccordionTrigger({
         {...props}
       >
         {children}
-        <ChevronDownIcon
+        <DisclosureMorphChevron
           data-slot="accordion-trigger-icon"
-          className="pointer-events-none shrink-0 transition-transform duration-[var(--motion-duration-spring)] ease-[var(--motion-ease-spring-overshoot)] group-aria-expanded/accordion-trigger:rotate-180"
+          className="pointer-events-none text-muted-foreground"
         />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>

@@ -4,6 +4,7 @@ import type {
   DataSourceAdapterLoadInput,
   DataSourceAdapterLoadResult
 } from "@/lib/integrations/data-source-adapters/types";
+import { guardedFetch } from "@/lib/net-guard";
 
 const defaultTimeoutMs = 15_000;
 const defaultMaxResponseBytes = 2_000_000;
@@ -152,7 +153,7 @@ async function fetchTextWithLimits(url: string, init: RequestInit, timeoutMs: nu
 
   try {
     timer = setTimeout(() => controller.abort(), timeoutMs);
-    const response = await fetch(url, { ...init, signal: controller.signal });
+    const response = await guardedFetch(url, { ...init, signal: controller.signal });
     const text = await responseTextWithLimit(response, maxResponseBytes, () => {
       abortedForSize = true;
       controller.abort();

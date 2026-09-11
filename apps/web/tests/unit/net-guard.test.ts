@@ -17,7 +17,7 @@ vi.mock("node:dns/promises", () => ({
   resolve6: dnsMocks.resolve6
 }));
 
-import { assertPublicBaseUrl, resolvePublicBaseUrl } from "@/lib/net-guard";
+import { assertPublicBaseUrl, guardedFetch, resolvePublicBaseUrl } from "@/lib/net-guard";
 
 const SSRF_MESSAGE = /приватный адрес сети|QC_ALLOW_PRIVATE_BASE_URLS/;
 
@@ -143,5 +143,76 @@ describe("assertPublicBaseUrl", () => {
     dnsMocks.resolve6.mockRejectedValueOnce(Object.assign(new Error("ENOTFOUND"), { code: "ENOTFOUND" }));
 
     await expect(assertPublicBaseUrl(new URL("https://missing.example.com/"))).rejects.toThrow(/Не удалось разрешить DNS-имя/);
+  });
+});
+
+describe("guardedFetch", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    dnsMocks.lookup.mockReset();
+    dnsMocks.resolve4.mockReset();
+    dnsMocks.resolve6.mockReset();
+    dnsMocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the response on the happy path without following redirects", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+
+    const response = await guardedFetch("https://cdn.example.com/api");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://cdn.example.com/api",
+      expect.objectContaining({ redirect: "manual" })
+    );
+  });
+
+  it("blocks a redirect hop that points at a private address", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(null, {
+        status: 302,
+        headers: { location: "http://169.254.169.254/latest/meta-data" }
+      })
+    );
+
+    await expect(guardedFetch("https://cdn.example.com/start")).rejects.toThrow(SSRF_MESSAGE);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-asserts each redirect hop before following", async () => {
+    dnsMocks.lookup
+      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "1.1.1.1", family: 4 }]);
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://next.example.com/final" }
+        })
+      )
+      .mockResolvedValueOnce(new Response("done", { status: 200 }));
+
+    const response = await guardedFetch("https://cdn.example.com/start");
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe("done");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(dnsMocks.lookup).toHaveBeenCalledWith("cdn.example.com", { all: true, verbatim: true });
+    expect(dnsMocks.lookup).toHaveBeenCalledWith("next.example.com", { all: true, verbatim: true });
   });
 });
