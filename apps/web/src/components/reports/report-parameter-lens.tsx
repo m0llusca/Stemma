@@ -327,7 +327,8 @@ export function ReportParameterLens({
       role="region"
       aria-label="Параметры отчёта"
       data-hydrated={hydrated ? "true" : "false"}
-      className="flex h-14 w-full max-w-full min-w-0 flex-row items-center gap-2 rounded-xl border bg-background px-3 py-1 min-[641px]:max-h-14 min-[641px]:flex-row min-[641px]:items-center [@media(min-width:1024px)_and_(min-height:700px)]:sticky [@media(min-width:1024px)_and_(min-height:700px)]:top-(--app-topbar-height) [@media(min-width:1024px)_and_(min-height:700px)]:z-10"
+      // Surface lift only — filter navigation / FormData behavior unchanged.
+      className="flex h-14 w-full max-w-full min-w-0 flex-row items-center gap-2 rounded-xl border border-border bg-card px-3 py-1 shadow-xs min-[641px]:max-h-14 min-[641px]:flex-row min-[641px]:items-center [@media(min-width:1024px)_and_(min-height:700px)]:sticky [@media(min-width:1024px)_and_(min-height:700px)]:top-(--app-topbar-height) [@media(min-width:1024px)_and_(min-height:700px)]:z-10"
     >
       <form
         action="/reports"

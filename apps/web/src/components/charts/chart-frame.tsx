@@ -77,14 +77,15 @@ export function ChartFrame({
   const hasLowSample = sample.minimum != null && sample.size < sample.minimum;
 
   return (
-    <Card aria-labelledby={headingId} size="sm" className="h-full gap-0 py-0">
+    // Drop h-full so stacked overview cards size to content (not stretch into voids).
+    <Card aria-labelledby={headingId} size="sm" className="gap-0 py-0">
       <CardHeader className="border-b py-4">
         <CardTitle id={headingId}>{model.title}</CardTitle>
         {model.description ? <CardDescription>{model.description}</CardDescription> : null}
         <CardAction>
           <ChartViewLinks currentHref={currentHref} view={view} labelledBy={headingId} />
         </CardAction>
-        <div className="col-span-full flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <div className="col-span-full mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-xs text-muted-foreground">
           <span>Период: {periodLabel}</span>
           <span>Единицы: {units}</span>
           <span>Выборка: {sampleLabel}</span>

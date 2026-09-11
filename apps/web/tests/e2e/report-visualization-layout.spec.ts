@@ -408,25 +408,37 @@ for (const width of [320, 390, 768, 1280] as const) {
 }
 
 for (const width of [768, 1280] as const) {
-  test(`overview main pairs ${width < 1280 ? "stack" : "use 2:1 tracks"} at ${width}px`, async ({
+  test(`overview main columns ${width < 1280 ? "stack" : "use 2:1 tracks"} at ${width}px`, async ({
     page
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(canonicalOverviewHref);
 
-    for (const name of [
-      "Динамика качества и факторы",
-      "Распределение оценок и связь с CSAT"
-    ]) {
-      const region = page.getByRole("region", { name });
-      const first = await rect(region.locator(":scope > *").nth(0));
-      const second = await rect(region.locator(":scope > *").nth(1));
-      if (width < 1280) {
-        expect(second.y).toBeGreaterThan(first.y + first.height - 1);
-      } else {
-        expect(second.y).toBeCloseTo(first.y, 0);
-        await expectExactColumnRatio(region, 2);
-      }
+    const region = page.getByRole("region", {
+      name: "Динамика качества, распределение и факторы"
+    });
+    const first = await rect(region.locator(":scope > *").nth(0));
+    const second = await rect(region.locator(":scope > *").nth(1));
+    if (width < 1280) {
+      expect(second.y).toBeGreaterThan(first.y + first.height - 1);
+    } else {
+      expect(second.y).toBeCloseTo(first.y, 0);
+      await expectExactColumnRatio(region, 2);
+
+      // Left column must stack trend → distribution without a void sized to
+      // the taller right column (regression for the overview empty-gap bug).
+      const leftColumn = region.locator(":scope > *").nth(0);
+      const trend = leftColumn.locator(":scope > *").nth(0);
+      const distribution = leftColumn.locator(":scope > *").nth(1);
+      const trendBox = await rect(trend);
+      const distributionBox = await rect(distribution);
+      const columnGap = await leftColumn.evaluate((node) =>
+        Number.parseFloat(getComputedStyle(node).rowGap || getComputedStyle(node).gap)
+      );
+      expect(distributionBox.y).toBeCloseTo(
+        trendBox.y + trendBox.height + columnGap,
+        0
+      );
     }
   });
 }
