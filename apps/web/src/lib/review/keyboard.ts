@@ -167,18 +167,18 @@ export function reduceReviewKey(
 }
 
 /**
- * Map the digit keys to a stable score token. 1 → pass, 2 → partial, 3 → fail.
- * Any other key returns null. The wiring translates the token to the concrete
- * radio input for the focused criterion (pass→3/true, partial→2, fail→1/false).
+ * Map digit keys to score tokens so the key matches the visible radio label:
+ * 3 → pass (3 · стандарт), 2 → partial, 1 → fail (1 · …).
+ * Wiring still translates pass→3/true, partial→2, fail→1/false.
  */
 export function scoreKeyToOption(key: string): ScoreOption | null {
   switch (key) {
     case "1":
-      return "pass";
+      return "fail";
     case "2":
       return "partial";
     case "3":
-      return "fail";
+      return "pass";
     default:
       return null;
   }

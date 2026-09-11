@@ -141,6 +141,8 @@ function AppNavShellChrome({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
+  const showWorkPulse = pulseItems.length > 0 || canTakeNextCase;
+
   const [areaMenuOpen, setAreaMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeBranding, setActiveBranding] = useState<WorkspaceBranding>(branding);
@@ -358,7 +360,9 @@ function AppNavShellChrome({
           <Kbd className="ml-auto hidden xl:inline-flex">⌘K</Kbd>
         </Button>
 
-        <Separator orientation="vertical" className="hidden h-6 sm:block" />
+{showWorkPulse ? (
+          <>
+                <Separator orientation="vertical" className="hidden h-6 sm:block" />
 
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-2" aria-label="Рабочий пульс">
           <DropdownMenu>
@@ -451,6 +455,8 @@ function AppNavShellChrome({
         </div>
 
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
+          </>
+        ) : null}
 
         <AccountMenuDisclosure
           triggerAriaLabel={

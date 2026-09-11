@@ -140,6 +140,29 @@ describe("ReviewFormShell", () => {
     expect(screen.getByRole("button", { name: "Завершить и взять следующий" })).toBeEnabled();
   });
 
+
+  it("держит Finalize заблокированным, пока критерии в карточке не оценены", () => {
+    renderWithToast(
+      <ReviewFormShell>
+        <input name="summary" required defaultValue="Итог готов" aria-label="Итог проверки" />
+        <div data-criterion-card="">
+          <input type="radio" name="criterion.c1.score" value="3" aria-label="3 стандарт" />
+          <input type="radio" name="criterion.c1.score" value="1" aria-label="1 слабо" />
+        </div>
+      </ReviewFormShell>
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Заполните все критерии");
+    expect(screen.getByRole("button", { name: "Завершить проверку" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Завершить и взять следующий" })).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText("3 стандарт"));
+    fireEvent.change(screen.getByLabelText("3 стандарт"), { target: { checked: true } });
+
+    expect(screen.queryByText("Заполните все критерии")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Завершить проверку" })).toBeEnabled();
+  });
+
   it("показывает тост при успешном сохранении без редиректа", async () => {
     vi.mocked(submitReviewState).mockResolvedValue({
       ok: true,

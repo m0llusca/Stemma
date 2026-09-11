@@ -12,7 +12,7 @@ export function UnauthorizedScreen({ loginHref = "/auth/login" }: { loginHref?: 
         <CardHeader className="items-center text-center">
           <Alert className="border-0 bg-transparent">
             <LogIn />
-            <AlertTitle>Нужно войти</AlertTitle>
+            <AlertTitle role="heading" aria-level={1}>Нужно войти</AlertTitle>
             <AlertDescription>{sessionRequiredMessage}</AlertDescription>
           </Alert>
         </CardHeader>

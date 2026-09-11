@@ -37,6 +37,12 @@ const providerStatusLabels: Record<string, string> = {
   draft: "Черновик"
 };
 
+const providerTypeLabels: Record<string, string> = {
+  MICROSOFT_ENTRA_ID: "Microsoft Entra ID",
+  OIDC: "OIDC",
+  SAML: "SAML"
+};
+
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -111,6 +117,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     ) ?? providers[0] ?? null;
   const selectedProviderIsActive = selectedProvider?.status === "active";
   const authError = resolveLoginFlashMessage(cookieStore.get(loginFlashCookieName)?.value);
+  if (authError) {
+    cookieStore.delete(loginFlashCookieName);
+  }
   const loggedOut = firstParam(params.loggedOut) === "1";
 
   return (
@@ -208,7 +217,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                         </Chip>
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground break-words">
-                        {selectedProvider.workspace.name} · {selectedProvider.type}
+                        {selectedProvider.workspace.name} · {providerTypeLabels[selectedProvider.type] ?? selectedProvider.type}
                       </p>
                     </div>
                     {selectedProviderIsActive ? (

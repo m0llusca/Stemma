@@ -63,10 +63,10 @@ describe("reduceReviewKey", () => {
 });
 
 describe("scoreKeyToOption", () => {
-  it("maps the digit keys to stable score tokens", () => {
-    expect(scoreKeyToOption("1")).toBe("pass");
+  it("maps digit keys to score tokens that match radio labels (3=pass, 1=fail)", () => {
+    expect(scoreKeyToOption("1")).toBe("fail");
     expect(scoreKeyToOption("2")).toBe("partial");
-    expect(scoreKeyToOption("3")).toBe("fail");
+    expect(scoreKeyToOption("3")).toBe("pass");
   });
 
   it("returns null for any other key", () => {
@@ -127,9 +127,9 @@ describe("resolveReviewHotkey (locked contract)", () => {
   it("maps j/k navigation and digit scores when criteria exist", () => {
     expect(resolveReviewHotkey(baseHotkey({ key: "j" }))).toEqual({ type: "navigate", key: "j" });
     expect(resolveReviewHotkey(baseHotkey({ key: "k" }))).toEqual({ type: "navigate", key: "k" });
-    expect(resolveReviewHotkey(baseHotkey({ key: "1" }))).toEqual({ type: "score", option: "pass" });
+    expect(resolveReviewHotkey(baseHotkey({ key: "1" }))).toEqual({ type: "score", option: "fail" });
     expect(resolveReviewHotkey(baseHotkey({ key: "2" }))).toEqual({ type: "score", option: "partial" });
-    expect(resolveReviewHotkey(baseHotkey({ key: "3" }))).toEqual({ type: "score", option: "fail" });
+    expect(resolveReviewHotkey(baseHotkey({ key: "3" }))).toEqual({ type: "score", option: "pass" });
   });
 
   it("maps Enter / Esc / ? / Cmd|Ctrl+Enter", () => {

@@ -24,4 +24,12 @@ describe("UnauthorizedScreen", () => {
     expect(screen.queryByText("Недостаточно прав")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Войти" })).toHaveAttribute("href", "/auth/login");
   });
+
+  it("keeps a deep-link returnTo on the login CTA", () => {
+    render(<UnauthorizedScreen loginHref="/auth/login?returnTo=%2Freviews%2Fabc" />);
+    expect(screen.getByRole("button", { name: "Войти" })).toHaveAttribute(
+      "href",
+      "/auth/login?returnTo=%2Freviews%2Fabc"
+    );
+  });
 });
