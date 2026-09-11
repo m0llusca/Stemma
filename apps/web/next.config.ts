@@ -17,9 +17,15 @@ const morphiconsReactFromApp = `./${path
   .split(path.sep)
   .join("/")}`;
 
+/** Monorepo root so Turbopack can resolve `file:../../packages/kinetics`
+ *  (symlink target lives outside `apps/web`; without this, CSS import panics:
+ *  "leaves the filesystem root"). */
+const monorepoRoot = path.resolve(appRoot, "../..");
+
 const nextConfig: NextConfig = {
   transpilePackages: ["morphicons", "@stemma/kinetics"],
   turbopack: {
+    root: monorepoRoot,
     resolveAlias: {
       "morphicons/react": morphiconsReactFromApp
     }
