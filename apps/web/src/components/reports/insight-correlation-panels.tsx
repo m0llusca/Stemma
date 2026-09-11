@@ -106,11 +106,11 @@ export function ReasonTrendPanel({
             Повторяющиеся причины замечаний и их динамика к прошлому периоду
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2 pt-(--card-spacing)">
+        <CardContent className="flex flex-col gap-3 pt-(--card-spacing)">
           {rows.map((row) => (
             <article
               key={row.category}
-              className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3"
+              className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3.5"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="min-w-0 text-sm font-medium text-foreground">{row.category}</h3>
@@ -209,19 +209,22 @@ export function SentimentCorrelationPanel({
           />
         ) : (
           <>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {rows.map((row) => {
                 const widthPercent = Math.round((row.count / maxCount) * 100);
 
                 return (
-                  <div key={row.key} className="flex flex-col gap-1.5">
+                  <div
+                    key={row.key}
+                    className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/35 p-3"
+                  >
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-sm font-medium text-foreground">{row.label}</span>
                       <span className="text-sm font-semibold tabular-nums text-foreground">
                         {formatAverageScore(row.averageScore)}
                       </span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-2 overflow-hidden rounded-full bg-background ring-1 ring-border/60">
                       <div
                         className={cn(
                           "h-full rounded-full bg-primary/70 transition-[width]",

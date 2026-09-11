@@ -1303,15 +1303,14 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
       ) : null}
 
       {reportView === "overview" ? (
-        // One 2-col grid with stacked columns — not two row-paired grids.
-        // Pairing chart|drivers then distribution|sentiment left a tall right
-        // column and a cavernous empty left cell between the trend chart and
-        // score distribution. Column stacks keep chart → distribution tight.
+        // Stack columns (trend→distribution | drivers→sentiment) instead of
+        // two row-paired grids — avoids the empty left void under the trend
+        // chart when the right column is taller. gap-5 tightens section rhythm.
         <section
           aria-label="Динамика качества, распределение и факторы"
-          className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+          className="grid items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
         >
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-5">
             <PrimaryScorePanel
               finalizedCount={finalizedCount}
               previousCount={previousReviews.length}
@@ -1328,7 +1327,7 @@ async function ReportsPageContent({ searchParams }: ReportsPageProps) {
               periodLabel={formatPeriod(period)}
             />
           </div>
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-5">
             <PeriodMovementPanel
               negativeItems={deteriorationItems}
               positiveItems={improvementItems}

@@ -87,7 +87,7 @@ export function ChartFrame({
         <CardAction>
           <ChartViewLinks currentHref={currentHref} view={view} labelledBy={headingId} />
         </CardAction>
-        <div className="col-span-full flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <div className="col-span-full mt-1 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-xs text-muted-foreground">
           <span>Период: {periodLabel}</span>
           <span>Единицы: {units}</span>
           <span>Выборка: {sampleLabel}</span>

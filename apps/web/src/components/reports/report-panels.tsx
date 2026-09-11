@@ -60,10 +60,10 @@ export type DriverChainItem = {
 };
 
 const focusToneClass: Record<NonNullable<ReportFocusItem["tone"]>, string> = {
-  neutral: "border-border bg-card",
-  ok: "border-emerald-500/20 bg-emerald-500/5",
-  warn: "border-amber-500/25 bg-amber-500/5",
-  danger: "border-destructive/25 bg-destructive/5"
+  neutral: "border-border bg-muted/40",
+  ok: "border-emerald-500/30 bg-emerald-500/8",
+  warn: "border-amber-500/35 bg-amber-500/8",
+  danger: "border-destructive/30 bg-destructive/8"
 };
 
 const processToneClass = {
@@ -145,7 +145,9 @@ export function DetailsIndexPanel({
   return (
     <Card>
       <CardHeader>
-        <CardDescription>Навигация по разрезам</CardDescription>
+        <CardDescription className="text-xs font-semibold uppercase tracking-wider">
+          Навигация по разрезам
+        </CardDescription>
         <CardTitle id={titleId}>Быстрый переход</CardTitle>
         <p className="text-sm text-muted-foreground">
           Таблицы ниже сгруппированы по задачам разбора: критерии, норма, источники, люди и статусы.
@@ -157,7 +159,7 @@ export function DetailsIndexPanel({
             <a
               key={item.href}
               href={item.href}
-              className="flex flex-col gap-0.5 rounded-lg border border-border bg-muted/20 px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {item.label}
@@ -191,7 +193,9 @@ export function ReportFocusPanel({
     <Card>
       <CardHeader className="border-b">
         <div className="min-w-0">
-          <CardDescription>{kicker}</CardDescription>
+          <CardDescription className="text-xs font-semibold uppercase tracking-wider">
+            {kicker}
+          </CardDescription>
           <CardTitle>{title}</CardTitle>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
@@ -211,11 +215,11 @@ export function ReportFocusPanel({
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent className="grid gap-2 pt-(--card-spacing) sm:grid-cols-2 lg:grid-cols-3">
+      <CardContent className="grid gap-3 pt-(--card-spacing) sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const content = (
             <>
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                 {item.label}
               </span>
               <strong className="text-sm font-semibold text-foreground">{item.value}</strong>
@@ -223,9 +227,9 @@ export function ReportFocusPanel({
             </>
           );
           const className = cn(
-            "flex min-w-0 flex-col gap-1 rounded-lg border p-3 transition-colors",
+            "flex min-w-0 flex-col gap-1.5 rounded-lg border p-3.5 transition-colors",
             focusToneClass[item.tone ?? "neutral"],
-            item.href && "hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            item.href && "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           );
 
           return item.href ? (
@@ -305,7 +309,7 @@ export function PeriodMovementPanel({
   const sampleSize = movementItems.reduce((total, item) => total + item.count, 0);
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-5">
       <ChartFrame
         model={driverModel}
         view={view}
@@ -320,27 +324,25 @@ export function PeriodMovementPanel({
       {driverItems.length > 0 ? (
         <Card aria-labelledby="analytics-movement-title">
           <CardHeader className="border-b">
-            <CardDescription>Цепочка драйверов</CardDescription>
+            <CardDescription className="text-xs font-semibold uppercase tracking-wider">
+              Цепочка драйверов
+            </CardDescription>
             <CardTitle id="analytics-movement-title">Где искать причину</CardTitle>
             <p className="text-sm text-muted-foreground">
               Слабейшие срезы и следующее проверяемое действие.
             </p>
           </CardHeader>
           <CardContent className="pt-(--card-spacing)">
-            <section className="flex flex-col gap-2">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted-foreground">Слабейшие срезы и следующее действие</span>
-            </div>
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               {driverItems.map((item) => {
                 const content = (
                   <>
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                       {item.label}
                     </span>
                     <strong className="text-sm font-semibold text-foreground">{item.value}</strong>
-                    <small className="text-xs text-muted-foreground">{item.evidence}</small>
-                    <em className="text-xs not-italic text-primary">{item.action}</em>
+                    <small className="text-xs leading-snug text-muted-foreground">{item.evidence}</small>
+                    <em className="mt-0.5 text-xs font-medium not-italic text-primary">{item.action}</em>
                   </>
                 );
 
@@ -349,21 +351,20 @@ export function PeriodMovementPanel({
                     key={`${item.label}:${item.value}`}
                     href={item.href}
                     {...reportPageLocalLinkProps(item.href)}
-                    className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 p-3.5 transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {content}
                   </Link>
                 ) : (
                   <div
                     key={`${item.label}:${item.value}`}
-                    className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3"
+                    className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 p-3.5"
                   >
                     {content}
                   </div>
                 );
               })}
             </div>
-          </section>
           </CardContent>
         </Card>
       ) : null}
@@ -397,7 +398,9 @@ export function InsightSummary({
     <Card>
       <CardHeader className="border-b has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[1fr_auto]">
         <div className="min-w-0 flex-1">
-          <CardDescription>Сводка периода</CardDescription>
+          <CardDescription className="text-xs font-semibold uppercase tracking-wider">
+            Сводка периода
+          </CardDescription>
           <CardTitle>{insightTitle}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {sourceText} {sampleInsight(finalizedCount, previousCount)}
@@ -419,13 +422,13 @@ export function InsightSummary({
         </CardAction>
       </CardHeader>
       <CardContent
-        className="grid gap-2 pt-(--card-spacing) sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-3 pt-(--card-spacing) sm:grid-cols-2 lg:grid-cols-3"
         aria-label="Где смотреть сейчас"
       >
         {focusItems.map((row) => {
           const content = (
             <>
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                 {row.label}
               </span>
               <strong className="text-sm font-semibold text-foreground">{row.value}</strong>
@@ -438,14 +441,14 @@ export function InsightSummary({
               key={row.label}
               href={row.href}
               {...reportPageLocalLinkProps(row.href)}
-              className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 p-3.5 transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {content}
             </Link>
           ) : (
             <div
               key={row.label}
-              className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3"
+              className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 p-3.5"
             >
               {content}
             </div>
