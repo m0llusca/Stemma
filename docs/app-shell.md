@@ -56,6 +56,8 @@ After a long absence, `WelcomeBackBanner` offers an explicit reset via `welcomeB
 
 Sidebar and topbar counters or alerts should be non-blocking. Load them in isolated async signal components so the shell can render if a count, health probe, or optional widget fails. Signal failures should degrade to neutral copy or be omitted; they should not block the page shell.
 
+`AppNav` follows this for work-pulse badges and the demo role-switch menu: `getShellSnapshot()` paints the chrome first, then `pulseSlot` / `demoMenuSlot` stream behind nested `Suspense`. Do not `await` those queries in `AppNav` before returning the shell — that re-blocks soft section navigation. Unit tests that need a resolved tree use `AppNavForTests`.
+
 ## Loading Boundaries
 
 Authenticated pages should expose a route-level `loading.tsx` when page data can wait. Use `PageSkeleton` from `apps/web/src/components/loading-states.tsx` with the closest variant:

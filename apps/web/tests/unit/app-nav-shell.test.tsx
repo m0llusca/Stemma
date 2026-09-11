@@ -1,8 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppNavPulseChrome } from "@/components/app-nav-pulse-chrome";
 import { AppNavShell } from "@/components/app-nav-shell";
-import { resetAccountMenuExpandedForTests } from "@/components/auth/demo-role-switch";
+import {
+  DemoRoleSwitchMenu,
+  resetAccountMenuExpandedForTests
+} from "@/components/auth/demo-role-switch";
 import { analystMineOverdueHref } from "@/lib/auth/role-home";
 import { buildShellNavigation, visibleTopNavAreas } from "@/lib/shell/navigation";
 
@@ -42,12 +46,12 @@ const baseProps = {
   navigation,
   // AppNav всегда передает роль-фильтрованный список — тест повторяет это.
   areas: visibleTopNavAreas("ADMIN"),
-  pulseItems: [
+  pulseSlot: <AppNavPulseChrome items={[
     { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 4 },
     { href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL", label: "Риск", value: 1, tone: "risk" as const },
     { href: "/coaching", label: "Обучение", value: 0, tone: "neutral" as const }
-  ],
-  user: { name: "Админ", email: "admin@example.com" },
+  ]} />,
+  user: { name: "Админ", email: "admin@example.com", roleLabel: "Администратор" },
   // Explicit gate — production always passes this; default is fail-closed.
   canTakeNextCase: true
 };
@@ -127,15 +131,19 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        pulseItems={[
-          { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 0 },
-          {
-            href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
-            label: "Риск",
-            value: 0,
-            tone: "neutral"
-          }
-        ]}
+        pulseSlot={
+          <AppNavPulseChrome
+            items={[
+              { href: "/reviews?qaStatus=QUEUED", label: "Очередь", value: 0 },
+              {
+                href: "/reviews?status=reviewed&riskLevel=HIGH_OR_CRITICAL",
+                label: "Риск",
+                value: 0,
+                tone: "neutral"
+              }
+            ]}
+          />
+        }
       />
     );
 
@@ -330,7 +338,7 @@ describe("app nav shell", () => {
   });
 
   it("hides pulse chrome when there are no pulse items", () => {
-    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase={false} />);
+    render(<AppNavShell {...baseProps} pulseSlot={null} canTakeNextCase={false} />);
 
     expect(screen.queryByLabelText("Рабочий пульс")).toBeNull();
     expect(screen.queryByRole("button", { name: "Рабочий пульс" })).toBeNull();
@@ -338,7 +346,7 @@ describe("app nav shell", () => {
   });
 
   it("hides empty pulse chrome even when take-next write is allowed (CTA is page/⌘K only)", () => {
-    render(<AppNavShell {...baseProps} pulseItems={[]} canTakeNextCase />);
+    render(<AppNavShell {...baseProps} pulseSlot={null} canTakeNextCase />);
 
     expect(screen.queryByRole("button", { name: "Рабочий пульс" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Взять следующий" })).toBeNull();
@@ -582,7 +590,7 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Администратор",
           users: [
@@ -599,7 +607,7 @@ describe("app nav shell", () => {
               optionLabel: "Оператор · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 
@@ -613,7 +621,8 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        user={{ name: "Иван", email: "ivan@example.com", roleLabel: "Оператор" }}
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Оператор",
           users: [
@@ -630,7 +639,7 @@ describe("app nav shell", () => {
               optionLabel: "Анна QA · Проверяющий · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 
@@ -651,7 +660,8 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        user={{ name: "Иван Петров", email: "ivan@example.com", roleLabel: "Оператор" }}
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Оператор",
           users: [
@@ -668,7 +678,7 @@ describe("app nav shell", () => {
               optionLabel: "Анна QA · Проверяющий · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 
@@ -687,7 +697,7 @@ describe("app nav shell", () => {
     render(
       <AppNavShell
         {...baseProps}
-        demoSwitcher={{
+        demoMenuSlot={<DemoRoleSwitchMenu switcher={{
           currentUserId: "user-1",
           roleLabel: "Администратор",
           users: [
@@ -704,7 +714,7 @@ describe("app nav shell", () => {
               optionLabel: "Анна QA · Проверяющий · Демо"
             }
           ]
-        }}
+        }} />}
       />
     );
 

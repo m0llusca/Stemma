@@ -1,16 +1,31 @@
 import { Suspense } from "react";
 import { AppNavFallback } from "@/components/app-nav-fallback";
+import { AppNavPulseChrome } from "@/components/app-nav-pulse-chrome";
 import { AppNavShell } from "@/components/app-nav-shell";
+import { DemoRoleSwitchMenu } from "@/components/auth/demo-role-switch";
 import { getDemoRoleSwitcher } from "@/lib/auth/demo-switcher";
 import { isAuthEntryRequest } from "@/lib/auth/request-path";
 import { hasPermission } from "@/lib/auth/permissions";
 import { canSeeOpsQueuePulse, roleHomePath } from "@/lib/auth/role-home";
 import { AuthRequiredError } from "@/lib/current-user";
 import { prisma } from "@/lib/db";
+import { roleLabels } from "@/lib/labels";
 import { getShellSnapshot, type ShellSnapshot } from "@/lib/shell/snapshot";
 import { visibleTopNavAreas } from "@/lib/shell/navigation";
 
 export async function AppNav() {
+  return buildAppNav({ resolveSignals: false });
+}
+
+/**
+ * Unit-test helper: awaits pulse/demo so RTL receives a fully resolved tree.
+ * Production `AppNav` streams those as async signals (see docs/app-shell.md).
+ */
+export async function AppNavForTests() {
+  return buildAppNav({ resolveSignals: true });
+}
+
+async function buildAppNav({ resolveSignals }: { resolveSignals: boolean }) {
   // Path first: QC_DEMO_AUTH no-cookie fallback can impersonate a seeded user,
   // so "unauthenticated" is not enough to keep login free of product chrome.
   if (await isAuthEntryRequest()) {
@@ -36,25 +51,69 @@ export async function AppNav() {
     return null;
   }
 
-  const [pulseItems, demoSwitcher] = await Promise.all([
-    getNavPulseItems(snapshot.user),
-    getDemoRoleSwitcher(snapshot.user)
-  ]);
+  const shellProps = {
+    navigation: snapshot.navigation,
+    areas: visibleTopNavAreas(snapshot.user.role, { name: snapshot.user.name }),
+    homeHref: roleHomePath(snapshot.user.role, { name: snapshot.user.name }),
+    canTakeNextCase: hasPermission(snapshot.user.role, "reviews:write"),
+    user: {
+      name: snapshot.user.name,
+      email: snapshot.user.email,
+      roleLabel: roleLabels[snapshot.user.role]
+    },
+    branding: snapshot.branding
+  };
+
+  if (resolveSignals) {
+    const [pulseItems, demoSwitcher] = await Promise.all([
+      getNavPulseItems(snapshot.user),
+      getDemoRoleSwitcher(snapshot.user)
+    ]);
+
+    return (
+      <Suspense fallback={<AppNavFallback />}>
+        <AppNavShell
+          {...shellProps}
+          pulseSlot={<AppNavPulseChrome items={pulseItems} />}
+          demoMenuSlot={
+            demoSwitcher ? <DemoRoleSwitchMenu switcher={demoSwitcher} /> : null
+          }
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<AppNavFallback />}>
       <AppNavShell
-        navigation={snapshot.navigation}
-        areas={visibleTopNavAreas(snapshot.user.role, { name: snapshot.user.name })}
-        homeHref={roleHomePath(snapshot.user.role, { name: snapshot.user.name })}
-        canTakeNextCase={hasPermission(snapshot.user.role, "reviews:write")}
-        pulseItems={pulseItems}
-        user={{ name: snapshot.user.name, email: snapshot.user.email }}
-        demoSwitcher={demoSwitcher}
-        branding={snapshot.branding}
+        {...shellProps}
+        pulseSlot={
+          <Suspense fallback={null}>
+            <AppNavPulseSignal user={snapshot.user} />
+          </Suspense>
+        }
+        demoMenuSlot={
+          <Suspense fallback={null}>
+            <AppNavDemoMenuSignal user={snapshot.user} />
+          </Suspense>
+        }
       />
     </Suspense>
   );
+}
+
+async function AppNavPulseSignal({ user }: { user: ShellSnapshot["user"] }) {
+  const items = await getNavPulseItems(user);
+  return <AppNavPulseChrome items={items} />;
+}
+
+async function AppNavDemoMenuSignal({ user }: { user: ShellSnapshot["user"] }) {
+  const demoSwitcher = await getDemoRoleSwitcher(user);
+  if (!demoSwitcher) {
+    return null;
+  }
+
+  return <DemoRoleSwitchMenu switcher={demoSwitcher} />;
 }
 
 type PulseItem = {
@@ -69,7 +128,7 @@ type PulseItem = {
  * прав, достижимая через SSO-маппинг) видит счётчики и упирается в «Недостаточно
  * прав» по клику. Скрытые счётчики не запрашиваем: если права нет — запроса нет.
  */
-async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[]> {
+export async function getNavPulseItems(user: ShellSnapshot["user"]): Promise<PulseItem[]> {
   // Очередь/Риск are ops-queue chrome. reviews:read is not enough — SUPPORT_AGENT
   // and EXEC both hold it, but their JTBD is self-review and risk narrative.
   const canSeeOpsPulse = canSeeOpsQueuePulse(user.role);

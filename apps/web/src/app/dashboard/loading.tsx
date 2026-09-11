@@ -1,7 +1,10 @@
 import { PageSkeleton } from "@/components/loading-states";
-import { resolveDashboardSkeletonVariant } from "@/lib/dashboard/page-skeleton-variant";
 
-export default async function DashboardLoading() {
-  const variant = await resolveDashboardSkeletonVariant();
-  return <PageSkeleton variant={variant} label="Загрузка дашборда" />;
+/**
+ * Route-level loading must paint instantly on soft nav. Role-aware shape still
+ * comes from the page Suspense fallback (`dashboardSkeletonVariantForRole`).
+ * Awaiting the session here re-blocked every dashboard transition.
+ */
+export default function DashboardLoading() {
+  return <PageSkeleton variant="dashboard" label="Загрузка дашборда" />;
 }
